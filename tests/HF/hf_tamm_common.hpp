@@ -384,6 +384,9 @@ void compute_hcore_guess(const int& ndocc,
 
 template<typename TensorType>
 std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec, 
+#ifdef SCALAPACK
+      CXXBLACS::BlacsGrid* blacs_grid,
+#endif
       const int& iter, const int& ndocc, const Matrix& X, Matrix& F, 
       Matrix& C, Matrix& C_occ, Matrix& D,  Tensor<TensorType>& S1,
       Tensor<TensorType>& F1,Tensor<TensorType>& H1,Tensor<TensorType>& F1tmp1, 
@@ -479,67 +482,68 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
         #ifdef SCALAPACK
 
-                // Allocate space for C_ortho
-                Matrix C_ortho( F.rows(), F.cols() );
-                
-                { // Scope temp data
+        // Allocate space for C_ortho
+        Matrix C_ortho( F.rows(), F.cols() );
+        
+        if( blacs_grid ){ // Scope temp data
 
-                Matrix F_ortho = X.transpose() * F * X;
-                auto [MLoc, NLoc] = (*blacs_grid).getLocalDims( N, N );
+        Matrix F_ortho = X.transpose() * F * X;
 
+        auto [MLoc, NLoc] = blacs_grid->getLocalDims( N, N );
+        std::vector< double > F_ortho_loc( MLoc*NLoc );
+        std::vector< double > C_ortho_loc( MLoc*NLoc );
+        std::vector< double > F_eig( F.rows() );
 
-                std::vector< double > F_ortho_loc( MLoc*NLoc );
-                std::vector< double > C_ortho_loc( MLoc*NLoc );
-                std::vector< double > F_eig( F.rows() );
+        auto DescF = blacs_grid->descInit( N, N, 0, 0, MLoc );
 
-                auto DescF = (*blacs_grid).descInit( N, N, 0, 0, MLoc );
+        // Scatter copy of F_ortho from root rank to all ranks
+        // FIXME: should just grab local data from replicated 
+        //   matrix
+        blacs_grid->Scatter( N, N, F_ortho.data(), N, 
+                            F_ortho_loc.data(), MLoc,
+                            0, 0 );
 
-                // Scatter copy of F_ortho from root rank to all ranks
-                // FIXME: should just grab local data from replicated 
-                //   matrix
-                (*blacs_grid).Scatter( N, N, F_ortho.data(), N, 
-                                    F_ortho_loc.data(), MLoc,
-                                    0, 0 );
+        // Diagonalize
+        CB_INT LWORK = -1;
+        std::vector<TensorType> WORK(5);
+        auto scalapack_diag = [&]() {
+          return
+          CXXBLACS::PSYEV( 'V', 'U', N, 
+                          F_ortho_loc.data(), 1, 1, DescF,
+                          F_eig.data(),
+                          C_ortho_loc.data(), 1, 1, DescF,
+                          WORK.data(), LWORK );
+        };
 
-                // Diagonalize
-                CB_INT LWORK = -1;
-                std::vector<TensorType> WORK(5);
-                auto scalapack_diag = [&]() {
-                  return
-                  CXXBLACS::PSYEV( 'V', 'U', N, 
-                                  F_ortho_loc.data(), 1, 1, DescF,
-                                  F_eig.data(),
-                                  C_ortho_loc.data(), 1, 1, DescF,
-                                  WORK.data(), LWORK );
-                };
+        // Get LWORK
+        scalapack_diag();
+        LWORK = WORK[0];
+        WORK.resize(LWORK);
 
-                // Get LWORK
-                scalapack_diag();
-                LWORK = WORK[0];
-                WORK.resize(LWORK);
-
-                // Perform diagonalization
-                //auto info = 
-                scalapack_diag();
-
-
-                // Gather the eigenvectors to root process and replicate
-                (*blacs_grid).Gather( N, N, C_ortho.data(), N, 
-                                  C_ortho_loc.data(), MLoc,
-                                  0,0 );
-
-                MPI_Bcast( C_ortho.data(), C_ortho.size(), MPI_DOUBLE,
-                          0, ec.pg().comm() );
-                          
-
-                C_ortho.transposeInPlace(); // Col -> Row Major
-                
-
-                } // ScaLAPACK Scope
+        // Perform diagonalization
+        //auto info = 
+        scalapack_diag();
 
 
-                // Backtransform C
-                C = X * C_ortho;
+        // Gather the eigenvectors to root process and replicate
+        blacs_grid->Gather( N, N, C_ortho.data(), N, 
+                          C_ortho_loc.data(), MLoc,
+                          0,0 );
+
+        } // ScaLAPACK Scope
+
+
+        MPI_Bcast( C_ortho.data(), C_ortho.size(), MPI_DOUBLE,
+                  0, ec.pg().comm() );
+                  
+
+//      C_ortho.transposeInPlace(); // Col -> Row Major
+        
+
+
+
+        // Backtransform C
+        C = X * C_ortho.transpose();
 
         #elif defined(EIGEN_DIAG)
 

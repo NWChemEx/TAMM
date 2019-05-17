@@ -9,6 +9,7 @@ COMMON {
     basis sto-3g
     maxiter 50
     geometry units bohr
+    //dfbasis sto-3g
     //debug true
 }
 
@@ -22,11 +23,13 @@ SCF
     conve 1e-6
     convd 1e-5
     diis_hist 10
+    force_tilesize false
     tilesize 30
     //debug true
     //restart true
     //scalapack_nb 1
-    //scalapack_nranks 1
+    //scalapack_np_row 0
+    //scalapack_np_col 0
 }
 
 CD {

@@ -193,7 +193,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         scalapack_comm == MPI_COMM_NULL ? nullptr :
         std::make_unique<CXXBLACS::BlacsGrid>( scalapack_comm, MB, MB, NPR, NPC );
 
-      if(blacs_grid) blacs_grid->printCoord( std::cout );
+      if(debug and blacs_grid) blacs_grid->printCoord( std::cout );
     #endif
 
     /*** =========================== ***/

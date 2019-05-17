@@ -101,7 +101,6 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     bool do_density_fitting = false;
     if(!dfbasisname.empty()) do_density_fitting = true;
 
-    BasisSet dfbs;
     if (do_density_fitting) {
       dfbs = BasisSet(dfbasisname, atoms);
       if (rank==0) cout << "density-fitting basis set rank = " << dfbs.nbf() << endl;
@@ -127,11 +126,11 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     tamm::Tile tile_size = scf_options.AO_tilesize; //TODO
     IndexSpace AO{range(0, N)};
-    auto [shell_tile_map, AO_tiles, AO_opttiles] = compute_AO_tiles(exc, shells);
+    std::tie(shell_tile_map, AO_tiles, AO_opttiles) = compute_AO_tiles(exc, shells);
     tAO = {AO, AO_opttiles};
     tAOt = {AO, AO_tiles};
-    auto [mu, nu, ku] = tAO.labels<3>("all");
-    auto [mup, nup, kup] = tAOt.labels<3>("all");
+    std::tie(mu, nu, ku) = tAO.labels<3>("all");
+    std::tie(mup, nup, kup) = tAOt.labels<3>("all");
 
     auto hf_t2 = std::chrono::high_resolution_clock::now();
 
@@ -221,7 +220,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     Matrix D;
     // Matrix C;
-    Matrix C_occ;
+    // Matrix C_occ;
     // Matrix F;
 
   //     Matrix C_down; //TODO: all are array of 2 vectors
@@ -310,17 +309,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     //DF basis
     IndexSpace dfCocc{range(0,ndocc)}; 
-    TiledIndexSpace tdfCocc{dfCocc,tile_size};
-    auto [dCocc_til] = tdfCocc.labels<1>("all");
+    tdfCocc = {dfCocc,tile_size};
+    std::tie(dCocc_til) = tdfCocc.labels<1>("all");
 
-    decltype(nao) ndf;
-    IndexSpace dfAO; 
-    std::vector<Tile> dfAO_tiles;
-    std::vector<Tile> dfAO_opttiles;
-    std::vector<size_t> df_shell_tile_map;
-    TiledIndexSpace tdfAO, tdfAOt;
-    TiledIndexLabel d_mu,d_nu,d_ku;
-    TiledIndexLabel d_mup, d_nup, d_kup;
 
     if(do_density_fitting){
 
@@ -336,9 +327,6 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       std::tie(d_mup, d_nup, d_kup) = tdfAOt.labels<3>("all");
     }
 
-    bool is_3c_init = false;
-    Tensor<TensorType> xyK_tamm; //n,n,ndf
-    Tensor<TensorType> C_occ_tamm; //n,nocc
     if(do_density_fitting) {
       xyK_tamm = Tensor<TensorType>{tAO, tAO, tdfAO}; //n,n,ndf
       C_occ_tamm = Tensor<TensorType>{tAO,tdfCocc}; //n,nocc
@@ -374,8 +362,8 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         // build a new Fock matrix
         // F           = H;
 
-        compute_2bf(ec, obs, do_schwarz_screen, shell2bf, SchwarzK, 
-                    G, D, F1tmp, F1tmp1, max_nprim4);
+        compute_2bf(ec, obs, do_schwarz_screen, shell2bf, SchwarzK, G, D,
+                    F1tmp, F1tmp1, max_nprim4,shells,do_density_fitting);
 
         std::tie(ehf,rmsd) = scf_iter_body<TensorType>(ec, 
 #ifdef SCALAPACK

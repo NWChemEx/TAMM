@@ -228,7 +228,7 @@ void fill_tensor(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
         const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
+        // tensor.get(blockid, dbuf);
         func(blockid,dbuf);
         tensor.put(blockid, dbuf);
     };

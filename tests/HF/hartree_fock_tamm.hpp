@@ -164,11 +164,13 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     #ifdef SCALAPACK
 
+      auto blacs_setup_st = std::chrono::high_resolution_clock::now();
       // Sanity checks
       int scalapack_nranks = 
         scf_options.scalapack_np_row *
         scf_options.scalapack_np_col;
 
+      // XXX: This should be for hf_comm
       int world_size;
       MPI_Comm_size( ec.pg().comm(), &world_size );
       assert( world_size >= scalapack_nranks );
@@ -192,6 +194,12 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       std::unique_ptr<CXXBLACS::BlacsGrid> blacs_grid = 
         scalapack_comm == MPI_COMM_NULL ? nullptr :
         std::make_unique<CXXBLACS::BlacsGrid>( scalapack_comm, MB, MB, NPR, NPC );
+
+      auto blacs_setup_en = std::chrono::high_resolution_clock::now();
+
+      std::chrono::duration<double> blacs_time = blacs_setup_en - blacs_setup_st;
+      
+      if(rank == 0) std::cout << "\nTime for BLACS setup: " << blacs_time.count() << " secs\n";
 
       if(debug and blacs_grid) blacs_grid->printCoord( std::cout );
     #endif
@@ -469,6 +477,15 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     }
 
     exc.pg().barrier();
+
+#ifdef SCALAPACK
+
+    // Free up created comms / groups
+    MPI_Comm_free( &scalapack_comm );
+    MPI_Group_free( &scalapack_group );
+    MPI_Group_free( &world_group );
+
+#endif
 
     //F, C are not deallocated.
     return std::make_tuple(ndocc, nao, ehf + enuc, shells, shell_tile_map, C_tamm, F_tamm, tAO, tAOt);

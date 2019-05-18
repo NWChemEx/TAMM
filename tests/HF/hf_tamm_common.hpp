@@ -504,26 +504,15 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
                             0, 0 );
 
         // Diagonalize
-        CB_INT LWORK = -1;
-        std::vector<TensorType> WORK(5);
-        auto scalapack_diag = [&]() {
-          return
-          CXXBLACS::PSYEV( 'V', 'U', N, 
-                          F_ortho_loc.data(), 1, 1, DescF,
-                          F_eig.data(),
-                          C_ortho_loc.data(), 1, 1, DescF,
-                          WORK.data(), LWORK );
-        };
+        auto PSYEV_INFO = CXXBLACS::PSYEV( 'V', 'U', N, 
+                        F_ortho_loc.data(), 1, 1, DescF,
+                        F_eig.data(),
+                        C_ortho_loc.data(), 1, 1, DescF);
 
-        // Get LWORK
-        scalapack_diag();
-        LWORK = WORK[0];
-        WORK.resize(LWORK);
-
-        // Perform diagonalization
-        //auto info = 
-        scalapack_diag();
-
+        if( PSYEV_INFO ) {
+          std::runtime_error err("PSYEV Failed");
+          throw err;
+        }
 
         // Gather the eigenvectors to root process and replicate
         blacs_grid->Gather( N, N, C_ortho.data(), N, 

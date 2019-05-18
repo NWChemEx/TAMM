@@ -100,7 +100,9 @@ public:
      *
      * @returns a size_t for the number of nodes of the tensor
      */
-    TensorRank num_modes() const { return num_modes_; };
+    TensorRank num_modes() const { return num_modes_; }
+
+    ExecutionContext& execution_context() const { return *ec_; }
 
     auto tindices() const { return block_indices_; }
 

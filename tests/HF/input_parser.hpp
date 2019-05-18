@@ -74,7 +74,8 @@ class SCFOptions: public Options {
       AO_tilesize = 30;
       restart = false;
       scalapack_nb = 1;
-      scalapack_nranks = 1;
+      scalapack_np_row = 0;
+      scalapack_np_col = 0;
       force_tilesize = false;
     }
 
@@ -87,7 +88,8 @@ class SCFOptions: public Options {
   bool restart; //Read movecs from disk
   bool force_tilesize;
   int scalapack_nb;
-  int scalapack_nranks;  
+  int scalapack_np_row;
+  int scalapack_np_col;
 
     void print() {
       std::cout << std::defaultfloat;
@@ -100,7 +102,8 @@ class SCFOptions: public Options {
       cout << " diis_hist = " << diis_hist << endl;
       cout << " AO_tilesize = " << AO_tilesize << endl;     
       if(scalapack_nb>1) cout << " scalapack_nb = " << scalapack_nb << endl;
-      if(scalapack_nranks>1) cout << " scalapack_nranks = " << scalapack_nranks << endl;
+      if(scalapack_np_row>0) cout << " scalapack_np_row = " << scalapack_np_row << endl;
+      if(scalapack_np_col>0) cout << " scalapack_np_col = " << scalapack_np_col << endl;
       print_bool(" restart", restart);
       print_bool(" debug", debug); 
       cout << "}\n";
@@ -426,8 +429,10 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             scf_options.debug = to_bool(read_option(line));         
           else if(is_in_line("scalapack_nb",line)) 
             scf_options.scalapack_nb = std::stoi(read_option(line));   
-          else if(is_in_line("scalapack_nranks",line)) 
-            scf_options.scalapack_nranks = std::stoi(read_option(line));                                                             
+          else if(is_in_line("scalapack_np_row",line)) 
+            scf_options.scalapack_np_row = std::stoi(read_option(line));                                                             
+          else if(is_in_line("scalapack_np_col",line)) 
+            scf_options.scalapack_np_col = std::stoi(read_option(line));                                                             
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line,"SCF");
           

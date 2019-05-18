@@ -32,7 +32,7 @@
   #define CXXBLACS_LAPACK_Complex16 TAMM_LAPACK_COMPLEX16
   #define CXXBLACS_LAPACK_Complex8 TAMM_LAPACK_COMPLEX8
   #include <cxxblacs.hpp>
-  CXXBLACS::BlacsGrid *blacs_grid;
+//std::unique_ptr<CXXBLACS::BlacsGrid> blacs_grid;
 #endif
 #undef I 
 
@@ -61,9 +61,37 @@ using shellpair_data_t = std::vector<std::vector<std::shared_ptr<libint2::ShellP
 shellpair_data_t obs_shellpair_data;  // shellpair data for OBS
 shellpair_data_t dfbs_shellpair_data;  // shellpair data for DFBS
 shellpair_data_t minbs_shellpair_data;  // shellpair data for minBS
-tamm::TiledIndexSpace tAO, tAOt;
-SCFOptions scf_options;
+
 int idiis  = 0;
+SCFOptions scf_options;
+
+Matrix C_occ;
+
+//AO
+tamm::TiledIndexSpace tAO, tAOt;
+std::vector<tamm::Tile> AO_tiles;
+std::vector<tamm::Tile> AO_opttiles;
+std::vector<size_t> shell_tile_map;
+tamm::TiledIndexLabel mu, nu, ku;
+tamm::TiledIndexLabel mup, nup, kup;
+
+//DF
+size_t ndf;
+bool is_3c_init = false;
+libint2::BasisSet dfbs;
+tamm::IndexSpace dfAO; 
+std::vector<Tile> dfAO_tiles;
+std::vector<Tile> dfAO_opttiles;
+std::vector<size_t> df_shell_tile_map;
+tamm::TiledIndexSpace tdfAO, tdfAOt;
+tamm::TiledIndexLabel d_mu,d_nu,d_ku;
+tamm::TiledIndexLabel d_mup, d_nup, d_kup;
+tamm::TiledIndexSpace tdfCocc;
+tamm::TiledIndexLabel dCocc_til;
+
+tamm::Tensor<TensorType> xyK_tamm; //n,n,ndf
+tamm::Tensor<TensorType> C_occ_tamm; //n,nocc
+
 
 //DENSITY FITTING
 struct DFFockEngine {

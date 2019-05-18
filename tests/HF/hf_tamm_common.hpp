@@ -630,7 +630,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
       const bool do_schwarz_screen, const std::vector<size_t>& shell2bf,
       const Matrix& SchwarzK, Matrix& G, const Matrix& D, 
       Tensor<TensorType>& F1tmp,Tensor<TensorType>& F1tmp1, 
-      const size_t& max_nprim4,
+      const size_t& max_nprim4, libint2::BasisSet& shells,
       const bool do_density_fitting=false){
 
       using libint2::Operator;
@@ -826,7 +826,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
     }
 
     else {
-      #if 0
+      #if 1
         // const auto n = obs.nbf();
         // const auto ndf = dfbs.nbf();
 
@@ -852,7 +852,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
           const auto& results = engine.results();
 
           Tensor<TensorType> Zxy_tamm{tdfAO, tAO, tAO}; //ndf,n,n
-          Tensor<TensorType>::allocate(ec, Zxy_tamm);
+          Tensor<TensorType>::allocate(&ec, Zxy_tamm);
 
           #if 1
             //TODO: Screening?
@@ -921,7 +921,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
             };
 
             do_t1 = std::chrono::high_resolution_clock::now();
-            block_for(*ec, Zxy_tamm(), compute_2body_fock_dfC_lambda);
+            block_for(ec, Zxy_tamm(), compute_2body_fock_dfC_lambda);
 
               do_t2 = std::chrono::high_resolution_clock::now();
               do_time =
@@ -930,7 +930,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
           #endif  
         
           Tensor<TensorType> K_tamm{tdfAO, tdfAO}; //ndf,ndf
-          Tensor<TensorType>::allocate(ec, K_tamm);
+          Tensor<TensorType>::allocate(&ec, K_tamm);
 
           /*** ============================== ***/
           /*** compute 2body-2index integrals ***/
@@ -1003,7 +1003,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
               K_tamm.put(blockid,dbuf);
           };
 
-          block_for(*ec, K_tamm(), compute_2body_2index_ints_lambda);
+          block_for(ec, K_tamm(), compute_2body_2index_ints_lambda);
 
           Matrix V(ndf,ndf);
           V.setZero(); 
@@ -1022,38 +1022,38 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
           
           // contract(1.0, Zxy, {1, 2, 3}, K, {1, 4}, 0.0, xyK, {2, 3, 4});
           // Tensor3D xyK = Zxy.contract(K,aidx_00); 
-          Scheduler{*ec}
+          Scheduler{ec}
           (xyK_tamm(mu,nu,d_nu) = Zxy_tamm(d_mu,mu,nu) * K_tamm(d_mu,d_nu)).execute();
           Tensor<TensorType>::deallocate(K_tamm,Zxy_tamm); //release memory
 
       }  // if (!is_3c_init)
       
         Tensor<TensorType> xiK_tamm{tAO,tdfCocc,tdfAO}; //n, nocc, ndf
-        Tensor<TensorType>::allocate(ec,xiK_tamm);
+        Tensor<TensorType>::allocate(&ec,xiK_tamm);
         
         eigen_to_tamm_tensor(C_occ_tamm,C_occ);
         // contract(1.0, xyK, {1, 2, 3}, Co, {2, 4}, 0.0, xiK, {1, 4, 3});
-        Scheduler{*ec}
+        Scheduler{ec}
         (xiK_tamm(mu,dCocc_til,d_mu) = xyK_tamm(mu,nu,d_mu) * C_occ_tamm(nu, dCocc_til)).execute();
 
         // compute Coulomb
         // contract(1.0, xiK, {1, 2, 3}, Co, {1, 2}, 0.0, Jtmp, {3});
         // Jtmp = xiK.contract(Co,idx_0011); 
         Tensor<TensorType> Jtmp_tamm{tdfAO}; //ndf
-        Tensor<TensorType>::allocate(ec,Jtmp_tamm);
-        Scheduler{*ec}
+        Tensor<TensorType>::allocate(&ec,Jtmp_tamm);
+        Scheduler{ec}
         (Jtmp_tamm(d_mu) = xiK_tamm(mu,dCocc_til,d_mu) * C_occ_tamm(mu,dCocc_til)).execute();
 
         // contract(1.0, xiK, {1, 2, 3}, xiK, {4, 2, 3}, 0.0, G, {1, 4});
         // Tensor2D K_ret = xiK.contract(xiK,idx_1122); 
         // xiK.resize(0, 0, 0);
-        Scheduler{*ec}
+        Scheduler{ec}
         (F1tmp1(mu,ku) += -1.0 * xiK_tamm(mu,dCocc_til,d_mu) * xiK_tamm(ku,dCocc_til,d_mu)).execute();
         Tensor<TensorType>::deallocate(xiK_tamm);
 
         //contract(2.0, xyK, {1, 2, 3}, Jtmp, {3}, -1.0, G, {1, 2});
         // Tensor2D J_ret = xyK.contract(Jtmp,aidx_20);
-        Scheduler{*ec}
+        Scheduler{ec}
         (F1tmp1(mu,nu) += 2.0 * xyK_tamm(mu,nu,d_mu) * Jtmp_tamm(d_mu)).execute();
         Tensor<TensorType>::deallocate(Jtmp_tamm);
         // (F1tmp1(mu,nu) = 2.0 * J_ret_tamm(mu,nu))

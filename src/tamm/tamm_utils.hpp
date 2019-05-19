@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <chrono>
+#include <type_traits>
 
 namespace tamm {
 /**
@@ -20,6 +21,23 @@ std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
     for(auto& x : vec) os << x << ",";
     os << "]\n";
     return os;
+}
+
+template<typename T>
+MPI_Datatype mpi_type(){
+    using std::is_same_v;
+
+    if constexpr(is_same_v<int, T>)
+        return MPI_INT;
+    else if constexpr(is_same_v<float, T>)
+        return MPI_FLOAT;
+    else if constexpr(is_same_v<double, T>)
+        return MPI_DOUBLE;
+    else if constexpr(is_same_v<std::complex<float>, T>)
+        return MPI_COMPLEX	;
+    else if constexpr(is_same_v<std::complex<double>, T>)
+        return MPI_DOUBLE_COMPLEX;
+
 }
 
 /**

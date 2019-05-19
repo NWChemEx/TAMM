@@ -401,13 +401,13 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
               << (obs_nbf_omitted > 1 ? "fns" : "fn") << " to reduce to "
               << XtX_condition_number << ")";
   }
-  if(GA_Nodeid()==0) std::cout << std::endl;
+  if(GA_Nodeid()==0) std::cout << endl;
 
   if (obs_nbf_omitted > 0) {
     Matrix should_be_I = X.transpose() * S * X;
     Matrix I = Matrix::Identity(should_be_I.rows(), should_be_I.cols());
     if(GA_Nodeid()==0) std::cout << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
-              << " (should be 0)" << std::endl;
+              << " (should be 0)" << endl;
   }
 
   return std::make_tuple(X, Xinv, XtX_condition_number);
@@ -506,7 +506,7 @@ compute_shellpairs(const libint2::BasisSet& bs1,
   
   timer.stop(0);
   if(GA_Nodeid()==0)     
-    std::cout << "done (" << timer.read(0) << " s)" << std::endl;
+    std::cout << "done (" << timer.read(0) << " s)" << endl;
 
   return std::make_tuple(splist,spdata);
 }
@@ -598,7 +598,7 @@ Matrix compute_schwarz_ints(
 
   timer.stop(0);
   if(GA_Nodeid()==0) 
-    std::cout << "done (" << timer.read(0) << " s)" << std::endl;
+    std::cout << "done (" << timer.read(0) << " s)" << endl;
  
   return K;
 }
@@ -714,8 +714,8 @@ Matrix compute_2body_fock(const libint2::BasisSet& obs, const Matrix& D,
                                                // control will likely break
                                                // positive definiteness
                                                // stick with this simple recipe
-  // std::cout << "compute_2body_fock:precision = " << precision << std::endl;
-  // std::cout << "Engine::precision = " << engine.precision() << std::endl;
+  // std::cout << "compute_2body_fock:precision = " << precision << endl;
+  // std::cout << "Engine::precision = " << engine.precision() << endl;
   // for (size_t i = 1; i != nthreads; ++i) {
   //   engines[i] = engines[0];
   // }
@@ -839,7 +839,7 @@ Matrix compute_2body_fock(const libint2::BasisSet& obs, const Matrix& D,
 
   // };  // end of lambda
 
-  // std::cout << "# of integrals = " << num_ints_computed << std::endl;
+  // std::cout << "# of integrals = " << num_ints_computed << endl;
   // symmetrize the result and return
    Matrix GG = 0.5 * (G + G.transpose());
 
@@ -1104,11 +1104,11 @@ Matrix DFFockEngine::compute_2body_fock_dfC(const Matrix& Cocc) {
     Matrix Linv_t = L.solve(I).transpose();
     // check
     //  std::cout << "||V - L L^t|| = " << (V - V_L * V_L.transpose()).norm() <<
-    //  std::endl;
+    //  endl;
     //  std::cout << "||I - L L^-1|| = " << (I - V_L *
-    //  Linv_t.transpose()).norm() << std::endl;
+    //  Linv_t.transpose()).norm() << endl;
     //  std::cout << "||V^-1 - L^-1^t L^-1|| = " << (V.inverse() - Linv_t *
-    //  Linv_t.transpose()).norm() << std::endl;
+    //  Linv_t.transpose()).norm() << endl;
 
     Tensor2D K(ndf, ndf);
     K.setZero();

@@ -102,7 +102,7 @@ public:
      */
     TensorRank num_modes() const { return num_modes_; }
 
-    ExecutionContext& execution_context() const { return *ec_; }
+    ExecutionContext* execution_context() const { return ec_; }
 
     auto tindices() const { return block_indices_; }
 
@@ -282,7 +282,7 @@ protected:
     /// Map that maintains position of dependent index space(s) for a given
     /// dependent index space.
     std::map<size_t, std::vector<size_t>> dep_map_;
-    ExecutionContext* ec_;
+    ExecutionContext* ec_ = nullptr;
     std::vector<SpinPosition> spin_mask_;
 }; // TensorBase
 

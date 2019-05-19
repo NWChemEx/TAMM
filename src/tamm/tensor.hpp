@@ -340,6 +340,10 @@ public:
       return static_cast<TensorBase*>(impl_.get());
     }
 
+    ExecutionContext* execution_context() const {
+      return impl_->execution_context();
+    }
+
 private:
     std::shared_ptr<TensorImpl<T>>
       impl_; /**< Shared pointer to the implementation object */

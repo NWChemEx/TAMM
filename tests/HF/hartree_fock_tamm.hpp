@@ -115,7 +115,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         }
         if(rank==0) std::cout << "# of {all,non-negligible} DFBS shell-pairs = {"
                   << dfbs.size() * (dfbs.size() + 1) / 2 << "," << nsp << "}"
-                  << std::endl;
+                  << endl;
       }
       #endif
       
@@ -136,7 +136,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime for initial setup: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for initial setup: " << hf_time << " secs" << endl;
 
     Matrix C, F;
     TensorType ehf           = 0.0;
@@ -163,11 +163,13 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     #ifdef SCALAPACK
 
+      auto blacs_setup_st = std::chrono::high_resolution_clock::now();
       // Sanity checks
       int scalapack_nranks = 
         scf_options.scalapack_np_row *
         scf_options.scalapack_np_col;
 
+      // XXX: This should be for hf_comm
       int world_size;
       MPI_Comm_size( ec.pg().comm(), &world_size );
       assert( world_size >= scalapack_nranks );
@@ -191,6 +193,12 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       std::unique_ptr<CXXBLACS::BlacsGrid> blacs_grid = 
         scalapack_comm == MPI_COMM_NULL ? nullptr :
         std::make_unique<CXXBLACS::BlacsGrid>( scalapack_comm, MB, MB, NPR, NPC );
+
+      auto blacs_setup_en = std::chrono::high_resolution_clock::now();
+
+      std::chrono::duration<double> blacs_time = blacs_setup_en - blacs_setup_st;
+      
+      if(rank == 0) std::cout << "\nTime for BLACS setup: " << blacs_time.count() << " secs\n";
 
       if(debug and blacs_grid) blacs_grid->printCoord( std::cout );
     #endif
@@ -248,7 +256,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
     ec.pg().barrier();
-    if(rank == 0) std::cout << "Total Time to compute initial guess: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "Total Time to compute initial guess: " << hf_time << " secs" << endl;
 
 
     hf_t1 = std::chrono::high_resolution_clock::now();
@@ -288,7 +296,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
     //ec.pg().barrier();
-    if(rank == 0 && debug) std::cout << "\nTime to setup tensors for iterative loop: " << hf_time << " secs\n";
+    if(rank == 0 && debug) std::cout << "\nTime to setup tensors for iterative loop: " << hf_time << " secs" << endl;
 
     eigen_to_tamm_tensor(D_tamm,D);
     // Matrix err_mat = Matrix::Zero(N,N);
@@ -336,12 +344,12 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     if(rank == 0) {
         std::cout << "\n\n";
-        std::cout << " Hartree-Fock iterations" << std::endl;
-        std::cout << std::string(70, '-') << std::endl;
+        std::cout << " Hartree-Fock iterations" << endl;
+        std::cout << std::string(70, '-') << endl;
         std::cout <<
             " Iter     Energy            E-Diff            RMSD            Time" 
-                << std::endl;
-        std::cout << std::string(70, '-') << std::endl;
+                << endl;
+        std::cout << std::string(70, '-') << endl;
     }
 
     std::cout << std::fixed << std::setprecision(2);
@@ -386,7 +394,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
             std::cout << ' ' << std::setw(16)  << ediff;
             std::cout << ' ' << std::setw(15)  << rmsd << ' ';
             std::cout << std::fixed << std::setprecision(2);
-            std::cout << ' ' << std::setw(12)  << loop_time << ' ' << "\n" << std::flush;
+            std::cout << ' ' << std::setw(12)  << loop_time << ' ' << endl;
         }
 
         // if(rank==0)
@@ -407,7 +415,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         else {
             cout << endl << std::string(50, '*') << endl;
             cout << std::string(10, ' ') << 
-                    "ERROR: HF Does not converge!!!\n";
+                    "ERROR: HF Does not converge!!!" << endl;
             cout << std::string(50, '*') << endl;
         }        
     }
@@ -426,7 +434,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     if(rank==0 && !restart) {
      cout << "writing orbitals to file... ";
      writeC(C,filename,options_map);
-     cout << "done.\n";
+     cout << "done." << endl;
     }
 
       if(rank == 0) tamm_to_eigen_tensor(F1,F);
@@ -447,7 +455,8 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     //C,F1 is not allocated for ranks > hf_nranks 
     exc.pg().barrier(); 
 
-    GA_Brdcst(&ehf,sizeof(TensorType),0);
+    // GA_Brdcst(&ehf,sizeof(TensorType),0);
+    MPI_Bcast(&ehf,1,tamm::mpi_type<TensorType>(),0,exc.pg().comm());
     Tensor<TensorType> C_tamm{tAO,tAO};
     Tensor<TensorType> F_tamm{tAO,tAO};
     Tensor<TensorType>::allocate(&exc,C_tamm,F_tamm);
@@ -457,6 +466,15 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     }
 
     exc.pg().barrier();
+
+#ifdef SCALAPACK
+
+    // Free up created comms / groups
+    MPI_Comm_free( &scalapack_comm );
+    MPI_Group_free( &scalapack_group );
+    MPI_Group_free( &world_group );
+
+#endif
 
     //F, C are not deallocated.
     return std::make_tuple(ndocc, nao, ehf + enuc, shells, shell_tile_map, C_tamm, F_tamm, tAO, tAOt);

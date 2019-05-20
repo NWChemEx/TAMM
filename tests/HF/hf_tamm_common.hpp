@@ -47,17 +47,17 @@ void t2e_hf_helper(const ExecutionContext& ec, tamm::Tensor<T>& ttensor,Matrix& 
     std::vector<T> Hbufv(N*N);
     T *Hbuf = &Hbufv[0];//Hbufv.data();
     Eigen::Map<Matrix>(Hbuf,N,N) = etensor;  
-    GA_Brdcst(Hbuf,N*N*sizeof(T),0);
+    // GA_Brdcst(Hbuf,N*N*sizeof(T),0);
+    MPI_Bcast(Hbuf,N*N,tamm::mpi_type<T>(),0,ec.pg().comm());
     etensor = Eigen::Map<Matrix>(Hbuf,N,N);
     Hbufv.clear(); Hbufv.shrink_to_fit();
-
 
     auto hf_t2 = std::chrono::high_resolution_clock::now();
     auto hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
    
     //ec.pg().barrier(); //TODO
-    if(rank == 0) std::cout << "\nTime for tamm to eigen " << pstr << " : " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for tamm to eigen " << pstr << " : " << hf_time << " secs" << endl;
 }
 
 
@@ -73,7 +73,7 @@ void compute_shellpair_list(const ExecutionContext& ec, const libint2::BasisSet&
     }
     if(rank==0) std::cout << "# of {all,non-negligible} shell-pairs = {"
               << shells.size() * (shells.size() + 1) / 2 << "," << nsp << "}"
-              << std::endl;
+              << endl;
 }
 
 
@@ -83,7 +83,7 @@ std::tuple<int,double> compute_NRE(const ExecutionContext& ec, std::vector<libin
       //  std::cout << "Geometries in bohr units \n";
     //  for (auto i = 0; i < atoms.size(); ++i)
     //    std::cout << atoms[i].atomic_number << "  " << atoms[i].x<< "  " <<
-    //    atoms[i].y<< "  " << atoms[i].z << std::endl;
+    //    atoms[i].y<< "  " << atoms[i].z << endl;
     // count the number of electrons
     auto nelectron = 0;
     for(size_t i = 0; i < atoms.size(); ++i)
@@ -185,7 +185,7 @@ Matrix compute_orthogonalizer(const ExecutionContext& ec, const Matrix& S) {
     //TODO: not used ?
     Xinv.resize(0,0);
 
-    if(rank == 0) std::cout << "Time for computing orthogonalizer: " << hf_time << " secs\n\n";
+    if(rank == 0) std::cout << "Time for computing orthogonalizer: " << hf_time << " secs\n" << endl;
 
     return X;
 
@@ -221,7 +221,7 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
     auto hf_t2 = std::chrono::high_resolution_clock::now();
     auto hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime for computing 1-e integrals T, V, S: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for computing 1-e integrals T, V, S: " << hf_time << " secs" << endl;
 
     hf_t1 = std::chrono::high_resolution_clock::now();
     // Core Hamiltonian = T + V
@@ -231,7 +231,7 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime for computing Core Hamiltonian H=T+V: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for computing Core Hamiltonian H=T+V: " << hf_time << " secs" << endl;
 
     t2e_hf_helper<TensorType,2>(ec, H1, H, "H1-H");
     t2e_hf_helper<TensorType,2>(ec, S1, S, "S1-S");
@@ -263,16 +263,18 @@ void scf_restart(const ExecutionContext& ec, const size_t& N, const std::string&
       if(rstatus == 1){
         in.read((char *) Hbuf, sizeof(TensorType)*N*N);
         C = Eigen::Map<Matrix>(Hbuf,N,N);
-        cout << "done\n";
+        cout << "done" << endl;
         auto C_occ = C.leftCols(ndocc);
         D = C_occ * C_occ.transpose();
         Eigen::Map<Matrix>(Dbufp,N,N)=D;
       }
     }
     ec.pg().barrier();
-    GA_Brdcst(&rstatus,sizeof(int),0);
+    // GA_Brdcst(&rstatus,sizeof(int),0);
+    MPI_Bcast(&rstatus,1,tamm::mpi_type<int>(),0,ec.pg().comm());
     if(rstatus == 0) nwx_terminate("Error reading " + movecsfile);
-    GA_Brdcst(Dbufp,N*N*sizeof(TensorType),0);
+    // GA_Brdcst(Dbufp,N*N*sizeof(TensorType),0);
+    MPI_Bcast(Dbufp,N*N,tamm::mpi_type<TensorType>(),0,ec.pg().comm());
     D = Eigen::Map<Matrix>(Dbufp,N,N);
     //Dbuf.clear();
     ec.pg().barrier();
@@ -504,26 +506,15 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
                             0, 0 );
 
         // Diagonalize
-        CB_INT LWORK = -1;
-        std::vector<TensorType> WORK(5);
-        auto scalapack_diag = [&]() {
-          return
-          CXXBLACS::PSYEV( 'V', 'U', N, 
-                          F_ortho_loc.data(), 1, 1, DescF,
-                          F_eig.data(),
-                          C_ortho_loc.data(), 1, 1, DescF,
-                          WORK.data(), LWORK );
-        };
+        auto PSYEV_INFO = CXXBLACS::PSYEV( 'V', 'U', N, 
+                        F_ortho_loc.data(), 1, 1, DescF,
+                        F_eig.data(),
+                        C_ortho_loc.data(), 1, 1, DescF);
 
-        // Get LWORK
-        scalapack_diag();
-        LWORK = WORK[0];
-        WORK.resize(LWORK);
-
-        // Perform diagonalization
-        //auto info = 
-        scalapack_diag();
-
+        if( PSYEV_INFO ) {
+          std::runtime_error err("PSYEV Failed");
+          throw err;
+        }
 
         // Gather the eigenvectors to root process and replicate
         blacs_grid->Gather( N, N, C_ortho.data(), N, 
@@ -631,7 +622,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         do_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "HF-Energy:" << do_time << "s\n";    
+        if(rank == 0 && debug) std::cout << "HF-Energy:" << do_time << "s" << endl;    
 
         return std::make_tuple(ehf,rmsd);       
 }
@@ -1091,7 +1082,7 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     #endif
 
       if(rank == 0) std::cout << 
-    "\nProjecting minimal basis SOAD onto basis set specified (" << basis << ")\n";
+    "\nProjecting minimal basis SOAD onto basis set specified (" << basis << ")" << endl;
     
     auto ig1 = std::chrono::high_resolution_clock::now();
 
@@ -1256,7 +1247,7 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     auto igtime =
       std::chrono::duration_cast<std::chrono::duration<double>>((ig2 - ig1)).count();
 
-    if(rank == 0) std::cout << "\nInitial guess: Time to compute guess: " << igtime << " secs\n";
+    if(rank == 0) std::cout << "\nInitial guess: Time to compute guess: " << igtime << " secs" << endl;
 
     ig1 = std::chrono::high_resolution_clock::now();
 
@@ -1273,7 +1264,10 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     std::vector<TensorType> Fbufv(N*N);
     TensorType *Fbuf = &Fbufv[0]; //.data();
     Eigen::Map<Matrix>(Fbuf,N,N) = Ft;  
-    GA_Brdcst(Fbuf,N*N*sizeof(TensorType),0);
+    
+    // GA_Brdcst(Fbuf,N*N*sizeof(TensorType),0);
+    MPI_Bcast(Fbuf,N*N,tamm::mpi_type<TensorType>(),0,ec.pg().comm());
+
     Ft = Eigen::Map<Matrix>(Fbuf,N,N);
     Fbufv.clear(); Fbufv.shrink_to_fit();
     Tensor<TensorType>::deallocate(F1tmp1);
@@ -1281,7 +1275,7 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     ig2 = std::chrono::high_resolution_clock::now();
     igtime =
       std::chrono::duration_cast<std::chrono::duration<double>>((ig2 - ig1)).count();
-    if(rank == 0) std::cout << "Initial guess: time to compute, broadcast Ft: " << igtime << " secs\n";
+    if(rank == 0) std::cout << "Initial guess: time to compute, broadcast Ft: " << igtime << " secs" << endl;
 
     D_minbs.resize(0,0);
 
@@ -1352,7 +1346,7 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     igtime =
       std::chrono::duration_cast<std::chrono::duration<double>>((ig2 - ig1)).count();
 
-    if(rank == 0) std::cout << "Initial guess: Time to compute density: " << igtime << " secs\n";
+    if(rank == 0) std::cout << "Initial guess: Time to compute density: " << igtime << " secs" << endl;
 
 }
 

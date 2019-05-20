@@ -157,6 +157,7 @@ Matrix compute_2body_fock(
 // the condition number of its metric (Xinv.transpose . Xinv) <
 // S_condition_number_threshold
 std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
+   const ExecutionContext& ec,
     const Matrix& S, double S_condition_number_threshold);
 
 template <class T> T &unconst_cast(const T &v) { return const_cast<T &>(v); }
@@ -261,7 +262,7 @@ auto print_2e(Args&&... args){
 //
 // A is conditioned to max_condition_number
 std::tuple<Matrix, Matrix, size_t, double, double> gensqrtinv(
-    const Matrix& S, bool symmetric = false,
+    const ExecutionContext& ec, const Matrix& S, bool symmetric = false,
     double max_condition_number = 1e8) {
 #ifdef SCALAPACK
   Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(S);
@@ -297,7 +298,7 @@ std::tuple<Matrix, Matrix, size_t, double, double> gensqrtinv(
   }
 #else
 
-  auto world = GA_MPI_Comm();
+  auto world = ec.pg().comm();
   int world_rank, world_size;
   MPI_Comm_rank( world, &world_rank );
   MPI_Comm_size( world, &world_size );
@@ -384,7 +385,7 @@ std::tuple<Matrix, Matrix, size_t, double, double> gensqrtinv(
 }
 
 std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
-    const Matrix& S, double S_condition_number_threshold) {
+  const ExecutionContext& ec,  const Matrix& S, double S_condition_number_threshold) {
   size_t obs_rank;
   double S_condition_number;
   double XtX_condition_number;
@@ -393,7 +394,7 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
   assert(S.rows() == S.cols());
 
   std::tie(X, Xinv, obs_rank, S_condition_number, XtX_condition_number) =
-      gensqrtinv(S, false, S_condition_number_threshold);
+      gensqrtinv(ec, S, false, S_condition_number_threshold);
   auto obs_nbf_omitted = (long)S.rows() - (long)obs_rank;
 //   std::cout << "overlap condition number = " << S_condition_number;
   if (obs_nbf_omitted > 0){

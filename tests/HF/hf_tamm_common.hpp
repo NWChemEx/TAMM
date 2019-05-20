@@ -175,7 +175,7 @@ Matrix compute_orthogonalizer(const ExecutionContext& ec, const Matrix& S) {
     double S_condition_number_threshold = 1.0 / scf_options.tol_lindep;
         //1.0 / std::numeric_limits<double>::epsilon();
     std::tie(X, Xinv, XtX_condition_number) =
-        conditioning_orthogonalizer(S, S_condition_number_threshold);
+        conditioning_orthogonalizer(ec, S, S_condition_number_threshold);
 
     // TODO Redeclare TAMM S1 with new dims?
     auto hf_t2 = std::chrono::high_resolution_clock::now();
@@ -281,7 +281,7 @@ void scf_restart(const ExecutionContext& ec, const size_t& N, const std::string&
 }
 
 
-void compute_hcore_guess(const int& ndocc,
+void compute_hcore_guess(const ExecutionContext& ec, const int& ndocc,
       const libint2::BasisSet& shells,
       const Matrix& SchwarzK, const Matrix& H, const Matrix& X,
       Matrix& F, Matrix& C, Matrix& C_occ, Matrix& D){
@@ -290,7 +290,7 @@ void compute_hcore_guess(const int& ndocc,
     const int64_t Northo = X.cols();
     assert( N == Northo );
 
-    auto world = GA_MPI_Comm();
+    auto world = ec.pg().comm();
     int world_rank, world_size;
     MPI_Comm_rank( world, &world_rank );
     MPI_Comm_size( world, &world_size );

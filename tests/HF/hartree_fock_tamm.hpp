@@ -144,7 +144,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     exc.pg().barrier();
 
     #if SCALE_DOWN_RESOURCES_HF
-    if (rank < hf_nranks) {
+  if (rank < hf_nranks) {
 
       int hrank;
       EXPECTS(hf_comm != MPI_COMM_NULL);
@@ -231,10 +231,10 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     // Matrix C_occ;
     // Matrix F;
 
-  //     Matrix C_down; //TODO: all are array of 2 vectors
-  // Matrix D_down;
-  // Matrix F_down;
-  // Matrix C_occ_down;
+    //     Matrix C_down; //TODO: all are array of 2 vectors
+    // Matrix D_down;
+    // Matrix F_down;
+    // Matrix C_occ_down;
 
     hf_t1 = std::chrono::high_resolution_clock::now();
 
@@ -374,9 +374,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
                     F1tmp, F1tmp1, max_nprim4,shells,do_density_fitting);
 
         std::tie(ehf,rmsd) = scf_iter_body<TensorType>(ec, 
-#ifdef SCALAPACK
+    #ifdef SCALAPACK
                         blacs_grid.get(),
-#endif
+    #endif
                         iter, ndocc, X, F, C, C_occ, D,
                         S1, F1, H1, F1tmp1,FD_tamm, FDS_tamm, D_tamm, D_last_tamm, D_diff,
                         ehf_tmp, ehf_tamm, diis_hist, fock_hist);
@@ -441,16 +441,16 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
       Tensor<TensorType>::deallocate(F1); //deallocate using ec
 
-    #if SCALE_DOWN_RESOURCES_HF
+      #if SCALE_DOWN_RESOURCES_HF
       ec.flush_and_sync();
-      //MemoryManagerGA::destroy_coll(mgr);
+      MemoryManagerGA::destroy_coll(mgr);
 
-      } //end scaled down process group
+    } //end scaled down process group
 
       // MPI_Group_free(&wgroup);
       // MPI_Group_free(&hfgroup);
       // MPI_Comm_free(&hf_comm);
-    #endif
+      #endif
 
     //C,F1 is not allocated for ranks > hf_nranks 
     exc.pg().barrier(); 
@@ -467,14 +467,14 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     exc.pg().barrier();
 
-#ifdef SCALAPACK
+    #ifdef SCALAPACK
 
     // Free up created comms / groups
     MPI_Comm_free( &scalapack_comm );
     MPI_Group_free( &scalapack_group );
     MPI_Group_free( &world_group );
 
-#endif
+    #endif
 
     //F, C are not deallocated.
     return std::make_tuple(ndocc, nao, ehf + enuc, shells, shell_tile_map, C_tamm, F_tamm, tAO, tAOt);

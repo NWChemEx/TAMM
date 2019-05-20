@@ -939,7 +939,7 @@ TEST_CASE("SCF Example Implementation") {
     Q.allocate(&ec);
     D.allocate(&ec);
     C.allocate(&ec);
-    
+
     sch  
     (D() = 42.0)
     (Q() = 2.0)
@@ -1165,6 +1165,27 @@ TEST_CASE("Sample code for Local HF") {
 
 }
 #endif
+
+TEST_CASE("/* Test case for getting ExecutionContext from a Tensor */") {
+    TiledIndexSpace AO{IndexSpace{range(10)},2};
+
+    Tensor<double> T0{AO, AO};
+    Tensor<double> T1{AO, AO};
+
+    auto ec = make_execution_context();
+
+    T0.allocate(&ec);
+
+    auto t0_ec = T0.execution_context();
+
+    std::cout << "EC Ptr: " << &ec << std::endl;
+    std::cout << "T0 Ptr: " << t0_ec << std::endl;
+    REQUIRE(&ec == t0_ec);
+
+    auto t1_ec = T1.execution_context();
+    REQUIRE(t1_ec == nullptr);
+    
+}
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);

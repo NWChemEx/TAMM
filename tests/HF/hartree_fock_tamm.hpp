@@ -20,7 +20,7 @@
 
 #include "hf_tamm_common.hpp"
 
-#define SCALE_DOWN_RESOURCES_HF 0
+#define SCF_THROTTLE_RESOURCES 1
 
 std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace> 
     hartree_fock(ExecutionContext &exc, const string filename,std::vector<libint2::Atom> atoms, OptionsMap options_map) {
@@ -41,11 +41,12 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     int maxiter = scf_options.maxiter;
     double conve = scf_options.conve;
     double convd = scf_options.convd;
-    double tol_int = scf_options.tol_int;
     // int max_hist = scf_options.diis_hist; 
     auto debug = scf_options.debug;
     auto restart = scf_options.restart;
 
+    //TODO:adjust tol_int as needed
+    // double tol_int = scf_options.tol_int;
     // tol_int = std::min(tol_int, 0.01 * conve);
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
@@ -65,13 +66,12 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     const size_t N = nbasis(shells);
     size_t nao = N;
     auto rank = exc.pg().rank();
-
     auto nnodes = GA_Cluster_nnodes();
-    auto [hf_nnodes,ppn,hf_nranks] = get_hf_nranks(N);
-    int ranks[hf_nranks];
-    for (int i = 0; i < hf_nranks; i++) ranks[i] = i;
 
-    #if SCALE_DOWN_RESOURCES_HF
+    #if SCF_THROTTLE_RESOURCES
+      auto [hf_nnodes,ppn,hf_nranks] = get_hf_nranks(N);
+      int ranks[hf_nranks];
+      for (int i = 0; i < hf_nranks; i++) ranks[i] = i;    
       auto gcomm = exc.pg().comm();
       MPI_Group wgroup;
       MPI_Comm_group(gcomm,&wgroup);
@@ -83,8 +83,8 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     
     if(rank == 0) {
-      cout << "\nNumber of nodes, mpi ranks per node provided: " << nnodes << ", " << ppn << endl;
-      #if SCALE_DOWN_RESOURCES_HF
+      cout << "\nNumber of nodes, mpi ranks per node provided: " << nnodes << ", " << GA_Cluster_nprocs(0) << endl;
+      #if SCF_THROTTLE_RESOURCES
         cout << "Number of nodes, mpi ranks per node used for SCF calculation: " << hf_nnodes << ", " << ppn << endl;
       #endif
       scf_options.print();
@@ -143,7 +143,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     exc.pg().barrier();
 
-    #if SCALE_DOWN_RESOURCES_HF
+    #if SCF_THROTTLE_RESOURCES
   if (rank < hf_nranks) {
 
       int hrank;
@@ -441,7 +441,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
       Tensor<TensorType>::deallocate(F1); //deallocate using ec
 
-      #if SCALE_DOWN_RESOURCES_HF
+      #if SCF_THROTTLE_RESOURCES
       ec.flush_and_sync();
       MemoryManagerGA::destroy_coll(mgr);
 
@@ -456,7 +456,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     exc.pg().barrier(); 
 
     // GA_Brdcst(&ehf,sizeof(TensorType),0);
-    MPI_Bcast(&ehf,1,tamm::mpi_type<TensorType>(),0,exc.pg().comm());
+    MPI_Bcast(&ehf,1,mpi_type<TensorType>(),0,exc.pg().comm());
     Tensor<TensorType> C_tamm{tAO,tAO};
     Tensor<TensorType> F_tamm{tAO,tAO};
     Tensor<TensorType>::allocate(&exc,C_tamm,F_tamm);

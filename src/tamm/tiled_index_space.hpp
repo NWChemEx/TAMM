@@ -789,6 +789,10 @@ public:
         return (*tmp);
     }
 
+    TiledIndexSpace parent_tis() const {
+        return (*parent_tis_.get());
+    }
+    
     /**
      * @brief Equality comparison operator
      *
@@ -1648,7 +1652,9 @@ public:
      */
     template<typename... Args>
     TiledIndexLabel operator()(const TiledIndexLabel& il1, Args... rest) {
-        EXPECTS(this->tiled_index_space().is_dependent());
+        // EXPECTS(this->tiled_index_space().is_dependent());
+        if(!this->tiled_index_space().is_dependent())
+            return {*this};
         std::vector<TileLabelElement> secondary_labels;
         unpack(secondary_labels, il1, rest...);
         return {*this, secondary_labels};

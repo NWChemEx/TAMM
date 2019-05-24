@@ -1558,6 +1558,62 @@ protected:
         }
     }
 
+    IndexLabelVec loop_labels(const IndexLabelVec& order = {}){
+
+        IndexLabelVec local_order = order;
+
+        // if no order is specified use ordering as before
+        if(order.empty()){
+            auto all_labels{lhs_.labels()};
+            all_labels.insert(all_labels.end(), rhs1_.labels().begin(),
+                          rhs1_.labels().end());
+            all_labels.insert(all_labels.end(), rhs2_.labels().begin(),
+                          rhs2_.labels().end());
+            
+            const IndexLabelVec& unique_labels =
+                internal::unique_entries(all_labels);
+
+            local_order = internal::sort_on_dependence(unique_labels);
+        }
+
+        IndexLabelVec res;
+        TiledIndexSpaceVec lhs_tis(lhs_.labels().size());
+        TiledIndexSpaceVec rhs1_tis(rhs1_.labels().size());
+        TiledIndexSpaceVec rhs2_tis(rhs2_.labels().size());
+
+        // intersect all usage with tensor construction tis
+        for (size_t i = 0; i < lhs_.labels().size(); i++) {
+            const auto& str_tis = lhs_.tensor().tiled_index_spaces()[i];
+            const auto& use_tis = lhs_.labels()[i].tiled_index_space();
+            lhs_tis.push_back(intersect_tis(str_tis, use_tis));
+        }
+
+        for (size_t i = 0; i < rhs1_.labels().size(); i++) {
+            const auto& str_tis = rhs1_.tensor().tiled_index_spaces()[i];
+            const auto& use_tis = rhs1_.labels()[i].tiled_index_space();
+            rhs1_tis.push_back(intersect_tis(str_tis, use_tis));
+        }
+
+        for (size_t i = 0; i < rhs2_.labels().size(); i++) {
+            const auto& str_tis = rhs2_.tensor().tiled_index_spaces()[i];
+            const auto& use_tis = rhs2_.labels()[i].tiled_index_space();
+            rhs2_tis.push_back(intersect_tis(str_tis, use_tis));
+        }
+        
+        TiledIndexSpaceVec loop_tis; 
+        // for each lbl in expression do a intersection between each other
+        for(auto& lbl : local_order) {
+            // search for lbl on each tensor
+            // each label will be in two Tensors
+
+            // intersect tis 
+
+            // push_back result to loop_tis
+        }
+
+        return res;
+    }
+
     LabeledTensorT lhs_;
     T alpha_;
     LabeledTensorT rhs1_;

@@ -65,10 +65,27 @@ public:
       allocation_status_{AllocationStatus::invalid},
       num_modes_{lbls.size()} {
         for(const auto& lbl : lbls) {
-            block_indices_.push_back(lbl.tiled_index_space());
-            // tlabels_.push_back(lbl);
+            auto tis = lbl.tiled_index_space();
+            if(tis.is_dependent()){
+                if(lbl.secondary_labels().size() == 0){
+                    auto new_tis = tis.parent_tis();
+                    // negative lbl id is used to avoid overlap
+                    auto new_lbl = new_tis.label(-1);
+                    block_indices_.push_back(new_tis);
+                    tlabels_.push_back(new_lbl);
+                }
+                else {
+                    EXPECTS(lbl.secondary_labels().size() ==
+                        tis.num_key_tiled_index_spaces());
+                    block_indices_.push_back(tis);
+                    tlabels_.push_back(lbl);
+                }  
+            } else {
+                block_indices_.push_back(tis);
+                tlabels_.push_back(lbl);
+            }
         }
-        tlabels_ = lbls;
+        // tlabels_ = lbls;
         construct_dep_map();
     }
 

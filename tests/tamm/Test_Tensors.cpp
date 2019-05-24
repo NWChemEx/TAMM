@@ -939,7 +939,7 @@ TEST_CASE("SCF Example Implementation") {
     Q.allocate(&ec);
     D.allocate(&ec);
     C.allocate(&ec);
-
+    
     sch  
     (D() = 42.0)
     (Q() = 2.0)
@@ -1019,7 +1019,6 @@ TEST_CASE("SCF Example Implementation") {
 #endif
 
 
-#if 0
 using DepMap= std::map<IndexVector, TiledIndexSpace>;
 
 DepMap LMO_domain(){
@@ -1028,6 +1027,7 @@ DepMap LMO_domain(){
     return res;
 }
 
+#if 0
 DepMap AO_domain(){
     DepMap res;
     // DepMap computation
@@ -1082,7 +1082,7 @@ TEST_CASE("Sample code for Local HF") {
         
         sch
         .allocate(LMO_renorm)
-            (LMO_renorm(mu(i), i) = LMO(mu(i), i))
+            (LMO_renorm(mu, i) = LMO(mu, i))
         .execute();
     // }
 
@@ -1133,14 +1133,18 @@ TEST_CASE("Sample code for Local HF") {
     // auto [B_p] = fit_to_fit.labels<1>("all");
 
     // Input X (tensor with lambda function that calls libint)
-    Tensor<T> X{A(i), mu(i), nu(i)}; // internally project on i ?
+    Tensor<T> X{A(i), mu(i), nu(i), i}; // internally project on i ?
     // input J
     Tensor<T> J{A, B_p(A)};
 
     // results
     Tensor<T> Q{A(i), mu(i), i};
     Tensor<T> QB{B(i), mu(i), i};
-    Tensor<T> K{mu(i), nu(i)};
+    Tensor<T> K{mu(i), nu(i), i};
+
+    sch
+        (Q(A, mu, i) = X(A, mu, nu) * C(nu, i))
+    .execute();
 
     sch.allocate(Q, QB, K);
     // foreach Index i in TMO:
@@ -1149,24 +1153,25 @@ TEST_CASE("Sample code for Local HF") {
         Tensor<T> G_i_inv{A(i_val), B(i_val)};
         sch
         .allocate(J_i, G_i_inv)         // Q: how to allocate within a loop?
-            (Q(A(i_val), mu(i_val), i_val) = X(A(i_val), mu(i_val), nu(i_val)) * C(nu(i_val), i_val))
             (J_i(A(i_val), B(i_val)) = J(A(i_val), B(i_val))) 
         .execute();
-
+        
         G_i_inv = invert_tensor(cholesky(J_i));
 
         sch
             (QB(B(i_val), mu(i_val), i_val) += G_i_inv(B(i_val), A(i_val)) * Q(A(i_val), mu(i_val), i_val))
-            // (K(mu, nu(mu)) += QB(A(i), mu(i), i) * QB(A(i), nu(i), i)) //nu(mu) is a dependent representation of the sparsity
-            (K(mu(i_val), nu(i_val)) += QB(A(i_val), mu(i_val), i_val) * QB(A(i_val), nu(i_val), i_val))
         .deallocate(J_i, G_i_inv)
         .execute();
     }
 
+    sch
+        (K(mu, nu, i) += QB(A, mu, i) * QB(A, nu, i))
+    .execute();
+
 }
 #endif
 
-TEST_CASE("/* Test case for getting ExecutionContext from a Tensor */") {
+TEST_CASE("Test case for getting ExecutionContext from a Tensor") {
     TiledIndexSpace AO{IndexSpace{range(10)},2};
 
     Tensor<double> T0{AO, AO};
@@ -1185,6 +1190,181 @@ TEST_CASE("/* Test case for getting ExecutionContext from a Tensor */") {
     auto t1_ec = T1.execution_context();
     REQUIRE(t1_ec == nullptr);
     
+}
+
+TEST_CASE("New Labels Test") {
+    using tensor_type = Tensor<double>;
+    
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    std::cerr << "SCF Example Implementation" << std::endl;
+
+    IndexSpace AUXs_{range(0, 7)};
+    IndexSpace AOs_{range(0, 7)};
+    IndexSpace MOs_{range(0, 10),
+                   {{"O", {range(0, 5)}},
+                    {"V", {range(5, 10)}}
+    }};
+
+    TiledIndexSpace Aux{AUXs_};
+    TiledIndexSpace AOs{AOs_};
+    TiledIndexSpace tMOs{MOs_};
+
+    std::map<IndexVector, TiledIndexSpace> dep_nu_mu_q{
+        {
+            {{0}, TiledIndexSpace{AOs, IndexVector{0,3,4}}},           
+            {{2}, TiledIndexSpace{AOs, IndexVector{0,2}}},
+            {{3}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            {{5}, TiledIndexSpace{AOs, IndexVector{1,2}}},
+            {{6}, TiledIndexSpace{AOs, IndexVector{2}}},
+
+        }
+    };
+
+    std::map<IndexVector, TiledIndexSpace> dep_nu_mu_d{
+        {
+            {{0}, TiledIndexSpace{AOs, IndexVector{1,3,5}}},
+            {{1}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
+            {{2}, TiledIndexSpace{AOs, IndexVector{0,2,4}}},
+            {{3}, TiledIndexSpace{AOs, IndexVector{1,6}}},
+            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            // {{5}, TiledIndexSpace{AOs, IndexVector{0,1,2}}},
+            {{6}, TiledIndexSpace{AOs, IndexVector{0,1,2}}}
+        }
+    };
+
+    std::map<IndexVector, TiledIndexSpace> dep_nu_mu_c{
+        {
+            {{0}, TiledIndexSpace{AOs, IndexVector{3}}},
+            {{2}, TiledIndexSpace{AOs, IndexVector{0,2}}},
+            {{3}, TiledIndexSpace{AOs, IndexVector{1}}},
+            {{4}, TiledIndexSpace{AOs, IndexVector{3,5}}},
+            // {{5}, TiledIndexSpace{AOs, IndexVector{1,2}}},
+            {{6}, TiledIndexSpace{AOs, IndexVector{2}}}
+        }
+    };
+
+    TiledIndexSpace tSubAO_AO_Q{AOs, {AOs}, dep_nu_mu_q};
+
+    TiledIndexSpace tSubAO_AO_D{AOs, {AOs}, dep_nu_mu_d};
+
+    // TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
+    auto tSubAO_AO_C = tSubAO_AO_Q.intersect_tis(tSubAO_AO_D);
+    // auto tSubAO_AO_C = tSubAO_AO_D.intersect_tis(tSubAO_AO_Q);
+
+    auto X = Aux.label("all",0);
+    auto mu = AOs.label("all",1);
+    auto nu_for_Q = tSubAO_AO_Q.label("all",0);
+    auto nu_for_D = tSubAO_AO_D.label("all",0);
+    auto nu_for_C = tSubAO_AO_C.label("all",0);
+
+    tensor_type T0{X, mu};
+    tensor_type T1{X, mu(X)};
+    tensor_type T2{nu_for_C, mu};
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    tensor_type T3{mu, nu_for_C(mu)};
+
+    auto ec = make_execution_context();
+    Scheduler sch{ec};
+
+    sch
+    .allocate(T0, T1, T2, T3)
+        (T0() = 1.0)
+        (T1() = 2.0)
+        (T2() = 3.0)        
+        (T3() = 4.0)        
+    .execute();
+
+    std::cout << "Printing T0" << std::endl;
+    print_tensor(T0);
+    std::cout << "Printing T1" << std::endl;
+    print_tensor(T1);
+    std::cout << "Printing T2" << std::endl;
+    print_tensor(T2);
+    std::cout << "Printing T3" << std::endl;
+    print_tensor(T3);
+
+    MultOp temp_op = (T1() = T3() * T0()); 
+    auto lhs_ = temp_op.lhs();
+    auto rhs1_ = temp_op.rhs1();
+    auto rhs2_ = temp_op.rhs2();
+
+    std::cout << "LHS labels size - " << lhs_.labels().size() << std::endl;
+    std::cout << "RHS1 labels size - " << rhs1_.labels().size() << std::endl;
+    std::cout << "RHS2 labels size - " << rhs2_.labels().size() << std::endl;
+
+    IndexLabelVec all_labels{lhs_.labels()};
+        all_labels.insert(all_labels.end(), rhs1_.labels().begin(),
+                          rhs1_.labels().end());
+        all_labels.insert(all_labels.end(), rhs2_.labels().begin(),
+                          rhs2_.labels().end());
+
+    const IndexLabelVec& unique_labels =
+          internal::unique_entries(all_labels);
+    std::cout << "Unique labels size - " << unique_labels.size() << std::endl;
+}
+
+TEST_CASE("Testing Dependent TiledIndexSpace contractions") {
+
+    using DependencyMap = std::map<IndexVector, TiledIndexSpace>;
+
+    TiledIndexSpace AO{IndexSpace{range(7)}};
+    TiledIndexSpace MO{IndexSpace{range(10)}};
+
+    DependencyMap depMO_1 = {
+      {{0}, {TiledIndexSpace{MO, IndexVector{1, 4, 5}}}},
+      {{2}, {TiledIndexSpace{MO, IndexVector{0, 3, 6, 8}}}},
+      {{5}, {TiledIndexSpace{MO, IndexVector{2, 4, 6, 9}}}}};
+
+    DependencyMap depMO_2 = {
+      {{1}, {TiledIndexSpace{MO, IndexVector{0, 1, 4, 5, 8}}}},
+      {{2}, {TiledIndexSpace{MO, IndexVector{0, 6, 8}}}},
+      {{3}, {TiledIndexSpace{MO, IndexVector{2, 5, 7}}}}};
+
+    DependencyMap depMO_3 = {
+      {{0}, {TiledIndexSpace{MO, IndexVector{0, 1, 4, 5, 8}}}},
+      {{2}, {TiledIndexSpace{MO, IndexVector{0, 6, 8}}}},
+      {{3}, {TiledIndexSpace{MO, IndexVector{1, 3, 7, 9}}}},
+      {{4}, {TiledIndexSpace{MO, IndexVector{2, 4, 7}}}},
+      {{7}, {TiledIndexSpace{MO, IndexVector{1, 5, 7}}}}};
+
+    TiledIndexSpace MO_AO_1{MO, {AO}, depMO_1};
+    TiledIndexSpace MO_AO_2{MO, {AO}, depMO_2};
+    TiledIndexSpace MO_MO_1{MO, {MO}, depMO_3};
+
+
+    auto [i, j] = AO.labels<2>("all");
+    auto [mu, nu] = MO.labels<2>("all");
+    auto [mu_i, nu_i] = MO_AO_1.labels<2>("all");
+    auto [mu_k, nu_j] = MO_AO_2.labels<2>("all");
+    auto [mu_nu, nu_mu] = MO_MO_1.labels<2>("all");
+
+    Tensor<double> Q{i, mu_i(i), nu_mu(mu_i)};
+    auto lbl_tens = Q(i, mu_i(i), nu_mu(mu_i));
+    const auto& loop_nest = Q.loop_nest();
+
+    for(const auto& lp : loop_nest) {
+        std::cerr << "block_id: [ ";
+        for(auto& i : lp) {
+            std::cerr << i << " ";
+        }
+        std::cerr << "]" << std::endl;
+
+        auto it = internal::translate_blockid(lp, lbl_tens);
+        
+        std::cerr << "translated_block_id: [ ";
+        for(auto& i : it) {
+            std::cerr << i << " ";
+        }
+        std::cerr << "]" << std::endl;
+    }
+
+    // auto ec = make_execution_context();
+
+    // Q.allocate(&ec);
+
+    // std::cerr << "End of tests" << std::endl;
+
 }
 
 int main(int argc, char* argv[]) {

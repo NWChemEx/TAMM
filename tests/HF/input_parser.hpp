@@ -23,6 +23,13 @@ using std::endl;
 using std::string;
 using libint2::Atom;
 
+inline bool strequal_case( const std::string &a, const std::string &b ) {
+  return a.size() == b.size() and
+    std::equal( a.begin(), a.end(), b.begin(), [](const char a, const char b) {
+      return std::tolower(a) == std::tolower(b);
+    });
+}
+
 // const int nwx_max_section_options = 20;
 
 void print_bool(std::string str, bool val){
@@ -326,7 +333,7 @@ std::vector<Atom> read_atoms(std::istream& is) {
         // .xyz files report element labels, hence convert to atomic numbers
         int Z = -1;
         for(const auto& e : libint2::chemistry::get_element_info()) {
-            if(libint2::strcaseequal(e.symbol, element_symbol)) {
+            if(strequal_case(e.symbol, element_symbol)) {
                 Z = e.Z;
                 break;
             }

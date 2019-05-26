@@ -60,6 +60,11 @@ cd_ncast(const from& value)
   }
 #endif
 
+  int64_t ac_fetch_add(int ga_ac, int64_t index, int64_t amount) {
+    auto ret = NGA_Read_inc64(ga_ac, &index, amount);
+    return ret;
+  }
+
 Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndexSpace& tAO,
   const TAMM_GA_SIZE ndocc, const TAMM_GA_SIZE nao, const TAMM_GA_SIZE freeze_core,
   const TAMM_GA_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
@@ -73,13 +78,13 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
 
     auto rank = ec.pg().rank();
 
-    auto iptilesize = tAO.input_tile_sizes()[0];
+    // auto iptilesize = tAO.input_tile_sizes()[0];
 
     std::vector<unsigned int> AO_tiles;
     for(auto s : shells) AO_tiles.push_back(s.size());
 
-    auto [mu, nu, ku] = tAO.labels<3>("all");
-    auto [pmo, rmo] = tMO.labels<2>("all");
+    // auto [mu, nu, ku] = tAO.labels<3>("all");
+    // auto [pmo, rmo] = tMO.labels<2>("all");
 
 
     if(rank == 0){
@@ -91,11 +96,11 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
     auto ov_alpha_freeze = ndocc - freeze_core;
     auto ov_beta_freeze  = nao - ndocc - freeze_virtual;
     
-    const auto v2dim  = 2 * nao - 2 * freeze_core - 2 * freeze_virtual;
-    const int n_alpha = ov_alpha_freeze;
-    const int n_beta  = ov_beta_freeze;
-    auto ov_alpha     = ndocc;
-    TAMM_GA_SIZE ov_beta{nao - ov_alpha};
+    // const auto v2dim  = 2 * nao - 2 * freeze_core - 2 * freeze_virtual;
+    // const int n_alpha = ov_alpha_freeze;
+    // const int n_beta  = ov_beta_freeze;
+    // auto ov_alpha     = ndocc;
+    // TAMM_GA_SIZE ov_beta{nao - ov_alpha};
 
     // 2-index transform
 
@@ -171,23 +176,29 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   int64_t ndim = 3;
   // int64_t pref = static_cast<int64_t>(max_cvecs);
   auto nbf = nao;
+  tamm::Tile count = 0; //Step A. Initialize chol vector count
 
-  int64_t dims[3] = {nbf,nbf,max_cvecs};
-  int64_t chnk[3] = {-1,-1,max_cvecs};
-  int nblock32[GA_MAX_DIM]; 
-  int64_t nblock[GA_MAX_DIM]; 
+  int g_chol_mo = 0;
+  int64_t cd_nranks = std::abs(std::log10(diagtol)) * nbf; // max cores
+  auto nnodes = GA_Cluster_nnodes();
+  auto ppn = GA_Cluster_nprocs(0);
+  int cd_nnodes = cd_nranks/ppn;
+  if(cd_nranks%ppn>0 || cd_nnodes==0) cd_nnodes++;
+  if(cd_nnodes > nnodes) cd_nnodes = nnodes;
+  cd_nranks = cd_nnodes * ppn;
+  if(rank == 0)  cout << "Total # of mpi ranks used for Cholesky decomposition: " << cd_nranks 
+       << "\n  --> Number of nodes, mpi ranks per node: " << cd_nnodes << ", " << ppn << endl;
 
-  auto eltype   = tensor_element_type<TensorType>();
+
+  int64_t dimsmo[3];
+  int64_t chnkmo[3];
+  int nblockmo32[GA_MAX_DIM]; 
+  int64_t nblockmo[GA_MAX_DIM]; 
+  int64_t size_map;
+  std::vector<int64_t> k_map;
+  // auto eltype   = tensor_element_type<TensorType>();
   int ga_eltype = C_DBL; //TODO: MemoryManagerGA::to_ga_eltype(eltype);
-  int g_test = NGA_Create64(ga_eltype,ndim,dims,const_cast<char*>("CholVecTmp"),chnk);
-  // int itype;
-  // NGA_Inquire(g_test,&itype,&ndim,dims);
-  NGA_Nblock(g_test,nblock32);
-  NGA_Destroy(g_test);
 
-  for(auto x=0;x<GA_MAX_DIM;x++) nblock[x] = nblock32[x];
-
-  int64_t size_map = nblock[0]+nblock[1]+nblock[2];
   auto create_map = [&] (auto& dims, auto& nblock) {
     std::vector<int64_t> k_map(size_map);
     auto mi=0;
@@ -203,7 +214,39 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
     return k_map;
   };
 
-  std::vector<int64_t> k_map = create_map(dims,nblock);
+  const bool throttle_cd = GA_Nnodes() > cd_nranks;
+  int ga_pg_default = GA_Pgroup_get_default();
+  int ga_pg = ga_pg_default;
+
+  if(iproc < cd_nranks) { //throttle  
+
+    if(throttle_cd){
+      int ranks[cd_nranks];
+      for (int i = 0; i < cd_nranks; i++) ranks[i] = i;    
+      // int ranks_world[cd_nranks];
+      // MPI_Group_translate_ranks(cdgroup, cd_nranks, ranks, wgroup, ranks_world);
+      // GA_Pgroup_set_default(GA_Pgroup_get_world());
+      ga_pg = GA_Pgroup_create(ranks, cd_nranks);
+      GA_Pgroup_set_default(ga_pg);
+    }
+  
+
+  int64_t dims[3] = {nbf,nbf,max_cvecs};
+  int64_t chnk[3] = {-1,-1,max_cvecs};
+  int nblock32[GA_MAX_DIM]; 
+  int64_t nblock[GA_MAX_DIM]; 
+
+  int g_test = NGA_Create64(ga_eltype,ndim,dims,const_cast<char*>("CholVecTmp"),chnk);
+  // int itype;
+  // NGA_Inquire(g_test,&itype,&ndim,dims);
+  NGA_Nblock(g_test,nblock32);
+  NGA_Destroy(g_test);
+
+  for(auto x=0;x<GA_MAX_DIM;x++) nblock[x] = nblock32[x];
+
+  size_map = nblock[0]+nblock[1]+nblock[2];
+
+  k_map = create_map(dims,nblock);
 
   // cout << "print k_map\n";
   // for (auto x=0;x<=mi;x++)
@@ -254,7 +297,6 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   //   cout << "------debug0-----\n";
   // }
   
-  auto count = 0U; //Step A. Initialize chol vector count
 
   auto shell2bf = map_shell_to_basis_function(shells);
   auto bf2shell = map_basis_function_to_shell(shells);
@@ -266,28 +308,32 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   for (size_t s1 = 0; s1 != shells.size(); ++s1) {
     auto bf1_first = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();
-    if(lo_d[0] <= bf1_first && bf1_first <= hi_d[0]){
+    decltype(bf1_first) lo_d0 = lo_d[0];
+    decltype(bf1_first) hi_d0 = hi_d[0];
+    if(lo_d0 <= bf1_first && bf1_first <= hi_d0){
 
       for (size_t s2 = 0; s2 != shells.size(); ++s2) {
         auto bf2_first = shell2bf[s2];
         auto n2 = shells[s2].size();
 
-         if(lo_d[1] <= bf2_first && bf2_first <= hi_d[1]){
+        decltype(bf2_first) lo_d1 = lo_d[1];
+        decltype(bf2_first) hi_d1 = hi_d[1];
+        if(lo_d1 <= bf2_first && bf2_first <= hi_d1){
 
-          //TODO:Screening
+          //TODO: Screening
           engine.compute(shells[s1], shells[s2], shells[s1], shells[s2]);
           const auto *buf_1212 = buf[0];
           if (buf_1212 == nullptr)
             continue; // if all integrals screened out, skip to next quartet
 
           std::vector<TensorType> k_eri(n1*n2);
-          for (size_t f1 = 0; f1 != n1; ++f1) {
-            const auto bf1 = f1 + bf1_first;
-            for (size_t f2 = 0; f2 != n2; ++f2) {
-              const auto bf2 = f2 + bf2_first;
+          for (decltype(n1) f1 = 0; f1 != n1; ++f1) {
+            // const auto bf1 = f1 + bf1_first;
+            for (decltype(n2) f2 = 0; f2 != n2; ++f2) {
+              // const auto bf2 = f2 + bf2_first;
               auto f1212 = f1*n2*n1*n2 + f2*n1*n2 + f1*n2 + f2;
               k_eri[f1*n2+f2] = buf_1212[f1212];
-              // cout << f1212 << " " << s1 << s2 << "(" << bf1 << bf2 << "|" << bf1 << bf2 << ") = " << DiagInt(bf1, bf2) << endl;
+              //// cout << f1212 << " " << s1 << s2 << "(" << bf1 << bf2 << "|" << bf1 << bf2 << ") = " << DiagInt(bf1, bf2) << endl;
             }
           }
           int64_t ibflo[2] = {cd_ncast<size_t>(bf1_first),cd_ncast<size_t>(bf2_first)};
@@ -339,13 +385,17 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
       auto bf3_first = shell2bf[s3]; // first basis function in this shell
       auto n3 = shells[s3].size();
 
-      if(lo_r[0] <= bf3_first && bf3_first <= hi_r[0]){
+      decltype(bf3_first) lo_r0 = lo_r[0];
+      decltype(bf3_first) hi_r0 = hi_r[0];
+      if(lo_r0 <= bf3_first && bf3_first <= hi_r0){
 
-        for (size_t s4 = 0; s4 != shells.size(); ++s4) {
+        for (decltype(s3) s4 = 0; s4 != shells.size(); ++s4) {
           auto bf4_first = shell2bf[s4];
           auto n4 = shells[s4].size();
 
-          if(lo_r[1] <= bf4_first && bf4_first <= hi_r[1]){
+          decltype(bf4_first) lo_r1 = lo_r[1];
+          decltype(bf4_first) hi_r1 = hi_r[1];
+          if(lo_r1 <= bf4_first && bf4_first <= hi_r1){
 
             engine.compute(shells[s3], shells[s4], shells[s1], shells[s2]);
             const auto *buf_3412 = buf[0];
@@ -353,10 +403,10 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
               continue; // if all integrals screened out, skip to next quartet
 
             std::vector<TensorType> k_eri(n3*n4);
-            for (size_t f3 = 0; f3 != n3; ++f3) {
-              const auto bf3 = f3 + bf3_first;
-              for (size_t f4 = 0; f4 != n4; ++f4) {
-                const auto bf4 = f4 + bf4_first;
+            for (decltype(n3) f3 = 0; f3 != n3; ++f3) {
+              // const auto bf3 = f3 + bf3_first;
+              for (decltype(n4) f4 = 0; f4 != n4; ++f4) {
+                // const auto bf4 = f4 + bf4_first;
 
                 auto f3412 = f3*n4*n12 + f4*n12 + ind12;
                 k_eri[f3*n4+f4] = buf_3412[f3412];
@@ -405,9 +455,9 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
     // cout << "ld_r,ld_b = [" << ld_r[0] << "," << ld_r[1]
     // << "], [" << ld_b[0] << "," << ld_b[1] << "]\n";
 
-    for(auto icount =0;icount < count; icount++){
-      for(auto i = 0;i<= hi_r[0] - lo_r[0];i++) {
-        for(auto j = 0; j<= hi_r[1] - lo_r[1];j++) {
+    for(decltype(count) icount = 0;icount < count; icount++){
+      for(int64_t i = 0; i<= hi_r[0] - lo_r[0]; i++) {
+        for(int64_t j = 0; j <= hi_r[1] - lo_r[1]; j++) {
           indx_r[i*ld_r[0] + j] -= indx_b[icount+j*ld_b[1] + i*ld_b[1]*ld_b[0]]
               * k_row[icount];
         }
@@ -476,10 +526,9 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   if(iproc == 0) std::cout << "\nTime taken for cholesky decomp: " << hf_time << " secs\n";
 
  
-  int64_t dimsmo[3] = {N,N,count};
-  int64_t chnkmo[3] = {-1,-1,count};
-  int nblockmo32[GA_MAX_DIM]; 
-  int64_t nblockmo[GA_MAX_DIM]; 
+  dimsmo[0] = N; dimsmo[1] = N; dimsmo[2] = count;
+  chnkmo[0] = -1; chnkmo[1] = -1; chnkmo[2] = count;
+  // chnkmo = {-1,-1,count};
 
   int g_test2 = NGA_Create64(ga_eltype,3,dimsmo,const_cast<char*>("CholVecMOTmp"),chnkmo);
   NGA_Nblock(g_test2,nblockmo32);
@@ -489,7 +538,7 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
 
   size_map = nblockmo[0]+nblockmo[1]+nblockmo[2];
   k_map = create_map(dimsmo,nblockmo);
-  int g_chol_mo = NGA_Create_irreg64(ga_eltype,3,dimsmo,const_cast<char*>("CholXMO"),nblockmo,&k_map[0]);
+  g_chol_mo = NGA_Create_irreg64(ga_eltype,3,dimsmo,const_cast<char*>("CholXMO"),nblockmo,&k_map[0]);
   GA_Zero(g_chol_mo);
 
   
@@ -502,20 +551,40 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   // std::vector<TensorType> k_work(lwork);
   // auto liwork = 5*nbf+3;
   // std::vector<TensorType> k_iwork(liwork);
-  int64_t g_num = 0;
-  auto svdtol = 1e-8; //TODO same as diagtol ?
-
+  // int64_t g_num = 0;
+  
   #define DO_SVD 0
+  #if DO_SVD
+    auto svdtol = 1e-8; //TODO same as diagtol ?
+  #endif 
 
   hf_t1 = std::chrono::high_resolution_clock::now();
   double cvpr_time = 0;
 
-  AtomicCounter* ac = new AtomicCounterGA(ec.pg(), 1);
-  ac->allocate(0);
-  int64_t taskcount = 0;
-  int64_t next = ac->fetch_add(0, 1);
+  // AtomicCounter* ac = new AtomicCounterGA(ec.pg(), 1);
+  // ac->allocate(0);
+    char name[] = "atomic-counter";
+    int64_t num_counters_ = 1;
+    int64_t init_val = 0;
+    int64_t size = num_counters_;
+    int ga_ac = NGA_Create_config64(MT_C_LONGLONG, 1, &size, name, nullptr, ga_pg);
+    EXPECTS(ga_ac != 0);  
+    if(GA_Pgroup_nodeid(ga_pg) == 0) {
+      int64_t lo[1] = {0};
+      int64_t hi[1] = {num_counters_ - 1};
+      int64_t ld = -1;
+      long long buf[num_counters_];
+      for(int i=0; i<num_counters_; i++) {
+        buf[i] = init_val;
+      }
+      NGA_Put64(ga_ac, lo, hi, buf, &ld);
+    }
+    GA_Pgroup_sync(ga_pg);
 
-  for(auto kk=0;kk<count;kk++) {
+  int64_t taskcount = 0;
+  int64_t next = ac_fetch_add(ga_ac, 0, 1);
+
+  for(decltype(count) kk=0;kk<count;kk++) {
     if(next == taskcount) {
 
       int64_t lo_ao[3] = {0,0,kk};
@@ -606,14 +675,16 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
       int64_t ld_mo[2] = {N,1};        
 
       NGA_Put64(g_chol_mo,lo_mo,hi_mo,&k_pq[0],ld_mo);
-      next = ac->fetch_add(0, 1);      
+      // next = ac->fetch_add(0, 1);      
+      next = ac_fetch_add(ga_ac, 0, 1);
     } //next==taskcount
     taskcount++;
   }
 
-  ec.pg().barrier();
-  ac->deallocate();
-  delete ac;
+  // ec.pg().barrier();
+  // ac->deallocate();
+  // delete ac;
+  GA_Pgroup_sync(ga_pg);
 
   NGA_Destroy(g_chol);
   k_pj.clear(); k_pj.shrink_to_fit();
@@ -629,15 +700,49 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
     std::cout << "\n --> Time for 2-step contraction: " << cvpr_time << " secs\n";
   }
 
+  if(throttle_cd) GA_Pgroup_set_default(ga_pg_default);
+
+  }//end throttle
+
+  ec.pg().barrier();
+  GA_Brdcst(&count, sizeof(int64_t), 0);
+
+  hf_t1 = std::chrono::high_resolution_clock::now();
+
+  // dimsmo = {N,N,count};
+  // chnkmo = {-1,-1,count};
+  dimsmo[0] = N; dimsmo[1] = N; dimsmo[2] = count;
+  chnkmo[0] = -1; chnkmo[1] = -1; chnkmo[2] = count;
+  
+  int g_test_mo = NGA_Create64(ga_eltype,3,dimsmo,const_cast<char*>("CholVecMOTmp"),chnkmo);
+  NGA_Nblock(g_test_mo,nblockmo32);
+  NGA_Destroy(g_test_mo);
+
+  for(auto x=0;x<GA_MAX_DIM;x++) nblockmo[x] = nblockmo32[x];
+
+  size_map = nblockmo[0]+nblockmo[1]+nblockmo[2];
+  k_map = create_map(dimsmo,nblockmo);
+  int g_chol_mo_copy = NGA_Create_irreg64(ga_eltype,3,dimsmo,const_cast<char*>("CholXMOCopy"),nblockmo,&k_map[0]);
+  GA_Zero(g_chol_mo_copy);
+
+  if(iproc < cd_nranks) { //throttle  
+    GA_Pgroup_set_default(ga_pg);
+    GA_Copy(g_chol_mo,g_chol_mo_copy);
+    NGA_Destroy(g_chol_mo);
+    GA_Pgroup_sync(ga_pg);
+    GA_Pgroup_set_default(ga_pg_default);
+  }
+
+  ec.pg().barrier();
+
   IndexSpace CIp{range(0, count)};
   TiledIndexSpace tCIp{CIp, count}; //TODO: replace count with iptilesize 
   // auto [cindexp] = tCIp.labels<1>("all");
 
-  hf_t1 = std::chrono::high_resolution_clock::now();
   Tensor<TensorType> CholVpr_tamm{{tMO,tMO,tCIp},{SpinPosition::upper,SpinPosition::lower,SpinPosition::ignore}};
   Tensor<TensorType>::allocate(&ec, CholVpr_tamm);
   
-  //convert g_chol_mo to CholVpr_tamm
+  //convert g_chol_mo_copy to CholVpr_tamm
     auto lambdacv = [&](const IndexVector& bid){
         const IndexVector blockid =
         internal::translate_blockid(bid, CholVpr_tamm());
@@ -657,14 +762,14 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
                          cd_ncast<size_t>(block_dims[2])};
 
         std::vector<TensorType> sbuf(dsize);
-        NGA_Get64(g_chol_mo,lo,hi,&sbuf[0],ld);
+        NGA_Get64(g_chol_mo_copy,lo,hi,&sbuf[0],ld);
 
         CholVpr_tamm.put(blockid, sbuf);
     };
 
     block_for(ec, CholVpr_tamm(), lambdacv);
 
-  NGA_Destroy(g_chol_mo);
+  NGA_Destroy(g_chol_mo_copy);
 
   hf_t2 = std::chrono::high_resolution_clock::now();
   hf_time =

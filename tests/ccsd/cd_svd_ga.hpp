@@ -88,7 +88,7 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
 
 
     if(rank == 0){
-      cout << "\n-----------------------------------------------------\n";
+      cout << "\n-----------------------------------------------------" << endl;
       cout << "Begin Cholesky Decomposition ... " << endl;
       cout << "\n#AOs, #electrons = " << nao << " , " << ndocc << endl;
     }
@@ -166,7 +166,7 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   auto hf_t2 = std::chrono::high_resolution_clock::now();
   auto hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(rank == 0) std::cout << "\nTime taken for 2-index transform: " << hf_time << " secs\n";
+  if(rank == 0) std::cout << "\nTime taken for 2-index transform: " << hf_time << " secs" << endl;
   GA_Sync();
   
   hf_t1 = std::chrono::high_resolution_clock::now();
@@ -176,18 +176,20 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   int64_t ndim = 3;
   // int64_t pref = static_cast<int64_t>(max_cvecs);
   auto nbf = nao;
-  tamm::Tile count = 0; //Step A. Initialize chol vector count
+  int64_t count = 0; //Step A. Initialize chol vector count
 
   int g_chol_mo = 0;
-  int64_t cd_nranks = std::abs(std::log10(diagtol)) * nbf; // max cores
-  auto nnodes = GA_Cluster_nnodes();
-  auto ppn = GA_Cluster_nprocs(0);
-  int cd_nnodes = cd_nranks/ppn;
-  if(cd_nranks%ppn>0 || cd_nnodes==0) cd_nnodes++;
-  if(cd_nnodes > nnodes) cd_nnodes = nnodes;
-  cd_nranks = cd_nnodes * ppn;
-  if(rank == 0)  cout << "Total # of mpi ranks used for Cholesky decomposition: " << cd_nranks 
-       << "\n  --> Number of nodes, mpi ranks per node: " << cd_nnodes << ", " << ppn << endl;
+  #ifdef CD_SVD_THROTTLE
+    int64_t cd_nranks = std::abs(std::log10(diagtol)) * nbf; // max cores
+    auto nnodes = GA_Cluster_nnodes();
+    auto ppn = GA_Cluster_nprocs(0);
+    int cd_nnodes = cd_nranks/ppn;
+    if(cd_nranks%ppn>0 || cd_nnodes==0) cd_nnodes++;
+    if(cd_nnodes > nnodes) cd_nnodes = nnodes;
+    cd_nranks = cd_nnodes * ppn;
+    if(rank == 0)  cout << "Total # of mpi ranks used for Cholesky decomposition: " << cd_nranks 
+        << "\n  --> Number of nodes, mpi ranks per node: " << cd_nnodes << ", " << ppn << endl;
+  #endif
 
 
   int64_t dimsmo[3];
@@ -214,9 +216,11 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
     return k_map;
   };
 
-  const bool throttle_cd = GA_Nnodes() > cd_nranks;
   int ga_pg_default = GA_Pgroup_get_default();
   int ga_pg = ga_pg_default;
+
+  #ifdef CD_SVD_THROTTLE
+  const bool throttle_cd = GA_Nnodes() > cd_nranks;
 
   if(iproc < cd_nranks) { //throttle  
 
@@ -229,7 +233,7 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
       ga_pg = GA_Pgroup_create(ranks, cd_nranks);
       GA_Pgroup_set_default(ga_pg);
     }
-  
+  #endif
 
   int64_t dims[3] = {nbf,nbf,max_cvecs};
   int64_t chnk[3] = {-1,-1,max_cvecs};
@@ -523,7 +527,7 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   hf_t2 = std::chrono::high_resolution_clock::now();
   hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(iproc == 0) std::cout << "\nTime taken for cholesky decomp: " << hf_time << " secs\n";
+  if(iproc == 0) std::cout << "\nTime taken for cholesky decomp: " << hf_time << " secs" << endl;
 
  
   dimsmo[0] = N; dimsmo[1] = N; dimsmo[2] = count;
@@ -696,18 +700,24 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
   if(rank == 0) {
-    std::cout << "\nTotal Time for constructing CholVpr: " << hf_time << " secs";
-    std::cout << "\n --> Time for 2-step contraction: " << cvpr_time << " secs\n";
+    std::cout << "\nTotal Time for constructing CholVpr: " << hf_time << " secs" << endl;
+    std::cout << "  --> Time for 2-step contraction: " << cvpr_time << " secs" << endl;
   }
 
-  if(throttle_cd) GA_Pgroup_set_default(ga_pg_default);
+  #ifdef CD_SVD_THROTTLE
+    if(throttle_cd) GA_Pgroup_set_default(ga_pg_default);
 
-  }//end throttle
+    }//end throttle
+  #endif
 
   ec.pg().barrier();
+  #ifdef CD_SVD_THROTTLE
   GA_Brdcst(&count, sizeof(int64_t), 0);
+  #endif
 
   hf_t1 = std::chrono::high_resolution_clock::now();
+
+  #ifdef CD_SVD_THROTTLE
 
   // dimsmo = {N,N,count};
   // chnkmo = {-1,-1,count};
@@ -734,9 +744,12 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   }
 
   ec.pg().barrier();
+  #else
+    int g_chol_mo_copy = g_chol_mo;
+  #endif
 
   IndexSpace CIp{range(0, count)};
-  TiledIndexSpace tCIp{CIp, count}; //TODO: replace count with iptilesize 
+  TiledIndexSpace tCIp{CIp, static_cast<tamm::Tile>(count)}; //TODO: replace count with iptilesize 
   // auto [cindexp] = tCIp.labels<1>("all");
 
   Tensor<TensorType> CholVpr_tamm{{tMO,tMO,tCIp},{SpinPosition::upper,SpinPosition::lower,SpinPosition::ignore}};
@@ -774,7 +787,7 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   hf_t2 = std::chrono::high_resolution_clock::now();
   hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(rank == 0) std::cout << "\nTime for ga_chol_mo -> CholVpr_tamm conversion: " << hf_time << " secs\n";
+  if(rank == 0) std::cout << "\nTime for ga_chol_mo -> CholVpr_tamm conversion: " << hf_time << " secs" << endl;
 
 
   #if 0

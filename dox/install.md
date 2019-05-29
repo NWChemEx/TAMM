@@ -128,7 +128,7 @@ export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/2
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
--DTAMM_CXX_FLAGS="-ffast-math -mcpu=power9 -mtune=native" \
+-DTAMM_CXX_FLAGS="-ffast-math -mcpu=power9 -mtune=native" -DBLAS_INT4=OFF \
 -DTAMM_EXTRA_LIBS="$NETLIB_BLAS_LIBS/liblapacke.a;$NETLIB_BLAS_LIBS/liblapack.a" ..
 
 For CUDA build, add -DNWX_CUDA=ON
@@ -142,7 +142,7 @@ module load netlib-scalapack
 
 export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp.so;/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-7.4.0/netlib-scalapack-2.0.2-z3a4bwna7g5h4gy2vrkfcarkhyznuyyk/lib/libscalapack.so"
 
-Add -DSCALAPACK=ON -DBLAS_INT4=ON to the cmake line.
+Add -DSCALAPACK=ON to the cmake line.
 
 
 ```
@@ -180,7 +180,7 @@ cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DTAMM_CXX_FLAGS="-mtune=native -ffast-math" \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
--DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
+-DLAPACKE_LIBRARIES=$TAMM_BLASLIBS -DBLAS_INT4=OFF ..
 
 For CUDA build, add -DNWX_CUDA=ON
 

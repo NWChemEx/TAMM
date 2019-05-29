@@ -32,6 +32,12 @@ cmake \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran ..
 
+#BLIS Options
+-DBLIS=ON [-DBLIS_CONFIG=arch]
+Ex: -DBLIS_CONFIG=haswell
+If BLIS_CONFIG is not provided, the BLIS build will try to
+auto-detect (only for x86_64 systems) the architecture.
+
 #CUDA Options
 [-DNWX_CUDA=ON] #Disabled by Default
 #GlobalArrays options

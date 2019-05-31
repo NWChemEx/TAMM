@@ -1,7 +1,7 @@
 #ifndef TESTS_CCSD_UTIL_HPP_
 #define TESTS_CCSD_UTIL_HPP_
 
-#include "cd_svd.hpp"
+// #include "cd_svd.hpp"
 #include "cd_svd_ga.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"
@@ -160,16 +160,16 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(Tile tce_tile, TAMM_SIZE nao, TA
     
     tamm::Tile est_nt = ov_alpha/tce_tile;
     tamm::Tile last_tile = ov_alpha%tce_tile;
-    for (auto x=0;x<est_nt;x++)mo_tiles.push_back(tce_tile);
+    for (tamm::Tile x=0;x<est_nt;x++)mo_tiles.push_back(tce_tile);
     if(last_tile>0) mo_tiles.push_back(last_tile);
-    for (auto x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
+    for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
     if(last_tile>0) mo_tiles.push_back(last_tile);
 
     est_nt = ov_beta/tce_tile;
     last_tile = ov_beta%tce_tile;
-    for (auto x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
+    for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
     if(last_tile>0) mo_tiles.push_back(last_tile);
-    for (auto x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
+    for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
     if(last_tile>0) mo_tiles.push_back(last_tile);
 
     // cout << "mo-tiles=" << mo_tiles << endl;
@@ -180,8 +180,9 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(Tile tce_tile, TAMM_SIZE nao, TA
     //                  {"alpha", {range(0, ov_alpha),range(ov_alpha+ov_beta,2*ov_alpha+ov_beta)}}, //0-5,7-12
     //                  {"beta", {range(ov_alpha,ov_alpha+ov_beta), range(2*ov_alpha+ov_beta,total_orbitals)}} //5-7,12-14   
     //                  }};
-    const unsigned int ova = static_cast<unsigned int>(ov_alpha);
-    const unsigned int ovb = static_cast<unsigned int>(ov_beta);
+
+    // const unsigned int ova = static_cast<unsigned int>(ov_alpha);
+    // const unsigned int ovb = static_cast<unsigned int>(ov_beta);
     TiledIndexSpace MO{MO_IS, mo_tiles}; //{ova,ova,ovb,ovb}};
 
     return std::make_tuple(MO,total_orbitals);
@@ -219,7 +220,7 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
    
   std::vector<Tensor<T>> d_r1s, d_r2s, d_t1s, d_t2s;
 
-  for(int i=0; i<ndiis; i++) {
+  for(decltype(ndiis) i=0; i<ndiis; i++) {
     d_r1s.push_back(Tensor<T>{{V,O},{1,1}});
     d_r2s.push_back(Tensor<T>{{V,V,O,O},{2,2}});
     d_t1s.push_back(Tensor<T>{{V,O},{1,1}});
@@ -277,7 +278,7 @@ std::tuple<OptionsMap, TAMM_SIZE, TAMM_SIZE, double,
     return std::make_tuple(options_map,ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, tAO, tAOt);
 }
 
-
+#if 0
 template<typename T> 
 std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(OptionsMap options_map,
  ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& AO_tis,
@@ -324,6 +325,7 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(OptionsMap 
     return std::make_tuple(cholVpr, d_f1, chol_count, max_cvecs);
 
 }
+#endif
 
 void ccsd_stats(ExecutionContext& ec, double hf_energy,double residual,double energy,double thresh){
 
@@ -422,7 +424,7 @@ template<typename T>
 Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> cholVpr, const tamm::Tile chol_count,
                  const TAMM_SIZE total_orbitals, TAMM_SIZE n_alpha, TAMM_SIZE n_beta) {
 
-    auto rank = ec.pg().rank();
+    // auto rank = ec.pg().rank();
 
     TiledIndexSpace N = MO("all");
 
@@ -518,8 +520,11 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_g
   libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map){
 
     CDOptions cd_options = options_map.cd_options;
-    tamm::Tile max_cvecs = cd_options.max_cvecs_factor * nao;
     auto diagtol = cd_options.diagtol; // tolerance for the max. diagonal
+    cd_options.max_cvecs_factor = 2 * std::abs(std::log10(diagtol));
+    //TODO
+    tamm::Tile max_cvecs = cd_options.max_cvecs_factor * nao;
+
 
     std::cout << std::defaultfloat;
     auto rank = ec.pg().rank();

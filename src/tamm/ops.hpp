@@ -794,11 +794,11 @@ protected:
     std::array<LabeledTensorT, N> rhs_;
 };
 
-template<typename T, typename LabeledTensorT>
+template<typename T, typename LabeledTensorT1, typename LabeledTensorT2>
 class AddOp : public Op {
 public:
     AddOp() = default;
-    AddOp(LabeledTensorT lhs, T alpha, LabeledTensorT rhs, bool is_assign) :
+    AddOp(LabeledTensorT1 lhs, T alpha, LabeledTensorT2 rhs, bool is_assign) :
       lhs_{lhs},
       alpha_{alpha},
       rhs_{rhs},
@@ -808,13 +808,13 @@ public:
         validate();
     }
 
-    AddOp(const AddOp<T, LabeledTensorT>&) = default;
+    AddOp(const AddOp<T, LabeledTensorT1, LabeledTensorT2>&) = default;
 
     T alpha() const { return alpha_; }
 
-    LabeledTensorT lhs() const { return lhs_; }
+    LabeledTensorT1 lhs() const { return lhs_; }
 
-    LabeledTensorT rhs() const { return rhs_; }
+    LabeledTensorT2 rhs() const { return rhs_; }
 
     bool is_assign() const { return is_assign_; }
 
@@ -835,11 +835,11 @@ public:
     }
 
     std::shared_ptr<Op> clone() const override {
-        return std::shared_ptr<Op>(new AddOp<T, LabeledTensorT>{*this});
+        return std::shared_ptr<Op>(new AddOp<T, LabeledTensorT1, LabeledTensorT2>{*this});
     }
 
     void execute(ExecutionContext& ec) override {
-#if 1
+    #if 1
         
 
         IndexLabelVec merged_labels{lhs_.labels()};
@@ -899,9 +899,9 @@ public:
 
         //@todo use a scheduler
         do_work(ec, loop_nest, lambda);
-#endif
-#if 0
-
+    #endif
+        #if 0
+        
         if(is_assign_) {
             ec.re()->submitTask(
               [=](RuntimeEngine::RuntimeContext rc) {
@@ -1022,7 +1022,8 @@ public:
 #endif
 #if 0
         
-        using TensorElType = typename LabeledTensorT::element_type;
+        using TensorElType1 = typename LabeledTensorT1::element_type;
+        using TensorElType2 = typename LabeledTensorT2::element_type;
 
         IndexLabelVec merged_labels{lhs_.labels()};
         merged_labels.insert(merged_labels.end(), rhs_.labels().begin(),
@@ -1046,8 +1047,8 @@ public:
             }
 
             const size_t size = ltensor.block_size(lblockid);
-            std::vector<TensorElType> rbuf(size);
-            std::vector<TensorElType> lbuf(size);
+            std::vector<TensorElType2> rbuf(size);
+            std::vector<TensorElType1> lbuf(size);
             rtensor.get(rblockid, rbuf);
             const auto& ldims = lhs_.tensor().block_dims(lblockid);
             const auto& rdims = rhs_.tensor().block_dims(rblockid);
@@ -1187,19 +1188,19 @@ protected:
         }
     }
 
-    LabeledTensorT lhs_;
+    LabeledTensorT1 lhs_;
     T alpha_;
-    LabeledTensorT rhs_;
+    LabeledTensorT2 rhs_;
     IntLabelVec lhs_int_labels_, rhs_int_labels_;
     bool is_assign_;
 }; // class AddOp
 
-template<typename T, typename LabeledTensorT>
+template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 class MultOp : public Op {
 public:
     MultOp() = default;
-    MultOp(LabeledTensorT lhs, T alpha, LabeledTensorT rhs1,
-           LabeledTensorT rhs2, bool is_assign) :
+    MultOp(LabeledTensorT1 lhs, T alpha, LabeledTensorT2 rhs1,
+           LabeledTensorT3 rhs2, bool is_assign) :
       lhs_{lhs},
       alpha_{alpha},
       rhs1_{rhs1},
@@ -1213,15 +1214,15 @@ public:
         // }
     }
 
-    MultOp(const MultOp<T, LabeledTensorT>&) = default;
+    MultOp(const MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>&) = default;
 
-    LabeledTensorT lhs() const { return lhs_; }
+    LabeledTensorT1 lhs() const { return lhs_; }
 
     T alpha() const { return alpha_; }
 
-    LabeledTensorT rhs1() const { return rhs1_; }
+    LabeledTensorT2 rhs1() const { return rhs1_; }
 
-    LabeledTensorT rhs2() const { return rhs2_; }
+    LabeledTensorT3 rhs2() const { return rhs2_; }
 
     bool is_assign() const { return is_assign_; }
 
@@ -1247,8 +1248,8 @@ public:
 
     void execute(ExecutionContext& ec) override {
         EXPECTS(!is_assign_);
-#if 1
-        using TensorElType = typename LabeledTensorT::element_type;
+        #if 1 //TODO: complex
+        using TensorElType = typename LabeledTensorT1::element_type;
         // determine set of all labels
         IndexLabelVec all_labels{lhs_.labels()};
         all_labels.insert(all_labels.end(), rhs1_.labels().begin(),
@@ -1374,8 +1375,7 @@ public:
 #endif
 #if 0
 
-
-        using TensorElType = typename LabeledTensorT::element_type;
+        using TensorElType = typename LabeledTensorT1::element_type;
         // determine set of all labels
         IndexLabelVec all_labels{lhs_.labels()};
         all_labels.insert(all_labels.end(), rhs1_.labels().begin(),
@@ -1436,7 +1436,7 @@ public:
 
             // add the computed update to the tensor
             ctensor.add(cblockid, cbuf);
-        };
+        };        
         //@todo use a scheduler
         //@todo make parallel
         do_work(ec, loop_nest, lambda);
@@ -1558,10 +1558,66 @@ protected:
         }
     }
 
-    LabeledTensorT lhs_;
+    IndexLabelVec loop_labels(const IndexLabelVec& order = {}){
+
+        IndexLabelVec local_order = order;
+
+        // if no order is specified use ordering as before
+        if(order.empty()){
+            auto all_labels{lhs_.labels()};
+            all_labels.insert(all_labels.end(), rhs1_.labels().begin(),
+                          rhs1_.labels().end());
+            all_labels.insert(all_labels.end(), rhs2_.labels().begin(),
+                          rhs2_.labels().end());
+            
+            const IndexLabelVec& unique_labels =
+                internal::unique_entries(all_labels);
+
+            local_order = internal::sort_on_dependence(unique_labels);
+        }
+
+        IndexLabelVec res;
+        TiledIndexSpaceVec lhs_tis(lhs_.labels().size());
+        TiledIndexSpaceVec rhs1_tis(rhs1_.labels().size());
+        TiledIndexSpaceVec rhs2_tis(rhs2_.labels().size());
+
+        // intersect all usage with tensor construction tis
+        for (size_t i = 0; i < lhs_.labels().size(); i++) {
+            const auto& str_tis = lhs_.tensor().tiled_index_spaces()[i];
+            const auto& use_tis = lhs_.labels()[i].tiled_index_space();
+            lhs_tis.push_back(intersect_tis(str_tis, use_tis));
+        }
+
+        for (size_t i = 0; i < rhs1_.labels().size(); i++) {
+            const auto& str_tis = rhs1_.tensor().tiled_index_spaces()[i];
+            const auto& use_tis = rhs1_.labels()[i].tiled_index_space();
+            rhs1_tis.push_back(intersect_tis(str_tis, use_tis));
+        }
+
+        for (size_t i = 0; i < rhs2_.labels().size(); i++) {
+            const auto& str_tis = rhs2_.tensor().tiled_index_spaces()[i];
+            const auto& use_tis = rhs2_.labels()[i].tiled_index_space();
+            rhs2_tis.push_back(intersect_tis(str_tis, use_tis));
+        }
+        
+        TiledIndexSpaceVec loop_tis; 
+        // for each lbl in expression do a intersection between each other
+        for(auto& lbl : local_order) {
+            // search for lbl on each tensor
+            // each label will be in two Tensors
+
+            // intersect tis 
+
+            // push_back result to loop_tis
+        }
+
+        return res;
+    }
+
+    LabeledTensorT1 lhs_;
     T alpha_;
-    LabeledTensorT rhs1_;
-    LabeledTensorT rhs2_;
+    LabeledTensorT2 rhs1_;
+    LabeledTensorT3 rhs2_;
     IntLabelVec lhs_int_labels_;
     IntLabelVec rhs1_int_labels_;
     IntLabelVec rhs2_int_labels_;

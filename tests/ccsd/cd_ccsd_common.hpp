@@ -23,21 +23,21 @@ void ccsd_e(/* ExecutionContext &ec, */
             const TiledIndexSpace& MO, const TiledIndexSpace& CI, Tensor<T>& de, const Tensor<T>& t1,
             const Tensor<T>& t2, const Tensor<T>& f1, Tensor<T>& chol3d) { 
 
-    const TiledIndexSpace& O = MO("occ");
-    const TiledIndexSpace& V = MO("virt");
+    // const TiledIndexSpace& O = MO("occ");
+    // const TiledIndexSpace& V = MO("virt");
 
     Tensor<T> _a01{CI};
     // Tensor<T> _a02{{O,O,CI},{1,1}};
     // Tensor<T> _a03{{O,V,CI},{1,1}};
 
     auto [cind] = CI.labels<1>("all");
-    auto [p1, p2, p3, p4, p5] = MO.labels<5>("virt");
-    auto [h3, h4, h5, h6]     = MO.labels<4>("occ");
+    // auto [p1, p2, p3, p4, p5] = MO.labels<5>("virt");
+    // auto [h3, h4, h5, h6]     = MO.labels<4>("occ");
 
-    auto [p1_va, p2_va, p3_va, p4_va, p5_va] = v_alpha.labels<5>("all");
-    auto [p1_vb, p2_vb, p3_vb, p4_vb, p5_vb] = v_beta.labels<5>("all");
-    auto [h3_oa, h4_oa, h5_oa, h6_oa]     = o_alpha.labels<4>("all");
-    auto [h3_ob, h4_ob, h5_ob, h6_ob]     = o_beta.labels<4>("all");
+    auto [p1_va, p2_va, p3_va] = v_alpha.labels<3>("all");
+    auto [p1_vb, p2_vb, p3_vb] = v_beta.labels<3>("all");
+    auto [h3_oa, h4_oa, h6_oa] = o_alpha.labels<3>("all");
+    auto [h3_ob, h4_ob, h6_ob] = o_beta.labels<3>("all");
 
     // Scheduler sch{ec};
     // sch.allocate(_a01,_a02,_a03);
@@ -90,8 +90,8 @@ void ccsd_t1(/* ExecutionContext& ec,  */
              const TiledIndexSpace& MO,const TiledIndexSpace& CI, 
              Tensor<T>& i0, const Tensor<T>& t1, const Tensor<T>& t2, 
              const Tensor<T>& f1, Tensor<T>& chol3d) {
-    const TiledIndexSpace& O = MO("occ");
-    const TiledIndexSpace& V = MO("virt");
+    // const TiledIndexSpace& O = MO("occ");
+    // const TiledIndexSpace& V = MO("virt");
     
     // Tensor<T> _a01{{O,O,CI},{1,1}};
     Tensor<T> _a02{CI};
@@ -101,13 +101,13 @@ void ccsd_t1(/* ExecutionContext& ec,  */
     // Tensor<T> _a06{{O,O,CI},{1,1}};
     
     auto [cind] = CI.labels<1>("all");
-    auto [p1, p2, p3, p4, p5, p6, p7, p8] = MO.labels<8>("virt");
-    auto [h1, h2, h3, h4, h5, h6, h7, h8] = MO.labels<8>("occ");
+    auto [p2] = MO.labels<1>("virt");
+    auto [h1] = MO.labels<1>("occ");
 
-    auto [p1_va, p2_va, p3_va, p4_va, p5_va, p6_va, p7_va] = v_alpha.labels<7>("all");
-    auto [p1_vb, p2_vb, p3_vb, p4_vb, p5_vb, p6_vb, p7_vb] = v_beta.labels<7>("all");
-    auto [h1_oa, h2_oa, h3_oa, h4_oa, h5_oa, h6_oa, h7_oa] = o_alpha.labels<7>("all");
-    auto [h1_ob, h2_ob, h3_ob, h4_ob, h5_ob, h6_ob, h7_ob] = o_beta.labels<7>("all");
+    auto [p1_va, p2_va, p3_va] = v_alpha.labels<3>("all");
+    auto [p1_vb, p2_vb, p3_vb] = v_beta.labels<3>("all");
+    auto [h1_oa, h2_oa, h3_oa, h7_oa] = o_alpha.labels<4>("all");
+    auto [h1_ob, h2_ob, h3_ob, h7_ob] = o_beta.labels<4>("all");
 
     // sch
     //     .allocate(_a01, _a02, _a03, _a04, _a05, _a06)
@@ -216,18 +216,18 @@ void ccsd_t2(/* ExecutionContext& ec, */
              Tensor<T>& i0, const Tensor<T>& t1, Tensor<T>& t2, 
              const Tensor<T>& f1, Tensor<T>& chol3d) {
                  
-    const TiledIndexSpace &O = MO("occ");
-    const TiledIndexSpace &V = MO("virt");
-    const TiledIndexSpace &N = MO("all");
+    // const TiledIndexSpace &O = MO("occ");
+    // const TiledIndexSpace &V = MO("virt");
+    // const TiledIndexSpace &N = MO("all");
 
     auto [cind] = CI.labels<1>("all");
-    auto [p1, p2, p3, p4, p5, p6, p7, p8, p9] = MO.labels<9>("virt");
-    auto [h1, h2, h3, h4, h5, h6, h7, h8, h9] = MO.labels<9>("occ");
+    auto [p3, p4] = MO.labels<2>("virt");
+    auto [h1, h2] = MO.labels<2>("occ");
 
-    auto [p1_va, p2_va, p3_va, p4_va, p5_va, p6_va, p7_va, p8_va] = v_alpha.labels<8>("all");
-    auto [p1_vb, p2_vb, p3_vb, p4_vb, p5_vb, p6_vb, p7_vb, p8_vb] = v_beta.labels<8>("all");
-    auto [h1_oa, h2_oa, h3_oa, h4_oa, h5_oa, h6_oa, h7_oa, h8_oa, h9_oa] = o_alpha.labels<9>("all");
-    auto [h1_ob, h2_ob, h3_ob, h4_ob, h5_ob, h6_ob, h7_ob, h8_ob, h9_ob] = o_beta.labels<9>("all");
+    auto [p1_va, p2_va, p3_va, p4_va, p5_va, p8_va] = v_alpha.labels<6>("all");
+    auto [p1_vb, p2_vb, p3_vb, p4_vb, p6_vb, p8_vb] = v_beta.labels<6>("all");
+    auto [h1_oa, h2_oa, h3_oa, h4_oa, h7_oa, h9_oa] = o_alpha.labels<6>("all");
+    auto [h1_ob, h2_ob, h3_ob, h4_ob, h8_ob, h9_ob] = o_beta.labels<6>("all");
 
     
     // Tensor<T> _a001{{V,V}, {1,1}};
@@ -488,8 +488,8 @@ std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexS
     const TiledIndexSpace &O = MO("occ");
     const TiledIndexSpace &V = MO("virt");
     auto [cind] = CI.labels<1>("all");
-    auto [p1, p2] = MO.labels<2>("virt");
-    auto [h3, h4] = MO.labels<2>("occ");
+    // auto [p1, p2] = MO.labels<2>("virt");
+    // auto [h3, h4] = MO.labels<2>("occ");
 
 
     const int otiles = O.num_tiles();
@@ -502,10 +502,10 @@ std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexS
     o_beta = {MO("occ"), range(oabtiles,otiles)};
     v_beta = {MO("virt"), range(vabtiles,vtiles)};
 
-    auto [p1_va, p2_va, p3_va, p4_va, p5_va] = v_alpha.labels<5>("all");
-    auto [p1_vb, p2_vb, p3_vb, p4_vb, p5_vb] = v_beta.labels<5>("all");
-    auto [h3_oa, h4_oa, h5_oa, h6_oa]     = o_alpha.labels<4>("all");
-    auto [h3_ob, h4_ob, h5_ob, h6_ob]     = o_beta.labels<4>("all");
+    auto [p1_va, p2_va] = v_alpha.labels<2>("all");
+    auto [p1_vb, p2_vb] = v_beta.labels<2>("all");
+    auto [h3_oa, h4_oa] = o_alpha.labels<2>("all");
+    auto [h3_ob, h4_ob] = o_beta.labels<2>("all");
 
 
     t1_aa = {{v_alpha,o_alpha},{1,1}}; 

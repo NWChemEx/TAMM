@@ -128,7 +128,7 @@ export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/2
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
--DTAMM_CXX_FLAGS="-ffast-math -mcpu=power9 -mtune=native" -DBLAS_INT4=OFF \
+-DTAMM_CXX_FLAGS="-ffast-math -mcpu=power9 -mtune=native" \
 -DTAMM_EXTRA_LIBS="$NETLIB_BLAS_LIBS/liblapacke.a;$NETLIB_BLAS_LIBS/liblapack.a" ..
 
 For CUDA build, add -DNWX_CUDA=ON
@@ -180,7 +180,7 @@ cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DTAMM_CXX_FLAGS="-mtune=native -ffast-math" \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
--DLAPACKE_LIBRARIES=$TAMM_BLASLIBS -DBLAS_INT4=OFF ..
+-DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
 
 For CUDA build, add -DNWX_CUDA=ON
 

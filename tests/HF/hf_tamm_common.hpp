@@ -7,8 +7,9 @@
 //TODO: UHF,ROHF,diis,3c,dft
 
 template<typename TensorType>
-void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, Tensor<TensorType> err_mat, int iter, int max_hist, int ndiis,
-          std::vector<Tensor<TensorType>>& diis_hist, std::vector<tamm::Tensor<TensorType>>& fock_hist);
+void diis(ExecutionContext& ec, TiledIndexSpace& tAO, Tensor<TensorType> F, Tensor<TensorType> err_mat, 
+          int iter, int max_hist, int ndiis,
+          std::vector<Tensor<TensorType>>& diis_hist, std::vector<Tensor<TensorType>>& fock_hist);
 
 template<typename TensorType>
 void compute_1body_ints(ExecutionContext& ec, Tensor<TensorType>& tensor1e, 
@@ -17,7 +18,7 @@ void compute_1body_ints(ExecutionContext& ec, Tensor<TensorType>& tensor1e,
 
 std::tuple<int,int,int> get_hf_nranks(const size_t N){
 
-    auto nranks = GA_Nnodes();
+    // auto nranks = GA_Nnodes();
     auto nnodes = GA_Cluster_nnodes();
     auto ppn = GA_Cluster_nprocs(0);
 
@@ -48,7 +49,7 @@ void t2e_hf_helper(const ExecutionContext& ec, tamm::Tensor<T>& ttensor,Matrix& 
     T *Hbuf = &Hbufv[0];//Hbufv.data();
     Eigen::Map<Matrix>(Hbuf,N,N) = etensor;  
     // GA_Brdcst(Hbuf,N*N*sizeof(T),0);
-    MPI_Bcast(Hbuf,N*N,tamm::mpi_type<T>(),0,ec.pg().comm());
+    MPI_Bcast(Hbuf,N*N,mpi_type<T>(),0,ec.pg().comm());
     etensor = Eigen::Map<Matrix>(Hbuf,N,N);
     Hbufv.clear(); Hbufv.shrink_to_fit();
 
@@ -175,7 +176,7 @@ Matrix compute_orthogonalizer(const ExecutionContext& ec, const Matrix& S) {
     double S_condition_number_threshold = 1.0 / scf_options.tol_lindep;
         //1.0 / std::numeric_limits<double>::epsilon();
     std::tie(X, Xinv, XtX_condition_number) =
-        conditioning_orthogonalizer(S, S_condition_number_threshold);
+        conditioning_orthogonalizer(ec, S, S_condition_number_threshold);
 
     // TODO Redeclare TAMM S1 with new dims?
     auto hf_t2 = std::chrono::high_resolution_clock::now();
@@ -207,7 +208,7 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
     Tensor<TensorType> V1{tAO, tAO};
     Tensor<TensorType>::allocate(&ec, H1, S1, T1, V1);
 
-    auto [mu, nu, ku] = tAO.labels<3>("all");
+    auto [mu, nu] = tAO.labels<2>("all");
 
     Matrix H = Matrix::Zero(N,N);
     Matrix S = Matrix::Zero(N,N);
@@ -271,17 +272,17 @@ void scf_restart(const ExecutionContext& ec, const size_t& N, const std::string&
     }
     ec.pg().barrier();
     // GA_Brdcst(&rstatus,sizeof(int),0);
-    MPI_Bcast(&rstatus,1,tamm::mpi_type<int>(),0,ec.pg().comm());
+    MPI_Bcast(&rstatus,1,mpi_type<int>(),0,ec.pg().comm());
     if(rstatus == 0) nwx_terminate("Error reading " + movecsfile);
     // GA_Brdcst(Dbufp,N*N*sizeof(TensorType),0);
-    MPI_Bcast(Dbufp,N*N,tamm::mpi_type<TensorType>(),0,ec.pg().comm());
+    MPI_Bcast(Dbufp,N*N,mpi_type<TensorType>(),0,ec.pg().comm());
     D = Eigen::Map<Matrix>(Dbufp,N,N);
     //Dbuf.clear();
     ec.pg().barrier();
 }
 
 
-void compute_hcore_guess(const int& ndocc,
+void compute_hcore_guess(const ExecutionContext& ec, const int& ndocc,
       const libint2::BasisSet& shells,
       const Matrix& SchwarzK, const Matrix& H, const Matrix& X,
       Matrix& F, Matrix& C, Matrix& C_occ, Matrix& D){
@@ -290,7 +291,7 @@ void compute_hcore_guess(const int& ndocc,
     const int64_t Northo = X.cols();
     assert( N == Northo );
 
-    auto world = GA_MPI_Comm();
+    auto world = ec.pg().comm();
     int world_rank, world_size;
     MPI_Comm_rank( world, &world_rank );
     MPI_Comm_size( world, &world_size );
@@ -700,7 +701,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
 
         const auto Dnorm12 = do_schwarz_screen ? D_shblk_norm(s1, s2) : 0.;
 
-        for (auto s3 = 0; s3 <= s1; ++s3) {
+        for (decltype(s1) s3 = 0; s3 <= s1; ++s3) {
           auto bf3_first = shell2bf[s3];
           auto n3 = obs[s3].size();
 
@@ -769,13 +770,13 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
             // scaled by its degeneracy,
             //    i.e. the number of the integrals/sets equivalent to it
             // 3) the end result must be symmetrized
-            for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+            for (decltype(n1) f1 = 0, f1234 = 0; f1 != n1; ++f1) {
               const auto bf1 = f1 + bf1_first;
-              for (auto f2 = 0; f2 != n2; ++f2) {
+              for (decltype(n2) f2 = 0; f2 != n2; ++f2) {
                 const auto bf2 = f2 + bf2_first;
-                for (auto f3 = 0; f3 != n3; ++f3) {
+                for (decltype(n3) f3 = 0; f3 != n3; ++f3) {
                   const auto bf3 = f3 + bf3_first;
-                  for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                  for (decltype(n4) f4 = 0; f4 != n4; ++f4, ++f1234) {
                     const auto bf4 = f4 + bf4_first;
   
                     const auto value = buf_1234[f1234];
@@ -840,8 +841,8 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
         // representation
       if (!is_3c_init) {
           is_3c_init = true;
-          const auto nshells = obs.size();
-          const auto nshells_df = dfbs.size();
+          // const auto nshells = obs.size();
+          // const auto nshells_df = dfbs.size();
           const auto& unitshell = libint2::Shell::unit();
           
           auto engine = libint2::Engine(libint2::Operator::coulomb,
@@ -871,27 +872,28 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
               auto bd1 = block_dims[1];
               auto bd2 = block_dims[2];
 
-              auto s0range_start = 0l;
               auto s0range_end = df_shell_tile_map[bi0];
+              decltype(s0range_end) s0range_start = 0l;
+
               if (bi0>0) s0range_start = df_shell_tile_map[bi0-1]+1;
               
               for (auto s0 = s0range_start; s0 <= s0range_end; ++s0) {
-                auto n0 = dfbs[s0].size();
-                auto s1range_start = 0l;
+                // auto n0 = dfbs[s0].size();
                 auto s1range_end = shell_tile_map[bi1];
+                decltype(s1range_end) s1range_start = 0l;
                 if (bi1>0) s1range_start = shell_tile_map[bi1-1]+1;
               
               for (auto s1 = s1range_start; s1 <= s1range_end; ++s1) {
-                auto n1 = shells[s1].size();
+                // auto n1 = shells[s1].size();
 
-                auto s2range_start = 0l;
                 auto s2range_end = shell_tile_map[bi2];
+                decltype(s2range_end) s2range_start = 0l;
                 if (bi2>0) s2range_start = shell_tile_map[bi2-1]+1;
 
-                for (size_t s2 = s2range_start; s2 <= s2range_end; ++s2) {
-                  // if (s2>s1) continue;
-                  auto n2 = shells[s2].size();
-                  auto n123 = n0*n1*n2;
+                for (auto s2 = s2range_start; s2 <= s2range_end; ++s2) {
+                  //// if (s2>s1) continue;
+                  // auto n2 = shells[s2].size();
+                  // auto n123 = n0*n1*n2;
                   // std::vector<TensorType> tbuf(n123);
                   engine.compute2<Operator::coulomb, BraKet::xs_xx, 0>(
                       dfbs[s0], unitshell, obs[s1], obs[s2]);
@@ -899,9 +901,9 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
                   if (buf == nullptr) continue;     
                   // std::copy(buf, buf + n123, tbuf.begin());
 
-                  auto curshelloffset_i = 0U;
-                  auto curshelloffset_j = 0U;
-                  auto curshelloffset_k = 0U;
+                  tamm::Tile curshelloffset_i = 0U;
+                  tamm::Tile curshelloffset_j = 0U;
+                  tamm::Tile curshelloffset_k = 0U;
                   for(auto x=s1range_start;x<s1;x++) curshelloffset_i += AO_tiles[x];
                   for(auto x=s2range_start;x<s2;x++) curshelloffset_j += AO_tiles[x];
                   for(auto x=s0range_start;x<s0;x++) curshelloffset_k += dfAO_tiles[x];
@@ -911,9 +913,9 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
                   auto dimj =  curshelloffset_j + AO_tiles[s2];
                   auto dimk =  curshelloffset_k + dfAO_tiles[s0];
 
-                  for(size_t k = curshelloffset_k; k < dimk; k++) 
-                  for(size_t i = curshelloffset_i; i < dimi; i++) 
-                  for(size_t j = curshelloffset_j; j < dimj; j++, c++) 
+                  for(auto k = curshelloffset_k; k < dimk; k++) 
+                  for(auto i = curshelloffset_i; i < dimi; i++) 
+                  for(auto j = curshelloffset_j; j < dimj; j++, c++) 
                       dbuf[(k*bd1+i)*bd2+j] = buf[c]; //tbuf[c]
       
                 } //s2
@@ -954,18 +956,19 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
               std::vector<TensorType> dbuf(size);
 
               auto bd1 = block_dims[1];
-              auto s1range_start = 0l;
               auto s1range_end = df_shell_tile_map[bi0];
+              decltype(s1range_end) s1range_start = 0l;
+
               if (bi0>0) s1range_start = df_shell_tile_map[bi0-1]+1;
               
               for (auto s1 = s1range_start; s1 <= s1range_end; ++s1) {
                 auto n1 = dfbs[s1].size();
 
-              auto s2range_start = 0l;
               auto s2range_end = df_shell_tile_map[bi1];
+              decltype(s2range_end) s2range_start = 0l;
               if (bi1>0) s2range_start = df_shell_tile_map[bi1-1]+1;
 
-              for (size_t s2 = s2range_start; s2 <= s2range_end; ++s2) {
+              for (auto s2 = s2range_start; s2 <= s2range_end; ++s2) {
                 if (s2>s1) continue;          
                 // if(s2>s1){ TODO: screening doesnt work - revisit
                 //   auto s2spl = dfbs_shellpair_list[s2];
@@ -984,16 +987,16 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
                 Eigen::Map<const Matrix> buf_mat(buf2[0], n1, n2);
                 Eigen::Map<Matrix>(&tbuf[0],n1,n2) = buf_mat;
 
-                auto curshelloffset_i = 0U;
-                auto curshelloffset_j = 0U;
-                for(auto x=s1range_start;x<s1;x++) curshelloffset_i += dfAO_tiles[x];
-                for(auto x=s2range_start;x<s2;x++) curshelloffset_j += dfAO_tiles[x];
+                tamm::Tile curshelloffset_i = 0U;
+                tamm::Tile curshelloffset_j = 0U;
+                for(decltype(s1) x=s1range_start;x<s1;x++) curshelloffset_i += dfAO_tiles[x];
+                for(decltype(s2) x=s2range_start;x<s2;x++) curshelloffset_j += dfAO_tiles[x];
 
                 size_t c = 0;
                 auto dimi =  curshelloffset_i + dfAO_tiles[s1];
                 auto dimj =  curshelloffset_j + dfAO_tiles[s2];
-                for(size_t i = curshelloffset_i; i < dimi; i++) 
-                for(size_t j = curshelloffset_j; j < dimj; j++, c++) 
+                for(auto i = curshelloffset_i; i < dimi; i++) 
+                for(auto j = curshelloffset_j; j < dimj; j++, c++) 
                         dbuf[i*bd1+j] = tbuf[c];
 
                 //TODO: not needed if screening works
@@ -1148,7 +1151,7 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
         auto bf2_first = shell2bf[s2];
         auto n2 = obs[s2].size();
 
-        for (auto s3 = 0; s3 < D_bs.size(); ++s3) {
+        for (decltype(s1) s3 = 0; s3 < D_bs.size(); ++s3) {
           auto bf3_first = shell2bf_D[s3];
           auto n3 = D_bs[s3].size();
 
@@ -1159,7 +1162,7 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
             auto sp34_iter = minbs_shellpair_data.at(s3).begin();
           #endif
 
-          for (auto s4 = s4_begin; s4 != s4_fence; ++s4) {
+          for (decltype(s1) s4 = s4_begin; s4 != s4_fence; ++s4) {
 
             #ifndef NDEBUG
               auto s4spl = minbs_shellpair_list[s3];
@@ -1192,13 +1195,13 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
 
               const auto* buf_1234 = buf[0];
               if (buf_1234 != nullptr) {
-                for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                for (decltype(n1) f1 = 0, f1234 = 0; f1 != n1; ++f1) {
                   const auto bf1 = f1 + bf1_first;
-                  for (auto f2 = 0; f2 != n2; ++f2) {
+                  for (decltype(n2) f2 = 0; f2 != n2; ++f2) {
                     const auto bf2 = f2 + bf2_first;
-                    for (auto f3 = 0; f3 != n3; ++f3) {
+                    for (decltype(n3) f3 = 0; f3 != n3; ++f3) {
                       const auto bf3 = f3 + bf3_first;
-                      for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                      for (decltype(n4) f4 = 0; f4 != n4; ++f4, ++f1234) {
                         const auto bf4 = f4 + bf4_first;
 
                         const auto value = buf_1234[f1234];
@@ -1217,13 +1220,13 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
             if (buf_1324 == nullptr)
               continue; // if all integrals screened out, skip to next quartet
 
-            for (auto f1 = 0, f1324 = 0; f1 != n1; ++f1) {
+            for (decltype(n1) f1 = 0, f1324 = 0; f1 != n1; ++f1) {
               const auto bf1 = f1 + bf1_first;
-              for (auto f3 = 0; f3 != n3; ++f3) {
+              for (decltype(n3) f3 = 0; f3 != n3; ++f3) {
                 const auto bf3 = f3 + bf3_first;
-                for (auto f2 = 0; f2 != n2; ++f2) {
+                for (decltype(n2) f2 = 0; f2 != n2; ++f2) {
                   const auto bf2 = f2 + bf2_first;
-                  for (auto f4 = 0; f4 != n4; ++f4, ++f1324) {
+                  for (decltype(n4) f4 = 0; f4 != n4; ++f4, ++f1324) {
                     const auto bf4 = f4 + bf4_first;
 
                     const auto value = buf_1324[f1324];
@@ -1266,7 +1269,7 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     Eigen::Map<Matrix>(Fbuf,N,N) = Ft;  
     
     // GA_Brdcst(Fbuf,N*N*sizeof(TensorType),0);
-    MPI_Bcast(Fbuf,N*N,tamm::mpi_type<TensorType>(),0,ec.pg().comm());
+    MPI_Bcast(Fbuf,N*N,mpi_type<TensorType>(),0,ec.pg().comm());
 
     Ft = Eigen::Map<Matrix>(Fbuf,N,N);
     Fbufv.clear(); Fbufv.shrink_to_fit();
@@ -1299,7 +1302,7 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     
     #else
       const int64_t Northo = X.cols();
-      assert( N == Northo );
+      //EXPECTS( N == Northo );
 
       if( rank == 0 ) {
 
@@ -1351,16 +1354,18 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
 }
 
 template<typename TensorType>
-void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, Tensor<TensorType> err_mat, int iter, int max_hist, int ndiis,
-          std::vector<Tensor<TensorType>>& diis_hist, std::vector<tamm::Tensor<TensorType>>& fock_hist) {
-    using Vector =
+void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, 
+          Tensor<TensorType> err_mat, int iter, int max_hist, int ndiis,
+          std::vector<Tensor<TensorType>>& diis_hist, std::vector<Tensor<TensorType>>& fock_hist) {
+  
+  using Vector =
       Eigen::Matrix<TensorType, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
   tamm::Scheduler sch{ec};
 
   if(ndiis > max_hist) {
     std::vector<TensorType> max_err(diis_hist.size());
-    for (auto i=0; i<diis_hist.size(); i++) {
+    for (size_t i=0; i<diis_hist.size(); i++) {
       max_err[i] = tamm::norm(ec, diis_hist[i]());
       // Matrix dhist = Matrix::Zero(F.rows(),F.cols());
       // tamm_to_eigen_tensor(diis_hist[i],dhist);
@@ -1388,7 +1393,7 @@ void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F
 
     Tensor<TensorType> dhi_trans{tAO, tAO};
     Tensor<TensorType> dhi_trace{};
-    auto [mu, nu, ku] = tAO.labels<3>("all");
+    auto [mu, nu] = tAO.labels<2>("all");
     Tensor<TensorType>::allocate(&ec, dhi_trans,dhi_trace);
 
     for(int i = 0; i < idim; i++) {
@@ -1465,24 +1470,24 @@ void compute_1body_ints(ExecutionContext& ec, Tensor<TensorType>& tensor1e,
         //  block_dims[0] << ", " << block_dims[1] << endl;
 
         // auto s1 = blockid[0];
-        auto s1range_start = 0l;
         auto s1range_end = shell_tile_map[bi0];
+        decltype(s1range_end) s1range_start = 0l;
         if (bi0>0) s1range_start = shell_tile_map[bi0-1]+1;
         
         // cout << "s1-start,end = " << s1range_start << ", " << s1range_end << endl; 
         for (auto s1 = s1range_start; s1 <= s1range_end; ++s1) {
         // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
         // this shell
-          auto n1 = shells[s1].size();
+        auto n1 = shells[s1].size();
 
-        auto s2range_start = 0l;
         auto s2range_end = shell_tile_map[bi1];
+        decltype(s2range_end) s2range_start = 0l;
         if (bi1>0) s2range_start = shell_tile_map[bi1-1]+1;
 
         // cout << "s2-start,end = " << s2range_start << ", " << s2range_end << endl; 
 
           // cout << "screend shell pair list = " << s2spl << endl;
-          for (size_t s2 = s2range_start; s2 <= s2range_end; ++s2) {
+          for (auto s2 = s2range_start; s2 <= s2range_end; ++s2) {
           // for (auto s2: obs_shellpair_list[s1]) {
           // auto s2 = blockid[1];
           // if (s2>s1) continue;

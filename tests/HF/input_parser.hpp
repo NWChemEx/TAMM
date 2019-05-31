@@ -23,6 +23,13 @@ using std::endl;
 using std::string;
 using libint2::Atom;
 
+inline bool strequal_case( const std::string &a, const std::string &b ) {
+  return a.size() == b.size() and
+    std::equal( a.begin(), a.end(), b.begin(), [](const char a, const char b) {
+      return std::tolower(a) == std::tolower(b);
+    });
+}
+
 // const int nwx_max_section_options = 20;
 
 void print_bool(std::string str, bool val){
@@ -143,12 +150,25 @@ class CCSDOptions: public Options {
   {
     threshold = 1e-10;
     tilesize = 30;
-    eom_nroots = 1;
     icuda = 0;
+    eom_nroots = 0;
     eom_threshold = 1e-10;
     eom_microiter = o.maxiter;
     writet = false;
     readt = false;
+    
+    gf_p_oi_range = 0; //1-number of occupied, 2-all MOs
+    gf_ndiis = 10;
+    gf_maxiter = 500;
+    gf_eta = -0.01;       
+    // gf_omega = -0.4; //a.u (range min to max)     
+    gf_threshold = 1e-2;  
+    gf_omega_min = -0.8;  
+    gf_omega_max = -0.4;  
+    gf_omega_min_e = -2.0; 
+    gf_omega_max_e = 0;    
+    gf_omega_delta = 0.01;
+
   }
 
   int eom_nroots;
@@ -159,18 +179,50 @@ class CCSDOptions: public Options {
   double threshold;
   double eom_threshold;
 
+  //GF
+  int gf_p_oi_range;
+  int gf_ndiis;
+  int gf_maxiter;
+  double gf_eta;
+  // double gf_omega;       
+  double gf_threshold;
+  double gf_omega_min;
+  double gf_omega_max;
+  double gf_omega_min_e;
+  double gf_omega_max_e;
+  double gf_omega_delta;
+  
+
   void print() {
     std::cout << std::defaultfloat;
     cout << "\nCCSD Options\n";
     cout << "{\n";
-    cout << " #cuda = " << icuda << endl;
+    if(icuda > 0) cout << " #cuda = " << icuda << endl;
     cout << " threshold = " << threshold << endl;
     cout << " tilesize = " << tilesize << endl;
     cout << " readt = " << readt << endl;
     cout << " writet = " << writet << endl;
-    cout << " eom_nroots = " << eom_nroots << endl;
-    cout << " eom_microiter = " << eom_microiter << endl;
-    cout << " eom_threshold = " << eom_threshold << endl;
+
+    if(eom_nroots > 0){
+      cout << " eom_nroots = " << eom_nroots << endl;
+      cout << " eom_microiter = " << eom_microiter << endl;
+      cout << " eom_threshold = " << eom_threshold << endl;
+    }
+
+    if(gf_p_oi_range > 0) {
+      cout << " gf_p_oi_range  = " << gf_p_oi_range << endl;
+      cout << " gf_ndiis       = " << gf_ndiis << endl;
+      cout << " gf_maxiter     = " << gf_maxiter << endl;
+      cout << " gf_eta         = " << gf_eta << endl;
+      // cout << " gf_omega       = " << gf_omega << endl;
+      cout << " gf_threshold   = " << gf_threshold  << endl;
+      cout << " gf_omega_min   = " << gf_omega_min  << endl;
+      cout << " gf_omega_max   = " << gf_omega_max  << endl;
+      cout << " gf_omega_min_e = " << gf_omega_min_e << endl;
+      cout << " gf_omega_max_e = " << gf_omega_max_e << endl;
+      cout << " gf_omega_delta = " << gf_omega_delta << endl; 
+    }   
+
     print_bool(" debug", debug); 
     cout << "}\n";
   }
@@ -225,13 +277,17 @@ bool is_in_line(const std::string str, const std::string line){
   to_upper(str_u); to_lower(str_l);
 
   if (is_comment(line)) found = false;
-  else if (line.find(str_u) == std::string::npos &&
-      line.find(str_l) == std::string::npos) found = false;
-
-  //TODO
-  if (str_l == "basis"){
-    if(line.find("dfbasis") != std::string::npos || 
-       line.find("DFBASIS") != std::string::npos) found=false;
+  else {
+    std::istringstream oss(line);
+    std::vector<std::string> option_string{
+    std::istream_iterator<std::string>{oss},
+    std::istream_iterator<std::string>{}};
+    for (auto &x: option_string) 
+      x.erase(std::remove(x.begin(),x.end(),' '),x.end());
+    
+    if (std::find(option_string.begin(),option_string.end(), str_u) == option_string.end()
+     && std::find(option_string.begin(),option_string.end(), str_l) == option_string.end() )
+     found = false;
   }
 
   return found;
@@ -326,7 +382,7 @@ std::vector<Atom> read_atoms(std::istream& is) {
         // .xyz files report element labels, hence convert to atomic numbers
         int Z = -1;
         for(const auto& e : libint2::chemistry::get_element_info()) {
-            if(libint2::strcaseequal(e.symbol, element_symbol)) {
+            if(strequal_case(e.symbol, element_symbol)) {
                 Z = e.Z;
                 break;
             }
@@ -483,7 +539,34 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("readt",line))
             ccsd_options.readt = to_bool(read_option(line)); 
           else if(is_in_line("writet",line))
-            ccsd_options.writet = to_bool(read_option(line));                                                       
+            ccsd_options.writet = to_bool(read_option(line));    
+
+          else if(is_in_line("gf_p_oi_range",line)) {
+            ccsd_options.gf_p_oi_range = std::stoi(read_option(line)); 
+            if(ccsd_options.gf_p_oi_range != 1 && ccsd_options.gf_p_oi_range != 2)
+              nwx_terminate ("gf_p_oi_range can only be one of 1 or 2");
+          }
+          else if(is_in_line("gf_ndiis",line)) 
+            ccsd_options.gf_ndiis = std::stoi(read_option(line)); 
+          else if(is_in_line("gf_maxiter",line)) 
+            ccsd_options.gf_maxiter = std::stoi(read_option(line));             
+          else if(is_in_line("gf_eta",line)) 
+            ccsd_options.gf_eta = std::stod(read_option(line));  
+          // else if(is_in_line("gf_omega",line)) 
+            // ccsd_options.gf_omega = std::stod(read_option(line));  
+          else if(is_in_line("gf_threshold",line)) 
+            ccsd_options.gf_threshold = std::stod(read_option(line));  
+          else if(is_in_line("gf_omega_min",line)) 
+            ccsd_options.gf_omega_min = std::stod(read_option(line));  
+          else if(is_in_line("gf_omega_max",line)) 
+            ccsd_options.gf_omega_max = std::stod(read_option(line));  
+          else if(is_in_line("gf_omega_min_e",line)) 
+            ccsd_options.gf_omega_min_e = std::stod(read_option(line));  
+          else if(is_in_line("gf_omega_max_e",line)) 
+            ccsd_options.gf_omega_max_e = std::stod(read_option(line));  
+          else if(is_in_line("gf_omega_delta",line)) 
+            ccsd_options.gf_omega_delta = std::stod(read_option(line));  
+
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line, "CCSD");
 

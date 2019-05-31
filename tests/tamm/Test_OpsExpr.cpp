@@ -185,14 +185,14 @@ TEST_CASE("Two-dimensional tensor") {
     try {
         T1(i, i(j)) = double{8};
     } catch(...) { failed = true; }
-    REQUIRE(failed);
+    REQUIRE(!failed);
     failed = false;
 
     // invalid labels
     try {
         T1(i, j(i)) = double{8};
     } catch(...) { failed = true; }
-    REQUIRE(failed);
+    REQUIRE(!failed);
     failed = false;
 
     // invalid number of labels

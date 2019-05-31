@@ -32,6 +32,12 @@ cmake \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran ..
 
+#BLIS Options
+-DBLIS=ON [-DBLIS_CONFIG=arch]
+Ex: -DBLIS_CONFIG=haswell
+If BLIS_CONFIG is not provided, the BLIS build will try to
+auto-detect (only for x86_64 systems) the architecture.
+
 #CUDA Options
 [-DNWX_CUDA=ON] #Disabled by Default
 #GlobalArrays options
@@ -136,7 +142,7 @@ module load netlib-scalapack
 
 export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp.so;/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-7.4.0/netlib-scalapack-2.0.2-z3a4bwna7g5h4gy2vrkfcarkhyznuyyk/lib/libscalapack.so"
 
-Add -DSCALAPACK=ON -DBLAS_INT4=ON to the cmake line.
+Add -DSCALAPACK=ON to the cmake line.
 
 
 ```

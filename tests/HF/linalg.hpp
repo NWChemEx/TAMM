@@ -97,12 +97,14 @@ extern "C" {
 //                const linalg::nwx_blas_int*, double*, 
 //                const linalg::nwx_blas_int* );
 
+#if !defined(INTEL_MKL_VERSION) && !defined(BLIS_H)
   void dgemm_( char*, char*, const linalg::nwx_blas_int*, 
                const linalg::nwx_blas_int*, const linalg::nwx_blas_int*,  
                const double*, const double*, 
                const linalg::nwx_blas_int*, const double*, 
                const linalg::nwx_blas_int*, const double*, double *, 
                const linalg::nwx_blas_int* );
+#endif
 
 //   void dsyr2k_( char*, char*, const linalg::nwx_blas_int*,
 //                 const linalg::nwx_blas_int*, const double*, 

@@ -7,7 +7,7 @@
 #include "tamm/tamm.hpp"
 
 #include CBLAS_HEADER
-#include LAPACKE_HEADER
+// #include LAPACKE_HEADER
 
 using namespace tamm;
 using TensorType = double;

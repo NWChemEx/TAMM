@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <type_traits>
 
-#include LAPACKE_HEADER
+// #include LAPACKE_HEADER
 // #ifdef lapack_int
 //   #undef lapack_int
 // #endif
@@ -97,12 +97,14 @@ extern "C" {
 //                const linalg::nwx_blas_int*, double*, 
 //                const linalg::nwx_blas_int* );
 
+#if !defined(INTEL_MKL_VERSION) && !defined(BLIS_H)
   void dgemm_( char*, char*, const linalg::nwx_blas_int*, 
                const linalg::nwx_blas_int*, const linalg::nwx_blas_int*,  
                const double*, const double*, 
                const linalg::nwx_blas_int*, const double*, 
                const linalg::nwx_blas_int*, const double*, double *, 
                const linalg::nwx_blas_int* );
+#endif
 
 //   void dsyr2k_( char*, char*, const linalg::nwx_blas_int*,
 //                 const linalg::nwx_blas_int*, const double*, 
@@ -144,13 +146,13 @@ extern "C" {
 //                 const linalg::nwx_lapack_int*, double*, 
 //                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int* );
 
- #if __essl
+//  #if __essl
   void dsyevd_( char*, char*, 
                 const linalg::nwx_lapack_int*, double*,
                 const linalg::nwx_lapack_int*, double*, double*, 
                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int*,
                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int* );
- #endif
+//  #endif
 
 //   void dsygvd_( const linalg::nwx_lapack_int*, char*, 
 //                 char*, const linalg::nwx_lapack_int*, double*,

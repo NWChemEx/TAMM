@@ -8,7 +8,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "XL"
 endif()
 
 if("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
-    if (TAMM_ENABLE_GPU)
+    if (NWX_CUDA)
         message(FATAL_ERROR "TAMM does not support building with GPU support \
         on MACOSX. Please use NWX_CUDA=OFF for MACOSX builds.")
     endif()

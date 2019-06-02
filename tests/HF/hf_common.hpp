@@ -24,9 +24,9 @@
 // #define EIGEN_DIAG 
 #ifndef SCALAPACK
   #include "linalg.hpp"
-#else
+#else 
   // CXXBLACS BLACS/ScaLAPACK wrapper
-  #include LAPACKE_HEADER
+  // #include LAPACKE_HEADER
   // #define CXXBLACS_HAS_LAPACK
   #define CB_INT TAMM_LAPACK_INT
   #define CXXBLACS_LAPACK_Complex16 TAMM_LAPACK_COMPLEX16

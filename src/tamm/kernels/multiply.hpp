@@ -284,6 +284,9 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
       gpu_mult.mult_block(T3, T1, T2, talsh_op_string, 
         alpha, COPY_TTT); 
 
+    talshTensorDestruct(&T1);
+    talshTensorDestruct(&T2);
+    talshTensorDestruct(&T3);
     // free_host_pinned_memory(adata);
     // free_host_pinned_memory(bdata);
     // free_host_pinned_memory(cdata);

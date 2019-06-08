@@ -6,7 +6,7 @@
 #include <list>
 #include <iostream>
 #include "talsh.h"
-// #include "talshxx.hpp"
+//#include "talshxx.hpp"
 #include "cudamemset.hpp"
 
 // #define NO_GPU 1
@@ -210,6 +210,25 @@ class TALSH {
                                 rank, dims,
                                 talshFlatDevId(DEV_HOST,0),
                                 buf);
+    assert(!errc);
+    return tens;
+  }
+
+  static tensor_handle host_block_zero(int rank,
+                                  const int dims[],
+                                  void *buf = nullptr) {
+    tensor_handle tens;
+    int errc;
+    errc = talshTensorClean(&tens);
+    assert(!errc);
+    errc = talshTensorConstruct(&tens, R8,
+                                rank, dims,
+                                talshFlatDevId(DEV_HOST,0),
+                                buf,
+                                -1,
+                                NULL,
+                                0.0);
+    set_block(tens, 0.0);
     assert(!errc);
     return tens;
   }
@@ -547,7 +566,7 @@ class TALSH {
     talshTensorShape(&r2tens, &r2shape);
 
     //@todo check that the shapes of tensors match
-    // std::cout << "Contract string: " << cop_string << std::endl; 
+    std::cout << "Contract string: " << cop_string << std::endl; 
 
     tensShape_destruct(&lshape);
     tensShape_destruct(&r1shape);
@@ -616,6 +635,7 @@ template <typename T>
                         std::imag(scale),
                         0,
                         DEV_NVIDIA_GPU, 
+                        // DEV_HOST,
                         // DEV_DEFAULT,
                         move_arg,YEP,
                         &talsh_task);

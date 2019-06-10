@@ -684,7 +684,14 @@ std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexS
           iteration_print(ec.pg(), iter, residual, energy, iter_time);
           Tensor<T>::deallocate(d_e, d_r1_residual, d_r2_residual);
 
-          if(residual < thresh) { break; }
+          if(residual < thresh) { 
+            sch
+            (d_t2(p1_va,p2_vb,h4_ob,h3_oa) = -1.0 * d_t2(p1_va,p2_vb,h3_oa,h4_ob))
+            (d_t2(p2_vb,p1_va,h3_oa,h4_ob) = -1.0 * d_t2(p1_va,p2_vb,h3_oa,h4_ob))
+            (d_t2(p2_vb,p1_va,h4_ob,h3_oa) = d_t2(p1_va,p2_vb,h3_oa,h4_ob))
+            .execute();
+            break; 
+          }
       }
 
       if(residual < thresh || titer + ndiis >= maxiter) { break; }

@@ -162,23 +162,6 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
 
 template <class T> T &unconst_cast(const T &v) { return const_cast<T &>(v); }
 
-template<typename T>
-MPI_Datatype mpi_type(){
-    using std::is_same_v;
-
-    if constexpr(is_same_v<int, T>)
-        return MPI_INT;
-    else if constexpr(is_same_v<float, T>)
-        return MPI_FLOAT;
-    else if constexpr(is_same_v<double, T>)
-        return MPI_DOUBLE;
-    else if constexpr(is_same_v<std::complex<float>, T>)
-        return MPI_COMPLEX;
-    else if constexpr(is_same_v<std::complex<double>, T>)
-        return MPI_DOUBLE_COMPLEX;
-}
-
-
 size_t nbasis(const std::vector<libint2::Shell>& shells) {
     size_t n = 0;
     for(const auto& shell : shells) n += shell.size();

@@ -67,7 +67,7 @@ cd_ncast(const from& value)
 
 Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndexSpace& tAO,
   const TAMM_GA_SIZE ndocc, const TAMM_GA_SIZE nao, const TAMM_GA_SIZE freeze_core,
-  const TAMM_GA_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
+  const TAMM_GA_SIZE freeze_virtual, const tamm::Tile itile_size, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
   Tensor<TensorType> F_MO, TAMM_SIZE& chol_count, const TAMM_GA_SIZE max_cvecs, double diagtol,
   libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map) {
 
@@ -690,6 +690,7 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   // delete ac;
   GA_Pgroup_sync(ga_pg);
 
+  NGA_Destroy(ga_ac);
   NGA_Destroy(g_chol);
   k_pj.clear(); k_pj.shrink_to_fit();
   k_pq.clear(); k_pq.shrink_to_fit();
@@ -749,7 +750,7 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
   #endif
 
   IndexSpace CIp{range(0, count)};
-  TiledIndexSpace tCIp{CIp, static_cast<tamm::Tile>(count)}; //TODO: replace count with iptilesize 
+  TiledIndexSpace tCIp{CIp, static_cast<tamm::Tile>(itile_size)}; 
   // auto [cindexp] = tCIp.labels<1>("all");
 
   Tensor<TensorType> CholVpr_tamm{{tMO,tMO,tCIp},{SpinPosition::upper,SpinPosition::lower,SpinPosition::ignore}};

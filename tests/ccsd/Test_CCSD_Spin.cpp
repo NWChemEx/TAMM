@@ -69,14 +69,14 @@ void ccsd_driver() {
     auto [MO,total_orbitals] = setupMOIS(ccsd_options.tilesize,
                     nao,ov_alpha,freeze_core,freeze_virtual);
     //deallocates F_AO, C_AO
-    auto [cholVpr,d_f1,chol_count, max_cvecs, CV] = cd_svd_ga_driver<T>
+    auto [cholVpr,d_f1,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
                         (options_map,ec, MO, AO_opt, ov_alpha, nao, freeze_core,
                          freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
 
   auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
                         = setupTensors(ec,MO,d_f1,ndiis);
 
-  Tensor<T> d_v2 = setupV2<T>(ec,MO,cholVpr,chol_count, total_orbitals, ov_alpha, nao - ov_alpha);
+  Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, total_orbitals, ov_alpha, nao - ov_alpha);
   Tensor<T>::deallocate(cholVpr);
 
   auto cc_t1 = std::chrono::high_resolution_clock::now();

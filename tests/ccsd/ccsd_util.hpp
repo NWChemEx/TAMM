@@ -421,17 +421,14 @@ setupLambdaTensors(ExecutionContext& ec, TiledIndexSpace& MO, size_t ndiis) {
 
 
 template<typename T>
-Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> cholVpr, const tamm::Tile chol_count,
-                 const TAMM_SIZE total_orbitals, TAMM_SIZE n_alpha, TAMM_SIZE n_beta) {
+Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI,
+                  Tensor<T> cholVpr, const tamm::Tile chol_count, 
+                  const TAMM_SIZE total_orbitals, TAMM_SIZE n_alpha, TAMM_SIZE n_beta) {
 
     // auto rank = ec.pg().rank();
 
     TiledIndexSpace N = MO("all");
-
-    IndexSpace CI{range(0, chol_count)};
-    TiledIndexSpace tCI{CI, chol_count};
-    auto [cindex] = tCI.labels<1>("all");
-
+    auto [cindex] = CI.labels<1>("all");
     auto [p,q,r,s] = MO.labels<4>("all");
 
     //Spin here is defined as spin(p)=spin(q) and spin(r)=spin(s) which is not currently not supported by TAMM.
@@ -517,7 +514,7 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_g
  ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& AO_tis,
   const TAMM_SIZE ov_alpha, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
   const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
-  libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map){
+  libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map, bool readv2=false, std::string cholfile=""){
 
     CDOptions cd_options = options_map.cd_options;
     auto diagtol = cd_options.diagtol; // tolerance for the max. diagonal
@@ -539,8 +536,31 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_g
     TAMM_SIZE chol_count = 0;
 
     //std::tie(V2) = 
-    Tensor<T> cholVpr = cd_svd_ga(ec, MO, AO_tis, ov_alpha, nao, freeze_core, freeze_virtual,
-                                C_AO, F_AO, d_f1, chol_count, max_cvecs, diagtol, shells, shell_tile_map);
+    Tensor<T> cholVpr;
+
+    auto itile_size = options_map.ccsd_options.itilesize;
+    
+    if(!readv2) {
+      cholVpr = cd_svd_ga(ec, MO, AO_tis, ov_alpha, nao, freeze_core, freeze_virtual, itile_size,
+                          C_AO, F_AO, d_f1, chol_count, max_cvecs, diagtol, shells, shell_tile_map);
+    }
+    else{
+      std::ifstream in(cholfile, std::ios::in);
+      int rstatus = 0;
+      if(in.is_open()) rstatus = 1;
+      if(rstatus == 1) in >> chol_count; 
+      else nwx_terminate("Error reading " + cholfile);
+
+      if(rank==0) cout << "Number of cholesky vectors to be read = " << chol_count << endl;
+
+      IndexSpace chol_is{range(0,chol_count)};
+      TiledIndexSpace CI{chol_is,static_cast<tamm::Tile>(itile_size)}; 
+
+      cholVpr = {{N,N,CI},{SpinPosition::upper,SpinPosition::lower,SpinPosition::ignore}};
+      Tensor<TensorType>::allocate(&ec, cholVpr);
+      // Scheduler{ec}(cholVpr()=0).execute();
+    }
+
     auto hf_t2        = std::chrono::high_resolution_clock::now();
     double cd_svd_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
@@ -550,9 +570,8 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_g
 
     Tensor<T>::deallocate(C_AO,F_AO);
 
-    //TODO: tile size comes from input file
     IndexSpace chol_is{range(0,chol_count)};
-    TiledIndexSpace CI{chol_is,static_cast<tamm::Tile>(chol_count)}; 
+    TiledIndexSpace CI{chol_is,static_cast<tamm::Tile>(itile_size)}; 
 
     return std::make_tuple(cholVpr, d_f1, chol_count, max_cvecs, CI);
 }

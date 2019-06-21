@@ -41,12 +41,10 @@ CD {
 CCSD {
     //cuda 2
     threshold 1e-10
-    tilesize 30
+    tilesize 10
+    itilesize 10
     //readt true
     //writet true
     //debug true
-    //eom_nroots 4
-    //eom_threshold 1e-10
-    //eom_microiter 25
 }
 

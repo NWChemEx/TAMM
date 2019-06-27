@@ -80,12 +80,41 @@ std::vector<T> unique_entries(const std::vector<T>& input_vec) {
     return ret;
 }
 
+template<typename TiledIndexLabel>
+std::vector<TiledIndexLabel> unique_entries_by_primary_label(const std::vector<TiledIndexLabel>& input_vec) {
+    std::vector<TiledIndexLabel> ret;
+
+    for(const auto& val : input_vec) {
+        auto it = std::find_if(ret.begin(), ret.end(), [&](const auto& lbl) {
+            return lbl.primary_label() == val.primary_label();
+        });
+        if(it == ret.end()) { ret.push_back(val); }
+    }
+    return ret;
+}
+
 template<typename T>
 std::vector<size_t> perm_map_compute(const std::vector<T>& unique_vec,
                                      const std::vector<T>& vec_required) {
     std::vector<size_t> ret;
     for(const auto& val : vec_required) {
         auto it = std::find(unique_vec.begin(), unique_vec.end(), val);
+        EXPECTS(it >= unique_vec.begin());
+        EXPECTS(it != unique_vec.end());
+        ret.push_back(it - unique_vec.begin());
+    }
+    return ret;
+}
+
+template<typename T>
+std::vector<size_t> perm_map_compute_by_primary_label(
+  const std::vector<T>& unique_vec, const std::vector<T>& vec_required) {
+    std::vector<size_t> ret;
+    for(const auto& val : vec_required) {
+        auto it = std::find_if(
+          unique_vec.begin(), unique_vec.end(), [&](const auto& lbl) {
+              return val.primary_label() == lbl.primary_label();
+          });
         EXPECTS(it >= unique_vec.begin());
         EXPECTS(it != unique_vec.end());
         ret.push_back(it - unique_vec.begin());
@@ -140,6 +169,30 @@ inline IndexLabelVec sort_on_dependence(const IndexLabelVec& labels) {
     return ret;
 }
 
+inline std::tuple<IndexLabelVec, IndexVector>
+extract_blockid_and_label(const IndexLabelVec& input_labels,
+                          const IndexVector& input_blockid,
+                          const IndexLabelVec& labels_to_match) {
+    IndexLabelVec ret_labels;
+    IndexVector ret_blockid;
+    for (size_t i = 0; i < labels_to_match.size(); i++) {
+        auto lbl = labels_to_match[i];
+    // for(const auto& lbl : labels_to_match) {
+        auto it = std::find_if(
+          input_labels.begin(), input_labels.end(), [&](const auto& itlbl) {
+              return lbl.primary_label() == itlbl.primary_label();
+          });
+        EXPECTS(it != input_labels.end());
+        size_t pos = it - input_labels.begin();
+        EXPECTS(pos < input_labels.size() && 0 <= pos);
+        // EXPECTS(pos < input_blockid.size() && 0 <= pos);
+
+        ret_labels.push_back(input_labels[pos]);
+        ret_blockid.push_back(input_blockid[i]);
+    }
+    return {ret_labels, ret_blockid};
+}
+
 template<typename T>
 bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
     EXPECTS(itr.size() == end.size());
@@ -178,6 +231,14 @@ IndexVector translate_blockid(const IndexVector& blockid,
     IndexVector translate_blockid;
     for(size_t i = 0; i < blockid.size(); i++) {
         auto indep_vals = indep_values(blockid, i, dep_map);
+        if(!indep_vals.empty()){
+            auto l_dep_map = ltensor.labels()[i].tiled_index_space().tiled_dep_map();
+            auto t_dep_map = tensor.tiled_index_spaces()[i].tiled_dep_map();
+            // check if any one of them doesn't have the TIS for indep_values
+            if(l_dep_map.find(indep_vals) == l_dep_map.end() ||
+               t_dep_map.find(indep_vals) == t_dep_map.end())
+                return IndexVector(blockid.size(), -1);
+        }
         const auto& label_tis =
           ltensor.labels()[i].tiled_index_space()(indep_vals);
         const auto& tensor_tis = tensor.tiled_index_spaces()[i](indep_vals);
@@ -186,6 +247,142 @@ IndexVector translate_blockid(const IndexVector& blockid,
     }
     return translate_blockid;
 }
+
+/**
+ * @brief Construct a dependence map from a label vector. The returned dependence map returns the list of indices a given index depends on, by comparing the primary labels.
+ * 
+ * For example, the routine returns {0:[], 1:[0]} for (i,j(i)). All values in this map are empty when there are no dependent labels. When duplicates exist (e.g., (i,i,j(i))), one of them is arbitrarily picked. 
+ */
+inline std::map<int, std::vector<int>> construct_dep_map(
+  const std::vector<TiledIndexLabel>& tile_labels) {
+    std::map<int, std::vector<int>> dep_map;
+    std::vector<TileLabelElement> primary_labels;
+    for(const auto& lbl : tile_labels) {
+        primary_labels.push_back(lbl.primary_label());
+    }
+    for(size_t i = 0; i < tile_labels.size(); i++) {
+        std::vector<int> deps;
+        for(auto& sec_lbl : tile_labels[i].secondary_labels()) {
+            auto it =
+              std::find(primary_labels.begin(), primary_labels.end(), sec_lbl);
+            EXPECTS(it != primary_labels.end());
+            deps.push_back(it - primary_labels.begin());
+        }
+        dep_map[i] = deps;
+    }
+    return dep_map;
+}
+
+template<typename T>
+std::vector<T> topological_sort(const std::map<T,std::vector<T>>& dep_map) {
+    int num_ids = dep_map.size();
+    std::vector<T> order(num_ids);
+    std::vector<bool> done(num_ids, false);
+    int ctr=0;
+    for(int i=0; i<num_ids; i++) {
+        if(done[i]) continue;
+        std::vector<int> stack{i};
+        while(!stack.empty()) {
+            for(auto id: dep_map.find(stack.back())->second) {
+                EXPECTS(id != i);
+                if(!done[id]) {
+                    stack.push_back(id);
+                    continue;
+                }
+            }
+            order[stack.back()] = ctr++;
+            done[stack.back()] = true;
+            stack.pop_back();
+        }
+        EXPECTS(done[i]);
+    }
+    EXPECTS(ctr == num_ids);
+    return order;
+}
+
+std::tuple<IndexVector, bool> translate_blockid_if_possible(
+  const IndexVector& from_blockid,
+  const IndexLabelVec& from_label,
+  const IndexLabelVec& to_label) {
+    EXPECTS(from_blockid.size() == from_label.size());
+    EXPECTS(from_label.size() == to_label.size());
+    for(size_t i = 0; i < from_label.size(); i++) {
+        if(!from_label[i].tiled_index_space().is_compatible_with(
+             to_label[i].tiled_index_space())) {
+            return {IndexVector{}, false};
+        }
+    }
+    const std::map<int, std::vector<int>>& from_dep_map =
+      construct_dep_map(from_label);
+    const std::map<int, std::vector<int>>& to_dep_map = construct_dep_map(to_label);
+
+    std::vector<int> compute_order = topological_sort(to_dep_map);
+    // std::cout << "compute_order: ";
+    // for(auto& i : compute_order) {
+    //     std::cout << i << " ";
+    // }
+    // std::cout << std::endl;
+
+    EXPECTS(compute_order.size() == from_blockid.size());
+    IndexVector to_blockid(from_blockid.size(), -1);
+    for(size_t i = 0; i < compute_order.size(); i++) {
+        IndexVector from_indep_vec, to_indep_vec;
+        const int cur_pos = compute_order[i];
+        auto it = from_dep_map.find(cur_pos);
+        EXPECTS(it != from_dep_map.end());
+        for(const auto& ipos : it->second) {
+            from_indep_vec.push_back(from_blockid[ipos]);
+        }
+        it = to_dep_map.find(cur_pos);
+        EXPECTS(it != to_dep_map.end());
+        for(const auto& ipos : it->second) {
+            to_indep_vec.push_back(to_blockid[ipos]);
+        }
+        size_t to_id;
+        bool valid;
+        EXPECTS(from_label[cur_pos].tiled_index_space().is_compatible_with(
+          to_label[cur_pos].tiled_index_space()));
+        
+        // if(!(from_blockid[cur_pos] < from_blockid.size())){
+        //     std::cout << "from_blockid.size() = " << from_blockid.size() << std::endl;
+        //     std::cout << "from_blockid[" << cur_pos << "] = " << from_blockid[cur_pos] << std::endl;
+            
+        // }
+        // EXPECTS(from_blockid[cur_pos] < from_blockid.size());
+
+        std::tie(to_id, valid) =
+          from_label[cur_pos].tiled_index_space().translate_if_possible(
+            from_blockid[cur_pos], from_indep_vec,
+            to_label[cur_pos].tiled_index_space(), to_indep_vec);
+
+        // std::cout << "cur_pos = " << cur_pos << std::endl;
+        // std::cout << "from_blockid[cur_pos] = " << from_blockid[cur_pos] << std::endl;
+        // std::cout << "from_label[cur_pos] = " << &from_label[cur_pos] << std::endl;
+        // std::cout << "to_label[cur_pos] = " << &to_label[cur_pos] << std::endl;
+
+        // std::cout << "from_indep_vec: ";
+        // for(auto& i : from_indep_vec) {
+        //     std::cout << i << " ";
+        // }
+        // std::cout << std::endl;
+
+        // std::cout << "to_indep_vec: ";
+        // for(auto& i : from_indep_vec) {
+        //     std::cout << i << " ";
+        // }
+        // std::cout << std::endl;
+        
+        if(!valid) {
+            return {to_blockid, false};
+        } else {
+            // std::cout << "to_blockid : " << i << " - " << compute_order[i] << std::endl;
+            // std::cout << "to_id: " << to_id << std::endl;
+            to_blockid[compute_order[i]] = to_id;
+        }
+    }
+    return {to_blockid, true};
+}
+
 } // namespace internal
 
 } // namespace tamm

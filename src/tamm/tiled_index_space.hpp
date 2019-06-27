@@ -148,7 +148,10 @@ public:
         for(const auto& tis : dep_vec) { tis_sizes.push_back(tis.num_tiles()); }
 
         for(const auto& [key, value] : dep_map) {
+            if(value == TiledIndexSpace{IndexSpace{IndexVector{}}})
+                continue;
             EXPECTS(key.size() == dep_vec.size());
+            EXPECTS(t_is.is_compatible_with(value));
             for(size_t i = 0; i < key.size(); i++) {
                 EXPECTS(key[i] < tis_sizes[i]);
             }
@@ -213,6 +216,25 @@ public:
         // }
 
         return t_dep_map.at(dep_idx_vec);
+    }
+
+    /**
+     * @brief Function for getting TiledIndexSpace from the dependent
+     * relation map
+     *
+     * @param [in] dep_idx_vec set of dependent index values
+     * @returns TiledIndexSpace from the relation map and true if one exists. An empty relation and false otherwise
+     */
+    std::tuple<TiledIndexSpace,bool> lookup_dependent_space(const IndexVector& dep_idx_vec = {}) const {
+        if(dep_idx_vec.empty()) { return {(*this), true}; }
+        const auto& t_dep_map = tiled_info_->tiled_dep_map_;
+        if(t_dep_map.find(dep_idx_vec) == t_dep_map.end()){
+            return {TiledIndexSpace{IndexSpace{IndexVector{}}}, false};
+        } else if (t_dep_map.at(dep_idx_vec) == TiledIndexSpace{IndexSpace{IndexVector{}}}){
+            return {t_dep_map.at(dep_idx_vec), false};
+        }
+        
+        return {t_dep_map.at(dep_idx_vec), true};
     }
 
     /**
@@ -300,7 +322,8 @@ public:
      * TiledIndexSpaces
      */
     bool is_compatible_with(const TiledIndexSpace& tis) const {
-        return is_subset_of(tis);
+        // return is_subset_of(tis);
+        return root_tis() == tis.root_tis();
     }
 
     /**
@@ -466,6 +489,8 @@ public:
      */
     size_t translate(size_t id, const TiledIndexSpace& new_tis) const {
         EXPECTS(!is_dependent());
+        EXPECTS(!new_tis.is_dependent());
+        EXPECTS(is_compatible_with(new_tis));
         EXPECTS(id >= 0 && id < tiled_info_->ref_indices_.size());
         if(new_tis == (*this)) { return id; }
 
@@ -478,6 +503,56 @@ public:
         EXPECTS(it != new_ref_indices.end());
 
         return (it - new_ref_indices.begin());
+    }
+
+    std::tuple<size_t, bool> translate_if_possible(
+      size_t id, const TiledIndexSpace& new_tis) const {
+        EXPECTS(!is_dependent());
+        EXPECTS(!new_tis.is_dependent());
+        EXPECTS(is_compatible_with(new_tis));
+        EXPECTS(id >= 0 && id < tiled_info_->ref_indices_.size());
+        if(new_tis == (*this)) { return {id, true}; }
+
+        auto new_ref_indices = new_tis.tiled_info_->ref_indices_;
+        auto it = std::find(new_ref_indices.begin(), new_ref_indices.end(),
+                            tiled_info_->ref_indices_[id]);
+        if(it != new_ref_indices.end()) {
+            return {(it - new_ref_indices.begin()), true};
+        } else {
+            return {-1, false};
+        }
+    }
+
+    /**
+     * @brief Translate a tile id from this index space to the new tiled index space. 
+     * 
+     * @param [in] id index to be translated
+     * @param [in] indep_space_vec indices for the spaces this tiled index space depends on
+     * @param [in] target_tis Tiled index space to translate to
+     * @param [in] target_indep_space_vec indices for the space the id in the new tiled index space depends on
+     * 
+     * @returns The translated id and true if the given index exists in @p target_tis with independent indices @p target_indep_space_vec
+     */
+    std::tuple<size_t, bool> translate_if_possible(
+      size_t id, const IndexVector& indep_space_vec,
+      const TiledIndexSpace& target_tis,
+      const IndexVector& target_indep_space_vec) const {
+        EXPECTS(is_compatible_with(target_tis));
+        EXPECTS(num_key_tiled_index_spaces() == indep_space_vec.size());
+        EXPECTS(target_tis.num_key_tiled_index_spaces() ==
+                target_indep_space_vec.size());
+        if(target_tis == (*this) && indep_space_vec == target_indep_space_vec) {
+            return {id, true};
+        }
+        TiledIndexSpace from_tis, to_tis;
+        bool from_exists, to_exists;
+        std::tie(from_tis, from_exists) =
+          lookup_dependent_space(indep_space_vec);
+        std::tie(to_tis, to_exists) =
+          target_tis.lookup_dependent_space(target_indep_space_vec);
+        if(!from_exists || !to_exists) { return {-1, false}; }
+        EXPECTS(from_tis.is_compatible_with(to_tis));
+        return from_tis.translate_if_possible(id, to_tis);
     }
 
     /**
@@ -762,7 +837,7 @@ public:
         if(lhs_depth == rhs_depth) {
             if((*this) != tis) {
                 if(lhs_depth == 0 && rhs_depth == 0) {
-                    return TiledIndexSpace{IndexSpace{{}}};
+                    return TiledIndexSpace{IndexSpace{IndexVector{}}};
                 } else {
                     return parent_tis_->common_ancestor((*tis.parent_tis_));
                 }
@@ -1037,8 +1112,7 @@ protected:
             std::vector<IndexVector> result;
             IndexVector acc;
             combinations_tis(result, acc, dep_vec, 0);
-            IndexSpace empty_is{IndexVector{}};
-            TiledIndexSpace empty_tis{empty_is};
+            TiledIndexSpace empty_tis{IndexSpace{IndexVector{}}};
 
             for(const auto& iv : result) {
                 if(tiled_dep_map_.find(iv) == tiled_dep_map_.end()) {
@@ -1205,7 +1279,8 @@ protected:
          * @returns the size of the tile at the corresponding index
          */
         size_t tile_size(Index idx) const {
-            // std::cerr << "idx: " << idx << std::endl;
+            if(!(idx >= 0 && idx < tile_offsets_.size() - 1))
+                std::cerr << "idx: " << idx << std::endl;
             EXPECTS(idx >= 0 && idx < tile_offsets_.size() - 1);
             return tile_offsets_[idx + 1] - tile_offsets_[idx];
         }

@@ -396,6 +396,15 @@ public:
 
     LabelLoopNest(const IndexLabelVec& input_labels) :
       input_labels_{input_labels} {
+#if 1
+        const IndexLabelVec& unique_labels =
+          internal::unique_entries_by_primary_label(input_labels_);
+        sorted_unique_labels_ = internal::sort_on_dependence(unique_labels);
+        perm_map_input_to_sorted_labels_ =
+          internal::perm_map_compute_by_primary_label(input_labels_, sorted_unique_labels_);
+        perm_map_sorted_to_input_labels_ =
+          internal::perm_map_compute_by_primary_label(sorted_unique_labels_, input_labels_);
+#else
         const IndexLabelVec& unique_labels =
           internal::unique_entries(input_labels_);
         // @to-do: when the labels are not from the same TiledIndexSpace the
@@ -408,7 +417,7 @@ public:
           internal::perm_map_compute(input_labels_, sorted_unique_labels_);
         perm_map_sorted_to_input_labels_ =
           internal::perm_map_compute(sorted_unique_labels_, input_labels_);
-
+#endif
         std::vector<TiledIndexSpace> iss;
         for(const auto& lbl : sorted_unique_labels_) {
             iss.push_back(lbl.tiled_index_space());
@@ -422,6 +431,10 @@ public:
 
         index_loop_nest_ = IndexLoopNest{iss, {}, {}, indep_indices};
         reset();
+    }
+
+    const std::vector<TiledIndexLabel>& sorted_unique_labels() const {
+        return sorted_unique_labels_;
     }
 
     class Iterator {

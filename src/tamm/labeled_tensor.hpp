@@ -85,9 +85,9 @@ public:
             return SetOp<T, LTT>{*this, static_cast<T>(sub_v * rhs), is_assign};
 
         // LT = LT
-        else if constexpr(is_same_v<T1, LTT>)
+        else if constexpr(is_same_v<T1, LTT>) {
             return AddOp<T, LTT, T1>{*this, static_cast<T>(sub_v), rhs, is_assign};
-        else if constexpr(is_complex_v<T> && 
+        } else if constexpr(is_complex_v<T> && 
                           (is_same_v<T1,LTT_int>
                           ||is_same_v<T1,LTT_float>
                           ||is_same_v<T1,LTT_double>))
@@ -266,9 +266,9 @@ private:
                 if(!str_map_[i] && !str_map_[j]) {
                     const auto& jlbl = ilv_[j];
                     if(ilbl.primary_label() == jlbl.primary_label()) {
-                        // EXPECTS(ilbl.secondary_labels().size() == 0 ||
-                        //         jlbl.secondary_labels().size() == 0 ||
-                        //         ilbl == jlbl);
+                    //     EXPECTS(ilbl.secondary_labels().size() == 0 ||
+                    //             jlbl.secondary_labels().size() == 0 ||
+                    //             ilbl == jlbl);
                         EXPECTS(ilbl == jlbl);
                     }
                 }
@@ -284,6 +284,9 @@ private:
             }
         }
 
+#if 0
+    //SK: this constraint for matches between tensor allocation and use 
+    //is being relaxed.
         const std::map<size_t, std::vector<size_t>>& dep_map =
           tensor_.dep_map();
         for(auto itr = dep_map.begin(); itr != dep_map.end(); ++itr) {
@@ -301,7 +304,7 @@ private:
                 dc_++;
             }
         }
-
+#endif
         for(const auto& lbl : ilv_) {
             for(const auto& dlbl : lbl.secondary_labels()) {
                 EXPECTS(lbl.primary_label() != dlbl);

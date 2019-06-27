@@ -299,7 +299,7 @@ TEST_CASE("Two-dimensional dependent index tensor") {
   } catch (...) {
     failed = true;
   }
-  REQUIRE(failed);
+  REQUIRE(!failed);
   failed = false;
 
   try {
@@ -307,7 +307,7 @@ TEST_CASE("Two-dimensional dependent index tensor") {
   } catch (...) {
     failed = true;
   }
-  REQUIRE(failed);
+  REQUIRE(!failed);
   failed = false;
 
   try {

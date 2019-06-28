@@ -75,6 +75,8 @@ void tensor_contruction(const TiledIndexSpace& T_AO,
     Q(A, r, s) += 0.5 * C(mu_A(A), s) * SC(mu_A(A), r);
 }
 
+#if 0
+
 #if 1
 TEST_CASE("Spin Tensor Construction") {
     using T = double;
@@ -982,27 +984,36 @@ TEST_CASE("SCF Example Implementation") {
 
     sch.deallocate(C, Q, D);
 }
+#endif
+using DepMap = std::map<IndexVector, TiledIndexSpace>;
+// using TIS = TiledIndexSpace;
 
-#if 0
-
-using DepMap= std::map<IndexVector, TiledIndexSpace>;
-
-DepMap LMO_domain(){
-    DepMap res;
-    // DepMap computation
+DepMap LMO_domain(const TiledIndexSpace& ref_space){
+    DepMap res = {
+        {{0}, TiledIndexSpace{ref_space, IndexVector{0,2,3}}},
+        {{1}, TiledIndexSpace{ref_space, IndexVector{0,1}}}
+    };
+    
     return res;
 }
 
 
-DepMap AO_domain(){
-    DepMap res;
-    // DepMap computation
+DepMap AO_domain(const TiledIndexSpace& ref_space){
+    DepMap res = {
+        {{1}, TiledIndexSpace{ref_space, IndexVector{1,2,4}}},
+        {{3}, TiledIndexSpace{ref_space, IndexVector{0,3,4}}},
+        {{4}, TiledIndexSpace{ref_space, IndexVector{2}}}        
+    };
+
     return res;
 }
 
-DepMap fitting_domain(){
-    DepMap res;
-    // DepMap computation
+DepMap fitting_domain(const TiledIndexSpace& ref_space){
+    DepMap res = {
+        {{1}, TiledIndexSpace{ref_space, IndexVector{0,1,4}}},
+        {{2}, TiledIndexSpace{ref_space, IndexVector{2,3,4}}}
+    };
+
     return res;
 }
 
@@ -1018,99 +1029,336 @@ TEST_CASE("Sample code for Local HF") {
     Scheduler sch{ec};
 
     // Dummy TiledIndexSpaces
-    TiledIndexSpace TAO{IndexSpace{range(10)}};
-    TiledIndexSpace TMO{IndexSpace{range(5)}};
+    TiledIndexSpace TAO{IndexSpace{range(5)}};
+    TiledIndexSpace TMO{IndexSpace{range(3)}};
 
     // Local SCF TAMM Pseudo-code
     
     // Input dense C tensor
     Tensor<T> LMO{TAO, TMO};  //dense
 
+    LMO.allocate(&ec);
+
+    sch
+        (LMO() = 42.0)
+    .execute();
+
     //LMO_domain(): chooses AOs i -> mu 
-    auto lmo_dep_map = LMO_domain();
+    auto lmo_dep_map = LMO_domain(TAO);
 
     // TiledIndexSpace lmo_domain{mu(i)}; //construct using explicit loop
     TiledIndexSpace lmo_domain{TAO, {TMO}, lmo_dep_map}; //construct using explicit loop
     
     //LMO_renormalize() {
-        auto [i] = TMO.labels<1>("all");
-        auto [mu, nu] = lmo_domain.labels<2>("all");
-        auto [mu_p] = TAO.labels<1>("all");
+        auto [i, j] = TMO.labels<2>("all");
+        auto [mu, nu] = TAO.labels<2>("all");
+        auto [mu_p, nu_p] = lmo_domain.labels<2>("all");
 
-        Tensor<T> S_A{i, mu(i), nu(i)};
-        Tensor<T> S_v{i, mu_p, mu(i)};
-        Tensor<T> C{i, mu_p};   //column of LMO
+        Tensor<T> S_A{i, mu_p(i), nu_p(i)};
+        Tensor<T> S_v{i, mu, mu_p(i)};
+        Tensor<T> C{i, mu};   //column of LMO
+
+        sch.allocate(S_A, S_v, C)
+            (S_A() = 1.0)
+            (S_v() = 2.0)
+            (C() = 21.0)
+        .execute();
 
         //solved using Eigen
 
         // Sparsified LMO 
-        Tensor<T> LMO_renorm{mu(i), i}; //sparsified LMO
+        Tensor<T> LMO_renorm{mu_p(i), i}; //sparsified LMO
+        std::cout << "LMO_renorm - loop nest:" << std::endl;
         
+        for(const auto& blockid : LMO_renorm.loop_nest()) {
+            std::cout << "Block id: [ ";
+            for(auto& id : blockid) {
+                std::cout << id << " ";
+            }
+            std::cout << "]" << std::endl;
+        }
+        std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
         sch
         .allocate(LMO_renorm)
-            (LMO_renorm(mu, i) = LMO(mu, i))
+            // (LMO_renorm(mu, i) = LMO(mu, i))
+            (LMO_renorm(mu, i) = 10.0)
         .execute();
+        std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+        print_tensor(LMO_renorm);
     // }
 
-
     //AO_domain(): constructs ao->ao index space
-    auto ao_screen_dep_map = AO_domain();
+    auto ao_screen_dep_map = AO_domain(TAO);
 
     // TiledIndexSpace ao_int_screening{nu(mu)}; //ao->ao
     TiledIndexSpace ao_int_screening{TAO, {TAO}, ao_screen_dep_map};
 
     // //chain_maps(): compose lmo->ao and ao->ao
-    auto [nu_p] = ao_int_screening.labels<1>("all");
+    auto [nu_mu] = ao_int_screening.labels<1>("all");
 
     // TiledIndexSpace ao_domain{nu(i)}; //mo->ao
     // compose using labels
-    auto ao_domain = compose_lbl(mu(i), nu_p(mu)); // nu(i) -> return label 
+    auto ao_domain = compose_lbl(mu_p(i), nu_mu(mu_p)); // nu(i) -> return label 
+
     // compose using TiledIndexSpaces
     // auto ao_domain = compose_tis(lmo_domain, ao_int_screening); // -> return tis
 
     //fitting domain
     // IndexSpace fb; //fitting basis. this is already available and used as input
-
-    auto lmo_to_fit_dep_map = fitting_domain();
-    lmo_to_fit_dep_map.insert({IndexVector{0}, TiledIndexSpace{TAO, IndexVector{0,1,2}}});
+    auto lmo_to_fit_dep_map = fitting_domain(TAO);
 
     // Output:
     // TiledIndexSpace lmo_to_fit{A(i)}; // mo-> fitting basis
     TiledIndexSpace lmo_to_fit{TAO, {TMO}, lmo_to_fit_dep_map}; //mo->fitting basis
-
     //continuing with build_K. first contraction “transformation step”
 
     // TiledIndexSpace ao_to_lmo{i(mu)}; // 
     // invert using labels
-    auto ao_to_lmo= invert_lbl(mu(i)); // i(mu)
+    auto ao_to_lmo= invert_lbl(mu_p(i)); // i(mu)
     // invert using TiledIndexSpaces
     // auto ao_to_lmo= invert_tis(lmo_domain);
+
 
     // IndexLabel i(mu);//ao_to_lmo
     auto [A, B] = lmo_to_fit.labels<2>("all");
 
-
     //Construct matrix of Coulomb metric, J, only compute for AB pairs which share an lmo
     auto fit_to_lmo = invert_lbl(A(i));               // i(A)
    
-    auto fit_to_ao  = compose_lbl(fit_to_lmo, mu(i)); // mu(A)
+    auto fit_to_ao  = compose_lbl(fit_to_lmo, mu_p(i)); // mu(A)
     auto B_p = compose_lbl(fit_to_lmo, A(i));  // B(A)
+
 
     // auto [B_p] = fit_to_fit.labels<1>("all");
 
     // Input X (tensor with lambda function that calls libint)
-    Tensor<T> X{A(i), mu(i), nu(i), i}; // internally project on i ?
+    Tensor<T> X{i, A(i), mu_p(i), nu_p(i)}; // internally project on i ?
+
+
     // input J
     Tensor<T> J{A, B_p(A)};
 
+
     // results
-    Tensor<T> Q{A(i), mu(i), i};
-    Tensor<T> QB{B(i), mu(i), i};
-    Tensor<T> K{mu(i), nu(i), i};
+    Tensor<T> Q{i, A(i), mu_p(i)};
+    Tensor<T> QB{i, B(i), mu_p(i)};
+    Tensor<T> K{i, mu_p(i), nu_p(i)};
+    Tensor<T> Test{i};
+    Tensor<T> Q_inv{A(i), mu_p(i), i };
+
+    // std::cout << "Q_inv - loop nest" << std::endl;
+    // for(const auto& blockid : Q_inv.loop_nest()) {
+    //     std::cout << "blockid: [ ";
+    //     for(auto& id : blockid) {
+    //         std::cout << id << " ";
+    //     }
+    //     std::cout << "]" << std::endl;
+    // }
+    // std::cout << "Q - loop nest" << std::endl;
+    // for(const auto& blockid : Q.loop_nest()) {
+    //     std::cout << "blockid: [ ";
+    //     for(auto& id : blockid) {
+    //         std::cout << id << " ";
+    //     }
+    //     std::cout << "]" << std::endl;
+    // }
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    sch
+    .allocate(X, J, Q, QB, K, Test, Q_inv)
+        (QB() = 10.0)
+        (Q() = 1.0)
+        (Test() = 2.0)
+        (Q_inv() = 3.0)
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+
+    
+#if 0
 
     sch
-        (Q(A, mu, i) = X(A, mu, nu) * C(nu, i))
+        (Q(i, nu, mu) = 2.0)
     .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    sch
+        (Q(i, A, mu) = 3.0)
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    sch
+        (Q(i, nu, mu_p) = 4.0)
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    sch
+        (Q(i, A, mu_p) = 5.0)
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+
+    std::cout << "Testing add op" << std::endl;
+    sch
+        (Q() += QB())
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    sch
+        (Q(i, nu, mu) += QB(i, nu, mu))
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    sch
+        (Q(i, A, mu) += QB(i, A, mu))
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    sch
+        (Q(i, nu, mu_p) += QB(i, nu, mu_p))
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    sch
+        (Q(i, A, mu_p) += QB(i, A, mu_p))
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    std::cout << "Testing mult op" << std::endl;
+    sch
+        (Q() += Test() * QB())
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    sch
+        (Q(i, nu, mu) += Test(i) * QB(i, nu, mu))
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    sch
+        (Q(i, A, mu) += Test(i) * QB(i, A, mu))
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    sch
+        (Q(i, nu, mu_p) += Test(i) * QB(i, nu, mu_p))
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+
+    sch
+        (Q(i, A, mu_p) += Test(i) * QB(i, A, mu_p))
+    .execute();
+    std::cout << "Printing Q" << std::endl;
+    print_tensor(Q);
+#endif
+
+#if 1
+
+    sch
+        (Q_inv(nu, mu, i) = 2.0)
+    .execute();
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+
+    sch
+        (Q_inv(A, mu, i) = 3.0)
+    .execute();
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+
+    sch
+        (Q_inv(nu, mu_p, i) = 4.0)
+    .execute();
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+
+    sch
+        (Q_inv(A, mu_p, i) = 5.0)
+    .execute();
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+
+
+    std::cout << "Testing add op" << std::endl;
+    // sch
+    //     (Q() += QB())
+    // .execute();
+    // std::cout << "Printing Q_inv" << std::endl;
+    // print_tensor(Q_inv);
+
+    sch
+        (Q_inv(nu, mu, i) += QB(i, nu, mu))
+    .execute();
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+
+    sch
+        (Q_inv(A, mu, i) += QB(i, A, mu))
+    .execute();
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+
+    sch
+        (Q_inv(nu, mu_p, i) += QB(i, nu, mu_p))
+    .execute();
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+
+    sch
+        (Q_inv(A, mu_p, i) += QB(i, A, mu_p))
+    .execute();
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+
+    std::cout << "Testing mult op" << std::endl;
+    // sch
+    //     (Q() += Test() * QB())
+    // .execute();
+    // std::cout << "Printing Q_inv" << std::endl;
+    // print_tensor(Q_inv);
+
+    sch
+        (Q_inv(nu, mu, i) += Test(i) * QB(i, nu, mu))
+    .execute();
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+
+    sch
+        (Q_inv(A, mu, i) += Test(i) * QB(i, A, mu))
+    .execute();
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+
+    sch
+        (Q_inv(nu, mu_p, i) += Test(i) * QB(i, nu, mu_p))
+    .execute();
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+
+    sch
+        (Q_inv(A, mu_p, i) += Test(i) * QB(i, A, mu_p))
+    .execute();
+    std::cout << "Printing Q_inv" << std::endl;
+    print_tensor(Q_inv);
+#endif 
+
+#if 0
+
 
     sch.allocate(Q, QB, K);
     // foreach Index i in TMO:
@@ -1133,11 +1381,11 @@ TEST_CASE("Sample code for Local HF") {
     sch
         (K(mu, nu, i) += QB(A, mu, i) * QB(A, nu, i))
     .execute();
+#endif
 
 }
 
-#endif
-
+#if 0
 TEST_CASE("Test case for getting ExecutionContext from a Tensor") {
     TiledIndexSpace AO{IndexSpace{range(10)},2};
 
@@ -1217,16 +1465,19 @@ TEST_CASE("Testing Dependent TiledIndexSpace contractions") {
     Tensor<double> Q{i, mu_i(i)};
     Tensor<double> P{i, mu_i(i)};
     Tensor<double> T{i, mu_k(i)};
+    Tensor<double> FT{i, mu};
+
 
     Q.allocate(&ec);
     P.allocate(&ec);
     T.allocate(&ec);
+    FT.allocate(&ec);
 
     sch
         (Q() = 1.0)
         (P() = 2.0)
-        // (T() = 10.0)
-        (T(i ,mu) = 3.0)
+        (T() = 3.0)
+        (FT() = 42.0)
     .execute();
     std::cerr << "Q Tensor" << std::endl;
     print_tensor(Q);
@@ -1234,6 +1485,19 @@ TEST_CASE("Testing Dependent TiledIndexSpace contractions") {
     print_tensor(P);
     std::cerr << "T Tensor" << std::endl;
     print_tensor(T);
+    std::cerr << "FT Tensor" << std::endl;
+    print_tensor(FT);
+
+    sch
+        (T(i, mu) += FT(i, mu))
+        (Q(i, mu) += FT(i, mu))
+    .execute();
+
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+    std::cerr << "T Tensor" << std::endl;
+    print_tensor(T);
+    std::cerr << "Q Tensor" << std::endl;
+    print_tensor(Q);
 
     sch
         //(Q(i, mu_i(i)) += P(i,mu_i(i)))
@@ -1242,6 +1506,7 @@ TEST_CASE("Testing Dependent TiledIndexSpace contractions") {
         (P(i, mu) += T(i, mu) * Q(i, mu))
     .execute();
     
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
     std::cerr << "Q Tensor" << std::endl;
     print_tensor(Q);
     std::cerr << "T Tensor" << std::endl;
@@ -1249,6 +1514,7 @@ TEST_CASE("Testing Dependent TiledIndexSpace contractions") {
     std::cerr << "P Tensor" << std::endl;
     print_tensor(P);
 }
+#endif
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);

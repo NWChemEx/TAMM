@@ -37,7 +37,8 @@ public:
       tensor_{tensor},
       ilv_{IndexLabelVec(tensor_.num_modes())},
       slv_{StringLabelVec(tensor_.num_modes())},
-      str_map_{std::vector<bool>(tensor_.num_modes())} {
+      str_map_{std::vector<bool>(tensor_.num_modes())},
+      has_str_lbl_{false} {
         unpack(0, args...);
         validate();
     }
@@ -46,7 +47,8 @@ public:
       tensor_{tensor},
       ilv_{IndexLabelVec(tensor_.num_modes())},
       slv_{StringLabelVec(tensor_.num_modes())},
-      str_map_{std::vector<bool>(tensor_.num_modes())} {
+      str_map_{std::vector<bool>(tensor_.num_modes())},
+      has_str_lbl_{false} {
         unpack(0, labels);
         validate();
     }
@@ -197,11 +199,16 @@ public:
     TensorBase* base_ptr() const {
         return tensor_.base_ptr();
     }
+
+    bool has_str_lbl() const {
+        return has_str_lbl_;
+    }
 protected:
     Tensor<T> tensor_;
     IndexLabelVec ilv_;
     StringLabelVec slv_;
     std::vector<bool> str_map_;
+    bool has_str_lbl_;
 
 private:
     /**
@@ -340,6 +347,7 @@ private:
         EXPECTS(index < tensor_.num_modes());
         slv_[index]     = str;
         str_map_[index] = true;
+        has_str_lbl_ = true;
         unpack(++index, rest...);
     }
 

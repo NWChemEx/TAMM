@@ -64,6 +64,7 @@ public:
     TensorBase(const std::vector<TiledIndexLabel>& lbls) :
       allocation_status_{AllocationStatus::invalid},
       num_modes_{lbls.size()} {
+#if 0
         for(const auto& lbl : lbls) {
             auto tis = lbl.tiled_index_space();
             if(tis.is_dependent()){
@@ -79,14 +80,20 @@ public:
                         tis.num_key_tiled_index_spaces());
                     block_indices_.push_back(tis);
                     tlabels_.push_back(lbl);
-                }  
+                } 
             } else {
                 block_indices_.push_back(tis);
                 tlabels_.push_back(lbl);
             }
         }
-        // tlabels_ = lbls;
+#else
+        tlabels_ = lbls;
+        for(auto& lbl : tlabels_) {
+            block_indices_.push_back(lbl.tiled_index_space());
+        }
+#endif
         construct_dep_map();
+        update_labels();
     }
 
     /**
@@ -220,8 +227,8 @@ public:
             auto tis = block_indices_[i];
             if(tis.is_dependent()) {
                 /// @todo do we need this check here?
-                EXPECTS(il.secondary_labels().size() ==
-                        il.tiled_index_space().num_key_tiled_index_spaces());
+                // EXPECTS(il.secondary_labels().size() ==
+                //         il.tiled_index_space().num_key_tiled_index_spaces());
                 for(auto& dep : il.secondary_labels()) {
                     size_t pos = find_dep(dep);
                     EXPECTS(pos != til);
@@ -234,7 +241,7 @@ public:
                         //     IndexVector{pos};
                     }
                 }
-                EXPECTS(dep_map_.find(i) != dep_map_.end());
+                // EXPECTS(dep_map_.find(i) != dep_map_.end());
             }
         }
     }
@@ -283,6 +290,42 @@ protected:
         for(size_t i = 0; i < block_indices_.size(); i++) {
             tlabels_.push_back(block_indices_[i].label(-1 - i));
         }
+    }
+
+    void update_labels(){
+        EXPECTS(tlabels_.size() == block_indices_.size());
+        bool has_new_lbl = false;
+        // construct new tis and lbls for dependent labels without secondary labels
+        for (size_t i = 0; i < tlabels_.size(); i++) {
+            const auto& lbl = tlabels_[i];
+            const auto& lbl_tis = block_indices_[i]; 
+            if( lbl_tis.is_dependent() 
+                && lbl.secondary_labels().size() == 0 ) {
+                auto new_tis = lbl_tis.parent_tis();
+                block_indices_[i] = new_tis;
+                tlabels_[i] = new_tis.label();
+                has_new_lbl = true;
+            }
+        }
+        if(has_new_lbl){
+            // Update dependent labels if a new label is created
+            for (size_t i = 0; i < tlabels_.size(); i++) {
+                const auto& lbl_tis = block_indices_[i];
+                if(lbl_tis.is_dependent()) {
+                    auto lbl = tlabels_[i];
+                    auto primary_label = lbl.primary_label();
+                    auto secondary_labels = lbl.secondary_labels();
+                    EXPECTS(!secondary_labels.empty());
+                    EXPECTS(dep_map_[i].size() == secondary_labels.size());
+                    auto sec_indices = dep_map_[i];
+                    for (size_t j = 0; j < sec_indices.size(); j++) {
+                        secondary_labels[j] = tlabels_[sec_indices[j]].primary_label();
+                    }
+                    tlabels_[i] = TiledIndexLabel{primary_label, secondary_labels};
+                }
+            }
+        }
+        
     }
 
     std::vector<TiledIndexSpace> block_indices_;

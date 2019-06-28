@@ -253,15 +253,15 @@ IndexVector translate_blockid(const IndexVector& blockid,
  * 
  * For example, the routine returns {0:[], 1:[0]} for (i,j(i)). All values in this map are empty when there are no dependent labels. When duplicates exist (e.g., (i,i,j(i))), one of them is arbitrarily picked. 
  */
-inline std::map<int, std::vector<int>> construct_dep_map(
+inline std::map<size_t, std::vector<size_t>> construct_dep_map(
   const std::vector<TiledIndexLabel>& tile_labels) {
-    std::map<int, std::vector<int>> dep_map;
+    std::map<size_t, std::vector<size_t>> dep_map;
     std::vector<TileLabelElement> primary_labels;
     for(const auto& lbl : tile_labels) {
         primary_labels.push_back(lbl.primary_label());
     }
     for(size_t i = 0; i < tile_labels.size(); i++) {
-        std::vector<int> deps;
+        std::vector<size_t> deps;
         for(auto& sec_lbl : tile_labels[i].secondary_labels()) {
             auto it =
               std::find(primary_labels.begin(), primary_labels.end(), sec_lbl);
@@ -275,13 +275,13 @@ inline std::map<int, std::vector<int>> construct_dep_map(
 
 template<typename T>
 std::vector<T> topological_sort(const std::map<T,std::vector<T>>& dep_map) {
-    int num_ids = dep_map.size();
+    size_t num_ids = dep_map.size();
     std::vector<T> order(num_ids);
     std::vector<bool> done(num_ids, false);
-    int ctr=0;
-    for(int i=0; i<num_ids; i++) {
+    size_t ctr=0;
+    for(size_t i=0; i<num_ids; i++) {
         if(done[i]) continue;
-        std::vector<int> stack{i};
+        std::vector<size_t> stack{i};
         while(!stack.empty()) {
             for(auto id: dep_map.find(stack.back())->second) {
                 EXPECTS(id != i);
@@ -297,7 +297,13 @@ std::vector<T> topological_sort(const std::map<T,std::vector<T>>& dep_map) {
         EXPECTS(done[i]);
     }
     EXPECTS(ctr == num_ids);
-    return order;
+    std::vector<T> new_order(num_ids);
+    for (size_t i = 0; i < num_ids; i++) {
+        new_order[order[i]] = i;
+    }
+
+    return new_order;
+    // return order;
 }
 
 std::tuple<IndexVector, bool> translate_blockid_if_possible(
@@ -306,17 +312,36 @@ std::tuple<IndexVector, bool> translate_blockid_if_possible(
   const IndexLabelVec& to_label) {
     EXPECTS(from_blockid.size() == from_label.size());
     EXPECTS(from_label.size() == to_label.size());
+    if(from_label == to_label){
+        auto to_blockid = from_blockid;
+        return {to_blockid, true};
+    }
+    
     for(size_t i = 0; i < from_label.size(); i++) {
         if(!from_label[i].tiled_index_space().is_compatible_with(
              to_label[i].tiled_index_space())) {
             return {IndexVector{}, false};
         }
     }
-    const std::map<int, std::vector<int>>& from_dep_map =
+    const std::map<size_t, std::vector<size_t>>& from_dep_map =
       construct_dep_map(from_label);
-    const std::map<int, std::vector<int>>& to_dep_map = construct_dep_map(to_label);
+    const std::map<size_t, std::vector<size_t>>& to_dep_map = construct_dep_map(to_label);
 
-    std::vector<int> compute_order = topological_sort(to_dep_map);
+    // for(auto& [key, value] : from_dep_map) {
+    //     std::cout << "key - " << key << std::endl;
+    //     for(auto& id : value) {
+    //         std::cout << "value - " << id << std::endl;
+    //     }
+    // }
+
+    // for(auto& [key, value] : to_dep_map) {
+    //     std::cout << "key - " << key << std::endl;
+    //     for(auto& id : value) {
+    //         std::cout << "value - " << id << std::endl;
+    //     }
+    // }
+
+    std::vector<size_t> compute_order = topological_sort(to_dep_map);
     // std::cout << "compute_order: ";
     // for(auto& i : compute_order) {
     //     std::cout << i << " ";
@@ -327,7 +352,7 @@ std::tuple<IndexVector, bool> translate_blockid_if_possible(
     IndexVector to_blockid(from_blockid.size(), -1);
     for(size_t i = 0; i < compute_order.size(); i++) {
         IndexVector from_indep_vec, to_indep_vec;
-        const int cur_pos = compute_order[i];
+        const size_t cur_pos = compute_order[i];
         auto it = from_dep_map.find(cur_pos);
         EXPECTS(it != from_dep_map.end());
         for(const auto& ipos : it->second) {
@@ -349,12 +374,6 @@ std::tuple<IndexVector, bool> translate_blockid_if_possible(
             
         // }
         // EXPECTS(from_blockid[cur_pos] < from_blockid.size());
-
-        std::tie(to_id, valid) =
-          from_label[cur_pos].tiled_index_space().translate_if_possible(
-            from_blockid[cur_pos], from_indep_vec,
-            to_label[cur_pos].tiled_index_space(), to_indep_vec);
-
         // std::cout << "cur_pos = " << cur_pos << std::endl;
         // std::cout << "from_blockid[cur_pos] = " << from_blockid[cur_pos] << std::endl;
         // std::cout << "from_label[cur_pos] = " << &from_label[cur_pos] << std::endl;
@@ -367,11 +386,18 @@ std::tuple<IndexVector, bool> translate_blockid_if_possible(
         // std::cout << std::endl;
 
         // std::cout << "to_indep_vec: ";
-        // for(auto& i : from_indep_vec) {
+        // for(auto& i : to_indep_vec) {
         //     std::cout << i << " ";
         // }
         // std::cout << std::endl;
         
+
+        std::tie(to_id, valid) =
+          from_label[cur_pos].tiled_index_space().translate_if_possible(
+            from_blockid[cur_pos], from_indep_vec,
+            to_label[cur_pos].tiled_index_space(), to_indep_vec);
+
+       
         if(!valid) {
             return {to_blockid, false};
         } else {
@@ -381,6 +407,60 @@ std::tuple<IndexVector, bool> translate_blockid_if_possible(
         }
     }
     return {to_blockid, true};
+}
+
+void update_labels(IndexLabelVec& labels) {
+    EXPECTS(!labels.empty());
+    auto dep_map            = construct_dep_map(labels);
+    bool has_new_lbl        = false;
+    bool have_other_dep_lbl = false;
+    std::map<TiledIndexLabel, TiledIndexLabel> new_lbl_map;
+    // construct new tis and lbls for dependent labels without secondary labels
+    for(size_t i = 0; i < labels.size(); i++) {
+        auto lbl     = labels[i];
+        auto lbl_tis = lbl.tiled_index_space();
+        
+        if(lbl_tis.is_dependent() && lbl.secondary_labels().size() == 0) {
+            if(new_lbl_map.find(lbl) == new_lbl_map.end()) {
+               new_lbl_map[lbl] = lbl_tis.parent_tis().label();
+            }
+            labels[i]    = new_lbl_map[lbl];
+            has_new_lbl  = true;
+        } else if(lbl_tis.is_dependent() && lbl.secondary_labels().size() > 0) {
+            have_other_dep_lbl = true;
+        }
+    }
+
+    if(has_new_lbl && have_other_dep_lbl) {
+        // Update dependent labels if a new label is created
+        for(size_t i = 0; i < labels.size(); i++) {
+            auto lbl            = labels[i];
+            const auto& lbl_tis = lbl.tiled_index_space();
+            if(lbl_tis.is_dependent()) {
+                auto primary_label    = lbl.primary_label();
+                auto secondary_labels = lbl.secondary_labels();
+                EXPECTS(!secondary_labels.empty());
+                EXPECTS(dep_map[i].size() == secondary_labels.size());
+                auto sec_indices = dep_map[i];
+                for(size_t j = 0; j < sec_indices.size(); j++) {
+                    secondary_labels[j] =
+                      labels[sec_indices[j]].primary_label();
+                }
+                labels[i] = TiledIndexLabel{primary_label, secondary_labels};
+            }
+        }
+    }
+}
+
+void print_labels(const IndexLabelVec& labels) {
+    for(auto& lbl : labels) {
+        std::cout << "primary: " << lbl.primary_label().label() << " - secondary: [ ";
+        for(const auto& l : lbl.secondary_labels()) {
+            std::cout << l.label() << " ";
+        }
+        std::cout << "]" << std::endl;
+    }
+    std::cout << "-------" << std::endl;
 }
 
 } // namespace internal

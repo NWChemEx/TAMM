@@ -169,9 +169,9 @@ public:
      * @param [in] lbl an integer value for associated Label
      * @returns a TiledIndexLabel associated with a TiledIndexSpace
      */
-    TiledIndexLabel label(std::string id, Label lbl = Label{0}) const;
+    TiledIndexLabel label(std::string id, Label lbl = make_label()) const;
 
-    TiledIndexLabel label(Label lbl = Label{0}) const;
+    TiledIndexLabel label(Label lbl = make_label()) const;
 
     /**
      * @brief Construct a tuple of TiledIndexLabel given a count, subspace name
@@ -182,9 +182,12 @@ public:
      * @param [in] start starting label value
      * @returns a tuple of TiledIndexLabel
      */
-    template<size_t c_lbl>
-    auto labels(std::string id, Label start = Label{0}) const {
-        return labels_impl(id, start, std::make_index_sequence<c_lbl>{});
+    template <size_t c_lbl>
+    auto labels(std::string id, Label start = make_label()) const {
+    for (size_t i = 0; i < c_lbl - 1; i++) {
+        auto temp = make_label();
+    }
+    return labels_impl(id, start, std::make_index_sequence<c_lbl>{});
     }
 
     /**
@@ -1661,10 +1664,11 @@ public:
         // no-op
     }
 
-    TiledIndexLabel(const TiledIndexSpace& tis,
-                    const std::vector<TiledIndexLabel>& secondary_labels) :
-      TiledIndexLabel{TileLabelElement{tis, Label{0}}, secondary_labels} {
-        // no-op
+    
+    TiledIndexLabel(const TiledIndexSpace &tis,
+                    const std::vector<TiledIndexLabel> &secondary_labels)
+        : TiledIndexLabel{TileLabelElement{tis, make_label()}, secondary_labels} {
+    // no-op
     }
 
     TiledIndexLabel(

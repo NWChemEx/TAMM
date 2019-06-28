@@ -333,7 +333,16 @@ public:
       lhs_{lhs},
       alpha_{alpha},
       is_assign_{is_assign} {
-        fillin_labels();
+        if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
+            auto lbls = lhs.labels();
+            internal::update_labels(lbls);
+            lhs_.set_labels(lbls);
+        } 
+        
+        if(lhs.has_str_lbl()){
+            fillin_labels();
+        }
+
         validate();
     }
 
@@ -411,15 +420,13 @@ public:
             // }
 
             for(const auto id : translated_blockid) {
-                if (id == -1) return;
+                if(id == -1) return;
             }
 
-            if(!tensor.is_non_zero(translated_blockid)){
-                return;
-            }
+            if(!tensor.is_non_zero(translated_blockid)) { return; }
 #else            
             const auto translated_blockid = internal::translate_blockid(blockid, lhs_);
-#endif        
+#endif
             if(is_assign_) {
                 ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc) {
                         BlockBuffer bf = rc.get_buf_tmp(tensor, translated_blockid);
@@ -510,7 +517,6 @@ public:
         return false;
     }
 
-
 protected:
     void fillin_labels() {
         using internal::fillin_tensor_label_from_map;
@@ -519,7 +525,7 @@ protected:
         update_fillin_map(str_to_labels, lhs_.str_map(), lhs_.str_labels(), 0);
         fillin_tensor_label_from_map(lhs_, str_to_labels);
     }
-
+    
     /**
      * @brief Check if the parameters form a valid operation. The parameters
      * form a valid operation if:
@@ -848,7 +854,29 @@ public:
       alpha_{alpha},
       rhs_{rhs},
       is_assign_{is_assign} {
-        fillin_labels();
+        EXPECTS(lhs.has_str_lbl() == rhs.has_str_lbl());
+
+        if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
+            auto lhs_lbls = lhs.labels();             
+            auto rhs_lbls = rhs.labels(); 
+
+            auto labels = lhs_lbls;
+            labels.insert(labels.end(), rhs_lbls.begin(), rhs_lbls.end());
+            internal::update_labels(labels);
+
+            lhs_lbls = IndexLabelVec(labels.begin(), labels.begin() + lhs.labels().size());
+            rhs_lbls = IndexLabelVec(labels.begin() + lhs.labels().size(), 
+                                labels.begin() + lhs.labels().size() + rhs.labels().size());
+
+            lhs_.set_labels(lhs_lbls);
+            rhs_.set_labels(rhs_lbls);
+
+        }
+
+        if(lhs.has_str_lbl()){
+            fillin_labels();
+        }
+
         fillin_int_labels();
         validate();
     }
@@ -1313,12 +1341,40 @@ public:
       rhs1_{rhs1},
       rhs2_{rhs2},
       is_assign_{is_assign} {
-        fillin_labels();
+        EXPECTS(lhs.has_str_lbl() == rhs1.has_str_lbl()
+                && rhs1.has_str_lbl() == rhs2.has_str_lbl());
+        if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
+            
+            auto lhs_lbls  = lhs.labels();
+            auto rhs1_lbls = rhs1.labels();
+            auto rhs2_lbls = rhs2.labels();
+
+            auto labels = lhs_lbls;
+            labels.insert(labels.end(), rhs1_lbls.begin(), rhs1_lbls.end());
+            labels.insert(labels.end(), rhs2_lbls.begin(), rhs2_lbls.end());
+
+            internal::update_labels(labels);
+
+            lhs_lbls  = IndexLabelVec(labels.begin(),
+                                     labels.begin() + lhs.labels().size());
+            rhs1_lbls = IndexLabelVec(labels.begin() + lhs.labels().size(),
+                                      labels.begin() + lhs.labels().size() +
+                                        rhs1.labels().size());
+            rhs2_lbls = IndexLabelVec(
+              labels.begin() + lhs.labels().size() + rhs1.labels().size(),
+              labels.begin() + lhs.labels().size() + rhs1.labels().size() +
+                rhs2.labels().size());
+            lhs_.set_labels(lhs_lbls);
+            rhs1_.set_labels(rhs1_lbls);
+            rhs2_.set_labels(rhs2_lbls);
+        }
+
+        if(lhs.has_str_lbl()){
+            fillin_labels();
+        }
+
         fillin_int_labels();
         validate();
-        // if(is_assign_) {
-        //     NOT_IMPLEMENTED(); // C=A*B not implemented
-        // }
     }
 
     MultOp(const MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>&) = default;

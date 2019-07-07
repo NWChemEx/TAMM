@@ -173,6 +173,7 @@ namespace internal {
     }
 } // namespace internal
 
+inline Label make_label() { static Label lbl = 0; return lbl++; }
 
 } // namespace tamm
 

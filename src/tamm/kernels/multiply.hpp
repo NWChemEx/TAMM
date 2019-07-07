@@ -11,6 +11,7 @@
 #include <numeric>
 #include <vector>
 
+#ifdef NWX_GPU
 #include "tamm/talsh_tamm.hpp"
 #include "tamm/cuda_memory_allocator.hpp"
 using tensor_handle = talsh_tens_t;
@@ -23,6 +24,7 @@ using tensor_handle = talsh_tens_t;
 #undef C8
 #undef C9
 #undef C10
+#endif
 
 namespace tamm {
 
@@ -230,7 +232,7 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     int areduce_ld = B * abatch_ld;
     int breduce_ld = B * bbatch_ld;
 
-    #if 0
+    #ifndef NWX_GPU
     // dgemm
     for(size_t ari = 0; ari < AR; ari++) {
         for(size_t bri = 0; bri < BR; bri++) {

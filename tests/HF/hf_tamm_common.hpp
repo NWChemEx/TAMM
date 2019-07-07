@@ -7,14 +7,29 @@
 //TODO: UHF,ROHF,diis,3c,dft
 
 template<typename TensorType>
-void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, Tensor<TensorType> err_mat, int iter, int max_hist, int ndiis,
-          std::vector<Tensor<TensorType>>& diis_hist, std::vector<tamm::Tensor<TensorType>>& fock_hist);
+void diis(ExecutionContext& ec, TiledIndexSpace& tAO, Tensor<TensorType> F, Tensor<TensorType> err_mat, 
+          int iter, int max_hist, int ndiis,
+          std::vector<Tensor<TensorType>>& diis_hist, std::vector<Tensor<TensorType>>& fock_hist);
 
 template<typename TensorType>
 void compute_1body_ints(ExecutionContext& ec, Tensor<TensorType>& tensor1e, 
       std::vector<libint2::Atom>& atoms, libint2::BasisSet& shells, libint2::Operator otype,
       std::vector<size_t>& shell_tile_map, std::vector<Tile>& AO_tiles);
 
+std::tuple<int,int,int> get_hf_nranks(const size_t N){
+
+    // auto nranks = GA_Nnodes();
+    auto nnodes = GA_Cluster_nnodes();
+    auto ppn = GA_Cluster_nprocs(0);
+
+    int hf_guessranks = std::ceil(0.1*N);
+    int hf_nnodes = hf_guessranks/ppn;
+    if(hf_guessranks%ppn>0 || hf_nnodes==0) hf_nnodes++;
+    if(hf_nnodes > nnodes) hf_nnodes = nnodes;
+    int hf_nranks = hf_nnodes * ppn;
+
+    return std::make_tuple(hf_nnodes,ppn,hf_nranks);
+}
 
 template<typename T, int ndim>
 void t2e_hf_helper(const ExecutionContext& ec, tamm::Tensor<T>& ttensor,Matrix& etensor,
@@ -33,17 +48,17 @@ void t2e_hf_helper(const ExecutionContext& ec, tamm::Tensor<T>& ttensor,Matrix& 
     std::vector<T> Hbufv(N*N);
     T *Hbuf = &Hbufv[0];//Hbufv.data();
     Eigen::Map<Matrix>(Hbuf,N,N) = etensor;  
-    GA_Brdcst(Hbuf,N*N*sizeof(T),0);
+    // GA_Brdcst(Hbuf,N*N*sizeof(T),0);
+    MPI_Bcast(Hbuf,N*N,mpi_type<T>(),0,ec.pg().comm());
     etensor = Eigen::Map<Matrix>(Hbuf,N,N);
     Hbufv.clear(); Hbufv.shrink_to_fit();
-
 
     auto hf_t2 = std::chrono::high_resolution_clock::now();
     auto hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
    
     //ec.pg().barrier(); //TODO
-    if(rank == 0) std::cout << "\nTime for tamm to eigen " << pstr << " : " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for tamm to eigen " << pstr << " : " << hf_time << " secs" << endl;
 }
 
 
@@ -59,7 +74,7 @@ void compute_shellpair_list(const ExecutionContext& ec, const libint2::BasisSet&
     }
     if(rank==0) std::cout << "# of {all,non-negligible} shell-pairs = {"
               << shells.size() * (shells.size() + 1) / 2 << "," << nsp << "}"
-              << std::endl;
+              << endl;
 }
 
 
@@ -69,7 +84,7 @@ std::tuple<int,double> compute_NRE(const ExecutionContext& ec, std::vector<libin
       //  std::cout << "Geometries in bohr units \n";
     //  for (auto i = 0; i < atoms.size(); ++i)
     //    std::cout << atoms[i].atomic_number << "  " << atoms[i].x<< "  " <<
-    //    atoms[i].y<< "  " << atoms[i].z << std::endl;
+    //    atoms[i].y<< "  " << atoms[i].z << endl;
     // count the number of electrons
     auto nelectron = 0;
     for(size_t i = 0; i < atoms.size(); ++i)
@@ -104,11 +119,10 @@ std::tuple<std::vector<size_t>, std::vector<Tile>, std::vector<Tile>>
       auto N = nbasis(shells);
   
     //heuristic to set tilesize to atleast 5% of nbf
-    // if(tile_size < N*0.05) {
-    //   tile_size = std::ceil(N*0.05);
-    //   if(rank == 0) cout << "***** Reset tilesize to nbf*5% = " << tile_size << endl;
-    // }
-    
+    if(tile_size < N*0.05 && !scf_options.force_tilesize) {
+      tile_size = std::ceil(N*0.05);
+      if(rank == 0) cout << "***** Reset tilesize to nbf*5% = " << tile_size << endl;
+    }
     
     std::vector<Tile> AO_tiles;
     for(auto s : shells) AO_tiles.push_back(s.size());
@@ -162,7 +176,7 @@ Matrix compute_orthogonalizer(const ExecutionContext& ec, const Matrix& S) {
     double S_condition_number_threshold = 1.0 / scf_options.tol_lindep;
         //1.0 / std::numeric_limits<double>::epsilon();
     std::tie(X, Xinv, XtX_condition_number) =
-        conditioning_orthogonalizer(S, S_condition_number_threshold);
+        conditioning_orthogonalizer(ec, S, S_condition_number_threshold);
 
     // TODO Redeclare TAMM S1 with new dims?
     auto hf_t2 = std::chrono::high_resolution_clock::now();
@@ -172,7 +186,7 @@ Matrix compute_orthogonalizer(const ExecutionContext& ec, const Matrix& S) {
     //TODO: not used ?
     Xinv.resize(0,0);
 
-    if(rank == 0) std::cout << "Time for computing orthogonalizer: " << hf_time << " secs\n\n";
+    if(rank == 0) std::cout << "Time for computing orthogonalizer: " << hf_time << " secs\n" << endl;
 
     return X;
 
@@ -194,13 +208,10 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
     Tensor<TensorType> V1{tAO, tAO};
     Tensor<TensorType>::allocate(&ec, H1, S1, T1, V1);
 
-    auto [mu, nu, ku] = tAO.labels<3>("all");
+    auto [mu, nu] = tAO.labels<2>("all");
 
-    Matrix H, S; 
-    H.setZero(N, N);
-    S.setZero(N, N);
-
-
+    Matrix H = Matrix::Zero(N,N);
+    Matrix S = Matrix::Zero(N,N);
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
@@ -211,7 +222,7 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
     auto hf_t2 = std::chrono::high_resolution_clock::now();
     auto hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime for computing 1-e integrals T, V, S: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for computing 1-e integrals T, V, S: " << hf_time << " secs" << endl;
 
     hf_t1 = std::chrono::high_resolution_clock::now();
     // Core Hamiltonian = T + V
@@ -221,7 +232,7 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime for computing Core Hamiltonian H=T+V: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << "\nTime for computing Core Hamiltonian H=T+V: " << hf_time << " secs" << endl;
 
     t2e_hf_helper<TensorType,2>(ec, H1, H, "H1-H");
     t2e_hf_helper<TensorType,2>(ec, S1, S, "S1-S");
@@ -238,41 +249,90 @@ void scf_restart(const ExecutionContext& ec, const size_t& N, const std::string&
     const auto rank = ec.pg().rank();
 
     std::vector<TensorType> Dbuf(N*N);
-    TensorType *Dbufp = &Dbuf[0];//.data();
+    TensorType *Dbufp = &Dbuf[0];
+    int rstatus = 0;
+    std::string movecsfile = getfilename(filename) +
+       "." + scf_options.basis + ".movecs";
+
     if(rank==0) 
     {
-      cout << "Reading orbitals from file... ";
-      std::string orbitalsfile = getfilename(filename) +
-        "." + scf_options.basis + ".orbitals";
-
+      cout << "Reading movecs from file... ";
       std::vector<TensorType> Cbuf(N*N);
-      TensorType *Hbuf = &Cbuf[0];//.data();
-      std::ifstream in(orbitalsfile, std::ios::in | std::ios::binary);
-      in.read((char *) Hbuf, sizeof(TensorType)*N*N);
-      C = Eigen::Map<Matrix>(Hbuf,N,N);
-
-      if(rank==0) cout << "done\n";
-
-      auto C_occ = C.leftCols(ndocc);
-      D = C_occ * C_occ.transpose();
-      Eigen::Map<Matrix>(Dbufp,N,N)=D;
+      TensorType *Hbuf = &Cbuf[0];
+      std::ifstream in(movecsfile, std::ios::in | std::ios::binary);
+      if(in.is_open()) rstatus = 1;
+      if(rstatus == 1){
+        in.read((char *) Hbuf, sizeof(TensorType)*N*N);
+        C = Eigen::Map<Matrix>(Hbuf,N,N);
+        cout << "done" << endl;
+        auto C_occ = C.leftCols(ndocc);
+        D = C_occ * C_occ.transpose();
+        Eigen::Map<Matrix>(Dbufp,N,N)=D;
+      }
     }
-    GA_Brdcst(Dbufp,N*N*sizeof(TensorType),0);
+    ec.pg().barrier();
+    // GA_Brdcst(&rstatus,sizeof(int),0);
+    MPI_Bcast(&rstatus,1,mpi_type<int>(),0,ec.pg().comm());
+    if(rstatus == 0) nwx_terminate("Error reading " + movecsfile);
+    // GA_Brdcst(Dbufp,N*N*sizeof(TensorType),0);
+    MPI_Bcast(Dbufp,N*N,mpi_type<TensorType>(),0,ec.pg().comm());
     D = Eigen::Map<Matrix>(Dbufp,N,N);
     //Dbuf.clear();
     ec.pg().barrier();
 }
 
 
-void compute_hcore_guess(const int& ndocc,
+void compute_hcore_guess(const ExecutionContext& ec, const int& ndocc,
       const libint2::BasisSet& shells,
-      const Matrix& SchwarzK, const Matrix& H, const Matrix& S,
+      const Matrix& SchwarzK, const Matrix& H, const Matrix& X,
       Matrix& F, Matrix& C, Matrix& C_occ, Matrix& D){
 
-      // solve H C = e S C
-    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver(H, S);
-    auto eps = gen_eig_solver.eigenvalues();
-    C = gen_eig_solver.eigenvectors();
+    const int64_t N = H.rows();
+    const int64_t Northo = X.cols();
+    assert( N == Northo );
+
+    auto world = ec.pg().comm();
+    int world_rank, world_size;
+    MPI_Comm_rank( world, &world_rank );
+    MPI_Comm_size( world, &world_size );
+
+#ifdef SCALAPACK 
+    //TODO
+    // solve H C = e S C
+    Eigen::SelfAdjointEigenSolver<Matrix> gen_eig_solver(X.transpose() * H * X);
+    auto eps_H = gen_eig_solver.eigenvalues();
+    C = X * gen_eig_solver.eigenvectors();
+#elif defined(EIGEN_DIAG)
+    // solve H C = e S C
+    Eigen::SelfAdjointEigenSolver<Matrix> gen_eig_solver(X.transpose() * H * X);
+    auto eps_H = gen_eig_solver.eigenvalues();
+    C = X * gen_eig_solver.eigenvectors();    
+#else
+
+    if( world_rank == 0 ) {
+
+    Matrix Hp = H;
+
+    C.resize(N, N);
+    linalg::blas::gemm( 'N', 'T', N, Northo, N,
+                        1., Hp.data(), N, X.data(), Northo, 
+                        0., C.data(), N );
+    linalg::blas::gemm( 'N', 'N', Northo, Northo, N,
+                        1., X.data(), Northo, C.data(), N, 
+                        0., Hp.data(), Northo );
+
+    std::vector<double> eps_H(Northo);
+    linalg::lapack::syevd( 'V', 'L', Northo, Hp.data(), Northo, eps_H.data() );
+
+    C.resize(N, Northo);
+    linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Hp.data(), Northo, X.data(), Northo, 0., C.data(), Northo );
+
+    } else C.resize(N, Northo);
+
+    if( world_size > 1 )
+      MPI_Bcast( C.data(), C.size(), MPI_DOUBLE, 0, world );
+
+#endif
 
     // compute density, D = C(occ) . C(occ)T
     C_occ = C.leftCols(ndocc);
@@ -288,9 +348,38 @@ void compute_hcore_guess(const int& ndocc,
 
     F +=    compute_2body_fock(shells, D, 1e-8, SchwarzK);
 
-    Eigen::GeneralizedSelfAdjointEigenSolver<Matrix> gen_eig_solver1(F, S);
-    eps = gen_eig_solver1.eigenvalues();
-    C = gen_eig_solver1.eigenvectors();
+#ifdef SCALAPACK
+    Eigen::SelfAdjointEigenSolver<Matrix> gen_eig_solver1(X.transpose() * F * X);
+    auto eps_F = gen_eig_solver1.eigenvalues();
+    C = X * gen_eig_solver1.eigenvectors();
+#elif defined(EIGEN_DIAG)
+    Eigen::SelfAdjointEigenSolver<Matrix> gen_eig_solver1(X.transpose() * F * X);
+    auto eps_F = gen_eig_solver1.eigenvalues();
+    C = X * gen_eig_solver1.eigenvectors();
+#else
+
+    if( world_rank == 0 ) {
+    Matrix Fp = F;
+
+    C.resize(N, N);
+    linalg::blas::gemm( 'N', 'T', N, Northo, N,
+                        1., Fp.data(), N, X.data(), Northo, 
+                        0., C.data(), N );
+    linalg::blas::gemm( 'N', 'N', Northo, Northo, N,
+                        1., X.data(), Northo, C.data(), N, 
+                        0., Fp.data(), Northo );
+
+    std::vector<double> eps_F(Northo);
+    linalg::lapack::syevd( 'V', 'L', Northo, Fp.data(), Northo, eps_F.data() );
+
+    C.resize(N, Northo);
+    linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Fp.data(), Northo, X.data(), Northo, 0., C.data(), Northo );
+    } else C.resize(N, Northo);
+
+    if( world_size > 1 )
+      MPI_Bcast( C.data(), C.size(), MPI_DOUBLE, 0, world );
+
+#endif
     // compute density, D = C(occ) . C(occ)T
     C_occ = C.leftCols(ndocc);
     D = C_occ * C_occ.transpose();
@@ -298,6 +387,9 @@ void compute_hcore_guess(const int& ndocc,
 
 template<typename TensorType>
 std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec, 
+#ifdef SCALAPACK
+      CXXBLACS::BlacsGrid* blacs_grid,
+#endif
       const int& iter, const int& ndocc, const Matrix& X, Matrix& F, 
       Matrix& C, Matrix& C_occ, Matrix& D,  Tensor<TensorType>& S1,
       Tensor<TensorType>& F1,Tensor<TensorType>& H1,Tensor<TensorType>& F1tmp1, 
@@ -308,6 +400,10 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       std::vector<tamm::Tensor<TensorType>>& diis_hist, 
       std::vector<tamm::Tensor<TensorType>>& fock_hist){
 
+        Scheduler sch{ec};
+
+        const int64_t N = F.rows();
+
         auto rank = ec.pg().rank(); 
         auto debug = scf_options.debug;
         auto [mu, nu, ku] = tAO.labels<3>("all"); //TODO
@@ -315,8 +411,8 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
 
         auto do_t1 = std::chrono::high_resolution_clock::now();
         // F += Ftmp;
-        Scheduler{ec}(F1(mu, nu) = H1(mu, nu))
-                     (F1(mu, nu) += F1tmp1(mu, nu)).execute();
+        sch(F1(mu, nu) = H1(mu, nu))
+           (F1(mu, nu) += F1tmp1(mu, nu)).execute();
 
         auto do_t2 = std::chrono::high_resolution_clock::now();
         auto do_time =
@@ -343,8 +439,8 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         // (Sp12D_tamm(mu,nu) = Sp12_tamm(mu,ku) * D_last_tamm(ku,nu))
         // (FDS_tamm(mu,nu)  = Sp12D_tamm(mu,ku) * FD_tamm(ku,nu))
 
-        Scheduler{ec}(FD_tamm(mu,nu) = F1(mu,ku) * D_last_tamm(ku,nu))
-        (FDS_tamm(mu,nu)  = FD_tamm(mu,ku) * S1(ku,nu))
+        sch(FD_tamm(mu,nu) = F1(mu,ku) * D_last_tamm(ku,nu))
+           (FDS_tamm(mu,nu)  = FD_tamm(mu,ku) * S1(ku,nu))
     
         //FDS-SDF
         (err_mat_tamm(mu,nu) = FDS_tamm(mu,nu))
@@ -387,10 +483,105 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         // solve F C = e S C by (conditioned) transformation to F' C' = e C',
         // where
         // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
-        Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * F *
-                                                        X);
-        //eps = eig_solver.eigenvalues();
-        C = X * eig_solver.eigenvectors();
+        #ifdef SCALAPACK
+
+        // Allocate space for C_ortho
+        Matrix C_ortho( F.rows(), F.cols() );
+        
+        if( blacs_grid ){ // Scope temp data
+
+        Matrix F_ortho = X.transpose() * F * X;
+
+        auto [MLoc, NLoc] = blacs_grid->getLocalDims( N, N );
+        std::vector< double > F_ortho_loc( MLoc*NLoc );
+        std::vector< double > C_ortho_loc( MLoc*NLoc );
+        std::vector< double > F_eig( F.rows() );
+
+        auto DescF = blacs_grid->descInit( N, N, 0, 0, MLoc );
+
+        // Scatter copy of F_ortho from root rank to all ranks
+        // FIXME: should just grab local data from replicated 
+        //   matrix
+        blacs_grid->Scatter( N, N, F_ortho.data(), N, 
+                            F_ortho_loc.data(), MLoc,
+                            0, 0 );
+
+        // Diagonalize
+        auto PSYEV_INFO = CXXBLACS::PSYEV( 'V', 'U', N, 
+                        F_ortho_loc.data(), 1, 1, DescF,
+                        F_eig.data(),
+                        C_ortho_loc.data(), 1, 1, DescF);
+
+        if( PSYEV_INFO ) {
+          std::runtime_error err("PSYEV Failed");
+          throw err;
+        }
+
+        // Gather the eigenvectors to root process and replicate
+        blacs_grid->Gather( N, N, C_ortho.data(), N, 
+                          C_ortho_loc.data(), MLoc,
+                          0,0 );
+
+        } // ScaLAPACK Scope
+
+
+        MPI_Bcast( C_ortho.data(), C_ortho.size(), MPI_DOUBLE,
+                  0, ec.pg().comm() );
+                  
+
+//      C_ortho.transposeInPlace(); // Col -> Row Major
+        
+
+
+
+        // Backtransform C
+        C = X * C_ortho.transpose();
+
+        #elif defined(EIGEN_DIAG)
+
+          Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * F *
+                                                          X);
+          //eps = eig_solver.eigenvalues();
+          C = X * eig_solver.eigenvectors();
+        
+        #else
+        
+          const int64_t Northo = X.cols();
+          assert( N == Northo );
+
+          if( rank == 0 ) {
+          Matrix Fp = F; // XXX: Can F be destroyed?
+          // TODO: Check for linear dep case
+
+          // Take into account row major
+          // X -> X**T
+          // Ft is [N,N]
+          // X**T is [Northo, N]
+          C.resize(N,N);
+          linalg::blas::gemm( 'N', 'T', N, Northo, N,
+                              1., Fp.data(), N, X.data(), Northo, 
+                              0., C.data(), N );
+          linalg::blas::gemm( 'N', 'N', Northo, Northo, N,
+                              1., X.data(), Northo, C.data(), N, 
+                              0., Fp.data(), Northo );
+
+          std::vector<double> eps(Northo);
+          linalg::lapack::syevd( 'V', 'L', Northo, Fp.data(), Northo, eps.data() );
+          // Take into account row major
+          // X -> X**T
+          // C -> C**T = Ft**T * X**T
+          // X**T is [Northo, N]
+          // Fp is [Northo, Northo]
+          // C**T is [Northo, N] 
+          C.resize(N, Northo);
+          linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Fp.data(), Northo, X.data(), Northo, 0., C.data(), Northo );
+
+          } else C.resize( N, Northo );
+
+
+          if( ec.pg().size() > 1 )
+            MPI_Bcast( C.data(), C.size(), MPI_DOUBLE, 0, ec.pg().comm() );
+      #endif
 
         // compute density, D = C(occ) . C(occ)T
         C_occ = C.leftCols(ndocc);
@@ -416,7 +607,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
          do_t1 = std::chrono::high_resolution_clock::now();
         // compute HF energy 
         // e = D * (H+F);
-        Scheduler{ec}
+        sch
            (ehf_tmp(mu,nu) = H1(mu,nu))
            (ehf_tmp(mu,nu) += F1(mu,nu))
            (ehf_tamm() = D_tamm() * ehf_tmp()).execute();
@@ -424,15 +615,15 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         auto ehf = get_scalar(ehf_tamm);
 
         // rmsd  = (D - D_last).norm();
-        Scheduler{ec}(D_diff()=D_tamm())
-                      (D_diff()-=D_last_tamm()).execute();
+        sch(D_diff() = D_tamm())
+           (D_diff() -= D_last_tamm()).execute();
         auto rmsd = norm(ec, D_diff());
 
         do_t2 = std::chrono::high_resolution_clock::now();
         do_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "HF-Energy:" << do_time << "s\n";    
+        if(rank == 0 && debug) std::cout << "HF-Energy:" << do_time << "s" << endl;    
 
         return std::make_tuple(ehf,rmsd);       
 }
@@ -442,7 +633,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
       const bool do_schwarz_screen, const std::vector<size_t>& shell2bf,
       const Matrix& SchwarzK, Matrix& G, const Matrix& D, 
       Tensor<TensorType>& F1tmp,Tensor<TensorType>& F1tmp1, 
-      const size_t& max_nprim4,
+      const size_t& max_nprim4, libint2::BasisSet& shells,
       const bool do_density_fitting=false){
 
       using libint2::Operator;
@@ -510,7 +701,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
 
         const auto Dnorm12 = do_schwarz_screen ? D_shblk_norm(s1, s2) : 0.;
 
-        for (auto s3 = 0; s3 <= s1; ++s3) {
+        for (decltype(s1) s3 = 0; s3 <= s1; ++s3) {
           auto bf3_first = shell2bf[s3];
           auto n3 = obs[s3].size();
 
@@ -579,13 +770,13 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
             // scaled by its degeneracy,
             //    i.e. the number of the integrals/sets equivalent to it
             // 3) the end result must be symmetrized
-            for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+            for (decltype(n1) f1 = 0, f1234 = 0; f1 != n1; ++f1) {
               const auto bf1 = f1 + bf1_first;
-              for (auto f2 = 0; f2 != n2; ++f2) {
+              for (decltype(n2) f2 = 0; f2 != n2; ++f2) {
                 const auto bf2 = f2 + bf2_first;
-                for (auto f3 = 0; f3 != n3; ++f3) {
+                for (decltype(n3) f3 = 0; f3 != n3; ++f3) {
                   const auto bf3 = f3 + bf3_first;
-                  for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                  for (decltype(n4) f4 = 0; f4 != n4; ++f4, ++f1234) {
                     const auto bf4 = f4 + bf4_first;
   
                     const auto value = buf_1234[f1234];
@@ -638,7 +829,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
     }
 
     else {
-      #if 0
+      #if 1
         // const auto n = obs.nbf();
         // const auto ndf = dfbs.nbf();
 
@@ -650,8 +841,8 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
         // representation
       if (!is_3c_init) {
           is_3c_init = true;
-          const auto nshells = obs.size();
-          const auto nshells_df = dfbs.size();
+          // const auto nshells = obs.size();
+          // const auto nshells_df = dfbs.size();
           const auto& unitshell = libint2::Shell::unit();
           
           auto engine = libint2::Engine(libint2::Operator::coulomb,
@@ -664,7 +855,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
           const auto& results = engine.results();
 
           Tensor<TensorType> Zxy_tamm{tdfAO, tAO, tAO}; //ndf,n,n
-          Tensor<TensorType>::allocate(ec, Zxy_tamm);
+          Tensor<TensorType>::allocate(&ec, Zxy_tamm);
 
           #if 1
             //TODO: Screening?
@@ -681,27 +872,28 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
               auto bd1 = block_dims[1];
               auto bd2 = block_dims[2];
 
-              auto s0range_start = 0l;
               auto s0range_end = df_shell_tile_map[bi0];
+              decltype(s0range_end) s0range_start = 0l;
+
               if (bi0>0) s0range_start = df_shell_tile_map[bi0-1]+1;
               
               for (auto s0 = s0range_start; s0 <= s0range_end; ++s0) {
-                auto n0 = dfbs[s0].size();
-                auto s1range_start = 0l;
+                // auto n0 = dfbs[s0].size();
                 auto s1range_end = shell_tile_map[bi1];
+                decltype(s1range_end) s1range_start = 0l;
                 if (bi1>0) s1range_start = shell_tile_map[bi1-1]+1;
               
               for (auto s1 = s1range_start; s1 <= s1range_end; ++s1) {
-                auto n1 = shells[s1].size();
+                // auto n1 = shells[s1].size();
 
-                auto s2range_start = 0l;
                 auto s2range_end = shell_tile_map[bi2];
+                decltype(s2range_end) s2range_start = 0l;
                 if (bi2>0) s2range_start = shell_tile_map[bi2-1]+1;
 
-                for (size_t s2 = s2range_start; s2 <= s2range_end; ++s2) {
-                  // if (s2>s1) continue;
-                  auto n2 = shells[s2].size();
-                  auto n123 = n0*n1*n2;
+                for (auto s2 = s2range_start; s2 <= s2range_end; ++s2) {
+                  //// if (s2>s1) continue;
+                  // auto n2 = shells[s2].size();
+                  // auto n123 = n0*n1*n2;
                   // std::vector<TensorType> tbuf(n123);
                   engine.compute2<Operator::coulomb, BraKet::xs_xx, 0>(
                       dfbs[s0], unitshell, obs[s1], obs[s2]);
@@ -709,9 +901,9 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
                   if (buf == nullptr) continue;     
                   // std::copy(buf, buf + n123, tbuf.begin());
 
-                  auto curshelloffset_i = 0U;
-                  auto curshelloffset_j = 0U;
-                  auto curshelloffset_k = 0U;
+                  tamm::Tile curshelloffset_i = 0U;
+                  tamm::Tile curshelloffset_j = 0U;
+                  tamm::Tile curshelloffset_k = 0U;
                   for(auto x=s1range_start;x<s1;x++) curshelloffset_i += AO_tiles[x];
                   for(auto x=s2range_start;x<s2;x++) curshelloffset_j += AO_tiles[x];
                   for(auto x=s0range_start;x<s0;x++) curshelloffset_k += dfAO_tiles[x];
@@ -721,9 +913,9 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
                   auto dimj =  curshelloffset_j + AO_tiles[s2];
                   auto dimk =  curshelloffset_k + dfAO_tiles[s0];
 
-                  for(size_t k = curshelloffset_k; k < dimk; k++) 
-                  for(size_t i = curshelloffset_i; i < dimi; i++) 
-                  for(size_t j = curshelloffset_j; j < dimj; j++, c++) 
+                  for(auto k = curshelloffset_k; k < dimk; k++) 
+                  for(auto i = curshelloffset_i; i < dimi; i++) 
+                  for(auto j = curshelloffset_j; j < dimj; j++, c++) 
                       dbuf[(k*bd1+i)*bd2+j] = buf[c]; //tbuf[c]
       
                 } //s2
@@ -733,7 +925,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
             };
 
             do_t1 = std::chrono::high_resolution_clock::now();
-            block_for(*ec, Zxy_tamm(), compute_2body_fock_dfC_lambda);
+            block_for(ec, Zxy_tamm(), compute_2body_fock_dfC_lambda);
 
               do_t2 = std::chrono::high_resolution_clock::now();
               do_time =
@@ -742,7 +934,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
           #endif  
         
           Tensor<TensorType> K_tamm{tdfAO, tdfAO}; //ndf,ndf
-          Tensor<TensorType>::allocate(ec, K_tamm);
+          Tensor<TensorType>::allocate(&ec, K_tamm);
 
           /*** ============================== ***/
           /*** compute 2body-2index integrals ***/
@@ -764,18 +956,19 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
               std::vector<TensorType> dbuf(size);
 
               auto bd1 = block_dims[1];
-              auto s1range_start = 0l;
               auto s1range_end = df_shell_tile_map[bi0];
+              decltype(s1range_end) s1range_start = 0l;
+
               if (bi0>0) s1range_start = df_shell_tile_map[bi0-1]+1;
               
               for (auto s1 = s1range_start; s1 <= s1range_end; ++s1) {
                 auto n1 = dfbs[s1].size();
 
-              auto s2range_start = 0l;
               auto s2range_end = df_shell_tile_map[bi1];
+              decltype(s2range_end) s2range_start = 0l;
               if (bi1>0) s2range_start = df_shell_tile_map[bi1-1]+1;
 
-              for (size_t s2 = s2range_start; s2 <= s2range_end; ++s2) {
+              for (auto s2 = s2range_start; s2 <= s2range_end; ++s2) {
                 if (s2>s1) continue;          
                 // if(s2>s1){ TODO: screening doesnt work - revisit
                 //   auto s2spl = dfbs_shellpair_list[s2];
@@ -794,16 +987,16 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
                 Eigen::Map<const Matrix> buf_mat(buf2[0], n1, n2);
                 Eigen::Map<Matrix>(&tbuf[0],n1,n2) = buf_mat;
 
-                auto curshelloffset_i = 0U;
-                auto curshelloffset_j = 0U;
-                for(auto x=s1range_start;x<s1;x++) curshelloffset_i += dfAO_tiles[x];
-                for(auto x=s2range_start;x<s2;x++) curshelloffset_j += dfAO_tiles[x];
+                tamm::Tile curshelloffset_i = 0U;
+                tamm::Tile curshelloffset_j = 0U;
+                for(decltype(s1) x=s1range_start;x<s1;x++) curshelloffset_i += dfAO_tiles[x];
+                for(decltype(s2) x=s2range_start;x<s2;x++) curshelloffset_j += dfAO_tiles[x];
 
                 size_t c = 0;
                 auto dimi =  curshelloffset_i + dfAO_tiles[s1];
                 auto dimj =  curshelloffset_j + dfAO_tiles[s2];
-                for(size_t i = curshelloffset_i; i < dimi; i++) 
-                for(size_t j = curshelloffset_j; j < dimj; j++, c++) 
+                for(auto i = curshelloffset_i; i < dimi; i++) 
+                for(auto j = curshelloffset_j; j < dimj; j++, c++) 
                         dbuf[i*bd1+j] = tbuf[c];
 
                 //TODO: not needed if screening works
@@ -815,7 +1008,7 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
               K_tamm.put(blockid,dbuf);
           };
 
-          block_for(*ec, K_tamm(), compute_2body_2index_ints_lambda);
+          block_for(ec, K_tamm(), compute_2body_2index_ints_lambda);
 
           Matrix V(ndf,ndf);
           V.setZero(); 
@@ -834,38 +1027,38 @@ void compute_2bf(ExecutionContext& ec, const libint2::BasisSet& obs,
           
           // contract(1.0, Zxy, {1, 2, 3}, K, {1, 4}, 0.0, xyK, {2, 3, 4});
           // Tensor3D xyK = Zxy.contract(K,aidx_00); 
-          Scheduler{*ec}
+          Scheduler{ec}
           (xyK_tamm(mu,nu,d_nu) = Zxy_tamm(d_mu,mu,nu) * K_tamm(d_mu,d_nu)).execute();
           Tensor<TensorType>::deallocate(K_tamm,Zxy_tamm); //release memory
 
       }  // if (!is_3c_init)
       
         Tensor<TensorType> xiK_tamm{tAO,tdfCocc,tdfAO}; //n, nocc, ndf
-        Tensor<TensorType>::allocate(ec,xiK_tamm);
+        Tensor<TensorType>::allocate(&ec,xiK_tamm);
         
         eigen_to_tamm_tensor(C_occ_tamm,C_occ);
         // contract(1.0, xyK, {1, 2, 3}, Co, {2, 4}, 0.0, xiK, {1, 4, 3});
-        Scheduler{*ec}
+        Scheduler{ec}
         (xiK_tamm(mu,dCocc_til,d_mu) = xyK_tamm(mu,nu,d_mu) * C_occ_tamm(nu, dCocc_til)).execute();
 
         // compute Coulomb
         // contract(1.0, xiK, {1, 2, 3}, Co, {1, 2}, 0.0, Jtmp, {3});
         // Jtmp = xiK.contract(Co,idx_0011); 
         Tensor<TensorType> Jtmp_tamm{tdfAO}; //ndf
-        Tensor<TensorType>::allocate(ec,Jtmp_tamm);
-        Scheduler{*ec}
+        Tensor<TensorType>::allocate(&ec,Jtmp_tamm);
+        Scheduler{ec}
         (Jtmp_tamm(d_mu) = xiK_tamm(mu,dCocc_til,d_mu) * C_occ_tamm(mu,dCocc_til)).execute();
 
         // contract(1.0, xiK, {1, 2, 3}, xiK, {4, 2, 3}, 0.0, G, {1, 4});
         // Tensor2D K_ret = xiK.contract(xiK,idx_1122); 
         // xiK.resize(0, 0, 0);
-        Scheduler{*ec}
+        Scheduler{ec}
         (F1tmp1(mu,ku) += -1.0 * xiK_tamm(mu,dCocc_til,d_mu) * xiK_tamm(ku,dCocc_til,d_mu)).execute();
         Tensor<TensorType>::deallocate(xiK_tamm);
 
         //contract(2.0, xyK, {1, 2, 3}, Jtmp, {3}, -1.0, G, {1, 2});
         // Tensor2D J_ret = xyK.contract(Jtmp,aidx_20);
-        Scheduler{*ec}
+        Scheduler{ec}
         (F1tmp1(mu,nu) += 2.0 * xyK_tamm(mu,nu,d_mu) * Jtmp_tamm(d_mu)).execute();
         Tensor<TensorType>::deallocate(Jtmp_tamm);
         // (F1tmp1(mu,nu) = 2.0 * J_ret_tamm(mu,nu))
@@ -880,16 +1073,19 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
       const std::string& basis, const Matrix& X, const Matrix& H, 
       Matrix& C, Matrix& C_occ, Matrix& D){
 
-    const auto rank = ec.pg().rank();
+    const auto rank       = ec.pg().rank();
+    const auto world_size = ec.pg().size();
     const auto N = nbasis(shells);
     
     auto D_minbs = compute_soad(atoms);  // compute guess in minimal basis
     libint2::BasisSet minbs("STO-3G", atoms);
 
-      //std::tie(minbs_shellpair_list, minbs_shellpair_data) = compute_shellpairs(minbs);
+    #ifndef NDEBUG
+      std::tie(minbs_shellpair_list, minbs_shellpair_data) = compute_shellpairs(minbs);
+    #endif
 
       if(rank == 0) std::cout << 
-    "\nProjecting minimal basis SOAD onto basis set specified (" << basis << ")\n";
+    "\nProjecting minimal basis SOAD onto basis set specified (" << basis << ")" << endl;
     
     auto ig1 = std::chrono::high_resolution_clock::now();
 
@@ -955,24 +1151,28 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
         auto bf2_first = shell2bf[s2];
         auto n2 = obs[s2].size();
 
-        for (auto s3 = 0; s3 < D_bs.size(); ++s3) {
+        for (decltype(s1) s3 = 0; s3 < D_bs.size(); ++s3) {
           auto bf3_first = shell2bf_D[s3];
           auto n3 = D_bs[s3].size();
 
           auto s4_begin = D_is_shelldiagonal ? s3 : 0;
           auto s4_fence = D_is_shelldiagonal ? s3 + 1 : D_bs.size();
 
-          //auto sp34_iter = minbs_shellpair_data.at(s3).begin();
+          #ifndef NDEBUG
+            auto sp34_iter = minbs_shellpair_data.at(s3).begin();
+          #endif
 
-          for (auto s4 = s4_begin; s4 != s4_fence; ++s4) {
+          for (decltype(s1) s4 = s4_begin; s4 != s4_fence; ++s4) {
 
-            // auto s4spl = minbs_shellpair_list[s3];
-            // auto s4_itr = std::find(s4spl.begin(),s4spl.end(),s4);
-            // if(s4_itr == s4spl.end()) continue;
-            // auto s4_pos = std::distance(s4spl.begin(),s4_itr);
+            #ifndef NDEBUG
+              auto s4spl = minbs_shellpair_list[s3];
+              auto s4_itr = std::find(s4spl.begin(),s4spl.end(),s4);
+              if(s4_itr == s4spl.end()) continue;
+              auto s4_pos = std::distance(s4spl.begin(),s4_itr);
 
-            // std::advance(sp34_iter,s4_pos);
-            // const auto* sp34 = sp34_iter->get();
+              std::advance(sp34_iter,s4_pos);
+              const auto* sp34 = sp34_iter->get();
+            #endif 
 
             auto bf4_first = shell2bf_D[s4];
             auto n4 = D_bs[s4].size();
@@ -985,17 +1185,23 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
               auto s34_deg = (s3 == s4) ? 1.0 : 2.0;
               auto s1234_deg = s12_deg * s34_deg;
               // auto s1234_deg = s12_deg;
-              engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
+              #ifndef NDEBUG
+                engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
+                  obs[s1], obs[s2], D_bs[s3], D_bs[s4],sp12,sp34);
+              #else
+                engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
                   obs[s1], obs[s2], D_bs[s3], D_bs[s4],sp12); //,sp34);
+              #endif
+
               const auto* buf_1234 = buf[0];
               if (buf_1234 != nullptr) {
-                for (auto f1 = 0, f1234 = 0; f1 != n1; ++f1) {
+                for (decltype(n1) f1 = 0, f1234 = 0; f1 != n1; ++f1) {
                   const auto bf1 = f1 + bf1_first;
-                  for (auto f2 = 0; f2 != n2; ++f2) {
+                  for (decltype(n2) f2 = 0; f2 != n2; ++f2) {
                     const auto bf2 = f2 + bf2_first;
-                    for (auto f3 = 0; f3 != n3; ++f3) {
+                    for (decltype(n3) f3 = 0; f3 != n3; ++f3) {
                       const auto bf3 = f3 + bf3_first;
-                      for (auto f4 = 0; f4 != n4; ++f4, ++f1234) {
+                      for (decltype(n4) f4 = 0; f4 != n4; ++f4, ++f1234) {
                         const auto bf4 = f4 + bf4_first;
 
                         const auto value = buf_1234[f1234];
@@ -1014,13 +1220,13 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
             if (buf_1324 == nullptr)
               continue; // if all integrals screened out, skip to next quartet
 
-            for (auto f1 = 0, f1324 = 0; f1 != n1; ++f1) {
+            for (decltype(n1) f1 = 0, f1324 = 0; f1 != n1; ++f1) {
               const auto bf1 = f1 + bf1_first;
-              for (auto f3 = 0; f3 != n3; ++f3) {
+              for (decltype(n3) f3 = 0; f3 != n3; ++f3) {
                 const auto bf3 = f3 + bf3_first;
-                for (auto f2 = 0; f2 != n2; ++f2) {
+                for (decltype(n2) f2 = 0; f2 != n2; ++f2) {
                   const auto bf2 = f2 + bf2_first;
-                  for (auto f4 = 0; f4 != n4; ++f4, ++f1324) {
+                  for (decltype(n4) f4 = 0; f4 != n4; ++f4, ++f1324) {
                     const auto bf4 = f4 + bf4_first;
 
                     const auto value = buf_1324[f1324];
@@ -1044,7 +1250,7 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     auto igtime =
       std::chrono::duration_cast<std::chrono::duration<double>>((ig2 - ig1)).count();
 
-    if(rank == 0) std::cout << "\nInitial guess: Time to compute guess: " << igtime << " secs\n";
+    if(rank == 0) std::cout << "\nInitial guess: Time to compute guess: " << igtime << " secs" << endl;
 
     ig1 = std::chrono::high_resolution_clock::now();
 
@@ -1061,7 +1267,10 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     std::vector<TensorType> Fbufv(N*N);
     TensorType *Fbuf = &Fbufv[0]; //.data();
     Eigen::Map<Matrix>(Fbuf,N,N) = Ft;  
-    GA_Brdcst(Fbuf,N*N*sizeof(TensorType),0);
+    
+    // GA_Brdcst(Fbuf,N*N*sizeof(TensorType),0);
+    MPI_Bcast(Fbuf,N*N,mpi_type<TensorType>(),0,ec.pg().comm());
+
     Ft = Eigen::Map<Matrix>(Fbuf,N,N);
     Fbufv.clear(); Fbufv.shrink_to_fit();
     Tensor<TensorType>::deallocate(F1tmp1);
@@ -1069,7 +1278,7 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     ig2 = std::chrono::high_resolution_clock::now();
     igtime =
       std::chrono::duration_cast<std::chrono::duration<double>>((ig2 - ig1)).count();
-    if(rank == 0) std::cout << "Initial guess: time to compute, broadcast Ft: " << igtime << " secs\n";
+    if(rank == 0) std::cout << "Initial guess: time to compute, broadcast Ft: " << igtime << " secs" << endl;
 
     D_minbs.resize(0,0);
 
@@ -1081,8 +1290,56 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     // solve F C = e S C by (conditioned) transformation to F' C' = e C',
     // where
     // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
-    Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * Ft * X);
-    C = X * eig_solver.eigenvectors();
+
+    #ifdef SCALAPACK
+      //TODO
+      Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * Ft * X);
+      C = X * eig_solver.eigenvectors();
+
+    #elif defined(EIGEN_DIAG)
+      Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X.transpose() * Ft * X);
+      C = X * eig_solver.eigenvectors();
+    
+    #else
+      const int64_t Northo = X.cols();
+      //EXPECTS( N == Northo );
+
+      if( rank == 0 ) {
+
+      // TODO: Check for linear dep case
+
+      // Take into account row major
+      // X -> X**T
+      // Ft is [N,N]
+      // X**T is [Northo, N]
+      C.resize(N,N);
+      linalg::blas::gemm( 'N', 'T', N, Northo, N,
+                          1., Ft.data(), N, X.data(), Northo, 
+                          0., C.data(), N );
+      linalg::blas::gemm( 'N', 'N', Northo, Northo, N,
+                          1., X.data(), Northo, C.data(), N, 
+                          0., Ft.data(), Northo );
+
+      //Ft = X.transpose() * Ft * X;
+
+      std::vector<double> eps(Northo);
+      linalg::lapack::syevd( 'V', 'L', Northo, Ft.data(), Northo, eps.data() );
+      // Take into account row major
+      // X -> X**T
+      // C -> C**T = Ft**T * X**T
+      // X**T is [Northo, N]
+      // Ft is [Northo, Northo]
+      // C**T is [Northo, N] 
+      C.resize(N, Northo);
+      linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Ft.data(), Northo, X.data(), Northo, 0., C.data(), Northo );
+
+      } else C.resize(N, Northo);
+
+      if( world_size > 1 ) 
+        MPI_Bcast( C.data(), C.size(), MPI_DOUBLE, 0, ec.pg().comm() );
+
+    #endif
+
 
     // compute density, D = C(occ) . C(occ)T
     C_occ = C.leftCols(ndocc);
@@ -1092,21 +1349,23 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     igtime =
       std::chrono::duration_cast<std::chrono::duration<double>>((ig2 - ig1)).count();
 
-    if(rank == 0) std::cout << "Initial guess: Time to compute density: " << igtime << " secs\n";
+    if(rank == 0) std::cout << "Initial guess: Time to compute density: " << igtime << " secs" << endl;
 
 }
 
 template<typename TensorType>
-void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, Tensor<TensorType> err_mat, int iter, int max_hist, int ndiis,
-          std::vector<Tensor<TensorType>>& diis_hist, std::vector<tamm::Tensor<TensorType>>& fock_hist) {
-    using Vector =
+void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F, 
+          Tensor<TensorType> err_mat, int iter, int max_hist, int ndiis,
+          std::vector<Tensor<TensorType>>& diis_hist, std::vector<Tensor<TensorType>>& fock_hist) {
+  
+  using Vector =
       Eigen::Matrix<TensorType, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
   tamm::Scheduler sch{ec};
 
   if(ndiis > max_hist) {
     std::vector<TensorType> max_err(diis_hist.size());
-    for (auto i=0; i<diis_hist.size(); i++) {
+    for (size_t i=0; i<diis_hist.size(); i++) {
       max_err[i] = tamm::norm(ec, diis_hist[i]());
       // Matrix dhist = Matrix::Zero(F.rows(),F.cols());
       // tamm_to_eigen_tensor(diis_hist[i],dhist);
@@ -1134,7 +1393,7 @@ void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F
 
     Tensor<TensorType> dhi_trans{tAO, tAO};
     Tensor<TensorType> dhi_trace{};
-    auto [mu, nu, ku] = tAO.labels<3>("all");
+    auto [mu, nu] = tAO.labels<2>("all");
     Tensor<TensorType>::allocate(&ec, dhi_trans,dhi_trace);
 
     for(int i = 0; i < idim; i++) {
@@ -1211,24 +1470,24 @@ void compute_1body_ints(ExecutionContext& ec, Tensor<TensorType>& tensor1e,
         //  block_dims[0] << ", " << block_dims[1] << endl;
 
         // auto s1 = blockid[0];
-        auto s1range_start = 0l;
         auto s1range_end = shell_tile_map[bi0];
+        decltype(s1range_end) s1range_start = 0l;
         if (bi0>0) s1range_start = shell_tile_map[bi0-1]+1;
         
         // cout << "s1-start,end = " << s1range_start << ", " << s1range_end << endl; 
         for (auto s1 = s1range_start; s1 <= s1range_end; ++s1) {
         // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
         // this shell
-          auto n1 = shells[s1].size();
+        auto n1 = shells[s1].size();
 
-        auto s2range_start = 0l;
         auto s2range_end = shell_tile_map[bi1];
+        decltype(s2range_end) s2range_start = 0l;
         if (bi1>0) s2range_start = shell_tile_map[bi1-1]+1;
 
         // cout << "s2-start,end = " << s2range_start << ", " << s2range_end << endl; 
 
           // cout << "screend shell pair list = " << s2spl << endl;
-          for (size_t s2 = s2range_start; s2 <= s2range_end; ++s2) {
+          for (auto s2 = s2range_start; s2 <= s2range_end; ++s2) {
           // for (auto s2: obs_shellpair_list[s1]) {
           // auto s2 = blockid[1];
           // if (s2>s1) continue;

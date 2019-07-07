@@ -43,34 +43,12 @@ class RuntimeEngine;
 class ExecutionContext {
 public:
     ExecutionContext() : ac_{IndexedAC{nullptr, 0}} { pg_self_ = ProcGroup{MPI_COMM_SELF}; };
-    ExecutionContext(const ExecutionContext& other)
-	: pg_(other.pg_), pg_self_(other.pg_self_),
-	  default_distribution_(other.default_distribution_),
-	  default_memory_manager_(other.default_memory_manager_),
-	  memory_manager_local_(other.memory_manager_local_),
-	  ac_(other.ac_),
-	  mem_regs_to_dealloc_(other.mem_regs_to_dealloc_),
-	  unregistered_mem_regs_(other.unregistered_mem_regs_)
-    {
-	re_ = other.re_;
-    }
 
-    ExecutionContext& operator=(const ExecutionContext& other) {
-	pg_ = other.pg_;
-	pg_self_ = other.pg_self_;
-	default_distribution_ = other.default_distribution_;
-	default_memory_manager_ = other.default_memory_manager_;
-	memory_manager_local_ = other.memory_manager_local_;
-	ac_ = other.ac_;
-	mem_regs_to_dealloc_ = other.mem_regs_to_dealloc_;
-	unregistered_mem_regs_ = other.unregistered_mem_regs_;
-	re_ = other.re_;
-	return *this;
-    }
+    ExecutionContext(const ExecutionContext&) = default;
+    ExecutionContext& operator=(const ExecutionContext&) = default;
 
-    // ExecutionContext(ExecutionContext&&) = default;
-    // ExecutionContext& operator=(const ExecutionContext&) = default;
-    // ExecutionContext& operator=(ExecutionContext&&) = default;
+    ExecutionContext(ExecutionContext&&) = default;
+    ExecutionContext& operator=(ExecutionContext&&) = default;
 
     /** @todo use shared pointers for solving GitHub issue #43*/
     ExecutionContext(ProcGroup pg, Distribution* default_distribution,
@@ -251,7 +229,6 @@ private:
     MemoryManagerLocal* memory_manager_local_;
     IndexedAC ac_;
     std::shared_ptr<RuntimeEngine> re_;
-    bool deallocate_re = false;
 
     std::vector<MemoryRegion*> mem_regs_to_dealloc_;
     std::vector<MemoryRegion*> unregistered_mem_regs_;

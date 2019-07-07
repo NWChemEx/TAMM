@@ -2,6 +2,8 @@
 #define TAMM_TAMM_UTILS_HPP_
 
 #include <vector>
+#include <chrono>
+#include <type_traits>
 
 namespace tamm {
 /**
@@ -19,6 +21,22 @@ std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
     for(auto& x : vec) os << x << ",";
     os << "]\n";
     return os;
+}
+
+template<typename T>
+MPI_Datatype mpi_type(){
+    using std::is_same_v;
+
+    if constexpr(is_same_v<int, T>)
+        return MPI_INT;
+    else if constexpr(is_same_v<float, T>)
+        return MPI_FLOAT;
+    else if constexpr(is_same_v<double, T>)
+        return MPI_DOUBLE;
+    else if constexpr(is_same_v<std::complex<float>, T>)
+        return MPI_COMPLEX;
+    else if constexpr(is_same_v<std::complex<double>, T>)
+        return MPI_DOUBLE_COMPLEX;
 }
 
 /**
@@ -169,7 +187,7 @@ TensorType trace(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
         }
     };
     block_for(ec, ltensor, gettrace);
-    MPI_Allreduce(&lsumd, &gsumd, 1, MPI_DOUBLE, MPI_SUM, ec.pg().comm());
+    MPI_Allreduce(&lsumd, &gsumd, 1, mpi_type<TensorType>(), MPI_SUM, ec.pg().comm());
     return gsumd;
 }
 
@@ -227,11 +245,128 @@ void fill_tensor(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
         const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
+        // tensor.get(blockid, dbuf);
         func(blockid,dbuf);
         tensor.put(blockid, dbuf);
     };
     block_for(ec, ltensor, lambda);
+}
+
+/**
+ * @brief write tensor to disk
+ *
+ * @tparam TensorType the type of the elements in the tensor
+ * @param ec Execution context used in the blockfor
+ * @param tensor to write to disk
+ * @param filename to write to disk
+ */
+template<typename TensorType>
+void write_to_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::string& filename) {
+
+    auto io_t1 = std::chrono::high_resolution_clock::now();
+
+    MPI_File fh;
+    MPI_Info info;
+    MPI_Status status;
+    MPI_Offset file_offset;
+    MPI_Info_create(&info);
+    // MPI_Info_set(info,"romio_cb_write", "enable");
+    // MPI_Info_set(info,"striping_unit","4194304");                    
+    MPI_Info_set(info,"cb_nodes",std::to_string(GA_Cluster_nnodes()).c_str());    
+    MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY,
+                 info, &fh);
+    MPI_Info_free(&info);                 
+    
+    auto ltensor = tensor();
+    LabelLoopNest loop_nest{ltensor.labels()};    
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+
+        file_offset = 0;
+        for(const IndexVector& pbid : loop_nest) {
+            if(pbid==blockid) break;
+            file_offset += tensor.block_size(pbid);
+        }
+
+        file_offset = file_offset*sizeof(TensorType);
+        
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+
+        MPI_File_write_at(fh,file_offset,reinterpret_cast<void*>(&dbuf[0]),
+                          static_cast<int>(dsize),mpi_type<TensorType>(),&status);
+
+    };
+    block_for(ec, ltensor, lambda);
+
+    MPI_File_close(&fh);
+
+    auto io_t2 = std::chrono::high_resolution_clock::now();
+
+    double io_time = 
+        std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
+    if(ec.pg().rank() == 0) std::cout << "Time for writing " << filename << " to disk: " << io_time << " secs\n";
+
+}
+
+
+/**
+ * @brief read tensor from disk
+ *
+ * @tparam TensorType the type of the elements in the tensor
+ * @param ec Execution context used in the blockfor
+ * @param tensor to read into 
+ * @param filename to read from disk
+ */
+template<typename TensorType>
+void read_from_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::string& filename) {
+
+    auto io_t1 = std::chrono::high_resolution_clock::now();
+
+    MPI_File fh;
+    MPI_Info info;
+    MPI_Status status;
+    MPI_Offset file_offset;
+    MPI_Info_create(&info);
+    // MPI_Info_set(info,"romio_cb_read", "enable");
+    // MPI_Info_set(info,"striping_unit","4194304"); 
+    MPI_Info_set(info,"cb_nodes",std::to_string(GA_Cluster_nnodes()).c_str());    
+
+    MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_RDONLY,
+                    info, &fh);
+    MPI_Info_free(&info);                     
+
+    auto ltensor = tensor();
+    LabelLoopNest loop_nest{ltensor.labels()};                    
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        file_offset = 0;
+        for(const IndexVector& pbid : loop_nest) {
+            if(pbid==blockid) break;
+            file_offset += tensor.block_size(pbid);
+        }
+
+        file_offset = file_offset*sizeof(TensorType);
+
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+
+        MPI_File_read_at(fh,file_offset,reinterpret_cast<void*>(&dbuf[0]),
+                        static_cast<int>(dsize),mpi_type<TensorType>(),&status);
+        tensor.put(blockid,dbuf);
+    };
+    block_for(ec, ltensor, lambda);
+
+    MPI_File_close(&fh);
+
+    auto io_t2 = std::chrono::high_resolution_clock::now();
+
+    double io_time = 
+        std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
+    if(ec.pg().rank() == 0) std::cout << "Time for reading " << filename << " from disk: " << io_time << " secs\n";
 }
 
 /**
@@ -260,6 +395,14 @@ void apply_ewise(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
 
 // Several convenience functions using apply_ewise
 template<typename TensorType>
+void conj(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return std::conj(a);
+    };
+    apply_ewise(ec, ltensor, func);
+}
+
+template<typename TensorType>
 void square(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
     std::function<TensorType(TensorType)> func = [&](TensorType a) {
         return a * a;
@@ -284,7 +427,7 @@ void log(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
 }
 
 template<typename TensorType>
-void inverse(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+void einverse(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
     std::function<TensorType(TensorType)> func = [&](TensorType a) {
         return 1 / a;
     };
@@ -318,6 +461,26 @@ void sqrt(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
 }
 
 template<typename TensorType>
+TensorType sum(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+    TensorType lsumsq         = 0;
+    TensorType gsumsq         = 0;
+    Tensor<TensorType> tensor = ltensor.tensor();
+
+    auto getnorm = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        if constexpr(std::is_same_v<TensorType, std::complex<double>>
+                  || std::is_same_v<TensorType, std::complex<float>>)
+        for(auto val : dbuf) lsumsq += val;
+    };
+    block_for(ec, ltensor, getnorm);
+    MPI_Allreduce(&lsumsq, &gsumsq, 1, mpi_type<TensorType>(), MPI_SUM, ec.pg().comm());
+    return gsumsq;
+}
+
+template<typename TensorType>
 TensorType norm(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
     TensorType lsumsq         = 0;
     TensorType gsumsq         = 0;
@@ -328,10 +491,14 @@ TensorType norm(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
         tensor.get(blockid, dbuf);
-        for(auto val : dbuf) lsumsq += val * val;
+        if constexpr(std::is_same_v<TensorType, std::complex<double>>
+                  || std::is_same_v<TensorType, std::complex<float>>)
+            for(auto val : dbuf) lsumsq += val * std::conj(val);         
+        else
+            for(auto val : dbuf) lsumsq += val * val;
     };
     block_for(ec, ltensor, getnorm);
-    MPI_Allreduce(&lsumsq, &gsumsq, 1, MPI_DOUBLE, MPI_SUM, ec.pg().comm());
+    MPI_Allreduce(&lsumsq, &gsumsq, 1, mpi_type<TensorType>(), MPI_SUM, ec.pg().comm());
     return std::sqrt(gsumsq);
 }
 

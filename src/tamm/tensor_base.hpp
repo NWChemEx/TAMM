@@ -64,12 +64,36 @@ public:
     TensorBase(const std::vector<TiledIndexLabel>& lbls) :
       allocation_status_{AllocationStatus::invalid},
       num_modes_{lbls.size()} {
+#if 0
         for(const auto& lbl : lbls) {
-            block_indices_.push_back(lbl.tiled_index_space());
-            // tlabels_.push_back(lbl);
+            auto tis = lbl.tiled_index_space();
+            if(tis.is_dependent()){
+                if(lbl.secondary_labels().size() == 0){
+                    auto new_tis = tis.parent_tis();
+                    // negative lbl id is used to avoid overlap
+                    auto new_lbl = new_tis.label(-1);
+                    block_indices_.push_back(new_tis);
+                    tlabels_.push_back(new_lbl);
+                }
+                else {
+                    EXPECTS(lbl.secondary_labels().size() ==
+                        tis.num_key_tiled_index_spaces());
+                    block_indices_.push_back(tis);
+                    tlabels_.push_back(lbl);
+                } 
+            } else {
+                block_indices_.push_back(tis);
+                tlabels_.push_back(lbl);
+            }
         }
+#else
         tlabels_ = lbls;
+        for(auto& lbl : tlabels_) {
+            block_indices_.push_back(lbl.tiled_index_space());
+        }
+#endif
         construct_dep_map();
+        update_labels();
     }
 
     /**
@@ -100,7 +124,9 @@ public:
      *
      * @returns a size_t for the number of nodes of the tensor
      */
-    TensorRank num_modes() const { return num_modes_; };
+    TensorRank num_modes() const { return num_modes_; }
+
+    ExecutionContext* execution_context() const { return ec_; }
 
     auto tindices() const { return block_indices_; }
 
@@ -201,8 +227,8 @@ public:
             auto tis = block_indices_[i];
             if(tis.is_dependent()) {
                 /// @todo do we need this check here?
-                EXPECTS(il.secondary_labels().size() ==
-                        il.tiled_index_space().num_key_tiled_index_spaces());
+                // EXPECTS(il.secondary_labels().size() ==
+                //         il.tiled_index_space().num_key_tiled_index_spaces());
                 for(auto& dep : il.secondary_labels()) {
                     size_t pos = find_dep(dep);
                     EXPECTS(pos != til);
@@ -215,7 +241,7 @@ public:
                         //     IndexVector{pos};
                     }
                 }
-                EXPECTS(dep_map_.find(i) != dep_map_.end());
+                // EXPECTS(dep_map_.find(i) != dep_map_.end());
             }
         }
     }
@@ -266,6 +292,42 @@ protected:
         }
     }
 
+    void update_labels(){
+        EXPECTS(tlabels_.size() == block_indices_.size());
+        bool has_new_lbl = false;
+        // construct new tis and lbls for dependent labels without secondary labels
+        for (size_t i = 0; i < tlabels_.size(); i++) {
+            const auto& lbl = tlabels_[i];
+            const auto& lbl_tis = block_indices_[i]; 
+            if( lbl_tis.is_dependent() 
+                && lbl.secondary_labels().size() == 0 ) {
+                auto new_tis = lbl_tis.parent_tis();
+                block_indices_[i] = new_tis;
+                tlabels_[i] = new_tis.label();
+                has_new_lbl = true;
+            }
+        }
+        if(has_new_lbl){
+            // Update dependent labels if a new label is created
+            for (size_t i = 0; i < tlabels_.size(); i++) {
+                const auto& lbl_tis = block_indices_[i];
+                if(lbl_tis.is_dependent()) {
+                    auto lbl = tlabels_[i];
+                    auto primary_label = lbl.primary_label();
+                    auto secondary_labels = lbl.secondary_labels();
+                    EXPECTS(!secondary_labels.empty());
+                    EXPECTS(dep_map_[i].size() == secondary_labels.size());
+                    auto sec_indices = dep_map_[i];
+                    for (size_t j = 0; j < sec_indices.size(); j++) {
+                        secondary_labels[j] = tlabels_[sec_indices[j]].primary_label();
+                    }
+                    tlabels_[i] = TiledIndexLabel{primary_label, secondary_labels};
+                }
+            }
+        }
+        
+    }
+
     std::vector<TiledIndexSpace> block_indices_;
     Spin spin_total_;
     bool has_spatial_symmetry_;
@@ -280,7 +342,7 @@ protected:
     /// Map that maintains position of dependent index space(s) for a given
     /// dependent index space.
     std::map<size_t, std::vector<size_t>> dep_map_;
-    ExecutionContext* ec_;
+    ExecutionContext* ec_ = nullptr;
     std::vector<SpinPosition> spin_mask_;
 }; // TensorBase
 

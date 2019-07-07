@@ -32,6 +32,12 @@ cmake \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran ..
 
+#BLIS Options
+-DBLIS=ON [-DBLIS_CONFIG=arch]
+Ex: -DBLIS_CONFIG=haswell
+If BLIS_CONFIG is not provided, the BLIS build will try to
+auto-detect (only for x86_64 systems) the architecture.
+
 #CUDA Options
 [-DNWX_CUDA=ON] #Disabled by Default
 #GlobalArrays options
@@ -60,15 +66,13 @@ export MKL_LIBS=$INTEL_ROOT/linux/mkl/lib/intel64
 
 export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_intel_thread.a;$MKL_LIBS/libmkl_core.a;$INTEL_ROOT/linux/compiler/lib/intel64/libiomp5.a;-lpthread;-ldl"
 
-<!-- export TAMM_BLASLIBS="-Wl,--start-group $MKL_LIBS/libmkl_intel_ilp64.a $MKL_LIBS/libmkl_intel_thread.a $MKL_LIBS/libmkl_core.a --end-group;$INTEL_ROOT/linux/compiler/lib/intel64/libiomp5.a;-lpthread;-ldl" -->
-
 cmake \
 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran \
 -DCBLAS_INCLUDE_DIRS=$MKL_INC \
 -DLAPACKE_INCLUDE_DIRS=$MKL_INC \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMGCCMKL \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
--DTAMM_CXX_FLAGS="-DMKL_ILP64 -m64" \
+-DTAMM_CXX_FLAGS="-ffast-math" \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
 ```
@@ -84,10 +88,10 @@ cmake \
 -DLAPACKE_INCLUDE_DIRS=$MKL_INC \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMGCCMKL \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
--DTAMM_CXX_FLAGS="-DMKL_ILP64 -m64 -DSCALAPACK" \
+-DTAMM_CXX_FLAGS="-ffast-math" \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
--DSCALAPACK_LIBRARIES=$TAMM_BLASLIBS ..
+-DSCALAPACK_LIBRARIES=$TAMM_BLASLIBS -DSCALAPACK=ON ..
 ```
 
 ```
@@ -99,12 +103,24 @@ Build instructions for Summit (using GCC+ESSL)
 ----------------------------------------------
 
 ```
+module load gcc/7.4.0
+module load cmake/3.13.4 
+module load spectrum-mpi/10.2.0.11-20190201 
+module load cuda/9.2.148
+module load essl/6.1.0-2
+module load netlib-lapack/3.8.0
+```
+
+```
+The following paths may need to be adjusted if the modules change:
+
 export TAMM_INSTALL_PATH=/opt/NWChemEx/install
 export ESSL_INC=/sw/summit/essl/6.1.0-2/essl/6.1/include
 export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp6464.so"
-export NETLIB_BLAS_LIBS="/opt/lapacke/lib64"
-
-cmake \
+export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-7.4.0/netlib-lapack-3.8.0-nlygftfrpeuipphmnn5mg37a4qz7hoqu/lib64"
+```
+```
+ cmake \
 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran \
 -DCBLAS_INCLUDE_DIRS=$ESSL_INC \
 -DLAPACKE_INCLUDE_DIRS=$ESSL_INC \
@@ -112,8 +128,22 @@ cmake \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
--DTAMM_CXX_FLAGS="-m64 -mtune=native -ffast-math" \
+-DTAMM_CXX_FLAGS="-ffast-math -mcpu=power9" \
 -DTAMM_EXTRA_LIBS="$NETLIB_BLAS_LIBS/liblapacke.a;$NETLIB_BLAS_LIBS/liblapack.a" ..
+
+For CUDA build, add -DNWX_CUDA=ON
+
+```
+
+```
+For Scalapack build, the following need to be changed above:
+
+module load netlib-scalapack
+
+export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp.so;/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-7.4.0/netlib-scalapack-2.0.2-z3a4bwna7g5h4gy2vrkfcarkhyznuyyk/lib/libscalapack.so"
+
+Add -DSCALAPACK=ON to the cmake line.
+
 
 ```
 
@@ -123,31 +153,35 @@ Build instructions for Cori
 ```
 module unload PrgEnv-intel/6.0.4
 module load PrgEnv-gnu/6.0.4
-module load gcc/7.3.0 cray-mpich/7.7.0
-module load cmake/3.11.4
+module load gcc/7.3.0 cray-mpich/7.7.3
+module load cmake/3.14.0 
+module load cuda/9.2
 ```
 
-- CMakeBuild repository should be built with the following compiler options.
+- `NOTE:` CMakeBuild repository should be built with the following compiler options.
   - Remove the compiler options from the cmake line or change them to:  
  -DCMAKE_C_COMPILER=cc -DCMAKE_CXX_COMPILER=CC -DCMAKE_Fortran_COMPILER=ftn
 
  
 ```
+export CRAYPE_LINK_TYPE=dynamic
+
 export TAMM_INSTALL_PATH=/global/homes/p/user/code/NWChemEx/install
 export INTEL_ROOT=/opt/intel/compilers_and_libraries_2018.1.163
 
 export MKL_INC=$INTEL_ROOT/linux/mkl/include
 export MKL_LIBS=$INTEL_ROOT/linux/mkl/lib/intel64
 export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_gnu_thread.a;$MKL_LIBS/libmkl_core.a;-lgomp;-lpthread;-ldl"
-
+```
+```
 cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC \
 -DLAPACKE_INCLUDE_DIRS=$MKL_INC \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMGCCMKL \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
--DTAMM_CXX_FLAGS="-DMKL_ILP64 -m64" \
+-DTAMM_CXX_FLAGS="-ffast-math" \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
 
+For CUDA build, add -DNWX_CUDA=ON
+
 ```
-
-

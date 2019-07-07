@@ -110,10 +110,10 @@ int main(int argc, char* argv[]) {
 
     int mpi_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-#ifndef NO_GPU
+    #ifdef NWX_GPU
     TALSH talsh_instance;
     talsh_instance.TALSH_initialize();
-#endif
+    #endif
 
     ProcGroup pg{GA_MPI_Comm()};
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
@@ -124,12 +124,13 @@ int main(int argc, char* argv[]) {
     Scheduler sch{ec};
 
     test_2_dim_mult_op<double>(sch, is_size, tile_size);
-    // test_3_dim_mult_op<double>(sch, is_size, tile_size);
-    // test_4_dim_mult_op<double>(sch, is_size, tile_size);
+    test_3_dim_mult_op<double>(sch, is_size, tile_size);
+    test_4_dim_mult_op<double>(sch, is_size, tile_size);
 
-#ifndef NO_GPU
+    #ifdef NWX_GPU
     talsh_instance.TALSH_shutdown();
-#endif
+    #endif
+
     GA_Terminate();
     MPI_Finalize();
 

@@ -2,12 +2,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "XL"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "Cray"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "Intel" 
-    OR CMAKE_CXX_COMPILER_ID STREQUAL "PGI")
+    OR CMAKE_CXX_COMPILER_ID STREQUAL "PGI"
+    OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         message(FATAL_ERROR "TAMM cannot be currently built with ${CMAKE_CXX_COMPILER_ID} compilers.")
 endif()
 
 if("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
-    if (TAMM_ENABLE_GPU)
+    if (NWX_CUDA)
         message(FATAL_ERROR "TAMM does not support building with GPU support \
         on MACOSX. Please use NWX_CUDA=OFF for MACOSX builds.")
     endif()

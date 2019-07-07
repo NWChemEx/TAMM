@@ -316,10 +316,10 @@ TEST_CASE("TiledIndexSpace construction checks") {
         const auto& O = tis_named("occ");
         const auto& V = tis_named("virt");
 
-        REQUIRE(!O.is_compatible_with(V));
-        REQUIRE(!V.is_compatible_with(O));
-        REQUIRE(!N.is_compatible_with(O));
-        REQUIRE(!N.is_compatible_with(V));
+        // REQUIRE(!O.is_compatible_with(V));
+        // REQUIRE(!V.is_compatible_with(O));
+        // REQUIRE(!N.is_compatible_with(O));
+        // REQUIRE(!N.is_compatible_with(V));
         REQUIRE(O.is_compatible_with(N));
         REQUIRE(V.is_compatible_with(N));
     }

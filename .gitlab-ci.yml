@@ -1,0 +1,112 @@
+
+stages:
+  - build
+
+before_script:
+  - export CMAKE_BUILD_PARALLEL_LEVEL=24
+  - export REPO_NAME=TAMM
+  - export CI_PATH=~/git/gitlabCI/$REPO_NAME
+  - if [ -d "$CI_PATH" ]; then rm -rf $CI_PATH; fi
+  - mkdir -p $CI_PATH/install
+  - git clone git@gitlab.com:NWChemEx-Project/CMakeBuild.git $CI_PATH/CMakeBuild
+
+variables:
+  NWX_INSTALL_PATH: "~/git/gitlabCI/TAMM/install"
+  CMAKE_OPTIONS: "-DCMAKE_PREFIX_PATH=$NWX_INSTALL_PATH/$BUILD_FOLDER -DCMAKE_INSTALL_PREFIX=$NWX_INSTALL_PATH/$BUILD_FOLDER -DARMCI_NETWORK=MPI-PR"
+  NUM_CORES: "24"
+  NUM_CORES_MAC: "12"
+
+# .cmake_options: &cmake_options
+#   NWX_INSTALL_PATH: "~/git/gitlabCI/TAMM/install/$BUILD_FOLDER"
+#   CMAKE_OPTIONS: "-DCMAKE_PREFIX_PATH=$NWX_INSTALL_PATH -DCMAKE_INSTALL_PREFIX=$NWX_INSTALL_PATH -DARMCI_NETWORK=MPI-PR"
+
+.l_gcc: &l_gcc
+  NWX_C_COMPILER: "gcc"
+  NWX_CXX_COMPILER: "g++"
+  NWX_Fortran_COMPILER: "gfortran"
+
+.l_clang: &l_clang
+  NWX_C_COMPILER: "clang"
+  NWX_CXX_COMPILER: "clang++"
+  NWX_Fortran_COMPILER: "gfortran"
+
+.l_mac_gcc: &l_mac_gcc
+  NWX_C_COMPILER: "gcc-8"
+  NWX_CXX_COMPILER: "g++-8"
+  NWX_Fortran_COMPILER: "gfortran-8"
+
+.modules_kamban: &modules_kamban
+  gcc91: "gcc-9.1.0-gcc-7.4.0-jjv2tsg"
+  clang8: "llvm-8.0.0-gcc-9.1.0-k4l6z4v"
+  mpich33_gcc91: "mpich-3.3-gcc-9.1.0-ennj3ix"
+  cmake314: "cmake-3.14.2-gcc-9.1.0-jzu7ays"
+
+#GCC9.1 + mpich / openmpi
+.bgcc91_mpich33: &bgcc91_mpich33
+    LOAD_MODULE: $gcc91 $mpich33_gcc91
+    BUILD_FOLDER: "build_gcc91_mpich33"
+
+.bclang8_mpich33: &bclang8_mpich33
+    LOAD_MODULE: $gcc91 $clang8 $mpich33_gcc91
+    BUILD_FOLDER: "build_clang8_mpich33"
+
+.bmacosx_gcc82_openmpi310: &bmacosx_gcc82_openmpi310
+    BUILD_FOLDER: "macosx_gcc82_openmpi310"
+
+.build_template: &tamm_build
+  # only:
+  #   - master
+  tags:
+    - linux,kamban
+  stage: build
+  script:
+    - module load $LOAD_MODULE $cmake314
+    - cd $CI_PATH/CMakeBuild
+    - cmake $CMAKE_OPTIONS -DCMAKE_C_COMPILER=$NWX_C_COMPILER -DCMAKE_CXX_COMPILER=$NWX_CXX_COMPILER -DCMAKE_Fortran_COMPILER=$NWX_Fortran_COMPILER -H. -B$BUILD_FOLDER
+    - cd $BUILD_FOLDER
+    - make install
+    - cd $CI_PROJECT_DIR
+    - cmake $CMAKE_OPTIONS -DCMAKE_C_COMPILER=$NWX_C_COMPILER -DCMAKE_CXX_COMPILER=$NWX_CXX_COMPILER -DCMAKE_Fortran_COMPILER=$NWX_Fortran_COMPILER -DBUILD_TESTS=ON -H. -B$BUILD_FOLDER
+    - cd $BUILD_FOLDER
+    - make -j$NUM_CORES
+    - make install
+    - ctest -VV
+
+.build_template: &tamm_build_macosx
+  # only:
+  #   - master
+  tags:
+    - macosx
+  stage: build
+  script:
+    - cd $CI_PATH/CMakeBuild
+    - cmake $CMAKE_OPTIONS -DCMAKE_C_COMPILER=$NWX_C_COMPILER -DCMAKE_CXX_COMPILER=$NWX_CXX_COMPILER -DCMAKE_Fortran_COMPILER=$NWX_Fortran_COMPILER -H. -B$BUILD_FOLDER
+    - cd $BUILD_FOLDER
+    - make install
+    - cd $CI_PROJECT_DIR
+    - cmake $CMAKE_OPTIONS -DCMAKE_C_COMPILER=$NWX_C_COMPILER -DCMAKE_CXX_COMPILER=$NWX_CXX_COMPILER -DCMAKE_Fortran_COMPILER=$NWX_Fortran_COMPILER -DBUILD_TESTS=ON -H. -B$BUILD_FOLDER
+    - cd $BUILD_FOLDER
+    - make -j$NUM_CORES_MAC
+    - make install
+    - ctest -VV    
+
+gcc91_mpich33:
+  <<: [*tamm_build]
+  variables:
+    <<: [*l_gcc,*modules_kamban,*bgcc91_mpich33]
+  tags:
+    - linux,kamban   
+
+clang8_mpich33:
+  <<: [*tamm_build]
+  variables:
+    <<: [*l_clang,*modules_kamban,*bclang8_mpich33]
+  tags:
+    - linux,kamban   
+
+macosx_gcc82_openmpi310:
+  <<: [*tamm_build_macosx]
+  variables:
+    <<: [*l_mac_gcc,*bmacosx_gcc82_openmpi310]     
+  tags:
+    - macosx

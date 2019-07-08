@@ -11,6 +11,7 @@
 #include <numeric>
 #include <vector>
 
+// #define NWX_GPU
 #ifdef NWX_GPU
 #include "tamm/talsh_tamm.hpp"
 #include "tamm/cuda_memory_allocator.hpp"
@@ -249,19 +250,29 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
         }
     }
     #else
-    int tal_ainter_dims[ainter_dims.size()];
-    int tal_binter_dims[binter_dims.size()];
-    int tal_cinter_dims[cinter_dims.size()];
-    for(auto i = 0; i < ainter_dims.size(); ++i)
-        tal_ainter_dims[i] = (int)ainter_dims[i].value();
-    for(auto i = 0; i < binter_dims.size(); ++i)
-        tal_binter_dims[i] = (int)binter_dims[i].value();
-    for(auto i = 0; i < cinter_dims.size(); ++i)
-        tal_cinter_dims[i] = (int)cinter_dims[i].value();
+    auto aid_size = ainter_dims.size();
+    auto bid_size = binter_dims.size();
+    auto cid_size = cinter_dims.size();
+    int tal_ainter_dims[aid_size];
+    int tal_binter_dims[bid_size];
+    int tal_cinter_dims[cid_size];
+    if(aid_size>1){
+    tal_ainter_dims[0] = (int)ainter_dims[1].value();
+    tal_ainter_dims[1] = (int)ainter_dims[0].value();
+    }
+    if(bid_size>1){
+    tal_binter_dims[0] = (int)binter_dims[1].value();
+    tal_binter_dims[1] = (int)binter_dims[0].value();
+    }
+    if(cid_size>1){
+    tal_cinter_dims[0] = (int)cinter_dims[1].value();
+    tal_cinter_dims[1] = (int)cinter_dims[0].value();
+    }
 
     auto talsh_op_string = internal::talsh_mult_op_string(
         cinter_labels, ainter_labels, binter_labels); 
     // std::cout << talsh_op_string << std::endl;
+    // std::cout << size <<  << std::endl;
 
     // adata, bdata, cdata will have to be created 
     // using pinned memory else where for now using 

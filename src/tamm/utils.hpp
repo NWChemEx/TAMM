@@ -364,6 +364,8 @@ talsh_add_op_string(const IndexLabelVec& clabel,
             << "A(" <<join(a_label, ",") << ")"; 
   }
   return oss.str();
+}
+
 /**
  * @brief Construct a dependence map from a label vector. The returned dependence map returns the list of indices a given index depends on, by comparing the primary labels.
  * 

@@ -566,7 +566,7 @@ class TALSH {
     talshTensorShape(&r2tens, &r2shape);
 
     //@todo check that the shapes of tensors match
-    std::cout << "Contract string: " << cop_string << std::endl; 
+    // std::cout << "Contract string: " << cop_string << std::endl; 
 
     tensShape_destruct(&lshape);
     tensShape_destruct(&r1shape);

@@ -411,7 +411,9 @@ public:
                     lhs_.tensor()().labels()[i].tiled_index_space()));
             }
 
-            auto [translated_blockid, tlb_valid] =
+            IndexVector translated_blockid;
+            bool tlb_valid;
+            std::tie(translated_blockid, tlb_valid) =
               internal::translate_blockid_if_possible(
                 lblockid, extracted_llabels, lhs_.tensor()().labels());
 

@@ -306,7 +306,7 @@ std::vector<T> topological_sort(const std::map<T,std::vector<T>>& dep_map) {
     // return order;
 }
 
-std::tuple<IndexVector, bool> translate_blockid_if_possible(
+inline std::tuple<IndexVector, bool> translate_blockid_if_possible(
   const IndexVector& from_blockid,
   const IndexLabelVec& from_label,
   const IndexLabelVec& to_label) {
@@ -409,7 +409,7 @@ std::tuple<IndexVector, bool> translate_blockid_if_possible(
     return {to_blockid, true};
 }
 
-void update_labels(IndexLabelVec& labels) {
+inline void update_labels(IndexLabelVec& labels) {
     EXPECTS(!labels.empty());
     auto dep_map            = construct_dep_map(labels);
     bool has_new_lbl        = false;
@@ -452,7 +452,7 @@ void update_labels(IndexLabelVec& labels) {
     }
 }
 
-void print_labels(const IndexLabelVec& labels) {
+inline void print_labels(const IndexLabelVec& labels) {
     for(auto& lbl : labels) {
         std::cout << "primary: " << lbl.primary_label().label() << " - secondary: [ ";
         for(const auto& l : lbl.secondary_labels()) {

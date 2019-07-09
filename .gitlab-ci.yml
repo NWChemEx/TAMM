@@ -48,10 +48,10 @@ variables:
     LIBINT_INSTALL_PATH: "~/cached_builds/libint-install/clang8"
 
 .cached_libint_macosx_gcc9: &cached_libint_macosx_gcc9
-    LIBINT_INSTALL_PATH: "~/code/NWChemEx/libint-install/gcc9"
+    LIBINT_INSTALL_PATH: "~/cached_builds/libint-install/gcc9"
 
 .cached_libint_macosx_clang8: &cached_libint_macosx_clang8
-    LIBINT_INSTALL_PATH: "~/code/NWChemEx/libint-install/clang8"
+    LIBINT_INSTALL_PATH: "~/cached_builds/libint-install/clang8"
 
 #GCC9.1 + mpich / openmpi
 .bgcc91_mpich33: &bgcc91_mpich33

@@ -4,7 +4,7 @@
 #include "tamm/memory_manager.hpp"
 #include "armci.h"
 #include "ga.h"
-#include "mpi.h"
+#include "ga-mpi.h"
 
 #include <vector>
 #include <string>
@@ -92,9 +92,11 @@ class MemoryManagerGA : public MemoryManager {
     int64_t nelements_min, nelements_max;
     MPI_Allreduce(&nels, &nelements_min, 1, MPI_LONG_LONG, MPI_MIN, pg_.comm());
     MPI_Allreduce(&nels, &nelements_max, 1, MPI_LONG_LONG, MPI_MAX, pg_.comm());
+    std::string array_name{"array_name"+std::to_string(++ga_counter_)};
+
     if (nelements_min == nels && nelements_max == nels) {
       int64_t dim = nranks * nels, chunk = -1;
-      pmr->ga_ = NGA_Create64(ga_eltype, 1, &dim, const_cast<char*>("array_name"), &chunk);
+      pmr->ga_ = NGA_Create64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()), &chunk);
       pmr->map_[0] = 0;
       std::fill_n(pmr->map_.begin()+1, nranks-1, nels);
       std::partial_sum(pmr->map_.begin(), pmr->map_.begin()+nranks, pmr->map_.begin());
@@ -104,7 +106,6 @@ class MemoryManagerGA : public MemoryManager {
       MPI_Allgather(&nels, 1, MPI_LONG_LONG, &pmr->map_[1], 1, MPI_LONG_LONG, pg_.comm());
       pmr->map_[0] = 0; // @note this is not set by MPI_Exscan
       std::partial_sum(pmr->map_.begin(), pmr->map_.begin()+nranks, pmr->map_.begin());
-      std::string array_name{"array_name"};
       
       for(block = nranks; block>0 && static_cast<int64_t>(pmr->map_[block-1]) == dim; --block) {
         //no-op
@@ -264,8 +265,8 @@ class MemoryManagerGA : public MemoryManager {
     int ranks[nranks], ranks_world[nranks];
     MPI_Comm_group(comm, &group);
 
-    MPI_Comm_group(MPI_COMM_WORLD, &group_world);
-
+    MPI_Comm_group(GA_MPI_Comm(), &group_world);
+    
     for (int i = 0; i < nranks; i++) {
       ranks[i] = i;
     }
@@ -273,7 +274,7 @@ class MemoryManagerGA : public MemoryManager {
 
     int ga_pg_default = GA_Pgroup_get_default();
     GA_Pgroup_set_default(GA_Pgroup_get_world());
-    int ga_pg = GA_Pgroup_create(ranks, nranks);
+    int ga_pg = GA_Pgroup_create(ranks_world, nranks);
     GA_Pgroup_set_default(ga_pg_default);
     return ga_pg;
   }
@@ -332,6 +333,7 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   int ga_pg_;
+  int ga_counter_=0;
 
   //constants for NGA_Acc call
   float sp_alpha = 1.0;

@@ -801,6 +801,11 @@ protected:
     }
 
     void validate() {
+        for(auto& rhs : rhs_) {
+            NOT_SUPPORTED((lhs_.tensor().base_ptr()!= rhs.tensor().base_ptr()), 
+                      "Self assignment is not supported in tensor operations!");
+        }
+
         IndexLabelVec ilv{lhs_.labels()};
         for(size_t i = 0; i < N; i++) {
             ilv.insert(ilv.end(), rhs_[i].labels().begin(),
@@ -1280,6 +1285,9 @@ protected:
      * @pre lta.validate() has been invoked
      */
     void validate() {
+        NOT_SUPPORTED((lhs_.tensor().base_ptr()!= rhs_.tensor().base_ptr()), 
+                      "Self assignment is not supported in tensor operations!");
+
         IndexLabelVec ilv{lhs_.labels()};
         ilv.insert(ilv.end(), rhs_.labels().begin(), rhs_.labels().end());
 
@@ -1857,6 +1865,10 @@ protected:
      *  invoked
      */
     void validate() {
+        NOT_SUPPORTED((lhs_.tensor().base_ptr()!= rhs1_.tensor().base_ptr() &&
+                       lhs_.tensor().base_ptr()!= rhs2_.tensor().base_ptr()), 
+                     "Self assignment is not supported in tensor operations!");
+
         IndexLabelVec ilv{lhs_.labels()};
         ilv.insert(ilv.end(), rhs1_.labels().begin(), rhs1_.labels().end());
         ilv.insert(ilv.end(), rhs2_.labels().begin(), rhs2_.labels().end());

@@ -54,7 +54,7 @@ namespace tamm {
         }                                                                 \
     } while(0)
 
-#define NOT_SUPPORTED(cond, str)                                            \
+#define EXPECTS_STR(cond, str)                                            \
     do {                                                                    \
         if(!(cond)) {                                                       \
             std::cerr << "Assertion failed. Condition: " << __FILE__ << ":" \

@@ -344,6 +344,10 @@ public:
       return impl_->execution_context();
     }
 
+    template <typename U>
+    friend bool operator==(const Tensor<U>& lhs,
+                           const Tensor<U>& rhs);
+
 private:
     std::shared_ptr<TensorImpl<T>>
       impl_; /**< Shared pointer to the implementation object */
@@ -388,6 +392,25 @@ private:
         dealloc(rest...);
     }
 };
+
+template <typename T>
+bool operator==(const Tensor<T>& lhs,
+                const Tensor<T>& rhs){
+  EXPECTS_STR(lhs.execution_context() != nullptr && 
+              rhs.execution_context() != nullptr,
+              "Tensors have to be allocated for comparison.");
+  EXPECTS_STR(lhs.num_modes() == rhs.num_modes(), 
+              "Tensors should have the same number of modes for comparison.");
+  for (size_t i = 0; i < lhs.num_modes(); i++) {
+    auto lhs_tis = lhs.tiled_index_spaces()[i];
+    auto rhs_tis = rhs.tiled_index_spaces()[i];
+
+    EXPECTS_STR(lhs_tis == rhs_tis,
+                "Each mode on tensors should be the same for comparison.");
+  }
+
+  return (hash_tensor(lhs.execution_context(), lhs) == hash_tensor(rhs.execution_context(), rhs));
+}
 
 // This class inherits from pair ranther than using an alias because deduction
 // guides are not supported for aliases in C++17 (see

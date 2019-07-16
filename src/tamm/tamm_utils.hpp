@@ -912,6 +912,34 @@ inline TensorType invert_tensor(TensorType tens) {
     return res;
 }
 
+/**
+ * @brief uses a function to fill in elements of a tensor
+ *
+ * @tparam TensorType the type of the elements in the tensor
+ * @param ec Execution context used in the blockfor
+ * @param ltensor tensor to operate on
+ * @param func function to fill in the tensor with
+ */
+template<typename TensorType>
+inline size_t hash_tensor(ExecutionContext* ec, Tensor<TensorType> tensor) {
+    auto ltensor = tensor();
+    size_t hash = tensor.num_modes();
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+
+        internal::hash_combine(hash, tensor.block_size(blockid));
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        for(auto& val : dbuf) {
+            internal::hash_combine(hash, val);        
+        }
+    };
+    block_for(*ec, ltensor, lambda);
+
+    return hash;
+}
+
 } // namespace tamm
 
 #endif // TAMM_TAMM_UTILS_HPP_

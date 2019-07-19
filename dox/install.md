@@ -32,7 +32,7 @@ cmake \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran ..
 
-#BLIS Options
+#BLIS Options [WIP]
 -DBLIS=ON [-DBLIS_CONFIG=arch]
 Ex: -DBLIS_CONFIG=haswell
 If BLIS_CONFIG is not provided, the BLIS build will try to
@@ -40,13 +40,13 @@ auto-detect (only for x86_64 systems) the architecture.
 
 #CUDA Options
 [-DNWX_CUDA=ON] #Disabled by Default
+
 #GlobalArrays options
-[-DARMCI_NETWORK=MPI3] #Default is MPI-PR
+[-DARMCI_NETWORK=MPI-TS] #Default is MPI-PR
 
 #CMake options for developers (optional)
 -DCMAKE_CXX_FLAGS "-fsanitize=address -fsanitize=leak -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=undefined"
--DCMAKE_BUILD_TYPE=Debug
--DCMAKE_BUILD_TYPE=RELWITHDEBINFO
+
 
 make -j3
 make install
@@ -58,7 +58,7 @@ Building TAMM using GCC+MKL
 Set `TAMM_INSTALL_PATH` and `INTEL_ROOT` accordingly
 
 ```
-export TAMM_INSTALL_PATH=/opt/NWChemEx/install
+export TAMM_INSTALL_PATH=$HOME/NWChemEx/install
 export INTEL_ROOT=/opt/intel/compilers_and_libraries_2019.0.117
 
 export MKL_INC=$INTEL_ROOT/linux/mkl/include
@@ -103,18 +103,18 @@ Build instructions for Summit (using GCC+ESSL)
 ----------------------------------------------
 
 ```
-module load gcc/7.4.0
-module load cmake/3.13.4 
-module load spectrum-mpi/10.2.0.11-20190201 
-module load cuda/9.2.148
+module load gcc/8.1.1
+module load cmake/3.14.2
+module load spectrum-mpi/10.3.0.1-20190611
 module load essl/6.1.0-2
 module load netlib-lapack/3.8.0
+module load cuda/10.1.105
 ```
 
 ```
 The following paths may need to be adjusted if the modules change:
 
-export TAMM_INSTALL_PATH=/opt/NWChemEx/install
+export TAMM_INSTALL_PATH=$HOME/NWChemEx/install
 export ESSL_INC=/sw/summit/essl/6.1.0-2/essl/6.1/include
 export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp6464.so"
 export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-7.4.0/netlib-lapack-3.8.0-nlygftfrpeuipphmnn5mg37a4qz7hoqu/lib64"
@@ -131,7 +131,7 @@ export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/2
 -DTAMM_CXX_FLAGS="-ffast-math -mcpu=power9" \
 -DTAMM_EXTRA_LIBS="$NETLIB_BLAS_LIBS/liblapacke.a;$NETLIB_BLAS_LIBS/liblapack.a" ..
 
-For CUDA build, add -DNWX_CUDA=ON
+To enable CUDA build, add -DNWX_CUDA=ON
 
 ```
 
@@ -140,7 +140,7 @@ For Scalapack build, the following need to be changed above:
 
 module load netlib-scalapack
 
-export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp.so;/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-7.4.0/netlib-scalapack-2.0.2-z3a4bwna7g5h4gy2vrkfcarkhyznuyyk/lib/libscalapack.so"
+export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp.so;/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-8.1.1/netlib-scalapack-2.0.2-re7if5fomjhxgqa5morvan7mptnkihdx/lib/libscalapack.so"
 
 Add -DSCALAPACK=ON to the cmake line.
 
@@ -152,10 +152,13 @@ Build instructions for Cori
 
 ```
 module unload PrgEnv-intel/6.0.4
-module load PrgEnv-gnu/6.0.4
-module load gcc/7.3.0 cray-mpich/7.7.3
+module load PrgEnv-gnu/6.0.5
+module swap gcc/8.2.0 
+module swap craype/2.5.18
+module swap cray-mpich/7.7.6 
 module load cmake/3.14.0 
-module load cuda/9.2
+module load cuda/10.1.168
+
 ```
 
 - `NOTE:` CMakeBuild repository should be built with the following compiler options.
@@ -166,14 +169,13 @@ module load cuda/9.2
 ```
 export CRAYPE_LINK_TYPE=dynamic
 
-export TAMM_INSTALL_PATH=/global/homes/p/user/code/NWChemEx/install
-export INTEL_ROOT=/opt/intel/compilers_and_libraries_2018.1.163
+export TAMM_INSTALL_PATH=$HOME/code/NWChemEx/install
+export INTEL_ROOT=/opt/intel/compilers_and_libraries_2019.3.199
 
 export MKL_INC=$INTEL_ROOT/linux/mkl/include
 export MKL_LIBS=$INTEL_ROOT/linux/mkl/lib/intel64
 export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_gnu_thread.a;$MKL_LIBS/libmkl_core.a;-lgomp;-lpthread;-ldl"
-```
-```
+
 cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC \
 -DLAPACKE_INCLUDE_DIRS=$MKL_INC \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMGCCMKL \
@@ -182,6 +184,6 @@ cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
 
-For CUDA build, add -DNWX_CUDA=ON
+To enable CUDA build, add -DNWX_CUDA=ON
 
 ```

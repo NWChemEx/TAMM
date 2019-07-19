@@ -44,16 +44,16 @@ endif()
 check_compiler_version(C Clang 5)
 check_compiler_version(CXX Clang 5)
 
-check_compiler_version(C GNU 7.2)
-check_compiler_version(CXX GNU 7.2)
-check_compiler_version(Fortran GNU 7.2)
+check_compiler_version(C GNU 8.1)
+check_compiler_version(CXX GNU 8.1)
+check_compiler_version(Fortran GNU 8.1)
 
-#TODO:Check for GCC>=7 compatibility
+#TODO:Check for GCC>=8 compatibility
 # check_compiler_version(C Intel 19)
 # check_compiler_version(CXX Intel 19)
 # check_compiler_version(Fortran Intel 19)
 
-#TODO:Check for GCC>=7 compatibility
+#TODO:Check for GCC>=8 compatibility
 check_compiler_version(C PGI 18)
 check_compiler_version(CXX PGI 18)
 check_compiler_version(Fortran PGI 18)
@@ -78,17 +78,12 @@ if(NWX_CUDA)
             set(NWX_GPU_ARCH 35)
         endif()
     else()
-       if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "7.4")
-         get_compiler_exec_name("${CMAKE_CXX_COMPILER}")
-         message(FATAL_ERROR "${comp_exec_name} version provided (${CMAKE_CXX_COMPILER_VERSION}) \
-       is not supported by CUDA version provided. Need ${comp_exec_name} = 7.x for building TAMM with GPU support.")
-       endif()
        message(FATAL_ERROR "CUDA Toolkit not found.")
     endif()
-    if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 9.2)
+    if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 10.1)
         message(FATAL_ERROR "CUDA version provided \
          (${CMAKE_CUDA_COMPILER_VERSION}) \
-         is insufficient. Need CUDA >= 9.2)")
+         is insufficient. Need CUDA >= 10.1)")
     endif()
     
 endif()

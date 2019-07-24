@@ -714,8 +714,8 @@ std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexS
         std::vector<Tensor<T>> next_t{d_t1, d_t2};
         diis<T>(ec, rs, ts, next_t);
         if(writet) {
-            write_to_disk(ec,d_t1,t1file);
-            write_to_disk(ec,d_t2,t2file);
+            write_to_disk(d_t1,t1file);
+            write_to_disk(d_t2,t2file);
         }
     }
     } //no restart

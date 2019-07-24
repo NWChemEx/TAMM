@@ -22,7 +22,7 @@ std::tuple<int,int,int> get_hf_nranks(const size_t N){
     auto nnodes = GA_Cluster_nnodes();
     auto ppn = GA_Cluster_nprocs(0);
 
-    int hf_guessranks = std::ceil(0.1*N);
+    int hf_guessranks = std::ceil(0.15*N);
     int hf_nnodes = hf_guessranks/ppn;
     if(hf_guessranks%ppn>0 || hf_nnodes==0) hf_nnodes++;
     if(hf_nnodes > nnodes) hf_nnodes = nnodes;
@@ -617,7 +617,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         // rmsd  = (D - D_last).norm();
         sch(D_diff() = D_tamm())
            (D_diff() -= D_last_tamm()).execute();
-        auto rmsd = norm(ec, D_diff());
+        auto rmsd = norm(D_diff);
 
         do_t2 = std::chrono::high_resolution_clock::now();
         do_time =
@@ -1366,7 +1366,7 @@ void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F
   if(ndiis > max_hist) {
     std::vector<TensorType> max_err(diis_hist.size());
     for (size_t i=0; i<diis_hist.size(); i++) {
-      max_err[i] = tamm::norm(ec, diis_hist[i]());
+      max_err[i] = tamm::norm(diis_hist[i]);
       // Matrix dhist = Matrix::Zero(F.rows(),F.cols());
       // tamm_to_eigen_tensor(diis_hist[i],dhist);
       // cout << "tamm norm, eigen norm = " << max_err[i] << " , " << dhist.norm() << endl;

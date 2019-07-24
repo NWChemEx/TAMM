@@ -72,7 +72,6 @@ cmake \
 -DLAPACKE_INCLUDE_DIRS=$MKL_INC \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMGCCMKL \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
--DTAMM_CXX_FLAGS="-ffast-math" \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
 ```
@@ -88,7 +87,6 @@ cmake \
 -DLAPACKE_INCLUDE_DIRS=$MKL_INC \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMGCCMKL \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
--DTAMM_CXX_FLAGS="-ffast-math" \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
 -DSCALAPACK_LIBRARIES=$TAMM_BLASLIBS -DSCALAPACK=ON ..
@@ -117,7 +115,7 @@ The following paths may need to be adjusted if the modules change:
 export TAMM_INSTALL_PATH=$HOME/NWChemEx/install
 export ESSL_INC=/sw/summit/essl/6.1.0-2/essl/6.1/include
 export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp6464.so"
-export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-7.4.0/netlib-lapack-3.8.0-nlygftfrpeuipphmnn5mg37a4qz7hoqu/lib64"
+export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-8.1.1/netlib-lapack-3.8.0-moo2tlhxtaae4ij2vkhrkzcgu2pb3bmy/lib64"
 ```
 ```
  cmake \
@@ -128,7 +126,7 @@ export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/2
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
--DTAMM_CXX_FLAGS="-ffast-math -mcpu=power9" \
+-DTAMM_CXX_FLAGS="-mcpu=power9" \
 -DTAMM_EXTRA_LIBS="$NETLIB_BLAS_LIBS/liblapacke.a;$NETLIB_BLAS_LIBS/liblapack.a" ..
 
 To enable CUDA build, add -DNWX_CUDA=ON
@@ -180,7 +178,6 @@ cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC \
 -DLAPACKE_INCLUDE_DIRS=$MKL_INC \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMGCCMKL \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
--DTAMM_CXX_FLAGS="-ffast-math" \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
 

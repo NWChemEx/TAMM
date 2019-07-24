@@ -467,7 +467,7 @@ void scale_ip(Tensor<TensorType> tensor, TensorType alpha) {
 template<typename TensorType>
 Tensor<TensorType> apply_ewise(LabeledTensor<TensorType> oltensor,
                  std::function<TensorType(TensorType)> func,
-                 bool is_lt) {
+                 bool is_lt=true) {
     ExecutionContext& ec = get_ec(oltensor);
     Tensor<TensorType> otensor = oltensor.tensor();
     Tensor<TensorType> tensor = {otensor.tiled_index_spaces()};

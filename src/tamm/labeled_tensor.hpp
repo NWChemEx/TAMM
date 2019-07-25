@@ -260,13 +260,13 @@ private:
                   tensor_.tiled_index_spaces()[i]));
             }
         }
-        for(size_t i = 0; i < ilv_.size(); i++) {
-            if(!str_map_[i]) {
-                size_t sz = ilv_[i].secondary_labels().size();
-                EXPECTS(sz == 0 || sz == tensor_.tiled_index_spaces()[i]
-                                           .num_key_tiled_index_spaces());
-            }
-        }
+        // for(size_t i = 0; i < ilv_.size(); i++) {
+        //     if(!str_map_[i]) {
+        //         size_t sz = ilv_[i].secondary_labels().size();
+        //         EXPECTS(sz == 0 || sz == tensor_.tiled_index_spaces()[i]
+        //                                    .num_key_tiled_index_spaces());
+        //     }
+        // }
         for(size_t i = 0; i < ilv_.size(); i++) {
             const auto& ilbl = ilv_[i];
             for(size_t j = i + 1; j < ilv_.size(); j++) {
@@ -359,14 +359,14 @@ private:
         unpack(++index, rest...);
     }
 
-    /// @todo: Implement 
-    template<typename... Args>
-    void unpack(size_t index, const Index& idx, Args... rest) {
-        // EXPECTS(index < tensor_.num_modes());
-        // ilv_[index]     = label;
-        // str_map_[index] = false;
-        // unpack(++index, rest...);
-    }
+    // /// @todo: Implement 
+    // template<typename... Args>
+    // void unpack(size_t index, const Index& idx, Args... rest) {
+    //     // EXPECTS(index < tensor_.num_modes());
+    //     // ilv_[index]     = label;
+    //     // str_map_[index] = false;
+    //     // unpack(++index, rest...);
+    // }
 
     void unpack(size_t index, const IndexLabelVec& labels) {
         EXPECTS(index < tensor_.num_modes());

@@ -45,7 +45,7 @@ using TAMM_SIZE = uint64_t;
 using Index         = uint32_t;
 using IndexVector   = std::vector<Index>;
 using IndexIterator = std::vector<Index>::const_iterator;
-using Tile          = size_t;
+using Tile          = uint32_t;
 // DAG related Hash
 using HashData      = uint64_t;
 using StringLabelVec    = std::vector<std::string>;

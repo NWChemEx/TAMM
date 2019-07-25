@@ -19,7 +19,7 @@ template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
     os << "[";
     for(auto& x : vec) os << x << ",";
-    os << "]\n";
+    os << "]" << std::endl;
     return os;
 }
 
@@ -92,6 +92,11 @@ T get_scalar(Tensor<T>& tensor) {
     return scalar;
 }
 
+template<typename TensorType>
+ExecutionContext& get_ec(LabeledTensor<TensorType> ltensor) {
+    return *(ltensor.tensor().execution_context());
+}
+
 /**
  * @brief Update input LabeledTensor object with a lambda function
  *
@@ -100,6 +105,12 @@ T get_scalar(Tensor<T>& tensor) {
  * @param [in] labeled_tensor tensor slice to be updated
  * @param [in] lambda function for updating the tensor
  */
+
+template<typename T, typename Func>
+void update_tensor(Tensor<T> tensor, Func lambda) {
+  update_tensor(tensor(),lambda);
+}
+
 template<typename T, typename Func>
 void update_tensor(LabeledTensor<T> labeled_tensor, Func lambda) {
     LabelLoopNest loop_nest{labeled_tensor.labels()};
@@ -124,6 +135,12 @@ void update_tensor(LabeledTensor<T> labeled_tensor, Func lambda) {
  * @param [in] labeled_tensor tensor slice to be updated
  * @param [in] lambda function for updating the tensor
  */
+
+template<typename T, typename Func>
+void update_tensor_general(Tensor<T> tensor, Func lambda) {
+  update_tensor_general(tensor(),lambda);
+}
+
 template<typename T, typename Func>
 void update_tensor_general(LabeledTensor<T> labeled_tensor, Func lambda) {
     LabelLoopNest loop_nest{labeled_tensor.labels()};
@@ -149,7 +166,7 @@ void update_tensor_general(LabeledTensor<T> labeled_tensor, Func lambda) {
  */
 inline ExecutionContext make_execution_context() {
     ProcGroup pg{GA_MPI_Comm()};
-    auto* pMM             = MemoryManagerLocal::create_coll(pg);
+    auto* pMM             = MemoryManagerGA::create_coll(pg);
     Distribution_NW* dist = new Distribution_NW();
     RuntimeEngine* re = new RuntimeEngine{};
     return ExecutionContext(pg, dist, pMM, re);
@@ -162,7 +179,13 @@ inline ExecutionContext make_execution_context() {
  * @warning only defined for NxN tensors
  */
 template<typename TensorType>
-TensorType trace(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+TensorType trace(Tensor<TensorType> tensor) {
+    return trace(tensor());
+}
+
+template<typename TensorType>
+TensorType trace(LabeledTensor<TensorType> ltensor) {
+    ExecutionContext& ec = get_ec(ltensor);
     TensorType lsumd = 0;
     TensorType gsumd = 0;
 
@@ -198,8 +221,13 @@ TensorType trace(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
  * @warning only defined for NxN tensors
  */
 template<typename TensorType>
-std::vector<TensorType> diagonal(ExecutionContext& ec,
-                                 LabeledTensor<TensorType> ltensor) {
+std::vector<TensorType> diagonal(Tensor<TensorType> tensor) {
+    return diagonal(tensor());
+}
+
+template<typename TensorType>
+std::vector<TensorType> diagonal(LabeledTensor<TensorType> ltensor) {
+    ExecutionContext& ec = get_ec(ltensor);
     Tensor<TensorType> tensor = ltensor.tensor();
     // Defined only for NxN tensors
     EXPECTS(tensor.num_modes() == 2);
@@ -232,13 +260,19 @@ std::vector<TensorType> diagonal(ExecutionContext& ec,
  * @brief uses a function to fill in elements of a tensor
  *
  * @tparam TensorType the type of the elements in the tensor
- * @param ec Execution context used in the blockfor
  * @param ltensor tensor to operate on
  * @param func function to fill in the tensor with
  */
 template<typename TensorType>
-void fill_tensor(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
+void fill_tensor(Tensor<TensorType> tensor,
                  std::function<void(const IndexVector&, span<TensorType>)> func) {
+        fill_tensor(tensor(),func);
+}
+
+template<typename TensorType>
+void fill_tensor(LabeledTensor<TensorType> ltensor,
+                 std::function<void(const IndexVector&, span<TensorType>)> func) {
+    ExecutionContext& ec = get_ec(ltensor);
     Tensor<TensorType> tensor = ltensor.tensor();
 
     auto lambda = [&](const IndexVector& bid) {
@@ -256,13 +290,13 @@ void fill_tensor(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
  * @brief write tensor to disk
  *
  * @tparam TensorType the type of the elements in the tensor
- * @param ec Execution context used in the blockfor
  * @param tensor to write to disk
  * @param filename to write to disk
  */
 template<typename TensorType>
-void write_to_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::string& filename) {
+void write_to_disk(Tensor<TensorType> tensor, const std::string& filename) {
 
+    ExecutionContext& ec = get_ec(tensor());
     auto io_t1 = std::chrono::high_resolution_clock::now();
 
     MPI_File fh;
@@ -307,7 +341,7 @@ void write_to_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::s
 
     double io_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-    if(ec.pg().rank() == 0) std::cout << "Time for writing " << filename << " to disk: " << io_time << " secs\n";
+    if(ec.pg().rank() == 0) std::cout << "Time for writing " << filename << " to disk: " << io_time << " secs" << std::endl;
 
 }
 
@@ -316,13 +350,13 @@ void write_to_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::s
  * @brief read tensor from disk
  *
  * @tparam TensorType the type of the elements in the tensor
- * @param ec Execution context used in the blockfor
  * @param tensor to read into 
  * @param filename to read from disk
  */
 template<typename TensorType>
-void read_from_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::string& filename) {
+void read_from_disk(Tensor<TensorType> tensor, const std::string& filename) {
 
+    ExecutionContext& ec = get_ec(tensor());
     auto io_t1 = std::chrono::high_resolution_clock::now();
 
     MPI_File fh;
@@ -366,20 +400,20 @@ void read_from_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::
 
     double io_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-    if(ec.pg().rank() == 0) std::cout << "Time for reading " << filename << " from disk: " << io_time << " secs\n";
+    if(ec.pg().rank() == 0) std::cout << "Time for reading " << filename << " from disk: " << io_time << " secs" << std::endl;
 }
 
 /**
  * @brief applies a function elementwise to a tensor
  *
  * @tparam TensorType the type of the elements in the tensor
- * @param ec Execution context used in the blockfor
  * @param ltensor tensor to operate on
  * @param func function to be applied to each element
  */
 template<typename TensorType>
-void apply_ewise(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
+void apply_ewise_ip(LabeledTensor<TensorType> ltensor,
                  std::function<TensorType(TensorType)> func) {
+    ExecutionContext& ec = get_ec(ltensor);
     Tensor<TensorType> tensor = ltensor.tensor();
 
     auto lambda = [&](const IndexVector& bid) {
@@ -393,75 +427,177 @@ void apply_ewise(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
     block_for(ec, ltensor, lambda);
 }
 
-// Several convenience functions using apply_ewise
+// Several convenience functions using apply_ewise_ip. 
+// These routines update the tensor in-place
 template<typename TensorType>
-void conj(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+void conj_ip(LabeledTensor<TensorType> ltensor) {
     std::function<TensorType(TensorType)> func = [&](TensorType a) {
         return std::conj(a);
     };
-    apply_ewise(ec, ltensor, func);
+    apply_ewise_ip(ltensor, func);
 }
 
 template<typename TensorType>
-void square(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
-    std::function<TensorType(TensorType)> func = [&](TensorType a) {
-        return a * a;
-    };
-    apply_ewise(ec, ltensor, func);
+void conj_ip(Tensor<TensorType> tensor) { 
+    conj_ip(tensor()); 
 }
 
 template<typename TensorType>
-void log10(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
-    std::function<TensorType(TensorType)> func = [&](TensorType a) {
-        return std::log10(a);
-    };
-    apply_ewise(ec, ltensor, func);
-}
-
-template<typename TensorType>
-void log(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
-    std::function<TensorType(TensorType)> func = [&](TensorType a) {
-        return std::log(a);
-    };
-    apply_ewise(ec, ltensor, func);
-}
-
-template<typename TensorType>
-void einverse(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
-    std::function<TensorType(TensorType)> func = [&](TensorType a) {
-        return 1 / a;
-    };
-    apply_ewise(ec, ltensor, func);
-}
-
-template<typename TensorType>
-void pow(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
-         TensorType alpha) {
-    std::function<TensorType(TensorType)> func = [&](TensorType a) {
-        return std::pow(a, alpha);
-    };
-    apply_ewise(ec, ltensor, func);
-}
-
-template<typename TensorType>
-void scale(ExecutionContext& ec, LabeledTensor<TensorType> ltensor,
+void scale_ip(LabeledTensor<TensorType> ltensor,
            TensorType alpha) {
     std::function<TensorType(TensorType)> func = [&](TensorType a) {
         return alpha * a;
     };
-    apply_ewise(ec, ltensor, func);
+    apply_ewise_ip(ltensor, func);
 }
 
 template<typename TensorType>
-void sqrt(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+void scale_ip(Tensor<TensorType> tensor, TensorType alpha) {
+   scale_ip(tensor(),alpha);
+}
+
+/**
+ * @brief applies a function elementwise to a tensor, returns a new tensor
+ *
+ * @tparam TensorType the type of the elements in the tensor
+ * @param oltensor original tensor
+ * @param func function to be applied to each element
+ * @return resulting tensor after applying func to original tensor
+ */
+template<typename TensorType>
+Tensor<TensorType> apply_ewise(LabeledTensor<TensorType> oltensor,
+                 std::function<TensorType(TensorType)> func,
+                 bool is_lt=true) {
+    ExecutionContext& ec = get_ec(oltensor);
+    Tensor<TensorType> otensor = oltensor.tensor();
+    Tensor<TensorType> tensor = {otensor.tiled_index_spaces()};
+    LabeledTensor<TensorType> ltensor = tensor();
+    Tensor<TensorType>::allocate(&ec,tensor);
+    if(is_lt) Scheduler{ec}(ltensor = oltensor).execute();    
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        std::vector<TensorType> dbuf(dsize);
+        otensor.get(blockid, dbuf);
+        for(size_t c = 0; c < dsize; c++) dbuf[c] = func(dbuf[c]);
+        tensor.put(blockid, dbuf);
+    };
+    block_for(ec, ltensor, lambda);
+    return tensor;
+}
+
+// Several convenience functions using apply_ewise
+// These routines return a new tensor
+template<typename TensorType>
+Tensor<TensorType> conj(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return std::conj(a);
+    };
+    return apply_ewise(ltensor, func, is_lt);
+}
+
+template<typename TensorType>
+Tensor<TensorType> conj(Tensor<TensorType> tensor) { 
+    return conj(tensor(), false); 
+}
+
+template<typename TensorType>
+Tensor<TensorType> square(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return a * a;
+    };
+    return apply_ewise(ltensor, func, is_lt);
+}
+
+template<typename TensorType>
+Tensor<TensorType> square(Tensor<TensorType> tensor) {
+    return square(tensor(), false);
+}
+
+template<typename TensorType>
+Tensor<TensorType> log10(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return std::log10(a);
+    };
+    return apply_ewise(ltensor, func, is_lt);
+}
+
+template<typename TensorType>
+Tensor<TensorType> log10(Tensor<TensorType> tensor) {
+   return log10(tensor(), false);
+}
+
+template<typename TensorType>
+Tensor<TensorType> log(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return std::log(a);
+    };
+    return apply_ewise(ltensor, func, is_lt);
+}
+
+template<typename TensorType>
+Tensor<TensorType> log(Tensor<TensorType> tensor) {
+   return log(tensor(), false);
+}
+
+template<typename TensorType>
+Tensor<TensorType> einverse(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return 1 / a;
+    };
+    return apply_ewise(ltensor, func, is_lt);
+}
+
+template<typename TensorType>
+Tensor<TensorType> einverse(Tensor<TensorType> tensor) {
+   return einverse(tensor(), false);
+}
+
+template<typename TensorType>
+Tensor<TensorType> pow(LabeledTensor<TensorType> ltensor,
+         TensorType alpha, bool is_lt = true) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return std::pow(a, alpha);
+    };
+    return apply_ewise(ltensor, func, is_lt);
+}
+
+template<typename TensorType>
+Tensor<TensorType> pow(Tensor<TensorType> tensor, TensorType alpha) {
+   return pow(tensor(),alpha, false);
+}
+
+template<typename TensorType>
+Tensor<TensorType> scale(LabeledTensor<TensorType> ltensor,
+           TensorType alpha, bool is_lt = true) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return alpha * a;
+    };
+    return apply_ewise(ltensor, func, is_lt);
+}
+
+template<typename TensorType>
+Tensor<TensorType> scale(Tensor<TensorType> tensor, TensorType alpha) {
+   return scale(tensor(),alpha, false);
+}
+
+template<typename TensorType>
+Tensor<TensorType> sqrt(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
     std::function<TensorType(TensorType)> func = [&](TensorType a) {
         return std::sqrt(a);
     };
-    apply_ewise(ec, ltensor, func);
+    return apply_ewise(ltensor, func, is_lt);
 }
 
 template<typename TensorType>
-TensorType sum(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+Tensor<TensorType> sqrt(Tensor<TensorType> tensor) {
+   return sqrt(tensor(), false);
+}
+
+template<typename TensorType>
+TensorType sum(LabeledTensor<TensorType> ltensor) {
+    ExecutionContext& ec = get_ec(ltensor);
     TensorType lsumsq         = 0;
     TensorType gsumsq         = 0;
     Tensor<TensorType> tensor = ltensor.tensor();
@@ -481,7 +617,38 @@ TensorType sum(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
 }
 
 template<typename TensorType>
-TensorType norm(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+TensorType sum(Tensor<TensorType> tensor) {
+    return sum(tensor());
+}
+
+template<typename TensorType>
+TensorType norm_unused(LabeledTensor<TensorType> ltensor) {
+    ExecutionContext& ec = get_ec(ltensor);
+    Scheduler sch{ec};
+    Tensor<TensorType> nval{};
+    sch.allocate(nval);
+
+    if constexpr(internal::is_complex_v<TensorType>){
+        auto ltconj = tamm::conj(ltensor);
+        sch(nval() = ltconj() * ltensor).deallocate(ltconj).execute();
+    }
+    else 
+    sch(nval() = ltensor * ltensor).execute();
+    
+    auto rval = get_scalar(nval);
+    sch.deallocate(nval).execute();
+
+    return std::sqrt(rval);
+}
+
+template<typename TensorType>
+TensorType norm(Tensor<TensorType> tensor) {
+    return norm(tensor());
+}
+
+template<typename TensorType>
+TensorType norm(LabeledTensor<TensorType> ltensor) {
+    ExecutionContext& ec = get_ec(ltensor);
     TensorType lsumsq         = 0;
     TensorType gsumsq         = 0;
     Tensor<TensorType> tensor = ltensor.tensor();
@@ -504,8 +671,15 @@ TensorType norm(ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
 
 // returns max_element, blockids, coordinates of max element in the block
 template<typename TensorType>
-std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(
-  ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+std::tuple<TensorType, IndexVector, std::vector<size_t>>
+        max_element(Tensor<TensorType> tensor) {
+    return max_element(tensor());
+}
+
+template<typename TensorType>
+std::tuple<TensorType, IndexVector, std::vector<size_t>> 
+        max_element(LabeledTensor<TensorType> ltensor) {
+    ExecutionContext& ec = get_ec(ltensor);
     TensorType max = 0.0;
 
     Tensor<TensorType> tensor = ltensor.tensor();
@@ -671,8 +845,15 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>> max_element(
 
 // returns min_element, blockids, coordinates of min element in the block
 template<typename TensorType>
-std::tuple<TensorType, IndexVector, std::vector<size_t>> min_element(
-  ExecutionContext& ec, LabeledTensor<TensorType> ltensor) {
+std::tuple<TensorType, IndexVector, std::vector<size_t>> 
+        min_element(Tensor<TensorType> tensor) {
+    return min_element(tensor());
+}
+
+template<typename TensorType>
+std::tuple<TensorType, IndexVector, std::vector<size_t>>
+        min_element(LabeledTensor<TensorType> ltensor) {
+    ExecutionContext& ec = get_ec(ltensor);
     TensorType min = 0.0;
 
     Tensor<TensorType> tensor = ltensor.tensor();
@@ -910,6 +1091,34 @@ inline TensorType invert_tensor(TensorType tens) {
     TensorType res;
 
     return res;
+}
+
+/**
+ * @brief uses a function to fill in elements of a tensor
+ *
+ * @tparam TensorType the type of the elements in the tensor
+ * @param ec Execution context used in the blockfor
+ * @param ltensor tensor to operate on
+ * @param func function to fill in the tensor with
+ */
+template<typename TensorType>
+inline size_t hash_tensor(ExecutionContext* ec, Tensor<TensorType> tensor) {
+    auto ltensor = tensor();
+    size_t hash = tensor.num_modes();
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+
+        internal::hash_combine(hash, tensor.block_size(blockid));
+        std::vector<TensorType> dbuf(dsize);
+        tensor.get(blockid, dbuf);
+        for(auto& val : dbuf) {
+            internal::hash_combine(hash, val);        
+        }
+    };
+    block_for(*ec, ltensor, lambda);
+
+    return hash;
 }
 
 } // namespace tamm

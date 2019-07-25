@@ -478,7 +478,10 @@ std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexS
                    int maxiter, double thresh,
                    double zshiftl, int ndiis, 
                    const TAMM_SIZE& noab,
-                   Tensor<T>& cv3d) {
+                   Tensor<T>& cv3d, bool writet=false, bool ccsd_restart=false, std::string out_fp="") {
+
+    std::string t1file = out_fp+".t1amp";
+    std::string t2file = out_fp+".t2amp";                       
 
     std::cout.precision(15);
 
@@ -607,109 +610,132 @@ std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexS
         // (r2_abab(p1_va,p2_vb,h3_oa,h4_ob) = d_r2(p1,p2,h3,h4))
         // (r2_bbbb(p1_vb,p2_vb,h3_ob,h4_ob) = d_r2(p1,p2,h3,h4))
 
-    
-    sch
-        // (_a004_aaaa(p1_va, p2_va, h4_oa, h3_oa) = 0)
-        // (_a004_abab(p1_va, p2_vb, h4_oa, h3_ob) = 0)
-        // (_a004_bbbb(p1_vb, p2_vb, h4_ob, h3_ob) = 0)
-        (_a004_aaaa(p1_va, p2_va, h4_oa, h3_oa) = 1.0 * chol3d_aa_vo(p1_va, h4_oa, cind) * chol3d_aa_vo(p2_va, h3_oa, cind))
-        (_a004_abab(p1_va, p2_vb, h4_oa, h3_ob) = 1.0 * chol3d_aa_vo(p1_va, h4_oa, cind) * chol3d_bb_vo(p2_vb, h3_ob, cind))
-        (_a004_bbbb(p1_vb, p2_vb, h4_ob, h3_ob) = 1.0 * chol3d_bb_vo(p1_vb, h4_ob, cind) * chol3d_bb_vo(p2_vb, h3_ob, cind))
-        ;//.execute();
+    Tensor<T> d_e{};
+    Tensor<T>::allocate(&ec, d_e);
 
-    for(int titer = 0; titer < maxiter; titer += ndiis) {
-      for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
-          const auto timer_start = std::chrono::high_resolution_clock::now();
-
-          int off = iter - titer;
-
-          Tensor<T> d_e{};
-          Tensor<T> d_r1_residual{};
-          Tensor<T> d_r2_residual{};
-
-          Tensor<T>::allocate(&ec, d_e, d_r1_residual, d_r2_residual);
-
-          sch(d_e() = 0)(d_r1_residual() = 0)(d_r2_residual() = 0)
-             ((d_t1s[off])() = d_t1())((d_t2s[off])() = d_t2())
-             .execute();
-
-        //TODO:UPDATE FOR DIIS
+    if(!ccsd_restart) {
         sch
-        (t1_aa(p1_va,h3_oa) = d_t1(p1_va,h3_oa))
-        (t1_bb(p1_vb,h3_ob) = d_t1(p1_vb,h3_ob))
-        (t2_aaaa(p1_va,p2_va,h3_oa,h4_oa) = d_t2(p1_va,p2_va,h3_oa,h4_oa))
-        (t2_abab(p1_va,p2_vb,h3_oa,h4_ob) = d_t2(p1_va,p2_vb,h3_oa,h4_ob))
-        // (t2_baba(p1_vb,p2_va,h3_ob,h4_oa) = d_t2(p1_vb,p2_va,h3_ob,h4_oa))
-        (t2_bbbb(p1_vb,p2_vb,h3_ob,h4_ob) = d_t2(p1_vb,p2_vb,h3_ob,h4_ob))
-        .execute();
+            // (_a004_aaaa(p1_va, p2_va, h4_oa, h3_oa) = 0)
+            // (_a004_abab(p1_va, p2_vb, h4_oa, h3_ob) = 0)
+            // (_a004_bbbb(p1_vb, p2_vb, h4_ob, h3_ob) = 0)
+            (_a004_aaaa(p1_va, p2_va, h4_oa, h3_oa) = 1.0 * chol3d_aa_vo(p1_va, h4_oa, cind) * chol3d_aa_vo(p2_va, h3_oa, cind))
+            (_a004_abab(p1_va, p2_vb, h4_oa, h3_ob) = 1.0 * chol3d_aa_vo(p1_va, h4_oa, cind) * chol3d_bb_vo(p2_vb, h3_ob, cind))
+            (_a004_bbbb(p1_vb, p2_vb, h4_ob, h3_ob) = 1.0 * chol3d_bb_vo(p1_vb, h4_ob, cind) * chol3d_bb_vo(p2_vb, h3_ob, cind))
+            ;//.execute();
 
-        ccsd_e(/* ec,  */sch, MO, CI, d_e, d_t1, d_t2, d_f1, cv3d);
-        ccsd_t1(/* ec,  */sch, MO, CI, d_r1, d_t1, d_t2, d_f1, cv3d);
-        ccsd_t2(/* ec,  */sch, MO, CI, d_r2, d_t1, d_t2, d_f1, cv3d);
+        for(int titer = 0; titer < maxiter; titer += ndiis) {
+        for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
+            const auto timer_start = std::chrono::high_resolution_clock::now();
 
-        // sch
-        // (d_r1_residual() = d_r1()  * d_r1())
-        // (d_r2_residual() = d_r2()  * d_r2())
-        // .execute();
+            int off = iter - titer;
+            
+            Tensor<T> d_r1_residual{};
+            Tensor<T> d_r2_residual{};
 
-        sch.execute();
+            Tensor<T>::allocate(&ec, d_r1_residual, d_r2_residual);
 
-        //if(ec.pg().rank()==0) cout << "norm d-r2=" << get_scalar(d_r1_residual) << ", "<< get_scalar(d_r2_residual) << endl;
+            sch(d_e() = 0)(d_r1_residual() = 0)(d_r2_residual() = 0)
+                ((d_t1s[off])() = d_t1())((d_t2s[off])() = d_t2())
+                .execute();
 
-        //TODO:UPDATE FOR JACOBI
-        //sch
-        //(d_r1(p1_va,h3_oa) = r1_aa(p1_va,h3_oa))
-        //(d_r1(p1_vb,h3_ob) = r1_bb(p1_vb,h3_ob))
-        //(d_r2(p1_va,p2_va,h3_oa,h4_oa) += r2_aaaa(p1_va,p2_va,h3_oa,h4_oa))
-        //(d_r2(p1_vb,p2_vb,h3_ob,h4_ob) += r2_bbbb(p1_vb,p2_vb,h3_ob,h4_ob))
-        //(d_r2(p1_va,p2_vb,h3_oa,h4_ob) += r2_abab(p1_va,p2_vb,h3_oa,h4_ob)) //abab
-        // (d_r2(p1_vb,p2_va,h3_ob,h4_oa) += r2_baba(p1_vb,p2_va,h3_ob,h4_oa))
-        // (d_r2(p1_va,p2_vb,h3_ob,h4_oa) += r2_abba(p1_va,p2_vb,h3_ob,h4_oa)) 
-        // (d_r2(p1_vb,p2_va,h3_oa,h4_ob) += r2_baab(p1_vb,p2_va,h3_oa,h4_ob))
-        //.execute();         
-
-        //   GA_Sync();
-        std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
-                                        d_e, p_evl_sorted, zshiftl, noab);
-
-        update_r2(ec, d_r2());
-
-        sch((d_r1s[off])() = d_r1())
-            ((d_r2s[off])() = d_r2())
-            .execute();
-
-          const auto timer_end = std::chrono::high_resolution_clock::now();
-          auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
-
-          iteration_print(ec.pg(), iter, residual, energy, iter_time);
-          Tensor<T>::deallocate(d_e, d_r1_residual, d_r2_residual);
-
-          if(residual < thresh) { 
+            //TODO:UPDATE FOR DIIS
             sch
-            (d_t2(p1_va,p2_vb,h4_ob,h3_oa) = -1.0 * d_t2(p1_va,p2_vb,h3_oa,h4_ob))
-            (d_t2(p2_vb,p1_va,h3_oa,h4_ob) = -1.0 * d_t2(p1_va,p2_vb,h3_oa,h4_ob))
-            (d_t2(p2_vb,p1_va,h4_ob,h3_oa) = d_t2(p1_va,p2_vb,h3_oa,h4_ob))
+            (t1_aa(p1_va,h3_oa) = d_t1(p1_va,h3_oa))
+            (t1_bb(p1_vb,h3_ob) = d_t1(p1_vb,h3_ob))
+            (t2_aaaa(p1_va,p2_va,h3_oa,h4_oa) = d_t2(p1_va,p2_va,h3_oa,h4_oa))
+            (t2_abab(p1_va,p2_vb,h3_oa,h4_ob) = d_t2(p1_va,p2_vb,h3_oa,h4_ob))
+            // (t2_baba(p1_vb,p2_va,h3_ob,h4_oa) = d_t2(p1_vb,p2_va,h3_ob,h4_oa))
+            (t2_bbbb(p1_vb,p2_vb,h3_ob,h4_ob) = d_t2(p1_vb,p2_vb,h3_ob,h4_ob))
             .execute();
-            break; 
-          }
-      }
 
-      if(residual < thresh || titer + ndiis >= maxiter) { break; }
-      if(ec.pg().rank() == 0) {
-          std::cout << " MICROCYCLE DIIS UPDATE:";
-          std::cout.width(21);
-          std::cout << std::right << std::min(titer + ndiis, maxiter) + 1;
-          std::cout.width(21);
-          std::cout << std::right << "5" << std::endl;
-      }
+            ccsd_e(/* ec,  */sch, MO, CI, d_e, d_t1, d_t2, d_f1, cv3d);
+            ccsd_t1(/* ec,  */sch, MO, CI, d_r1, d_t1, d_t2, d_f1, cv3d);
+            ccsd_t2(/* ec,  */sch, MO, CI, d_r2, d_t1, d_t2, d_f1, cv3d);
+
+            // sch
+            // (d_r1_residual() = d_r1()  * d_r1())
+            // (d_r2_residual() = d_r2()  * d_r2())
+            // .execute();
+
+            sch.execute();
+
+            //if(ec.pg().rank()==0) cout << "norm d-r2=" << get_scalar(d_r1_residual) << ", "<< get_scalar(d_r2_residual) << endl;
+
+            //TODO:UPDATE FOR JACOBI
+            //sch
+            //(d_r1(p1_va,h3_oa) = r1_aa(p1_va,h3_oa))
+            //(d_r1(p1_vb,h3_ob) = r1_bb(p1_vb,h3_ob))
+            //(d_r2(p1_va,p2_va,h3_oa,h4_oa) += r2_aaaa(p1_va,p2_va,h3_oa,h4_oa))
+            //(d_r2(p1_vb,p2_vb,h3_ob,h4_ob) += r2_bbbb(p1_vb,p2_vb,h3_ob,h4_ob))
+            //(d_r2(p1_va,p2_vb,h3_oa,h4_ob) += r2_abab(p1_va,p2_vb,h3_oa,h4_ob)) //abab
+            // (d_r2(p1_vb,p2_va,h3_ob,h4_oa) += r2_baba(p1_vb,p2_va,h3_ob,h4_oa))
+            // (d_r2(p1_va,p2_vb,h3_ob,h4_oa) += r2_abba(p1_va,p2_vb,h3_ob,h4_oa)) 
+            // (d_r2(p1_vb,p2_va,h3_oa,h4_ob) += r2_baab(p1_vb,p2_va,h3_oa,h4_ob))
+            //.execute();         
+
+            //   GA_Sync();
+            std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
+                                            d_e, p_evl_sorted, zshiftl, noab);
+
+            update_r2(ec, d_r2());
+
+            sch((d_r1s[off])() = d_r1())
+                ((d_r2s[off])() = d_r2())
+                .execute();
+
+            const auto timer_end = std::chrono::high_resolution_clock::now();
+            auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
+
+            iteration_print(ec.pg(), iter, residual, energy, iter_time);
+            Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
+
+            if(residual < thresh) { 
+                // sch
+                // (d_t2(p1_va,p2_vb,h4_ob,h3_oa) = -1.0 * d_t2(p1_va,p2_vb,h3_oa,h4_ob))
+                // (d_t2(p2_vb,p1_va,h3_oa,h4_ob) = -1.0 * d_t2(p1_va,p2_vb,h3_oa,h4_ob))
+                // (d_t2(p2_vb,p1_va,h4_ob,h3_oa) = d_t2(p1_va,p2_vb,h3_oa,h4_ob))
+                // .execute();
+                break; 
+            }
+        }
+
+        if(residual < thresh || titer + ndiis >= maxiter) { break; }
+        if(ec.pg().rank() == 0) {
+            std::cout << " MICROCYCLE DIIS UPDATE:";
+            std::cout.width(21);
+            std::cout << std::right << std::min(titer + ndiis, maxiter) + 1;
+            std::cout.width(21);
+            std::cout << std::right << "5" << std::endl;
+        }
 
 
-      std::vector<std::vector<Tensor<T>>> rs{d_r1s, d_r2s};
-      std::vector<std::vector<Tensor<T>>> ts{d_t1s, d_t2s};
-      std::vector<Tensor<T>> next_t{d_t1, d_t2};
-      diis<T>(ec, rs, ts, next_t);
-  }
-  sch.deallocate(_a004_aaaa,_a004_abab,_a004_bbbb);
+        std::vector<std::vector<Tensor<T>>> rs{d_r1s, d_r2s};
+        std::vector<std::vector<Tensor<T>>> ts{d_t1s, d_t2s};
+        std::vector<Tensor<T>> next_t{d_t1, d_t2};
+        diis<T>(ec, rs, ts, next_t);
+        if(writet) {
+            write_to_disk(d_t1,t1file);
+            write_to_disk(d_t2,t2file);
+        }
+    }
+    } //no restart
+    else {
+            sch
+            (d_e()=0)
+            (t1_aa(p1_va,h3_oa) = d_t1(p1_va,h3_oa))
+            (t1_bb(p1_vb,h3_ob) = d_t1(p1_vb,h3_ob))
+            (t2_aaaa(p1_va,p2_va,h3_oa,h4_oa) = d_t2(p1_va,p2_va,h3_oa,h4_oa))
+            (t2_abab(p1_va,p2_vb,h3_oa,h4_ob) = d_t2(p1_va,p2_vb,h3_oa,h4_ob))
+            // (t2_baba(p1_vb,p2_va,h3_ob,h4_oa) = d_t2(p1_vb,p2_va,h3_ob,h4_oa))
+            (t2_bbbb(p1_vb,p2_vb,h3_ob,h4_ob) = d_t2(p1_vb,p2_vb,h3_ob,h4_ob));
+
+            ccsd_e(/* ec,  */sch, MO, CI, d_e, d_t1, d_t2, d_f1, cv3d);
+            sch.execute();
+            energy = get_scalar(d_e);
+            residual = 0.0;
+    }
+
+  sch.deallocate(d_e,_a004_aaaa,_a004_abab,_a004_bbbb);
   //t2_baba
   sch.deallocate(t1_aa, t1_bb, t2_aaaa, t2_abab, t2_bbbb, r1_aa, r1_bb, 
                 r2_aaaa, r2_bbbb,   //r2_abab, r2_baba, r2_abba, r2_baab,

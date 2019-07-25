@@ -246,7 +246,10 @@ public:
      * @returns a const_iterator to an Index at the first element of the
      * IndexSpace
      */
-    IndexIterator begin() const { return tiled_info_->simple_vec_.begin(); }
+    IndexIterator begin() const {
+        EXPECTS(tiled_info_ != nullptr);
+        return tiled_info_->simple_vec_.begin();
+    }
 
     /**
      * @brief Iterator accessor to the end of the reference IndexSpace
@@ -565,6 +568,9 @@ public:
      */
     const bool is_dependent() const {
         // return tiled_info_->is_.is_dependent();
+        if(tiled_info_ == nullptr)
+            return false;
+            
         return !tiled_info_->tiled_dep_map_.empty();
     }
 
@@ -1904,9 +1910,15 @@ inline bool operator>=(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
 
 ///////////////////////////////////////////////////////////
 
+
+
 inline TiledIndexLabel TiledIndexSpace::label(std::string id, Label lbl) const {
     if(id == "all") return TiledIndexLabel{*this, lbl};
     return TiledIndexLabel{(*this)(id), lbl};
+}
+
+inline TiledIndexLabel TiledIndexSpace::label(Label lbl) const {
+    return TiledIndexLabel{*this, lbl};
 }
 
 template<size_t... Is>

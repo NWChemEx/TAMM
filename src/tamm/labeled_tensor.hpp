@@ -37,7 +37,8 @@ public:
       tensor_{tensor},
       ilv_{IndexLabelVec(tensor_.num_modes())},
       slv_{StringLabelVec(tensor_.num_modes())},
-      str_map_{std::vector<bool>(tensor_.num_modes())} {
+      str_map_{std::vector<bool>(tensor_.num_modes())},
+      has_str_lbl_{false} {
         unpack(0, args...);
         validate();
     }
@@ -46,7 +47,8 @@ public:
       tensor_{tensor},
       ilv_{IndexLabelVec(tensor_.num_modes())},
       slv_{StringLabelVec(tensor_.num_modes())},
-      str_map_{std::vector<bool>(tensor_.num_modes())} {
+      str_map_{std::vector<bool>(tensor_.num_modes())},
+      has_str_lbl_{false} {
         unpack(0, labels);
         validate();
     }
@@ -85,9 +87,9 @@ public:
             return SetOp<T, LTT>{*this, static_cast<T>(sub_v * rhs), is_assign};
 
         // LT = LT
-        else if constexpr(is_same_v<T1, LTT>)
+        else if constexpr(is_same_v<T1, LTT>) {
             return AddOp<T, LTT, T1>{*this, static_cast<T>(sub_v), rhs, is_assign};
-        else if constexpr(is_complex_v<T> && 
+        } else if constexpr(is_complex_v<T> && 
                           (is_same_v<T1,LTT_int>
                           ||is_same_v<T1,LTT_float>
                           ||is_same_v<T1,LTT_double>))
@@ -197,11 +199,16 @@ public:
     TensorBase* base_ptr() const {
         return tensor_.base_ptr();
     }
+
+    bool has_str_lbl() const {
+        return has_str_lbl_;
+    }
 protected:
     Tensor<T> tensor_;
     IndexLabelVec ilv_;
     StringLabelVec slv_;
     std::vector<bool> str_map_;
+    bool has_str_lbl_;
 
 private:
     /**
@@ -266,9 +273,9 @@ private:
                 if(!str_map_[i] && !str_map_[j]) {
                     const auto& jlbl = ilv_[j];
                     if(ilbl.primary_label() == jlbl.primary_label()) {
-                        // EXPECTS(ilbl.secondary_labels().size() == 0 ||
-                        //         jlbl.secondary_labels().size() == 0 ||
-                        //         ilbl == jlbl);
+                    //     EXPECTS(ilbl.secondary_labels().size() == 0 ||
+                    //             jlbl.secondary_labels().size() == 0 ||
+                    //             ilbl == jlbl);
                         EXPECTS(ilbl == jlbl);
                     }
                 }
@@ -284,6 +291,9 @@ private:
             }
         }
 
+#if 0
+    //SK: this constraint for matches between tensor allocation and use 
+    //is being relaxed.
         const std::map<size_t, std::vector<size_t>>& dep_map =
           tensor_.dep_map();
         for(auto itr = dep_map.begin(); itr != dep_map.end(); ++itr) {
@@ -301,7 +311,7 @@ private:
                 dc_++;
             }
         }
-
+#endif
         for(const auto& lbl : ilv_) {
             for(const auto& dlbl : lbl.secondary_labels()) {
                 EXPECTS(lbl.primary_label() != dlbl);
@@ -337,6 +347,7 @@ private:
         EXPECTS(index < tensor_.num_modes());
         slv_[index]     = str;
         str_map_[index] = true;
+        has_str_lbl_ = true;
         unpack(++index, rest...);
     }
 

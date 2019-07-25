@@ -1273,15 +1273,15 @@ TEST_CASE("setop with float") {
     test_setop_with_T<float>(3);
 }
 
-TEST_CASE("setop with single complex") {
-    test_setop_with_T<complex_single>(1);
-    test_setop_with_T<complex_single>(3);
-}
+// TEST_CASE("setop with single complex") {
+//     test_setop_with_T<complex_single>(1);
+//     test_setop_with_T<complex_single>(3);
+// }
 
-TEST_CASE("setop with double complex") {
-    test_setop_with_T<complex_double>(1);
-    test_setop_with_T<complex_double>(3);
-}
+// TEST_CASE("setop with double complex") {
+//     test_setop_with_T<complex_double>(1);
+//     test_setop_with_T<complex_double>(3);
+// }
 
 TEST_CASE("mapop with double") {
     test_mapop_with_T<double>(1);
@@ -1293,15 +1293,15 @@ TEST_CASE("mapop with float") {
     test_mapop_with_T<float>(3);
 }
 
-TEST_CASE("mapop with single complex") {
-    test_mapop_with_T<complex_single>(1);
-    test_mapop_with_T<complex_single>(3);
-}
+// TEST_CASE("mapop with single complex") {
+//     test_mapop_with_T<complex_single>(1);
+//     test_mapop_with_T<complex_single>(3);
+// }
 
-TEST_CASE("mapop with double complex") {
-    test_mapop_with_T<complex_double>(1);
-    test_mapop_with_T<complex_double>(3);
-}
+// TEST_CASE("mapop with double complex") {
+//     test_mapop_with_T<complex_double>(1);
+//     test_mapop_with_T<complex_double>(3);
+// }
 
 TEST_CASE("addop with double") {
     test_addop_with_T<double>(1);
@@ -1313,15 +1313,15 @@ TEST_CASE("addop with float") {
     test_addop_with_T<float>(3);
 }
 
-TEST_CASE("addop with single complex") {
-    test_addop_with_T<complex_single>(1);
-    test_addop_with_T<complex_single>(3);
-}
+// TEST_CASE("addop with single complex") {
+//     test_addop_with_T<complex_single>(1);
+//     test_addop_with_T<complex_single>(3);
+// }
 
-TEST_CASE("addop with double complex") {
-    test_addop_with_T<complex_double>(1);
-    test_addop_with_T<complex_double>(3);
-}
+// TEST_CASE("addop with double complex") {
+//     test_addop_with_T<complex_double>(1);
+//     test_addop_with_T<complex_double>(3);
+// }
 
 #if 1
 TEST_CASE("Two-dimensional ops") {

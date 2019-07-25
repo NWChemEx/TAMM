@@ -470,7 +470,7 @@ Tensor<TensorType> apply_ewise(LabeledTensor<TensorType> oltensor,
                  bool is_lt) {
     ExecutionContext& ec = get_ec(oltensor);
     Tensor<TensorType> otensor = oltensor.tensor();
-    Tensor<TensorType> tensor = {otensor.tiled_index_spaces()};
+    Tensor<TensorType> tensor{otensor.tiled_index_spaces()};
     LabeledTensor<TensorType> ltensor = tensor();
     Tensor<TensorType>::allocate(&ec,tensor);
     if(is_lt) Scheduler{ec}(ltensor = oltensor).execute();    

@@ -231,4 +231,72 @@ void eigen_to_tamm_tensor_acc(
     }
 }
 
+
+
+template<typename T, typename fxn_t>
+void call_eigen_matrix_fxn(const tamm::Tensor<T>& tensor, fxn_t fxn) {
+    tamm::Tensor<T> copy_t(tensor);
+    auto eigen_t = tamm_to_eigen_tensor<T, 2>(copy_t);
+
+    using eigen_matrix =
+    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+    using eigen_map = Eigen::Map<eigen_matrix>;
+
+    const auto nrow = eigen_t.dimensions()[0];
+    const auto ncol = eigen_t.dimensions()[1];
+
+    eigen_map mapped_t(eigen_t.data(), nrow, ncol);
+
+    fxn(mapped_t);
+}
+
+template<int nmodes, typename T, typename matrix_type>
+void eigen_matrix_to_tamm(matrix_type&& mat, tamm::Tensor<T>& t){
+    using tensor1_type = Eigen::Tensor<T, 1, Eigen::RowMajor>;
+    using tensor2_type = Eigen::Tensor<T, 2, Eigen::RowMajor>;
+
+    const auto nrows = mat.rows();
+
+    if constexpr(nmodes == 1){ //Actually a vector
+        tensor1_type t1(std::array<long int, 1>{nrows});
+        for(long int i = 0; i < nrows; ++i) t1(i) = mat(i);
+        eigen_to_tamm_tensor(t, t1);
+    }
+    else if constexpr(nmodes == 2){
+        const auto ncols = mat.cols();
+        tensor2_type t1(std::array<long int, 2>{nrows, ncols}) ;
+
+        for(long int i=0; i < nrows; ++i)
+            for(long int j =0; j< ncols; ++j)
+                t1(i, j) = mat(i, j);
+
+        eigen_to_tamm_tensor(t, t1);
+    }
+}
+
+template<typename T>
+tamm::Tensor<T> retile_rank2_tensor(tamm::Tensor<T>& tensor, const tamm::TiledIndexSpace &t1, const tamm::TiledIndexSpace &t2) {
+   EXPECTS(tensor.num_modes() == 2);
+   //auto* ec_tmp = tensor.execution_context(); //TODO: figure out why this seg faults
+
+
+   tamm::ProcGroup pg{GA_MPI_Comm()};
+   auto mgr = tamm::MemoryManagerGA::create_coll(pg);
+   tamm::Distribution_NW distribution;
+   tamm::ExecutionContext ec{pg,&distribution,mgr};
+   auto is1 = tensor.tiled_index_spaces()[0].index_space();
+   auto is2 = tensor.tiled_index_spaces()[1].index_space();
+   auto dim1 = is1.num_indices();
+   auto dim2 = is2.num_indices();
+   Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> eigent(dim1,dim2);
+
+   tamm::Tensor<T> result{t1,t2};
+   tamm::Tensor<T>::allocate(&ec, result);
+   tamm_to_eigen_tensor(tensor,eigent);
+   eigen_to_tamm_tensor(result,eigent);
+   ec.pg().barrier();
+   
+   return result;
+} 
+
 #endif // TAMM_EIGEN_UTILS_HPP_

@@ -6,6 +6,8 @@
 #include <unsupported/Eigen/CXX11/Tensor>
 #include "tamm/tamm.hpp"
 
+namespace tamm {
+
 template<typename T, int ndim>
 void patch_copy(std::vector<T>& sbuf,
                 Eigen::Tensor<T, ndim, Eigen::RowMajor>& etensor,
@@ -298,5 +300,7 @@ tamm::Tensor<T> retile_rank2_tensor(tamm::Tensor<T>& tensor, const tamm::TiledIn
    
    return result;
 } 
+
+}
 
 #endif // TAMM_EIGEN_UTILS_HPP_

@@ -409,37 +409,51 @@ inline std::tuple<IndexVector, bool> translate_blockid_if_possible(
     return {to_blockid, true};
 }
 
-inline IndexLabelVec update_labels(const IndexLabelVec& labels) {
+inline void update_labels(IndexLabelVec& labels){
     EXPECTS(!labels.empty());
     auto dep_map            = construct_dep_map(labels);
     bool has_new_lbl        = false;
     bool have_other_dep_lbl = false;
-    std::map<TiledIndexLabel, TiledIndexLabel> new_lbl_map;
-    IndexLabelVec res;
-    // construct new tis and lbls for dependent labels without secondary labels
 
-    for(size_t i = 0; i < labels.size(); i++) {
-        auto lbl     = labels[i];
-        auto lbl_tis = lbl.tiled_index_space();
-        res.push_back(lbl);
-        
-        if(lbl_tis.is_dependent() && lbl.secondary_labels().size() == 0) {
-            if(new_lbl_map.find(lbl) == new_lbl_map.end()) {
-               new_lbl_map[lbl] = lbl_tis.parent_tis().label();
+    std::vector<int> lbl_map(labels.size(), -1);
+    for (size_t i = 0; i < labels.size(); i++) {
+        auto& lbl = labels[i];
+        if(lbl_map[i] != -1){
+            continue;
+        }
+        for (size_t j = i+1; j < labels.size(); j++) {
+            if(labels[j] == lbl){
+                lbl_map[j] = i;
             }
-            res[i]    = new_lbl_map[lbl];
-            has_new_lbl  = true;
-        } else if(lbl_tis.is_dependent() && lbl.secondary_labels().size() > 0) {
+        }
+        lbl_map[i] = i;
+    }
+
+    EXPECTS(labels.size() == lbl_map.size());
+    for(auto& i : lbl_map) {
+        EXPECTS(i != -1);
+    }
+    
+    for(size_t i = 0; i < labels.size(); i++) {
+        if(lbl_map[i] < i){
+            labels[i] = labels[lbl_map[i]];
+            continue;
+        }
+
+        auto& lbl = labels[i];
+        if(lbl.is_dependent() && lbl.secondary_labels().size() == 0) {
+            labels[i]   = lbl.tiled_index_space().parent_tis().label(); 
+            has_new_lbl = true;
+        } else if(lbl.is_dependent() && lbl.secondary_labels().size() > 0) {
             have_other_dep_lbl = true;
         }
     }
 
     if(has_new_lbl && have_other_dep_lbl) {
         // Update dependent labels if a new label is created
-        for(size_t i = 0; i < res.size(); i++) {
-            auto lbl            = res[i];
-            const auto& lbl_tis = lbl.tiled_index_space();
-            if(lbl_tis.is_dependent()) {
+        for(size_t i = 0; i < labels.size(); i++) {
+            auto& lbl = labels[i];
+            if(lbl.is_dependent()) {
                 auto primary_label    = lbl.primary_label();
                 auto secondary_labels = lbl.secondary_labels();
                 EXPECTS(!secondary_labels.empty());
@@ -447,15 +461,14 @@ inline IndexLabelVec update_labels(const IndexLabelVec& labels) {
                 auto sec_indices = dep_map[i];
                 for(size_t j = 0; j < sec_indices.size(); j++) {
                     secondary_labels[j] =
-                      res[sec_indices[j]].primary_label();
+                      labels[sec_indices[j]].primary_label();
                 }
-                res[i] = TiledIndexLabel{primary_label, secondary_labels};
+                labels[i] = TiledIndexLabel{primary_label, secondary_labels};
             }
         }
     }
-
-    return res;
 }
+
 
 inline void print_labels(const IndexLabelVec& labels) {
     for(auto& lbl : labels) {

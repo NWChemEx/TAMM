@@ -334,7 +334,9 @@ public:
       alpha_{alpha},
       is_assign_{is_assign} {
         if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
-            auto lbls = internal::update_labels(lhs.labels());
+            
+            auto lbls = lhs.labels();
+            internal::update_labels(lbls);
             lhs_.set_labels(lbls);
         } 
         
@@ -863,20 +865,21 @@ public:
         EXPECTS(lhs.has_str_lbl() == rhs.has_str_lbl());
 
         if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
-            auto lhs_lbls = lhs.labels();             
-            auto rhs_lbls = rhs.labels(); 
+            auto lhs_lbls = lhs.labels();
+            auto rhs_lbls = rhs.labels();
 
-            auto all_lbls{lhs_lbls};
-            all_lbls.insert(all_lbls.end(), rhs_lbls.begin(), rhs_lbls.end());
-            auto labels = internal::update_labels(all_lbls);
+            auto labels{lhs_lbls};
+            labels.insert(labels.end(), rhs_lbls.begin(), rhs_lbls.end());
+            internal::update_labels(labels);
 
-            lhs_lbls = IndexLabelVec(labels.begin(), labels.begin() + lhs.labels().size());
-            rhs_lbls = IndexLabelVec(labels.begin() + lhs.labels().size(), 
-                                labels.begin() + lhs.labels().size() + rhs.labels().size());
+            lhs_lbls = IndexLabelVec(labels.begin(),
+                                     labels.begin() + lhs.labels().size());
+            rhs_lbls = IndexLabelVec(labels.begin() + lhs.labels().size(),
+                                     labels.begin() + lhs.labels().size() +
+                                       rhs.labels().size());
 
             lhs_.set_labels(lhs_lbls);
             rhs_.set_labels(rhs_lbls);
-
         }
 
         if(lhs.has_str_lbl()){
@@ -979,7 +982,7 @@ public:
             //   internal::translate_blockid_if_possible(
             //     rblockid, extracted_rlabels, rhs_.tensor()().labels());
 
-            IndexVector tranlated_blockid;
+            IndexVector translated_blockid;
             bool lbl_valid; 
             
             IndexVector full_blk_id{lblockid};
@@ -994,13 +997,13 @@ public:
             tensor_lbls.insert(tensor_lbls.end(), rt_lbls.begin(), rt_lbls.end());
 
 
-             std::tie(tranlated_blockid, lbl_valid) =
+             std::tie(translated_blockid, lbl_valid) =
               internal::translate_blockid_if_possible(
                 full_blk_id, extracted_lbls, tensor_lbls);
 
              split_block_id(translated_lblockid, translated_rblockid,
                             lhs_.labels().size(), rhs_.labels().size(),
-                            tranlated_blockid);
+                            translated_blockid);
 
 #endif
             // std::cerr<<"Checking AddOp untranslated blockids  lhs="<<lblockid<<" rhs="<<rblockid<<"\n";
@@ -1376,16 +1379,15 @@ public:
         EXPECTS(lhs.has_str_lbl() == rhs1.has_str_lbl()
                 && rhs1.has_str_lbl() == rhs2.has_str_lbl());
         if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
-            
             auto lhs_lbls  = lhs.labels();
             auto rhs1_lbls = rhs1.labels();
             auto rhs2_lbls = rhs2.labels();
 
-            auto all_lbls{lhs_lbls};
-            all_lbls.insert(all_lbls.end(), rhs1_lbls.begin(), rhs1_lbls.end());
-            all_lbls.insert(all_lbls.end(), rhs2_lbls.begin(), rhs2_lbls.end());
+            auto labels{lhs_lbls};
+            labels.insert(labels.end(), rhs1_lbls.begin(), rhs1_lbls.end());
+            labels.insert(labels.end(), rhs2_lbls.begin(), rhs2_lbls.end());
 
-            auto labels = internal::update_labels(all_lbls);
+            internal::update_labels(labels);
 
             lhs_lbls  = IndexLabelVec(labels.begin(),
                                      labels.begin() + lhs.labels().size());
@@ -1452,7 +1454,7 @@ public:
         all_labels.insert(all_labels.end(), rhs2_.labels().begin(),
                           rhs2_.labels().end());
         LabelLoopNest loop_nest{all_labels};
-        
+
         // function to compute one block
         auto lambda = [=,&loop_nest](const IndexVector itval) {
             auto ctensor = lhs_.tensor();
@@ -1600,7 +1602,7 @@ public:
             IndexLabelVec tensor_lbls{tc_lbls};
             tensor_lbls.insert(tensor_lbls.end(), ta_lbls.begin(), ta_lbls.end());
             tensor_lbls.insert(tensor_lbls.end(), tb_lbls.begin(), tb_lbls.end());
-
+            
             IndexVector translated_blockid;
             bool tb_valid;
 

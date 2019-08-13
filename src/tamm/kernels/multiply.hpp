@@ -215,13 +215,6 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     cinter_dims.insert(cinter_dims.end(), bouter_dims.begin(),
                        bouter_dims.end());
 
-    std::vector<T> ainter_buf(static_cast<size_t>(asize.value())),
-      binter_buf(static_cast<size_t>(bsize.value())),
-      cinter_buf(static_cast<size_t>(csize.value()));
-    assign(ainter_buf.data(), ainter_dims, ainter_labels, T{1}, abuf, adims,
-           alabels, true);
-    assign(binter_buf.data(), binter_dims, binter_labels, T{1}, bbuf, bdims,
-           blabels, true);
     auto transA    = CblasNoTrans;
     auto transB    = CblasNoTrans;
     int ainter_ld  = K;
@@ -234,6 +227,14 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     int breduce_ld = B * bbatch_ld;
 
     #ifndef NWX_GPU
+    std::vector<T> ainter_buf(static_cast<size_t>(asize.value())),
+      binter_buf(static_cast<size_t>(bsize.value())),
+      cinter_buf(static_cast<size_t>(csize.value()));
+    assign(ainter_buf.data(), ainter_dims, ainter_labels, T{1}, abuf, adims,
+           alabels, true);
+    assign(binter_buf.data(), binter_dims, binter_labels, T{1}, bbuf, bdims,
+           blabels, true);
+
     // dgemm
     for(size_t ari = 0; ari < AR; ari++) {
         for(size_t bri = 0; bri < BR; bri++) {
@@ -249,47 +250,37 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
             }
         }
     }
+    assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,
+        cinter_labels, true);
     #else
+
     auto talsh_op_string = internal::talsh_mult_op_string(
-        cinter_labels, ainter_labels, binter_labels); 
+        clabels, alabels, blabels); 
 
-    auto aid_size = ainter_dims.size();
-    auto bid_size = binter_dims.size();
-    auto cid_size = cinter_dims.size();
-    int tal_ainter_dims[aid_size];
-    int tal_binter_dims[bid_size];
-    int tal_cinter_dims[cid_size];
+    auto aid_size = adims.size();
+    auto bid_size = bdims.size();
+    auto cid_size = cdims.size();
+    int tal_adims[aid_size];
+    int tal_bdims[bid_size];
+    int tal_cdims[cid_size];
     
-    // if(aid_size>1){
-    // tal_ainter_dims[0] = (int)ainter_dims[1].value();
-    // tal_ainter_dims[1] = (int)ainter_dims[0].value();
-    // }
-    // if(bid_size>1){
-    // tal_binter_dims[0] = (int)binter_dims[1].value();
-    // tal_binter_dims[1] = (int)binter_dims[0].value();
-    // }
-    // if(cid_size>1){
-    // tal_cinter_dims[0] = (int)cinter_dims[1].value();
-    // tal_cinter_dims[1] = (int)cinter_dims[0].value();
-    // }
-
     std::vector<int> taid;
     std::vector<int> tbid;
     std::vector<int> tcid;
-    std::transform(std::begin(ainter_dims), std::end(ainter_dims),
+    std::transform(std::begin(adims), std::end(adims),
                  std::back_inserter(taid),[](tamm::Size i) -> int {return i.value();});
-    std::transform(std::begin(binter_dims), std::end(binter_dims),
+    std::transform(std::begin(bdims), std::end(bdims),
                  std::back_inserter(tbid),[](tamm::Size i) -> int {return i.value();});
-    std::transform(std::begin(cinter_dims), std::end(cinter_dims),
+    std::transform(std::begin(cdims), std::end(cdims),
                  std::back_inserter(tcid),[](tamm::Size i) -> int {return i.value();});
 
     std::reverse(taid.begin(),taid.end());
     std::reverse(tbid.begin(),tbid.end());
     std::reverse(tcid.begin(),tcid.end());
 
-    std::copy(taid.begin(),taid.end(),tal_ainter_dims);
-    std::copy(tbid.begin(),tbid.end(),tal_binter_dims);
-    std::copy(tcid.begin(),tcid.end(),tal_cinter_dims);
+    std::copy(taid.begin(),taid.end(),tal_adims);
+    std::copy(tbid.begin(),tbid.end(),tal_bdims);
+    std::copy(tcid.begin(),tcid.end(),tal_cdims);
 
     bool hadamard = false;
     for(auto x: cinter_labels) {
@@ -312,6 +303,14 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
 
     if(hadamard || reduction_op) {
       // std::cout << " hadamard or reduction op: " << talsh_op_string << "\n";
+    std::vector<T> ainter_buf(static_cast<size_t>(asize.value())),
+      binter_buf(static_cast<size_t>(bsize.value())),
+      cinter_buf(static_cast<size_t>(csize.value()));
+      assign(ainter_buf.data(), ainter_dims, ainter_labels, T{1}, abuf, adims,
+            alabels, true);
+      assign(binter_buf.data(), binter_dims, binter_labels, T{1}, bbuf, bdims,
+            blabels, true);
+
       for(size_t ari = 0; ari < AR; ari++) {
         for(size_t bri = 0; bri < BR; bri++) {
             for(size_t i = 0; i < B; i++) {
@@ -326,6 +325,9 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
             }
         }
       }
+
+      assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,
+         cinter_labels, true);
     }
 
     else {
@@ -341,19 +343,18 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
       // double *cdata = host_pinned_memory(cbatch_ld*sizeof(double)); 
 
       TALSH gpu_mult;
+      T* abufp = const_cast<T*>(abuf); 
+      T* bbufp = const_cast<T*>(bbuf); 
+
       // Create tensor objects 
-      tensor_handle T1 = gpu_mult.host_block(ainter_dims.size(), 
-          tal_ainter_dims, 
-          ainter_buf.data()); //  + ari * areduce_ld + i * abatch_ld);
-      tensor_handle T2 = gpu_mult.host_block(binter_dims.size(), 
-          tal_binter_dims, 
-          binter_buf.data()); //  + bri * breduce_ld + i * bbatch_ld);
-      tensor_handle T3 = gpu_mult.host_block(cinter_dims.size(), 
-          tal_cinter_dims, 
-          cinter_buf.data()); //  + i * cbatch_ld);
-        // double dalpha = std::abs(alpha);
-        // std::cout << "dalpha:[" << dalpha <<std::endl;
-        gpu_mult.mult_block(T3, T1, T2, talsh_op_string, 
+      tensor_handle T1 = gpu_mult.host_block(adims.size(), 
+          tal_adims, abufp); 
+      tensor_handle T2 = gpu_mult.host_block(bdims.size(), 
+          tal_bdims, bbufp); 
+      tensor_handle T3 = gpu_mult.host_block(cdims.size(), 
+          tal_cdims, cbuf); 
+
+      gpu_mult.mult_block(T3, T1, T2, talsh_op_string, 
           alpha, COPY_TTT); 
 
       talshTensorDestruct(&T1);
@@ -364,9 +365,6 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
       // free_host_pinned_memory(cdata);
     }
     #endif
-  // C[0]="<<cinter_buf[0]<<"\n";
-  assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,
-         cinter_labels, true);
 } // block_multiply()
 
 } // namespace kernels

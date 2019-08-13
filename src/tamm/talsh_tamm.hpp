@@ -583,7 +583,7 @@ class TALSH {
                         0,
                         DEV_NVIDIA_GPU, 
                         // DEV_DEFAULT,
-                        move_arg,YEP,
+                        move_arg,NOPE,
                         &talsh_task);
 #if 0
     double total_time;

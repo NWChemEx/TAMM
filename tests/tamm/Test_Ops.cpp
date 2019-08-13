@@ -124,7 +124,17 @@ int main(int argc, char* argv[]) {
     int mpi_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
+    #ifdef NWX_GPU
+    TALSH talsh_instance;
+    talsh_instance.TALSH_initialize();
+    #endif
+
     int res = Catch::Session().run(argc, argv);
+    
+    #ifdef NWX_GPU
+    talsh_instance.TALSH_shutdown();
+    #endif  
+
     GA_Terminate();
     MPI_Finalize();
 
@@ -1798,7 +1808,7 @@ TEST_CASE("Two-dimensional ops part I") {
         failed = true;
     }
     REQUIRE(!failed);
-
+    
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS};

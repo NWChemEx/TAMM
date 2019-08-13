@@ -11,7 +11,7 @@
 #include <numeric>
 #include <vector>
 
-// #define NWX_GPU
+#define NWX_GPU
 #ifdef NWX_GPU
 #include "tamm/talsh_tamm.hpp"
 #include "tamm/cuda_memory_allocator.hpp"
@@ -250,59 +250,119 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
         }
     }
     #else
+    auto talsh_op_string = internal::talsh_mult_op_string(
+        cinter_labels, ainter_labels, binter_labels); 
+
     auto aid_size = ainter_dims.size();
     auto bid_size = binter_dims.size();
     auto cid_size = cinter_dims.size();
     int tal_ainter_dims[aid_size];
     int tal_binter_dims[bid_size];
     int tal_cinter_dims[cid_size];
-    if(aid_size>1){
-    tal_ainter_dims[0] = (int)ainter_dims[1].value();
-    tal_ainter_dims[1] = (int)ainter_dims[0].value();
+    
+    // if(aid_size>1){
+    // tal_ainter_dims[0] = (int)ainter_dims[1].value();
+    // tal_ainter_dims[1] = (int)ainter_dims[0].value();
+    // }
+    // if(bid_size>1){
+    // tal_binter_dims[0] = (int)binter_dims[1].value();
+    // tal_binter_dims[1] = (int)binter_dims[0].value();
+    // }
+    // if(cid_size>1){
+    // tal_cinter_dims[0] = (int)cinter_dims[1].value();
+    // tal_cinter_dims[1] = (int)cinter_dims[0].value();
+    // }
+
+    std::vector<int> taid;
+    std::vector<int> tbid;
+    std::vector<int> tcid;
+    std::transform(std::begin(ainter_dims), std::end(ainter_dims),
+                 std::back_inserter(taid),[](tamm::Size i) -> int {return i.value();});
+    std::transform(std::begin(binter_dims), std::end(binter_dims),
+                 std::back_inserter(tbid),[](tamm::Size i) -> int {return i.value();});
+    std::transform(std::begin(cinter_dims), std::end(cinter_dims),
+                 std::back_inserter(tcid),[](tamm::Size i) -> int {return i.value();});
+
+    std::reverse(taid.begin(),taid.end());
+    std::reverse(tbid.begin(),tbid.end());
+    std::reverse(tcid.begin(),tcid.end());
+
+    std::copy(taid.begin(),taid.end(),tal_ainter_dims);
+    std::copy(tbid.begin(),tbid.end(),tal_binter_dims);
+    std::copy(tcid.begin(),tcid.end(),tal_cinter_dims);
+
+    bool hadamard = false;
+    for(auto x: cinter_labels) {
+      auto r1 =  std::find(std::begin(ainter_labels), std::end(ainter_labels), x) != std::end(ainter_labels);
+      auto r2 =  std::find(std::begin(binter_labels), std::end(binter_labels), x) != std::end(binter_labels);
+      if (r1 && r2) hadamard = true;
     }
-    if(bid_size>1){
-    tal_binter_dims[0] = (int)binter_dims[1].value();
-    tal_binter_dims[1] = (int)binter_dims[0].value();
+
+    bool reduction_op = false;
+    for(auto x: ainter_labels) {
+      auto r1 =  std::find(std::begin(cinter_labels), std::end(cinter_labels), x) == std::end(cinter_labels);
+      auto r2 =  std::find(std::begin(binter_labels), std::end(binter_labels), x) == std::end(binter_labels);
+      if (r1 && r2) reduction_op = true;
     }
-    if(cid_size>1){
-    tal_cinter_dims[0] = (int)cinter_dims[1].value();
-    tal_cinter_dims[1] = (int)cinter_dims[0].value();
+    for(auto x: binter_labels) {
+      auto r1 =  std::find(std::begin(cinter_labels), std::end(cinter_labels), x) == std::end(cinter_labels);
+      auto r2 =  std::find(std::begin(ainter_labels), std::end(ainter_labels), x) == std::end(ainter_labels);
+      if (r1 && r2) reduction_op = true;
     }
 
-    auto talsh_op_string = internal::talsh_mult_op_string(
-        cinter_labels, ainter_labels, binter_labels); 
-    // std::cout << talsh_op_string << std::endl;
-    // std::cout << size <<  << std::endl;
+    if(hadamard || reduction_op) {
+      // std::cout << " hadamard or reduction op: " << talsh_op_string << "\n";
+      for(size_t ari = 0; ari < AR; ari++) {
+        for(size_t bri = 0; bri < BR; bri++) {
+            for(size_t i = 0; i < B; i++) {
+                internal::gemm_wrapper<T>(
+                  CblasRowMajor, transA, transB, M, N, K, alpha,
+                  ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
+                  ainter_ld,
+                  binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
+                  binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
+                  cinter_ld);
 
-    // adata, bdata, cdata will have to be created 
-    // using pinned memory else where for now using 
-    // regular memory
-    // double *adata = host_pinned_memory(abatch_ld*sizeof(double)); 
-    // double *bdata = host_pinned_memory(bbatch_ld*sizeof(double)); 
-    // double *cdata = host_pinned_memory(cbatch_ld*sizeof(double)); 
+            }
+        }
+      }
+    }
 
-    TALSH gpu_mult;
-    // Create tensor objects 
-    tensor_handle T1 = gpu_mult.host_block(ainter_dims.size(), 
-        tal_ainter_dims, 
-        ainter_buf.data()); //  + ari * areduce_ld + i * abatch_ld);
-    tensor_handle T2 = gpu_mult.host_block(binter_dims.size(), 
-        tal_binter_dims, 
-        binter_buf.data()); //  + bri * breduce_ld + i * bbatch_ld);
-    tensor_handle T3 = gpu_mult.host_block(cinter_dims.size(), 
-        tal_cinter_dims, 
-        cinter_buf.data()); //  + i * cbatch_ld);
-      // double dalpha = std::abs(alpha);
-      // std::cout << "dalpha:[" << dalpha <<std::endl;
-      gpu_mult.mult_block(T3, T1, T2, talsh_op_string, 
-        alpha, COPY_TTT); 
+    else {
+      // std::cout << " not hadamard\n";
+      // std::cout << talsh_op_string << std::endl;
+      // std::cout << aid_size << ":" << bid_size << ":" << cid_size << std::endl;
 
-    talshTensorDestruct(&T1);
-    talshTensorDestruct(&T2);
-    talshTensorDestruct(&T3);
-    // free_host_pinned_memory(adata);
-    // free_host_pinned_memory(bdata);
-    // free_host_pinned_memory(cdata);
+      // adata, bdata, cdata will have to be created 
+      // using pinned memory else where for now using 
+      // regular memory
+      // double *adata = host_pinned_memory(abatch_ld*sizeof(double)); 
+      // double *bdata = host_pinned_memory(bbatch_ld*sizeof(double)); 
+      // double *cdata = host_pinned_memory(cbatch_ld*sizeof(double)); 
+
+      TALSH gpu_mult;
+      // Create tensor objects 
+      tensor_handle T1 = gpu_mult.host_block(ainter_dims.size(), 
+          tal_ainter_dims, 
+          ainter_buf.data()); //  + ari * areduce_ld + i * abatch_ld);
+      tensor_handle T2 = gpu_mult.host_block(binter_dims.size(), 
+          tal_binter_dims, 
+          binter_buf.data()); //  + bri * breduce_ld + i * bbatch_ld);
+      tensor_handle T3 = gpu_mult.host_block(cinter_dims.size(), 
+          tal_cinter_dims, 
+          cinter_buf.data()); //  + i * cbatch_ld);
+        // double dalpha = std::abs(alpha);
+        // std::cout << "dalpha:[" << dalpha <<std::endl;
+        gpu_mult.mult_block(T3, T1, T2, talsh_op_string, 
+          alpha, COPY_TTT); 
+
+      talshTensorDestruct(&T1);
+      talshTensorDestruct(&T2);
+      talshTensorDestruct(&T3);
+      // free_host_pinned_memory(adata);
+      // free_host_pinned_memory(bdata);
+      // free_host_pinned_memory(cdata);
+    }
     #endif
   // C[0]="<<cinter_buf[0]<<"\n";
   assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,

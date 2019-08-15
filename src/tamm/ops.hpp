@@ -1680,7 +1680,7 @@ public:
                         for(const auto v : abuf.block_dims()) { adims_sz.push_back(v); }
                         for(const auto v : bbuf.block_dims()) { bdims_sz.push_back(v); }
                         for(const auto v : cbuf.block_dims()) { cdims_sz.push_back(v); }
-                        kernels::block_multiply(alpha_, abuf.data(), adims_sz,
+                        kernels::block_multiply(ec.pg().rank().value(),alpha_, abuf.data(), adims_sz,
                                 rhs1_int_labels_, bbuf.data(), bdims_sz,
                                 rhs2_int_labels_, cscale, cbuf.data(),
                                 cdims_sz, lhs_int_labels_);
@@ -1749,7 +1749,7 @@ public:
                     for(const auto v : abuf.block_dims()) { adims_sz.push_back(v); }
                     for(const auto v : bbuf.block_dims()) { bdims_sz.push_back(v); }
                     for(const auto v : cbuf.block_dims()) { cdims_sz.push_back(v); }
-                    kernels::block_multiply(alpha_, abuf.data(), adims_sz,
+                    kernels::block_multiply(ec.pg().rank().value(), alpha_, abuf.data(), adims_sz,
                             rhs1_int_labels_, bbuf.data(), bdims_sz,
                             rhs2_int_labels_, cscale, cbuf.data(),
                             cdims_sz, lhs_int_labels_);
@@ -1821,7 +1821,7 @@ public:
             for(const auto v : adims) { adims_sz.push_back(v); }
             for(const auto v : bdims) { bdims_sz.push_back(v); }
             for(const auto v : cdims) { cdims_sz.push_back(v); }
-            kernels::block_multiply(alpha_, abuf.data(), adims_sz,
+            kernels::block_multiply(ec.pg().rank().value(),alpha_, abuf.data(), adims_sz,
                                     rhs1_int_labels_, bbuf.data(), bdims_sz,
                                     rhs2_int_labels_, cscale, cbuf.data(),
                                     cdims_sz, lhs_int_labels_);

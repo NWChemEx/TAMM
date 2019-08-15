@@ -63,14 +63,14 @@ int main( int argc, char* argv[] )
     
     int mpi_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-    #ifdef NWX_GPU
+    #ifdef USE_TALSH
     TALSH talsh_instance;
     talsh_instance.TALSH_initialize();
     #endif
 
     int res = Catch::Session().run();
 
-    #ifdef NWX_GPU
+    #ifdef USE_TALSH
     talsh_instance.TALSH_shutdown();
     #endif    
     GA_Terminate();

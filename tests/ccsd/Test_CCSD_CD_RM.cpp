@@ -24,17 +24,20 @@ int main( int argc, char* argv[] )
     MA_init(MT_DBL, 8000000, 20000000);
     
     int mpi_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
 
-    #ifdef NWX_GPU
-    TALSH talsh_instance;
-    talsh_instance.TALSH_initialize();
+    #ifdef USE_TALSH
+    const std::size_t CCSD_MEM = 4; //GB
+    int host_arg_max;
+    std::size_t host_buf_size = std::size_t{1024*1024*1024}*CCSD_MEM;
+    auto errc = talshInit(&host_buf_size,&host_arg_max,1,&mpi_rank,0,nullptr,0,nullptr);
     #endif
 
     ccsd_driver();
     
-    #ifdef NWX_GPU
-    talsh_instance.TALSH_shutdown();
+    #ifdef USE_TALSH
+    talshStats();
+    talshShutdown();
     #endif  
 
     GA_Terminate();

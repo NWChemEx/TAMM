@@ -1,5 +1,5 @@
-#ifndef TAMM_MULTIPLY_H_
-#define TAMM_MULTIPLY_H_
+#ifndef TAMM_MULTIPLY_HPP_
+#define TAMM_MULTIPLY_HPP_
 
 #include "tamm/errors.hpp"
 #include "tamm/types.hpp"
@@ -11,8 +11,8 @@
 #include <numeric>
 #include <vector>
 
-#define NWX_GPU
-#ifdef NWX_GPU
+// #define USE_TALSH
+#ifdef USE_TALSH
 #include "tamm/talsh_tamm.hpp"
 #include "tamm/cuda_memory_allocator.hpp"
 using tensor_handle = talsh_tens_t;
@@ -87,7 +87,7 @@ inline void gemm_wrapper<std::complex<double>>(
 namespace kernels {
 
 template<typename T>
-void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
+void block_multiply(int my_rank, T alpha, const T* abuf, const SizeVec& adims,
                     const IntLabelVec& alabels, const T* bbuf,
                     const SizeVec& bdims, const IntLabelVec& blabels, T beta,
                     T* cbuf, const SizeVec& cdims, const IntLabelVec& clabels) {
@@ -226,7 +226,7 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
     int areduce_ld = B * abatch_ld;
     int breduce_ld = B * bbatch_ld;
 
-    #ifndef NWX_GPU
+    #ifndef USE_TALSH
     std::vector<T> ainter_buf(static_cast<size_t>(asize.value())),
       binter_buf(static_cast<size_t>(bsize.value())),
       cinter_buf(static_cast<size_t>(csize.value()));
@@ -354,7 +354,7 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
       tensor_handle T3 = gpu_mult.host_block(cdims.size(), 
           tal_cdims, cbuf); 
 
-      gpu_mult.mult_block(T3, T1, T2, talsh_op_string, 
+      gpu_mult.mult_block(my_rank, T3, T1, T2, talsh_op_string, 
           alpha, COPY_TTT); 
 
       talshTensorDestruct(&T1);
@@ -371,4 +371,4 @@ void block_multiply(T alpha, const T* abuf, const SizeVec& adims,
 
 } // namespace tamm
 
-#endif // TAMM_MULTIPLY_H_
+#endif // TAMM_MULTIPLY_HPP_

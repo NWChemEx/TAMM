@@ -1,35 +1,25 @@
-#ifndef TAMM_TALSH_H_
-#define TAMM_TALSH_H_
+#ifndef TAMM_TALSH_HPP_
+#define TAMM_TALSH_HPP_
 
 #include <iostream>
 #include <cassert>
 #include <list>
 #include <iostream>
-#include "talsh.h"
-// #include "talshxx.hpp"
+// #include "talsh.h"
+#include "talshxx.hpp"
 #include "cudamemset.hpp"
-
-// #define NO_GPU 1
 
 namespace ti_internal {
   template<typename> struct is_complex : std::false_type {};
   template<typename T> struct is_complex<std::complex<T>> : std::true_type {};
   template<typename T>
   inline constexpr bool is_complex_v = is_complex<T>::value;
-} // namespace internal
+} // namespace ti_internal
 
 /**
- * TAL-SH usage notes:
- *
- * - DEV_HOST has only one device number 0
- *
- * - In any call passing (dev_kind, dev_num) we can pass (DEV_DEFAULT, talshFlatDevice(..)).
- *   Basically, for a flat device id, the device kind is DEV_DEFAULT
  *
  * - For now, talshTensorConstruct() only works for constructor on host. To allocate on the
  *   GPU, one would allocate on the CPU and use talshTensorPlace() to move it to the GPU.
- * - Another temporary restriction. talshTensorConstruct cannot be called 
- *      without a talsh_task_t.
  */
 
 /**
@@ -64,7 +54,7 @@ class GPUmempool
       printf("\n");
    }
    public:
-   GPUmempool(size_t sz)
+   GPUmempool(int64_t sz)
    {
       pool=NULL;
       printf("Init mempool\n");
@@ -84,7 +74,7 @@ class GPUmempool
    {
       cudaFree(pool);
    }
-   void* malloc(size_t sz)
+   void* malloc(int64_t sz)
    {
       auto chunkI = chunkList.begin();
       char* last_end = chunkI->end;
@@ -159,64 +149,72 @@ class TALSH {
 
  public:
   
-    static size_t small_buffer_size;
-    static int gpu_list[MAX_GPUS_PER_NODE];
-
-    static int ngpu;
-    static int host_arg_max;
+  size_t small_buffer_size;
   TALSH() {
-
-    int errc;
-    // size_t small_buffer_size=TALSH_NO_HOST_BUFFER;
-    // int gpu_list[MAX_GPUS_PER_NODE];
-
-//Query the total number of NVIDIA GPU on node:
-    // int ngpu;
-    // errc=talshDeviceCount(DEV_NVIDIA_GPU,&ngpu);
-    // assert(!errc);
-    // printf(" Number of NVIDIA GPU found on node = %d\n",ngpu);
-
-//Initialize TAL-SH (with a negligible Host buffer since we will use external memory):
-    // int host_arg_max;
-    // for(int i=0; i<ngpu; ++i) gpu_list[i]=i; //list of NVIDIA GPU devices to use in this process
-    // errc=talshInit(&small_buffer_size,&host_arg_max,ngpu,gpu_list,0,NULL,0,NULL);
-    // printf(" TAL-SH has been initialized: Status %d\n",errc);
-    // assert(!errc);
+    small_buffer_size=TALSH_NO_HOST_BUFFER;
   }
   ~TALSH() {
     // talshShutdown();
   }
 
-  static void TALSH_initialize() {
-    int errc;
+  void initialize(int rank) {
+    int errc, ngpu;
+    int host_arg_max;
     // small_buffer_size=TALSH_NO_HOST_BUFFER;
     // Query the total number of NVIDIA GPU on node:
     errc=talshDeviceCount(DEV_NVIDIA_GPU,&ngpu);
     assert(!errc);
-    printf(" Number of NVIDIA GPU found on node = %d\n",ngpu);
+    if(rank==0) std::cout << "Number of NVIDIA GPUs found per node: " <<  ngpu << std::endl;
 
     //Initialize TAL-SH (with a negligible Host buffer since we will use external memory):
-    for(int i=0; i<ngpu; ++i) gpu_list[i]=i; //list of NVIDIA GPU devices to use in this process
-    errc=talshInit(&small_buffer_size,&host_arg_max,ngpu,gpu_list,0,NULL,0,NULL);
-    printf(" TAL-SH has been initialized: Status %d\n",errc);
+    errc=talshInit(&small_buffer_size,&host_arg_max,1,&rank,0,nullptr,0,nullptr);
     assert(!errc);
+    if(rank==0) std::cout << "Initialized TALSH, Status: " << errc << std::endl;
   }
 
-  static void TALSH_shutdown() {
+  void shutdown() {
     talshShutdown();
   }
 
+  template<typename T>
   static tensor_handle host_block(int rank,
                                   const int dims[],
-                                  void *buf = nullptr) {
+                                  T *buf = nullptr) {
+    using std::is_same_v; 
+
     tensor_handle tens;
     int errc;
     errc = talshTensorClean(&tens);
     assert(!errc);
-    errc = talshTensorConstruct(&tens, R8,
-                                rank, dims,
-                                talshFlatDevId(DEV_HOST,0),
-                                buf);
+    if constexpr(ti_internal::is_complex_v<T>){
+      //TODO: check complex double/float
+      // if constexpr(is_same_v<T,std::complex<double>){
+      //   errc = talshTensorConstruct(&tens, C8,
+      //                               rank, dims,
+      //                               talshFlatDevId(DEV_HOST,0),
+      //                               buf);
+      // }
+      // else
+      {
+        errc = talshTensorConstruct(&tens, C8,
+                            rank, dims,
+                            talshFlatDevId(DEV_HOST,0),
+                            buf);
+      }
+                                          
+    }
+    else if constexpr(is_same_v<T,double>){
+      errc = talshTensorConstruct(&tens, R8,
+                                  rank, dims,
+                                  talshFlatDevId(DEV_HOST,0),
+                                  buf);
+    }                
+    else if constexpr(is_same_v<T,float>){
+      errc = talshTensorConstruct(&tens, R4,
+                                  rank, dims,
+                                  talshFlatDevId(DEV_HOST,0),
+                                  buf);
+    }                                      
     assert(!errc);
     return tens;
   }
@@ -259,7 +257,6 @@ class TALSH {
                                 // talshFlatDevId(DEV_NVIDIA_GPU,dev_num),
                                 buf);
     assert(!errc);
-    double* tens_gpu;
     errc = talshTensorPlace(&tens, 
                             dev_num, 
                             DEV_NVIDIA_GPU, 
@@ -286,7 +283,6 @@ class TALSH {
                                 buf);
     set_block(tens, set_val);
     assert(!errc);
-    double* tens_gpu;
     errc = talshTensorPlace(&tens, 
                             dev_num, 
                             DEV_NVIDIA_GPU, 
@@ -313,7 +309,6 @@ class TALSH {
                                 buf);
     set_block(tens, set_val);
     assert(!errc);
-    double* tens_gpu;
     errc = talshTensorPlace(&tens, 
                             dev_num, 
                             DEV_NVIDIA_GPU, 
@@ -373,13 +368,13 @@ class TALSH {
     0,                  //in: requested device id, either kind-specific or flat
     DEV_HOST //in: requested device kind (if present, <dev_id> is kind-specific)
     );
-    const double * bpr8 = (const double *)tens_body;
+    // const double * bpr8 = (const double *)tens_body;
     unsigned int mlndx[MAX_TENSOR_RANK];
-    for(int l=0;l<tens_vol;++l){
+    for(size_t l=0;l<tens_vol;++l){
       tens_elem_mlndx_f(l,nd,tdims,mlndx);
-      printf("\n%E",bpr8[l]); for(int i=0;i<nd;++i) printf(" %u",mlndx[i]);
+      //printf("\n%E",bpr8[l]); for(int i=0;i<nd;++i) printf(" %u",mlndx[i]);
     }
-    printf("\nTensor Volume: %zu \n", tens_vol);fflush(0);
+    // printf("\nTensor Volume: %zu \n", tens_vol);fflush(0);
   }
 
   /**
@@ -390,7 +385,6 @@ class TALSH {
    * tens[...] = val
    */
   static void set_block(tensor_handle tens, double val) {
-    talsh_task_t task;
     talsh_tens_shape_t shape;
 
     tensShape_clean(&shape);
@@ -619,67 +613,9 @@ class TALSH {
     wait_and_destruct(&talsh_task);
   }
 
-/** Following mult_block method takes additional move_arg argument
- *  which is an int already defined in talsh such as
- *  COPY_MTT, COPY_TTT etc.
- */
-template <typename T>
-  static void mult_block(tensor_handle ltens,
-                         tensor_handle r1tens,
-                         tensor_handle r2tens,
-                         std::string cop_string,
-                         std::complex<T> scale,
-                         int move_arg) {
-    talsh_tens_shape_t lshape, r1shape, r2shape;
-
-    tensShape_clean(&lshape);
-    talshTensorShape(&ltens, &lshape);
-
-    tensShape_clean(&r1shape);
-    talshTensorShape(&r1tens, &r1shape);
-
-    tensShape_clean(&r2shape);
-    talshTensorShape(&r2tens, &r2shape);
-
-    //@todo check that the shapes of tensors match
-    // std::cout << "Contract string: " << cop_string << std::endl; 
-
-    tensShape_destruct(&lshape);
-    tensShape_destruct(&r1shape);
-    tensShape_destruct(&r2shape);
-
-    talsh_task_t talsh_task;
-    talshTaskClean(&talsh_task);
-    talshTensorContract(cop_string.c_str(),
-                        &ltens,
-                        &r1tens,
-                        &r2tens,
-                        std::real(scale),
-                        std::imag(scale),
-                        0,
-                        DEV_NVIDIA_GPU, 
-                        // DEV_HOST,
-                        // DEV_DEFAULT,
-                        move_arg,NOPE,
-                        &talsh_task);
-#if 0
-    double total_time;
-    int ierr;
-    int errc;
-    errc=talshTaskWait(&talsh_task, &ierr);
-    errc=talshTaskTime(&talsh_task,&total_time);
-    printf(" Tensor CONTRACTION total time = %f\n",total_time);
-#endif
-    wait_and_destruct(&talsh_task);
-  }
-
   static void tensor_destruct(tensor_handle tens) {
-    int ierr = talshTensorDestruct(&tens);
+    /*int ierr = */ talshTensorDestruct(&tens);
   }
 };
-int TALSH::ngpu;
-size_t TALSH::small_buffer_size=TALSH_NO_HOST_BUFFER;
-int TALSH::gpu_list[MAX_GPUS_PER_NODE];
-int TALSH::host_arg_max;
 
-#endif // TAMM_TALSH_H_
+#endif // TAMM_TALSH_HPP_

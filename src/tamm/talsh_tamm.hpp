@@ -6,10 +6,17 @@
 #include <list>
 #include <iostream>
 #include "talsh.h"
-//#include "talshxx.hpp"
+// #include "talshxx.hpp"
 #include "cudamemset.hpp"
 
 // #define NO_GPU 1
+
+namespace ti_internal {
+  template<typename> struct is_complex : std::false_type {};
+  template<typename T> struct is_complex<std::complex<T>> : std::true_type {};
+  template<typename T>
+  inline constexpr bool is_complex_v = is_complex<T>::value;
+} // namespace internal
 
 /**
  * TAL-SH usage notes:
@@ -531,7 +538,7 @@ class TALSH {
                         0,
                         //DEV_NVIDIA_GPU, 
                         DEV_DEFAULT,
-                        COPY_TTT, YEP,
+                        COPY_TTT, NOPE,
                         &talsh_task);
 #if 0
     double total_time;
@@ -548,11 +555,12 @@ class TALSH {
  *  which is an int already defined in talsh such as 
  *  COPY_MTT, COPY_TTT etc. 
  */ 
-  static void mult_block(tensor_handle ltens,
+  template <typename T>
+  static void mult_block(int dev_id, tensor_handle ltens,
                          tensor_handle r1tens,
                          tensor_handle r2tens,
                          std::string cop_string,
-                         double scale,
+                         T scale,
                          int move_arg) {
     talsh_tens_shape_t lshape, r1shape, r2shape;
 
@@ -574,17 +582,32 @@ class TALSH {
 
     talsh_task_t talsh_task;
     talshTaskClean(&talsh_task);
-    talshTensorContract(cop_string.c_str(),
+    if constexpr(ti_internal::is_complex_v<T>){
+      talshTensorContract(cop_string.c_str(),
                         &ltens,
                         &r1tens,
                         &r2tens,
-                        scale,
-                        0.0,
-                        0,
+                        std::real(scale),
+                        std::imag(scale),
+                        dev_id,
                         DEV_NVIDIA_GPU, 
                         // DEV_DEFAULT,
                         move_arg,NOPE,
                         &talsh_task);
+    }
+    else {
+      talshTensorContract(cop_string.c_str(),
+                        &ltens,
+                        &r1tens,
+                        &r2tens,
+                        scale, 
+                        0.0, 
+                        dev_id,
+                        DEV_NVIDIA_GPU, 
+                        // DEV_DEFAULT,
+                        move_arg,NOPE,
+                        &talsh_task);
+    }
 #if 0
     double total_time;
     int ierr;
@@ -637,7 +660,7 @@ template <typename T>
                         DEV_NVIDIA_GPU, 
                         // DEV_HOST,
                         // DEV_DEFAULT,
-                        move_arg,YEP,
+                        move_arg,NOPE,
                         &talsh_task);
 #if 0
     double total_time;

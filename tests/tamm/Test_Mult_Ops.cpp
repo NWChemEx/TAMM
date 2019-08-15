@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
 
     int mpi_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
-    #ifdef NWX_GPU
+    #ifdef USE_TALSH
     TALSH talsh_instance;
     talsh_instance.TALSH_initialize();
     #endif
@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
     test_3_dim_mult_op<double>(sch, is_size, tile_size);
     test_4_dim_mult_op<double>(sch, is_size, tile_size);
 
-    #ifdef NWX_GPU
+    #ifdef USE_TALSH
     talsh_instance.TALSH_shutdown();
     #endif
 

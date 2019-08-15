@@ -91,7 +91,7 @@ class AtomicCounterGA : public AtomicCounter {
     ga_pg_ = create_ga_process_group(pg_);
     char name[] = "atomic-counter";
     ga_ = NGA_Create_config64(MT_C_LONGLONG, 1, &size, name, nullptr, ga_pg_);
-    EXPECTS(ga_ != 0);
+    //EXPECTS(ga_ != 0);
     if(GA_Pgroup_nodeid(ga_pg_) == 0) {
       int64_t lo[1] = {0};
       int64_t hi[1] = {num_counters_ - 1};

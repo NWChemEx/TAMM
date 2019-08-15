@@ -424,7 +424,7 @@ std::vector<T> topological_sort(const std::map<T,std::vector<T>>& dep_map) {
     // return order;
 }
 
-std::tuple<IndexVector, bool> translate_blockid_if_possible(
+inline std::tuple<IndexVector, bool> translate_blockid_if_possible(
   const IndexVector& from_blockid,
   const IndexLabelVec& from_label,
   const IndexLabelVec& to_label) {
@@ -527,24 +527,42 @@ std::tuple<IndexVector, bool> translate_blockid_if_possible(
     return {to_blockid, true};
 }
 
-void update_labels(IndexLabelVec& labels) {
+inline void update_labels(IndexLabelVec& labels){
     EXPECTS(!labels.empty());
     auto dep_map            = construct_dep_map(labels);
     bool has_new_lbl        = false;
     bool have_other_dep_lbl = false;
-    std::map<TiledIndexLabel, TiledIndexLabel> new_lbl_map;
-    // construct new tis and lbls for dependent labels without secondary labels
-    for(size_t i = 0; i < labels.size(); i++) {
-        auto lbl     = labels[i];
-        auto lbl_tis = lbl.tiled_index_space();
-        
-        if(lbl_tis.is_dependent() && lbl.secondary_labels().size() == 0) {
-            if(new_lbl_map.find(lbl) == new_lbl_map.end()) {
-               new_lbl_map[lbl] = lbl_tis.parent_tis().label();
+
+    std::vector<int> lbl_map(labels.size(), -1);
+    for (size_t i = 0; i < labels.size(); i++) {
+        auto& lbl = labels[i];
+        if(lbl_map[i] != -1){
+            continue;
+        }
+        for (size_t j = i+1; j < labels.size(); j++) {
+            if(labels[j] == lbl){
+                lbl_map[j] = i;
             }
-            labels[i]    = new_lbl_map[lbl];
-            has_new_lbl  = true;
-        } else if(lbl_tis.is_dependent() && lbl.secondary_labels().size() > 0) {
+        }
+        lbl_map[i] = i;
+    }
+
+    EXPECTS(labels.size() == lbl_map.size());
+    for(auto& i : lbl_map) {
+        EXPECTS(i != -1);
+    }
+    
+    for(size_t i = 0; i < labels.size(); i++) {
+        if(lbl_map[i] < i){
+            labels[i] = labels[lbl_map[i]];
+            continue;
+        }
+
+        auto& lbl = labels[i];
+        if(lbl.is_dependent() && lbl.secondary_labels().size() == 0) {
+            labels[i]   = lbl.tiled_index_space().parent_tis().label(); 
+            has_new_lbl = true;
+        } else if(lbl.is_dependent() && lbl.secondary_labels().size() > 0) {
             have_other_dep_lbl = true;
         }
     }
@@ -552,9 +570,8 @@ void update_labels(IndexLabelVec& labels) {
     if(has_new_lbl && have_other_dep_lbl) {
         // Update dependent labels if a new label is created
         for(size_t i = 0; i < labels.size(); i++) {
-            auto lbl            = labels[i];
-            const auto& lbl_tis = lbl.tiled_index_space();
-            if(lbl_tis.is_dependent()) {
+            auto& lbl = labels[i];
+            if(lbl.is_dependent()) {
                 auto primary_label    = lbl.primary_label();
                 auto secondary_labels = lbl.secondary_labels();
                 EXPECTS(!secondary_labels.empty());
@@ -570,7 +587,8 @@ void update_labels(IndexLabelVec& labels) {
     }
 }
 
-void print_labels(const IndexLabelVec& labels) {
+
+inline void print_labels(const IndexLabelVec& labels) {
     for(auto& lbl : labels) {
         std::cout << "primary: " << lbl.primary_label().label() << " - secondary: [ ";
         for(const auto& l : lbl.secondary_labels()) {

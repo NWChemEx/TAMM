@@ -94,12 +94,12 @@ void ccsd_driver() {
             = setupTensors(ec,MO,d_f1,ndiis);
 
     if(ccsd_options.readt) {
-        read_from_disk(ec,d_f1,f1file);
-        read_from_disk(ec,d_t1,t1file);
-        read_from_disk(ec,d_t2,t2file);
-        read_from_disk(ec,cholVpr,v2file);
+        read_from_disk(d_f1,f1file);
+        read_from_disk(d_t1,t1file);
+        read_from_disk(d_t2,t2file);
+        read_from_disk(cholVpr,v2file);
         ec.pg().barrier();
-        p_evl_sorted = tamm::diagonal(ec,d_f1());
+        p_evl_sorted = tamm::diagonal(d_f1);
     }
 
     auto cc_t1 = std::chrono::high_resolution_clock::now();
@@ -114,10 +114,10 @@ void ccsd_driver() {
     ccsd_stats(ec, hf_energy,residual,corr_energy,thresh);
 
     if(ccsd_options.writet) {
-        write_to_disk(ec,d_f1,f1file);
-        write_to_disk(ec,d_t1,t1file);
-        write_to_disk(ec,d_t2,t2file);
-        write_to_disk(ec,cholVpr,v2file);
+        write_to_disk(d_f1,f1file);
+        write_to_disk(d_t1,t1file);
+        write_to_disk(d_t2,t2file);
+        write_to_disk(cholVpr,v2file);
 
         if(rank==0){
           std::ofstream out(cholfile, std::ios::out);

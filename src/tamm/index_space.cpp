@@ -184,8 +184,4 @@ bool operator>=(const IndexSpace& lhs, const IndexSpace& rhs) {
     return (lhs > rhs) || (lhs == rhs);
 }
 
-TiledIndexLabel TiledIndexSpace::label(Label lbl) const {
-    return TiledIndexLabel(*this, lbl);
-}
-
 } // namespace tamm

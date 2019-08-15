@@ -334,6 +334,7 @@ public:
       alpha_{alpha},
       is_assign_{is_assign} {
         if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
+            
             auto lbls = lhs.labels();
             internal::update_labels(lbls);
             lhs_.set_labels(lbls);
@@ -801,6 +802,11 @@ protected:
     }
 
     void validate() {
+        for(auto& rhs : rhs_) {
+            EXPECTS_STR((lhs_.tensor().base_ptr()!= rhs.tensor().base_ptr()), 
+                      "Self assignment is not supported in tensor operations!");
+        }
+
         IndexLabelVec ilv{lhs_.labels()};
         for(size_t i = 0; i < N; i++) {
             ilv.insert(ilv.end(), rhs_[i].labels().begin(),
@@ -859,20 +865,21 @@ public:
         EXPECTS(lhs.has_str_lbl() == rhs.has_str_lbl());
 
         if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
-            auto lhs_lbls = lhs.labels();             
-            auto rhs_lbls = rhs.labels(); 
+            auto lhs_lbls = lhs.labels();
+            auto rhs_lbls = rhs.labels();
 
-            auto labels = lhs_lbls;
+            auto labels{lhs_lbls};
             labels.insert(labels.end(), rhs_lbls.begin(), rhs_lbls.end());
             internal::update_labels(labels);
 
-            lhs_lbls = IndexLabelVec(labels.begin(), labels.begin() + lhs.labels().size());
-            rhs_lbls = IndexLabelVec(labels.begin() + lhs.labels().size(), 
-                                labels.begin() + lhs.labels().size() + rhs.labels().size());
+            lhs_lbls = IndexLabelVec(labels.begin(),
+                                     labels.begin() + lhs.labels().size());
+            rhs_lbls = IndexLabelVec(labels.begin() + lhs.labels().size(),
+                                     labels.begin() + lhs.labels().size() +
+                                       rhs.labels().size());
 
             lhs_.set_labels(lhs_lbls);
             rhs_.set_labels(rhs_lbls);
-
         }
 
         if(lhs.has_str_lbl()){
@@ -966,14 +973,37 @@ public:
                     rhs_.tensor()().labels()[i].tiled_index_space()));
             }
             IndexVector translated_lblockid, translated_rblockid;
-            bool tlb_valid, trb_valid;
-            std::tie(translated_lblockid, tlb_valid) =
-              internal::translate_blockid_if_possible(
-                lblockid, extracted_llabels, lhs_.tensor()().labels());
+            // bool tlb_valid, trb_valid;
+            // std::tie(translated_lblockid, tlb_valid) =
+            //   internal::translate_blockid_if_possible(
+            //     lblockid, extracted_llabels, lhs_.tensor()().labels());
     
-            std::tie(translated_rblockid, trb_valid) =
+            // std::tie(translated_rblockid, trb_valid) =
+            //   internal::translate_blockid_if_possible(
+            //     rblockid, extracted_rlabels, rhs_.tensor()().labels());
+
+            IndexVector translated_blockid;
+            bool lbl_valid; 
+            
+            IndexVector full_blk_id{lblockid};
+            full_blk_id.insert(full_blk_id.end(), rblockid.begin(), rblockid.end());
+
+            IndexLabelVec extracted_lbls{extracted_llabels};
+            extracted_lbls.insert(extracted_lbls.end(), extracted_rlabels.begin(), extracted_rlabels.end());
+
+            auto lt_lbls = lhs_.tensor()().labels();
+            auto rt_lbls = rhs_.tensor()().labels();
+            IndexLabelVec tensor_lbls{lt_lbls};
+            tensor_lbls.insert(tensor_lbls.end(), rt_lbls.begin(), rt_lbls.end());
+
+
+             std::tie(translated_blockid, lbl_valid) =
               internal::translate_blockid_if_possible(
-                rblockid, extracted_rlabels, rhs_.tensor()().labels());
+                full_blk_id, extracted_lbls, tensor_lbls);
+
+             split_block_id(translated_lblockid, translated_rblockid,
+                            lhs_.labels().size(), rhs_.labels().size(),
+                            translated_blockid);
 
 #endif
             // std::cerr<<"Checking AddOp untranslated blockids  lhs="<<lblockid<<" rhs="<<rblockid<<"\n";
@@ -1280,6 +1310,9 @@ protected:
      * @pre lta.validate() has been invoked
      */
     void validate() {
+        EXPECTS_STR((lhs_.tensor().base_ptr()!= rhs_.tensor().base_ptr()), 
+                      "Self assignment is not supported in tensor operations!");
+
         IndexLabelVec ilv{lhs_.labels()};
         ilv.insert(ilv.end(), rhs_.labels().begin(), rhs_.labels().end());
 
@@ -1346,12 +1379,11 @@ public:
         EXPECTS(lhs.has_str_lbl() == rhs1.has_str_lbl()
                 && rhs1.has_str_lbl() == rhs2.has_str_lbl());
         if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
-            
             auto lhs_lbls  = lhs.labels();
             auto rhs1_lbls = rhs1.labels();
             auto rhs2_lbls = rhs2.labels();
 
-            auto labels = lhs_lbls;
+            auto labels{lhs_lbls};
             labels.insert(labels.end(), rhs1_lbls.begin(), rhs1_lbls.end());
             labels.insert(labels.end(), rhs2_lbls.begin(), rhs2_lbls.end());
 
@@ -1422,7 +1454,7 @@ public:
         all_labels.insert(all_labels.end(), rhs2_.labels().begin(),
                           rhs2_.labels().end());
         LabelLoopNest loop_nest{all_labels};
-        
+
         // function to compute one block
         auto lambda = [=,&loop_nest](const IndexVector itval) {
             auto ctensor = lhs_.tensor();
@@ -1542,17 +1574,49 @@ public:
             // std::cout << std::endl;
 
 
-            IndexVector translated_cblockid, translated_ablockid, translated_bblockid;
-            bool tcb_valid, tab_valid, tbb_valid;
-            std::tie(translated_cblockid, tcb_valid) =
-                internal::translate_blockid_if_possible(
-                cblockid, extracted_clabels, lhs_.tensor()().labels());
-            std::tie(translated_ablockid, tab_valid) =
-                internal::translate_blockid_if_possible(
-                ablockid, extracted_alabels, rhs1_.tensor()().labels());
-            std::tie(translated_bblockid, tbb_valid) =
-                internal::translate_blockid_if_possible(
-                bblockid, extracted_blabels, rhs2_.tensor()().labels());
+            // IndexVector translated_cblockid, translated_ablockid, translated_bblockid;
+            // bool tcb_valid, tab_valid, tbb_valid;
+            // std::tie(translated_cblockid, tcb_valid) =
+            //     internal::translate_blockid_if_possible(
+            //     cblockid, extracted_clabels, lhs_.tensor()().labels());
+            // std::tie(translated_ablockid, tab_valid) =
+            //     internal::translate_blockid_if_possible(
+            //     ablockid, extracted_alabels, rhs1_.tensor()().labels());
+            // std::tie(translated_bblockid, tbb_valid) =
+            //     internal::translate_blockid_if_possible(
+            //     bblockid, extracted_blabels, rhs2_.tensor()().labels());
+
+
+            IndexVector blockid{cblockid};
+            blockid.insert(blockid.end(), ablockid.begin(), ablockid.end());
+            blockid.insert(blockid.end(), bblockid.begin(), bblockid.end());
+
+            IndexLabelVec extracted_lbls{extracted_clabels};
+            extracted_lbls.insert(extracted_lbls.end(), extracted_alabels.begin(), extracted_alabels.end());
+            extracted_lbls.insert(extracted_lbls.end(), extracted_blabels.begin(), extracted_blabels.end());
+
+            auto tc_lbls = lhs_.tensor()().labels();
+            auto ta_lbls = rhs1_.tensor()().labels();
+            auto tb_lbls = rhs2_.tensor()().labels();
+
+            IndexLabelVec tensor_lbls{tc_lbls};
+            tensor_lbls.insert(tensor_lbls.end(), ta_lbls.begin(), ta_lbls.end());
+            tensor_lbls.insert(tensor_lbls.end(), tb_lbls.begin(), tb_lbls.end());
+            
+            IndexVector translated_blockid;
+            bool tb_valid;
+
+            std::tie(translated_blockid, tb_valid) =
+              internal::translate_blockid_if_possible(
+                blockid, extracted_lbls, tensor_lbls);
+
+            auto id_it = translated_blockid.begin();
+            IndexVector translated_cblockid{id_it, id_it + lhs_.labels().size()};
+            id_it += lhs_.labels().size();
+            IndexVector translated_ablockid{id_it, id_it + rhs1_.labels().size()};
+            id_it += rhs1_.labels().size();
+            IndexVector translated_bblockid{id_it, id_it + rhs2_.labels().size()};
+            
 
             // std::cout << "translated_cblockid: " ;
             // for(auto& id : translated_cblockid) {
@@ -1857,6 +1921,10 @@ protected:
      *  invoked
      */
     void validate() {
+        EXPECTS_STR((lhs_.tensor().base_ptr()!= rhs1_.tensor().base_ptr() &&
+                       lhs_.tensor().base_ptr()!= rhs2_.tensor().base_ptr()), 
+                     "Self assignment is not supported in tensor operations!");
+
         IndexLabelVec ilv{lhs_.labels()};
         ilv.insert(ilv.end(), rhs1_.labels().begin(), rhs1_.labels().end());
         ilv.insert(ilv.end(), rhs2_.labels().begin(), rhs2_.labels().end());

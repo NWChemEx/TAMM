@@ -186,7 +186,7 @@ public:
 #if 1
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
         EXPECTS(order.size() == ops_.size() - start_idx_);
-        int lvl           = 0;
+        size_t lvl           = 0;
         AtomicCounter* ac = new AtomicCounterGA(ec().pg(), order.size());
         ac->allocate(0);
         for(size_t i = 0; i < order.size(); i++) {

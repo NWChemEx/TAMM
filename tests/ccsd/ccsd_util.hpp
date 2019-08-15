@@ -198,7 +198,7 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
     TiledIndexSpace O = MO("occ");
     TiledIndexSpace V = MO("virt");
  
-    std::vector<T> p_evl_sorted = tamm::diagonal(ec,d_f1());
+    std::vector<T> p_evl_sorted = tamm::diagonal(d_f1);
 
     auto lambda2 = [&](const IndexVector& blockid, span<T> buf){
         if(blockid[0] != blockid[1]) {

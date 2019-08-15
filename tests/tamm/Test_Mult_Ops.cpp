@@ -109,10 +109,10 @@ int main(int argc, char* argv[]) {
     MA_init(MT_DBL, 8000000, 20000000);
 
     int mpi_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
     #ifdef USE_TALSH
     TALSH talsh_instance;
-    talsh_instance.TALSH_initialize();
+    talsh_instance.initialize(mpi_rank);
     #endif
 
     ProcGroup pg{GA_MPI_Comm()};
@@ -128,7 +128,7 @@ int main(int argc, char* argv[]) {
     test_4_dim_mult_op<double>(sch, is_size, tile_size);
 
     #ifdef USE_TALSH
-    talsh_instance.TALSH_shutdown();
+    talsh_instance.shutdown();
     #endif
 
     GA_Terminate();

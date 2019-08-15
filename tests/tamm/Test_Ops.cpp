@@ -122,17 +122,17 @@ int main(int argc, char* argv[]) {
     MA_init(MT_DBL, 8000000, 20000000);
 
     int mpi_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
 
     #ifdef USE_TALSH
     TALSH talsh_instance;
-    talsh_instance.TALSH_initialize();
+    talsh_instance.initialize(mpi_rank);
     #endif
 
     int res = Catch::Session().run(argc, argv);
     
     #ifdef USE_TALSH
-    talsh_instance.TALSH_shutdown();
+    talsh_instance.shutdown();
     #endif  
 
     GA_Terminate();
@@ -1283,15 +1283,15 @@ TEST_CASE("setop with float") {
     test_setop_with_T<float>(3);
 }
 
-// TEST_CASE("setop with single complex") {
-//     test_setop_with_T<complex_single>(1);
-//     test_setop_with_T<complex_single>(3);
-// }
+TEST_CASE("setop with single complex") {
+    test_setop_with_T<complex_single>(1);
+    test_setop_with_T<complex_single>(3);
+}
 
-// TEST_CASE("setop with double complex") {
-//     test_setop_with_T<complex_double>(1);
-//     test_setop_with_T<complex_double>(3);
-// }
+TEST_CASE("setop with double complex") {
+    test_setop_with_T<complex_double>(1);
+    test_setop_with_T<complex_double>(3);
+}
 
 TEST_CASE("mapop with double") {
     test_mapop_with_T<double>(1);
@@ -1303,15 +1303,15 @@ TEST_CASE("mapop with float") {
     test_mapop_with_T<float>(3);
 }
 
-// TEST_CASE("mapop with single complex") {
-//     test_mapop_with_T<complex_single>(1);
-//     test_mapop_with_T<complex_single>(3);
-// }
+TEST_CASE("mapop with single complex") {
+    test_mapop_with_T<complex_single>(1);
+    test_mapop_with_T<complex_single>(3);
+}
 
-// TEST_CASE("mapop with double complex") {
-//     test_mapop_with_T<complex_double>(1);
-//     test_mapop_with_T<complex_double>(3);
-// }
+TEST_CASE("mapop with double complex") {
+    test_mapop_with_T<complex_double>(1);
+    test_mapop_with_T<complex_double>(3);
+}
 
 TEST_CASE("addop with double") {
     test_addop_with_T<double>(1);
@@ -1328,10 +1328,10 @@ TEST_CASE("addop with float") {
 //     test_addop_with_T<complex_single>(3);
 // }
 
-// TEST_CASE("addop with double complex") {
-//     test_addop_with_T<complex_double>(1);
-//     test_addop_with_T<complex_double>(3);
-// }
+TEST_CASE("addop with double complex") {
+    test_addop_with_T<complex_double>(1);
+    test_addop_with_T<complex_double>(3);
+}
 
 #if 1
 TEST_CASE("Two-dimensional ops") {

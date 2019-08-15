@@ -27,17 +27,15 @@ int main( int argc, char* argv[] )
     MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
 
     #ifdef USE_TALSH
-    const std::size_t CCSD_MEM = 4; //GB
-    int host_arg_max;
-    std::size_t host_buf_size = std::size_t{1024*1024*1024}*CCSD_MEM;
-    auto errc = talshInit(&host_buf_size,&host_arg_max,1,&mpi_rank,0,nullptr,0,nullptr);
+    TALSH talsh_instance;
+    talsh_instance.initialize(mpi_rank);
     #endif
 
     ccsd_driver();
     
     #ifdef USE_TALSH
     talshStats();
-    talshShutdown();
+    talsh_instance.shutdown();
     #endif  
 
     GA_Terminate();

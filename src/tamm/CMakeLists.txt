@@ -12,7 +12,7 @@ set(tamm_SRCS tamm.cpp index_space.cpp "${tamm_cuda_SRCS}")
 
 #Add the current directory's header files to the list
 set(tamm_INCLUDES
-    atomic_counter.h
+    atomic_counter.hpp
     work.hpp
     tamm.hpp
     types.hpp
@@ -53,6 +53,5 @@ set(tamm_DEFINITIONS )
 set(tamm_LFLAGS )
 
 nwchemex_add_library(tamm tamm_SRCS tamm_INCLUDES tamm_DEFINTIONS tamm_LFLAGS)
-#target_include_directories(tamm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/eigensolver/include)
 
 

@@ -34,7 +34,7 @@ int main( int argc, char* argv[] )
     ccsd_driver();
     
     #ifdef USE_TALSH
-    talshStats();
+    //talshStats();
     talsh_instance.shutdown();
     #endif  
 

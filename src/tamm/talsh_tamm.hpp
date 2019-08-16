@@ -148,7 +148,7 @@ class TALSH {
   }
 
  public:
-  
+  static int ngpu;
   size_t small_buffer_size;
   TALSH() {
     small_buffer_size=TALSH_NO_HOST_BUFFER;
@@ -158,18 +158,21 @@ class TALSH {
   }
 
   void initialize(int rank) {
-    int errc, ngpu;
+    int errc;
     int host_arg_max;
     // small_buffer_size=TALSH_NO_HOST_BUFFER;
     // Query the total number of NVIDIA GPU on node:
     errc=talshDeviceCount(DEV_NVIDIA_GPU,&ngpu);
     assert(!errc);
     if(rank==0) std::cout << "Number of NVIDIA GPUs found per node: " <<  ngpu << std::endl;
-
+    int dev_id = rank % ngpu;
+    if(ngpu==1) dev_id=0;
     //Initialize TAL-SH (with a negligible Host buffer since we will use external memory):
-    errc=talshInit(&small_buffer_size,&host_arg_max,1,&rank,0,nullptr,0,nullptr);
-    assert(!errc);
-    if(rank==0) std::cout << "Initialized TALSH, Status: " << errc << std::endl;
+    errc=talshInit(&small_buffer_size,&host_arg_max,1,&dev_id,0,nullptr,0,nullptr);
+    // int gpu_list[ngpu];
+    // for(int i=0; i<ngpu; ++i) gpu_list[i]=i;
+    // errc=talshInit(&small_buffer_size,&host_arg_max,ngpu,gpu_list,0,nullptr,0,nullptr);
+    if(rank ==0 && errc != TALSH_SUCCESS) std::cout << "TAL-SH initialize error " << errc << std::endl;
   }
 
   void shutdown() {
@@ -550,12 +553,15 @@ class TALSH {
  *  COPY_MTT, COPY_TTT etc. 
  */ 
   template <typename T>
-  static void mult_block(int dev_id, tensor_handle ltens,
+  static void mult_block(int rank, tensor_handle ltens,
                          tensor_handle r1tens,
                          tensor_handle r2tens,
                          std::string cop_string,
                          T scale,
                          int move_arg) {
+    
+    int dev_id = rank % ngpu;
+    if (ngpu == 1) dev_id=0;
     talsh_tens_shape_t lshape, r1shape, r2shape;
 
     tensShape_clean(&lshape);
@@ -617,5 +623,5 @@ class TALSH {
     /*int ierr = */ talshTensorDestruct(&tens);
   }
 };
-
+int TALSH::ngpu;
 #endif // TAMM_TALSH_HPP_

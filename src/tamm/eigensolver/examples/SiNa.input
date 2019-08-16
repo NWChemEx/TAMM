@@ -1,9 +1,0 @@
-hmatrix /project/projectdirs/m1027/Matrix/CHB/HL_SiNa.chb
-smatrix /project/projectdirs/m1027/Matrix/CHB/SL_SiNa.chb
-logfile SiNa
-nev     100
-nshifts 10
-maxiter 5
-maxscf  3
-maxlan  20
-tol     1e-6

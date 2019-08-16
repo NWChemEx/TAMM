@@ -1,9 +1,0 @@
-hmatrix /project/projectdirs/m1027/Matrix/CHB/HL_Si512_Large.chb
-smatrix /project/projectdirs/m1027/Matrix/CHB/SL_Si512_Large.chb
-logfile Si512
-nev     200
-nshifts 20
-maxiter 3
-maxscf  3
-maxlan  20
-tol     1e-6

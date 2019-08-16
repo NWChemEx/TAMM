@@ -1,9 +1,0 @@
-hmatrix HL_Ubqt190
-smatrix SL_Ubqt190
-logfile Ubqt190
-nev     371
-nshifts 38
-maxiter 5
-maxscf  3
-maxlan  20
-tol     1e-6

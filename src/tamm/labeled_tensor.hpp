@@ -6,21 +6,7 @@
 
 namespace tamm {
 
-namespace internal {
-template<typename>
-struct is_tuple : std::false_type {};
-template<typename... T>
-struct is_tuple<std::tuple<T...>> : std::true_type {};
-template<typename T>
-inline constexpr bool is_tuple_v = is_tuple<T>::value;
-
-template<typename> struct is_complex : std::false_type {};
-template<typename T> struct is_complex<std::complex<T>> : std::true_type {};
-template<typename T>
-inline constexpr bool is_complex_v = is_complex<T>::value;
-
-
-} // namespace internal
+// namespace internal {} // namespace internal
 
 template<typename T>
 class Tensor;
@@ -70,6 +56,8 @@ public:
     using LTT_int = LabeledTensor<int>;
     using LTT_float = LabeledTensor<float>;
     using LTT_double = LabeledTensor<double>;
+    using LTT_cfloat = LabeledTensor<std::complex<float>>;
+    using LTT_cdouble = LabeledTensor<std::complex<double>>;    
 
     template<typename T1>
     constexpr auto make_op(T1&& rhs, const bool is_assign,
@@ -84,16 +72,21 @@ public:
 
         // LT = alpha
         if constexpr(is_convertible_v<T1, T>)
-            return SetOp<T, LTT>{*this, static_cast<T>(sub_v * rhs), is_assign};
+            return SetOp<T, LTT>{*this, static_cast<T>(sub_v) * static_cast<T>(rhs), is_assign};
 
         // LT = LT
-        else if constexpr(is_same_v<T1, LTT>) {
+        else if constexpr(is_same_v<T1, LTT>)
             return AddOp<T, LTT, T1>{*this, static_cast<T>(sub_v), rhs, is_assign};
-        } else if constexpr(is_complex_v<T> && 
+        else if constexpr(is_complex_v<T> && 
                           (is_same_v<T1,LTT_int>
                           ||is_same_v<T1,LTT_float>
                           ||is_same_v<T1,LTT_double>))
             return AddOp<int, LTT, T1>{*this, sub_v, rhs, is_assign};            
+            //real=complex
+        else if constexpr(std::is_floating_point<T>::value && 
+                          (is_same_v<T1,LTT_cfloat>
+                          ||is_same_v<T1,LTT_cdouble>))
+            return AddOp<int, LTT, T1>{*this, sub_v, rhs, is_assign};     
 
         else if constexpr(is_tuple_v<T1>) {
             static_assert(
@@ -109,7 +102,7 @@ public:
                 if constexpr((is_convertible_v<rhs0_t, T>)&&is_same_v<rhs1_t,
                                                                       LTT>)
                     return AddOp<T, LTT, rhs1_t>{*this,
-                                         static_cast<T>(sub_v * get<0>(rhs)),
+                                         static_cast<T>(sub_v) * static_cast<T>(get<0>(rhs)),
                                          get<1>(rhs), is_assign};
                 else if constexpr( is_convertible_v<rhs0_t, T> && 
                                     is_complex_v<T> && 
@@ -117,8 +110,8 @@ public:
                                     ||is_same_v<rhs1_t,LTT_float>
                                     ||is_same_v<rhs1_t,LTT_double>)                     
                                  )
-                    return AddOp<double, LTT, rhs1_t>{*this,
-                                         static_cast<double>(sub_v * get<0>(rhs)),
+                    return AddOp<T, LTT, rhs1_t>{*this,
+                                         static_cast<T>(sub_v) * static_cast<T>(get<0>(rhs)) ,
                                          get<1>(rhs), is_assign};
 
                 //  LT = LT * LT
@@ -126,23 +119,41 @@ public:
                                   is_same_v<rhs1_t, LTT>)
                     return MultOp<T, LTT, LTT, LTT>{*this, static_cast<T>(sub_v),
                                           get<0>(rhs), get<1>(rhs), is_assign};
-                else if constexpr(is_complex_v<T> && 
+                //LHS is complex, rhs1,rhs2 are either complex/real                                          
+                else if constexpr(is_complex_v<T> 
+                                    // && 
+                                    // (
+                                    //   (is_same_v<rhs0_t, LTT> &&
+                                    //     (is_same_v<rhs1_t,LTT_int>
+                                    //     ||is_same_v<rhs1_t,LTT_float>
+                                    //     ||is_same_v<rhs1_t,LTT_double>)
+                                    //   )
+                                    //   ||
+                                    //   (is_same_v<rhs1_t, LTT> &&
+                                    //     (is_same_v<rhs0_t,LTT_int>
+                                    //     ||is_same_v<rhs0_t,LTT_float>
+                                    //     ||is_same_v<rhs0_t,LTT_double>)
+                                    //   )
+                                    // )
+                                 ) 
+                    return MultOp<T, LTT, rhs0_t, rhs1_t>{*this, sub_v,
+                                    get<0>(rhs), get<1>(rhs), is_assign};  
+                //LHS is real, rhs1,rhs2 are either complex/real                                     
+                else if constexpr(!is_complex_v<T> && 
                                     (
                                       (is_same_v<rhs0_t, LTT> &&
-                                        (is_same_v<rhs1_t,LTT_int>
-                                        ||is_same_v<rhs1_t,LTT_float>
-                                        ||is_same_v<rhs1_t,LTT_double>)
+                                        (is_same_v<rhs1_t,LTT_cfloat>
+                                        ||is_same_v<rhs1_t,LTT_cdouble>)
                                       )
                                       ||
-                                      (is_same_v<rhs1_t, LTT> &&
-                                        (is_same_v<rhs0_t,LTT_int>
-                                        ||is_same_v<rhs0_t,LTT_float>
-                                        ||is_same_v<rhs0_t,LTT_double>)
+                                      (is_same_v<rhs1_t,LTT> &&
+                                        (is_same_v<rhs0_t,LTT_cfloat>
+                                        ||is_same_v<rhs0_t,LTT_cdouble>)
                                       )
                                     )
                                  ) 
                     return MultOp<int, LTT, rhs0_t, rhs1_t>{*this, sub_v,
-                                    get<0>(rhs), get<1>(rhs), is_assign};                                          
+                                    get<0>(rhs), get<1>(rhs), is_assign};                                                                              
             }
 
             // LT = alpha * LT * LT
@@ -155,24 +166,44 @@ public:
                     return MultOp<T, LTT, LTT, LTT>{*this,
                                       static_cast<T>(sub_v * get<0>(rhs)),
                                       get<1>(rhs), get<2>(rhs), is_assign};
-                else if constexpr(is_complex_v<T> && 
+                //LHS is complex, rhs1,rhs2 are either complex/real  
+                else if constexpr(is_complex_v<T> 
+                                    // && 
+                                    // (
+                                    //   (is_same_v<rhs1_t, LTT> &&
+                                    //     (is_same_v<rhs2_t,LTT_int>
+                                    //     ||is_same_v<rhs2_t,LTT_float>
+                                    //     ||is_same_v<rhs2_t,LTT_double>)
+                                    //   )
+                                    //   ||
+                                    //   (is_same_v<rhs2_t, LTT> &&
+                                    //     (is_same_v<rhs1_t,LTT_int>
+                                    //     ||is_same_v<rhs1_t,LTT_float>
+                                    //     ||is_same_v<rhs1_t,LTT_double>)
+                                    //   )
+                                    // )
+                                 ) 
+                    return MultOp<T, LTT, rhs1_t, rhs2_t>{*this, 
+                                    static_cast<rhs0_t>(sub_v * get<0>(rhs)),
+                                    get<1>(rhs), get<2>(rhs), is_assign};
+                //LHS is real, rhs1,rhs2 are either complex/real 
+                //alpha has to be real in this case
+                else if constexpr(!is_complex_v<T> && 
                                     (
                                       (is_same_v<rhs1_t, LTT> &&
-                                        (is_same_v<rhs2_t,LTT_int>
-                                        ||is_same_v<rhs2_t,LTT_float>
-                                        ||is_same_v<rhs2_t,LTT_double>)
+                                        (is_same_v<rhs2_t,LTT_cfloat>
+                                        ||is_same_v<rhs2_t,LTT_cdouble>)
                                       )
                                       ||
                                       (is_same_v<rhs2_t, LTT> &&
-                                        (is_same_v<rhs1_t,LTT_int>
-                                        ||is_same_v<rhs1_t,LTT_float>
-                                        ||is_same_v<rhs1_t,LTT_double>)
+                                        (is_same_v<rhs1_t,LTT_cfloat>
+                                        ||is_same_v<rhs1_t,LTT_cdouble>)
                                       )
                                     )
                                  ) 
-                    return MultOp<rhs0_t, LTT, rhs1_t, rhs2_t>{*this, 
+                    return MultOp<T, LTT, rhs1_t, rhs2_t>{*this, 
                                     static_cast<rhs0_t>(sub_v * get<0>(rhs)),
-                                    get<1>(rhs), get<2>(rhs), is_assign};
+                                    get<1>(rhs), get<2>(rhs), is_assign};                                    
                 // static_assert(
                 //   (is_convertible_v<rhs0_t, T>)&&is_same_v<rhs1_t, LTT> &&
                 //     is_same_v<rhs2_t, LTT>,
@@ -384,7 +415,8 @@ inline std::tuple<Types..., T> operator*(std::tuple<Types...> lhs, T rhs) {
 }
 
 template<typename T1, typename T2,
-         typename = std::enable_if_t<std::is_arithmetic<T1>::value>>
+         typename = std::enable_if_t<std::is_arithmetic<T1>::value 
+                            || internal::is_complex_v<T1> > >
 inline std::tuple<T1, LabeledTensor<T2>> operator*(
   T1 val, const LabeledTensor<T2>& rhs) {
     return {val, rhs};

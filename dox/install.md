@@ -32,14 +32,14 @@ cmake \
 -DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran ..
 
-#BLIS Options [WIP]
--DBLIS=ON [-DBLIS_CONFIG=arch]
+#BLIS Options 
+-DBLIS_CONFIG=arch
 Ex: -DBLIS_CONFIG=haswell
 If BLIS_CONFIG is not provided, the BLIS build will try to
 auto-detect (only for x86_64 systems) the architecture.
 
 #CUDA Options
-[-DNWX_CUDA=ON] #Disabled by Default
+[-DNWX_CUDA=ON] #OFF by Default
 
 #GlobalArrays options
 [-DARMCI_NETWORK=MPI-TS] #Default is MPI-PR
@@ -105,7 +105,6 @@ module load gcc/8.1.1
 module load cmake/3.14.2
 module load spectrum-mpi/10.3.0.1-20190611
 module load essl/6.1.0-2
-module load netlib-lapack/3.8.0
 module load cuda/10.1.105
 ```
 
@@ -115,7 +114,6 @@ The following paths may need to be adjusted if the modules change:
 export TAMM_INSTALL_PATH=$HOME/NWChemEx/install
 export ESSL_INC=/sw/summit/essl/6.1.0-2/essl/6.1/include
 export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp6464.so"
-export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-8.1.1/netlib-lapack-3.8.0-moo2tlhxtaae4ij2vkhrkzcgu2pb3bmy/lib64"
 ```
 ```
  cmake \
@@ -127,7 +125,7 @@ export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/2
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
 -DTAMM_CXX_FLAGS="-mcpu=power9" \
--DTAMM_EXTRA_LIBS="$NETLIB_BLAS_LIBS/liblapacke.a;$NETLIB_BLAS_LIBS/liblapack.a" ..
+-DBLIS_CONFIG=power9 ..
 
 To enable CUDA build, add -DNWX_CUDA=ON
 
@@ -149,12 +147,12 @@ Build instructions for Cori
 ----------------------------
 
 ```
-module unload PrgEnv-intel/6.0.4
+module unload PrgEnv-intel/6.0.5
 module load PrgEnv-gnu/6.0.5
 module swap gcc/8.2.0 
 module swap craype/2.5.18
 module swap cray-mpich/7.7.6 
-module load cmake/3.14.0 
+module load cmake/3.14.4 
 module load cuda/10.1.168
 
 ```

@@ -615,6 +615,9 @@ std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexS
 
     if(!ccsd_restart) {
         sch
+            (d_r1() = 0)
+            (d_r2() = 0)
+
             // (_a004_aaaa(p1_va, p2_va, h4_oa, h3_oa) = 0)
             // (_a004_abab(p1_va, p2_vb, h4_oa, h3_ob) = 0)
             // (_a004_bbbb(p1_vb, p2_vb, h4_ob, h3_ob) = 0)
@@ -690,11 +693,13 @@ std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexS
             Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
 
             if(residual < thresh) { 
-                // sch
-                // (d_t2(p1_va,p2_vb,h4_ob,h3_oa) = -1.0 * d_t2(p1_va,p2_vb,h3_oa,h4_ob))
-                // (d_t2(p2_vb,p1_va,h3_oa,h4_ob) = -1.0 * d_t2(p1_va,p2_vb,h3_oa,h4_ob))
-                // (d_t2(p2_vb,p1_va,h4_ob,h3_oa) = d_t2(p1_va,p2_vb,h3_oa,h4_ob))
-                // .execute();
+                Tensor<T> t2_copy{{V,V,O,O},{2,2}};
+                sch.allocate(t2_copy)
+                (t2_copy() = d_t2())
+                (d_t2(p1_va,p2_vb,h4_ob,h3_oa) = -1.0 * t2_copy(p1_va,p2_vb,h3_oa,h4_ob))
+                (d_t2(p2_vb,p1_va,h3_oa,h4_ob) = -1.0 * t2_copy(p1_va,p2_vb,h3_oa,h4_ob))
+                (d_t2(p2_vb,p1_va,h4_ob,h3_oa) = t2_copy(p1_va,p2_vb,h3_oa,h4_ob))
+                .deallocate(t2_copy).execute();
                 break; 
             }
         }

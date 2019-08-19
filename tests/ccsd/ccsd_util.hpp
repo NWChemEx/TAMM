@@ -191,7 +191,7 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(Tile tce_tile, TAMM_SIZE nao, TA
 template<typename T>
 std::tuple<std::vector<T>, Tensor<T>,Tensor<T>,Tensor<T>,Tensor<T>,
 std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>>
- setupTensors(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> d_f1, size_t ndiis) {
+ setupTensors(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> d_f1, size_t ndiis, bool ccsd_restart=false) {
 
     auto rank = ec.pg().rank();
 
@@ -219,28 +219,30 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
   }
    
   std::vector<Tensor<T>> d_r1s, d_r2s, d_t1s, d_t2s;
+  Tensor<T> d_r1{{V,O},{1,1}};
+  Tensor<T> d_r2{{V,V,O,O},{2,2}};
 
-  for(decltype(ndiis) i=0; i<ndiis; i++) {
-    d_r1s.push_back(Tensor<T>{{V,O},{1,1}});
-    d_r2s.push_back(Tensor<T>{{V,V,O,O},{2,2}});
-    d_t1s.push_back(Tensor<T>{{V,O},{1,1}});
-    d_t2s.push_back(Tensor<T>{{V,V,O,O},{2,2}});
-    Tensor<T>::allocate(&ec,d_r1s[i], d_r2s[i], d_t1s[i], d_t2s[i]);
+  if(!ccsd_restart){
+    for(decltype(ndiis) i=0; i<ndiis; i++) {
+      d_r1s.push_back(Tensor<T>{{V,O},{1,1}});
+      d_r2s.push_back(Tensor<T>{{V,V,O,O},{2,2}});
+      d_t1s.push_back(Tensor<T>{{V,O},{1,1}});
+      d_t2s.push_back(Tensor<T>{{V,V,O,O},{2,2}});
+      Tensor<T>::allocate(&ec,d_r1s[i], d_r2s[i], d_t1s[i], d_t2s[i]);
+    }
+    Tensor<T>::allocate(&ec,d_r1,d_r2);
   }
 
   Tensor<T> d_t1{{V,O},{1,1}};
   Tensor<T> d_t2{{V,V,O,O},{2,2}};
-  Tensor<T> d_r1{{V,O},{1,1}};
-  Tensor<T> d_r2{{V,V,O,O},{2,2}};
-  Tensor<T>::allocate(&ec,d_r1,d_r2,d_t1,d_t2);
+
+  Tensor<T>::allocate(&ec,d_t1,d_t2);
 
   Scheduler{ec}   
-  (d_r1() = 0)
-  (d_r2() = 0)
   (d_t1() = 0)
   (d_t2() = 0)
   .execute();
-
+  
   return std::make_tuple(p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s);
 }
 

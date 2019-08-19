@@ -6,6 +6,7 @@
 #include "tamm/kernels/assign.hpp"
 
 #include <algorithm>
+#include "blis/blis.h"
 #include CBLAS_HEADER
 #include <complex>
 #include <numeric>
@@ -30,6 +31,18 @@ using tensor_handle = talsh_tens_t;
 namespace tamm {
 
 namespace internal {
+
+template<typename>
+struct is_tuple : std::false_type {};
+template<typename... T>
+struct is_tuple<std::tuple<T...>> : std::true_type {};
+template<typename T>
+inline constexpr bool is_tuple_v = is_tuple<T>::value;
+
+template<typename> struct is_complex : std::false_type {};
+template<typename T> struct is_complex<std::complex<T>> : std::true_type {};
+template<typename T>
+inline constexpr bool is_complex_v = is_complex<T>::value;
 
 template<typename T>
 void gemm_wrapper(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
@@ -86,11 +99,11 @@ inline void gemm_wrapper<std::complex<double>>(
 
 namespace kernels {
 
-template<typename T>
-void block_multiply(int my_rank, T alpha, const T* abuf, const SizeVec& adims,
-                    const IntLabelVec& alabels, const T* bbuf,
+template<typename T, typename T1, typename T2, typename T3>
+void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
+                    const IntLabelVec& alabels, const T3* bbuf,
                     const SizeVec& bdims, const IntLabelVec& blabels, T beta,
-                    T* cbuf, const SizeVec& cdims, const IntLabelVec& clabels) {
+                    T1* cbuf, const SizeVec& cdims, const IntLabelVec& clabels) {
     const Size asize = std::accumulate(adims.begin(), adims.end(), Size{1},
                                        std::multiplies<Size>());
     const Size bsize = std::accumulate(bdims.begin(), bdims.end(), Size{1},
@@ -226,36 +239,178 @@ void block_multiply(int my_rank, T alpha, const T* abuf, const SizeVec& adims,
     int areduce_ld = B * abatch_ld;
     int breduce_ld = B * bbatch_ld;
 
-    #ifndef USE_TALSH
-    std::vector<T> ainter_buf(static_cast<size_t>(asize.value())),
-      binter_buf(static_cast<size_t>(bsize.value())),
-      cinter_buf(static_cast<size_t>(csize.value()));
-    assign(ainter_buf.data(), ainter_dims, ainter_labels, T{1}, abuf, adims,
+  auto bmult_cpu_lambda = [&](){
+    std::vector<T2> ainter_buf(static_cast<size_t>(asize.value()));
+    std::vector<T3> binter_buf(static_cast<size_t>(bsize.value()));
+    std::vector<T1> cinter_buf(static_cast<size_t>(csize.value()));
+    assign<T2>(ainter_buf.data(), ainter_dims, ainter_labels, T2{1}, abuf, adims,
            alabels, true);
-    assign(binter_buf.data(), binter_dims, binter_labels, T{1}, bbuf, bdims,
+    assign<T3>(binter_buf.data(), binter_dims, binter_labels, T3{1}, bbuf, bdims,
            blabels, true);
-
     // dgemm
-    for(size_t ari = 0; ari < AR; ari++) {
-        for(size_t bri = 0; bri < BR; bri++) {
-            for(size_t i = 0; i < B; i++) {
+    if constexpr(std::is_same_v<T1,T2> && std::is_same_v<T1,T3>){
+      for(size_t ari = 0; ari < AR; ari++) {
+          for(size_t bri = 0; bri < BR; bri++) {
+              for(size_t i = 0; i < B; i++) {
+                  internal::gemm_wrapper<T>(
+                    CblasRowMajor, transA, transB, M, N, K, alpha,
+                    ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
+                    ainter_ld,
+                    binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
+                    binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
+                    cinter_ld);
+              }
+          }
+      }
+    }
+    else {
+      //TODO: actually check if one of T2, T3 is real, T1 is complex
+      if constexpr(std::is_same_v<T1,T2>){
+        //T2 (matrix A) is complex, T3 (B) is real
+        if constexpr(internal::is_complex_v<T1>){
+          //copy B to complex buffer
+          std::vector<T1> bbuf_complex(bsize.value());
+          T3* bbuf_comp_ptr = reinterpret_cast<T3*>(&bbuf_complex[0]);
+          if constexpr(std::is_same_v<T3,double>)
+            bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
+          else if constexpr(std::is_same_v<T3,float>)
+            bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
+
+          for(size_t ari = 0; ari < AR; ari++) {
+            for(size_t bri = 0; bri < BR; bri++) {
+              for(size_t i = 0; i < B; i++) {
                 internal::gemm_wrapper<T>(
                   CblasRowMajor, transA, transB, M, N, K, alpha,
                   ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
                   ainter_ld,
+                  bbuf_complex.data() + bri * breduce_ld + i * bbatch_ld,
+                  binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
+                  cinter_ld);
+              }
+            }
+          }
+        } //is_complex<T1>
+        else {
+          //T1,T2 (C,A) are real, T3 (B) is complex
+          std::vector<T1> bbuf_real(bsize.value());
+          T1* bbuf_comp_ptr = reinterpret_cast<T1*>(&binter_buf[0]);
+          if constexpr(std::is_same_v<T1,double>)
+            bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
+          else if constexpr(std::is_same_v<T1,float>)
+            bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
+
+          for(size_t ari = 0; ari < AR; ari++) {
+            for(size_t bri = 0; bri < BR; bri++) {
+              for(size_t i = 0; i < B; i++) {
+                internal::gemm_wrapper<T1>(
+                  CblasRowMajor, transA, transB, M, N, K, alpha,
+                  ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
+                  ainter_ld,
+                  bbuf_real.data() + bri * breduce_ld + i * bbatch_ld,
+                  binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
+                  cinter_ld);
+              }
+            }
+          }
+        } //is_real<T1>
+
+      } //is_same_v<T1,T2>
+      else if constexpr(std::is_same_v<T1,T3>){
+        //T3 (matrix B) is complex, T2 (A) is real
+        if constexpr(internal::is_complex_v<T1>){
+          std::vector<T1> abuf_complex(asize.value());
+          T2* abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
+          if constexpr(std::is_same_v<T2,double>)
+            bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
+          else if constexpr(std::is_same_v<T2,float>)
+            bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
+
+          for(size_t ari = 0; ari < AR; ari++) {
+            for(size_t bri = 0; bri < BR; bri++) {
+              for(size_t i = 0; i < B; i++) {
+                internal::gemm_wrapper<T>(
+                  CblasRowMajor, transA, transB, M, N, K, alpha,
+                  abuf_complex.data() + ari * areduce_ld + i * abatch_ld,
+                  ainter_ld,
                   binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
                   binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
                   cinter_ld);
-
+              }
             }
+          }
         }
-    }
-    assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,
-        cinter_labels, true);
-    #else
+        else{
+          //T1,T3 (C,B) are real, T2 (A) is complex
+          std::vector<T1> abuf_real(asize.value());
+          T1* abuf_comp_ptr = reinterpret_cast<T1*>(&ainter_buf[0]);
+          if constexpr(std::is_same_v<T1,double>)
+            bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
+          else if constexpr(std::is_same_v<T1,float>)
+            bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
 
+          for(size_t ari = 0; ari < AR; ari++) {
+            for(size_t bri = 0; bri < BR; bri++) {
+              for(size_t i = 0; i < B; i++) {
+                internal::gemm_wrapper<T1>(
+                  CblasRowMajor, transA, transB, M, N, K, alpha,
+                  abuf_real.data() + ari * areduce_ld + i * abatch_ld,
+                  ainter_ld,
+                  binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
+                  binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
+                  cinter_ld);
+              }
+            }
+          }
+
+        }
+
+      } //is_same_v<T1,T3>
+
+      else if constexpr(internal::is_complex_v<T1> && std::is_same_v<T2,T3>){
+        //T1 is complex, T2, T3 are real
+        std::vector<T1> abuf_complex(asize.value());
+          T2* abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
+        std::vector<T1> bbuf_complex(bsize.value());
+          T2* bbuf_comp_ptr = reinterpret_cast<T2*>(&bbuf_complex[0]);
+
+          if constexpr(std::is_same_v<T2,double>) {
+            bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
+            bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
+          }
+          else if constexpr(std::is_same_v<T2,float>) {
+            bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
+            bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
+          }
+
+          for(size_t ari = 0; ari < AR; ari++) {
+            for(size_t bri = 0; bri < BR; bri++) {
+              for(size_t i = 0; i < B; i++) {
+                internal::gemm_wrapper<T>(
+                  CblasRowMajor, transA, transB, M, N, K, alpha,
+                  abuf_complex.data() + ari * areduce_ld + i * abatch_ld,
+                  ainter_ld,
+                  bbuf_complex.data() + bri * breduce_ld + i * bbatch_ld,
+                  binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
+                  cinter_ld);
+              }
+            }
+          }
+
+      }
+      else NOT_IMPLEMENTED();
+      
+    }
+    // C[0]="<<cinter_buf[0]<<"\n";
+    assign<T1>(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,
+           cinter_labels, true);
+    };
+    #ifndef USE_TALSH
+      bmult_cpu_lambda(); 
+    
+    #else 
+    
     auto talsh_op_string = internal::talsh_mult_op_string(
-        clabels, alabels, blabels); 
+                                clabels, alabels, blabels); 
 
     auto aid_size = adims.size();
     auto bid_size = bdims.size();
@@ -302,32 +457,7 @@ void block_multiply(int my_rank, T alpha, const T* abuf, const SizeVec& adims,
     }
 
     if(hadamard || reduction_op) {
-      // std::cout << " hadamard or reduction op: " << talsh_op_string << "\n";
-    std::vector<T> ainter_buf(static_cast<size_t>(asize.value())),
-      binter_buf(static_cast<size_t>(bsize.value())),
-      cinter_buf(static_cast<size_t>(csize.value()));
-      assign(ainter_buf.data(), ainter_dims, ainter_labels, T{1}, abuf, adims,
-            alabels, true);
-      assign(binter_buf.data(), binter_dims, binter_labels, T{1}, bbuf, bdims,
-            blabels, true);
-
-      for(size_t ari = 0; ari < AR; ari++) {
-        for(size_t bri = 0; bri < BR; bri++) {
-            for(size_t i = 0; i < B; i++) {
-                internal::gemm_wrapper<T>(
-                  CblasRowMajor, transA, transB, M, N, K, alpha,
-                  ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
-                  ainter_ld,
-                  binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
-                  binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
-                  cinter_ld);
-
-            }
-        }
-      }
-
-      assign(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,
-         cinter_labels, true);
+      bmult_cpu_lambda(); 
     }
 
     else {
@@ -343,23 +473,180 @@ void block_multiply(int my_rank, T alpha, const T* abuf, const SizeVec& adims,
       // double *cdata = host_pinned_memory(cbatch_ld*sizeof(double)); 
 
       TALSH gpu_mult;
-      T* abufp = const_cast<T*>(abuf); 
-      T* bbufp = const_cast<T*>(bbuf); 
+      T2* abufp = const_cast<T2*>(abuf); 
+      T3* bbufp = const_cast<T3*>(bbuf); 
+
+      if constexpr(std::is_same_v<T1,T2> && std::is_same_v<T1,T3>){
+          tensor_handle th_a = gpu_mult.host_block(adims.size(), 
+              tal_adims, abufp); 
+          tensor_handle th_b = gpu_mult.host_block(bdims.size(), 
+              tal_bdims, bbufp); 
+          tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
+              tal_cdims, cbuf); 
+
+          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+              alpha, COPY_TTT); 
+
+          talshTensorDestruct(&th_a);
+          talshTensorDestruct(&th_b);
+          talshTensorDestruct(&th_c);
+
+      }
+    else {
+      //TODO: actually check if one of T2, T3 is real, T1 is complex
+      if constexpr(std::is_same_v<T1,T2>){
+        //T2 (matrix A) is complex, T3 (B) is real
+        if constexpr(internal::is_complex_v<T1>){
+          //copy B to complex buffer
+          std::vector<T1> bbuf_complex(bsize.value());
+          T3* bbuf_comp_ptr = reinterpret_cast<T3*>(&bbuf_complex[0]);
+          if constexpr(std::is_same_v<T3,double>)
+            bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),bbufp,1,bbuf_comp_ptr,2);
+          else if constexpr(std::is_same_v<T3,float>)
+            bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbufp,1,bbuf_comp_ptr,2);
+
+          tensor_handle th_a = gpu_mult.host_block(adims.size(), 
+              tal_adims, abufp); 
+          tensor_handle th_b = gpu_mult.host_block(bdims.size(), 
+              tal_bdims, bbuf_complex.data()); 
+          tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
+              tal_cdims, cbuf); 
+
+          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+              alpha, COPY_TTT); 
+
+          talshTensorDestruct(&th_a);
+          talshTensorDestruct(&th_b);
+          talshTensorDestruct(&th_c);
+         
+        } //is_complex<T1>
+        else {
+          //T1,T2 (C,A) are real, T3 (B) is complex
+          std::vector<T1> bbuf_real(bsize.value());
+          T1* bbuf_comp_ptr = reinterpret_cast<T1*>(bbufp);
+          if constexpr(std::is_same_v<T1,double>)
+            bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
+          else if constexpr(std::is_same_v<T1,float>)
+            bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
+
+          tensor_handle th_a = gpu_mult.host_block(adims.size(), 
+              tal_adims, abufp); 
+          tensor_handle th_b = gpu_mult.host_block(bdims.size(), 
+              tal_bdims, bbuf_real.data()); 
+          tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
+              tal_cdims, cbuf); 
+
+          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+              alpha, COPY_TTT); 
+
+          talshTensorDestruct(&th_a);
+          talshTensorDestruct(&th_b);
+          talshTensorDestruct(&th_c);
+       
+        } //is_real<T1>
+
+      } //is_same_v<T1,T2>
+      else if constexpr(std::is_same_v<T1,T3>){
+        //T3 (matrix B) is complex, T2 (A) is real
+        if constexpr(internal::is_complex_v<T1>){
+          std::vector<T1> abuf_complex(asize.value());
+          T2* abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
+          if constexpr(std::is_same_v<T2,double>)
+            bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),abufp,1,abuf_comp_ptr,2);
+          else if constexpr(std::is_same_v<T2,float>)
+            bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),abufp,1,abuf_comp_ptr,2);
+
+          tensor_handle th_a = gpu_mult.host_block(adims.size(), 
+              tal_adims, abuf_complex.data()); 
+          tensor_handle th_b = gpu_mult.host_block(bdims.size(), 
+              tal_bdims, bbufp); 
+          tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
+              tal_cdims, cbuf); 
+
+          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+              alpha, COPY_TTT); 
+
+          talshTensorDestruct(&th_a);
+          talshTensorDestruct(&th_b);
+          talshTensorDestruct(&th_c);
+          
+        }
+        else{
+          //T1,T3 (C,B) are real, T2 (A) is complex
+          std::vector<T1> abuf_real(asize.value());
+          T1* abuf_comp_ptr = reinterpret_cast<T1*>(abufp);
+          if constexpr(std::is_same_v<T1,double>)
+            bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
+          else if constexpr(std::is_same_v<T1,float>)
+            bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
+
+          tensor_handle th_a = gpu_mult.host_block(adims.size(), 
+              tal_adims, abuf_real.data()); 
+          tensor_handle th_b = gpu_mult.host_block(bdims.size(), 
+              tal_bdims, bbufp); 
+          tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
+              tal_cdims, cbuf); 
+
+          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+              alpha, COPY_TTT); 
+
+          talshTensorDestruct(&th_a);
+          talshTensorDestruct(&th_b);
+          talshTensorDestruct(&th_c);
+
+        }
+
+      } //is_same_v<T1,T3>
+
+      else if constexpr(internal::is_complex_v<T1> && std::is_same_v<T2,T3>){
+        //T1 is complex, T2, T3 are real
+        std::vector<T1> abuf_complex(asize.value());
+          T2* abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
+        std::vector<T1> bbuf_complex(bsize.value());
+          T2* bbuf_comp_ptr = reinterpret_cast<T2*>(&bbuf_complex[0]);
+
+          if constexpr(std::is_same_v<T2,double>) {
+            bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),abufp,1,abuf_comp_ptr,2);
+            bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),bbufp,1,bbuf_comp_ptr,2);
+          }
+          else if constexpr(std::is_same_v<T2,float>) {
+            bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),abufp,1,abuf_comp_ptr,2);
+            bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbufp,1,bbuf_comp_ptr,2);
+          }
+
+          tensor_handle th_a = gpu_mult.host_block(adims.size(), 
+              tal_adims, abuf_complex.data()); 
+          tensor_handle th_b = gpu_mult.host_block(bdims.size(), 
+              tal_bdims, bbuf_complex.data()); 
+          tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
+              tal_cdims, cbuf); 
+
+          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+              alpha, COPY_TTT); 
+
+          talshTensorDestruct(&th_a);
+          talshTensorDestruct(&th_b);
+          talshTensorDestruct(&th_c);
+          
+      }
+      else NOT_IMPLEMENTED();
+      
+    }
 
       // Create tensor objects 
-      tensor_handle T1 = gpu_mult.host_block(adims.size(), 
-          tal_adims, abufp); 
-      tensor_handle T2 = gpu_mult.host_block(bdims.size(), 
-          tal_bdims, bbufp); 
-      tensor_handle T3 = gpu_mult.host_block(cdims.size(), 
-          tal_cdims, cbuf); 
+      // tensor_handle th_a = gpu_mult.host_block(adims.size(), 
+      //     tal_adims, abufp); 
+      // tensor_handle th_b = gpu_mult.host_block(bdims.size(), 
+      //     tal_bdims, bbufp); 
+      // tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
+      //     tal_cdims, cbuf); 
 
-      gpu_mult.mult_block(my_rank, T3, T1, T2, talsh_op_string, 
-          alpha, COPY_TTT); 
+      // gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+      //     alpha, COPY_TTT); 
 
-      talshTensorDestruct(&T1);
-      talshTensorDestruct(&T2);
-      talshTensorDestruct(&T3);
+      // talshTensorDestruct(&th_a);
+      // talshTensorDestruct(&th_b);
+      // talshTensorDestruct(&th_c);
       // free_host_pinned_memory(adata);
       // free_host_pinned_memory(bdata);
       // free_host_pinned_memory(cdata);

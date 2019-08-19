@@ -611,7 +611,6 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
            (ehf_tmp(mu,nu) = H1(mu,nu))
            (ehf_tmp(mu,nu) += F1(mu,nu))
            (ehf_tamm() = D_tamm() * ehf_tmp()).execute();
-          //  (ehf_tamm() = D_tamm(mu,nu) * ehf_tmp(mu,nu)).execute();
 
         auto ehf = get_scalar(ehf_tamm);
 

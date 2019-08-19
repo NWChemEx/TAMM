@@ -476,7 +476,7 @@ Tensor<TensorType> apply_ewise(LabeledTensor<TensorType> oltensor,
     //if(is_lt) Scheduler{ec}(ltensor = oltensor).execute();    
 
     auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        const IndexVector blockid   = internal::translate_blockid(bid, oltensor);
         const tamm::TAMM_SIZE dsize = tensor.block_size(bid);
         std::vector<TensorType> dbuf(dsize);
         otensor.get(blockid, dbuf);

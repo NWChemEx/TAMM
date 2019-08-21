@@ -48,14 +48,17 @@ void print_tensor(Tensor<T>& t) {
 template<typename T>
 void check_value(LabeledTensor<T> lt, T val) {
     LabelLoopNest loop_nest{lt.labels()};
-
     for(const auto& itval : loop_nest) {
         const IndexVector blockid = internal::translate_blockid(itval, lt);
         size_t size               = lt.tensor().block_size(blockid);
         std::vector<T> buf(size);
         lt.tensor().get(blockid, buf);
         for(TAMM_SIZE i = 0; i < size; i++) {
-            REQUIRE(std::fabs(buf[i] - val) < 1.0e-10);
+            if constexpr(tamm::internal::is_complex_v<T>) {
+                REQUIRE(std::fabs(buf[i].real() - val.real()) < 1.0e-10);                
+            } else {
+                REQUIRE(std::fabs(buf[i] - val) < 1.0e-10);
+            }
         }
     }
 }

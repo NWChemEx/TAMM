@@ -3,7 +3,7 @@
 #ifndef TAMM_WORK_HPP_
 #define TAMM_WORK_HPP_
 
-#include "tamm/atomic_counter.h"
+#include "tamm/atomic_counter.hpp"
 
 
 namespace tamm {

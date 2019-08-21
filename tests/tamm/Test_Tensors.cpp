@@ -75,7 +75,7 @@ void tensor_contruction(const TiledIndexSpace& T_AO,
     Q(A, r, s) += 0.5 * C(mu_A(A), s) * SC(mu_A(A), r);
 }
 
-#if 0
+#if 1
 
 #if 1
 TEST_CASE("Spin Tensor Construction") {
@@ -491,208 +491,6 @@ TEST_CASE("Hash Based Equality and Compatibility Check") {
     REQUIRE(sub_tis1.is_compatible_with(tis1("virt")));
    
 } 
-/*
-// Z_i_mu-prime^x = E_mu_v^X * C_i^mu * C_mu-prime^v-prime
-// Z_i_mu-prime-i^x-prime-i = (E_mu-i_v-prime-i^x-prime-i * C_i^mu-i) * C_mu-prime-i^v-prime-i
-// {X-prime-i} = sum over j in j(i) {X_j}
-// {Mu-prime-i} = sum over j in j(i) {Mu-prime_j}
-// (i, mu-prime-i | x-prime-i)
-TEST_CASE("DLPNO") {
-
-    IndexSpace MU{};
-    IndexSpace X{};
-    IndexSpace dependent_X{};
-    IndexSpace dependent_MU{};
-
-    TiledIndexSpace t_Atom{Atom};
-    TiledIndexSpace t_dependent_X{dependent_X};
-    TiledIndexSpace t_dependent_MU{dependent_MU};
-
-    Tensor<double> Z{};
-    Tensor<double> C{};
-    Tensor<double> E{};
-
-    auto ec = make_execution_context();
-
-    auto i = t_Atom.labels<1>("all");
-    auto [mu, mu_prime, nu_prime] = t_dependent_MU.labels<4>("all");
-    auto x_prime = t_dependent_X.labels<1>("all");
-
-    Scheduler{ec}
-    (T() = 0.0)
-    (T(i, nu(i), x(i)) += E(i, nu(i), x(i)) * C(i, mu(i)))
-    (Z(i, nu(i), x(i)) += T(i, nu(i), x(i)) * C(nu(i), nu_prime(i))
-    .execute();
-
-    // Scheduler{ec}
-    // (T(i, nu_prime(i), x_prime(i)) += E(mu(i), nu_prime(i), x_prime(i)) * C(i,mu(i))
-    // (Z(i, mu_prime(i), x_prime(i)) += T(i, nu_prime(i), x_prime(i)) * C(mu_prime(i), nu_prime(i)))
-    // .execute();
-
-}
-
-
-TEST_CASE("PNO-MP2") {
-    // IndexSpace for i, j values (can be different IndexSpaces)
-    IndexSpace IS{range(10),
-                  {{"occ", {range(0, 5)}},
-                   {"virt", {range(5, 10)}}
-    }};
-    // Dependent IndexSpace for a, b ranges
-    // IndexSpace IS_DEP{range(0,6)};
-    IndexSpace MOs{range(0, 6),
-                   {{"O", {range(0, 3)}},
-                   {"V", {range(3, 6)}}
-    }};
-
-    auto IS_DEP = MOs("O");
-    auto IS_DEP2 = MOs("V");
-
-    // Default tiling for IndexSpace for i, j values (can be different IndexSpaces)
-    TiledIndexSpace tIS{IS};      
-
-   
-    // Dependency relation between i values and label j
-    std::map<IndexVector, IndexSpace> dep_relation_j;
-
-    // Set the dependency for each (i, j) pair and labels a, b
-    // here the dependency set on the IS_DEP named subspaces 
-    // but it can be done in any way. Assumption is that this  
-    // will be passed to the method
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-    
-    for(const auto& i : IS) {
-        if(i%2 == 0){
-            dep_relation_j.insert({{i}, IS_DEP});
-        }
-        else {
-            dep_relation_j.insert({{i}, IS_DEP2});
-        }
-
-    }
-
-    std::cerr << "(i) -> IndexSpace" << std::endl;
-    for(const auto& [key, value] : dep_relation_j) {
-        for(const auto& var : key) {
-            std::cerr << var << " ";
-        }
-        std::cerr << "-> { ";
-
-        for(const auto& i : value) {
-            std::cerr << i << " ";
-        }
-        
-        std::cerr << "}" << std::endl;
-
-    }
-
-    // Dependent IndexSpace for j
-    IndexSpace dep_IS_J{{tIS}, dep_relation_j};
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-
-    // Dependency relation between (i, j) pairs and labels a, b
-    std::map<IndexVector, IndexSpace> dep_relation;
-    for(const auto& i : IS) {
-        if(i%2 == 0) {
-            for(Index j = 0; j < 3; j++) {
-                dep_relation.insert({{i, j}, IS_DEP2});
-            }
-        } else {
-            for(Index j = 0; j < 3; j++) {
-                dep_relation.insert({{i, j}, IS_DEP});
-            }            
-        }
-    }
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-
-    std::cerr << "(i, j) -> IndexSpace" << std::endl;
-    for(const auto& [key, value] : dep_relation) {
-        for(const auto& var : key) {
-            std::cerr << var << " ";
-        }
-
-        std::cerr << "-> { ";
-
-        for(const auto& i : value) {
-            std::cerr << i << " ";
-        }
-
-        std::cerr << "}" << std::endl;
-    }
-
-    // Default tiling for these dependent IndexSpace s 
-    TiledIndexSpace tdepJ(dep_IS_J);
-    
-
-    // Dependent IndexSpace s constructed for a and b labels
-    IndexSpace dep_IS{{tIS, tdepJ}, dep_relation};
-
-    
-    // Default tiling for these dependent IndexSpace s 
-    TiledIndexSpace tdep_IS(dep_IS);
-
-    // Construct labels for the operations
-    auto [i] = tIS.labels<1>("all");
-    auto [k] = tIS.labels<1>("virt");
-    auto [j] = tdepJ.labels<1>("all");
-    auto [a, b] = tdep_IS.labels<2>("all");
-
-
-    // Main computation tensors (can be passed as parameters)
-#if 0
-    Tensor<double> EMP2{i, j(i), a(i,j), b(i,j)};
-    Tensor<double> R{i, j(i), a(i,j), b(i,j)};
-
-    auto ec = make_execution_context();
-    EMP2.allocate(&ec);
-    R.allocate(&ec);
-
-    Scheduler{ec}
-        (EMP2() = 1.0)
-        (EMP2(k, j(k), a(k,j), b(k,j)) = 42.0)
-        (R(i, j(i), a(i,j), b(i,j)) = 2 * EMP2(i, j(i), a(i,j), b(i,j)))
-    .execute();
-
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-    print_tensor(EMP2);
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-    print_tensor(R);
-#else
-    Tensor<double> EMP2{i, j(i), a(i,j), b(i,j)};
-    Tensor<double> R{i, j(i), a(i,j), b(i,j)};
-    Tensor<double> G{i, j(i), a(i,j), b(i,j)};
-    Tensor<double> T{i, j(i), a(i,j), b(i,j)};
-
-    // Temporary tensors
-    Tensor<double> T_prime{i, j(i), a(i,j), b(i,j)};
-    Tensor<double> Temp{i, j(i), a(i,j), b(i,j)}; 
-    
-    // Construct an ExecutionContext 
-    auto ec = make_execution_context();
-    // Construct a Scheduler
-    Scheduler sch{ec};
-    // Assuming these tensors are filled (here we fill them with some values)
-    sch.allocate(R, G, T)
-        (R() = 42.0)
-        (G() = 10.0)
-        (T() = 1.0)
-    .execute();
-
-    // Main computation for calculating closed-shell PNO-MP2 energy
-    // auto EMP2 = (G("i,j")("a,b") + R("i,j")("a,b")).dot(2 * T("i,j")("a,b") - T("i,j")("b,a"));
-    sch.allocate(EMP2, T_prime, Temp)
-        (T_prime(i, j(i), a(i,j), b(i,j)) = 2.0 * T(i, j(i), a(i,j), b(i,j)))
-        (T_prime(i, j(i), a(i,j), b(i,j)) -= T(i, j(i), b(i,j), a(i,j)))
-        (Temp(i, j(i), a(i,j), b(i,j)) = G(i, j(i), a(i,j), b(i,j)))
-        (Temp(i, j(i), a(i,j), b(i,j)) += R(i, j(i), a(i,j), b(i,j)))
-        (EMP2(i, j(i), a(i,j), b(i,j)) += Temp(i, j(i), a(i,j), b(i,j)) * T_prime(i, j(i), a(i,j), b(i,j)))
-    .execute();
-
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-    print_tensor(EMP2);
-#endif
-}
-*/
 
 
 TEST_CASE("GitHub Issues") {
@@ -879,7 +677,7 @@ TEST_CASE("Fill tensors using lambda functions") {
 }
 
 
-
+/*
 TEST_CASE("SCF Example Implementation") {
 
     using tensor_type = Tensor<double>;
@@ -984,6 +782,8 @@ TEST_CASE("SCF Example Implementation") {
 
     sch.deallocate(C, Q, D);
 }
+*/
+
 #endif
 using DepMap = std::map<IndexVector, TiledIndexSpace>;
 // using TIS = TiledIndexSpace;
@@ -1516,15 +1316,53 @@ TEST_CASE("Testing Dependent TiledIndexSpace contractions") {
 }
 #endif
 
+TEST_CASE("Test for apply_ewise") {
+    IndexSpace MO{range(10),
+                   {{"occ", {range(0, 5)}}, {"virt", {range(5, 10)}}}};
+    TiledIndexSpace tMO{MO};
+
+    auto [i, j] = tMO.labels<2>("all");
+    auto [i_virt, j_virt] = tMO.labels<2>("virt");
+
+    Tensor<double> T{i, j};
+
+    auto ec = make_execution_context();
+
+    Scheduler sch{ec};
+
+    sch.allocate(T)
+    (T() = 42.0)
+    (T(i_virt, j_virt) = 21.0)
+    .execute();
+
+    std::cout << "Printing tensor T" << std::endl;
+    print_tensor(T);
+
+    Tensor<double> Temp = tamm::scale(T(i_virt, j_virt), 0.1);
+    std::cout << "Printing tensor Temp" << std::endl;
+    print_tensor(Temp);
+    check_value(Temp, 2.1);
+}
+
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
     GA_Initialize();
     MA_init(MT_DBL, 8000000, 20000000);
 
     int mpi_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
+
+    #ifdef USE_TALSH
+    TALSH talsh_instance;
+    talsh_instance.initialize(mpi_rank);
+    #endif
 
     int res = Catch::Session().run(argc, argv);
+
+    #ifdef USE_TALSH
+    talsh_instance.shutdown();
+    #endif  
+
     GA_Terminate();
     MPI_Finalize();
 

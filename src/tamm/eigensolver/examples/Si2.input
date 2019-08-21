@@ -1,9 +1,0 @@
-hmatrix HL_Si2.chb
-smatrix SL_Si2.chb
-logfile Si2
-nev     100
-nshifts 10
-maxiter 3
-maxscf  3
-maxlan  20
-tol     1e-6

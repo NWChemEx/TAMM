@@ -1,5 +1,5 @@
-#ifndef ATOMIC_COUNTER_H_
-#define ATOMIC_COUNTER_H_
+#ifndef ATOMIC_COUNTER_HPP_
+#define ATOMIC_COUNTER_HPP_
 
 #include "ga-mpi.h"
 #include "tamm/proc_group.hpp"
@@ -175,5 +175,5 @@ class AtomicCounterGA : public AtomicCounter {
 
 } // namespace tamm
 
-#endif // ATOMIC_COUNTER_GA_H_
+#endif // ATOMIC_COUNTER_HPP_
 

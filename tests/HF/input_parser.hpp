@@ -157,11 +157,15 @@ class CCSDOptions: public Options {
     eom_microiter = o.maxiter;
     writet = false;
     readt = false;
+    gf_restart = true;
     
     gf_p_oi_range = 0; //1-number of occupied, 2-all MOs
     gf_ndiis = 10;
     gf_maxiter = 500;
     gf_eta = -0.01;       
+    gf_damping_factor = 1.0;
+    // gf_level_shift = 0;
+    gf_nprocs_poi = 0;
     // gf_omega = -0.4; //a.u (range min to max)     
     gf_threshold = 1e-2;  
     gf_omega_min = -0.8;  
@@ -169,7 +173,8 @@ class CCSDOptions: public Options {
     gf_omega_min_e = -2.0; 
     gf_omega_max_e = 0;    
     gf_omega_delta = 0.01;
-
+    gf_omega_delta_e = 0.002;
+    gf_extrapolate_level = 0;
   }
 
   int eom_nroots;
@@ -177,7 +182,7 @@ class CCSDOptions: public Options {
   int itilesize;
   int icuda;
   int eom_microiter;
-  bool readt, writet;
+  bool readt, writet, gf_restart;
   double threshold;
   double eom_threshold;
 
@@ -186,6 +191,9 @@ class CCSDOptions: public Options {
   int gf_ndiis;
   int gf_maxiter;
   double gf_eta;
+  // double gf_level_shift;
+  int gf_nprocs_poi;
+  double gf_damping_factor;
   // double gf_omega;       
   double gf_threshold;
   double gf_omega_min;
@@ -193,6 +201,8 @@ class CCSDOptions: public Options {
   double gf_omega_min_e;
   double gf_omega_max_e;
   double gf_omega_delta;
+  double gf_omega_delta_e;
+  int gf_extrapolate_level;
   
 
   void print() {
@@ -203,8 +213,10 @@ class CCSDOptions: public Options {
     cout << " threshold = " << threshold << endl;
     cout << " tilesize = " << tilesize << endl;
     cout << " itilesize = " << itilesize << endl;
+    if(gf_nprocs_poi > 0) cout << " gf_nprocs_poi = " << gf_nprocs_poi << endl;
     print_bool(" readt", readt); 
     print_bool(" writet", writet); 
+    print_bool(" gf_restart", gf_restart); 
 
     if(eom_nroots > 0){
       cout << " eom_nroots = " << eom_nroots << endl;
@@ -217,6 +229,9 @@ class CCSDOptions: public Options {
       cout << " gf_ndiis       = " << gf_ndiis << endl;
       cout << " gf_maxiter     = " << gf_maxiter << endl;
       cout << " gf_eta         = " << gf_eta << endl;
+      // cout << " gf_level_shift         = " << gf_level_shift << endl;
+      cout << " gf_damping_factor         = " << gf_damping_factor << endl;
+      
       // cout << " gf_omega       = " << gf_omega << endl;
       cout << " gf_threshold   = " << gf_threshold  << endl;
       cout << " gf_omega_min   = " << gf_omega_min  << endl;
@@ -224,6 +239,8 @@ class CCSDOptions: public Options {
       cout << " gf_omega_min_e = " << gf_omega_min_e << endl;
       cout << " gf_omega_max_e = " << gf_omega_max_e << endl;
       cout << " gf_omega_delta = " << gf_omega_delta << endl; 
+      cout << " gf_omega_delta_e = " << gf_omega_delta_e << endl; 
+      if(gf_extrapolate_level>0) cout << " gf_extrapolate_level = " << gf_extrapolate_level << endl; 
     }   
 
     print_bool(" debug", debug); 
@@ -545,7 +562,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             ccsd_options.readt = to_bool(read_option(line)); 
           else if(is_in_line("writet",line))
             ccsd_options.writet = to_bool(read_option(line));    
-
+          else if(is_in_line("gf_restart",line))
+            ccsd_options.gf_restart = to_bool(read_option(line)); 
           else if(is_in_line("gf_p_oi_range",line)) {
             ccsd_options.gf_p_oi_range = std::stoi(read_option(line)); 
             if(ccsd_options.gf_p_oi_range != 1 && ccsd_options.gf_p_oi_range != 2)
@@ -554,7 +572,13 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("gf_ndiis",line)) 
             ccsd_options.gf_ndiis = std::stoi(read_option(line)); 
           else if(is_in_line("gf_maxiter",line)) 
-            ccsd_options.gf_maxiter = std::stoi(read_option(line));             
+            ccsd_options.gf_maxiter = std::stoi(read_option(line));
+          else if(is_in_line("gf_nprocs_poi",line)) 
+            ccsd_options.gf_nprocs_poi = std::stoi(read_option(line));                         
+          // else if(is_in_line("gf_level_shift",line)) 
+          //   ccsd_options.gf_level_shift = std::stod(read_option(line));  
+          else if(is_in_line("gf_damping_factor",line)) 
+            ccsd_options.gf_damping_factor = std::stod(read_option(line));              
           else if(is_in_line("gf_eta",line)) 
             ccsd_options.gf_eta = std::stod(read_option(line));  
           // else if(is_in_line("gf_omega",line)) 
@@ -571,7 +595,10 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             ccsd_options.gf_omega_max_e = std::stod(read_option(line));  
           else if(is_in_line("gf_omega_delta",line)) 
             ccsd_options.gf_omega_delta = std::stod(read_option(line));  
-
+          else if(is_in_line("gf_omega_delta_e",line)) 
+            ccsd_options.gf_omega_delta_e = std::stod(read_option(line));              
+          else if(is_in_line("gf_extrapolate_level",line)) 
+            ccsd_options.gf_extrapolate_level = std::stoi(read_option(line)); 
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line, "CCSD");
 

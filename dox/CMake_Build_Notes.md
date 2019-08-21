@@ -13,7 +13,7 @@ On Linux:
 
 We recommend using the [Spack package manager](https://spack.io) to install and manage the Prerequisites
 
-For manual setup, use the following script to build GCC (change version number accordingly) and OpenMPI/MPICH from sources if they are not available through a package manager (usually happens when using an older Linux OS). The following can be used on Mac OSX as well:
+For manual setup, use the following script to build GCC (change version number accordingly) and OpenMPI/MPICH from sources if they are not available through a package manager. The following instructions can be used for Mac OSX as well:
 
 ```
 wget http://mirrors-usa.go-parts.com/gcc/releases/gcc-8.1.0/gcc-8.1.0.tar.gz
@@ -54,13 +54,13 @@ make install
 
 Clang Compiler Support
 ----------------------
- - Tested on Linux only with Clang >= 5.x
- - Still requires GCC compilers >= 7.2 to be present (Fortran code is compiled using gfortran)
- - Works only with LLVM Clang built with OpenMP support and configured to use GNU libstdc++ instead of Clang libc++
+ - Tested on Linux only with Clang >= 7.x
+ - Still requires GCC compilers >= 8.x to be present (Fortran code is compiled using gfortran)
+ - Works only with LLVM Clang built with OpenMP support.
  - Install LLVM Clang using the script below:
 
 ```
-version=5.0.0
+version=7.0.0
 current_dir=`pwd`
 
 mkdir stage-$version
@@ -84,18 +84,17 @@ mv -v openmp-${version}.src ${llvm_root}/projects/openmp
 
 mkdir ${llvm_root}/build
 cd ${llvm_root}/build
-cmake .. -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DCMAKE_INSTALL_PREFIX=/opt/llvm5 -DCMAKE_BUILD_TYPE=Release
+cmake .. -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DCMAKE_INSTALL_PREFIX=/opt/llvm7 -DCMAKE_BUILD_TYPE=Release
 make -j16
 make install
 ```
 
 
-PGI Compiler support - Linux Only (Not ready yet)
---------------------------------------------------
-  - ANTLR CppRuntime library does not build with PGI compilers - use GCC here.
+PGI Compiler support - Linux Only (Work-in progress)
+-----------------------------------------------------
   - GA - openmpi/mpich has to be built manually with PGI compilers, openmpi bundled with PGI install does not seem to work
   - CC=pgcc CXX=pgc++ FC=pgfortran ./configure --prefix=/opt/openmpi-2.1 --enable-mpi-cxx --enable-mpi-fortran
 
   - TAMM code compiles fine, but link line fails due since PGI compiler does not support some SIMD intrinsics used in Eigen.
 
-Note: When using GNU compilers, adding pgi-install-path/lib directory to LD_LIBRARY_PATH causes link errors like `libhwloc.so.5: undefined reference to move_pages@libnuma_1.2`
+Note: When using GNU compilers, adding pgi-install-path/lib directory to LD_LIBRARY_PATH results in link errors like `libhwloc.so.5: undefined reference to move_pages@libnuma_1.2`

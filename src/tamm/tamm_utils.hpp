@@ -341,7 +341,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename) {
 
     double io_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-    if(ec.pg().rank() == 0) std::cout << "Time for writing " << filename << " to disk: " << io_time << " secs" << std::endl;
+    //if(ec.pg().rank() == 0) std::cout << "Time for writing " << filename << " to disk: " << io_time << " secs" << std::endl;
 
 }
 
@@ -400,7 +400,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename) {
 
     double io_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-    if(ec.pg().rank() == 0) std::cout << "Time for reading " << filename << " from disk: " << io_time << " secs" << std::endl;
+    //if(ec.pg().rank() == 0) std::cout << "Time for reading " << filename << " from disk: " << io_time << " secs" << std::endl;
 }
 
 /**
@@ -466,22 +466,22 @@ void scale_ip(Tensor<TensorType> tensor, TensorType alpha) {
  */
 template<typename TensorType>
 Tensor<TensorType> apply_ewise(LabeledTensor<TensorType> oltensor,
-                 std::function<TensorType(TensorType)> func,
-                 bool is_lt=true) {
+                   std::function<TensorType(TensorType)> func,
+                   bool is_lt=true) {
     ExecutionContext& ec = get_ec(oltensor);
     Tensor<TensorType> otensor = oltensor.tensor();
-    Tensor<TensorType> tensor{otensor.tiled_index_spaces()};
+    Tensor<TensorType> tensor{oltensor.labels()};
     LabeledTensor<TensorType> ltensor = tensor();
     Tensor<TensorType>::allocate(&ec,tensor);
-    if(is_lt) Scheduler{ec}(ltensor = oltensor).execute();    
+    //if(is_lt) Scheduler{ec}(ltensor = oltensor).execute();    
 
     auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        const IndexVector blockid   = internal::translate_blockid(bid, oltensor);
+        const tamm::TAMM_SIZE dsize = tensor.block_size(bid);
         std::vector<TensorType> dbuf(dsize);
         otensor.get(blockid, dbuf);
         for(size_t c = 0; c < dsize; c++) dbuf[c] = func(dbuf[c]);
-        tensor.put(blockid, dbuf);
+        tensor.put(bid, dbuf);
     };
     block_for(ec, ltensor, lambda);
     return tensor;

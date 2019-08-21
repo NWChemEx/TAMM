@@ -1807,6 +1807,10 @@ public:
         return primary_label_.tiled_index_space();
     }
 
+    bool is_dependent() const {
+        return tiled_index_space().is_dependent();
+    }
+
     // Comparison operators
     friend bool operator==(const TiledIndexLabel& lhs,
                            const TiledIndexLabel& rhs);

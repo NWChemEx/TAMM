@@ -1,9 +1,0 @@
-hmatrix HL_Si216.chb
-smatrix SL_Si216.chb
-logfile Si216
-nev     100
-loc     10
-maxiter 5
-maxlan  20
-maxscf  3
-tol     1e-6

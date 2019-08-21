@@ -1,9 +1,0 @@
-hmatrix /project/projectdirs/m1027/Matrix/CHB/HL_Graphene720.chb
-smatrix /project/projectdirs/m1027/Matrix/CHB/SL_Graphene720.chb
-logfile Graphene720
-nev     150
-nshifts 15
-maxiter 5
-maxscf  3
-maxlan  20
-tol     1e-6

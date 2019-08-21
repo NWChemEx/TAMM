@@ -5,7 +5,7 @@
 //#include "tamm/tensor_impl.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
-#include "tamm/atomic_counter.h"
+#include "tamm/atomic_counter.hpp"
 
 #include <algorithm>
 #include <iterator>

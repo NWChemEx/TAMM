@@ -2,12 +2,17 @@ cmake_minimum_required(VERSION ${CMAKE_VERSION})
 project(tamm VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For nwchemex_add_library
 
+if(NWX_CUDA)
+    set(tamm_cuda_SRCS cuda_memory_allocator.cu cudamemset.cu)
+    set(tamm_cuda_INCS cuda_memory_allocator.hpp cudamemset.hpp talsh_tamm.hpp)
+endif()
+
 #Add the current directory's sources to the list
-set(tamm_SRCS tamm.cpp index_space.cpp)
+set(tamm_SRCS tamm.cpp index_space.cpp "${tamm_cuda_SRCS}")
 
 #Add the current directory's header files to the list
 set(tamm_INCLUDES
-    atomic_counter.h
+    atomic_counter.hpp
     work.hpp
     tamm.hpp
     types.hpp
@@ -40,6 +45,7 @@ set(tamm_INCLUDES
     block_buffer.hpp
     kernels/assign.hpp
     kernels/multiply.hpp
+    "${tamm_cuda_INCS}"
     # spin_tensor.hpp
    )
 
@@ -47,6 +53,5 @@ set(tamm_DEFINITIONS )
 set(tamm_LFLAGS )
 
 nwchemex_add_library(tamm tamm_SRCS tamm_INCLUDES tamm_DEFINTIONS tamm_LFLAGS)
-#target_include_directories(tamm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/eigensolver/include)
 
 

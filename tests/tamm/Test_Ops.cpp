@@ -48,14 +48,17 @@ void print_tensor(Tensor<T>& t) {
 template<typename T>
 void check_value(LabeledTensor<T> lt, T val) {
     LabelLoopNest loop_nest{lt.labels()};
-
     for(const auto& itval : loop_nest) {
         const IndexVector blockid = internal::translate_blockid(itval, lt);
         size_t size               = lt.tensor().block_size(blockid);
         std::vector<T> buf(size);
         lt.tensor().get(blockid, buf);
         for(TAMM_SIZE i = 0; i < size; i++) {
-            REQUIRE(std::fabs(buf[i] - val) < 1.0e-10);
+            if constexpr(tamm::internal::is_complex_v<T>) {
+                REQUIRE(std::fabs(buf[i].real() - val.real()) < 1.0e-10);                
+            } else {
+                REQUIRE(std::fabs(buf[i] - val) < 1.0e-10);
+            }
         }
     }
 }
@@ -122,9 +125,19 @@ int main(int argc, char* argv[]) {
     MA_init(MT_DBL, 8000000, 20000000);
 
     int mpi_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
+
+    #ifdef USE_TALSH
+    TALSH talsh_instance;
+    talsh_instance.initialize(mpi_rank);
+    #endif
 
     int res = Catch::Session().run(argc, argv);
+    
+    #ifdef USE_TALSH
+    talsh_instance.shutdown();
+    #endif  
+
     GA_Terminate();
     MPI_Finalize();
 
@@ -1273,15 +1286,15 @@ TEST_CASE("setop with float") {
     test_setop_with_T<float>(3);
 }
 
-// TEST_CASE("setop with single complex") {
-//     test_setop_with_T<complex_single>(1);
-//     test_setop_with_T<complex_single>(3);
-// }
+TEST_CASE("setop with single complex") {
+    test_setop_with_T<complex_single>(1);
+    test_setop_with_T<complex_single>(3);
+}
 
-// TEST_CASE("setop with double complex") {
-//     test_setop_with_T<complex_double>(1);
-//     test_setop_with_T<complex_double>(3);
-// }
+TEST_CASE("setop with double complex") {
+    test_setop_with_T<complex_double>(1);
+    test_setop_with_T<complex_double>(3);
+}
 
 TEST_CASE("mapop with double") {
     test_mapop_with_T<double>(1);
@@ -1293,15 +1306,15 @@ TEST_CASE("mapop with float") {
     test_mapop_with_T<float>(3);
 }
 
-// TEST_CASE("mapop with single complex") {
-//     test_mapop_with_T<complex_single>(1);
-//     test_mapop_with_T<complex_single>(3);
-// }
+TEST_CASE("mapop with single complex") {
+    test_mapop_with_T<complex_single>(1);
+    test_mapop_with_T<complex_single>(3);
+}
 
-// TEST_CASE("mapop with double complex") {
-//     test_mapop_with_T<complex_double>(1);
-//     test_mapop_with_T<complex_double>(3);
-// }
+TEST_CASE("mapop with double complex") {
+    test_mapop_with_T<complex_double>(1);
+    test_mapop_with_T<complex_double>(3);
+}
 
 TEST_CASE("addop with double") {
     test_addop_with_T<double>(1);
@@ -1318,10 +1331,10 @@ TEST_CASE("addop with float") {
 //     test_addop_with_T<complex_single>(3);
 // }
 
-// TEST_CASE("addop with double complex") {
-//     test_addop_with_T<complex_double>(1);
-//     test_addop_with_T<complex_double>(3);
-// }
+TEST_CASE("addop with double complex") {
+    test_addop_with_T<complex_double>(1);
+    test_addop_with_T<complex_double>(3);
+}
 
 #if 1
 TEST_CASE("Two-dimensional ops") {
@@ -1798,7 +1811,7 @@ TEST_CASE("Two-dimensional ops part I") {
         failed = true;
     }
     REQUIRE(!failed);
-
+    
     try {
         failed = false;
         Tensor<T> T1{TIS, TIS}, T2{TIS, TIS};

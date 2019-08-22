@@ -6,6 +6,8 @@
 #include "tamm/kernels/assign.hpp"
 
 #include <algorithm>
+// disable BLAS prototypes within BLIS.
+#define BLIS_DISABLE_BLAS_DEFS    
 #include "blis/blis.h"
 #include CBLAS_HEADER
 #include <complex>

@@ -33,6 +33,7 @@ cmake \
 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran ..
 
 #BLIS Options 
+-DUSE_BLIS=ON
 -DBLIS_CONFIG=arch
 Ex: -DBLIS_CONFIG=haswell
 If BLIS_CONFIG is not provided, the BLIS build will try to
@@ -92,6 +93,7 @@ cmake \
 -DSCALAPACK_LIBRARIES=$TAMM_BLASLIBS -DSCALAPACK=ON ..
 ```
 
+
 ```
 make -j3
 make install
@@ -125,7 +127,7 @@ export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp6464.so"
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
 -DTAMM_CXX_FLAGS="-mcpu=power9" \
--DBLIS_CONFIG=power9 ..
+[-DUSE_BLIS=ON -DBLIS_CONFIG=power9 ] ..
 
 To enable CUDA build, add -DNWX_CUDA=ON
 

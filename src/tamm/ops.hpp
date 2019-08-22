@@ -1066,7 +1066,7 @@ public:
                         ReadAccess(IndexedTensor{rtensor, translated_rblockid}));
             }
         }
-        
+        #ifdef USE_BLIS
         else {
             const size_t l_size = ltensor.block_size(translated_lblockid);
             const size_t r_size = rtensor.block_size(translated_rblockid);
@@ -1112,6 +1112,7 @@ public:
                 ltensor.add(translated_lblockid, lbuf);
             }
         }
+        #endif
 
         };
 

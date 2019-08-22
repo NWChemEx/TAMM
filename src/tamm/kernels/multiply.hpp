@@ -6,9 +6,11 @@
 #include "tamm/kernels/assign.hpp"
 
 #include <algorithm>
+#ifdef USE_BLIS
 // disable BLAS prototypes within BLIS.
-#define BLIS_DISABLE_BLAS_DEFS    
+// #define BLIS_DISABLE_BLAS_DEFS    
 #include "blis/blis.h"
+#endif
 #include CBLAS_HEADER
 #include <complex>
 #include <numeric>
@@ -265,6 +267,7 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
           }
       }
     }
+    #ifdef USE_BLIS
     else {
       //TODO: actually check if one of T2, T3 is real, T1 is complex
       if constexpr(std::is_same_v<T1,T2>){
@@ -399,9 +402,10 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
           }
 
       }
-      else NOT_IMPLEMENTED();
       
+      else NOT_IMPLEMENTED();    
     }
+    #endif
     // C[0]="<<cinter_buf[0]<<"\n";
     assign<T1>(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,
            cinter_labels, true);
@@ -494,6 +498,7 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
           talshTensorDestruct(&th_c);
 
       }
+      #ifdef USE_BLIS
     else {
       //TODO: actually check if one of T2, T3 is real, T1 is complex
       if constexpr(std::is_same_v<T1,T2>){
@@ -631,9 +636,9 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
           talshTensorDestruct(&th_c);
           
       }
-      else NOT_IMPLEMENTED();
-      
+      else NOT_IMPLEMENTED();    
     }
+    #endif
 
       // Create tensor objects 
       // tensor_handle th_a = gpu_mult.host_block(adims.size(), 

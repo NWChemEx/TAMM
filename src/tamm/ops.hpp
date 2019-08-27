@@ -303,13 +303,14 @@ class OpList;
 
 class Op {
 public:
-    virtual TensorBase* writes() const             = 0;
-    virtual TensorBase* accumulates() const        = 0;
-    virtual std::vector<TensorBase*> reads() const = 0;
-    virtual bool is_memory_barrier() const         = 0;
-    virtual std::shared_ptr<Op> clone() const      = 0;
-    virtual void execute(ExecutionContext& ec)     = 0;
-    virtual OpList canonicalize() const            = 0;
+    virtual TensorBase* writes() const                      = 0;
+    virtual TensorBase* accumulates() const                 = 0;
+    virtual std::vector<TensorBase*> reads() const          = 0;
+    virtual bool is_memory_barrier() const                  = 0;
+    virtual std::shared_ptr<Op> clone() const               = 0;
+    virtual void execute(ExecutionContext& ec,
+                         ExecutionHW hw = ExecutionHW::CPU) = 0;
+    virtual OpList canonicalize() const                     = 0;
     virtual ~Op() {}
 };
 
@@ -361,7 +362,7 @@ public:
         return std::shared_ptr<Op>(new SetOp<T, LabeledTensorT>{*this});
     }
 
-    void execute(ExecutionContext& ec) override {
+    void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
         
 #if 0
 //previous implementation
@@ -589,7 +590,7 @@ public:
         return std::shared_ptr<Op>(new ScanOp<LabeledTensorT, Func>{*this});
     }
 
-    void execute(ExecutionContext& ec) override {
+    void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
         using TensorElType = typename LabeledTensorT::element_type;
         // the iterator to generate the tasks
         const auto& tensor = lhs_.tensor();
@@ -720,7 +721,7 @@ public:
         return std::shared_ptr<Op>(new MapOp<LabeledTensorT, Func, N>{*this});
     }
 
-    void execute(ExecutionContext& ec) override {
+    void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
         using TensorElType = typename LabeledTensorT::element_type;
 
         IndexLabelVec merged_labels{lhs_.labels()};
@@ -920,7 +921,7 @@ public:
         return std::shared_ptr<Op>(new AddOp<T, LabeledTensorT1, LabeledTensorT2>{*this});
     }
 
-    void execute(ExecutionContext& ec) override {
+    void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     #if 1
         // std::cerr<<"DOING ADDOP\n";
 
@@ -1446,7 +1447,7 @@ public:
         return std::shared_ptr<Op>(new MultOp{*this});
     }
 
-    void execute(ExecutionContext& ec) override {
+    void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
         EXPECTS(!is_assign_);
         #if 1
         using TensorElType = typename LabeledTensorT1::element_type;
@@ -1692,7 +1693,7 @@ public:
                         kernels::block_multiply(ec.pg().rank().value(),alpha_, abuf.data(), adims_sz,
                                 rhs1_int_labels_, bbuf.data(), bdims_sz,
                                 rhs2_int_labels_, cscale, cbuf.data(),
-                                cdims_sz, lhs_int_labels_);
+                                cdims_sz, lhs_int_labels_, hw);
 
                         // add the computed update to the tensor
                         cbuf.release_add();
@@ -1731,7 +1732,7 @@ public:
                                         (my_rank, alpha_, abuf.data(), adims_sz,
                                         rhs1_int_labels_, bbuf.data(), bdims_sz,
                                         rhs2_int_labels_, cscale, cbuf.data(),
-                                        cdims_sz, lhs_int_labels_);
+                                        cdims_sz, lhs_int_labels_, hw);
 
                 // add the computed update to the tensor
                 ctensor.add(translated_cblockid, cbuf);
@@ -1797,7 +1798,7 @@ public:
                     kernels::block_multiply(my_rank, alpha_, abuf.data(), adims_sz,
                             rhs1_int_labels_, bbuf.data(), bdims_sz,
                             rhs2_int_labels_, cscale, cbuf.data(),
-                            cdims_sz, lhs_int_labels_);
+                            cdims_sz, lhs_int_labels_, hw);
 
                     // add the computed update to the tensor
                     cbuf.release_add();
@@ -1959,7 +1960,7 @@ public:
         return std::shared_ptr<Op>(new AllocOp{*this});
     }
 
-    void execute(ExecutionContext& ec) override { tensor_.allocate(&ec_); }
+    void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override { tensor_.allocate(&ec_); }
 
     TensorBase* writes() const {
         return tensor_.base_ptr();
@@ -1997,7 +1998,7 @@ public:
         return std::shared_ptr<Op>(new DeallocOp{*this});
     }
 
-    void execute(ExecutionContext& ec) override { tensor_.deallocate(); }
+    void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override { tensor_.deallocate(); }
 
     TensorBase* writes() const {
         return tensor_.base_ptr();

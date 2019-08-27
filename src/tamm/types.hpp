@@ -157,6 +157,8 @@ enum class IndexPosition { upper, lower, neither };
 
 enum class SpinType { ao_spin, mo_spin };
 
+enum class ExecutionHW { CPU, GPU };
+
 using SpinMask = std::vector<SpinPosition>;
 //////////////////
 

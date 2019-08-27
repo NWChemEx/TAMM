@@ -107,7 +107,7 @@ template<typename T, typename T1, typename T2, typename T3>
 void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
                     const IntLabelVec& alabels, const T3* bbuf,
                     const SizeVec& bdims, const IntLabelVec& blabels, T beta,
-                    T1* cbuf, const SizeVec& cdims, const IntLabelVec& clabels) {
+                    T1* cbuf, const SizeVec& cdims, const IntLabelVec& clabels, ExecutionHW hw = ExecutionHW::CPU) {
     const Size asize = std::accumulate(adims.begin(), adims.end(), Size{1},
                                        std::multiplies<Size>());
     const Size bsize = std::accumulate(bdims.begin(), bdims.end(), Size{1},
@@ -462,12 +462,12 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
       if (r1 && r2) reduction_op = true;
     }
 
-    if(hadamard || reduction_op) {
+    if(hadamard || reduction_op || hw == ExecutionHW::CPU) {
       bmult_cpu_lambda(); 
     }
 
     else {
-      // std::cout << " not hadamard\n";
+      // std::cout << "not hadamard\n";
       // std::cout << talsh_op_string << std::endl;
       // std::cout << aid_size << ":" << bid_size << ":" << cid_size << std::endl;
 

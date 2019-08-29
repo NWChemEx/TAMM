@@ -2,8 +2,7 @@
 #ifndef CCSD_T_GPU_TGEN_HPP_
 #define CCSD_T_GPU_TGEN_HPP_
 
-#include "ccsd_t_singles_gpu.hpp"
-#include "ccsd_t_doubles_gpu_tgen.hpp"
+#include "ccsd_t_gpu_all_fused.hpp"
 
 #include "header.hpp"
 
@@ -105,20 +104,25 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
     for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) 
       max_hdim = std::max(max_hdim,k_range[t_h1b]);
 
-    size_t abuf_size1 = 9 * (max_pdim*max_pdim) * (max_hdim*max_hdim);
-    size_t bbuf_size1 = 9 * max_pdim * (max_hdim*max_hdim*max_hdim);
-    size_t abuf_size2 = 9 * (max_pdim*max_pdim) * (max_hdim * max_hdim);
-    size_t bbuf_size2 = 9 * (max_pdim*max_pdim*max_pdim) * max_hdim;
+    size_t abuf_size1 = 9 * noab * (max_pdim*max_pdim) * (max_hdim*max_hdim);
+    size_t bbuf_size1 = 9 * noab * max_pdim * (max_hdim*max_hdim*max_hdim);
+    size_t abuf_size2 = 9 * nvab * (max_pdim*max_pdim) * (max_hdim * max_hdim);
+    size_t bbuf_size2 = 9 * nvab * (max_pdim*max_pdim*max_pdim) * max_hdim;
 
     std::vector<T> k_abuf1; 
     std::vector<T> k_bbuf1; 
     std::vector<T> k_abuf2; 
     std::vector<T> k_bbuf2; 
-    
-      k_abuf1.resize(abuf_size1);
-      k_bbuf1.resize(bbuf_size1);
-      k_abuf2.resize(abuf_size2);
-      k_bbuf2.resize(bbuf_size2);
+    std::vector<T> k_abufs1;
+    std::vector<T> k_bbufs1;
+
+    k_abufs1.resize(9*max_pdim*max_hdim);
+    k_bbufs1.resize(9 * (max_pdim*max_pdim) * (max_hdim*max_hdim));
+
+    k_abuf1.resize(abuf_size1);
+    k_bbuf1.resize(bbuf_size1);
+    k_abuf2.resize(abuf_size2);
+    k_bbuf2.resize(bbuf_size2);
 
   for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
     for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
@@ -170,16 +174,12 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                       // cout << "p4,5,6,h1,2,3 = ";
                       // dprint(t_p4b,t_p5b,t_p6b,t_h1b,t_h2b,t_h3b);
 
-                      ccsd_t_singles_gpu(ec,MO,noab,nvab,k_spin,
-                          k_singles, d_t1, d_v2, k_evl_sorted,
-                          k_range,t_h1b, t_h2b, t_h3b, t_p4b, 
-                          t_p5b, t_p6b, has_GPU);
-
-                      ccsd_t_doubles_gpu_tgen(ec,MO,noab,nvab,
-                        k_spin,k_doubles,d_t2,d_v2,
+                      ccsd_t_gpu_all_fused(ec,MO,noab,nvab,
+                        k_spin,k_doubles,d_t1,d_t2,d_v2,
                         k_evl_sorted,k_range,t_h1b,t_h2b,t_h3b,
-                        t_p4b,t_p5b,t_p6b, k_abuf1,k_bbuf1,k_abuf2,k_bbuf2, 
-                        has_GPU, kcalls, kcalls_fused, kcalls_pfused); 
+                        t_p4b,t_p5b,t_p6b, k_abufs1, k_bbufs1, 
+                        k_abuf1,k_bbuf1,k_abuf2,k_bbuf2, 
+                        has_GPU); 
                           
 
                       //  cout << "singles = " << k_singles << endl;
@@ -312,6 +312,8 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
       k_abuf2.shrink_to_fit();
       k_bbuf1.shrink_to_fit();
       k_bbuf2.shrink_to_fit();
+      k_abufs1.shrink_to_fit();
+      k_bbufs1.shrink_to_fit();
 
   } //has_gpu
     next = ac->fetch_add(0, 1); //TODO: is this needed ? 

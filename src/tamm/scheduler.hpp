@@ -182,9 +182,6 @@ public:
     }
 
     void execute(ExecutionHW execute_on = ExecutionHW::CPU) {
-        if (execute_on == ExecutionHW::GPU) {
-            std::cout << "Execute on GPU" << std::endl;
-        }
         if(start_idx_ == ops_.size()) return;
 #if 1
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());

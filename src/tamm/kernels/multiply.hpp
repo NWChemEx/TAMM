@@ -107,7 +107,8 @@ template<typename T, typename T1, typename T2, typename T3>
 void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
                     const IntLabelVec& alabels, const T3* bbuf,
                     const SizeVec& bdims, const IntLabelVec& blabels, T beta,
-                    T1* cbuf, const SizeVec& cdims, const IntLabelVec& clabels, ExecutionHW hw = ExecutionHW::CPU) {
+                    T1* cbuf, const SizeVec& cdims, const IntLabelVec& clabels, 
+                    ExecutionHW hw = ExecutionHW::CPU, int ngpu = 0) {
     const Size asize = std::accumulate(adims.begin(), adims.end(), Size{1},
                                        std::multiplies<Size>());
     const Size bsize = std::accumulate(bdims.begin(), bdims.end(), Size{1},
@@ -462,7 +463,7 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
       if (r1 && r2) reduction_op = true;
     }
 
-    if(hadamard || reduction_op || hw == ExecutionHW::CPU) {
+    if(hadamard || reduction_op || hw == ExecutionHW::CPU || ngpu == 0) {
       bmult_cpu_lambda(); 
     }
 
@@ -478,7 +479,7 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
       // double *bdata = host_pinned_memory(bbatch_ld*sizeof(double)); 
       // double *cdata = host_pinned_memory(cbatch_ld*sizeof(double)); 
 
-      TALSH gpu_mult;
+      TALSH gpu_mult{ngpu};
       T2* abufp = const_cast<T2*>(abuf); 
       T3* bbufp = const_cast<T3*>(bbuf); 
 

@@ -54,11 +54,12 @@ namespace tamm {
         }                                                                 \
     } while(0)
 
-#define EXPECTS_STR(cond, str)                                            \
+#define EXPECTS_STR(cond, str)                                              \
     do {                                                                    \
         if(!(cond)) {                                                       \
             std::cerr << "Assertion failed. Condition: " << __FILE__ << ":" \
-                      << __LINE__ << " " << #cond << "\n";                  \
+                      << __LINE__ << " " << #cond <<  " - "                 \
+                      << std::string{#str} <<"\n";                          \
             throw std::string{"Error: "} + std::string{#str};               \
         }                                                                   \
     } while(0)

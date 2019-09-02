@@ -103,7 +103,7 @@ class GPUmempool
 class TALSH {
   using tensor_handle = talsh_tens_t;
   private:
-  static std::string talsh_tensor_string(std::string name, tensor_handle tens) {
+ std::string talsh_tensor_string(std::string name, tensor_handle tens) {
     talsh_tens_shape_t shape;
 
    //LDB. Is this constant cleaning of the shapes necessary?
@@ -119,7 +119,7 @@ class TALSH {
     return ret + ")";
   }
 
-  static std::string talsh_tensor_string(std::string name, tensor_handle tens, const int labels[]) {
+ std::string talsh_tensor_string(std::string name, tensor_handle tens, const int labels[]) {
     talsh_tens_shape_t shape;
 
     tensShape_clean(&shape);
@@ -136,7 +136,7 @@ class TALSH {
     return ret + ")";
   }
 
-  static void wait_and_destruct(talsh_task_t* task_p) {
+ void wait_and_destruct(talsh_task_t* task_p) {
     int done = NOPE;
     int sts, errc = TALSH_SUCCESS;
     while(done != YEP && errc == TALSH_SUCCESS) {
@@ -148,10 +148,15 @@ class TALSH {
   }
 
  public:
-  static int ngpu;
+  int ngpu_;
   size_t small_buffer_size;
   TALSH() {
     small_buffer_size=TALSH_NO_HOST_BUFFER;
+  }
+
+  TALSH(int ngpu) {
+    small_buffer_size = TALSH_NO_HOST_BUFFER;
+    ngpu_ = ngpu;
   }
   ~TALSH() {
     // talshShutdown();
@@ -162,16 +167,16 @@ class TALSH {
     int host_arg_max;
     // small_buffer_size=TALSH_NO_HOST_BUFFER;
     // Query the total number of NVIDIA GPU on node:
-    errc=talshDeviceCount(DEV_NVIDIA_GPU,&ngpu);
+    errc=talshDeviceCount(DEV_NVIDIA_GPU,&ngpu_);
     assert(!errc);
-    if(rank==0) std::cout << "Number of NVIDIA GPUs found per node: " <<  ngpu << std::endl;
-    int dev_id = rank % ngpu;
-    if(ngpu==1) dev_id=0;
+    if(rank==0) std::cout << "Number of NVIDIA GPUs found per node: " <<  ngpu_ << std::endl;
+    int dev_id = rank % ngpu_;
+    if(ngpu_==1) dev_id=0;
     //Initialize TAL-SH (with a negligible Host buffer since we will use external memory):
     errc=talshInit(&small_buffer_size,&host_arg_max,1,&dev_id,0,nullptr,0,nullptr);
-    // int gpu_list[ngpu];
-    // for(int i=0; i<ngpu; ++i) gpu_list[i]=i;
-    // errc=talshInit(&small_buffer_size,&host_arg_max,ngpu,gpu_list,0,nullptr,0,nullptr);
+    // int gpu_list[ngpu_];
+    // for(int i=0; i<ngpu_; ++i) gpu_list[i]=i;
+    // errc=talshInit(&small_buffer_size,&host_arg_max,ngpu_,gpu_list,0,nullptr,0,nullptr);
     if(rank ==0 && errc != TALSH_SUCCESS) std::cout << "TAL-SH initialize error " << errc << std::endl;
   }
 
@@ -180,9 +185,9 @@ class TALSH {
   }
 
   template<typename T>
-  static tensor_handle host_block(int rank,
-                                  const int dims[],
-                                  T *buf = nullptr) {
+ tensor_handle host_block(int rank,
+                          const int dims[],
+                          T *buf = nullptr) {
     using std::is_same_v; 
 
     tensor_handle tens;
@@ -222,9 +227,9 @@ class TALSH {
     return tens;
   }
 
-  static tensor_handle host_block_zero(int rank,
-                                  const int dims[],
-                                  void *buf = nullptr) {
+ tensor_handle host_block_zero(int rank,
+                               const int dims[],
+                               void *buf = nullptr) {
     tensor_handle tens;
     int errc;
     errc = talshTensorClean(&tens);
@@ -241,15 +246,15 @@ class TALSH {
     return tens;
   }
 
-  static void free_block(tensor_handle tens) {
+ void free_block(tensor_handle tens) {
     int errc=talshTensorDestruct(&tens);
     assert(!errc);
   }
 
-  static tensor_handle gpu_block(int rank,
-                                 const int dims[],
-                                 int dev_num,
-                                 void *buf = nullptr) {
+ tensor_handle gpu_block(int rank,
+                         const int dims[],
+                         int dev_num,
+                         void *buf = nullptr) {
     tensor_handle tens;
     int errc;
     errc = talshTensorClean(&tens);
@@ -270,7 +275,7 @@ class TALSH {
     return tens;
   }
 
-  static tensor_handle gpu_block_and_set(int rank,
+ tensor_handle gpu_block_and_set(int rank,
                                  const int dims[],
                                  double const set_val,
                                  int dev_num,
@@ -296,11 +301,11 @@ class TALSH {
     return tens;
   }
 
-  static tensor_handle cpu_block_to_gpu_and_set(int rank,
-                                 const int dims[],
-                                 double const set_val,
-                                 int dev_num,
-                                 void *buf) {
+ tensor_handle cpu_block_to_gpu_and_set(int rank,
+                                        const int dims[],
+                                        double const set_val,
+                                        int dev_num,
+                                        void *buf) {
     tensor_handle tens;
     int errc;
     errc = talshTensorClean(&tens);
@@ -323,7 +328,7 @@ class TALSH {
   }
 
   
-  static tensor_handle gpu_block_copy(tensor_handle tens) { 
+ tensor_handle gpu_block_copy(tensor_handle tens) { 
    int errc;
    errc = talshTensorPlace(&tens,  
    0,  
@@ -335,7 +340,7 @@ class TALSH {
     return tens;
   }
 
-  static tensor_handle gpu_block_copy(tensor_handle tens,
+ tensor_handle gpu_block_copy(tensor_handle tens,
          double *host_ptr) { 
    int errc;
    errc = talshTensorPlace(&tens,  
@@ -387,7 +392,7 @@ class TALSH {
    *
    * tens[...] = val
    */
-  static void set_block(tensor_handle tens, double val) {
+ void set_block(tensor_handle tens, double val) {
     talsh_tens_shape_t shape;
 
     tensShape_clean(&shape);
@@ -446,11 +451,11 @@ class TALSH {
   /**
    * ltens[llabels] += scale * rtens[rlabels]
    */
-  static void add_block(tensor_handle ltens,
-                        const int llabels[],
-                        tensor_handle rtens,
-                        const int rlabels[],
-                        double scale) {
+ void add_block(tensor_handle ltens,
+                const int llabels[],
+                tensor_handle rtens,
+                const int rlabels[],
+                double scale) {
     talsh_tens_shape_t lshape, rshape;
 
     tensShape_clean(&lshape);
@@ -494,13 +499,13 @@ class TALSH {
   /**
    * ltens[llabels] += scale * r1tens[r1labels] * r2tens[r2labels]
    */
-  static void mult_block(tensor_handle ltens,
-                         const int llabels[],
-                         tensor_handle r1tens,
-                         const int r1labels[],
-                         tensor_handle r2tens,
-                         const int r2labels[],
-                         double scale) {
+ void mult_block(tensor_handle ltens,
+                 const int llabels[],
+                 tensor_handle r1tens,
+                 const int r1labels[],
+                 tensor_handle r2tens,
+                 const int r2labels[],
+                 double scale) {
     talsh_tens_shape_t lshape, r1shape, r2shape;
 
     tensShape_clean(&lshape);
@@ -553,15 +558,14 @@ class TALSH {
  *  COPY_MTT, COPY_TTT etc. 
  */ 
   template <typename T>
-  static void mult_block(int rank, tensor_handle ltens,
-                         tensor_handle r1tens,
-                         tensor_handle r2tens,
-                         std::string cop_string,
-                         T scale,
-                         int move_arg) {
-    
-    int dev_id = rank % ngpu;
-    if (ngpu == 1) dev_id=0;
+ void mult_block(int rank, tensor_handle ltens,
+                 tensor_handle r1tens,
+                 tensor_handle r2tens,
+                 std::string cop_string,
+                 T scale,
+                 int move_arg) {
+    int dev_id = rank % ngpu_;
+    if (ngpu_ == 1) dev_id=0;
     talsh_tens_shape_t lshape, r1shape, r2shape;
 
     tensShape_clean(&lshape);
@@ -619,9 +623,9 @@ class TALSH {
     wait_and_destruct(&talsh_task);
   }
 
-  static void tensor_destruct(tensor_handle tens) {
+ void tensor_destruct(tensor_handle tens) {
     /*int ierr = */ talshTensorDestruct(&tens);
   }
 };
-int TALSH::ngpu;
+// int TALSH::ngpu_;
 #endif // TAMM_TALSH_HPP_

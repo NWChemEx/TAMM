@@ -38,7 +38,7 @@ public:
     Scheduler(ExecutionContext& ec) : ec_{ec} {}
 
     template<typename OpType>
-    Scheduler& operator()(const OpType& op) {
+    Scheduler& operator()(const OpType& op, ExecutionHW policy = ExecutionHW::CPU) {
         OpList t_ops = op.canonicalize();
 
         for(auto& op : t_ops) { ops_.push_back(op); }
@@ -181,7 +181,7 @@ public:
         return order;
     }
 
-    void execute() {
+    void execute(ExecutionHW execute_on = ExecutionHW::CPU) {
         if(start_idx_ == ops_.size()) return;
 #if 1
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
@@ -196,7 +196,7 @@ public:
                 lvl += 1;
             }
             ec().set_ac(IndexedAC(ac, i));
-            ops_[order[i].second]->execute(ec());
+            ops_[order[i].second]->execute(ec(), execute_on);
         }
         ec().pg().barrier();
         start_idx_ = ops_.size();

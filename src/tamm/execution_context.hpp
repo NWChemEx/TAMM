@@ -12,6 +12,10 @@
 #include <vector>
 #include <memory>
 
+#if USE_TALSH
+#include "talshxx.hpp"
+#endif 
+
 namespace tamm {
 
 struct IndexedAC {
@@ -56,15 +60,18 @@ public:
       pg_{pg},
       default_distribution_{default_distribution},
       default_memory_manager_{default_memory_manager},
-      ac_{IndexedAC{nullptr, 0}}
-      {
-          if (re == nullptr) {
+      ac_{IndexedAC{nullptr, 0}} {
+        if (re == nullptr) {
 	      re_.reset(runtime_ptr());
-	  } else {
+	    } else {
 	      re_.reset(re, [](auto){});
-	  }
-	  pg_self_ = ProcGroup{MPI_COMM_SELF};
-
+	    }
+	    pg_self_ = ProcGroup{MPI_COMM_SELF};
+        ngpu_ = 0;
+    #ifdef USE_TALSH
+        int errc = talshDeviceCount(DEV_NVIDIA_GPU, &ngpu_);
+        assert(!errc);
+    #endif
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
     }
     RuntimeEngine* runtime_ptr();
@@ -221,6 +228,8 @@ public:
 
     void set_ac(IndexedAC ac) { ac_ = ac; }
 
+    int num_gpu() const { return ngpu_; }
+
 private:
     ProcGroup pg_;
     ProcGroup pg_self_;
@@ -229,6 +238,7 @@ private:
     MemoryManagerLocal* memory_manager_local_;
     IndexedAC ac_;
     std::shared_ptr<RuntimeEngine> re_;
+    int ngpu_;
 
     std::vector<MemoryRegion*> mem_regs_to_dealloc_;
     std::vector<MemoryRegion*> unregistered_mem_regs_;

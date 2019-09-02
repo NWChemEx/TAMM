@@ -89,6 +89,69 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
                   << std::endl;
 }
 
+template<typename T>
+void test_4_dim_mult_op_last_unit(Scheduler& sch, size_t N, Tile tilesize) {
+    TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
+    size_t size = N/10 > 0 ? N/10 : 1;
+    TiledIndexSpace tis2{IndexSpace{range(size)}};
+
+    auto [i, j, k, l] = tis1.labels<4>("all");
+    auto [m, o] = tis2.labels<2>("all");
+
+    Tensor<T> A{m, o};
+    Tensor<T> B{i, j, k, m};
+    Tensor<T> C{i, j, k, m};
+
+    sch.allocate(A, B, C)(A() = 21.0)(B() = 2.0)(C() = 0.0).execute();
+
+    const auto timer_start = std::chrono::high_resolution_clock::now();
+
+    sch(C(j, i, k, o) += A(m, o) * B(i, j, k, m)).execute();
+
+    const auto timer_end = std::chrono::high_resolution_clock::now();
+
+    auto mult_time = std::chrono::duration_cast<std::chrono::duration<double>>(
+                       (timer_end - timer_start))
+                       .count();
+
+    if(sch.ec().pg().rank() == 0)
+        std::cout << "4-D Tensor contraction with 2-D unit tiled matrix " << N
+                  << " indices tiled with " << tilesize
+                  << " last index unit tiled : " << mult_time << std::endl;
+}
+
+template<typename T>
+void test_4_dim_mult_op_first_unit(Scheduler& sch, size_t N, Tile tilesize) {
+    TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
+    size_t size = N/10 > 0 ? N/10 : 1;
+    TiledIndexSpace tis2{IndexSpace{range(size)}};
+
+    auto [i, j, k, l] = tis1.labels<4>("all");
+    auto [m, o] = tis2.labels<2>("all");
+
+    Tensor<T> A{m, o};
+    Tensor<T> B{m, i, j, k};
+    Tensor<T> C{m, i, j, k};
+
+    sch.allocate(A, B, C)(A() = 21.0)(B() = 2.0)(C() = 0.0).execute();
+
+    const auto timer_start = std::chrono::high_resolution_clock::now();
+
+    sch(C(m, j, i, k) += A(m, o) * B(o, i, j, k)).execute();
+
+    const auto timer_end = std::chrono::high_resolution_clock::now();
+
+    auto mult_time = std::chrono::duration_cast<std::chrono::duration<double>>(
+                       (timer_end - timer_start))
+                       .count();
+
+    if(sch.ec().pg().rank() == 0)
+        std::cout << "4-D Tensor contraction with 2-D unit tiled matrix " << N
+                  << " indices tiled with " << tilesize 
+                  << " first index unit tiled : " << mult_time
+                  << std::endl;
+}
+
 int main(int argc, char* argv[]) {
     if(argc < 3) {
         std::cout << "Please provide an index space size and tile size!\n";
@@ -126,6 +189,9 @@ int main(int argc, char* argv[]) {
     test_2_dim_mult_op<double>(sch, is_size, tile_size);
     test_3_dim_mult_op<double>(sch, is_size, tile_size);
     test_4_dim_mult_op<double>(sch, is_size, tile_size);
+    test_4_dim_mult_op_last_unit<double>(sch, is_size, tile_size);
+    test_4_dim_mult_op_first_unit<double>(sch, is_size, tile_size);
+
 
     #ifdef USE_TALSH
     talsh_instance.shutdown();

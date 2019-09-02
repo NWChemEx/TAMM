@@ -56,8 +56,14 @@ void print_tensor(const Tensor<T>& tensor) {
         std::cout << "block" << blockid;
 
         for(TAMM_SIZE i = 0; i < size; i++) {
-            if(buf[i] > 0.0000000000001 || buf[i] < -0.0000000000001)
-                std::cout << buf[i] << " ";
+            if constexpr(tamm::internal::is_complex_v<T>) {
+                if(buf[i].real() > 0.0000000000001 ||
+                   buf[i].real() < -0.0000000000001)
+                    std::cout << buf[i] << " ";
+            } else {
+                if(buf[i] > 0.0000000000001 || buf[i] < -0.0000000000001)
+                    std::cout << buf[i] << " ";
+            }
         }
         std::cout << std::endl;
     }

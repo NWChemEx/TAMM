@@ -76,8 +76,6 @@ void tensor_contruction(const TiledIndexSpace& T_AO,
 }
 
 #if 1
-
-#if 1
 TEST_CASE("Spin Tensor Construction") {
     using T = double;
     IndexSpace SpinIS{range(0, 20),
@@ -167,8 +165,7 @@ TEST_CASE("Spin Tensor Construction") {
     ProcGroup pg{GA_MPI_Comm()};
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
 
     failed = false;
     try {
@@ -411,12 +408,12 @@ TEST_CASE("Spin Tensor Construction") {
         Tensor<T> A{TIS, TIS};
         auto ec = make_execution_context();
         A.allocate(&ec);
+        A.deallocate();
     } catch(const std::string& e) {
         std::cerr << e << std::endl;
         failed = true;
     }
     REQUIRE(!failed);
-
     failed = false;
     try {
         IndexSpace AO_IS{range(10)};
@@ -441,13 +438,14 @@ TEST_CASE("Spin Tensor Construction") {
         ProcGroup pg{GA_MPI_Comm()};
         auto* pMM = tamm::MemoryManagerLocal::create_coll(pg);
         tamm::Distribution_NW dist;
-        RuntimeEngine re;
-        tamm::ExecutionContext ec(pg, &dist, pMM, &re);
+        tamm::ExecutionContext ec(pg, &dist, pMM);
         tamm::Scheduler sch{ec};
 
         sch.allocate(rho)(rho() = 0)(rho(mu, nu) += C(mu, p) * C(nu, p))
           .execute();
 
+        rho.deallocate();
+        C.deallocate();
     } catch(const std::string& e) {
         std::cerr << e << std::endl;
         failed = true;
@@ -498,8 +496,7 @@ TEST_CASE("GitHub Issues") {
     tamm::ProcGroup pg{GA_MPI_Comm()};
     auto *pMM = tamm::MemoryManagerLocal::create_coll(pg);
     tamm::Distribution_NW dist;
-    RuntimeEngine re;
-    tamm::ExecutionContext ec(pg, &dist, pMM, &re);
+    tamm::ExecutionContext ec(pg, &dist, pMM);
 
     tamm::TiledIndexSpace X{tamm::IndexSpace{tamm::range(0, 4)}};
     tamm::TiledIndexSpace Y{tamm::IndexSpace{tamm::range(0, 3)}};
@@ -521,11 +518,10 @@ TEST_CASE("GitHub Issues") {
     print_tensor(A);
     std::cout << "B tensor" << std::endl;
     print_tensor(B);
-
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
     // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
     //print_tensor(B);
-}
-#endif
+}   
 
 
 TEST_CASE("Slack Issues") {
@@ -592,7 +588,9 @@ TEST_CASE("Slack Issues") {
     sch.allocate(initW, WinitW)
         (initW(x_,r_,i_) = initialMO_state(x_,r_,s_) * W(s_,i_))
         (WinitW(x_,i_,j_) = W(r_,i_) * initW(x_,r_,j_))
+    .deallocate(initialMO_state, tmp, C, W, D, initW, WinitW)
     .execute();
+
 }
 
 
@@ -632,6 +630,8 @@ TEST_CASE("Slicing examples") {
 
     //print_tensor(A);
     //print_tensor(B);
+
+    Tensor<double>::deallocate(A, B);
 }
 
 
@@ -674,6 +674,7 @@ TEST_CASE("Fill tensors using lambda functions") {
     update_tensor(A(i,i), lambda_function);
     std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
     print_tensor(A);
+    Tensor<double>::deallocate(A, B);
 }
 
 
@@ -783,8 +784,6 @@ TEST_CASE("SCF Example Implementation") {
     sch.deallocate(C, Q, D);
 }
 */
-
-#endif
 using DepMap = std::map<IndexVector, TiledIndexSpace>;
 // using TIS = TiledIndexSpace;
 
@@ -1066,7 +1065,6 @@ TEST_CASE("Sample code for Local HF") {
     std::cout << "Printing Q" << std::endl;
     print_tensor(Q);
 #endif
-
 #if 1
 
     sch
@@ -1156,7 +1154,6 @@ TEST_CASE("Sample code for Local HF") {
     std::cout << "Printing Q_inv" << std::endl;
     print_tensor(Q_inv);
 #endif 
-
 #if 0
 
 
@@ -1183,9 +1180,10 @@ TEST_CASE("Sample code for Local HF") {
     .execute();
 #endif
 
+    Tensor<T>::deallocate(X, J, Q, QB, K, Test, Q_inv, LMO, S_A, S_v, C, LMO_renorm);
 }
 
-#if 0
+
 TEST_CASE("Test case for getting ExecutionContext from a Tensor") {
     TiledIndexSpace AO{IndexSpace{range(10)},2};
 
@@ -1204,9 +1202,10 @@ TEST_CASE("Test case for getting ExecutionContext from a Tensor") {
 
     auto t1_ec = T1.execution_context();
     REQUIRE(t1_ec == nullptr);
+
+    T0.deallocate();
     
 }
-
 
 TEST_CASE("Testing Dependent TiledIndexSpace contractions") {
 
@@ -1313,8 +1312,9 @@ TEST_CASE("Testing Dependent TiledIndexSpace contractions") {
     print_tensor(T);
     std::cerr << "P Tensor" << std::endl;
     print_tensor(P);
+
+    Tensor<double>::deallocate(Q, P, T, FT);
 }
-#endif
 
 TEST_CASE("Test for apply_ewise") {
     IndexSpace MO{range(10),
@@ -1342,7 +1342,10 @@ TEST_CASE("Test for apply_ewise") {
     std::cout << "Printing tensor Temp" << std::endl;
     print_tensor(Temp);
     check_value(Temp, 2.1);
+
+    Tensor<double>::deallocate(T, Temp);
 }
+#endif
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);

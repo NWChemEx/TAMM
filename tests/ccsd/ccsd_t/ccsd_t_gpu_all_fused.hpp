@@ -325,19 +325,19 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
 
     //singles
     std::vector<bool> sd_t_s1_exec(9*9,false);
-    std::vector<size_t> sd_t_s1_args(9*6);
+    std::vector<size_t> sd_t_s1_args(9*9*6);
     int s1c = 0;
     int s1b = 0;
 
     //doubles 1
     std::vector<bool> sd_t_d1_exec(9*9*noab,false);
-    std::vector<size_t> sd_t_d1_args(9*7*noab);
+    std::vector<size_t> sd_t_d1_args(9*9*7*noab);
     int d1c = 0;
     int d1b = 0;
 
     //doubles 2
     std::vector<bool> sd_t_d2_exec(9*9*nvab,false);
-    std::vector<size_t> sd_t_d2_args(9*7*nvab);
+    std::vector<size_t> sd_t_d2_args(9*9*7*nvab);
     int d2b=0;
     int d2c=0;
         
@@ -350,14 +350,7 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
       h2b=a3_s1(ia6,4);
       h3b=a3_s1(ia6,5);
 
-      sd_t_s1_args[s1c++] = k_range[h1b];
-      sd_t_s1_args[s1c++] = k_range[h2b];
-      sd_t_s1_args[s1c++] = k_range[h3b];
-      sd_t_s1_args[s1c++] = k_range[p4b];
-      sd_t_s1_args[s1c++] = k_range[p5b];
-      sd_t_s1_args[s1c++] = k_range[p6b];
-      
-      
+
       if( (p5b<=p6b) && (h2b<=h3b) && p4b!=0){ 
       if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          +k_spin[h1b]+k_spin[h2b]+k_spin[h3b]!=12){
@@ -408,7 +401,14 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
         //             k_range[p5b],k_range[p6b],
         //             &a_c[0],&k_a_sort[0],&k_b_sort[0]);
 
-       sd_t_s1_exec[s1b] = true;
+       sd_t_s1_exec[s1c] = true;
+
+       sd_t_s1_args[s1c++] = k_range[h1b];
+       sd_t_s1_args[s1c++] = k_range[h2b];
+       sd_t_s1_args[s1c++] = k_range[h3b];
+       sd_t_s1_args[s1c++] = k_range[p4b];
+       sd_t_s1_args[s1c++] = k_range[p5b];
+       sd_t_s1_args[s1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abufs1.begin() + s1b*abufs1_size);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbufs1.begin() + s1b*bbufs1_size);
@@ -424,7 +424,14 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
           //           k_range[h3b],k_range[p4b],
           //           k_range[p5b],k_range[p6b],
           //           &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-       sd_t_s1_exec[s1b] = true;
+       sd_t_s1_exec[s1c] = true;
+
+       sd_t_s1_args[s1c++] = k_range[h1b];
+       sd_t_s1_args[s1c++] = k_range[h2b];
+       sd_t_s1_args[s1c++] = k_range[h3b];
+       sd_t_s1_args[s1c++] = k_range[p4b];
+       sd_t_s1_args[s1c++] = k_range[p5b];
+       sd_t_s1_args[s1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abufs1.begin() + s1b*abufs1_size);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbufs1.begin() + s1b*bbufs1_size);
@@ -439,7 +446,14 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
       //               k_range[h3b],k_range[p4b],
       //               k_range[p5b],k_range[p6b],
       //               &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-       sd_t_s1_exec[s1b] = true;
+       sd_t_s1_exec[s1c] = true;
+
+       sd_t_s1_args[s1c++] = k_range[h1b];
+       sd_t_s1_args[s1c++] = k_range[h2b];
+       sd_t_s1_args[s1c++] = k_range[h3b];
+       sd_t_s1_args[s1c++] = k_range[p4b];
+       sd_t_s1_args[s1c++] = k_range[p5b];
+       sd_t_s1_args[s1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abufs1.begin() + s1b*abufs1_size);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbufs1.begin() + s1b*bbufs1_size);
@@ -454,7 +468,14 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
         //         k_range[h3b],k_range[p4b],
         //         k_range[p5b],k_range[p6b],
         //         &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-       sd_t_s1_exec[s1b] = true;
+       sd_t_s1_exec[s1c] = true;
+
+       sd_t_s1_args[s1c++] = k_range[h1b];
+       sd_t_s1_args[s1c++] = k_range[h2b];
+       sd_t_s1_args[s1c++] = k_range[h3b];
+       sd_t_s1_args[s1c++] = k_range[p4b];
+       sd_t_s1_args[s1c++] = k_range[p5b];
+       sd_t_s1_args[s1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abufs1.begin() + s1b*abufs1_size);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbufs1.begin() + s1b*bbufs1_size);
@@ -469,7 +490,14 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
       //               k_range[h3b],k_range[p4b],
       //               k_range[p5b],k_range[p6b],
       //               &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-       sd_t_s1_exec[s1b] = true;
+       sd_t_s1_exec[s1c] = true;
+
+       sd_t_s1_args[s1c++] = k_range[h1b];
+       sd_t_s1_args[s1c++] = k_range[h2b];
+       sd_t_s1_args[s1c++] = k_range[h3b];
+       sd_t_s1_args[s1c++] = k_range[p4b];
+       sd_t_s1_args[s1c++] = k_range[p5b];
+       sd_t_s1_args[s1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abufs1.begin() + s1b*abufs1_size);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbufs1.begin() + s1b*bbufs1_size);
@@ -484,8 +512,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
           //                k_range[h3b],k_range[p4b],
           //                k_range[p5b],k_range[p6b],
           //              &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-       sd_t_s1_exec[s1b] = true;
-      
+       sd_t_s1_exec[s1c] = true;
+
+       sd_t_s1_args[s1c++] = k_range[h1b];
+       sd_t_s1_args[s1c++] = k_range[h2b];
+       sd_t_s1_args[s1c++] = k_range[h3b];
+       sd_t_s1_args[s1c++] = k_range[p4b];
+       sd_t_s1_args[s1c++] = k_range[p5b];
+       sd_t_s1_args[s1c++] = k_range[p6b];
+       
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abufs1.begin() + s1b*abufs1_size);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbufs1.begin() + s1b*bbufs1_size);
        s1b++;                              
@@ -499,8 +534,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
         //             k_range[h3b],k_range[p4b],
         //             k_range[p5b],k_range[p6b],
         //             &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-       sd_t_s1_exec[s1b] = true;
-      
+       sd_t_s1_exec[s1c] = true;
+
+       sd_t_s1_args[s1c++] = k_range[h1b];
+       sd_t_s1_args[s1c++] = k_range[h2b];
+       sd_t_s1_args[s1c++] = k_range[h3b];
+       sd_t_s1_args[s1c++] = k_range[p4b];
+       sd_t_s1_args[s1c++] = k_range[p5b];
+       sd_t_s1_args[s1c++] = k_range[p6b];
+       
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abufs1.begin() + s1b*abufs1_size);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbufs1.begin() + s1b*bbufs1_size);
        s1b++;                            
@@ -514,8 +556,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
         //             k_range[h3b],k_range[p4b],
         //             k_range[p5b],k_range[p6b],
         //             &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-       sd_t_s1_exec[s1b] = true;
-      
+       sd_t_s1_exec[s1c] = true;
+
+       sd_t_s1_args[s1c++] = k_range[h1b];
+       sd_t_s1_args[s1c++] = k_range[h2b];
+       sd_t_s1_args[s1c++] = k_range[h3b];
+       sd_t_s1_args[s1c++] = k_range[p4b];
+       sd_t_s1_args[s1c++] = k_range[p5b];
+       sd_t_s1_args[s1c++] = k_range[p6b];
+       
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abufs1.begin() + s1b*abufs1_size);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbufs1.begin() + s1b*bbufs1_size);
        s1b++;                            
@@ -529,7 +578,14 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
         //             k_range[h3b],k_range[p4b],
         //             k_range[p5b],k_range[p6b],
         //             &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-       sd_t_s1_exec[s1b] = true;
+       sd_t_s1_exec[s1c] = true;
+
+       sd_t_s1_args[s1c++] = k_range[h1b];
+       sd_t_s1_args[s1c++] = k_range[h2b];
+       sd_t_s1_args[s1c++] = k_range[h3b];
+       sd_t_s1_args[s1c++] = k_range[p4b];
+       sd_t_s1_args[s1c++] = k_range[p5b];
+       sd_t_s1_args[s1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abufs1.begin() + s1b*abufs1_size);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbufs1.begin() + s1b*bbufs1_size);
@@ -547,14 +603,6 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
       h1b=a3(ia6,3);
       h2b=a3(ia6,4);
       h3b=a3(ia6,5);
-
-      sd_t_d1_args[d1c++] = k_range[h1b];
-      sd_t_d1_args[d1c++] = k_range[h2b];
-      sd_t_d1_args[d1c++] = k_range[h3b];
-      sd_t_d1_args[d1c++] = k_range[h7b];
-      sd_t_d1_args[d1c++] = k_range[p4b];
-      sd_t_d1_args[d1c++] = k_range[p5b];
-      sd_t_d1_args[d1c++] = k_range[p6b];
 
     if( (p4b<=p5b) && (h2b<=h3b) && p4b!=0){ 
       if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
@@ -625,8 +673,16 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
      {
       //dprint(1);
       //  cout << k_a_sort << endl;
-       sd_t_d1_exec[d1b] = true;
+       sd_t_d1_exec[d1c] = true;
 
+       sd_t_d1_args[d1c++] = k_range[h1b];
+       sd_t_d1_args[d1c++] = k_range[h2b];
+       sd_t_d1_args[d1c++] = k_range[h3b];
+       sd_t_d1_args[d1c++] = k_range[h7b];
+       sd_t_d1_args[d1c++] = k_range[p4b];
+       sd_t_d1_args[d1c++] = k_range[p5b];
+       sd_t_d1_args[d1c++] = k_range[p6b];
+       
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf1.begin() + d1b*max_dima);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf1.begin() + d1b*max_dimb);
        d1b++;
@@ -637,7 +693,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
       {
        //dprint(2);
         // cout << k_a_sort << endl;
-       sd_t_d1_exec[d1b] = true;
+       sd_t_d1_exec[d1c] = true;
+
+       sd_t_d1_args[d1c++] = k_range[h1b];
+       sd_t_d1_args[d1c++] = k_range[h2b];
+       sd_t_d1_args[d1c++] = k_range[h3b];
+       sd_t_d1_args[d1c++] = k_range[h7b];
+       sd_t_d1_args[d1c++] = k_range[p4b];
+       sd_t_d1_args[d1c++] = k_range[p5b];
+       sd_t_d1_args[d1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf1.begin() + d1b*max_dima);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf1.begin() + d1b*max_dimb);
@@ -648,7 +712,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
      && (t_h1b == h2b) && (t_h2b == h3b) && (t_h3b == h1b)) 
      {
       // //dprint(3);
-       sd_t_d1_exec[d1b] = true;
+       sd_t_d1_exec[d1c] = true;
+
+       sd_t_d1_args[d1c++] = k_range[h1b];
+       sd_t_d1_args[d1c++] = k_range[h2b];
+       sd_t_d1_args[d1c++] = k_range[h3b];
+       sd_t_d1_args[d1c++] = k_range[h7b];
+       sd_t_d1_args[d1c++] = k_range[p4b];
+       sd_t_d1_args[d1c++] = k_range[p5b];
+       sd_t_d1_args[d1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf1.begin() + d1b*max_dima);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf1.begin() + d1b*max_dimb);
@@ -659,7 +731,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b)) 
       {
         ////dprint(4);
-       sd_t_d1_exec[d1b] = true;
+       sd_t_d1_exec[d1c] = true;
+
+       sd_t_d1_args[d1c++] = k_range[h1b];
+       sd_t_d1_args[d1c++] = k_range[h2b];
+       sd_t_d1_args[d1c++] = k_range[h3b];
+       sd_t_d1_args[d1c++] = k_range[h7b];
+       sd_t_d1_args[d1c++] = k_range[p4b];
+       sd_t_d1_args[d1c++] = k_range[p5b];
+       sd_t_d1_args[d1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf1.begin() + d1b*max_dima);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf1.begin() + d1b*max_dimb);
@@ -670,7 +750,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
      && (t_h1b == h2b) && (t_h2b == h1b) && (t_h3b == h3b))
       {
         ////dprint(5);
-       sd_t_d1_exec[d1b] = true;
+       sd_t_d1_exec[d1c] = true;
+
+       sd_t_d1_args[d1c++] = k_range[h1b];
+       sd_t_d1_args[d1c++] = k_range[h2b];
+       sd_t_d1_args[d1c++] = k_range[h3b];
+       sd_t_d1_args[d1c++] = k_range[h7b];
+       sd_t_d1_args[d1c++] = k_range[p4b];
+       sd_t_d1_args[d1c++] = k_range[p5b];
+       sd_t_d1_args[d1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf1.begin() + d1b*max_dima);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf1.begin() + d1b*max_dimb);
@@ -681,7 +769,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
      && (t_h1b == h2b) && (t_h2b == h3b) && (t_h3b == h1b))
      {
       // //dprint(6);
-       sd_t_d1_exec[d1b] = true;
+       sd_t_d1_exec[d1c] = true;
+
+       sd_t_d1_args[d1c++] = k_range[h1b];
+       sd_t_d1_args[d1c++] = k_range[h2b];
+       sd_t_d1_args[d1c++] = k_range[h3b];
+       sd_t_d1_args[d1c++] = k_range[h7b];
+       sd_t_d1_args[d1c++] = k_range[p4b];
+       sd_t_d1_args[d1c++] = k_range[p5b];
+       sd_t_d1_args[d1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf1.begin() + d1b*max_dima);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf1.begin() + d1b*max_dimb);
@@ -692,7 +788,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b)) 
       {
         ////dprint(7);
-       sd_t_d1_exec[d1b] = true;
+       sd_t_d1_exec[d1c] = true;
+
+       sd_t_d1_args[d1c++] = k_range[h1b];
+       sd_t_d1_args[d1c++] = k_range[h2b];
+       sd_t_d1_args[d1c++] = k_range[h3b];
+       sd_t_d1_args[d1c++] = k_range[h7b];
+       sd_t_d1_args[d1c++] = k_range[p4b];
+       sd_t_d1_args[d1c++] = k_range[p5b];
+       sd_t_d1_args[d1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf1.begin() + d1b*max_dima);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf1.begin() + d1b*max_dimb);
@@ -703,7 +807,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
      && (t_h1b == h2b) && (t_h2b == h1b) && (t_h3b == h3b))
       {
         ////dprint(8);
-       sd_t_d1_exec[d1b] = true;
+       sd_t_d1_exec[d1c] = true;
+
+       sd_t_d1_args[d1c++] = k_range[h1b];
+       sd_t_d1_args[d1c++] = k_range[h2b];
+       sd_t_d1_args[d1c++] = k_range[h3b];
+       sd_t_d1_args[d1c++] = k_range[h7b];
+       sd_t_d1_args[d1c++] = k_range[p4b];
+       sd_t_d1_args[d1c++] = k_range[p5b];
+       sd_t_d1_args[d1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf1.begin() + d1b*max_dima);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf1.begin() + d1b*max_dimb);
@@ -714,7 +826,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
      && (t_h1b == h2b) && (t_h2b == h3b) && (t_h3b == h1b)) 
       {
         ////dprint(9);
-       sd_t_d1_exec[d1b] = true;
+       sd_t_d1_exec[d1c] = true;
+
+       sd_t_d1_args[d1c++] = k_range[h1b];
+       sd_t_d1_args[d1c++] = k_range[h2b];
+       sd_t_d1_args[d1c++] = k_range[h3b];
+       sd_t_d1_args[d1c++] = k_range[h7b];
+       sd_t_d1_args[d1c++] = k_range[p4b];
+       sd_t_d1_args[d1c++] = k_range[p5b];
+       sd_t_d1_args[d1c++] = k_range[p6b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf1.begin() + d1b*max_dima);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf1.begin() + d1b*max_dimb);
@@ -740,14 +860,6 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
       h1b=a3_d2(ia6,3);
       h2b=a3_d2(ia6,4);
       h3b=a3_d2(ia6,5);
-
-      sd_t_d2_args[d2c++] = k_range[h1b];
-      sd_t_d2_args[d2c++] = k_range[h2b];
-      sd_t_d2_args[d2c++] = k_range[h3b];
-      sd_t_d2_args[d2c++] = k_range[p4b];
-      sd_t_d2_args[d2c++] = k_range[p5b];
-      sd_t_d2_args[d2c++] = k_range[p6b];
-      sd_t_d2_args[d2c++] = k_range[p7b];
 
       if( (p5b<=p6b) && (h1b<=h2b) && p4b!=0){ 
       if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
@@ -805,7 +917,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
      {
-       sd_t_d2_exec[d2b] = true;
+       sd_t_d2_exec[d2c] = true;
+
+       sd_t_d2_args[d2c++] = k_range[h1b];
+       sd_t_d2_args[d2c++] = k_range[h2b];
+       sd_t_d2_args[d2c++] = k_range[h3b];
+       sd_t_d2_args[d2c++] = k_range[p4b];
+       sd_t_d2_args[d2c++] = k_range[p5b];
+       sd_t_d2_args[d2c++] = k_range[p6b];
+       sd_t_d2_args[d2c++] = k_range[p7b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf2.begin() + d2b*max_dima2);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf2.begin() + d2b*max_dimb2);
@@ -816,7 +936,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h3b) && (t_h2b == h1b) && (t_h3b == h2b))
       {
-       sd_t_d2_exec[d2b] = true;
+       sd_t_d2_exec[d2c] = true;
+
+       sd_t_d2_args[d2c++] = k_range[h1b];
+       sd_t_d2_args[d2c++] = k_range[h2b];
+       sd_t_d2_args[d2c++] = k_range[h3b];
+       sd_t_d2_args[d2c++] = k_range[p4b];
+       sd_t_d2_args[d2c++] = k_range[p5b];
+       sd_t_d2_args[d2c++] = k_range[p6b];
+       sd_t_d2_args[d2c++] = k_range[p7b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf2.begin() + d2b*max_dima2);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf2.begin() + d2b*max_dimb2);
@@ -826,7 +954,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h3b) && (t_h3b == h2b)) 
      {
-       sd_t_d2_exec[d2b] = true;
+       sd_t_d2_exec[d2c] = true;
+
+       sd_t_d2_args[d2c++] = k_range[h1b];
+       sd_t_d2_args[d2c++] = k_range[h2b];
+       sd_t_d2_args[d2c++] = k_range[h3b];
+       sd_t_d2_args[d2c++] = k_range[p4b];
+       sd_t_d2_args[d2c++] = k_range[p5b];
+       sd_t_d2_args[d2c++] = k_range[p6b];
+       sd_t_d2_args[d2c++] = k_range[p7b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf2.begin() + d2b*max_dima2);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf2.begin() + d2b*max_dimb2);
@@ -836,7 +972,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
     if ((t_p4b == p5b) && (t_p5b == p4b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
       {
-       sd_t_d2_exec[d2b] = true;
+       sd_t_d2_exec[d2c] = true;
+
+       sd_t_d2_args[d2c++] = k_range[h1b];
+       sd_t_d2_args[d2c++] = k_range[h2b];
+       sd_t_d2_args[d2c++] = k_range[h3b];
+       sd_t_d2_args[d2c++] = k_range[p4b];
+       sd_t_d2_args[d2c++] = k_range[p5b];
+       sd_t_d2_args[d2c++] = k_range[p6b];
+       sd_t_d2_args[d2c++] = k_range[p7b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf2.begin() + d2b*max_dima2);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf2.begin() + d2b*max_dimb2);
@@ -846,7 +990,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
     if ((t_p4b == p5b) && (t_p5b == p4b) && (t_p6b == p6b)
      && (t_h1b == h3b) && (t_h2b == h1b) && (t_h3b == h2b))
       {
-       sd_t_d2_exec[d2b] = true;
+       sd_t_d2_exec[d2c] = true;
+
+       sd_t_d2_args[d2c++] = k_range[h1b];
+       sd_t_d2_args[d2c++] = k_range[h2b];
+       sd_t_d2_args[d2c++] = k_range[h3b];
+       sd_t_d2_args[d2c++] = k_range[p4b];
+       sd_t_d2_args[d2c++] = k_range[p5b];
+       sd_t_d2_args[d2c++] = k_range[p6b];
+       sd_t_d2_args[d2c++] = k_range[p7b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf2.begin() + d2b*max_dima2);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf2.begin() + d2b*max_dimb2);
@@ -856,8 +1008,16 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
     if ((t_p4b == p5b) && (t_p5b == p4b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h3b) && (t_h3b == h2b))
      {
-       sd_t_d2_exec[d2b] = true;
+       sd_t_d2_exec[d2c] = true;
 
+       sd_t_d2_args[d2c++] = k_range[h1b];
+       sd_t_d2_args[d2c++] = k_range[h2b];
+       sd_t_d2_args[d2c++] = k_range[h3b];
+       sd_t_d2_args[d2c++] = k_range[p4b];
+       sd_t_d2_args[d2c++] = k_range[p5b];
+       sd_t_d2_args[d2c++] = k_range[p6b];
+       sd_t_d2_args[d2c++] = k_range[p7b];
+       
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf2.begin() + d2b*max_dima2);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf2.begin() + d2b*max_dimb2);
        d2b++;
@@ -866,7 +1026,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
     if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
       {
-       sd_t_d2_exec[d2b] = true;
+       sd_t_d2_exec[d2c] = true;
+
+       sd_t_d2_args[d2c++] = k_range[h1b];
+       sd_t_d2_args[d2c++] = k_range[h2b];
+       sd_t_d2_args[d2c++] = k_range[h3b];
+       sd_t_d2_args[d2c++] = k_range[p4b];
+       sd_t_d2_args[d2c++] = k_range[p5b];
+       sd_t_d2_args[d2c++] = k_range[p6b];
+       sd_t_d2_args[d2c++] = k_range[p7b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf2.begin() + d2b*max_dima2);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf2.begin() + d2b*max_dimb2);
@@ -876,7 +1044,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
      if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
      && (t_h1b == h3b) && (t_h2b == h1b) && (t_h3b == h2b))
       {
-       sd_t_d2_exec[d2b] = true;
+       sd_t_d2_exec[d2c] = true;
+
+       sd_t_d2_args[d2c++] = k_range[h1b];
+       sd_t_d2_args[d2c++] = k_range[h2b];
+       sd_t_d2_args[d2c++] = k_range[h3b];
+       sd_t_d2_args[d2c++] = k_range[p4b];
+       sd_t_d2_args[d2c++] = k_range[p5b];
+       sd_t_d2_args[d2c++] = k_range[p6b];
+       sd_t_d2_args[d2c++] = k_range[p7b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf2.begin() + d2b*max_dima2);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf2.begin() + d2b*max_dimb2);
@@ -886,7 +1062,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
     if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
      && (t_h1b == h1b) && (t_h2b == h3b) && (t_h3b == h2b))
       {
-       sd_t_d2_exec[d2b] = true;
+       sd_t_d2_exec[d2c] = true;
+
+       sd_t_d2_args[d2c++] = k_range[h1b];
+       sd_t_d2_args[d2c++] = k_range[h2b];
+       sd_t_d2_args[d2c++] = k_range[h3b];
+       sd_t_d2_args[d2c++] = k_range[p4b];
+       sd_t_d2_args[d2c++] = k_range[p5b];
+       sd_t_d2_args[d2c++] = k_range[p6b];
+       sd_t_d2_args[d2c++] = k_range[p7b];
        
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abuf2.begin() + d2b*max_dima2);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbuf2.begin() + d2b*max_dimb2);

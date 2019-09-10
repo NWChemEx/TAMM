@@ -1716,8 +1716,12 @@ public:
                 std::vector<TensorElType2> abuf(asize);
                 std::vector<TensorElType3> bbuf(bsize);
                 // get inputs
-                atensor.get(translated_ablockid, abuf);
-                btensor.get(translated_bblockid, bbuf);
+                DataCommunicationHandle a_nbhandle,b_nbhandle,c_nbhandle;
+                atensor.nb_get(translated_ablockid, abuf,&a_nbhandle);
+                btensor.nb_get(translated_bblockid, bbuf,&b_nbhandle);
+
+                if(!a_nbhandle.getCompletionStatus()) a_nbhandle.waitForCompletion();
+                if(!b_nbhandle.getCompletionStatus()) b_nbhandle.waitForCompletion();
                 const auto& cdims = ctensor.block_dims(translated_cblockid);
                 const auto& adims = atensor.block_dims(translated_ablockid);
                 const auto& bdims = btensor.block_dims(translated_bblockid);

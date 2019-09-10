@@ -205,6 +205,17 @@ class MemoryManagerGA : public MemoryManager {
     NGA_Get64(mr.ga_, &lo, &hi, to_buf, &ld);
   }
 
+    /**
+   * @copydoc MemoryManager::nb_get
+   */
+  void nb_get(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, void* to_buf, DataCommunicationHandlePtr data_comm_handle) override {
+    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
+    TAMM_SIZE ioffset{mr.map_[proc.value()] + off.value()};
+    int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
+    data_comm_handle->resetCompletionStatus();
+    NGA_NbGet64(mr.ga_, &lo, &hi, to_buf, &ld, data_comm_handle->getDataHandlePtr());
+  }
+
   /**
    * @copydoc MemoryManager::put
    */
@@ -214,6 +225,15 @@ class MemoryManagerGA : public MemoryManager {
     TAMM_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Put64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld);
+  }
+
+  void nb_put(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, const void* from_buf, DataCommunicationHandlePtr data_comm_handle) override {
+    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
+
+    TAMM_SIZE ioffset{mr.map_[proc.value()] + off.value()};
+    int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
+    data_comm_handle->resetCompletionStatus();
+    NGA_NbPut64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, data_comm_handle->getDataHandlePtr());
   }
 
   /**
@@ -244,6 +264,35 @@ class MemoryManagerGA : public MemoryManager {
     NGA_Acc64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, alpha);
   }
 
+  /**
+   * @copydoc MemoryManager::nb_add
+   */
+  void nb_add(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, const void* from_buf, DataCommunicationHandlePtr data_comm_handle) override {
+    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
+    TAMM_SIZE ioffset{mr.map_[proc.value()] + off.value()};
+    int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
+    void *alpha;
+    switch(mr.eltype_) {
+      case ElementType::single_precision:
+        alpha = reinterpret_cast<void*>(&sp_alpha);
+        break;
+      case ElementType::double_precision:
+        alpha = reinterpret_cast<void*>(&dp_alpha);
+        break;
+      case ElementType::single_complex:
+        alpha = reinterpret_cast<void*>(&scp_alpha);
+        break;
+      case ElementType::double_complex:
+        alpha = reinterpret_cast<void*>(&dcp_alpha);
+        break;
+      case ElementType::invalid:
+      default:
+        UNREACHABLE();
+    }
+    data_comm_handle->resetCompletionStatus();
+    NGA_NbAcc64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, alpha, data_comm_handle->getDataHandlePtr());
+  }
+  
   /**
    * @copydoc MemoryManager::print_coll
    */

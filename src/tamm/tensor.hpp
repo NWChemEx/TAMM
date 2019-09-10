@@ -205,6 +205,16 @@ public:
     }
 
     /**
+     * @brief nonblocking Get method for Tensor values
+     *
+     * @param [in] idx_vec set of indices to get data from
+     * @param [in] buff_span a memory span to write the fetched data
+     */
+    void nb_get(IndexVector idx_vec, span<T> buff_span, DataCommunicationHandlePtr data_comm_handle) const {
+        impl_->nb_get(idx_vec, buff_span, data_comm_handle);
+    }
+
+    /**
      * @brief Put method for Tensor values
      *
      * @param [in] idx_vec set of indices to put data to
@@ -215,6 +225,16 @@ public:
     }
 
     /**
+     * @brief nonblocking Put method for Tensor values
+     *
+     * @param [in] idx_vec set of indices to put data to
+     * @param [in] buff_span a memory span for the data to be put
+     */
+    void nb_put(IndexVector idx_vec, span<T> buff_span, DataCommunicationHandlePtr data_comm_handle) {
+        impl_->nb_put(idx_vec, buff_span, data_comm_handle);
+    }
+
+    /**
      * @brief Add method for Tensor values
      *
      * @param [in] idx_vec set of indices to put data to
@@ -222,6 +242,16 @@ public:
      */
     void add(IndexVector idx_vec, span<T> buff_span) {
         impl_->add(idx_vec, buff_span);
+    }
+
+    /**
+     * @brief nonblocking Add method for Tensor values
+     *
+     * @param [in] idx_vec set of indices to put data to
+     * @param [in] buff_span a memory span for the data to be put
+     */
+    void nb_add(IndexVector idx_vec, span<T> buff_span, DataCommunicationHandlePtr data_comm_handle) {
+        impl_->nb_add(idx_vec, buff_span, data_comm_handle);
     }
 
     /**

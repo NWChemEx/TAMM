@@ -9,50 +9,48 @@ void initmemmodule();
 void dev_mem_s(size_t,size_t,size_t,size_t,size_t,size_t);
 void dev_mem_d(size_t,size_t,size_t,size_t,size_t,size_t);
 
-void fused_ccsd_t(size_t* sizes, 
-        // 
-        double* host_d1_t2_1, double* host_d1_v2_1, double* host_d1_t2_2, double* host_d1_v2_2,	double* host_d1_t2_3, double* host_d1_v2_3, 
-        double* host_d1_t2_4, double* host_d1_v2_4, double* host_d1_t2_5, double* host_d1_v2_5,	double* host_d1_t2_6, double* host_d1_v2_6, 
-        double* host_d1_t2_7, double* host_d1_v2_7, double* host_d1_t2_8, double* host_d1_v2_8, double* host_d1_t2_9, double* host_d1_v2_9,
-        int d1_kernel_1, int d1_kernel_2, int d1_kernel_3, 
-        int d1_kernel_4, int d1_kernel_5, int d1_kernel_6, 
-        int d1_kernel_7, int d1_kernel_8, int d1_kernel_9,
-        // 
-        double* host_d2_t2_1, double* host_d2_v2_1, double* host_d2_t2_2, double* host_d2_v2_2,	double* host_d2_t2_3, double* host_d2_v2_3, 
-        double* host_d2_t2_4, double* host_d2_v2_4, double* host_d2_t2_5, double* host_d2_v2_5,	double* host_d2_t2_6, double* host_d2_v2_6, 
-        double* host_d2_t2_7, double* host_d2_v2_7, double* host_d2_t2_8, double* host_d2_v2_8, double* host_d2_t2_9, double* host_d2_v2_9,
-        int d2_kernel_1, int d2_kernel_2, int d2_kernel_3, 
-        int d2_kernel_4, int d2_kernel_5, int d2_kernel_6, 
-        int d2_kernel_7, int d2_kernel_8, int d2_kernel_9,
-        // 
-        double* host_s1_t2_1, double* host_s1_v2_1, double* host_s1_t2_2, double* host_s1_v2_2,	double* host_s1_t2_3, double* host_s1_v2_3, 
-        double* host_s1_t2_4, double* host_s1_v2_4, double* host_s1_t2_5, double* host_s1_v2_5,	double* host_s1_t2_6, double* host_s1_v2_6, 
-        double* host_s1_t2_7, double* host_s1_v2_7, double* host_s1_t2_8, double* host_s1_v2_8, double* host_s1_t2_9, double* host_s1_v2_9,
-        int s1_kernel_1, int s1_kernel_2, int s1_kernel_3, 
-        int s1_kernel_4, int s1_kernel_5, int s1_kernel_6, 
-        int s1_kernel_7, int s1_kernel_8, int s1_kernel_9,
-        // 
-        double factor, 
-        double* host_eval_h1, double* host_eval_h2, double* host_eval_h3, double* host_eval_p4, double* host_eval_p5, double* host_eval_p6,
-        double* energy);
+void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, 
+                        size_t base_size_h7b, 
+                        size_t base_size_p4b, size_t base_size_p5b, size_t base_size_p6b,
+                        size_t base_size_p7b,
+                        double* host_d1_t2_all, double* host_d1_v2_all,
+                        double* host_d2_t2_all, double* host_d2_v2_all,
+                        double* host_s1_t2_all, double* host_s1_v2_all,
+                        size_t size_d1_t2_all, size_t size_d1_v2_all,
+                        size_t size_d2_t2_all, size_t size_d2_v2_all,
+                        size_t size_s1_t2_all, size_t size_s1_v2_all,
+                        size_t* list_d1_sizes, 
+                        size_t* list_d2_sizes, 
+                        size_t* list_s1_sizes, 
+                        std::vector<int> vec_d1_flags,
+                        std::vector<int> vec_d2_flags,
+                        std::vector<int> vec_s1_flags,
+                        size_t size_noab, size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2,
+                        size_t size_nvab, size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2,
+                                          size_t size_max_dim_s1_t2, size_t size_max_dim_s1_v2, 
+                        double factor, 
+                        double* host_evl_sorted_h1b, double* host_evl_sorted_h2b, double* host_evl_sorted_h3b, 
+                        double* host_evl_sorted_p4b, double* host_evl_sorted_p5b, double* host_evl_sorted_p6b,
+                        double* final_energy_4, double* final_energy_5);
 
 template<typename T>
 void ccsd_t_gpu_all_fused(ExecutionContext& ec,
                    const TiledIndexSpace& MO,
                    const Index noab, const Index nvab,
                    std::vector<int>& k_spin,
-                   std::vector<T>& a_c,
+                   std::vector<size_t>& k_offset,
+                   std::vector<T>& a_c, //not used
                    Tensor<T>& d_t1, 
                    Tensor<T>& d_t2, //d_a
                    Tensor<T>& d_v2, //d_b
-                   std::vector<T>& p_evl_sorted,
+                   std::vector<T>& k_evl_sorted,
                    std::vector<size_t>& k_range,
                    size_t t_h1b, size_t t_h2b, size_t t_h3b,
                    size_t t_p4b, size_t t_p5b, size_t t_p6b,
                    std::vector<T>& k_abufs1, std::vector<T>& k_bbufs1,
                    std::vector<T>& k_abuf1, std::vector<T>& k_bbuf1,
                    std::vector<T>& k_abuf2, std::vector<T>& k_bbuf2,                   
-                   int usedevice) {
+                   double& factor, std::vector<double>& energy_l, int usedevice) {
 
     // initmemmodule();
     size_t abufs1_size = k_abufs1.size();
@@ -1115,22 +1113,33 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
 
     } //end ia6
 
-    // fused_ccsd_t(sd_t_d1_args, 
-    //     host_d1_t2_1, host_d1_v2_1, host_d1_t2_2, host_d1_v2_2,	host_d1_t2_3, host_d1_v2_3, 
-    // 	host_d1_t2_4, host_d1_v2_4, host_d1_t2_5, host_d1_v2_5,	host_d1_t2_6, host_d1_v2_6,
-    // 	host_d1_t2_7, host_d1_v2_7, host_d1_t2_8, host_d1_v2_8, host_d1_t2_9, host_d1_v2_9,
-    // 	opt_d1_kernel_1, opt_d1_kernel_2, opt_d1_kernel_3, opt_d1_kernel_4, opt_d1_kernel_5, opt_d1_kernel_6, opt_d1_kernel_7, opt_d1_kernel_8, opt_d1_kernel_9,
-    //     host_d2_t2_1, host_d2_v2_1, host_d2_t2_2, host_d2_v2_2,	host_d2_t2_3, host_d2_v2_3, 
-		// host_d2_t2_4, host_d2_v2_4, host_d2_t2_5, host_d2_v2_5,	host_d2_t2_6, host_d2_v2_6,
-		// host_d2_t2_7, host_d2_v2_7, host_d2_t2_8, host_d2_v2_8, host_d2_t2_9, host_d2_v2_9,
-		// opt_d2_kernel_1, opt_d2_kernel_2, opt_d2_kernel_3, opt_d2_kernel_4, opt_d2_kernel_5, opt_d2_kernel_6, opt_d2_kernel_7, opt_d2_kernel_8, opt_d2_kernel_9,
-    //     host_s1_t2_1, host_s1_v2_1, host_s1_t2_2, host_s1_v2_2,	host_s1_t2_3, host_s1_v2_3, 
-    //     host_s1_t2_4, host_s1_v2_4, host_s1_t2_5, host_s1_v2_5,	host_s1_t2_6, host_s1_v2_6, 
-    //     host_s1_t2_7, host_s1_v2_7, host_s1_t2_8, host_s1_v2_8, host_s1_t2_9, host_s1_v2_9, 
-    //     opt_s1_kernel_1, opt_s1_kernel_2, opt_s1_kernel_3, opt_s1_kernel_4, opt_s1_kernel_5, opt_s1_kernel_6, opt_s1_kernel_7, opt_s1_kernel_8, opt_s1_kernel_9,
-    //     2.0, 
-    //     host_eval_h1, host_eval_h2, host_eval_h3, host_eval_p4, host_eval_p5, host_eval_p6,
-    //     host_energy);
+total_fused_ccsd_t(t_h1b,t_h2b,t_h3b, 
+                        size_t base_size_h7b, 
+                        t_p4b,t_p5b,t_p6b,
+                        size_t base_size_p7b,
+                        k_abuf1.data(), k_bbuf1.data(),
+                        k_abuf2.data(), k_bbuf2.data(),
+                        k_abufs1.data(), k_bbufs1.data(),
+                        size_t size_d1_t2_all, size_t size_d1_v2_all,
+                        size_t size_d2_t2_all, size_t size_d2_v2_all,
+                        size_t size_s1_t2_all, size_t size_s1_v2_all,
+                        &sd_t_d1_args, 
+                        &sd_t_d2_args, 
+                        &sd_t_s1_args, 
+                        sd_t_d1_exec,
+                        sd_t_d2_exec,
+                        sd_t_s1_exec,
+                        noab, abuf_size1,bbuf_size1,
+                        nvab, abuf_size2,bbuf_size2,
+                                          abufs1_size, bbufs1_size, 
+                        factor, 
+                                  &k_evl_sorted[k_offset[t_h1b]],
+                                  &k_evl_sorted[k_offset[t_h2b]],
+                                  &k_evl_sorted[k_offset[t_h3b]],
+                                  &k_evl_sorted[k_offset[t_p4b]],
+                                  &k_evl_sorted[k_offset[t_p5b]],
+                                  &k_evl_sorted[k_offset[t_p6b]],
+                        &energy_l[0], &energy_l[1]);
 
 } //end double_gpu_fused_driver
 

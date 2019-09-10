@@ -10,8 +10,8 @@ int check_device(long);
 int device_init(long icuda,int *cuda_device_number );
 void dev_release();
 void finalizememmodule();
-void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,
-size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* host1, double* host2);
+// void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,
+// size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* host1, double* host2);
 
 template <typename Arg, typename... Args>
 void dprint1(Arg&& arg, Args&&... args)
@@ -174,16 +174,6 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                       // cout << "p4,5,6,h1,2,3 = ";
                       // dprint(t_p4b,t_p5b,t_p6b,t_h1b,t_h2b,t_h3b);
 
-                      ccsd_t_gpu_all_fused(ec,MO,noab,nvab,
-                        k_spin,k_doubles,d_t1,d_t2,d_v2,
-                        k_evl_sorted,k_range,t_h1b,t_h2b,t_h3b,
-                        t_p4b,t_p5b,t_p6b, k_abufs1, k_bbufs1, 
-                        k_abuf1,k_bbuf1,k_abuf2,k_bbuf2, 
-                        has_GPU); 
-                          
-
-                      //  cout << "singles = " << k_singles << endl;
-                      // cout << "doubles = " << k_doubles << endl;
 
                       double factor = 0.0;
 
@@ -205,6 +195,18 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                       } else if ((t_h1b == t_h2b) || (t_h2b == t_h3b)) {
                         factor /= 2.0;
                       }
+
+                      ccsd_t_gpu_all_fused(ec,MO,noab,nvab,
+                        k_spin,k_offset,k_doubles,d_t1,d_t2,d_v2,
+                        k_evl_sorted,k_range,t_h1b,t_h2b,t_h3b,
+                        t_p4b,t_p5b,t_p6b, k_abufs1, k_bbufs1, 
+                        k_abuf1,k_bbuf1,k_abuf2,k_bbuf2,factor,
+                        energy_l,has_GPU); 
+                          
+
+                      //  cout << "singles = " << k_singles << endl;
+                      // cout << "doubles = " << k_doubles << endl;
+
                       
                       #if 0
                       auto indx = 0;
@@ -235,7 +237,7 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                         indx++;
                       }
                       #else
-                      auto factor_l = factor;
+                      // auto factor_l = factor;
 
                       // cout << "doubles size = " << size << endl;
                       // for(auto x:k_doubles)
@@ -272,17 +274,17 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
 
                       
                       //TODO
-                      compute_energy(factor_l, &energy_l[0],
-                                  &k_evl_sorted[k_offset[t_h1b]],
-                                  &k_evl_sorted[k_offset[t_h2b]],
-                                  &k_evl_sorted[k_offset[t_h3b]],
-                                  &k_evl_sorted[k_offset[t_p4b]],
-                                  &k_evl_sorted[k_offset[t_p5b]],
-                                  &k_evl_sorted[k_offset[t_p6b]],
-                                  k_range[t_h1b],k_range[t_h2b],
-                                  k_range[t_h3b],k_range[t_p4b],
-                                  k_range[t_p5b],k_range[t_p6b],
-                                  &k_doubles[0], &k_singles[0]);
+                      // compute_energy(factor_l, &energy_l[0],
+                      //             &k_evl_sorted[k_offset[t_h1b]],
+                      //             &k_evl_sorted[k_offset[t_h2b]],
+                      //             &k_evl_sorted[k_offset[t_h3b]],
+                      //             &k_evl_sorted[k_offset[t_p4b]],
+                      //             &k_evl_sorted[k_offset[t_p5b]],
+                      //             &k_evl_sorted[k_offset[t_p6b]],
+                      //             k_range[t_h1b],k_range[t_h2b],
+                      //             k_range[t_h3b],k_range[t_p4b],
+                      //             k_range[t_p5b],k_range[t_p6b],
+                      //             &k_doubles[0], &k_singles[0]);
                       // cout << "AFTER energy-l=" << energy_l << endl;                                  
                       energy1 += energy_l[0];
                       energy2 += energy_l[1];

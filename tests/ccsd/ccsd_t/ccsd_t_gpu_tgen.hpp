@@ -3,7 +3,6 @@
 #define CCSD_T_GPU_TGEN_HPP_
 
 #include "ccsd_t_gpu_all_fused.hpp"
-
 #include "header.hpp"
 
 int check_device(long);

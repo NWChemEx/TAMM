@@ -21,11 +21,12 @@ if(NWX_CUDA)
     set(CCSD_T_NWC_SRCS ${CCSD_T_CUDA_SRCS} ${CCSD_T_SRCDIR}/sd_t_total.cu)
     set(CCSD_T_TGEN_SRCS ${CCSD_T_CUDA_SRCS} 
             ${CCSD_T_SRCDIR}/sd_t_total_tgen.cu)
-    set(CCSD_T_TGEN_FUSED_SRCS ${CCSD_T_CUDA_SRCS} 
-            ${CCSD_T_SRCDIR}/sd_t_total.cu
-            ${CCSD_T_SRCDIR}/direct_sd1.cu
-            ${CCSD_T_SRCDIR}/direct_sd2.cu)  
+    # set(CCSD_T_TGEN_FUSED_SRCS ${CCSD_T_CUDA_SRCS} 
+    #         ${CCSD_T_SRCDIR}/sd_t_total.cu
+    #         ${CCSD_T_SRCDIR}/direct_sd1.cu
+    #         ${CCSD_T_SRCDIR}/direct_sd2.cu)  
     set(CCSD_T_TGEN_FUSED_SRCS ${CCSD_T_CUDA_SRCS}  
+            ${CCSD_T_SRCDIR}/sd_t_total.cu
             ${CCSD_T_SRCDIR}/ccsd_t_gpu_tgen.hpp
             ${CCSD_T_SRCDIR}/ccsd_t_gpu_all_fused.hpp
             ${CCSD_T_SRCDIR}/ccsd_t_tgen_all_fused.cu)

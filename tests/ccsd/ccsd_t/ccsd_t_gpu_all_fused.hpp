@@ -1120,8 +1120,9 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
 
     } //end ia6
 
-total_fused_ccsd_t(t_h1b,t_h2b,t_h3b, 
-                        t_p4b,t_p5b,t_p6b,
+total_fused_ccsd_t(k_range[t_h1b],k_range[t_h2b],
+                        k_range[t_h3b],k_range[t_p4b],
+                        k_range[t_p5b],k_range[t_p6b],
                         k_abuf1.data(), k_bbuf1.data(),
                         k_abuf2.data(), k_bbuf2.data(),
                         k_abufs1.data(), k_bbufs1.data(),

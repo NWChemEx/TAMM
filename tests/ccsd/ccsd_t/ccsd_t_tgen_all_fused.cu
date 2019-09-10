@@ -203,8 +203,8 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 									//  common
 									int num_blks_h3b, int num_blks_h2b, int num_blks_h1b, 
 									int num_blks_p6b, int num_blks_p5b, int num_blks_p4b, 
-									size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, size_t base_size_h7b,  
-									size_t base_size_p4b, size_t base_size_p5b, size_t base_size_p6b, size_t base_size_p7b)
+									size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, 
+									size_t base_size_p4b, size_t base_size_p5b, size_t base_size_p6b)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64 + 1];
@@ -298,6 +298,8 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 	double temp_bv[4];
 	double reg_tile[4][4];
 	double reg_singles[4][4];
+
+	size_t base_size_h7b, base_size_p7b;
 
 	for (int i = 0; i < 4; i++)
 	for (int j = 0; j < 4; j++)
@@ -2740,11 +2742,8 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 }
 
 // 
-extern "C" 
 void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, 
-						size_t base_size_h7b, 
 						size_t base_size_p4b, size_t base_size_p5b, size_t base_size_p6b,
-						size_t base_size_p7b,
 						// 
 						double* host_d1_t2_all, double* host_d1_v2_all,
 						double* host_d2_t2_all, double* host_d2_v2_all,
@@ -2958,17 +2957,17 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 																CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3), CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2), CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1), 
 																CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6), CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5), CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4),
 																// 
-																base_size_h1b, base_size_h2b, base_size_h1b, base_size_h7b, 
-																base_size_p4b, base_size_p5b, base_size_p6b, base_size_p7b);
+																base_size_h1b, base_size_h2b, base_size_h1b, 
+																base_size_p4b, base_size_p5b, base_size_p6b);
 
 	//
 	#ifdef DEBUG_TIME_FUSED_CCSD_T
-		cudaEventRecord(stop_kernely_only);
-		cudaEventSynchronize(stop_kernely_only);
-		float time_ms_ccsd_t_kernel_only = 0.0;
-		cudaEventElapsedTime(&time_ms_ccsd_t_kernel_only, start_ccsd_t, stop_kernely_only);
+	cudaEventRecord(stop_kernely_only);
+	cudaEventSynchronize(stop_kernely_only);
+	float time_ms_ccsd_t_kernel_only = 0.0;
+	cudaEventElapsedTime(&time_ms_ccsd_t_kernel_only, start_ccsd_t, stop_kernely_only);
 	#endif
-
+	
 	//
 	cudaMemcpy(host_energies, dev_energies, num_blocks_kernel_1 * NUM_ENERGIES * sizeof(double), cudaMemcpyDeviceToHost);
 

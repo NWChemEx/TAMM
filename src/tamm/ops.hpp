@@ -1392,27 +1392,27 @@ protected:
 
 template<typename T>
 struct AddBuf {
-    AddBuf() = default;
+    //AddBuf() = default;
     AddBuf(Tensor<T> tensor, std::vector<T>&& buf, const IndexVector& blockid)
-    : tensor_{tensor},
-        buf_{buf}
-         {
-        tensor_.nb_add(blockid, buf_, &nbhdl_);
+    : buf_{buf} {
+        tensor.nb_add(blockid, buf_, &nbhdl_);
+        //tensor.add(blockid, buf_);
+        //tensor.add(blockid, buf);
     }
     ~AddBuf() {
         assert(nbhdl_.getCompletionStatus() == true);
     }
     bool is_done() {
-        return nbhdl_.getCompletionStatus();
+        return true;
+        // return nbhdl_.getCompletionStatus();
     }
-    bool wait() {
+    void wait() {
         if(!nbhdl_.getCompletionStatus()) {
             nbhdl_.waitForCompletion();
         }
     }
-    Tensor<T> tensor_;
     std::vector<T> buf_;
-    DataCommunicationHandle nbhdl_;
+     DataCommunicationHandle nbhdl_;
 };
 
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
@@ -1505,7 +1505,7 @@ public:
                           rhs2_.labels().end());
         LabelLoopNest loop_nest{all_labels};
 
-        std::vector<AddBuf<T>> add_bufs;
+        std::vector<AddBuf<T>*> add_bufs;
 
         // function to compute one block
         auto lambda = [=,&add_bufs,&loop_nest](const IndexVector itval) {
@@ -1811,10 +1811,11 @@ public:
                     TimerGuard tg_add{&multOpAddTime};
                     //ctensor.add(translated_cblockid, cbuf);
                     const int k = 10;
-                    add_bufs.emplace_back(ctensor, std::move(cbuf),translated_cblockid);
-                    if(add_bufs.size() == k) {
+                    add_bufs.push_back(new AddBuf<TensorElType1>{ctensor, std::move(cbuf),translated_cblockid});
+                    if(add_bufs.size() >= k) {
                         for(auto& ab: add_bufs) {
-                            ab.wait();
+                            ab->wait();
+                            delete ab;
                         }
                         add_bufs.clear();
                     }
@@ -1828,7 +1829,8 @@ public:
                 { 
                     TimerGuard tg_add{&multOpAddTime};
                     for(auto& ab: add_bufs) {
-                        ab.wait();
+                        ab->wait();
+                        delete ab;
                     }
                         add_bufs.clear();
                 }

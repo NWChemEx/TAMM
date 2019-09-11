@@ -172,8 +172,10 @@ class DataCommunicationHandle
         ~DataCommunicationHandle() = default;
 
         void waitForCompletion() {
-            NGA_NbWait(&data_handle_);
-            setCompletionStatus();
+            if(!getCompletionStatus()) {
+                NGA_NbWait(&data_handle_);
+                setCompletionStatus();
+            }
         }
         void setCompletionStatus() { status_=true; }
         void resetCompletionStatus() { status_=false; }

@@ -1390,6 +1390,31 @@ protected:
     bool is_assign_;
 }; // class AddOp
 
+template<typename T>
+struct AddBuf {
+    AddBuf() = default;
+    AddBuf(std::vector<T>&& buf, Tensor<T> tensor, const IndexVector& blockid)
+    : tensor_{tensor},
+        buf_{buf}
+         {
+        tensor_.nb_add(blockid, buf_, &nbhdl_);
+    }
+    ~AddBuf() {
+        assert(nbhdl_.getCompletionStatus() == true);
+    }
+    bool is_done() {
+        return nbhdl_.getCompletionStatus();
+    }
+    bool wait() {
+        if(!nbhdl_.getCompletionStatus()) {
+            nbhdl_.waitForCompletion();
+        }
+    }
+    Tensor<T> tensor_;
+    std::vector<T> buf_;
+    DataCommunicationHandle nbhdl_;
+};
+
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 class MultOp : public Op {
 public:
@@ -1479,6 +1504,8 @@ public:
         all_labels.insert(all_labels.end(), rhs2_.labels().begin(),
                           rhs2_.labels().end());
         LabelLoopNest loop_nest{all_labels};
+
+        std::vector<AddBuf<T>> add_bufs;
 
         // function to compute one block
         auto lambda = [=,&loop_nest](const IndexVector itval) {
@@ -1782,7 +1809,15 @@ public:
                 // add the computed update to the tensor
                 { 
                     TimerGuard tg_add{&multOpAddTime};
-                ctensor.add(translated_cblockid, cbuf);
+                    //ctensor.add(translated_cblockid, cbuf);
+                    const int k = 10;
+                    add_bufs.emplace_back({ctensor, std::move(cbuf)});
+                    if(add_bufs.size() == k) {
+                        for(auto& ab: add_bufs) {
+                            ab.wait();
+                        }
+                        add_bufs.clear();
+                    }
                 }
             }
 
@@ -1790,6 +1825,14 @@ public:
             //@todo use a scheduler
             //@todo make parallel
             do_work(ec, loop_nest, lambda);
+                { 
+                    TimerGuard tg_add{&multOpAddTime};
+                    for(auto& ab: add_bufs) {
+                        ab.wait();
+                    }
+                        add_bufs.clear();
+                }
+
 #endif
 
 #if 0

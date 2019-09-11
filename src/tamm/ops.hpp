@@ -1741,14 +1741,17 @@ public:
                 std::vector<TensorElType2> abuf(asize);
                 std::vector<TensorElType3> bbuf(bsize);
                 // get inputs
-#if 0
+#if 1
+            {
+                TimerGuard tg_get{&multOpGetTime};
                 DataCommunicationHandle a_nbhandle,b_nbhandle,c_nbhandle;
                 atensor.nb_get(translated_ablockid, abuf,&a_nbhandle);
                 btensor.nb_get(translated_bblockid, bbuf,&b_nbhandle);
 
                 if(!a_nbhandle.getCompletionStatus()) a_nbhandle.waitForCompletion();
                 if(!b_nbhandle.getCompletionStatus()) b_nbhandle.waitForCompletion();
-#endif
+            }
+#else
                 { 
                     TimerGuard tg_get{&multOpGetTime};
                 atensor.get(translated_ablockid, abuf);
@@ -1757,6 +1760,7 @@ public:
                     TimerGuard tg_get{&multOpGetTime};
                 btensor.get(translated_bblockid, bbuf);
                 }
+#endif
                 const auto& cdims = ctensor.block_dims(translated_cblockid);
                 const auto& adims = atensor.block_dims(translated_ablockid);
                 const auto& bdims = btensor.block_dims(translated_bblockid);

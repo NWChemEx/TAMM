@@ -167,8 +167,8 @@ void ccsd_driver() {
     auto cc_t2 = std::chrono::high_resolution_clock::now();
     double ccsd_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-    if(rank == 0) std::cout << std::endl << "Time taken for Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
-    {
+    if(rank == 0) {
+        std::cout << std::endl << "Time taken for Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
         std::cout<<rank<<" : mult_op time="<<multOpTime<<"\n";
         std::cout<<rank<<" : mult_op get time="<<multOpGetTime<<"\n";
         std::cout<<rank<<" : mult_op dgemm time="<<multOpDgemmTime<<"\n";

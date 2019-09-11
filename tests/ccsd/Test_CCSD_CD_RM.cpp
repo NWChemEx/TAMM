@@ -47,7 +47,6 @@ int main( int argc, char* argv[] )
     return 0;
 }
 
-
 void ccsd_driver() {
 
     // std::cout << "Input file provided = " << filename << std::endl;
@@ -135,6 +134,12 @@ void ccsd_driver() {
       cout << std::string(50,'-') << endl;
     }
     
+    multOpTime = 0;
+    multOpGetTime = 0;
+    multOpAddTime = 0;
+    multOpDgemmTime = 0;
+    GA_Sync();
+
     auto cc_t1 = std::chrono::high_resolution_clock::now();
 
     ccsd_restart = ccsd_restart && fs::exists(ccsdstatus);
@@ -143,7 +148,7 @@ void ccsd_driver() {
             ec, MO, CI, d_t1, d_t2, d_f1, 
             d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
             p_evl_sorted, 
-            maxiter, thresh, zshiftl, ndiis, 
+            1/*maxiter*/, thresh, zshiftl, ndiis, 
             2 * ov_alpha, cholVpr, ccsd_options.writet, ccsd_restart, files_prefix);
 
     ccsd_stats(ec, hf_energy,residual,corr_energy,thresh);
@@ -163,6 +168,12 @@ void ccsd_driver() {
     double ccsd_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
     if(rank == 0) std::cout << std::endl << "Time taken for Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
+    {
+        std::cout<<rank<<" : mult_op time="<<multOpTime<<"\n";
+        std::cout<<rank<<" : mult_op get time="<<multOpGetTime<<"\n";
+        std::cout<<rank<<" : mult_op dgemm time="<<multOpDgemmTime<<"\n";
+        std::cout<<rank<<" : mult_op add time="<<multOpAddTime<<"\n";
+    }
 
     if(!ccsd_restart) {
         free_tensors(d_r1,d_r2);

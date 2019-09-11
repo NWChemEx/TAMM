@@ -1393,7 +1393,7 @@ protected:
 template<typename T>
 struct AddBuf {
     AddBuf() = default;
-    AddBuf(std::vector<T>&& buf, Tensor<T> tensor, const IndexVector& blockid)
+    AddBuf(Tensor<T> tensor, std::vector<T>&& buf, const IndexVector& blockid)
     : tensor_{tensor},
         buf_{buf}
          {
@@ -1811,7 +1811,7 @@ public:
                     TimerGuard tg_add{&multOpAddTime};
                     //ctensor.add(translated_cblockid, cbuf);
                     const int k = 10;
-                    add_bufs.emplace_back({ctensor, std::move(cbuf),translated_cblockid});
+                    add_bufs.emplace_back(ctensor, std::move(cbuf),translated_cblockid);
                     if(add_bufs.size() == k) {
                         for(auto& ab: add_bufs) {
                             ab.wait();

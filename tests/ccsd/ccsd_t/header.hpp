@@ -15,6 +15,8 @@
 #include <time.h>
 ////#include "util.h"
 
+#undef USE_TALSH
+
 #define CHECK_ERR(x) { \
     cudaError_t err = cudaGetLastError();\
     if (cudaSuccess != err) { \

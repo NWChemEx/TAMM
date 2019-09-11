@@ -1508,7 +1508,7 @@ public:
         std::vector<AddBuf<T>> add_bufs;
 
         // function to compute one block
-        auto lambda = [=,&loop_nest](const IndexVector itval) {
+        auto lambda = [=,&add_bufs,&loop_nest](const IndexVector itval) {
             auto ctensor = lhs_.tensor();
             auto atensor = rhs1_.tensor();
             auto btensor = rhs2_.tensor();
@@ -1811,7 +1811,7 @@ public:
                     TimerGuard tg_add{&multOpAddTime};
                     //ctensor.add(translated_cblockid, cbuf);
                     const int k = 10;
-                    add_bufs.emplace_back({ctensor, std::move(cbuf)});
+                    add_bufs.emplace_back({ctensor, std::move(cbuf),translated_cblockid});
                     if(add_bufs.size() == k) {
                         for(auto& ab: add_bufs) {
                             ab.wait();

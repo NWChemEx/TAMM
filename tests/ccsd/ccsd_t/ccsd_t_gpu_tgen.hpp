@@ -322,17 +322,17 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
     ac->deallocate();
     delete ac;
 
-    size_t global_kcalls;
-    size_t global_kcalls_fused;
-    size_t global_kcalls_pfused;
-    MPI_Reduce(&kcalls, &global_kcalls, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
-           ec.pg().comm());
-    MPI_Reduce(&kcalls_fused, &global_kcalls_fused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
-           ec.pg().comm());
-    MPI_Reduce(&kcalls_pfused, &global_kcalls_pfused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
-           ec.pg().comm());           
+  //   size_t global_kcalls;
+  //   size_t global_kcalls_fused;
+  //   size_t global_kcalls_pfused;
+  //   MPI_Reduce(&kcalls, &global_kcalls, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
+  //          ec.pg().comm());
+  //   MPI_Reduce(&kcalls_fused, &global_kcalls_fused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
+  //          ec.pg().comm());
+  //   MPI_Reduce(&kcalls_pfused, &global_kcalls_pfused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
+  //          ec.pg().comm());           
 
-  if(rank == 0) cout << "Total kernel (doubles) calls = " << global_kcalls << ", #fused calls = " << global_kcalls_fused << ", #partial fused calls = " << global_kcalls_pfused << endl;
+  // if(rank == 0) cout << "Total kernel (doubles) calls = " << global_kcalls << ", #fused calls = " << global_kcalls_fused << ", #partial fused calls = " << global_kcalls_pfused << endl;
 
   return std::make_tuple(energy1,energy2);
  

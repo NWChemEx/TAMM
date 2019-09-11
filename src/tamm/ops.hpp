@@ -5,6 +5,7 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <chrono>
 
 
 #include "tamm/boundvec.hpp"
@@ -20,6 +21,26 @@
 
 
 namespace tamm {
+
+extern double multOpTime;
+extern double multOpGetTime;
+extern double multOpAddTime;
+extern double multOpDgemmTime;
+
+class TimerGuard {
+public:
+    TimerGuard(double *refptr)
+    : refptr_{refptr} {
+        start_time_ = std::chrono::high_resolution_clock::now();
+    }
+    ~TimerGuard() {
+        std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
+        *refptr_ += std::chrono::duration_cast<std::chrono::duration<double>>((end_time - start_time_)).count();
+    }
+private:
+    double *refptr_;
+    std::chrono::time_point<std::chrono::high_resolution_clock> start_time_;
+};  // TimeGuard
 
 enum class ResultMode { update, set };
 
@@ -1369,6 +1390,31 @@ protected:
     bool is_assign_;
 }; // class AddOp
 
+template<typename T>
+struct AddBuf {
+    AddBuf() = default;
+    AddBuf(std::vector<T>&& buf, Tensor<T> tensor, const IndexVector& blockid)
+    : tensor_{tensor},
+        buf_{buf}
+         {
+        tensor_.nb_add(blockid, buf_, &nbhdl_);
+    }
+    ~AddBuf() {
+        assert(nbhdl_.getCompletionStatus() == true);
+    }
+    bool is_done() {
+        return nbhdl_.getCompletionStatus();
+    }
+    bool wait() {
+        if(!nbhdl_.getCompletionStatus()) {
+            nbhdl_.waitForCompletion();
+        }
+    }
+    Tensor<T> tensor_;
+    std::vector<T> buf_;
+    DataCommunicationHandle nbhdl_;
+};
+
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 class MultOp : public Op {
 public:
@@ -1458,6 +1504,8 @@ public:
         all_labels.insert(all_labels.end(), rhs2_.labels().begin(),
                           rhs2_.labels().end());
         LabelLoopNest loop_nest{all_labels};
+
+        std::vector<AddBuf<T>> add_bufs;
 
         // function to compute one block
         auto lambda = [=,&loop_nest](const IndexVector itval) {
@@ -1677,6 +1725,7 @@ public:
             using TensorElType2 = typename LabeledTensorT2::element_type;
             using TensorElType3 = typename LabeledTensorT3::element_type;
 
+#if 0
             if constexpr(std::is_same_v<TensorElType1,TensorElType2> 
                          && std::is_same_v<TensorElType1,TensorElType3>) {
                 ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc){
@@ -1703,7 +1752,10 @@ public:
                         ReadAccess{IndexedTensor{atensor, translated_ablockid}}, 
                         ReadAccess{IndexedTensor{btensor, translated_bblockid}}); 
             }
-            else{
+            else
+#endif            
+            {
+                TimerGuard tg_total{&multOpTime};
                 const int my_rank = ec.pg().rank().value();
                 // determine set of all labels
 
@@ -1716,12 +1768,26 @@ public:
                 std::vector<TensorElType2> abuf(asize);
                 std::vector<TensorElType3> bbuf(bsize);
                 // get inputs
+#if 1
+            {
+                TimerGuard tg_get{&multOpGetTime};
                 DataCommunicationHandle a_nbhandle,b_nbhandle,c_nbhandle;
                 atensor.nb_get(translated_ablockid, abuf,&a_nbhandle);
                 btensor.nb_get(translated_bblockid, bbuf,&b_nbhandle);
 
                 if(!a_nbhandle.getCompletionStatus()) a_nbhandle.waitForCompletion();
                 if(!b_nbhandle.getCompletionStatus()) b_nbhandle.waitForCompletion();
+            }
+#else
+                { 
+                    TimerGuard tg_get{&multOpGetTime};
+                atensor.get(translated_ablockid, abuf);
+                }
+                { 
+                    TimerGuard tg_get{&multOpGetTime};
+                btensor.get(translated_bblockid, bbuf);
+                }
+#endif
                 const auto& cdims = ctensor.block_dims(translated_cblockid);
                 const auto& adims = atensor.block_dims(translated_ablockid);
                 const auto& bdims = btensor.block_dims(translated_bblockid);
@@ -1732,20 +1798,41 @@ public:
                 for(const auto v : adims) { adims_sz.push_back(v); }
                 for(const auto v : bdims) { bdims_sz.push_back(v); }
                 for(const auto v : cdims) { cdims_sz.push_back(v); }
+                { 
+                    TimerGuard tg_dgemm{&multOpDgemmTime};
                 kernels::block_multiply<T,TensorElType1,TensorElType2,TensorElType3>
                                         (my_rank, alpha_, abuf.data(), adims_sz,
                                         rhs1_int_labels_, bbuf.data(), bdims_sz,
                                         rhs2_int_labels_, cscale, cbuf.data(),
                                         cdims_sz, lhs_int_labels_, hw, ec.num_gpu());
-
+                }
                 // add the computed update to the tensor
-                ctensor.add(translated_cblockid, cbuf);
+                { 
+                    TimerGuard tg_add{&multOpAddTime};
+                    //ctensor.add(translated_cblockid, cbuf);
+                    const int k = 10;
+                    add_bufs.emplace_back({ctensor, std::move(cbuf)});
+                    if(add_bufs.size() == k) {
+                        for(auto& ab: add_bufs) {
+                            ab.wait();
+                        }
+                        add_bufs.clear();
+                    }
+                }
             }
 
             };
             //@todo use a scheduler
             //@todo make parallel
             do_work(ec, loop_nest, lambda);
+                { 
+                    TimerGuard tg_add{&multOpAddTime};
+                    for(auto& ab: add_bufs) {
+                        ab.wait();
+                    }
+                        add_bufs.clear();
+                }
+
 #endif
 
 #if 0

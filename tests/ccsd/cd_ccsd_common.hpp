@@ -660,7 +660,12 @@ std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexS
             // (d_r2_residual() = d_r2()  * d_r2())
             // .execute();
 
-            sch.execute();
+            #ifdef USE_TALSH
+              sch.execute(ExecutionHW::GPU);
+            #else
+              sch.execute();
+            #endif
+
 
             //if(ec.pg().rank()==0) cout << "norm d-r2=" << get_scalar(d_r1_residual) << ", "<< get_scalar(d_r2_residual) << endl;
 

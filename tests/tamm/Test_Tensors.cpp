@@ -1345,7 +1345,55 @@ TEST_CASE("Test for apply_ewise") {
 
     Tensor<double>::deallocate(T, Temp);
 }
+
+TEST_CASE("Testing fill_sparse_tensor") {
+    using DependencyMap = std::map<IndexVector, TiledIndexSpace>;
+
+    TiledIndexSpace AO{IndexSpace{range(7)}};
+    TiledIndexSpace MO{IndexSpace{range(10)}};
+
+    DependencyMap depMO_1 = {
+      {{0}, {TiledIndexSpace{MO, IndexVector{1, 4, 5}}}},
+      {{2}, {TiledIndexSpace{MO, IndexVector{0, 3, 6, 8}}}},
+      {{5}, {TiledIndexSpace{MO, IndexVector{2, 4, 6, 9}}}}};
+    
+    TiledIndexSpace MO_AO_1{MO, {AO}, depMO_1};
+
+    auto [i, j] = AO.labels<2>("all");
+    auto [mu, nu] = MO.labels<2>("all");
+    auto [mu_i, nu_i] = MO_AO_1.labels<2>("all");
+
+    auto ec = make_execution_context();
+    Scheduler sch{ec};
+
+    // Same structure 
+    Tensor<double> Q{i, mu_i(i)};
+    Tensor<double> P{i, mu_i(i)};
+    Tensor<double> T{i, mu};
+
+    sch.allocate(Q, P, T)
+        (Q() = 1.0)
+        (P() = 2.0)
+        (T() = 3.0)
+    .execute();
+
+    std::cout << "Q Tensor" << std::endl;
+    print_tensor(Q);
+    std::cout << "P Tensor" << std::endl;
+    print_tensor(P);
+    std::cout << "T Tensor" << std::endl;
+    print_tensor(T);
+
+    fill_sparse_tensor<double>(Q, lambda_function);
+
+    std::cout << "Q Tensor" << std::endl;
+    print_tensor(Q);
+
+}
 #endif
+
+
+
 
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);

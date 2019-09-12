@@ -15,9 +15,9 @@
 #include <time.h>
 ////#include "util.h"
 
-// #ifdef USE_TALSH
-//   #define USE_TALSH_T
-// #endif
+#ifdef USE_TALSH
+  #define USE_TALSH_T
+#endif
 #undef USE_TALSH
 
 #define CHECK_ERR(x) { \

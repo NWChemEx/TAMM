@@ -136,6 +136,7 @@ void ccsd_driver() {
     
     multOpTime = 0;
     multOpGetTime = 0;
+    multOpWaitTime = 0;
     multOpAddTime = 0;
     multOpDgemmTime = 0;
     ec.pg().barrier();
@@ -171,11 +172,13 @@ void ccsd_driver() {
         std::cout << std::endl << "Time taken for Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
     }
 
-    double gmultOpTime,gmultOpGetTime,gmultOpDgemmTime,gmultOpAddTime;
+    double gmultOpTime,gmultOpGetTime,gmultOpWaitTime,gmultOpDgemmTime,gmultOpAddTime;
     MPI_Reduce(&multOpTime, &gmultOpTime, 1, MPI_DOUBLE, MPI_SUM, 0,
            ec.pg().comm());
     MPI_Reduce(&multOpGetTime, &gmultOpGetTime, 1, MPI_DOUBLE, MPI_SUM, 0,
            ec.pg().comm());
+    MPI_Reduce(&multOpWaitTime, &gmultOpWaitTime, 1, MPI_DOUBLE, MPI_SUM, 0,
+           ec.pg().comm());           
     MPI_Reduce(&multOpDgemmTime, &gmultOpDgemmTime, 1, MPI_DOUBLE, MPI_SUM, 0,
            ec.pg().comm());                      
     MPI_Reduce(&multOpAddTime, &gmultOpAddTime, 1, MPI_DOUBLE, MPI_SUM, 0,
@@ -185,6 +188,7 @@ void ccsd_driver() {
     if(rank == 0){
         std::cout<<rank<<" : total mult_op time="<<gmultOpTime/nranks <<"\n";
         std::cout<<rank<<" : mult_op get time="<<gmultOpGetTime/nranks<<"\n";
+        std::cout<<rank<<" : mult_op wait time="<<gmultOpWaitTime/nranks<<"\n";
         std::cout<<rank<<" : mult_op dgemm time="<<gmultOpDgemmTime/nranks<<"\n";
         std::cout<<rank<<" : mult_op add time="<<gmultOpAddTime/nranks<<"\n";
     }

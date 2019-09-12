@@ -183,10 +183,10 @@ void ccsd_driver() {
 
     auto nranks = ec.pg().size().value();
     if(rank == 0){
-        std::cout<<rank<<" : mult_op time="<<multOpTime/nranks <<"\n";
-        std::cout<<rank<<" : mult_op get time="<<multOpGetTime/nranks<<"\n";
-        std::cout<<rank<<" : mult_op dgemm time="<<multOpDgemmTime/nranks<<"\n";
-        std::cout<<rank<<" : mult_op add time="<<multOpAddTime/nranks<<"\n";
+        std::cout<<rank<<" : total mult_op time="<<gmultOpTime/nranks <<"\n";
+        std::cout<<rank<<" : mult_op get time="<<gmultOpGetTime/nranks<<"\n";
+        std::cout<<rank<<" : mult_op dgemm time="<<gmultOpDgemmTime/nranks<<"\n";
+        std::cout<<rank<<" : mult_op add time="<<gmultOpAddTime/nranks<<"\n";
     }
 
     if(!ccsd_restart) {

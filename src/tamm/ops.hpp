@@ -24,6 +24,7 @@ namespace tamm {
 
 extern double multOpTime;
 extern double multOpGetTime;
+extern double multOpWaitTime;
 extern double multOpAddTime;
 extern double multOpDgemmTime;
 
@@ -1769,12 +1770,15 @@ public:
                 std::vector<TensorElType3> bbuf(bsize);
                 // get inputs
 #if 1
+                DataCommunicationHandle a_nbhandle,b_nbhandle,c_nbhandle;
+
             {
                 TimerGuard tg_get{&multOpGetTime};
-                DataCommunicationHandle a_nbhandle,b_nbhandle,c_nbhandle;
                 atensor.nb_get(translated_ablockid, abuf,&a_nbhandle);
                 btensor.nb_get(translated_bblockid, bbuf,&b_nbhandle);
-
+            }
+            {
+                TimerGuard tg_wait{&multOpWaitTime};
                 if(!a_nbhandle.getCompletionStatus()) a_nbhandle.waitForCompletion();
                 if(!b_nbhandle.getCompletionStatus()) b_nbhandle.waitForCompletion();
             }

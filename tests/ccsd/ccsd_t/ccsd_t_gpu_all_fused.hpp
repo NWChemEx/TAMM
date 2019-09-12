@@ -487,7 +487,7 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
        sd_t_s1_args[s1c++] = k_range[p4b];
        sd_t_s1_args[s1c++] = k_range[p5b];
        sd_t_s1_args[s1c++] = k_range[p6b];
-       
+
        std::copy(k_a_sort.begin(),k_a_sort.end(),k_abufs1.begin() + s1b*s1_max_dima);
        std::copy(k_b_sort.begin(),k_b_sort.end(),k_bbufs1.begin() + s1b*s1_max_dimb);
        s1b++;                            

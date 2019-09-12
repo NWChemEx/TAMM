@@ -48,6 +48,10 @@
 #define MAX_NOAB				10
 #define MAX_NVAB 				30
 
+// #define DEBUG_TIME_FUSED_CCSD_T
+// #define DEBUG_KERNEL_DETAIL
+// #define DEBUG_HOST_ENERGIES
+
 // 64 KB = 65536 bytes = 16384 (int) = 8192 (size_t)
 // 9 * 9 * noab = 81 * noab 
 __constant__ int const_list_s1_flags_offset[NUM_IA6_LOOPS * NUM_S1_EQUATIONS];
@@ -182,13 +186,33 @@ __constant__ int const_list_d2_problem_size[NUM_IA6_LOOPS * NUM_D2_INDEX * MAX_N
 	size_t stride_s1_v2_9 = stride_s1_v2_8 + size_s1_v2_8;
 #endif
 
+// jk_ccsd_t_fully_fused_kernel<<<gridsize_1, blocksize_1>>>(size_noab, size_nvab, 
+// 	// 
+// 	size_max_dim_s1_t2, size_max_dim_s1_v2,
+// 	size_max_dim_d1_t2, size_max_dim_d1_v2,
+// 	size_max_dim_d2_t2, size_max_dim_d2_v2,
+// 	// 
+// 	dev_d1_t2_all, dev_d1_v2_all, 
+// 	dev_d2_t2_all, dev_d2_v2_all, 
+// 	dev_s1_t2_all, dev_s1_v2_all, 
+// 	//  
+// 	dev_evl_sorted_h1b, dev_evl_sorted_h2b, dev_evl_sorted_h3b,
+// 	dev_evl_sorted_p4b, dev_evl_sorted_p5b, dev_evl_sorted_p6b,
+// 	dev_energies, 
+// 	// 
+// 	CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3), CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2), CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1), 
+// 	CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6), CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5), CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4),
+// 	// 
+// 	base_size_h1b, base_size_h2b, base_size_h1b, 
+// 	base_size_p4b, base_size_p5b, base_size_p6b);
+
 // 
 __global__ 
-void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab, 
+void jk_ccsd_t_fully_fused_kernel(	int size_noab, int size_nvab, 
 									// 	common
-									size_t size_max_dim_s1_t2, size_t size_max_dim_s1_v2, 
-									size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2, 
-									size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2, 
+									int size_max_dim_s1_t2, int size_max_dim_s1_v2, 
+									int size_max_dim_d1_t2, int size_max_dim_d1_v2, 
+									int size_max_dim_d2_t2, int size_max_dim_d2_v2, 
 									//  doubles (sd1)
 									double* dev_d1_t2_all,  double* dev_d1_v2_all,
 									//  doubles (sd2)
@@ -203,8 +227,8 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 									//  common
 									int num_blks_h3b, int num_blks_h2b, int num_blks_h1b, 
 									int num_blks_p6b, int num_blks_p5b, int num_blks_p4b, 
-									size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, 
-									size_t base_size_p4b, size_t base_size_p5b, size_t base_size_p6b)
+									int base_size_h1b, int base_size_h2b, int base_size_h3b, 
+									int base_size_p4b, int base_size_p5b, int base_size_p6b)
 {
 	// For Shared Memory,
 	__shared__ double sm_a[16][64 + 1];
@@ -214,10 +238,10 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 	int internal_offset;
 
 	// should support for non-full tiles
-	int idx_h3 = threadIdx.x % FUSION_SIZE_SLICE_1_H3;
-	int idx_h2 = threadIdx.x / FUSION_SIZE_SLICE_1_H3;
-	int idx_p6 = threadIdx.y % FUSION_SIZE_SLICE_1_P6;
-	int idx_h1 = threadIdx.y / FUSION_SIZE_SLICE_1_P6;
+	int idx_h3 			= threadIdx.x % FUSION_SIZE_SLICE_1_H3;
+	int idx_h2 			= threadIdx.x / FUSION_SIZE_SLICE_1_H3;
+	int idx_p6 			= threadIdx.y % FUSION_SIZE_SLICE_1_P6;
+	int idx_h1 			= threadIdx.y / FUSION_SIZE_SLICE_1_P6;
 	   
 	int blk_idx_p4b     = blockIdx.x / (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b * num_blks_p5b);
 	int tmp_blkIdx      = blockIdx.x % (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b * num_blks_p5b);
@@ -230,31 +254,32 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 	int blk_idx_h2b     = (tmp_blkIdx) / (num_blks_h3b);
 	int blk_idx_h3b     = blockIdx.x % (num_blks_h3b);
 
-	int str_blk_idx_h3 = blk_idx_h3b * FUSION_SIZE_SLICE_1_H3;
-	int str_blk_idx_h2 = blk_idx_h2b * FUSION_SIZE_SLICE_1_H2;
-	int str_blk_idx_h1 = blk_idx_h1b * FUSION_SIZE_SLICE_1_H1;
-	int str_blk_idx_p6 = blk_idx_p6b * FUSION_SIZE_SLICE_1_P6;
-	int str_blk_idx_p5 = blk_idx_p5b * FUSION_SIZE_SLICE_1_P5;
-	int str_blk_idx_p4 = blk_idx_p4b * FUSION_SIZE_SLICE_1_P4;
+	int str_blk_idx_h3 	= blk_idx_h3b * FUSION_SIZE_SLICE_1_H3;
+	int str_blk_idx_h2 	= blk_idx_h2b * FUSION_SIZE_SLICE_1_H2;
+	int str_blk_idx_h1 	= blk_idx_h1b * FUSION_SIZE_SLICE_1_H1;
+	int str_blk_idx_p6 	= blk_idx_p6b * FUSION_SIZE_SLICE_1_P6;
+	int str_blk_idx_p5 	= blk_idx_p5b * FUSION_SIZE_SLICE_1_P5;
+	int str_blk_idx_p4 	= blk_idx_p4b * FUSION_SIZE_SLICE_1_P4;
 
 	// 
 	int rng_h3, rng_h2, rng_h1, rng_p6, rng_p5, rng_p4;
+	int energy_rng_h3, energy_rng_h2, energy_rng_h1, energy_rng_p6, energy_rng_p5, energy_rng_p4;
 	if ((base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3)
 	{
-		rng_h3 = FUSION_SIZE_SLICE_1_H3;
+		energy_rng_h3 = FUSION_SIZE_SLICE_1_H3;
 	}
 	else
 	{
-		rng_h3 = base_size_h3b % FUSION_SIZE_SLICE_1_H3;
+		energy_rng_h3 = base_size_h3b % FUSION_SIZE_SLICE_1_H3;
 	}
 	
 	if ((base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2)
 	{
-		rng_h2 = FUSION_SIZE_SLICE_1_H2;
+		energy_rng_h2 = FUSION_SIZE_SLICE_1_H2;
 	}
 	else
 	{
-		rng_h2 = base_size_h2b % FUSION_SIZE_SLICE_1_H2;
+		energy_rng_h2 = base_size_h2b % FUSION_SIZE_SLICE_1_H2;
 	}
 
 	if ((base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1)
@@ -263,30 +288,30 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 	}
 	else
 	{
-		rng_h1 = base_size_h1b % FUSION_SIZE_SLICE_1_H1;
+		energy_rng_h1 = base_size_h1b % FUSION_SIZE_SLICE_1_H1;
 	}
 	
 	if ((base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6)
 	{
-		rng_p6 = FUSION_SIZE_SLICE_1_P6;
+		energy_rng_p6 = FUSION_SIZE_SLICE_1_P6;
 	}
 	else
 	{
-		rng_p6 = base_size_p6b % FUSION_SIZE_SLICE_1_P6;
+		energy_rng_p6 = base_size_p6b % FUSION_SIZE_SLICE_1_P6;
 	}
 
 	if ((base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5)
 	{
-		rng_p5 = FUSION_SIZE_SLICE_1_P5;
+		energy_rng_p5 = FUSION_SIZE_SLICE_1_P5;
 	}
 	else
 	{
-		rng_p5 = base_size_p5b % FUSION_SIZE_SLICE_1_P5;
+		energy_rng_p5 = base_size_p5b % FUSION_SIZE_SLICE_1_P5;
 	}
 
 	if ((base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4)
 	{
-		rng_p4 = FUSION_SIZE_SLICE_1_P4;
+		energy_rng_p4 = FUSION_SIZE_SLICE_1_P4;
 	}
 	else
 	{
@@ -299,7 +324,7 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 	double reg_tile[4][4];
 	double reg_singles[4][4];
 
-	size_t base_size_h7b, base_size_p7b;
+	int base_size_h7b, base_size_p7b;
 
 	for (int i = 0; i < 4; i++)
 	for (int j = 0; j < 4; j++)
@@ -307,6 +332,15 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 		reg_tile[i][j]      = 0.0;
 		reg_singles[i][j]   = 0.0;
 	}
+
+	int energy_str_blk_idx_p4 = str_blk_idx_p4;
+	int energy_str_blk_idx_p5 = str_blk_idx_p5;
+	double eval_h3 = dev_evl_sorted_h3b[str_blk_idx_h3 + idx_h3];
+	double eval_h2 = dev_evl_sorted_h2b[str_blk_idx_h2 + idx_h2];
+	double eval_p6 = dev_evl_sorted_p6b[str_blk_idx_p6 + idx_p6];
+	double eval_h1 = dev_evl_sorted_h1b[str_blk_idx_h1 + idx_h1];
+
+	double partial_inner_factor = eval_h3 + eval_h2 + eval_h1 - eval_p6;
 
 	// 
 	//  loops
@@ -324,11 +358,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				int flag_d1_1 = const_list_d1_flags_offset[0 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
 				int flag_d1_2 = const_list_d1_flags_offset[1 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
 				int flag_d1_3 = const_list_d1_flags_offset[2 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
-
-				// if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				// {
-				// 	printf ("ia6 = %2d, noab = %2d >> d1_1_2_3 >> %2d, %2d, %2d\n", iter_ia6, iter_noab, flag_d1_1, flag_d1_2, flag_d1_3);
-				// }
 
 				// 
 				// int local_d1_size_idx_h1b = const_list_d1_problem_size[0 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
@@ -465,15 +494,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, noab=%d, flag_d1_1 < 0: %d\n", iter_ia6, iter_noab, flag_d1_1);
-					}
-				}
-				#endif
 			
 				//  sd1_2
 				if (flag_d1_2 >= 0)
@@ -528,15 +548,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, noab=%d, flag_d1_2 < 0: %d\n", iter_ia6, iter_noab, flag_d1_2);
-					}
-				}
-				#endif
 			
 				//  sd1_3
 				if (flag_d1_3 >= 0)
@@ -591,15 +602,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, noab=%d, flag_d1_3 < 0: %d\n", iter_ia6, iter_noab, flag_d1_3);
-					}
-				}
-				#endif
 			}
 		
 			//  d2-top: sd2_7, 8 and 9
@@ -610,11 +612,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				int flag_d2_7 = const_list_d2_flags_offset[6 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
 				int flag_d2_8 = const_list_d2_flags_offset[7 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
 				int flag_d2_9 = const_list_d2_flags_offset[8 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
-
-				// if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				// {
-				// 	printf ("ia6 = %2d, nvab = %2d >> d2_7_8_9 >> %2d, %2d, %2d\n", iter_ia6, iter_nvab, flag_d2_7, flag_d2_8, flag_d2_9);
-				// }
 
 				// 
 				// int local_d2_size_idx_h1b = const_list_d2_problem_size[0 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
@@ -752,15 +749,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, nvab=%d, flag_d2_7 < 0: %d\n", iter_ia6, iter_nvab, flag_d2_7);
-					}
-				}
-				#endif
 
 				// 	sd2_8
 				if (flag_d2_8 >= 0)
@@ -816,15 +804,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, nvab=%d, flag_d2_8 < 0: %d\n", iter_ia6, iter_nvab, flag_d2_8);
-					}
-				}
-				#endif
 			
 				// 	sd2_9
 				if (flag_d2_9 >= 0)
@@ -880,15 +859,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, nvab=%d, flag_d2_9 < 0: %d\n", iter_ia6, iter_nvab, flag_d2_9);
-					}
-				}
-				#endif
 			}
 		}
 	}
@@ -1096,6 +1066,7 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 		
 		//  doubles (d1 and d2) 
 		{
+		// #if 0
 			//  d1-bottom: sd1_4, 5 , 6 , 7 , 8 and 9.
 			#pragma unroll 1
 			for (int iter_noab = 0; iter_noab < size_noab; iter_noab++)
@@ -1107,11 +1078,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				int flag_d1_7 = const_list_d1_flags_offset[6 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
 				int flag_d1_8 = const_list_d1_flags_offset[7 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
 				int flag_d1_9 = const_list_d1_flags_offset[8 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
-
-				// if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				// {
-				// 	printf ("ia6 = %2d, noab = %2d >> d1_4_5_6_7_8_9 >> %2d, %2d, %2d, %2d, %2d, %2d\n", iter_ia6, iter_noab, flag_d1_4, flag_d1_5, flag_d1_6, flag_d1_7, flag_d1_8, flag_d1_9);
-				// }
 
 				// 
 				// int local_d1_size_idx_h1b = const_list_d1_problem_size[0 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
@@ -1248,15 +1214,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, noab=%d, flag_d1_4 < 0: %d\n", iter_ia6, iter_noab, flag_d1_4);
-					}
-				}
-				#endif
 
 				// 	sd1_5
 				if (flag_d1_5 >= 0)
@@ -1312,15 +1269,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, noab=%d, flag_d1_5 < 0: %d\n", iter_ia6, iter_noab, flag_d1_5);
-					}
-				}
-				#endif
 
 				// 	sd1_6
 				if (flag_d1_6 >= 0)
@@ -1377,15 +1325,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, noab=%d, flag_d1_6 < 0: %d\n", iter_ia6, iter_noab, flag_d1_6);
-					}
-				}
-				#endif
 
 				// 	sd1_7
 				if (flag_d1_7 >= 0)
@@ -1440,15 +1379,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, noab=%d, flag_d1_7 < 0: %d\n", iter_ia6, iter_noab, flag_d1_7);
-					}
-				}
-				#endif
 				
 				// 	sd1_8
 				if (flag_d1_8 >= 0)
@@ -1503,15 +1433,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, noab=%d, flag_d1_8 < 0: %d\n", iter_ia6, iter_noab, flag_d1_8);
-					}
-				}
-				#endif
 
 				// 	sd1_9
 				if (flag_d1_9 >= 0)
@@ -1566,17 +1487,9 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL	
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, noab=%d, flag_d1_9 < 0: %d\n", iter_ia6, iter_noab, flag_d1_9);
-					}
-				}
-				#endif
 			}
-
+		
+		
 			//  d2-bottom: sd2_1, 2, 3, 4, 5 and 6.
 			#pragma unroll 1
 			for (int iter_nvab = 0; iter_nvab < size_nvab; iter_nvab++)
@@ -1588,11 +1501,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				int flag_d2_4 = const_list_d2_flags_offset[3 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
 				int flag_d2_5 = const_list_d2_flags_offset[4 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
 				int flag_d2_6 = const_list_d2_flags_offset[5 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
-
-				// if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				// {
-				// 	printf ("ia6 = %2d, nvab = %2d >> d2_1_2_3_4_5_6 >> %2d, %2d, %2d, %2d, %2d, %2d\n", iter_ia6, iter_nvab, flag_d2_1, flag_d2_2, flag_d2_3, flag_d2_4, flag_d2_5, flag_d2_6);
-				// }
 
 				// 
 				// int local_d2_size_idx_h1b = const_list_d2_problem_size[0 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
@@ -1730,15 +1638,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, nvab=%d, flag_d2_1 < 0: %d\n", iter_ia6, iter_nvab, flag_d2_1);
-					}
-				}
-				#endif
 			
 				// 	sd2_2
 				if (flag_d2_2 >= 0)
@@ -1793,15 +1692,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, nvab=%d, flag_d2_2 < 0: %d\n", iter_ia6, iter_nvab, flag_d2_2);
-					}
-				}
-				#endif
 
 				// 	sd2_3
 				if (flag_d2_3 >= 0)
@@ -1862,15 +1752,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, nvab=%d, flag_d2_3 < 0: %d\n", iter_ia6, iter_nvab, flag_d2_3);
-					}
-				}
-				#endif
 			
 				// 	sd2_4
 				if (flag_d2_4 >= 0)
@@ -1925,15 +1806,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, nvab=%d, flag_d2_4 < 0: %d\n", iter_ia6, iter_nvab, flag_d2_4);
-					}
-				}
-				#endif
 			
 				// 	sd2_5
 				if (flag_d2_5 >= 0)
@@ -1988,15 +1860,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, nvab=%d, flag_d2_5 < 0: %d\n", iter_ia6, iter_nvab, flag_d2_5);
-					}
-				}
-				#endif
 			
 				// 	sd2_6
 				if (flag_d2_6 >= 0)
@@ -2051,16 +1914,8 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 						__syncthreads();
 					}
 				}
-				#ifdef DEBUG_KERNEL_DETAIL
-				else
-				{
-					if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-					{
-						printf ("ia6=%d, nvab=%d, flag_d2_6 < 0: %d\n", iter_ia6, iter_nvab, flag_d2_6);
-					}
-				}
-				#endif
 			}
+		
 		}
 
 		//  singles (s1)
@@ -2076,7 +1931,10 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 			int flag_s1_8 = const_list_s1_flags_offset[7 + iter_ia6 * NUM_S1_EQUATIONS];
 			int flag_s1_9 = const_list_s1_flags_offset[8 + iter_ia6 * NUM_S1_EQUATIONS];
 
-			
+			// if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
+			// {
+			// 	printf ("[Device][s1] ia6=%d, flag_s1_(1, 2, 3, 4, 5, 6, 7, 8, 9) = (%2d,%2d,%2d,%2d,%2d,%2d,%2d,%2d,%2d)\n", iter_ia6, flag_s1_1, flag_s1_2, flag_s1_3, flag_s1_4, flag_s1_5, flag_s1_6, flag_s1_7, flag_s1_8, flag_s1_9);
+			// }
 
 			// 	problem-sizes
 			// int local_s1_size_idx_h1b = const_list_s1_problem_size[0 + iter_ia6 * NUM_S1_INDEX];
@@ -2205,15 +2063,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				reg_singles[3][3] += temp_av * temp_bv[3];// * reg_singles[3][3];
 				__syncthreads();
 			}
-			#ifdef DEBUG_KERNEL_DETAIL
-			else
-			{
-				if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				{
-					printf ("ia6=%d, flag_s1_1 < 0: %d\n", iter_ia6, flag_s1_1);
-				}
-			}
-			#endif
 
 			//                                        "x1,x2"     "x1,x2,x3,y1"
 			//  >> s1_2:   t3[h3,h2,h1,p6,p5,p4] -= t2[p4,h2] * v2[h3,h1,p6,p5] (h3,h2,p6), (h1)
@@ -2268,15 +2117,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				reg_singles[3][3] -= temp_av * temp_bv[3];
 				__syncthreads();
 			}
-			#ifdef DEBUG_KERNEL_DETAIL
-			else
-			{
-				if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				{
-					printf ("ia6=%d, flag_s1_2 < 0: %d\n", iter_ia6, flag_s1_1);
-				}
-			}
-			#endif
 
 			//
 			//  >> s1_3:   t3[h3,h2,h1,p6,p5,p4] -= t2[p4,h1] * v2[h3,h2,p6,p5] >> t3[h3,h2,h1,p6,p5,p4] += t2[p4,h3] * v2[h2,h1,p6,p5]
@@ -2331,15 +2171,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				reg_singles[3][3] += temp_av * temp_bv[3];
 				__syncthreads();
 			}
-			#ifdef DEBUG_KERNEL_DETAIL
-			else
-			{
-				if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				{
-					printf ("ia6=%d, flag_s1_3 < 0: %d\n", iter_ia6, flag_s1_1);
-				}
-			}
-			#endif
 		
 			//
 			//  >> s1_4:   t3[h3,h2,h1,p6,p5,p4] -= t2[p5,h1] * v2[h3,h2,p6,p4] (h3,h2,p6), (h1)
@@ -2393,15 +2224,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				reg_singles[3][3] += temp_av * temp_bv[3];
 				__syncthreads();
 			}
-			#ifdef DEBUG_KERNEL_DETAIL
-			else
-			{
-				if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				{
-					printf ("ia6=%d, flag_s1_4 < 0: %d\n", iter_ia6, flag_s1_1);
-				}
-			}
-			#endif
 
 			//
 			//  >> s1_5:   t3[h3,h2,h1,p6,p5,p4] -= t2[p5,h2] * v2[h3,h1,p6,p4] (h3,h2,p6), (h1)
@@ -2456,15 +2278,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				reg_singles[3][3] += temp_av * temp_bv[3];
 				__syncthreads();
 			}
-			#ifdef DEBUG_KERNEL_DETAIL
-			else
-			{
-				if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				{
-					printf ("ia6=%d, flag_s1_5 < 0: %d\n", iter_ia6, flag_s1_1);
-				}
-			}
-			#endif
 			
 			//
 			//  >> s1_6:   t3[h3,h2,h1,p6,p5,p4] -= t2[p5,h3] * v2[h2,h1,p6,p4] (h3,h2,p6), (h1)
@@ -2519,15 +2332,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				reg_singles[3][3] -= temp_av * temp_bv[3];
 				__syncthreads();
 			}
-			#ifdef DEBUG_KERNEL_DETAIL
-			else
-			{
-				if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				{
-					printf ("ia6=%d, flag_s1_6 < 0: %d\n", iter_ia6, flag_s1_1);
-				}
-			}
-			#endif
 			
 			//
 			//  >> s1_7:   t3[h3,h2,h1,p6,p5,p4] -= t2[p6,h1] * v2[h3,h2,p5,p4] (h3,h2,p6), (h1)
@@ -2567,15 +2371,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				reg_singles[3][3] -= sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h2 + (3) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
 				__syncthreads();
 			}
-			#ifdef DEBUG_KERNEL_DETAIL
-			else
-			{
-				if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				{
-					printf ("ia6=%d, flag_s1_7 < 0: %d\n", iter_ia6, flag_s1_1);
-				}
-			}
-			#endif
 			
 			//
 			//  >> s1_8:   t3[h3,h2,h1,p6,p5,p4] -= t2[p6,h2] * v2[h3,h1,p5,p4] (h3,h2,p6), (h1)
@@ -2615,15 +2410,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				reg_singles[3][3] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
 				__syncthreads();
 			}
-			#ifdef DEBUG_KERNEL_DETAIL
-			else
-			{
-				if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				{
-					printf ("ia6=%d, flag_s1_8 < 0: %d\n", iter_ia6, flag_s1_1);
-				}
-			}
-			#endif
 
 			//
 			//  >> s1_9:   t3[h3,h2,h1,p6,p5,p4] -= t2[p6,h3] * v2[h2,h1,p5,p4] (h3,h2,p6), (h1)
@@ -2663,15 +2449,6 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 				reg_singles[3][3] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h2 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
 				__syncthreads();
 			}
-			#ifdef DEBUG_KERNEL_DETAIL
-			else
-			{
-				if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				{
-					printf ("ia6=%d, flag_s1_9 < 0: %d\n", iter_ia6, flag_s1_1);
-				}
-			}
-			#endif
 		}
 	}
 	
@@ -2681,23 +2458,17 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 	double energy_1 = 0.0;
 	double energy_2 = 0.0;
 
-	double eval_h3 = dev_evl_sorted_h3b[str_blk_idx_h3 + idx_h3];
-	double eval_h2 = dev_evl_sorted_h2b[str_blk_idx_h2 + idx_h2];
-	double eval_p6 = dev_evl_sorted_p6b[str_blk_idx_p6 + idx_p6];
-	double eval_h1 = dev_evl_sorted_h1b[str_blk_idx_h1 + idx_h1];
-
-	double partial_inner_factor = eval_h3 + eval_h2 + eval_h1 - eval_p6;
-
 	// 
-	if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p6 < rng_p6 && idx_h1 < rng_h1)
+	if (idx_h3 < energy_rng_h3 && idx_h2 < energy_rng_h2 && idx_p6 < energy_rng_p6 && idx_h1 < energy_rng_h1)
 	{
 		for (int i = 0; i < FUSION_SIZE_SLICE_1_P5; i++)
 		{
 			for (int j = 0; j < FUSION_SIZE_SLICE_1_P4; j++)
 			{
-				if (i < rng_p5 && j < rng_p4)
+				if (i < energy_rng_p5 && j < energy_rng_p4)
 				{
-					double inner_factor = partial_inner_factor - dev_evl_sorted_p5b[i + (str_blk_idx_p5)] - dev_evl_sorted_p4b[j + (str_blk_idx_p4)];
+					// 
+					double inner_factor = partial_inner_factor - dev_evl_sorted_p5b[i + (energy_str_blk_idx_p5)] - dev_evl_sorted_p4b[j + (energy_str_blk_idx_p4)];
 
 					// 
 					energy_1 += (reg_tile[j][i] *  reg_tile[j][i]) 						/ inner_factor;
@@ -2707,7 +2478,7 @@ void jk_ccsd_t_fully_fused_kernel(	size_t size_noab, size_t size_nvab,
 		}
 	}
 	__syncthreads();
-
+	
 	// 
 	//  to partially reduce the energies--- E(4) and E(5)
 	//  a warp: 32 -(1)-> 16 -(2)-> 8 -(3)-> 4 -(4)-> 2 
@@ -2766,15 +2537,11 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
                                           size_t size_max_dim_s1_t2, size_t size_max_dim_s1_v2, 
 						// 
 						double factor, 
-						double* host_evl_sortedh1, double* host_evl_sortedh2, double* host_evl_sortedh3, 
-						double* host_evl_sortedp4, double* host_evl_sortedp5, double* host_evl_sortedp6,
+						double* host_evl_sorted_h1b, double* host_evl_sorted_h2b, double* host_evl_sorted_h3b, 
+						double* host_evl_sorted_p4b, double* host_evl_sorted_p5b, double* host_evl_sorted_p6b,
 						double* final_energy_4, double* final_energy_5)
 {
 	// 
-	// printf ("========================================================================================\n");
-		
-	// 
-	// printf ("[%s] to allocate GPUs memories ---- input tensors\n", __func__);
 	double* dev_d1_t2_all; double* dev_d1_v2_all;
 	double* dev_d2_t2_all; double* dev_d2_v2_all;
 	double* dev_s1_t2_all; double* dev_s1_v2_all;
@@ -2786,7 +2553,6 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	cudaMalloc((void **)&dev_s1_v2_all, size_s1_v2_all * sizeof(double));
 
 	//
-	// printf ("[%s] to allocate GPUs memories ---- evls\n", __func__);
 	double* dev_evl_sorted_h1b; double* dev_evl_sorted_h2b; double* dev_evl_sorted_h3b;
 	double* dev_evl_sorted_p4b; double* dev_evl_sorted_p5b; double* dev_evl_sorted_p6b;
 	cudaMalloc((void **)&dev_evl_sorted_h1b, base_size_h1b * sizeof(double));
@@ -2797,15 +2563,14 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	cudaMalloc((void **)&dev_evl_sorted_p6b, base_size_p6b * sizeof(double));
 
 	// 
-	// printf ("[%s] to allocate GPUs memories ---- flags\n", __func__);
 	int* int_list_s1_flags_offsets = (int*)malloc(sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_EQUATIONS));
 	int* int_list_d1_flags_offsets = (int*)malloc(sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_EQUATIONS * size_noab));
 	int* int_list_d2_flags_offsets = (int*)malloc(sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_EQUATIONS * size_nvab));
 
 	int offset = 0;
 	for (int i = 0; i < NUM_IA6_LOOPS * NUM_S1_EQUATIONS; i++)
-	{
-		if (vec_s1_flags[i] >= 0)
+	{		
+		if (vec_s1_flags[i] > 0)
 		{
 			int_list_s1_flags_offsets[i] = offset++;
 		}
@@ -2818,7 +2583,7 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	offset = 0;
 	for (int i = 0; i < NUM_IA6_LOOPS * size_noab * NUM_D1_EQUATIONS; i++)
 	{
-		if (vec_d1_flags[i] >= 0)
+		if (vec_d1_flags[i] > 0)
 		{
 			int_list_d1_flags_offsets[i] = offset++;
 		}
@@ -2831,7 +2596,7 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	offset = 0;
 	for (int i = 0; i < NUM_IA6_LOOPS * size_nvab * NUM_D2_EQUATIONS; i++)
 	{
-		if (vec_d2_flags[i] >= 0)
+		if (vec_d2_flags[i] > 0)
 		{
 			int_list_d2_flags_offsets[i] = offset++;
 		}
@@ -2840,14 +2605,8 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 			int_list_d2_flags_offsets[i] = -1;
 		}
 	}
-
-	for (int i = 0; i < NUM_IA6_LOOPS * size_nvab * NUM_D2_EQUATIONS; i++)
-	{
-
-	}
 	
 	// 
-	// printf ("[%s] to copy Host memories to GPUs memories\n", __func__);
 	cudaMemcpyToSymbol(const_list_s1_flags_offset, int_list_s1_flags_offsets, sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_EQUATIONS));
 	cudaMemcpyToSymbol(const_list_d1_flags_offset, int_list_d1_flags_offsets, sizeof(int) * (NUM_IA6_LOOPS * MAX_NOAB * NUM_D1_EQUATIONS));
 	cudaMemcpyToSymbol(const_list_d2_flags_offset, int_list_d2_flags_offsets, sizeof(int) * (NUM_IA6_LOOPS * MAX_NVAB * NUM_D2_EQUATIONS));
@@ -2905,14 +2664,14 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	cudaMemcpy(dev_d2_v2_all, host_d2_v2_all, (size_d2_v2_all) * sizeof(double), cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_s1_t2_all, host_s1_t2_all, (size_s1_t2_all) * sizeof(double), cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_s1_v2_all, host_s1_v2_all, (size_s1_v2_all) * sizeof(double), cudaMemcpyHostToDevice);
-	
+
 	// 
-	cudaMemcpy(dev_evl_sorted_h1b, host_evl_sortedh1, base_size_h1b * sizeof(double), cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_evl_sorted_h2b, host_evl_sortedh2, base_size_h2b * sizeof(double), cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_evl_sorted_h3b, host_evl_sortedh3, base_size_h3b * sizeof(double), cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_evl_sorted_p4b, host_evl_sortedp4, base_size_p4b * sizeof(double), cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_evl_sorted_p5b, host_evl_sortedp5, base_size_p5b * sizeof(double), cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_evl_sorted_p6b, host_evl_sortedp6, base_size_p6b * sizeof(double), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_evl_sorted_h1b, host_evl_sorted_h1b, base_size_h1b * sizeof(double), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_evl_sorted_h2b, host_evl_sorted_h2b, base_size_h2b * sizeof(double), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_evl_sorted_h3b, host_evl_sorted_h3b, base_size_h3b * sizeof(double), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_evl_sorted_p4b, host_evl_sorted_p4b, base_size_p4b * sizeof(double), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_evl_sorted_p5b, host_evl_sorted_p5b, base_size_p5b * sizeof(double), cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_evl_sorted_p6b, host_evl_sorted_p6b, base_size_p6b * sizeof(double), cudaMemcpyHostToDevice);
 	
 	//
 	//  the kernel should be based on the based problem sizes.
@@ -2926,25 +2685,25 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	dim3 blocksize_1(FUSION_SIZE_TB_1_X, FUSION_SIZE_TB_1_Y);
 
 	// 
-	double* host_energies   = (double*)malloc   (num_blocks_kernel_1 * NUM_ENERGIES * sizeof(double));
+	double* host_energies = (double*)malloc(num_blocks_kernel_1 * NUM_ENERGIES * sizeof(double));
+	memset(host_energies, 0.0, num_blocks_kernel_1 * NUM_ENERGIES * sizeof(double));
 	double* dev_energies;
 	cudaMalloc((void **)&dev_energies, num_blocks_kernel_1 * NUM_ENERGIES * sizeof(double));
-	// printf ("[%s] to call the fused kernel for singles, double and energies\n", __func__);
 
-#ifdef DEBUG_TIME_FUSED_CCSD_T
+//#ifdef DEBUG_TIME_FUSED_CCSD_T
 	cudaEvent_t start_ccsd_t, stop_ccsd_t, stop_kernely_only;
 	cudaEventCreate(&start_ccsd_t);
 	cudaEventCreate(&stop_ccsd_t);
 	cudaEventCreate(&stop_kernely_only);
 	cudaEventRecord(start_ccsd_t);
-#endif
+//#endif
 
 	// 
-	jk_ccsd_t_fully_fused_kernel<<<gridsize_1, blocksize_1>>>(size_noab, size_nvab, 
+	jk_ccsd_t_fully_fused_kernel<<<gridsize_1, blocksize_1>>>((int)size_noab, (int)size_nvab, 
 																// 
-																size_max_dim_s1_t2, size_max_dim_s1_v2,
-																size_max_dim_d1_t2, size_max_dim_d1_v2,
-																size_max_dim_d2_t2, size_max_dim_d2_v2,
+																(int)size_max_dim_s1_t2, (int)size_max_dim_s1_v2,
+																(int)size_max_dim_d1_t2, (int)size_max_dim_d1_v2,
+																(int)size_max_dim_d2_t2, (int)size_max_dim_d2_v2,
 																// 
 																dev_d1_t2_all, dev_d1_v2_all, 
 																dev_d2_t2_all, dev_d2_v2_all, 
@@ -2957,16 +2716,19 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 																CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3), CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2), CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1), 
 																CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6), CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5), CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4),
 																// 
-																base_size_h1b, base_size_h2b, base_size_h1b, 
-																base_size_p4b, base_size_p5b, base_size_p6b);
+																(int)base_size_h1b, (int)base_size_h2b, (int)base_size_h1b, 
+																(int)base_size_p4b, (int)base_size_p5b, (int)base_size_p6b);
+
+	// 
+	// printf ("%s\n", cudaGetErrorString(cudaGetLastError()));
 
 	//
-	#ifdef DEBUG_TIME_FUSED_CCSD_T
+#ifdef DEBUG_TIME_FUSED_CCSD_T
 	cudaEventRecord(stop_kernely_only);
 	cudaEventSynchronize(stop_kernely_only);
 	float time_ms_ccsd_t_kernel_only = 0.0;
 	cudaEventElapsedTime(&time_ms_ccsd_t_kernel_only, start_ccsd_t, stop_kernely_only);
-	#endif
+#endif
 	
 	//
 	cudaMemcpy(host_energies, dev_energies, num_blocks_kernel_1 * NUM_ENERGIES * sizeof(double), cudaMemcpyDeviceToHost);
@@ -2984,8 +2746,8 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	// 
 	final_energy_1 *= factor;
 	final_energy_2 *= factor;
-	*final_energy_4 = final_energy_1;
-	*final_energy_5 = final_energy_2;
+	*final_energy_4 = final_energy_1 * factor;
+	*final_energy_5 = final_energy_2 * factor;
 
 #ifdef DEBUG_TIME_FUSED_CCSD_T
 	cudaEventRecord(stop_ccsd_t);
@@ -2995,7 +2757,8 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	printf ("========================================================================================\n");
 	printf ("[%s][fused] kernel-only-time: %f (ms)\n", __func__, time_ms_ccsd_t_kernel_only);
 	printf ("[%s][fused] total-time: %f (ms)\n", __func__, time_ms_ccsd_t_kernel);
-	printf ("[%s][fused] E(4): %.15f, E(5): %.15f\n", __func__, final_energy_1, final_energy_2);
+	printf ("[%s][fused] E(4): %.15f, E(5): %.15f\n", __func__,  final_energy_1,  final_energy_2);
+	printf ("[%s][fused] E(4): %.15f, E(5): %.15f\n", __func__, *final_energy_4, *final_energy_5);
 	printf ("========================================================================================\n");
 #endif
 

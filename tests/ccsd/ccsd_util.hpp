@@ -433,16 +433,16 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI
     auto [cindex] = CI.labels<1>("all");
     auto [p,q,r,s] = MO.labels<4>("all");
 
-    //Spin here is defined as spin(p)=spin(q) and spin(r)=spin(s) which is not currently not supported by TAMM.
-    Tensor<T> d_a2{N,N,N,N};
+    //Spin here is defined as spin(p)=spin(r) and spin(q)=spin(s) which is not currently not supported by TAMM.
+    Tensor<T> d_a2{{N,N,N,N},{2,2}};
     //For V2, spin(p)+spin(q) == spin(r)+spin(s)
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
     Tensor<T>::allocate(&ec,d_a2,d_v2);
 
-    Scheduler{ec}(d_a2(p, r, q, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex)).execute();
+    Scheduler{ec}(d_a2(p, q, r, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex)).execute();
 
-    Scheduler{ec}(d_v2(p, q, r, s) = d_a2(p,r,q,s))
-                  (d_v2(p, q, r, s) -= d_a2(p,s,q,r))
+    Scheduler{ec}(d_v2(p, q, r, s) = d_a2(p,q,r,s))
+                  (d_v2(p, q, r, s) -= d_a2(p,q,s,r))
                   .execute();
 
     Tensor<T>::deallocate(d_a2);

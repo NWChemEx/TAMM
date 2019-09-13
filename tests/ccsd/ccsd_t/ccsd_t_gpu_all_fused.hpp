@@ -37,6 +37,34 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 						double* host_evl_sortedp4, double* host_evl_sortedp5, double* host_evl_sortedp6,
 						double* final_energy_4, double* final_energy_5);
 
+void total_fused_ccsd_t_Ma(size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, 
+            size_t base_size_p4b, size_t base_size_p5b, size_t base_size_p6b,
+            // 
+            double* host_d1_t2_all, double* host_d1_v2_all,
+            double* host_d2_t2_all, double* host_d2_v2_all,
+            double* host_s1_t2_all, double* host_s1_v2_all,
+            // 
+            size_t size_d1_t2_all, size_t size_d1_v2_all,
+            size_t size_d2_t2_all, size_t size_d2_v2_all,
+            size_t size_s1_t2_all, size_t size_s1_v2_all,
+            // 
+            size_t* list_d1_sizes, 
+            size_t* list_d2_sizes, 
+            size_t* list_s1_sizes, 
+            // 
+            std::vector<int> vec_d1_flags,
+            std::vector<int> vec_d2_flags,
+            std::vector<int> vec_s1_flags,
+            // 
+            size_t size_noab, size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2,
+            size_t size_nvab, size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2,
+					  size_t size_max_dim_s1_t2, size_t size_max_dim_s1_v2, 
+            // 
+            double factor, 
+            double* host_evl_sorted_h1b, double* host_evl_sorted_h2b, double* host_evl_sorted_h3b, 
+            double* host_evl_sorted_p4b, double* host_evl_sorted_p5b, double* host_evl_sorted_p6b,
+            double* final_energy_4, double* final_energy_5);          
+
 template<typename T>
 void ccsd_t_gpu_all_fused(ExecutionContext& ec,
                    const TiledIndexSpace& MO,
@@ -1146,6 +1174,33 @@ total_fused_ccsd_t(k_range[t_h1b],k_range[t_h2b],
                         &k_evl_sorted[k_offset[t_p5b]],
                         &k_evl_sorted[k_offset[t_p6b]],
                         &energy_l[0], &energy_l[1]);
+
+// total_fused_ccsd_t_Ma(k_range[t_h1b],k_range[t_h2b],
+//                         k_range[t_h3b],k_range[t_p4b],
+//                         k_range[t_p5b],k_range[t_p6b],
+//                         k_abuf1.data(), k_bbuf1.data(),
+//                         k_abuf2.data(), k_bbuf2.data(),
+//                         k_abufs1.data(), k_bbufs1.data(),
+//                         abuf_size1,bbuf_size1,
+//                         abuf_size2,bbuf_size2,
+//                         abufs1_size, bbufs1_size,
+//                         sd_t_d1_args.data(), 
+//                         sd_t_d2_args.data(), 
+//                         sd_t_s1_args.data(), 
+//                         sd_t_d1_exec,
+//                         sd_t_d2_exec,
+//                         sd_t_s1_exec,
+//                         noab, max_dima,max_dimb,
+//                         nvab, max_dima2,max_dimb2,
+//                               s1_max_dima, s1_max_dimb, 
+//                         factor, 
+//                         &k_evl_sorted[k_offset[t_h1b]],
+//                         &k_evl_sorted[k_offset[t_h2b]],
+//                         &k_evl_sorted[k_offset[t_h3b]],
+//                         &k_evl_sorted[k_offset[t_p4b]],
+//                         &k_evl_sorted[k_offset[t_p5b]],
+//                         &k_evl_sorted[k_offset[t_p6b]],
+//                         &energy_l[0], &energy_l[1]);
 
 } //end double_gpu_fused_driver
 

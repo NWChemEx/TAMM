@@ -5237,7 +5237,7 @@ __global__ void compute_energy_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4
 {
   size_t h1,h2,p6,p4,p5, h3,i=0;
   double e1,e2,e4,e5,e6;
-//  __shared__ double t2_shm[MAX_h3];
+  //  __shared__ double t2_shm[MAX_h3];
   __shared__ double energy_s[T1];
   __shared__ double energy2_s[T1];
   double inner_fac;

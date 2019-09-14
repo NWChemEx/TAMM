@@ -158,15 +158,16 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                         initmemmodule();
                       }
 
-                      if ((has_GPU==1)) {
-                        dev_mem_s(k_range[t_h1b],k_range[t_h2b],
-                                  k_range[t_h3b],k_range[t_p4b],
-                                  k_range[t_p5b],k_range[t_p6b]);
+                      // if ((has_GPU==1)) {
+                      //   printf ("[%s] is it called?\n", __func__);
+                      //   dev_mem_s(k_range[t_h1b],k_range[t_h2b],
+                      //             k_range[t_h3b],k_range[t_p4b],
+                      //             k_range[t_p5b],k_range[t_p6b]);
            
-                        dev_mem_d(k_range[t_h1b],k_range[t_h2b],
-                                  k_range[t_h3b],k_range[t_p4b],
-                                  k_range[t_p5b],k_range[t_p6b]);
-                      }
+                      //   dev_mem_d(k_range[t_h1b],k_range[t_h2b],
+                      //             k_range[t_h3b],k_range[t_p4b],
+                      //             k_range[t_p5b],k_range[t_p6b]);
+                      // }
 
                       //TODO:chk args, d_t1 should be local
 
@@ -291,7 +292,7 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
 
                       // cout << "e1,e2=" << energy1 << "," << energy2 << endl;
                       // cout << "-----------------------------------------\n";
-                      dev_release();
+                      // dev_release();
                       finalizememmodule();
 
                       next = ac->fetch_add(0, 1); 

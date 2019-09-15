@@ -158,6 +158,7 @@ class CCSDOptions: public Options {
     writet = false;
     readt = false;
     gf_restart = true;
+    ccsd_maxiter = 50;
     
     gf_p_oi_range = 0; //1-number of occupied, 2-all MOs
     gf_ndiis = 10;
@@ -185,6 +186,7 @@ class CCSDOptions: public Options {
   bool readt, writet, gf_restart;
   double threshold;
   double eom_threshold;
+  int ccsd_maxiter;
 
   //GF
   int gf_p_oi_range;
@@ -212,6 +214,7 @@ class CCSDOptions: public Options {
     if(icuda > 0) cout << " #cuda = " << icuda << endl;
     cout << " threshold = " << threshold << endl;
     cout << " tilesize = " << tilesize << endl;
+    cout << " ccsd_maxiter = " << ccsd_maxiter << endl;
     cout << " itilesize = " << itilesize << endl;
     if(gf_nprocs_poi > 0) cout << " gf_nprocs_poi = " << gf_nprocs_poi << endl;
     print_bool(" readt", readt); 
@@ -545,7 +548,9 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           if(is_in_line("eom_nroots",line)) 
             ccsd_options.eom_nroots = std::stoi(read_option(line));  
           else if(is_in_line("eom_microiter",line)) 
-            ccsd_options.eom_microiter = std::stoi(read_option(line));              
+            ccsd_options.eom_microiter = std::stoi(read_option(line));  
+          else if(is_in_line("ccsd_maxiter",line)) 
+            ccsd_options.ccsd_maxiter = std::stoi(read_option(line));                          
           else if(is_in_line("eom_threshold",line)) 
             ccsd_options.eom_threshold = std::stod(read_option(line));              
           else if(is_in_line("threshold",line)) 

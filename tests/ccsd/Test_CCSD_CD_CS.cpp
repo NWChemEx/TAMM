@@ -71,7 +71,7 @@ void ccsd_driver() {
     debug = ccsd_options.debug;
     if(rank == 0) ccsd_options.print();
 
-    int maxiter    = ccsd_options.maxiter;
+    int maxiter    = ccsd_options.ccsd_maxiter;
     double thresh  = ccsd_options.threshold;
     double zshiftl = 0.0;
     size_t ndiis   = 5;
@@ -149,7 +149,7 @@ void ccsd_driver() {
             ec, MO, CI, d_t1, d_t2, d_f1, 
             d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
             p_evl_sorted, 
-            1/*maxiter*/, thresh, zshiftl, ndiis, 
+            maxiter, thresh, zshiftl, ndiis, 
             2 * ov_alpha, cholVpr, ccsd_options.writet, ccsd_restart, files_prefix);
 
     ccsd_stats(ec, hf_energy,residual,corr_energy,thresh);

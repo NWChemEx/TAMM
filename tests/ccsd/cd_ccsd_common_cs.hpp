@@ -484,8 +484,13 @@ std::tuple<double,double> cd_ccsd_cs_driver(ExecutionContext& ec, const TiledInd
             // (_a004_bbbb(p1_vb, p2_vb, h4_ob, h3_ob) = 0)
             (_a004_aaaa(p1_va, p2_va, h4_oa, h3_oa) = 1.0 * chol3d_aa_vo(p1_va, h4_oa, cind) * chol3d_aa_vo(p2_va, h3_oa, cind))
             (_a004_abab(p1_va, p2_vb, h4_oa, h3_ob) = 1.0 * chol3d_aa_vo(p1_va, h4_oa, cind) * chol3d_bb_vo(p2_vb, h3_ob, cind))
-            (_a004_bbbb(p1_vb, p2_vb, h4_ob, h3_ob) = 1.0 * chol3d_bb_vo(p1_vb, h4_ob, cind) * chol3d_bb_vo(p2_vb, h3_ob, cind))
-            .execute();
+            (_a004_bbbb(p1_vb, p2_vb, h4_ob, h3_ob) = 1.0 * chol3d_bb_vo(p1_vb, h4_ob, cind) * chol3d_bb_vo(p2_vb, h3_ob, cind));
+
+        #ifdef USE_TALSH
+            sch.execute(ExecutionHW::GPU);
+        #else
+            sch.execute();
+        #endif
 
         for(int titer = 0; titer < maxiter; titer += ndiis) {
         for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
@@ -521,7 +526,11 @@ std::tuple<double,double> cd_ccsd_cs_driver(ExecutionContext& ec, const TiledInd
             // (d_r2_residual() = d_r2()  * d_r2())
             // .execute();
 
-            sch.execute();
+            #ifdef USE_TALSH
+              sch.execute(ExecutionHW::GPU);
+            #else
+              sch.execute();
+            #endif
 
             //if(ec.pg().rank()==0) cout << "norm d-r2=" << get_scalar(d_r1_residual) << ", "<< get_scalar(d_r2_residual) << endl;
 

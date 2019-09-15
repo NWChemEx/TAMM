@@ -82,7 +82,7 @@
 
 
 COMMON {  
-    basis 6-31g
+    basis cc-pvdz
     maxiter 50
     geometry units angstrom
     //debug true

@@ -39,8 +39,9 @@ CD {
 }
 
 CCSD {
-    //cuda 2
+    cuda 2
     threshold 1e-10
+    //ccsd_maxiter 5
     tilesize 10
     itilesize 10
     //readt true

@@ -624,7 +624,7 @@ std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexS
             (_a004_aaaa(p1_va, p2_va, h4_oa, h3_oa) = 1.0 * chol3d_aa_vo(p1_va, h4_oa, cind) * chol3d_aa_vo(p2_va, h3_oa, cind))
             (_a004_abab(p1_va, p2_vb, h4_oa, h3_ob) = 1.0 * chol3d_aa_vo(p1_va, h4_oa, cind) * chol3d_bb_vo(p2_vb, h3_ob, cind))
             (_a004_bbbb(p1_vb, p2_vb, h4_ob, h3_ob) = 1.0 * chol3d_bb_vo(p1_vb, h4_ob, cind) * chol3d_bb_vo(p2_vb, h3_ob, cind))
-            ;//.execute();
+            .execute();
 
         for(int titer = 0; titer < maxiter; titer += ndiis) {
         for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {

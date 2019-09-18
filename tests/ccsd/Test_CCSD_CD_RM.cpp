@@ -76,6 +76,10 @@ void ccsd_driver() {
     double zshiftl = 0.0;
     size_t ndiis   = 5;
 
+    const TAMM_SIZE nocc = 2 * ov_alpha;
+    const TAMM_SIZE nvir = 2*nao - 2*ov_alpha;
+    if(rank==0) cout << endl << "#occupied, #virtual = " << nocc << ", " << nvir << endl;
+    
     auto [MO,total_orbitals] = setupMOIS(ccsd_options.tilesize,
                     nao,ov_alpha,freeze_core,freeze_virtual);
 
@@ -133,7 +137,7 @@ void ccsd_driver() {
       for (auto x: p_evl_sorted) cout << x << endl;
       cout << std::string(50,'-') << endl;
     }
-    
+
     multOpTime = 0;
     multOpGetTime = 0;
     multOpWaitTime = 0;

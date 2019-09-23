@@ -19,6 +19,7 @@
 #include "tamm/kernels/assign.hpp"
 #include "tamm/kernels/multiply.hpp"
 
+#define DO_NB 1
 
 namespace tamm {
 
@@ -1394,11 +1395,11 @@ protected:
 template<typename T>
 struct AddBuf {
     //AddBuf() = default;
-    AddBuf(Tensor<T> tensor, std::vector<T>&& buf, const IndexVector& blockid)
-    : buf_{buf} {
-        tensor.nb_add(blockid, buf_, &nbhdl_);
+    AddBuf(bool isgpu, talsh_task_t* tt, tensor_handle* tc, tensor_handle*ta, tensor_handle* tb, Tensor<T> tensor, 
+        std::vector<T>&& cbuf, const IndexVector& blockid)
+    : tensor_{tensor}, blockid_{blockid}, cbuf_{cbuf}, tt_{tt}, tc_{tc}, ta_{ta}, tb_{tb}, isgpu_{isgpu} {
+        // tensor.nb_add(blockid, buf_, &nbhdl_);
         //tensor.add(blockid, buf_);
-        //tensor.add(blockid, buf);
     }
     ~AddBuf() {
         assert(nbhdl_.getCompletionStatus() == true);
@@ -1412,7 +1413,15 @@ struct AddBuf {
             nbhdl_.waitForCompletion();
         }
     }
-    std::vector<T> buf_;
+
+    std::vector<T> cbuf_;
+    IndexVector blockid_;
+    bool isgpu_;
+    Tensor<T> tensor_;
+    talsh_task_t* tt_;
+    tensor_handle* tc_;
+    tensor_handle* ta_;
+    tensor_handle* tb_;
      DataCommunicationHandle nbhdl_;
 };
 
@@ -1769,7 +1778,7 @@ public:
                 std::vector<TensorElType2> abuf(asize);
                 std::vector<TensorElType3> bbuf(bsize);
                 // get inputs
-#if 1
+#if DO_NB
                 DataCommunicationHandle a_nbhandle,b_nbhandle,c_nbhandle;
 
             {
@@ -1785,11 +1794,11 @@ public:
 #else
                 { 
                     TimerGuard tg_get{&multOpGetTime};
-                atensor.get(translated_ablockid, abuf);
+                    atensor.get(translated_ablockid, abuf);
                 }
                 { 
                     TimerGuard tg_get{&multOpGetTime};
-                btensor.get(translated_bblockid, bbuf);
+                    btensor.get(translated_bblockid, bbuf);
                 }
 #endif
                 const auto& cdims = ctensor.block_dims(translated_cblockid);
@@ -1802,28 +1811,62 @@ public:
                 for(const auto v : adims) { adims_sz.push_back(v); }
                 for(const auto v : bdims) { bdims_sz.push_back(v); }
                 for(const auto v : cdims) { cdims_sz.push_back(v); }
+                talsh_task_t* talsh_task = new talsh_task_t();
+                TALSH *gpu_mult = new TALSH{ec.num_gpu()};
+
+                tensor_handle *th_a = new tensor_handle();
+                tensor_handle *th_b = new tensor_handle();
+                tensor_handle *th_c = new tensor_handle(); 
+                bool isgpu = false;
+
                 { 
+                    AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b, 
+                        ctensor, std::move(cbuf),translated_cblockid};
+                    add_bufs.push_back(ab);
+
                     TimerGuard tg_dgemm{&multOpDgemmTime};
-                kernels::block_multiply<T,TensorElType1,TensorElType2,TensorElType3>
-                                        (my_rank, alpha_, abuf.data(), adims_sz,
+                    talshTaskClean(talsh_task);
+                    kernels::block_multiply<T,TensorElType1,TensorElType2,TensorElType3>
+                                        (ab->isgpu_, *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, my_rank, alpha_, 
+                                        abuf.data(), adims_sz,
                                         rhs1_int_labels_, bbuf.data(), bdims_sz,
-                                        rhs2_int_labels_, cscale, cbuf.data(),
-                                        cdims_sz, lhs_int_labels_, hw, ec.num_gpu());
+                                        rhs2_int_labels_, cscale, (ab->cbuf_).data(),
+                                        cdims_sz, lhs_int_labels_, hw, ec.num_gpu());                                            
                 }
                 // add the computed update to the tensor
-                { 
-                    TimerGuard tg_add{&multOpAddTime};
-                    //ctensor.add(translated_cblockid, cbuf);
-                    const int k = 10;
-                    add_bufs.push_back(new AddBuf<TensorElType1>{ctensor, std::move(cbuf),translated_cblockid});
-                    if(add_bufs.size() >= k) {
-                        for(auto& ab: add_bufs) {
-                            ab->wait();
-                            delete ab;
-                        }
-                        add_bufs.clear();
-                    }
-                }
+                // { 
+                //     TimerGuard tg_add{&multOpAddTime};
+                //     //ctensor.add(translated_cblockid, cbuf);
+                //     const int k = 20;
+                //     if(add_bufs.size() >= k) {
+                //         for(auto& ab: add_bufs) {
+                //             #ifdef USE_TALSH
+                //             {
+                //                 if(ab->isgpu_) {
+                //                     int done = NOPE;
+                //                     int sts, errc = TALSH_SUCCESS;
+                //                     while(done != YEP && errc == TALSH_SUCCESS) {
+                //                     done=talshTaskComplete(ab->tt_, &sts, &errc);
+                //                     }
+                //                     assert(errc == TALSH_SUCCESS);
+                //                     errc = talshTaskDestruct(ab->tt_);
+                //                     assert(errc == TALSH_SUCCESS);
+                //                     talshTensorDestruct(ab->ta_);
+                //                     talshTensorDestruct(ab->tb_);
+                //                     talshTensorDestruct(ab->tc_);  
+                //                 }                             
+                //             }
+                //             #endif
+                //         }
+                //          for(auto& ab: add_bufs) {
+                //             (ab->tensor_).nb_add(ab->blockid_, ab->cbuf_, &(ab->nbhdl_));
+                //             ab->wait();
+                //             delete ab;
+                //          }
+
+                //         add_bufs.clear();
+                //     }
+                // }
             }
 
             };
@@ -1833,10 +1876,30 @@ public:
                 { 
                     TimerGuard tg_add{&multOpAddTime};
                     for(auto& ab: add_bufs) {
-                        ab->wait();
-                        delete ab;
+                            #ifdef USE_TALSH
+                            {
+                                if(ab->isgpu_) {
+                                    int done = NOPE;
+                                    int sts, errc = TALSH_SUCCESS;
+                                    while(done != YEP && errc == TALSH_SUCCESS) {
+                                    done=talshTaskComplete(ab->tt_, &sts, &errc);
+                                    }
+                                    assert(errc == TALSH_SUCCESS);
+                                    errc = talshTaskDestruct(ab->tt_);
+                                    assert(errc == TALSH_SUCCESS);
+                                    talshTensorDestruct(ab->ta_);
+                                    talshTensorDestruct(ab->tb_);
+                                    talshTensorDestruct(ab->tc_);  
+                                }                             
+                            }
+                            #endif
                     }
-                        add_bufs.clear();
+                     for(auto& ab: add_bufs) {
+                            (ab->tensor_).nb_add(ab->blockid_, ab->cbuf_, &(ab->nbhdl_));
+                            ab->wait();
+                            delete ab;                            
+                    }
+                    add_bufs.clear();
                 }
 
 #endif

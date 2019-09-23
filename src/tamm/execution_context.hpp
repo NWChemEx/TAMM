@@ -230,6 +230,8 @@ public:
 
     int num_gpu() const { return ngpu_; }
 
+    void set_ngpu(int ngpu) { ngpu_ = ngpu; }
+
 private:
     ProcGroup pg_;
     ProcGroup pg_self_;

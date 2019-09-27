@@ -102,6 +102,110 @@ inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
     // GA_Sync();
 }
 
+template<typename T>
+inline void jacobi_eom(ExecutionContext& ec, LabeledTensor<T> d_r_lt, LabeledTensor<T> d_t_lt,
+                      T shift, bool transpose, std::vector<double>& evl_sorted, const TAMM_SIZE& noab) {
+    // EXPECTS(transpose == false);
+     Tensor<T> d_r = d_r_lt.tensor();
+     Tensor<T> d_t = d_t_lt.tensor();
+
+    block_for(ec, d_r_lt, [&](IndexVector bid) {
+        IndexVector blockid   = internal::translate_blockid(bid, d_r_lt);
+
+        const TAMM_SIZE rsize = d_r.block_size(blockid);
+        std::vector<T> rbuf(rsize);
+        d_r.get(blockid, rbuf);
+
+        const TAMM_SIZE tsize = d_t.block_size(blockid);
+
+        std::vector<T> tbuf(tsize);
+
+        auto& rtiss      = d_r.tiled_index_spaces();
+        auto rblock_dims = d_r.block_dims(blockid);
+        auto rblock_offset = d_r.block_offsets(blockid);
+
+        std::vector<double> p_evl_sorted_occ(noab);
+        std::vector<double> p_evl_sorted_virt(evl_sorted.size()-noab);
+        std::copy(evl_sorted.begin(), evl_sorted.begin() + noab,
+                  p_evl_sorted_occ.begin());
+        std::copy(evl_sorted.begin() + noab, evl_sorted.end(),
+                  p_evl_sorted_virt.begin());
+
+        if(d_r.num_modes() == 3) {
+
+            std::vector<size_t> ioff;
+            for(auto x : rblock_offset) { ioff.push_back(x); }
+            std::vector<size_t> isize;
+            for(auto x : rblock_dims) { isize.push_back(x); }
+
+            if(!transpose) {
+                for(auto i = 0U, c = 0U; i < isize[0]; i++) {
+                    for(auto j = 0U; j < isize[1]; j++, c++) {
+                        tbuf[c] =
+                          rbuf[c] / (-p_evl_sorted_virt[ioff[0] + i] +
+                                     p_evl_sorted_occ[ioff[1] + j] + shift);
+                    }
+                }
+            } else {
+                for(auto i = 0U, c = 0U; i < isize[0]; i++) {
+                    for(auto j = 0U; j < isize[1]; j++, c++) {
+                        tbuf[c] =
+                          rbuf[c] / (p_evl_sorted_occ[ioff[0] + i] -
+                                     p_evl_sorted_virt[ioff[1] + j] + shift);
+                    }
+                }
+            }
+            auto last_id = rtiss[2].translate(blockid[2], d_t.tiled_index_spaces()[2]);
+            blockid[2] = last_id;
+            d_t.add(blockid, tbuf);
+        } else if(d_r.num_modes() == 5) {
+            
+            std::vector<size_t> ioff;
+            for(auto x : rblock_offset) { ioff.push_back(x); }
+            std::vector<size_t> isize;
+            for(auto x : rblock_dims) { isize.push_back(x); }
+
+            if(!transpose) {
+                for(auto i0 = 0U, c = 0U; i0 < isize[0]; i0++) {
+                    for(auto i1 = 0U; i1 < isize[1]; i1++) {
+                        for(auto i2 = 0U; i2 < isize[2]; i2++) {
+                            for(auto i3 = 0U; i3 < isize[3]; i3++, c++) {
+                                tbuf[c] =
+                                  rbuf[c] /
+                                  (-p_evl_sorted_virt[ioff[0] + i0] -
+                                   p_evl_sorted_virt[ioff[1] + i1] +
+                                   p_evl_sorted_occ[ioff[2] + i2] +
+                                   p_evl_sorted_occ[ioff[3] + i3] + shift);
+                            }
+                        }
+                    }
+                }
+            } else {
+                for(auto i0 = 0U, c = 0U; i0 < isize[0]; i0++) {
+                    for(auto i1 = 0U; i1 < isize[1]; i1++) {
+                        for(auto i2 = 0U; i2 < isize[2]; i2++) {
+                            for(auto i3 = 0U; i3 < isize[3]; i3++, c++) {
+                                tbuf[c] =
+                                  rbuf[c] /
+                                  (p_evl_sorted_occ[ioff[0] + i0] +
+                                   p_evl_sorted_occ[ioff[1] + i1] -
+                                   p_evl_sorted_virt[ioff[2] + i2] -
+                                   p_evl_sorted_virt[ioff[3] + i3] + shift);
+                            }
+                        }
+                    }
+                }
+            }
+            auto last_id = rtiss[4].translate(blockid[4], d_t.tiled_index_spaces()[4]);
+            blockid[4] = last_id;
+            d_t.add(blockid, tbuf);
+        } else {
+            assert(0); // @todo implement
+        }
+    });
+    // GA_Sync();
+}
+
 /**
  * @brief dot product between data held in two labeled tensors. Corresponding
  * elements are multiplied.

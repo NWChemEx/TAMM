@@ -72,11 +72,15 @@ void ccsd_driver() {
     debug = ccsd_options.debug;
     if(rank == 0) ccsd_options.print();
 
-    int maxiter    = ccsd_options.maxiter;
+    int maxiter    = ccsd_options.ccsd_maxiter;
     double thresh  = ccsd_options.threshold;
     double zshiftl = 0.0;
     size_t ndiis   = 5;
 
+    const TAMM_SIZE nocc = 2 * ov_alpha;
+    const TAMM_SIZE nvir = 2*nao - 2*ov_alpha;
+    if(rank==0) cout << endl << "#occupied, #virtual = " << nocc << ", " << nvir << endl;
+    
     auto [MO,total_orbitals] = setupMOIS(ccsd_options.tilesize,
                     nao,ov_alpha,freeze_core,freeze_virtual);
 

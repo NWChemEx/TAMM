@@ -158,6 +158,7 @@ class CCSDOptions: public Options {
     writet = false;
     readt = false;
     gf_restart = true;
+    ccsd_maxiter = 50;
     
     gf_p_oi_range = 0; //1-number of occupied, 2-all MOs
     gf_ndiis = 10;
@@ -175,6 +176,9 @@ class CCSDOptions: public Options {
     gf_omega_delta = 0.01;
     gf_omega_delta_e = 0.002;
     gf_extrapolate_level = 0;
+
+    gf_analyze_level = 0;
+    gf_analyze_num_omega = 0;
   }
 
   int eom_nroots;
@@ -185,6 +189,7 @@ class CCSDOptions: public Options {
   bool readt, writet, gf_restart;
   double threshold;
   double eom_threshold;
+  int ccsd_maxiter;
 
   //GF
   int gf_p_oi_range;
@@ -203,8 +208,11 @@ class CCSDOptions: public Options {
   double gf_omega_delta;
   double gf_omega_delta_e;
   int gf_extrapolate_level;
-  
 
+  int gf_analyze_level;
+  int gf_analyze_num_omega;
+  std::vector<double> gf_analyze_omega;
+  
   void print() {
     std::cout << std::defaultfloat;
     cout << "\nCCSD Options\n";
@@ -212,6 +220,7 @@ class CCSDOptions: public Options {
     if(icuda > 0) cout << " #cuda = " << icuda << endl;
     cout << " threshold = " << threshold << endl;
     cout << " tilesize = " << tilesize << endl;
+    cout << " ccsd_maxiter = " << ccsd_maxiter << endl;
     cout << " itilesize = " << itilesize << endl;
     if(gf_nprocs_poi > 0) cout << " gf_nprocs_poi = " << gf_nprocs_poi << endl;
     print_bool(" readt", readt); 
@@ -240,6 +249,13 @@ class CCSDOptions: public Options {
       cout << " gf_omega_max_e = " << gf_omega_max_e << endl;
       cout << " gf_omega_delta = " << gf_omega_delta << endl; 
       cout << " gf_omega_delta_e = " << gf_omega_delta_e << endl; 
+      if(gf_analyze_level > 0) {
+        cout << " gf_analyze_level = " << gf_analyze_level << endl; 
+        cout << " gf_analyze_num_omega = " << gf_analyze_num_omega << endl; 
+        cout << " gf_analyze_omega = [";
+        for(auto x: gf_analyze_omega) cout << x << ",";
+        cout << "]" << endl;      
+      }
       if(gf_extrapolate_level>0) cout << " gf_extrapolate_level = " << gf_extrapolate_level << endl; 
     }   
 
@@ -545,7 +561,9 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           if(is_in_line("eom_nroots",line)) 
             ccsd_options.eom_nroots = std::stoi(read_option(line));  
           else if(is_in_line("eom_microiter",line)) 
-            ccsd_options.eom_microiter = std::stoi(read_option(line));              
+            ccsd_options.eom_microiter = std::stoi(read_option(line));  
+          else if(is_in_line("ccsd_maxiter",line)) 
+            ccsd_options.ccsd_maxiter = std::stoi(read_option(line));                          
           else if(is_in_line("eom_threshold",line)) 
             ccsd_options.eom_threshold = std::stod(read_option(line));              
           else if(is_in_line("threshold",line)) 
@@ -580,9 +598,7 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("gf_damping_factor",line)) 
             ccsd_options.gf_damping_factor = std::stod(read_option(line));              
           else if(is_in_line("gf_eta",line)) 
-            ccsd_options.gf_eta = std::stod(read_option(line));  
-          // else if(is_in_line("gf_omega",line)) 
-            // ccsd_options.gf_omega = std::stod(read_option(line));  
+            ccsd_options.gf_eta = std::stod(read_option(line));                     
           else if(is_in_line("gf_threshold",line)) 
             ccsd_options.gf_threshold = std::stod(read_option(line));  
           else if(is_in_line("gf_omega_min",line)) 
@@ -599,6 +615,18 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             ccsd_options.gf_omega_delta_e = std::stod(read_option(line));              
           else if(is_in_line("gf_extrapolate_level",line)) 
             ccsd_options.gf_extrapolate_level = std::stoi(read_option(line)); 
+          else if(is_in_line("gf_analyze_level",line)) 
+            ccsd_options.gf_analyze_level = std::stoi(read_option(line));  
+          else if(is_in_line("gf_analyze_num_omega",line)) 
+            ccsd_options.gf_analyze_num_omega = std::stoi(read_option(line));              
+          else if(is_in_line("gf_analyze_omega",line)) {
+              std::istringstream iss(line);
+              std::string wignore;
+              iss >> wignore;
+              std::vector<double> gf_analyze_omega{std::istream_iterator<double>{iss},
+                                              std::istream_iterator<double>{}};
+              ccsd_options.gf_analyze_omega = gf_analyze_omega;
+          }          
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line, "CCSD");
 

@@ -38,6 +38,32 @@ void update_r2(ExecutionContext& ec,
     block_for(ec, ltensor, lambda);
 }
 
+template<typename TensorType>
+void init_diagonal(ExecutionContext& ec,
+                    LabeledTensor<TensorType> ltensor) {
+    Tensor<TensorType> tensor = ltensor.tensor();
+    // Defined only for NxN tensors
+    EXPECTS(tensor.num_modes() == 2);
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        if(blockid[0] == blockid[1]) {
+          const TAMM_SIZE size = tensor.block_size(blockid);
+            std::vector<TensorType> buf(size);
+            tensor.get(blockid, buf);
+            auto block_dims   = tensor.block_dims(blockid);
+            auto block_offset = tensor.block_offsets(blockid);
+            auto dim          = block_dims[0];
+            auto offset       = block_offset[0];
+            size_t i          = 0;
+            for(auto p = offset; p < offset + dim; p++, i++)
+               buf[i * dim + i] = 1.0;
+          tensor.put(blockid, buf);
+        }
+    };
+    block_for(ec, ltensor, lambda);
+}
+
 std::string ccsd_test( int argc, char* argv[] )
 {
 
@@ -433,16 +459,16 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI
     auto [cindex] = CI.labels<1>("all");
     auto [p,q,r,s] = MO.labels<4>("all");
 
-    //Spin here is defined as spin(p)=spin(q) and spin(r)=spin(s) which is not currently not supported by TAMM.
-    Tensor<T> d_a2{N,N,N,N};
+    //Spin here is defined as spin(p)=spin(r) and spin(q)=spin(s) which is not currently not supported by TAMM.
+    Tensor<T> d_a2{{N,N,N,N},{2,2}};
     //For V2, spin(p)+spin(q) == spin(r)+spin(s)
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
     Tensor<T>::allocate(&ec,d_a2,d_v2);
 
-    Scheduler{ec}(d_a2(p, r, q, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex)).execute();
+    Scheduler{ec}(d_a2(p, q, r, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex)).execute();
 
-    Scheduler{ec}(d_v2(p, q, r, s) = d_a2(p,r,q,s))
-                  (d_v2(p, q, r, s) -= d_a2(p,s,q,r))
+    Scheduler{ec}(d_v2(p, q, r, s) = d_a2(p,q,r,s))
+                  (d_v2(p, q, r, s) -= d_a2(p,q,s,r))
                   .execute();
 
     Tensor<T>::deallocate(d_a2);

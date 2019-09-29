@@ -292,6 +292,31 @@ void fill_tensor(LabeledTensor<TensorType> ltensor,
     block_for(ec, ltensor, lambda);
 }
 
+
+template<typename TensorType>
+void fill_sparse_tensor(Tensor<TensorType> tensor,
+                 std::function<void(const IndexVector&, span<TensorType>)> func) {
+        fill_sparse_tensor(tensor(),func);
+}
+
+template<typename TensorType>
+void fill_sparse_tensor(LabeledTensor<TensorType> ltensor,
+                        std::function<void(const IndexVector&, span<TensorType>)> func) {
+    ExecutionContext& ec = get_ec(ltensor);
+    Tensor<TensorType> tensor = ltensor.tensor();
+
+    auto lambda = [&](const IndexVector& bid) {
+        const tamm::TAMM_SIZE dsize = tensor.block_size(bid);
+        const IndexVector blockid   = internal::translate_sparse_blockid(bid, ltensor);
+        std::vector<TensorType> dbuf(dsize);
+        // tensor.get(blockid, dbuf);
+        func(blockid,dbuf);
+        
+        tensor.put(bid, dbuf);
+    };
+    block_for(ec, ltensor, lambda);
+}
+
 /**
  * @brief write tensor to disk
  *

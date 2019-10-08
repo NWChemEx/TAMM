@@ -1,12 +1,7 @@
 
 include(TargetMacros)
-# add_mpi_unit_test(Test_CD_SVD 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
-# add_mpi_unit_test(Test_CD_SVD_GA 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
-# add_mpi_unit_test(Test_CCSD_CD 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
-add_mpi_unit_test(Test_CCSD_CD_RM 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
-add_mpi_unit_test(Test_CCSD_CD_CS 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
-# add_mpi_unit_test(Test_CCSD_CD_SVD 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
-# add_mpi_unit_test(Test_CCSD_Spin 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
+add_mpi_unit_test(CD_SVD_GA 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
+add_mpi_unit_test(CCSD_CD_CS 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
 
 if(NWX_CUDA)
     set(CCSD_T_SRCDIR ${CMAKE_CURRENT_SOURCE_DIR}/ccsd/ccsd_t)
@@ -31,7 +26,7 @@ if(NWX_CUDA)
             ${CCSD_T_SRCDIR}/ccsd_t_gpu_tgen.hpp
             ${CCSD_T_SRCDIR}/ccsd_t_gpu_all_fused.hpp
             ${CCSD_T_SRCDIR}/ccsd_t_tgen_all_fused.cu)
-    add_mpi_cuda_unit_test(Test_CCSD_T "${CCSD_T_NWC_SRCS}" 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
-    add_mpi_cuda_unit_test(Test_CCSD_T_tgen "${CCSD_T_TGEN_SRCS}" 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
-    add_mpi_cuda_unit_test(Test_CCSD_T_tgen_fused "${CCSD_T_TGEN_FUSED_SRCS}" 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
+    add_mpi_cuda_unit_test(CCSD_T "${CCSD_T_NWC_SRCS}" 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
+    add_mpi_cuda_unit_test(CCSD_T_tgen "${CCSD_T_TGEN_SRCS}" 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
+    add_mpi_cuda_unit_test(CCSD_T_tgen_fused "${CCSD_T_TGEN_FUSED_SRCS}" 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
 endif()

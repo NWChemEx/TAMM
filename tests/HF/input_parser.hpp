@@ -176,6 +176,9 @@ class CCSDOptions: public Options {
     gf_omega_delta = 0.01;
     gf_omega_delta_e = 0.002;
     gf_extrapolate_level = 0;
+
+    gf_analyze_level = 0;
+    gf_analyze_num_omega = 0;
   }
 
   int eom_nroots;
@@ -205,8 +208,11 @@ class CCSDOptions: public Options {
   double gf_omega_delta;
   double gf_omega_delta_e;
   int gf_extrapolate_level;
-  
 
+  int gf_analyze_level;
+  int gf_analyze_num_omega;
+  std::vector<double> gf_analyze_omega;
+  
   void print() {
     std::cout << std::defaultfloat;
     cout << "\nCCSD Options\n";
@@ -243,6 +249,13 @@ class CCSDOptions: public Options {
       cout << " gf_omega_max_e = " << gf_omega_max_e << endl;
       cout << " gf_omega_delta = " << gf_omega_delta << endl; 
       cout << " gf_omega_delta_e = " << gf_omega_delta_e << endl; 
+      if(gf_analyze_level > 0) {
+        cout << " gf_analyze_level = " << gf_analyze_level << endl; 
+        cout << " gf_analyze_num_omega = " << gf_analyze_num_omega << endl; 
+        cout << " gf_analyze_omega = [";
+        for(auto x: gf_analyze_omega) cout << x << ",";
+        cout << "]" << endl;      
+      }
       if(gf_extrapolate_level>0) cout << " gf_extrapolate_level = " << gf_extrapolate_level << endl; 
     }   
 
@@ -585,9 +598,7 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("gf_damping_factor",line)) 
             ccsd_options.gf_damping_factor = std::stod(read_option(line));              
           else if(is_in_line("gf_eta",line)) 
-            ccsd_options.gf_eta = std::stod(read_option(line));  
-          // else if(is_in_line("gf_omega",line)) 
-            // ccsd_options.gf_omega = std::stod(read_option(line));  
+            ccsd_options.gf_eta = std::stod(read_option(line));                     
           else if(is_in_line("gf_threshold",line)) 
             ccsd_options.gf_threshold = std::stod(read_option(line));  
           else if(is_in_line("gf_omega_min",line)) 
@@ -604,6 +615,18 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             ccsd_options.gf_omega_delta_e = std::stod(read_option(line));              
           else if(is_in_line("gf_extrapolate_level",line)) 
             ccsd_options.gf_extrapolate_level = std::stoi(read_option(line)); 
+          else if(is_in_line("gf_analyze_level",line)) 
+            ccsd_options.gf_analyze_level = std::stoi(read_option(line));  
+          else if(is_in_line("gf_analyze_num_omega",line)) 
+            ccsd_options.gf_analyze_num_omega = std::stoi(read_option(line));              
+          else if(is_in_line("gf_analyze_omega",line)) {
+              std::istringstream iss(line);
+              std::string wignore;
+              iss >> wignore;
+              std::vector<double> gf_analyze_omega{std::istream_iterator<double>{iss},
+                                              std::istream_iterator<double>{}};
+              ccsd_options.gf_analyze_omega = gf_analyze_omega;
+          }          
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line, "CCSD");
 

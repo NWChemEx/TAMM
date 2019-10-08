@@ -38,6 +38,32 @@ void update_r2(ExecutionContext& ec,
     block_for(ec, ltensor, lambda);
 }
 
+template<typename TensorType>
+void init_diagonal(ExecutionContext& ec,
+                    LabeledTensor<TensorType> ltensor) {
+    Tensor<TensorType> tensor = ltensor.tensor();
+    // Defined only for NxN tensors
+    EXPECTS(tensor.num_modes() == 2);
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        if(blockid[0] == blockid[1]) {
+          const TAMM_SIZE size = tensor.block_size(blockid);
+            std::vector<TensorType> buf(size);
+            tensor.get(blockid, buf);
+            auto block_dims   = tensor.block_dims(blockid);
+            auto block_offset = tensor.block_offsets(blockid);
+            auto dim          = block_dims[0];
+            auto offset       = block_offset[0];
+            size_t i          = 0;
+            for(auto p = offset; p < offset + dim; p++, i++)
+               buf[i * dim + i] = 1.0;
+          tensor.put(blockid, buf);
+        }
+    };
+    block_for(ec, ltensor, lambda);
+}
+
 std::string ccsd_test( int argc, char* argv[] )
 {
 

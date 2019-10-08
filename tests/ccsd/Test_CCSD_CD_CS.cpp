@@ -2,9 +2,6 @@
 
 #include "cd_ccsd_common_cs.hpp"
 
-#include <filesystem>
-namespace fs = std::filesystem;
-
 void ccsd_driver();
 std::string filename; //bad, but no choice
 
@@ -47,6 +44,7 @@ int main( int argc, char* argv[] )
     return 0;
 }
 
+
 void ccsd_driver() {
 
     // std::cout << "Input file provided = " << filename << std::endl;
@@ -76,40 +74,31 @@ void ccsd_driver() {
     double zshiftl = 0.0;
     size_t ndiis   = 5;
 
-
     const TAMM_SIZE nocc = 2 * ov_alpha;
     const TAMM_SIZE nvir = 2*nao - 2*ov_alpha;
     if(rank==0) cout << endl << "#occupied, #virtual = " << nocc << ", " << nvir << endl;
-    
+
     auto [MO,total_orbitals] = setupMOIS(ccsd_options.tilesize,
                     nao,ov_alpha,freeze_core,freeze_virtual);
 
-    std::string out_fp = getfilename(filename)+"."+ccsd_options.basis;
-    std::string files_dir = out_fp+"_files";
-    std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
-    std::string f1file = files_prefix+".f1_mo";
-    std::string t1file = files_prefix+".t1amp";
-    std::string t2file = files_prefix+".t2amp";
-    std::string v2file = files_prefix+".cholv2";
-    std::string cholfile = files_prefix+".cholcount";
-    std::string ccsdstatus = files_prefix+".ccsdstatus";
+    std::string f1file = getfilename(filename)+"."+ccsd_options.basis+".f1_mo";
+    std::string t1file = getfilename(filename)+"."+ccsd_options.basis+".t1amp";
+    std::string t2file = getfilename(filename)+"."+ccsd_options.basis+".t2amp";
+    std::string v2file = getfilename(filename)+"."+ccsd_options.basis+".cholv2";
+    std::string cholfile = getfilename(filename)+"."+ccsd_options.basis+".cholcount";
     
-    bool ccsd_restart = ccsd_options.readt || 
-        ( (fs::exists(t1file) && fs::exists(t2file)     
-        && fs::exists(f1file) && fs::exists(v2file)) );
-
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
                         (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
                                 freeze_virtual, C_AO, F_AO, shells, shell_tile_map,
-                                ccsd_restart, cholfile);
+                                ccsd_options.readt,cholfile);
 
     TiledIndexSpace N = MO("all");
 
     auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
-            = setupTensors(ec,MO,d_f1,ndiis,ccsd_restart && fs::exists(ccsdstatus));
+            = setupTensors(ec,MO,d_f1,ndiis);
 
-    if(ccsd_restart) {
+    if(ccsd_options.readt) {
         read_from_disk(d_f1,f1file);
         read_from_disk(d_t1,t1file);
         read_from_disk(d_t2,t2file);
@@ -117,12 +106,22 @@ void ccsd_driver() {
         ec.pg().barrier();
         p_evl_sorted = tamm::diagonal(d_f1);
     }
-    
-    else if(ccsd_options.writet) {
-        // fs::remove_all(files_dir); 
-        if(!fs::exists(files_dir)) fs::create_directories(files_dir);
 
+    auto cc_t1 = std::chrono::high_resolution_clock::now();
+
+    auto [residual, corr_energy] = cd_ccsd_cs_driver<T>(
+            ec, MO, CI, d_t1, d_t2, d_f1, 
+            d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
+            p_evl_sorted, 
+            maxiter, thresh, zshiftl, ndiis, 
+            2 * ov_alpha, cholVpr);
+
+    ccsd_stats(ec, hf_energy,residual,corr_energy,thresh);
+
+    if(ccsd_options.writet) {
         write_to_disk(d_f1,f1file);
+        write_to_disk(d_t1,t1file);
+        write_to_disk(d_t2,t2file);
         write_to_disk(cholVpr,v2file);
 
         if(rank==0){
@@ -130,79 +129,16 @@ void ccsd_driver() {
           if(!out) cerr << "Error opening file " << cholfile << endl;
           out << chol_count << std::endl;
           out.close();
-        }        
-    }
-
-    if(rank==0 && debug){
-      cout << "eigen values:" << endl << std::string(50,'-') << endl;
-      for (auto x: p_evl_sorted) cout << x << endl;
-      cout << std::string(50,'-') << endl;
-    }
-
-    multOpTime = 0;
-    multOpGetTime = 0;
-    multOpWaitTime = 0;
-    multOpAddTime = 0;
-    multOpDgemmTime = 0;
-    ec.pg().barrier();
-
-    auto cc_t1 = std::chrono::high_resolution_clock::now();
-
-    ccsd_restart = ccsd_restart && fs::exists(ccsdstatus);
-
-    auto [residual, corr_energy] = cd_ccsd_cs_driver<T>(
-            ec, MO, CI, d_t1, d_t2, d_f1, 
-            d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
-            p_evl_sorted, 
-            maxiter, thresh, zshiftl, ndiis, 
-            2 * ov_alpha, cholVpr, ccsd_options.writet, ccsd_restart, files_prefix);
-
-    ccsd_stats(ec, hf_energy,residual,corr_energy,thresh);
-
-    if(ccsd_options.writet && !fs::exists(ccsdstatus)) {
-        write_to_disk(d_t1,t1file);
-        write_to_disk(d_t2,t2file);
-        if(rank==0){
-          std::ofstream out(ccsdstatus, std::ios::out);
-          if(!out) cerr << "Error opening file " << ccsdstatus << endl;
-          out << 1 << std::endl;
-          out.close();
-        }                
+        }
     }
 
     auto cc_t2 = std::chrono::high_resolution_clock::now();
     double ccsd_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-    if(rank == 0) {
-        std::cout << std::endl << "Time taken for Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
-    }
+    if(rank == 0) std::cout << std::endl << "Time taken for Closed Shell Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
 
-    double gmultOpTime,gmultOpGetTime,gmultOpWaitTime,gmultOpDgemmTime,gmultOpAddTime;
-    MPI_Reduce(&multOpTime, &gmultOpTime, 1, MPI_DOUBLE, MPI_SUM, 0,
-           ec.pg().comm());
-    MPI_Reduce(&multOpGetTime, &gmultOpGetTime, 1, MPI_DOUBLE, MPI_SUM, 0,
-           ec.pg().comm());
-    MPI_Reduce(&multOpWaitTime, &gmultOpWaitTime, 1, MPI_DOUBLE, MPI_SUM, 0,
-           ec.pg().comm());           
-    MPI_Reduce(&multOpDgemmTime, &gmultOpDgemmTime, 1, MPI_DOUBLE, MPI_SUM, 0,
-           ec.pg().comm());                      
-    MPI_Reduce(&multOpAddTime, &gmultOpAddTime, 1, MPI_DOUBLE, MPI_SUM, 0,
-           ec.pg().comm());    
-
-    auto nranks = ec.pg().size().value();
-    if(rank == 0){
-        std::cout<<rank<<" : total mult_op time="<<gmultOpTime/nranks <<"\n";
-        std::cout<<rank<<" : mult_op get time="<<gmultOpGetTime/nranks<<"\n";
-        std::cout<<rank<<" : mult_op wait time="<<gmultOpWaitTime/nranks<<"\n";
-        std::cout<<rank<<" : mult_op dgemm time="<<gmultOpDgemmTime/nranks<<"\n";
-        std::cout<<rank<<" : mult_op add time="<<gmultOpAddTime/nranks<<"\n";
-    }
-
-    if(!ccsd_restart) {
-        free_tensors(d_r1,d_r2);
-        free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);
-    }
-    free_tensors(d_t1, d_t2, d_f1, cholVpr);
+    free_tensors(d_r1, d_r2, d_t1, d_t2, d_f1, cholVpr);
+    free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);
 
     ec.flush_and_sync();
     MemoryManagerGA::destroy_coll(mgr);

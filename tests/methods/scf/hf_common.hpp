@@ -11,7 +11,7 @@
 #include <unsupported/Eigen/MatrixFunctions>
 #undef I
 
-#include "input_parser.hpp"
+#include "common/input_parser.hpp"
 
 #ifdef _OPENMP
 #include <omp.h>

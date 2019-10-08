@@ -222,6 +222,33 @@ inline IndexVector indep_values(
 }
 
 template<typename LabeledTensorT>
+IndexVector translate_sparse_blockid(const IndexVector& blockid,
+                                   const LabeledTensorT& ltensor) {
+    EXPECTS(blockid.size() == ltensor.labels().size());
+    const auto& tensor  = ltensor.tensor();
+    const auto& dep_map = tensor.dep_map();
+    EXPECTS(blockid.size() == tensor.num_modes());
+    IndexVector translate_blockid;
+    for(size_t i = 0; i < blockid.size(); i++) {
+        auto indep_vals = indep_values(blockid, i, dep_map);
+        if(!indep_vals.empty()){
+            auto l_dep_map = ltensor.labels()[i].tiled_index_space().tiled_dep_map();
+            auto t_dep_map = tensor.tiled_index_spaces()[i].tiled_dep_map();
+            // check if any one of them doesn't have the TIS for indep_values
+            if(l_dep_map.find(indep_vals) == l_dep_map.end() ||
+               t_dep_map.find(indep_vals) == t_dep_map.end())
+                return IndexVector(blockid.size(), -1);
+        }
+        const auto& label_tis =
+          ltensor.labels()[i].tiled_index_space()(indep_vals);
+        const auto& tensor_tis = label_tis.root_tis();
+        Index val              = label_tis.translate(blockid[i], tensor_tis);
+        translate_blockid.push_back(val);
+    }
+    return translate_blockid;
+}
+
+template<typename LabeledTensorT>
 IndexVector translate_blockid(const IndexVector& blockid,
                               const LabeledTensorT& ltensor) {
     EXPECTS(blockid.size() == ltensor.labels().size());

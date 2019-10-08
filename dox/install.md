@@ -12,8 +12,7 @@ export TAMM_INSTALL_PATH=/opt/NWChemEx/install
 git clone https://github.com/NWChemEx-Project/CMakeBuild.git
 cd CMakeBuild
 mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/CMakeBuild \
--DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran ..
+CC=gcc CXX=g++ FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
 make -j2
 make install
@@ -27,10 +26,7 @@ cd TAMM
 # Checkout the branch you want to build
 mkdir build && cd build
 
-cmake \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMM \
--DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
--DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran ..
+CC=gcc CXX=g++ FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
 #BLIS Options 
 -DUSE_BLIS=ON
@@ -67,12 +63,10 @@ export MKL_LIBS=$INTEL_ROOT/linux/mkl/lib/intel64
 
 export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_intel_thread.a;$MKL_LIBS/libmkl_core.a;$INTEL_ROOT/linux/compiler/lib/intel64/libiomp5.a;-lpthread;-ldl"
 
-cmake \
--DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran \
+CC=gcc CXX=g++ FC=gfortran cmake \
 -DCBLAS_INCLUDE_DIRS=$MKL_INC \
 -DLAPACKE_INCLUDE_DIRS=$MKL_INC \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMGCCMKL \
--DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
 ```
@@ -82,12 +76,10 @@ To use `ScaLAPACK`, change `TAMM_BLASLIBS` and the `cmake` line as shown below:
 ```
 export TAMM_BLASLIBS="$MKL_LIBS/libmkl_scalapack_ilp64.a;$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_intel_thread.a;$MKL_LIBS/libmkl_core.a;$MKL_LIBS/libmkl_blacs_openmpi_ilp64.a;$INTEL_ROOT/linux/compiler/lib/intel64/libiomp5.a;-lpthread;-ldl"
 
-cmake \
--DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran \
+CC=gcc CXX=g++ FC=gfortran cmake \
 -DCBLAS_INCLUDE_DIRS=$MKL_INC \
 -DLAPACKE_INCLUDE_DIRS=$MKL_INC \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMGCCMKL \
--DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
 -DSCALAPACK_LIBRARIES=$TAMM_BLASLIBS -DSCALAPACK=ON ..
@@ -118,12 +110,10 @@ export ESSL_INC=/sw/summit/essl/6.1.0-2/essl/6.1/include
 export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp6464.so"
 ```
 ```
- cmake \
--DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran \
+CC=gcc CXX=g++ FC=gfortran cmake \
 -DCBLAS_INCLUDE_DIRS=$ESSL_INC \
 -DLAPACKE_INCLUDE_DIRS=$ESSL_INC \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMESSL \
--DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
 -DTAMM_CXX_FLAGS="-mcpu=power9" \
@@ -161,7 +151,7 @@ module load cuda/10.1.168
 
 - `NOTE:` CMakeBuild repository should be built with the following compiler options.
   - Remove the compiler options from the cmake line or change them to:  
- -DCMAKE_C_COMPILER=cc -DCMAKE_CXX_COMPILER=CC -DCMAKE_Fortran_COMPILER=ftn
+    CC=cc CXX=CC FC=ftn 
 
  
 ```
@@ -174,13 +164,13 @@ export MKL_INC=$INTEL_ROOT/linux/mkl/include
 export MKL_LIBS=$INTEL_ROOT/linux/mkl/lib/intel64
 export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_gnu_thread.a;$MKL_LIBS/libmkl_core.a;-lgomp;-lpthread;-ldl"
 
-cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC \
+CC=cc CXX=CC FC=ftn cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC \
 -DLAPACKE_INCLUDE_DIRS=$MKL_INC \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH/TAMMGCCMKL \
--DCMAKE_PREFIX_PATH=$TAMM_INSTALL_PATH/CMakeBuild \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
 
 To enable CUDA build, add -DNWX_CUDA=ON
 
 ```
+

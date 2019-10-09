@@ -23,7 +23,7 @@
 
 // #define EIGEN_DIAG 
 #ifndef SCALAPACK
-  #include "linalg.hpp"
+  #include "common/linalg.hpp"
 #else 
   // CXXBLACS BLACS/ScaLAPACK wrapper
   // #include LAPACKE_HEADER

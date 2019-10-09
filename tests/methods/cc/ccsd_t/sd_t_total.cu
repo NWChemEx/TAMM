@@ -257,6 +257,14 @@ __global__ void sd_t_d1_1_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
     }
   }
   __syncthreads();
+
+  // // 
+  // if (blockIdx.x == 0 && threadIdx.y == 0 && threadIdx.x == 0)
+  // {
+  //   // triplesx_d[h3_0*h3ld_triplesx+h1_0*h1ld_triplesx+p6_0*p6ld_triplesx+p5_0*p5ld_triplesx+p4_0*p4ld_triplesx]-=tlocal1;
+  //   printf (">> t3_d[%d]: %.15f\n", h3_0*h3ld_triplesx+h1_0*h1ld_triplesx+p6_0*p6ld_triplesx+p5_0*p5ld_triplesx+p4_0*p4ld_triplesx, 
+  //   triplesx_d[h3_0*h3ld_triplesx+h1_0*h1ld_triplesx+p6_0*p6ld_triplesx+p5_0*p5ld_triplesx+p4_0*p4ld_triplesx]);
+  // }
 }
   void sd_t_d1_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
@@ -5237,7 +5245,7 @@ __global__ void compute_energy_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4
 {
   size_t h1,h2,p6,p4,p5, h3,i=0;
   double e1,e2,e4,e5,e6;
-//  __shared__ double t2_shm[MAX_h3];
+  //  __shared__ double t2_shm[MAX_h3];
   __shared__ double energy_s[T1];
   __shared__ double energy2_s[T1];
   double inner_fac;

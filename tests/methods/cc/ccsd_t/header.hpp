@@ -15,6 +15,11 @@
 #include <time.h>
 ////#include "util.h"
 
+#ifdef USE_TALSH
+  #define USE_TALSH_T
+#endif
+#undef USE_TALSH
+
 #define CHECK_ERR(x) { \
     cudaError_t err = cudaGetLastError();\
     if (cudaSuccess != err) { \
@@ -23,7 +28,7 @@
     } } 
 
 #define CUDA_SAFE(x) if ( cudaSuccess != (x) ) {\
-    printf("CUDA CALL FAILED AT LINE %d OF FILE %s error %s\n", __LINE__, __FILE__, cudaGetErrorString(cudaGetLastError()) ); exit(1);}
+    printf("CUDA CALL FAILED AT LINE %d OF FILE %s error %s\n", __LINE__, __FILE__, cudaGetErrorString(cudaGetLastError()) ); exit(100);}
 
 
 typedef long Integer;

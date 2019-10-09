@@ -558,9 +558,9 @@ class TALSH {
  *  COPY_MTT, COPY_TTT etc. 
  */ 
   template <typename T>
- void mult_block(int rank, tensor_handle ltens,
-                 tensor_handle r1tens,
-                 tensor_handle r2tens,
+ void mult_block(talsh_task_t &talsh_task, int rank, tensor_handle& ltens,
+                 tensor_handle& r1tens,
+                 tensor_handle& r2tens,
                  std::string cop_string,
                  T scale,
                  int move_arg) {
@@ -584,8 +584,8 @@ class TALSH {
     tensShape_destruct(&r1shape);
     tensShape_destruct(&r2shape);
 
-    talsh_task_t talsh_task;
-    talshTaskClean(&talsh_task);
+    // talsh_task_t talsh_task;
+    // talshTaskClean(&talsh_task);
     if constexpr(ti_internal::is_complex_v<T>){
       talshTensorContract(cop_string.c_str(),
                         &ltens,
@@ -620,7 +620,7 @@ class TALSH {
     errc=talshTaskTime(&talsh_task,&total_time);
     printf(" Tensor CONTRACTION total time = %f\n",total_time);
 #endif
-    wait_and_destruct(&talsh_task);
+    // wait_and_destruct(&talsh_task);
   }
 
  void tensor_destruct(tensor_handle tens) {

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION ${CMAKE_VERSION})
 project(tamm VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For nwchemex_add_library
 
-if(NWX_CUDA)
+if(USE_CUDA)
     set(tamm_cuda_SRCS cuda_memory_allocator.cu cudamemset.cu)
     set(tamm_cuda_INCS cuda_memory_allocator.hpp cudamemset.hpp talsh_tamm.hpp)
 endif()

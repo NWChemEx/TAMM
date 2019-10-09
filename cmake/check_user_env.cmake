@@ -8,9 +8,9 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "XL"
 endif()
 
 if("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
-    if (NWX_CUDA)
+    if (USE_CUDA)
         message(FATAL_ERROR "TAMM does not support building with GPU support \
-        on MACOSX. Please use NWX_CUDA=OFF for MACOSX builds.")
+        on MACOSX. Please use USE_CUDA=OFF for MACOSX builds.")
     endif()
     
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" 
@@ -58,7 +58,7 @@ check_compiler_version(C PGI 18)
 check_compiler_version(CXX PGI 18)
 check_compiler_version(Fortran PGI 18)
 
-if(NWX_CUDA)
+if(USE_CUDA)
     include(CheckLanguage)
     check_language(CUDA)
     if(CMAKE_CUDA_COMPILER)
@@ -72,10 +72,10 @@ if(NWX_CUDA)
                         OUTPUT_VARIABLE ARCH)
         if(${CUDA_RETURN_CODE} EQUAL 0)
             message(STATUS "CUDA Architecture: ${ARCH}")     
-            set(NWX_GPU_ARCH ${ARCH})                   
+            set(NV_GPU_ARCH ${ARCH})                   
         else()
             message(WARNING "Setting CUDA Architecture to: 35")  
-            set(NWX_GPU_ARCH 35)
+            set(NV_GPU_ARCH 35)
         endif()
     else()
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "8.3")

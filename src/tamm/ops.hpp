@@ -5,6 +5,7 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <chrono>
 
 
 #include "tamm/boundvec.hpp"
@@ -18,8 +19,30 @@
 #include "tamm/kernels/assign.hpp"
 #include "tamm/kernels/multiply.hpp"
 
+#define DO_NB 1
 
 namespace tamm {
+
+extern double multOpTime;
+extern double multOpGetTime;
+extern double multOpWaitTime;
+extern double multOpAddTime;
+extern double multOpDgemmTime;
+
+class TimerGuard {
+public:
+    TimerGuard(double *refptr)
+    : refptr_{refptr} {
+        start_time_ = std::chrono::high_resolution_clock::now();
+    }
+    ~TimerGuard() {
+        std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
+        *refptr_ += std::chrono::duration_cast<std::chrono::duration<double>>((end_time - start_time_)).count();
+    }
+private:
+    double *refptr_;
+    std::chrono::time_point<std::chrono::high_resolution_clock> start_time_;
+};  // TimeGuard
 
 enum class ResultMode { update, set };
 
@@ -1187,6 +1210,39 @@ protected:
     bool is_assign_;
 }; // class AddOp
 
+template<typename T>
+struct AddBuf {
+    //AddBuf() = default;
+    AddBuf(bool isgpu, talsh_task_t* tt, tensor_handle* tc, tensor_handle*ta, tensor_handle* tb, Tensor<T> tensor, 
+        std::vector<T>&& cbuf, const IndexVector& blockid)
+    : tensor_{tensor}, blockid_{blockid}, cbuf_{cbuf}, tt_{tt}, tc_{tc}, ta_{ta}, tb_{tb}, isgpu_{isgpu} {
+        // tensor.nb_add(blockid, buf_, &nbhdl_);
+        //tensor.add(blockid, buf_);
+    }
+    ~AddBuf() {
+        assert(nbhdl_.getCompletionStatus() == true);
+    }
+    bool is_done() {
+        return true;
+        // return nbhdl_.getCompletionStatus();
+    }
+    void wait() {
+        if(!nbhdl_.getCompletionStatus()) {
+            nbhdl_.waitForCompletion();
+        }
+    }
+
+    std::vector<T> cbuf_;
+    IndexVector blockid_;
+    bool isgpu_;
+    Tensor<T> tensor_;
+    talsh_task_t* tt_;
+    tensor_handle* tc_;
+    tensor_handle* ta_;
+    tensor_handle* tb_;
+     DataCommunicationHandle nbhdl_;
+};
+
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 class MultOp : public Op {
 public:
@@ -1277,8 +1333,10 @@ public:
                           rhs2_.labels().end());
         LabelLoopNest loop_nest{all_labels};
 
+        std::vector<AddBuf<T>*> add_bufs;
+
         // function to compute one block
-        auto lambda = [=,&loop_nest](const IndexVector itval) {
+        auto lambda = [=,&add_bufs,&loop_nest](const IndexVector itval) {
             auto ctensor = lhs_.tensor();
             auto atensor = rhs1_.tensor();
             auto btensor = rhs2_.tensor();
@@ -1396,6 +1454,7 @@ public:
             using TensorElType2 = typename LabeledTensorT2::element_type;
             using TensorElType3 = typename LabeledTensorT3::element_type;
 
+#if 0
             if constexpr(std::is_same_v<TensorElType1,TensorElType2> 
                          && std::is_same_v<TensorElType1,TensorElType3>) {
                 ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc){
@@ -1422,7 +1481,10 @@ public:
                         ReadAccess{IndexedTensor{atensor, translated_ablockid}}, 
                         ReadAccess{IndexedTensor{btensor, translated_bblockid}}); 
             }
-            else{
+            else
+#endif            
+            {
+                TimerGuard tg_total{&multOpTime};
                 const int my_rank = ec.pg().rank().value();
                 // determine set of all labels
 
@@ -1435,8 +1497,29 @@ public:
                 std::vector<TensorElType2> abuf(asize);
                 std::vector<TensorElType3> bbuf(bsize);
                 // get inputs
-                atensor.get(translated_ablockid, abuf);
-                btensor.get(translated_bblockid, bbuf);
+#if DO_NB
+                DataCommunicationHandle a_nbhandle,b_nbhandle,c_nbhandle;
+
+            {
+                TimerGuard tg_get{&multOpGetTime};
+                atensor.nb_get(translated_ablockid, abuf,&a_nbhandle);
+                btensor.nb_get(translated_bblockid, bbuf,&b_nbhandle);
+            }
+            {
+                TimerGuard tg_wait{&multOpWaitTime};
+                if(!a_nbhandle.getCompletionStatus()) a_nbhandle.waitForCompletion();
+                if(!b_nbhandle.getCompletionStatus()) b_nbhandle.waitForCompletion();
+            }
+#else
+                { 
+                    TimerGuard tg_get{&multOpGetTime};
+                    atensor.get(translated_ablockid, abuf);
+                }
+                { 
+                    TimerGuard tg_get{&multOpGetTime};
+                    btensor.get(translated_bblockid, bbuf);
+                }
+#endif
                 const auto& cdims = ctensor.block_dims(translated_cblockid);
                 const auto& adims = atensor.block_dims(translated_ablockid);
                 const auto& bdims = btensor.block_dims(translated_bblockid);
@@ -1447,20 +1530,97 @@ public:
                 for(const auto v : adims) { adims_sz.push_back(v); }
                 for(const auto v : bdims) { bdims_sz.push_back(v); }
                 for(const auto v : cdims) { cdims_sz.push_back(v); }
-                kernels::block_multiply<T,TensorElType1,TensorElType2,TensorElType3>
-                                        (my_rank, alpha_, abuf.data(), adims_sz,
-                                        rhs1_int_labels_, bbuf.data(), bdims_sz,
-                                        rhs2_int_labels_, cscale, cbuf.data(),
-                                        cdims_sz, lhs_int_labels_, hw, ec.num_gpu());
+                talsh_task_t* talsh_task = new talsh_task_t();
+                TALSH *gpu_mult = new TALSH{ec.num_gpu()};
 
+                tensor_handle *th_a = new tensor_handle();
+                tensor_handle *th_b = new tensor_handle();
+                tensor_handle *th_c = new tensor_handle(); 
+                bool isgpu = false;
+
+                { 
+                    AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b, 
+                        ctensor, std::move(cbuf),translated_cblockid};
+                    add_bufs.push_back(ab);
+
+                    TimerGuard tg_dgemm{&multOpDgemmTime};
+                    talshTaskClean(talsh_task);
+                    kernels::block_multiply<T,TensorElType1,TensorElType2,TensorElType3>
+                                        (ab->isgpu_, *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, my_rank, alpha_, 
+                                        abuf.data(), adims_sz,
+                                        rhs1_int_labels_, bbuf.data(), bdims_sz,
+                                        rhs2_int_labels_, cscale, (ab->cbuf_).data(),
+                                        cdims_sz, lhs_int_labels_, hw, ec.num_gpu());                                            
+                }
                 // add the computed update to the tensor
-                ctensor.add(translated_cblockid, cbuf);
+                // { 
+                //     TimerGuard tg_add{&multOpAddTime};
+                //     //ctensor.add(translated_cblockid, cbuf);
+                //     const int k = 20;
+                //     if(add_bufs.size() >= k) {
+                //         for(auto& ab: add_bufs) {
+                //             #ifdef USE_TALSH
+                //             {
+                //                 if(ab->isgpu_) {
+                //                     int done = NOPE;
+                //                     int sts, errc = TALSH_SUCCESS;
+                //                     while(done != YEP && errc == TALSH_SUCCESS) {
+                //                     done=talshTaskComplete(ab->tt_, &sts, &errc);
+                //                     }
+                //                     assert(errc == TALSH_SUCCESS);
+                //                     errc = talshTaskDestruct(ab->tt_);
+                //                     assert(errc == TALSH_SUCCESS);
+                //                     talshTensorDestruct(ab->ta_);
+                //                     talshTensorDestruct(ab->tb_);
+                //                     talshTensorDestruct(ab->tc_);  
+                //                 }                             
+                //             }
+                //             #endif
+                //         }
+                //          for(auto& ab: add_bufs) {
+                //             (ab->tensor_).nb_add(ab->blockid_, ab->cbuf_, &(ab->nbhdl_));
+                //             ab->wait();
+                //             delete ab;
+                //          }
+
+                //         add_bufs.clear();
+                //     }
+                // }
             }
 
             };
             //@todo use a scheduler
             //@todo make parallel
             do_work(ec, loop_nest, lambda);
+                { 
+                    TimerGuard tg_add{&multOpAddTime};
+                    for(auto& ab: add_bufs) {
+                            #ifdef USE_TALSH
+                            {
+                                if(ab->isgpu_) {
+                                    int done = NOPE;
+                                    int sts, errc = TALSH_SUCCESS;
+                                    while(done != YEP && errc == TALSH_SUCCESS) {
+                                    done=talshTaskComplete(ab->tt_, &sts, &errc);
+                                    }
+                                    assert(errc == TALSH_SUCCESS);
+                                    errc = talshTaskDestruct(ab->tt_);
+                                    assert(errc == TALSH_SUCCESS);
+                                    talshTensorDestruct(ab->ta_);
+                                    talshTensorDestruct(ab->tb_);
+                                    talshTensorDestruct(ab->tc_);  
+                                }                             
+                            }
+                            #endif
+                    }
+                     for(auto& ab: add_bufs) {
+                            (ab->tensor_).nb_add(ab->blockid_, ab->cbuf_, &(ab->nbhdl_));
+                            ab->wait();
+                            delete ab;                            
+                    }
+                    add_bufs.clear();
+                }
+
 #endif
 
     }

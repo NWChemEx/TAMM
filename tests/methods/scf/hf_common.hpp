@@ -11,7 +11,7 @@
 #include <unsupported/Eigen/MatrixFunctions>
 #undef I
 
-#include "input_parser.hpp"
+#include "common/input_parser.hpp"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -23,7 +23,7 @@
 
 // #define EIGEN_DIAG 
 #ifndef SCALAPACK
-  #include "linalg.hpp"
+  #include "common/linalg.hpp"
 #else 
   // CXXBLACS BLACS/ScaLAPACK wrapper
   // #include LAPACKE_HEADER

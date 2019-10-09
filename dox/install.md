@@ -35,15 +35,20 @@ Ex: -DBLIS_CONFIG=haswell
 If BLIS_CONFIG is not provided, the BLIS build will try to
 auto-detect (only for x86_64 systems) the architecture.
 
-#CUDA Options
-[-DNWX_CUDA=ON] #OFF by Default
+#CUDA Options 
+-DUSE_CUDA=ON (OFF by Default)  
+ 
+ #Optionally build with cuTensor support when USE_CUDA=ON  
+-DUSE_CUTENSOR=ON -DCUTENSOR_INSTALL_PREFIX=/path/to/cutensor_install_prefix  
 
-#GlobalArrays options
-[-DARMCI_NETWORK=MPI-TS] #Default is MPI-PR
+#GlobalArrays options. We only recommend building with MPI-PR or OPENIB
+[-DARMCI_NETWORK=OPENIB] #Default is MPI-PR
 
 #CMake options for developers (optional)
--DCMAKE_CXX_FLAGS "-fsanitize=address -fsanitize=leak -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=undefined"
+-DUSE_GA_DEV=ON #Build GA's latest development code.
 
+#OpenMP
+-DUSE_OPENMP=OFF (ON by default and also when USE_CUDA=ON)
 
 make -j3
 make install
@@ -82,7 +87,7 @@ CC=gcc CXX=g++ FC=gfortran cmake \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
--DSCALAPACK_LIBRARIES=$TAMM_BLASLIBS -DSCALAPACK=ON ..
+-DSCALAPACK_LIBRARIES=$TAMM_BLASLIBS -DUSE_SCALAPACK=ON ..
 ```
 
 
@@ -119,7 +124,7 @@ CC=gcc CXX=g++ FC=gfortran cmake \
 -DTAMM_CXX_FLAGS="-mcpu=power9" \
 [-DUSE_BLIS=ON -DBLIS_CONFIG=power9 ] ..
 
-To enable CUDA build, add -DNWX_CUDA=ON
+To enable CUDA build, add -DUSE_CUDA=ON
 
 ```
 
@@ -130,7 +135,7 @@ module load netlib-scalapack
 
 export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp.so;/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-8.1.1/netlib-scalapack-2.0.2-re7if5fomjhxgqa5morvan7mptnkihdx/lib/libscalapack.so"
 
-Add -DSCALAPACK=ON to the cmake line.
+Add -DUSE_SCALAPACK=ON to the cmake line.
 
 
 ```
@@ -170,7 +175,7 @@ CC=cc CXX=CC FC=ftn cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
 
-To enable CUDA build, add -DNWX_CUDA=ON
+To enable CUDA build, add -DUSE_CUDA=ON
 
 ```
 

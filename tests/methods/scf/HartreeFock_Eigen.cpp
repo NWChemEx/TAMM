@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_RUNNER
 
-#include "HF/hartree_fock_eigen.hpp"
+#include "scf/hartree_fock_eigen.hpp"
 #include "catch/catch.hpp"
 using namespace tamm;
 

@@ -1,10 +1,10 @@
 
 include(TargetMacros)
 add_mpi_unit_test(CD_SVD_GA 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
-add_mpi_unit_test(CCSD_CD_CS 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
+add_mpi_unit_test(CD_CCSD_CS 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
 
 if(NWX_CUDA)
-    set(CCSD_T_SRCDIR ${CMAKE_CURRENT_SOURCE_DIR}/ccsd/ccsd_t)
+    set(CCSD_T_SRCDIR ${CMAKE_CURRENT_SOURCE_DIR}/methods/cc/ccsd_t)
     set(CCSD_T_CUDA_SRCS 
         ${CCSD_T_SRCDIR}/memory.cu  
         ${CCSD_T_SRCDIR}/header.hpp

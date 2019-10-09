@@ -2,17 +2,15 @@
 #ifndef CCSD_T_GPU_TGEN_HPP_
 #define CCSD_T_GPU_TGEN_HPP_
 
-#include "ccsd_t_singles_gpu.hpp"
-#include "ccsd_t_doubles_gpu_tgen.hpp"
-
+#include "ccsd_t_gpu_all_fused.hpp"
 #include "header.hpp"
 
 int check_device(long);
 int device_init(long icuda,int *cuda_device_number );
 void dev_release();
 void finalizememmodule();
-void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,
-size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* host1, double* host2);
+// void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,
+// size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* host1, double* host2);
 
 template <typename Arg, typename... Args>
 void dprint1(Arg&& arg, Args&&... args)
@@ -105,20 +103,25 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
     for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) 
       max_hdim = std::max(max_hdim,k_range[t_h1b]);
 
-    size_t abuf_size1 = 9 * (max_pdim*max_pdim) * (max_hdim*max_hdim);
-    size_t bbuf_size1 = 9 * max_pdim * (max_hdim*max_hdim*max_hdim);
-    size_t abuf_size2 = 9 * (max_pdim*max_pdim) * (max_hdim * max_hdim);
-    size_t bbuf_size2 = 9 * (max_pdim*max_pdim*max_pdim) * max_hdim;
+    size_t abuf_size1 = 9 * noab * (max_pdim*max_pdim) * (max_hdim*max_hdim);
+    size_t bbuf_size1 = 9 * noab * max_pdim * (max_hdim*max_hdim*max_hdim);
+    size_t abuf_size2 = 9 * nvab * (max_pdim*max_pdim) * (max_hdim * max_hdim);
+    size_t bbuf_size2 = 9 * nvab * (max_pdim*max_pdim*max_pdim) * max_hdim;
 
     std::vector<T> k_abuf1; 
     std::vector<T> k_bbuf1; 
     std::vector<T> k_abuf2; 
     std::vector<T> k_bbuf2; 
-    
-      k_abuf1.resize(abuf_size1);
-      k_bbuf1.resize(bbuf_size1);
-      k_abuf2.resize(abuf_size2);
-      k_bbuf2.resize(bbuf_size2);
+    std::vector<T> k_abufs1;
+    std::vector<T> k_bbufs1;
+
+    k_abufs1.resize(9*max_pdim*max_hdim);
+    k_bbufs1.resize(9 * (max_pdim*max_pdim) * (max_hdim*max_hdim));
+
+    k_abuf1.resize(abuf_size1);
+    k_bbuf1.resize(bbuf_size1);
+    k_abuf2.resize(abuf_size2);
+    k_bbuf2.resize(bbuf_size2);
 
   for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
     for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
@@ -155,35 +158,22 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                         initmemmodule();
                       }
 
-                      if ((has_GPU==1)) {
-                        dev_mem_s(k_range[t_h1b],k_range[t_h2b],
-                                  k_range[t_h3b],k_range[t_p4b],
-                                  k_range[t_p5b],k_range[t_p6b]);
+                      // if ((has_GPU==1)) {
+                      //   printf ("[%s] is it called?\n", __func__);
+                      //   dev_mem_s(k_range[t_h1b],k_range[t_h2b],
+                      //             k_range[t_h3b],k_range[t_p4b],
+                      //             k_range[t_p5b],k_range[t_p6b]);
            
-                        dev_mem_d(k_range[t_h1b],k_range[t_h2b],
-                                  k_range[t_h3b],k_range[t_p4b],
-                                  k_range[t_p5b],k_range[t_p6b]);
-                      }
+                      //   dev_mem_d(k_range[t_h1b],k_range[t_h2b],
+                      //             k_range[t_h3b],k_range[t_p4b],
+                      //             k_range[t_p5b],k_range[t_p6b]);
+                      // }
 
                       //TODO:chk args, d_t1 should be local
 
                       // cout << "p4,5,6,h1,2,3 = ";
                       // dprint(t_p4b,t_p5b,t_p6b,t_h1b,t_h2b,t_h3b);
 
-                      ccsd_t_singles_gpu(ec,MO,noab,nvab,k_spin,
-                          k_singles, d_t1, d_v2, k_evl_sorted,
-                          k_range,t_h1b, t_h2b, t_h3b, t_p4b, 
-                          t_p5b, t_p6b, has_GPU);
-
-                      ccsd_t_doubles_gpu_tgen(ec,MO,noab,nvab,
-                        k_spin,k_doubles,d_t2,d_v2,
-                        k_evl_sorted,k_range,t_h1b,t_h2b,t_h3b,
-                        t_p4b,t_p5b,t_p6b, k_abuf1,k_bbuf1,k_abuf2,k_bbuf2, 
-                        has_GPU, kcalls, kcalls_fused, kcalls_pfused); 
-                          
-
-                      //  cout << "singles = " << k_singles << endl;
-                      // cout << "doubles = " << k_doubles << endl;
 
                       double factor = 0.0;
 
@@ -205,6 +195,18 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                       } else if ((t_h1b == t_h2b) || (t_h2b == t_h3b)) {
                         factor /= 2.0;
                       }
+
+                      ccsd_t_gpu_all_fused(ec,MO,noab,nvab,
+                        k_spin,k_offset,k_doubles,d_t1,d_t2,d_v2,
+                        k_evl_sorted,k_range,t_h1b,t_h2b,t_h3b,
+                        t_p4b,t_p5b,t_p6b, k_abufs1, k_bbufs1, 
+                        k_abuf1,k_bbuf1,k_abuf2,k_bbuf2,factor,
+                        energy_l,has_GPU); 
+                          
+
+                      //  cout << "singles = " << k_singles << endl;
+                      // cout << "doubles = " << k_doubles << endl;
+
                       
                       #if 0
                       auto indx = 0;
@@ -235,7 +237,7 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                         indx++;
                       }
                       #else
-                      auto factor_l = factor;
+                      // auto factor_l = factor;
 
                       // cout << "doubles size = " << size << endl;
                       // for(auto x:k_doubles)
@@ -272,17 +274,17 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
 
                       
                       //TODO
-                      compute_energy(factor_l, &energy_l[0],
-                                  &k_evl_sorted[k_offset[t_h1b]],
-                                  &k_evl_sorted[k_offset[t_h2b]],
-                                  &k_evl_sorted[k_offset[t_h3b]],
-                                  &k_evl_sorted[k_offset[t_p4b]],
-                                  &k_evl_sorted[k_offset[t_p5b]],
-                                  &k_evl_sorted[k_offset[t_p6b]],
-                                  k_range[t_h1b],k_range[t_h2b],
-                                  k_range[t_h3b],k_range[t_p4b],
-                                  k_range[t_p5b],k_range[t_p6b],
-                                  &k_doubles[0], &k_singles[0]);
+                      // compute_energy(factor_l, &energy_l[0],
+                      //             &k_evl_sorted[k_offset[t_h1b]],
+                      //             &k_evl_sorted[k_offset[t_h2b]],
+                      //             &k_evl_sorted[k_offset[t_h3b]],
+                      //             &k_evl_sorted[k_offset[t_p4b]],
+                      //             &k_evl_sorted[k_offset[t_p5b]],
+                      //             &k_evl_sorted[k_offset[t_p6b]],
+                      //             k_range[t_h1b],k_range[t_h2b],
+                      //             k_range[t_h3b],k_range[t_p4b],
+                      //             k_range[t_p5b],k_range[t_p6b],
+                      //             &k_doubles[0], &k_singles[0]);
                       // cout << "AFTER energy-l=" << energy_l << endl;                                  
                       energy1 += energy_l[0];
                       energy2 += energy_l[1];
@@ -290,7 +292,7 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
 
                       // cout << "e1,e2=" << energy1 << "," << energy2 << endl;
                       // cout << "-----------------------------------------\n";
-                      dev_release();
+                      // dev_release();
                       finalizememmodule();
 
                       next = ac->fetch_add(0, 1); 
@@ -312,6 +314,8 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
       k_abuf2.shrink_to_fit();
       k_bbuf1.shrink_to_fit();
       k_bbuf2.shrink_to_fit();
+      k_abufs1.shrink_to_fit();
+      k_bbufs1.shrink_to_fit();
 
   } //has_gpu
     next = ac->fetch_add(0, 1); //TODO: is this needed ? 
@@ -319,17 +323,17 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
     ac->deallocate();
     delete ac;
 
-    size_t global_kcalls;
-    size_t global_kcalls_fused;
-    size_t global_kcalls_pfused;
-    MPI_Reduce(&kcalls, &global_kcalls, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
-           ec.pg().comm());
-    MPI_Reduce(&kcalls_fused, &global_kcalls_fused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
-           ec.pg().comm());
-    MPI_Reduce(&kcalls_pfused, &global_kcalls_pfused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
-           ec.pg().comm());           
+  //   size_t global_kcalls;
+  //   size_t global_kcalls_fused;
+  //   size_t global_kcalls_pfused;
+  //   MPI_Reduce(&kcalls, &global_kcalls, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
+  //          ec.pg().comm());
+  //   MPI_Reduce(&kcalls_fused, &global_kcalls_fused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
+  //          ec.pg().comm());
+  //   MPI_Reduce(&kcalls_pfused, &global_kcalls_pfused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
+  //          ec.pg().comm());           
 
-  if(rank == 0) cout << "Total kernel (doubles) calls = " << global_kcalls << ", #fused calls = " << global_kcalls_fused << ", #partial fused calls = " << global_kcalls_pfused << endl;
+  // if(rank == 0) cout << "Total kernel (doubles) calls = " << global_kcalls << ", #fused calls = " << global_kcalls_fused << ", #partial fused calls = " << global_kcalls_pfused << endl;
 
   return std::make_tuple(energy1,energy2);
  

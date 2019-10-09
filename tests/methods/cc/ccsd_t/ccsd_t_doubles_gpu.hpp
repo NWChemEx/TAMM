@@ -470,7 +470,6 @@ void ccsd_t_doubles_gpu(ExecutionContext& ec,
                     k_range[h3b],k_range[p4b],
                     k_range[p5b],k_range[p6b],k_range[p7b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-        
      }
 
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)

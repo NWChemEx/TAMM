@@ -66,12 +66,14 @@ class MemoryManager {
   ProcGroup pg() const {
     return pg_;
   }
+  
+  virtual ~MemoryManager() {}
+
 
  protected:
   explicit MemoryManager(ProcGroup pg)
       : pg_{pg} {}
 
-  virtual ~MemoryManager() {}
 
  public:
   /**
@@ -128,6 +130,23 @@ class MemoryManager {
   virtual void get(MemoryRegion& mr, Proc proc, Offset off, Size nelements, void* buf) = 0;
 
   /**
+   * Get data from a buffer associated with a memory region into a local memory buffer in nonblocking fashion
+   * @param mr Memory region
+   * @param proc Rank whose buffer is to be accessed
+   * @param off Offset at which data is to be accessed
+   * @param nelements Number of elements to get
+   * @param buf Local buffer into which
+   *
+   * @post
+   * @code
+   * buf[0..nelements] = mr[proc].buf[off..off+nelements]
+   * @endcode
+   * @pre buf != nullptr
+   * @pre buf[0..nelements] is valid (i.e., buffer is of sufficient size)
+   */
+  virtual void nb_get(MemoryRegion& mr, Proc proc, Offset off, Size nelements, void* buf, DataCommunicationHandlePtr data_comm_handle) = 0;
+
+  /**
    * Put data to a buffer associated with a memory region from a local memory buffer
    * @param mr Memory region
    * @param proc Rank whose buffer is to be accessed
@@ -145,6 +164,23 @@ class MemoryManager {
   virtual void put(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf) = 0;
 
   /**
+   * Put data to a buffer associated with a memory region from a local memory buffer in nonblocking fashion
+   * @param mr Memory region
+   * @param proc Rank whose buffer is to be accessed
+   * @param off Offset at which data is to be accessed
+   * @param nelements Number of elements to get
+   * @param buf Local buffer into which
+   *
+   * @post
+   * @code
+   * mr[proc].buf[off..off+nelements] = buf[0..nelements]
+   * @endcode
+   * @pre buf != nullptr
+   * @pre buf[0..nelements] is valid (i.e., buffer is of sufficient size)
+   */
+  virtual void nb_put(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf, DataCommunicationHandlePtr data_comm_handle) = 0;
+
+  /**
    * Add data to a buffer associated with a memory region from a local memory buffer
    * @param mr Memory region
    * @param proc Rank whose buffer is to be accessed
@@ -160,6 +196,23 @@ class MemoryManager {
    * @pre buf[0..nelements] is valid (i.e., buffer is of sufficient size)
    */
   virtual void add(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf) = 0;
+
+ /**
+   * Add data to a buffer associated with a memory region from a local memory buffer in nonblocking fashion
+   * @param mr Memory region
+   * @param proc Rank whose buffer is to be accessed
+   * @param off Offset at which data is to be accessed
+   * @param nelements Number of elements to get
+   * @param buf Local buffer into which
+   *
+   * @post
+   * @code
+   * mr[proc].buf[off..off+nelements] += buf[0..nelements]
+   * @endcode
+   * @pre buf != nullptr
+   * @pre buf[0..nelements] is valid (i.e., buffer is of sufficient size)
+   */
+  virtual void nb_add(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf, DataCommunicationHandlePtr data_comm_handle) = 0;
 
   /**
    * @brief Collectively print contents of the memory region

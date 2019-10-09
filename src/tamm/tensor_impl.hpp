@@ -269,6 +269,33 @@ public:
     }
 
     /**
+     * @brief Tensor accessor method for getting values in nonblocking fashion from a set of
+     * indices to specified memory span
+     *
+     * @tparam T type of the values hold on the tensor object
+     * @param [in] idx_vec a vector of indices to fetch the values
+     * @param [in] buff_span memory span where to put the fetched values
+     */
+
+    virtual void nb_get(const IndexVector& idx_vec, span<T> buff_span, DataCommunicationHandlePtr data_comm_handle) const {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+        if(!is_non_zero(idx_vec)) {
+            Size size = block_size(idx_vec);
+            EXPECTS(size <= buff_span.size());
+            for(size_t i = 0; i < size; i++) { buff_span[i] = (T)0; }
+            return;
+        }
+
+        Proc proc;
+        Offset offset;
+        std::tie(proc, offset) = distribution_->locate(idx_vec);
+        Size size              = block_size(idx_vec);
+        EXPECTS(size <= buff_span.size());
+        mpb_->mgr().nb_get(*mpb_, proc, offset, Size{size}, buff_span.data(), data_comm_handle);
+    }
+
+    /**
      * @brief Tensor accessor method for putting values to a set of indices
      * with the specified memory span
      *
@@ -288,6 +315,28 @@ public:
         Size size              = block_size(idx_vec);
         EXPECTS(size <= buff_span.size());
         mpb_->mgr().put(*mpb_, proc, offset, Size{size}, buff_span.data());
+    }
+
+    /**
+     * @brief Tensor accessor method for putting values in nonblocking fashion to a set of indices
+     * with the specified memory span
+     *
+     * @tparam T type of the values hold on the tensor object
+     * @param [in] idx_vec a vector of indices to put the values
+     * @param [in] buff_span buff_span memory span for the values to put
+     */
+
+    virtual void nb_put(const IndexVector& idx_vec, span<T> buff_span, DataCommunicationHandlePtr data_comm_handle) {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+        if(!is_non_zero(idx_vec)) { return; }
+
+        Proc proc;
+        Offset offset;
+        std::tie(proc, offset) = distribution_->locate(idx_vec);
+        Size size              = block_size(idx_vec);
+        EXPECTS(size <= buff_span.size());
+        mpb_->mgr().nb_put(*mpb_, proc, offset, Size{size}, buff_span.data(), data_comm_handle);
     }
 
     /**
@@ -312,6 +361,28 @@ public:
         mpb_->mgr().add(*mpb_, proc, offset, Size{size}, buff_span.data());
     }
     
+    /**
+     * @brief Tensor accessor method for adding svalues in nonblocking fashion to a set of indices
+     * with the specified memory span
+     *
+     * @tparam T type of the values hold on the tensor object
+     * @param [in] idx_vec a vector of indices to put the values
+     * @param [in] buff_span buff_span memory span for the values to put
+     */
+
+    virtual void nb_add(const IndexVector& idx_vec, span<T> buff_span, DataCommunicationHandlePtr data_comm_handle) {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+        if(!is_non_zero(idx_vec)) { return; }
+
+        Proc proc;
+        Offset offset;
+        std::tie(proc, offset) = distribution_->locate(idx_vec);
+        Size size              = block_size(idx_vec);
+        EXPECTS(size <= buff_span.size());
+        mpb_->mgr().nb_add(*mpb_, proc, offset, Size{size}, buff_span.data(), data_comm_handle);
+    }
+
     /**
      * @brief Virtual method for getting the diagonal values in a Tensor
      * 

@@ -8,6 +8,7 @@
 #include "tamm/strong_num.hpp"
 #include <complex>
 #include <iosfwd>
+#include "ga.h"
 
 //#include <mpi.h>
  
@@ -160,6 +161,42 @@ enum class SpinType { ao_spin, mo_spin };
 enum class ExecutionHW { CPU, GPU };
 
 using SpinMask = std::vector<SpinPosition>;
+
+using rtDataHandlePtr = ga_nbhdl_t*;
+using rtDataHandle = ga_nbhdl_t;
+
+class DataCommunicationHandle
+{
+    public:
+        DataCommunicationHandle() = default;
+        ~DataCommunicationHandle() = default;
+
+        void waitForCompletion() {
+            if(!getCompletionStatus()) {
+                NGA_NbWait(&data_handle_);
+                setCompletionStatus();
+            }
+        }
+        void setCompletionStatus() { status_=true; }
+        void resetCompletionStatus() { status_=false; }
+
+        bool getCompletionStatus() {
+            /*
+            if(status_ == false)
+                status_ = NGA_NbTest(&data_handle_);
+            */
+
+            return status_;
+        }
+        rtDataHandlePtr getDataHandlePtr() { return &data_handle_; }
+
+    private:
+        bool status_{true};
+        rtDataHandle data_handle_;
+};
+
+using DataCommunicationHandlePtr = DataCommunicationHandle*;
+
 //////////////////
 
 // namespace SpinType {

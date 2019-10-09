@@ -241,7 +241,10 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                       //             k_offset[t_p5b],
                       //             k_offset[t_p6b]);                                  
 
+                      // cout << "omg: " << k_range[t_h1b] << ", " << k_range[t_h2b] << ", " << k_range[t_h3b] << ", " << k_range[t_p4b] << ", " << k_range[t_p5b] << ", " << k_range[t_p6b] << endl;
+                      // cout << "factor_l: " << factor_l << endl;
                       
+
                       //TODO
                       compute_energy(factor_l, &energy_l[0],
                                   &k_evl_sorted[k_offset[t_h1b]],

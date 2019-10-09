@@ -82,7 +82,7 @@ if(NWX_CUDA)
           get_compiler_exec_name("${CMAKE_CXX_COMPILER}")
           message(FATAL_ERROR "${comp_exec_name} version provided (${CMAKE_CXX_COMPILER_VERSION}) \
     is not supported by CUDA version provided. Need ${comp_exec_name} = 8.x for building TAMM with GPU support.")
-        endif()
+        endif()    
        message(FATAL_ERROR "CUDA Toolkit not found.")
     endif()
     if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 10.1)

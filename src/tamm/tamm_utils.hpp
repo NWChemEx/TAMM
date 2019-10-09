@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <chrono>
+#include <random>
 #include <type_traits>
 
 namespace tamm {
@@ -624,6 +625,23 @@ Tensor<TensorType> sqrt(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
 template<typename TensorType>
 Tensor<TensorType> sqrt(Tensor<TensorType> tensor) {
    return sqrt(tensor(), false);
+}
+
+template<typename TensorType>
+Tensor<TensorType> random_ip(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
+    //std::random_device random_device;
+    std::default_random_engine generator;
+    std::uniform_real_distribution<TensorType> tensor_rand_dist(0.0,1.0);
+
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+        return tensor_rand_dist(generator);
+    };
+    apply_ewise_ip(ltensor, func);
+}
+
+template<typename TensorType>
+Tensor<TensorType> random_ip(Tensor<TensorType> tensor) {
+   return random_ip(tensor(), false);
 }
 
 template<typename TensorType>

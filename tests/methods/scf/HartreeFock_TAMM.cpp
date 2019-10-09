@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_RUNNER
 
-#include "HF/hartree_fock_tamm.hpp"
+#include "scf/hartree_fock_tamm.hpp"
 #include "catch/catch.hpp"
 #include "tamm/tamm.hpp"
 

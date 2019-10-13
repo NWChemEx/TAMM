@@ -99,9 +99,10 @@ void ccsd_driver() {
 
     const bool has_gpu = ec.has_gpu();
 
+
     #ifdef USE_TALSH
     TALSH talsh_instance;
-    if(has_gpu) talsh_instance.initialize(rank.value());
+    if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
     #endif
 
     auto cc_t1 = std::chrono::high_resolution_clock::now();

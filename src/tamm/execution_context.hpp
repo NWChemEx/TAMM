@@ -76,7 +76,9 @@ public:
     #ifdef USE_TALSH
         int errc = talshDeviceCount(DEV_NVIDIA_GPU, &ngpu_);
         assert(!errc);
-        if( (pg.rank().value() % ranks_pn_) <= 5 ) has_gpu_ = true;
+        dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
+        if (ngpu_ == 1) dev_id_=0;
+        if( (pg.rank().value() % ranks_pn_) < ngpu_ ) has_gpu_ = true;
     #endif
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
     }
@@ -243,6 +245,8 @@ public:
     int num_nodes() const { return nnodes_; }
     int ppn() const { return ranks_pn_; }
 
+    int gpu_devid() const { return dev_id_; }
+
 private:
     ProcGroup pg_;
     ProcGroup pg_self_;
@@ -255,6 +259,7 @@ private:
     int nnodes_;
     int ranks_pn_;
     bool has_gpu_;
+    int dev_id_=-1;
 
     std::vector<MemoryRegion*> mem_regs_to_dealloc_;
     std::vector<MemoryRegion*> unregistered_mem_regs_;

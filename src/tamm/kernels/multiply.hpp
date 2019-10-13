@@ -105,7 +105,7 @@ namespace kernels {
 
 template<typename T, typename T1, typename T2, typename T3>
 void block_multiply(bool &isgpuOp,  TALSH& gpu_mult, talsh_task_t& talsh_task, 
-tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
+tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, int dev_id, T alpha, const T2* abuf, const SizeVec& adims,
                     const IntLabelVec& alabels, const T3* bbuf,
                     const SizeVec& bdims, const IntLabelVec& blabels, T beta,
                     T1* cbuf, const SizeVec& cdims, const IntLabelVec& clabels, 
@@ -493,7 +493,7 @@ tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, int my_rank, T al
            th_c = gpu_mult.host_block(cdims.size(), 
               tal_cdims, cbuf); 
 
-          gpu_mult.mult_block(talsh_task, my_rank, th_c, th_a, th_b, talsh_op_string, 
+          gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string, 
               alpha, COPY_TTT); 
 
           // talshTensorDestruct(&th_a);
@@ -522,7 +522,7 @@ tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, int my_rank, T al
           tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
               tal_cdims, cbuf); 
 
-          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+          gpu_mult.mult_block(dev_id, th_c, th_a, th_b, talsh_op_string, 
               alpha, COPY_TTT); 
 
           talshTensorDestruct(&th_a);
@@ -546,7 +546,7 @@ tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, int my_rank, T al
           tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
               tal_cdims, cbuf); 
 
-          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+          gpu_mult.mult_block(dev_id, th_c, th_a, th_b, talsh_op_string, 
               alpha, COPY_TTT); 
 
           talshTensorDestruct(&th_a);
@@ -573,7 +573,7 @@ tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, int my_rank, T al
           tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
               tal_cdims, cbuf); 
 
-          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+          gpu_mult.mult_block(dev_id, th_c, th_a, th_b, talsh_op_string, 
               alpha, COPY_TTT); 
 
           talshTensorDestruct(&th_a);
@@ -597,7 +597,7 @@ tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, int my_rank, T al
           tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
               tal_cdims, cbuf); 
 
-          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+          gpu_mult.mult_block(dev_id, th_c, th_a, th_b, talsh_op_string, 
               alpha, COPY_TTT); 
 
           talshTensorDestruct(&th_a);
@@ -631,7 +631,7 @@ tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, int my_rank, T al
           tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
               tal_cdims, cbuf); 
 
-          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+          gpu_mult.mult_block(dev_id, th_c, th_a, th_b, talsh_op_string, 
               alpha, COPY_TTT); 
 
           talshTensorDestruct(&th_a);
@@ -651,7 +651,7 @@ tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, int my_rank, T al
       // tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
       //     tal_cdims, cbuf); 
 
-      // gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+      // gpu_mult.mult_block(dev_id, th_c, th_a, th_b, talsh_op_string, 
       //     alpha, COPY_TTT); 
 
       // talshTensorDestruct(&th_a);

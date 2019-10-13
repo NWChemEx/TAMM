@@ -1485,7 +1485,7 @@ public:
 #endif            
             {
                 TimerGuard tg_total{&multOpTime};
-                const int my_rank = ec.pg().rank().value();
+                const int dev_id = ec.gpu_devid();
                 // determine set of all labels
 
                 // compute block size and allocate buffers
@@ -1546,7 +1546,7 @@ public:
                     TimerGuard tg_dgemm{&multOpDgemmTime};
                     talshTaskClean(talsh_task);
                     kernels::block_multiply<T,TensorElType1,TensorElType2,TensorElType3>
-                                        (ab->isgpu_, *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, my_rank, alpha_, 
+                                        (ab->isgpu_, *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, dev_id, alpha_, 
                                         abuf.data(), adims_sz,
                                         rhs1_int_labels_, bbuf.data(), bdims_sz,
                                         rhs2_int_labels_, cscale, (ab->cbuf_).data(),

@@ -104,12 +104,12 @@ inline void gemm_wrapper<std::complex<double>>(
 namespace kernels {
 
 template<typename T, typename T1, typename T2, typename T3>
-void block_multiply(bool &isgpu,  TALSH& gpu_mult, talsh_task_t& talsh_task, 
+void block_multiply(bool &isgpuOp,  TALSH& gpu_mult, talsh_task_t& talsh_task, 
 tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
                     const IntLabelVec& alabels, const T3* bbuf,
                     const SizeVec& bdims, const IntLabelVec& blabels, T beta,
                     T1* cbuf, const SizeVec& cdims, const IntLabelVec& clabels, 
-                    ExecutionHW hw = ExecutionHW::CPU, int ngpu = 0) {
+                    ExecutionHW hw = ExecutionHW::CPU, bool has_gpu = false) {
     const Size asize = std::accumulate(adims.begin(), adims.end(), Size{1},
                                        std::multiplies<Size>());
     const Size bsize = std::accumulate(bdims.begin(), bdims.end(), Size{1},
@@ -464,12 +464,12 @@ tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, int my_rank, T al
       if (r1 && r2) reduction_op = true;
     }
 
-    if(hadamard || reduction_op || hw == ExecutionHW::CPU || ngpu == 0) {
+    if(hadamard || reduction_op || hw == ExecutionHW::CPU || !has_gpu) {
       bmult_cpu_lambda(); 
     }
 
     else {
-      isgpu = true;
+      isgpuOp = true;
       // std::cout << "not hadamard\n";
       // std::cout << talsh_op_string << std::endl;
       // std::cout << aid_size << ":" << bid_size << ":" << cid_size << std::endl;

@@ -1471,7 +1471,7 @@ public:
                         kernels::block_multiply(ec.pg().rank().value(),alpha_, abuf.data(), adims_sz,
                                 rhs1_int_labels_, bbuf.data(), bdims_sz,
                                 rhs2_int_labels_, cscale, cbuf.data(),
-                                cdims_sz, lhs_int_labels_, hw, ec.num_gpu());
+                                cdims_sz, lhs_int_labels_, hw, ec.has_gpu());
 
                         // add the computed update to the tensor
                         cbuf.release_add();
@@ -1550,7 +1550,7 @@ public:
                                         abuf.data(), adims_sz,
                                         rhs1_int_labels_, bbuf.data(), bdims_sz,
                                         rhs2_int_labels_, cscale, (ab->cbuf_).data(),
-                                        cdims_sz, lhs_int_labels_, hw, ec.num_gpu());                                            
+                                        cdims_sz, lhs_int_labels_, hw, ec.has_gpu());                                            
                 }
                 // add the computed update to the tensor
                 // { 

@@ -68,9 +68,15 @@ public:
 	    }
 	    pg_self_ = ProcGroup{MPI_COMM_SELF};
         ngpu_ = 0;
+        has_gpu_ = false;
+        ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
+        //nnodes_ = {GA_Cluster_nnodes()};
+        nnodes_ = pg.size().value() / ranks_pn_;
+
     #ifdef USE_TALSH
         int errc = talshDeviceCount(DEV_NVIDIA_GPU, &ngpu_);
         assert(!errc);
+        if( (pg.rank().value() % ranks_pn_) <= 5 ) has_gpu_ = true;
     #endif
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
     }
@@ -232,6 +238,11 @@ public:
 
     void set_ngpu(int ngpu) { ngpu_ = ngpu; }
 
+    bool has_gpu() const { return has_gpu_; }
+
+    int num_nodes() const { return nnodes_; }
+    int ppn() const { return ranks_pn_; }
+
 private:
     ProcGroup pg_;
     ProcGroup pg_self_;
@@ -241,6 +252,9 @@ private:
     IndexedAC ac_;
     std::shared_ptr<RuntimeEngine> re_;
     int ngpu_;
+    int nnodes_;
+    int ranks_pn_;
+    bool has_gpu_;
 
     std::vector<MemoryRegion*> mem_regs_to_dealloc_;
     std::vector<MemoryRegion*> unregistered_mem_regs_;

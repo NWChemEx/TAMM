@@ -79,7 +79,10 @@ void ccsd_driver() {
     auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
             = setupTensors(ec,MO,d_f1,ndiis);
 
+    ExecutionHW hw = ExecutionHW::CPU;
+
     #ifdef USE_TALSH_T
+    hw = ExecutionHW::GPU;
     TALSH talsh_instance;
     talsh_instance.initialize(rank.value());
     #endif
@@ -100,18 +103,18 @@ void ccsd_driver() {
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
     if(rank == 0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
 
-    #ifdef USE_TALSH_T
-    //talshStats();
-    talsh_instance.shutdown();
-    #endif  
-
     free_tensors(d_r1, d_r2, d_f1);
     free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);
 
     ec.flush_and_sync();
 
-    Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, total_orbitals, ov_alpha, nao - ov_alpha);
+    Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, total_orbitals, ov_alpha, nao - ov_alpha,hw);
     Tensor<T>::deallocate(cholVpr);
+
+    #ifdef USE_TALSH_T
+    //talshStats();
+    talsh_instance.shutdown();
+    #endif  
 
     cc_t1 = std::chrono::high_resolution_clock::now();
 

@@ -451,9 +451,10 @@ setupLambdaTensors(ExecutionContext& ec, TiledIndexSpace& MO, size_t ndiis) {
 template<typename T>
 Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI,
                   Tensor<T> cholVpr, const tamm::Tile chol_count, 
-                  const TAMM_SIZE total_orbitals, TAMM_SIZE n_alpha, TAMM_SIZE n_beta) {
+                  const TAMM_SIZE total_orbitals, TAMM_SIZE n_alpha, TAMM_SIZE n_beta,
+                  ExecutionHW hw = ExecutionHW::CPU) {
 
-    // auto rank = ec.pg().rank();
+    auto rank = ec.pg().rank();
 
     TiledIndexSpace N = MO("all");
     auto [cindex] = CI.labels<1>("all");
@@ -465,11 +466,17 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
     Tensor<T>::allocate(&ec,d_a2,d_v2);
 
-    Scheduler{ec}(d_a2(p, q, r, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex)).execute();
+    auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-    Scheduler{ec}(d_v2(p, q, r, s) = d_a2(p,q,r,s))
-                  (d_v2(p, q, r, s) -= d_a2(p,q,s,r))
-                  .execute();
+    Scheduler{ec}(d_a2(p, q, r, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex))
+                 (d_v2(p, q, r, s) = d_a2(p,q,r,s))
+                 (d_v2(p, q, r, s) -= d_a2(p,q,s,r))
+                 .execute(hw);
+
+    auto cc_t2 = std::chrono::high_resolution_clock::now();
+    double v2_time = 
+        std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
+    if(rank == 0) std::cout << "\nTime to reconstruct V2: " << v2_time << " secs\n";
 
     Tensor<T>::deallocate(d_a2);
     return d_v2;

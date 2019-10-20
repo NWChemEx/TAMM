@@ -1,6 +1,5 @@
 // #define CATCH_CONFIG_RUNNER
 
-
 #include "cd_ccsd_common.hpp"
 #include "ccsd_t/ccsd_t_gpu.hpp"
 
@@ -26,7 +25,7 @@ int main( int argc, char* argv[] )
     MA_init(MT_DBL, 8000000, 20000000);
     
     ccsd_driver();
-    
+
     GA_Terminate();
     MPI_Finalize();
 
@@ -70,19 +69,23 @@ void ccsd_driver() {
     auto [MO,total_orbitals] = setupMOIS(ccsd_options.tilesize,
                     nao,ov_alpha,freeze_core,freeze_virtual);
 
+    TiledIndexSpace N = MO("all");
+
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
                         (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
                                 freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
 
-    TiledIndexSpace N = MO("all");
-
     auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
             = setupTensors(ec,MO,d_f1,ndiis);
 
+    ExecutionHW hw = ExecutionHW::CPU;
+    const bool has_gpu = ec.has_gpu();
+
     #ifdef USE_TALSH_T
+    hw = ExecutionHW::GPU;
     TALSH talsh_instance;
-    talsh_instance.initialize(rank.value());
+    if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
     #endif
 
     auto cc_t1 = std::chrono::high_resolution_clock::now();
@@ -101,18 +104,18 @@ void ccsd_driver() {
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
     if(rank == 0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
 
-    #ifdef USE_TALSH_T
-    //talshStats();
-    talsh_instance.shutdown();
-    #endif  
-
     free_tensors(d_r1, d_r2, d_f1);
     free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);
 
     ec.flush_and_sync();
 
-    Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, total_orbitals, ov_alpha, nao - ov_alpha);
+    Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, total_orbitals, ov_alpha, nao - ov_alpha, hw);
     Tensor<T>::deallocate(cholVpr);
+
+    #ifdef USE_TALSH_T
+    //talshStats();
+    if(has_gpu) talsh_instance.shutdown();
+    #endif  
 
     cc_t1 = std::chrono::high_resolution_clock::now();
 
@@ -151,9 +154,9 @@ void ccsd_driver() {
     // delete ec;
 
     cc_t2 = std::chrono::high_resolution_clock::now();
-    ccsd_time = 
+    auto ccsd_t_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-    if(rank == 0 && energy1!=-999) std::cout << "\nTime taken for CCSD(T): " << ccsd_time << " secs\n";
+    if(rank == 0 && energy1!=-999) std::cout << "\nTime taken for CCSD(T): " << ccsd_t_time << " secs\n";
 
 
 }

@@ -99,7 +99,6 @@ void ccsd_driver() {
 
     const bool has_gpu = ec.has_gpu();
 
-
     #ifdef USE_TALSH
     TALSH talsh_instance;
     if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());

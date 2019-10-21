@@ -5,6 +5,7 @@
 
 void ccsd_driver();
 std::string filename; //bad, but no choice
+double ccsd_t_GetTime = 0;
 
 int main( int argc, char* argv[] )
 {
@@ -190,7 +191,10 @@ void ccsd_driver() {
     cc_t2 = std::chrono::high_resolution_clock::now();
     auto ccsd_t_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-    if(rank == 0 && energy1!=-999) std::cout << "\nTime taken for CCSD(T): " << ccsd_t_time << " secs\n";
+    if(rank == 0 && energy1!=-999) {
+        std::cout << "\nTime taken for CCSD(T): " << ccsd_t_time << " secs\n";
+        std::cout << "Communication Time: " << ccsd_t_GetTime << " secs\n";
+    }
 
 
 }

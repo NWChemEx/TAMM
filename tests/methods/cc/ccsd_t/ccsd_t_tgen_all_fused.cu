@@ -2322,12 +2322,12 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 						size_t size_d2_t2_all, size_t size_d2_v2_all,
 						size_t size_s1_t2_all, size_t size_s1_v2_all,
 						// 
-						// size_t* list_d1_sizes, 
-						// size_t* list_d2_sizes, 
-						// size_t* list_s1_sizes, 
-						int* list_d1_sizes, 
-						int* list_d2_sizes, 
-						int* list_s1_sizes, 
+						size_t* list_d1_sizes, 
+						size_t* list_d2_sizes, 
+						size_t* list_s1_sizes, 
+						// int* list_d1_sizes, 
+						// int* list_d2_sizes, 
+						// int* list_s1_sizes, 
 						// 
 						std::vector<int> vec_d1_flags,
 						std::vector<int> vec_d2_flags,
@@ -2390,51 +2390,51 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	// cudaMemcpyToSymbol(const_list_d2_flags_offset, &vec_d2_flags[0], sizeof(int) * (NUM_IA6_LOOPS * MAX_NVAB * NUM_D2_EQUATIONS));
 
 	// 
-	// int tmp_list_s1_sizes[NUM_IA6_LOOPS * NUM_S1_INDEX];
-	// for (int i = 0; i < NUM_IA6_LOOPS; i++)
-	// {
-	// 	tmp_list_s1_sizes[0 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[0 + (i) * NUM_S1_INDEX];
-	// 	tmp_list_s1_sizes[1 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[1 + (i) * NUM_S1_INDEX];
-	// 	tmp_list_s1_sizes[2 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[2 + (i) * NUM_S1_INDEX];
-	// 	tmp_list_s1_sizes[3 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[3 + (i) * NUM_S1_INDEX];
-	// 	tmp_list_s1_sizes[4 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[4 + (i) * NUM_S1_INDEX];
-	// 	tmp_list_s1_sizes[5 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[5 + (i) * NUM_S1_INDEX];
-	// }
+	int tmp_list_s1_sizes[NUM_IA6_LOOPS * NUM_S1_INDEX];
+	for (int i = 0; i < NUM_IA6_LOOPS; i++)
+	{
+		tmp_list_s1_sizes[0 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[0 + (i) * NUM_S1_INDEX];
+		tmp_list_s1_sizes[1 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[1 + (i) * NUM_S1_INDEX];
+		tmp_list_s1_sizes[2 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[2 + (i) * NUM_S1_INDEX];
+		tmp_list_s1_sizes[3 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[3 + (i) * NUM_S1_INDEX];
+		tmp_list_s1_sizes[4 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[4 + (i) * NUM_S1_INDEX];
+		tmp_list_s1_sizes[5 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[5 + (i) * NUM_S1_INDEX];
+	}
 
-	// int tmp_list_d1_sizes[NUM_IA6_LOOPS * size_noab * NUM_D1_INDEX];
-	// for (int i = 0; i < NUM_IA6_LOOPS; i++)
-	// {
-	// 	for (int j = 0; j < size_noab; j++)
-	// 	{
-	// 		tmp_list_d1_sizes[0 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[0 + (j + (i) * size_noab) * NUM_D1_INDEX];
-	// 		tmp_list_d1_sizes[1 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[1 + (j + (i) * size_noab) * NUM_D1_INDEX];
-	// 		tmp_list_d1_sizes[2 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[2 + (j + (i) * size_noab) * NUM_D1_INDEX];
-	// 		tmp_list_d1_sizes[3 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[3 + (j + (i) * size_noab) * NUM_D1_INDEX];
-	// 		tmp_list_d1_sizes[4 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[4 + (j + (i) * size_noab) * NUM_D1_INDEX];
-	// 		tmp_list_d1_sizes[5 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[5 + (j + (i) * size_noab) * NUM_D1_INDEX];
-	// 		tmp_list_d1_sizes[6 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[6 + (j + (i) * size_noab) * NUM_D1_INDEX];
-	// 	}
-	// }
+	int tmp_list_d1_sizes[NUM_IA6_LOOPS * size_noab * NUM_D1_INDEX];
+	for (int i = 0; i < NUM_IA6_LOOPS; i++)
+	{
+		for (int j = 0; j < size_noab; j++)
+		{
+			tmp_list_d1_sizes[0 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[0 + (j + (i) * size_noab) * NUM_D1_INDEX];
+			tmp_list_d1_sizes[1 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[1 + (j + (i) * size_noab) * NUM_D1_INDEX];
+			tmp_list_d1_sizes[2 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[2 + (j + (i) * size_noab) * NUM_D1_INDEX];
+			tmp_list_d1_sizes[3 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[3 + (j + (i) * size_noab) * NUM_D1_INDEX];
+			tmp_list_d1_sizes[4 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[4 + (j + (i) * size_noab) * NUM_D1_INDEX];
+			tmp_list_d1_sizes[5 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[5 + (j + (i) * size_noab) * NUM_D1_INDEX];
+			tmp_list_d1_sizes[6 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[6 + (j + (i) * size_noab) * NUM_D1_INDEX];
+		}
+	}
 
-	// int tmp_list_d2_sizes[NUM_IA6_LOOPS * size_nvab * NUM_D2_INDEX];
-	// for (int i = 0; i < NUM_IA6_LOOPS; i++)
-	// {
-	// 	for (int j = 0; j < size_nvab; j++)
-	// 	{
-	// 		tmp_list_d2_sizes[0 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[0 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-	// 		tmp_list_d2_sizes[1 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[1 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-	// 		tmp_list_d2_sizes[2 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[2 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-	// 		tmp_list_d2_sizes[3 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[3 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-	// 		tmp_list_d2_sizes[4 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[4 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-	// 		tmp_list_d2_sizes[5 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[5 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-	// 		tmp_list_d2_sizes[6 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[6 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-	// 	}
-	// }
+	int tmp_list_d2_sizes[NUM_IA6_LOOPS * size_nvab * NUM_D2_INDEX];
+	for (int i = 0; i < NUM_IA6_LOOPS; i++)
+	{
+		for (int j = 0; j < size_nvab; j++)
+		{
+			tmp_list_d2_sizes[0 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[0 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+			tmp_list_d2_sizes[1 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[1 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+			tmp_list_d2_sizes[2 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[2 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+			tmp_list_d2_sizes[3 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[3 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+			tmp_list_d2_sizes[4 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[4 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+			tmp_list_d2_sizes[5 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[5 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+			tmp_list_d2_sizes[6 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[6 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+		}
+	}
 
 	//
-	cudaMemcpy(dev_list_s1_problem_size, list_s1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_INDEX), 				cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_list_d1_problem_size, list_d1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_INDEX * size_noab), 	cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_list_d2_problem_size, list_d2_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D2_INDEX * size_nvab), 	cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_list_s1_problem_size, tmp_list_s1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_INDEX), 				cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_list_d1_problem_size, tmp_list_d1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_INDEX * size_noab), 	cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_list_d2_problem_size, tmp_list_d2_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D2_INDEX * size_nvab), 	cudaMemcpyHostToDevice);
 
 	// cudaMemcpyToSymbol(const_list_s1_problem_size, tmp_list_s1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_INDEX));
 	// cudaMemcpyToSymbol(const_list_d1_problem_size, tmp_list_d1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_INDEX * size_noab));

@@ -5,7 +5,6 @@
 #include "tamm/tamm.hpp"
 // using namespace tamm;
 
-extern double ccsd_t_GetTime;
 void initmemmodule();
 void dev_mem_s(size_t,size_t,size_t,size_t,size_t,size_t);
 void dev_mem_d(size_t,size_t,size_t,size_t,size_t,size_t);
@@ -21,12 +20,12 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 						size_t size_d2_t2_all, size_t size_d2_v2_all,
 						size_t size_s1_t2_all, size_t size_s1_v2_all,
 						// 
-						// size_t* list_d1_sizes, 
-						// size_t* list_d2_sizes, 
-						// size_t* list_s1_sizes, 
-            int* list_d1_sizes, 
-						int* list_d2_sizes, 
-						int* list_s1_sizes, 
+						size_t* list_d1_sizes, 
+						size_t* list_d2_sizes, 
+						size_t* list_s1_sizes, 
+            // int* list_d1_sizes, 
+						// int* list_d2_sizes, 
+						// int* list_s1_sizes, 
 						// 
 						std::vector<int> vec_d1_flags,
 						std::vector<int> vec_d2_flags,
@@ -336,8 +335,8 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
   std::vector<int>    sd_t_s1_ia6(9, -1);
   std::vector<int>    sd_t_s1_exec(9*9,-1);               // s1e, s1b(offset)
   // std::vector<size_t> sd_t_s1_args(9*9*6);                // s1c
-  // std::vector<size_t> s1_sizes_ext(9*6);                // s1c
-  std::vector<int> s1_sizes_ext(9*6);                // s1c
+  std::vector<size_t> s1_sizes_ext(9*6);                // s1c
+  // std::vector<int> s1_sizes_ext(9*6);                // s1c
 
   // int* s1_sizes_ext = (int*)malloc(sizeof(int) * 9 * 6);
   // int* s1_ia6       = (int*)malloc(sizeof(int) * 9);
@@ -349,8 +348,8 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
   std::vector<int>    sd_t_d1_ia6(noab * 9, -1);
   std::vector<int>    sd_t_d1_exec(9*9*noab,-1);
   // std::vector<size_t> sd_t_d1_args(9*9*7*noab);
-  // std::vector<size_t> d1_sizes_ext(9*7*noab);
-  std::vector<int> d1_sizes_ext(9*7*noab);
+  std::vector<size_t> d1_sizes_ext(9*7*noab);
+  // std::vector<int> d1_sizes_ext(9*7*noab);
   // int* d1_sizes_ext = (int*)malloc(sizeof(int) * 9 * 6);
   // int* d1_sizes_int = (int*)malloc(sizeof(int) * noab);
   size_t d1c = 0;
@@ -361,8 +360,8 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
   std::vector<int>    sd_t_d2_ia6(nvab * 9, -1);
   std::vector<int>    sd_t_d2_exec(9*9*nvab,-1);
   // std::vector<size_t> sd_t_d2_args(9*9*7*nvab);
-  // std::vector<size_t> d2_sizes_ext(9*7*nvab);
-  std::vector<int> d2_sizes_ext(9*7*nvab);
+  std::vector<size_t> d2_sizes_ext(9*7*nvab);
+  // std::vector<int> d2_sizes_ext(9*7*nvab);
   // int* d2_sizes_ext = (int*)malloc(sizeof(int) * 9 * 6);
   // int* d2_sizes_int = (int*)malloc(sizeof(int) * nvab);
   size_t d2b=0;
@@ -379,12 +378,12 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
     h2b=a3_s1(ia6,4);
     h3b=a3_s1(ia6,5);
 
-    s1_sizes_ext[0 + ia6 * 6] = (int)k_range[h1b];
-    s1_sizes_ext[1 + ia6 * 6] = (int)k_range[h2b];
-    s1_sizes_ext[2 + ia6 * 6] = (int)k_range[h3b];
-    s1_sizes_ext[3 + ia6 * 6] = (int)k_range[p4b];
-    s1_sizes_ext[4 + ia6 * 6] = (int)k_range[p5b];
-    s1_sizes_ext[5 + ia6 * 6] = (int)k_range[p6b];
+    s1_sizes_ext[0 + ia6 * 6] = k_range[h1b];
+    s1_sizes_ext[1 + ia6 * 6] = k_range[h2b];
+    s1_sizes_ext[2 + ia6 * 6] = k_range[h3b];
+    s1_sizes_ext[3 + ia6 * 6] = k_range[p4b];
+    s1_sizes_ext[4 + ia6 * 6] = k_range[p5b];
+    s1_sizes_ext[5 + ia6 * 6] = k_range[p6b];
 
     // printf ("[s1][ia6 = %d] h1,h2,h3,p4,p5,p6 = %2d,%2d,%2d,%2d,%2d,%2d\n", ia6, k_range[h1b], k_range[h2b], k_range[h3b], k_range[p4b], k_range[p5b], k_range[p6b]);
 
@@ -409,10 +408,7 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
 
               //TODO 
               IndexVector bids = {p4b-noab,h1b};
-              {
-                TimerGuard tg_get{&ccsd_t_GetTime};
-                d_t1.get(bids,k_a);
-              }
+              d_t1.get(bids,k_a);
 
               const int ndim = 2;
               int perm[ndim]={1,0};
@@ -424,10 +420,7 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
               plan->execute();
 
               std::vector<T> k_b_sort(dimb);
-              {
-                TimerGuard tg_get{&ccsd_t_GetTime};
-                d_v2.get({p5b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,p5b
-              }
+              d_v2.get({p5b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,p5b
 
               if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b) && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
               {
@@ -822,13 +815,13 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
             // 4 + (h7b + (ia6) * noab) * 7,
             // 5 + (h7b + (ia6) * noab) * 7,
             // 6 + (h7b + (ia6) * noab) * 7);
-            d1_sizes_ext[0 + (h7b + (ia6) * noab) * 7] = (int)k_range[h1b];
-            d1_sizes_ext[1 + (h7b + (ia6) * noab) * 7] = (int)k_range[h2b];
-            d1_sizes_ext[2 + (h7b + (ia6) * noab) * 7] = (int)k_range[h3b];
-            d1_sizes_ext[3 + (h7b + (ia6) * noab) * 7] = (int)k_range[h7b];
-            d1_sizes_ext[4 + (h7b + (ia6) * noab) * 7] = (int)k_range[p4b];
-            d1_sizes_ext[5 + (h7b + (ia6) * noab) * 7] = (int)k_range[p5b];
-            d1_sizes_ext[6 + (h7b + (ia6) * noab) * 7] = (int)k_range[p6b];
+            d1_sizes_ext[0 + (h7b + (ia6) * noab) * 7] = k_range[h1b];
+            d1_sizes_ext[1 + (h7b + (ia6) * noab) * 7] = k_range[h2b];
+            d1_sizes_ext[2 + (h7b + (ia6) * noab) * 7] = k_range[h3b];
+            d1_sizes_ext[3 + (h7b + (ia6) * noab) * 7] = k_range[h7b];
+            d1_sizes_ext[4 + (h7b + (ia6) * noab) * 7] = k_range[p4b];
+            d1_sizes_ext[5 + (h7b + (ia6) * noab) * 7] = k_range[p5b];
+            d1_sizes_ext[6 + (h7b + (ia6) * noab) * 7] = k_range[p6b];
 
             // printf ("[d1][ia6 = %d][noab = %d] h1,h2,h3,h7,p4,p5,p6 = %2d,%2d,%2d,%2d,%2d,%2d,%2d\n", ia6, h7b, k_range[h1b], k_range[h2b], k_range[h3b], k_range[h7b], k_range[p4b], k_range[p5b], k_range[p6b]);
 
@@ -858,10 +851,7 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
                 //TODO
                 if(h7b<h1b) 
                 {
-                  {
-                    TimerGuard tg_get{&ccsd_t_GetTime};
-                    d_t2.get({p4b-noab,p5b-noab,h7b,h1b},k_a); //h1b,h7b,p5b-noab,p4b-noab
-                  }
+                  d_t2.get({p4b-noab,p5b-noab,h7b,h1b},k_a); //h1b,h7b,p5b-noab,p4b-noab
                   int perm[4]={3,1,0,2}; //3,1,0,2
                   int size[4]={k_range[p4b],k_range[p5b],k_range[h7b],k_range[h1b]};
                   // int size[4]={k_range[h7b],k_range[p4b],k_range[p5b],k_range[h1b]}; //1,3,2,0
@@ -874,10 +864,7 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
                 }
                 if(h1b<=h7b)
                 {
-                  {
-                    TimerGuard tg_get{&ccsd_t_GetTime};                  
-                    d_t2.get({p4b-noab,p5b-noab,h1b,h7b},k_a); //h7b,h1b,p5b-noab,p4b-noab
-                  }
+                  d_t2.get({p4b-noab,p5b-noab,h1b,h7b},k_a); //h7b,h1b,p5b-noab,p4b-noab
                   int perm[4]={2,1,0,3}; //2,1,0,3
                   // int size[4]={k_range[p4b],k_range[p5b],k_range[h1b],k_range[h7b]};
                   int size[4]={k_range[p4b],k_range[p5b],k_range[h1b],k_range[h7b]};
@@ -893,10 +880,7 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
                 std::vector<T> k_b_sort(dimb);
                 if(h7b <= p6b)
                 {
-                  {
-                    TimerGuard tg_get{&ccsd_t_GetTime};                  
-                    d_v2.get({h7b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,h7b
-                  }
+                  d_v2.get({h7b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,h7b
 
                   if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
                   && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b)) 
@@ -1162,13 +1146,13 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
             // 5 + (p7b - noab + (ia6) * nvab) * 7,
             // 6 + (p7b - noab + (ia6) * nvab) * 7);
             // printf ("[ia6=%2d][nvab=%2d] d2_sizes: h1,h2,h3,p4,p5,p6,p7 = %2d,%2d,%2d,%2d,%2d,%2d,%2d\n", ia6, p7b - noab, k_range[h1b], k_range[h2b], k_range[h3b], k_range[p4b], k_range[p5b], k_range[p6b], k_range[p7b]);
-            d2_sizes_ext[0 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[h1b];
-            d2_sizes_ext[1 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[h2b];
-            d2_sizes_ext[2 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[h3b];
-            d2_sizes_ext[3 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[p4b];
-            d2_sizes_ext[4 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[p5b];
-            d2_sizes_ext[5 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[p6b];
-            d2_sizes_ext[6 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[p7b];
+            d2_sizes_ext[0 + (p7b - noab + (ia6) * nvab) * 7] = k_range[h1b];
+            d2_sizes_ext[1 + (p7b - noab + (ia6) * nvab) * 7] = k_range[h2b];
+            d2_sizes_ext[2 + (p7b - noab + (ia6) * nvab) * 7] = k_range[h3b];
+            d2_sizes_ext[3 + (p7b - noab + (ia6) * nvab) * 7] = k_range[p4b];
+            d2_sizes_ext[4 + (p7b - noab + (ia6) * nvab) * 7] = k_range[p5b];
+            d2_sizes_ext[5 + (p7b - noab + (ia6) * nvab) * 7] = k_range[p6b];
+            d2_sizes_ext[6 + (p7b - noab + (ia6) * nvab) * 7] = k_range[p7b];
             // d2_sizes_int[p7b - noab] = k_range[p7b];
 
             // printf ("[d1][ia6 = %d][nvab = %d] h1,h2,h3,p4,p5,p6,p7 = %2d,%2d,%2d,%2d,%2d,%2d,%2d\n", ia6, p7b, k_range[h1b], k_range[h2b], k_range[h3b], k_range[p4b], k_range[p5b], k_range[p6b], k_range[p7b]);
@@ -1189,10 +1173,7 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
 
                 if(p7b<p4b) 
                 {
-                  {
-                    TimerGuard tg_get{&ccsd_t_GetTime};                  
-                    d_t2.get({p7b-noab,p4b-noab,h1b,h2b},k_a); //h2b,h1b,p4b-noab,p7b-noab
-                  }
+                  d_t2.get({p7b-noab,p4b-noab,h1b,h2b},k_a); //h2b,h1b,p4b-noab,p7b-noab
                   // for (auto x=0;x<dima;x++) k_a_sort[x] = -1 * k_a[x];
                   int perm[4]={3,2,1,0};
                   int size[4]={k_range[p7b],k_range[p4b],k_range[h1b],k_range[h2b]};
@@ -1204,10 +1185,7 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
                 }
                 if(p4b<=p7b) 
                 {
-                  {
-                    TimerGuard tg_get{&ccsd_t_GetTime};                  
-                    d_t2.get({p4b-noab,p7b-noab,h1b,h2b},k_a); //h2b,h1b,p7b-noab,p4b-noab
-                  }
+                  d_t2.get({p4b-noab,p7b-noab,h1b,h2b},k_a); //h2b,h1b,p7b-noab,p4b-noab
                   int perm[4]={3,2,0,1}; //0,1,3,2
                   int size[4]={k_range[p4b],k_range[p7b],k_range[h1b],k_range[h2b]};
                   
@@ -1220,10 +1198,7 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
                 std::vector<T> k_b_sort(dimb);
                 if(h3b <= p7b)
                 {
-                  {
-                    TimerGuard tg_get{&ccsd_t_GetTime};                  
-                    d_v2.get({p5b,p6b,h3b,p7b},k_b_sort); //p7b,h3b,p6b,p5b
-                  }
+                  d_v2.get({p5b,p6b,h3b,p7b},k_b_sort); //p7b,h3b,p6b,p5b
 
                   if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
                   && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))

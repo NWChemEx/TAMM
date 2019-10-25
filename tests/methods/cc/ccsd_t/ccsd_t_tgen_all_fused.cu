@@ -54,14 +54,14 @@
 
 // 64 KB = 65536 bytes = 16384 (int) = 8192 (size_t)
 // 9 * 9 * noab = 81 * noab 
-__constant__ int const_list_s1_flags_offset[NUM_IA6_LOOPS * NUM_S1_EQUATIONS];
-__constant__ int const_list_d1_flags_offset[NUM_IA6_LOOPS * NUM_D1_EQUATIONS * MAX_NOAB];
-__constant__ int const_list_d2_flags_offset[NUM_IA6_LOOPS * NUM_D2_EQUATIONS * MAX_NVAB];
+// __constant__ int const_list_s1_flags_offset[NUM_IA6_LOOPS * NUM_S1_EQUATIONS];
+// __constant__ int const_list_d1_flags_offset[NUM_IA6_LOOPS * NUM_D1_EQUATIONS * MAX_NOAB];
+// __constant__ int const_list_d2_flags_offset[NUM_IA6_LOOPS * NUM_D2_EQUATIONS * MAX_NVAB];
 
-// 
-__constant__ int const_list_s1_problem_size[NUM_IA6_LOOPS * NUM_S1_INDEX];
-__constant__ int const_list_d1_problem_size[NUM_IA6_LOOPS * NUM_D1_INDEX * MAX_NOAB];
-__constant__ int const_list_d2_problem_size[NUM_IA6_LOOPS * NUM_D2_INDEX * MAX_NVAB];
+// // 
+// __constant__ int const_list_s1_problem_size[NUM_IA6_LOOPS * NUM_S1_INDEX];
+// __constant__ int const_list_d1_problem_size[NUM_IA6_LOOPS * NUM_D1_INDEX * MAX_NOAB];
+// __constant__ int const_list_d2_problem_size[NUM_IA6_LOOPS * NUM_D2_INDEX * MAX_NVAB];
 
 // 
 __global__ 

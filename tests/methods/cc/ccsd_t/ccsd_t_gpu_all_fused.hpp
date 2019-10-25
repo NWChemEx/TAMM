@@ -20,9 +20,12 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 						size_t size_d2_t2_all, size_t size_d2_v2_all,
 						size_t size_s1_t2_all, size_t size_s1_v2_all,
 						// 
-						size_t* list_d1_sizes, 
-						size_t* list_d2_sizes, 
-						size_t* list_s1_sizes, 
+						// size_t* list_d1_sizes, 
+						// size_t* list_d2_sizes, 
+						// size_t* list_s1_sizes, 
+            int* list_d1_sizes, 
+						int* list_d2_sizes, 
+						int* list_s1_sizes, 
 						// 
 						std::vector<int> vec_d1_flags,
 						std::vector<int> vec_d2_flags,
@@ -332,7 +335,8 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
   std::vector<int>    sd_t_s1_ia6(9, -1);
   std::vector<int>    sd_t_s1_exec(9*9,-1);               // s1e, s1b(offset)
   // std::vector<size_t> sd_t_s1_args(9*9*6);                // s1c
-  std::vector<size_t> s1_sizes_ext(9*6);                // s1c
+  // std::vector<size_t> s1_sizes_ext(9*6);                // s1c
+  std::vector<int> s1_sizes_ext(9*6);                // s1c
 
   // int* s1_sizes_ext = (int*)malloc(sizeof(int) * 9 * 6);
   // int* s1_ia6       = (int*)malloc(sizeof(int) * 9);
@@ -344,7 +348,8 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
   std::vector<int>    sd_t_d1_ia6(noab * 9, -1);
   std::vector<int>    sd_t_d1_exec(9*9*noab,-1);
   // std::vector<size_t> sd_t_d1_args(9*9*7*noab);
-  std::vector<size_t> d1_sizes_ext(9*7*noab);
+  // std::vector<size_t> d1_sizes_ext(9*7*noab);
+  std::vector<int> d1_sizes_ext(9*7*noab);
   // int* d1_sizes_ext = (int*)malloc(sizeof(int) * 9 * 6);
   // int* d1_sizes_int = (int*)malloc(sizeof(int) * noab);
   size_t d1c = 0;
@@ -355,7 +360,8 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
   std::vector<int>    sd_t_d2_ia6(nvab * 9, -1);
   std::vector<int>    sd_t_d2_exec(9*9*nvab,-1);
   // std::vector<size_t> sd_t_d2_args(9*9*7*nvab);
-  std::vector<size_t> d2_sizes_ext(9*7*nvab);
+  // std::vector<size_t> d2_sizes_ext(9*7*nvab);
+  std::vector<int> d2_sizes_ext(9*7*nvab);
   // int* d2_sizes_ext = (int*)malloc(sizeof(int) * 9 * 6);
   // int* d2_sizes_int = (int*)malloc(sizeof(int) * nvab);
   size_t d2b=0;
@@ -372,12 +378,14 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
     h2b=a3_s1(ia6,4);
     h3b=a3_s1(ia6,5);
 
-    s1_sizes_ext[0 + ia6 * 6] = k_range[h1b];
-    s1_sizes_ext[1 + ia6 * 6] = k_range[h2b];
-    s1_sizes_ext[2 + ia6 * 6] = k_range[h3b];
-    s1_sizes_ext[3 + ia6 * 6] = k_range[p4b];
-    s1_sizes_ext[4 + ia6 * 6] = k_range[p5b];
-    s1_sizes_ext[5 + ia6 * 6] = k_range[p6b];
+    s1_sizes_ext[0 + ia6 * 6] = (int)k_range[h1b];
+    s1_sizes_ext[1 + ia6 * 6] = (int)k_range[h2b];
+    s1_sizes_ext[2 + ia6 * 6] = (int)k_range[h3b];
+    s1_sizes_ext[3 + ia6 * 6] = (int)k_range[p4b];
+    s1_sizes_ext[4 + ia6 * 6] = (int)k_range[p5b];
+    s1_sizes_ext[5 + ia6 * 6] = (int)k_range[p6b];
+
+    // printf ("[s1][ia6 = %d] h1,h2,h3,p4,p5,p6 = %2d,%2d,%2d,%2d,%2d,%2d\n", ia6, k_range[h1b], k_range[h2b], k_range[h3b], k_range[p4b], k_range[p5b], k_range[p6b]);
 
     if((p5b<=p6b) && (h2b<=h3b) && p4b!=0) 
     { 
@@ -807,13 +815,15 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
             // 4 + (h7b + (ia6) * noab) * 7,
             // 5 + (h7b + (ia6) * noab) * 7,
             // 6 + (h7b + (ia6) * noab) * 7);
-            d1_sizes_ext[0 + (h7b + (ia6) * noab) * 7] = k_range[h1b];
-            d1_sizes_ext[1 + (h7b + (ia6) * noab) * 7] = k_range[h2b];
-            d1_sizes_ext[2 + (h7b + (ia6) * noab) * 7] = k_range[h3b];
-            d1_sizes_ext[3 + (h7b + (ia6) * noab) * 7] = k_range[h7b];
-            d1_sizes_ext[4 + (h7b + (ia6) * noab) * 7] = k_range[p4b];
-            d1_sizes_ext[5 + (h7b + (ia6) * noab) * 7] = k_range[p5b];
-            d1_sizes_ext[6 + (h7b + (ia6) * noab) * 7] = k_range[p6b];
+            d1_sizes_ext[0 + (h7b + (ia6) * noab) * 7] = (int)k_range[h1b];
+            d1_sizes_ext[1 + (h7b + (ia6) * noab) * 7] = (int)k_range[h2b];
+            d1_sizes_ext[2 + (h7b + (ia6) * noab) * 7] = (int)k_range[h3b];
+            d1_sizes_ext[3 + (h7b + (ia6) * noab) * 7] = (int)k_range[h7b];
+            d1_sizes_ext[4 + (h7b + (ia6) * noab) * 7] = (int)k_range[p4b];
+            d1_sizes_ext[5 + (h7b + (ia6) * noab) * 7] = (int)k_range[p5b];
+            d1_sizes_ext[6 + (h7b + (ia6) * noab) * 7] = (int)k_range[p6b];
+
+            // printf ("[d1][ia6 = %d][noab = %d] h1,h2,h3,h7,p4,p5,p6 = %2d,%2d,%2d,%2d,%2d,%2d,%2d\n", ia6, h7b, k_range[h1b], k_range[h2b], k_range[h3b], k_range[h7b], k_range[p4b], k_range[p5b], k_range[p6b]);
 
             // printf ("[ia6=%2d][noab=%2d] d1_sizes: h1,h2,h3,h7,p4,p5,p6 = %2d,%2d,%2d,%2d,%2d,%2d,%2d\n", ia6, h7b, k_range[h1b], k_range[h2b], k_range[h3b], k_range[h7b], k_range[p4b], k_range[p5b], k_range[p6b]);
             
@@ -1136,14 +1146,16 @@ void ccsd_t_gpu_all_fused(ExecutionContext& ec,
             // 5 + (p7b - noab + (ia6) * nvab) * 7,
             // 6 + (p7b - noab + (ia6) * nvab) * 7);
             // printf ("[ia6=%2d][nvab=%2d] d2_sizes: h1,h2,h3,p4,p5,p6,p7 = %2d,%2d,%2d,%2d,%2d,%2d,%2d\n", ia6, p7b - noab, k_range[h1b], k_range[h2b], k_range[h3b], k_range[p4b], k_range[p5b], k_range[p6b], k_range[p7b]);
-            d2_sizes_ext[0 + (p7b - noab + (ia6) * nvab) * 7] = k_range[h1b];
-            d2_sizes_ext[1 + (p7b - noab + (ia6) * nvab) * 7] = k_range[h2b];
-            d2_sizes_ext[2 + (p7b - noab + (ia6) * nvab) * 7] = k_range[h3b];
-            d2_sizes_ext[3 + (p7b - noab + (ia6) * nvab) * 7] = k_range[p4b];
-            d2_sizes_ext[4 + (p7b - noab + (ia6) * nvab) * 7] = k_range[p5b];
-            d2_sizes_ext[5 + (p7b - noab + (ia6) * nvab) * 7] = k_range[p6b];
-            d2_sizes_ext[6 + (p7b - noab + (ia6) * nvab) * 7] = k_range[p7b];
+            d2_sizes_ext[0 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[h1b];
+            d2_sizes_ext[1 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[h2b];
+            d2_sizes_ext[2 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[h3b];
+            d2_sizes_ext[3 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[p4b];
+            d2_sizes_ext[4 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[p5b];
+            d2_sizes_ext[5 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[p6b];
+            d2_sizes_ext[6 + (p7b - noab + (ia6) * nvab) * 7] = (int)k_range[p7b];
             // d2_sizes_int[p7b - noab] = k_range[p7b];
+
+            // printf ("[d1][ia6 = %d][nvab = %d] h1,h2,h3,p4,p5,p6,p7 = %2d,%2d,%2d,%2d,%2d,%2d,%2d\n", ia6, p7b, k_range[h1b], k_range[h2b], k_range[h3b], k_range[p4b], k_range[p5b], k_range[p6b], k_range[p7b]);
 
             if(k_spin[p4b]+k_spin[p7b]
             == k_spin[h1b]+k_spin[h2b])   
@@ -1454,4 +1466,33 @@ total_fused_ccsd_t(k_range[t_h1b],k_range[t_h2b],
                         &energy_l[0], &energy_l[1]);
 
 } //end double_gpu_fused_driver
+
+// void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, 
+// 						size_t base_size_p4b, size_t base_size_p5b, size_t base_size_p6b,
+// 						// 
+// 						double* host_d1_t2_all, double* host_d1_v2_all,
+// 						double* host_d2_t2_all, double* host_d2_v2_all,
+// 						double* host_s1_t2_all, double* host_s1_v2_all,
+// 						// 
+// 						size_t size_d1_t2_all, size_t size_d1_v2_all,
+// 						size_t size_d2_t2_all, size_t size_d2_v2_all,
+// 						size_t size_s1_t2_all, size_t size_s1_v2_all,
+// 						// 
+// 						size_t* list_d1_sizes, 
+// 						size_t* list_d2_sizes, 
+// 						size_t* list_s1_sizes, 
+// 						// 
+// 						std::vector<int> vec_d1_flags,
+// 						std::vector<int> vec_d2_flags,
+// 						std::vector<int> vec_s1_flags, std::vector<int> vec_s1_ai6, 
+// 						// 
+// 						size_t size_noab, size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2,
+// 						size_t size_nvab, size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2,
+//                                           size_t size_max_dim_s1_t2, size_t size_max_dim_s1_v2, 
+// 						// 
+// 						double factor, 
+// 						double* host_evl_sortedh1, double* host_evl_sortedh2, double* host_evl_sortedh3, 
+// 						double* host_evl_sortedp4, double* host_evl_sortedp5, double* host_evl_sortedp6,
+// 						double* final_energy_4, double* final_energy_5);
+
 #endif //CCSD_T_GPU_ALL_FUSED_HPP_

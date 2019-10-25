@@ -23,20 +23,10 @@ int main( int argc, char* argv[] )
     GA_Initialize();
     MA_init(MT_DBL, 8000000, 20000000);
     
-    int mpi_rank;
-    MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
-
-    #ifdef USE_TALSH
-    TALSH talsh_instance;
-    talsh_instance.initialize(mpi_rank);
-    #endif
+    // int mpi_rank;
+    // MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
 
     ccsd_driver();
-    
-    #ifdef USE_TALSH
-    //talshStats();
-    talsh_instance.shutdown();
-    #endif  
 
     GA_Terminate();
     MPI_Finalize();
@@ -107,6 +97,13 @@ void ccsd_driver() {
         p_evl_sorted = tamm::diagonal(d_f1);
     }
 
+    const bool has_gpu = ec.has_gpu();
+
+    #ifdef USE_TALSH
+    TALSH talsh_instance;
+    if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
+    #endif
+
     auto cc_t1 = std::chrono::high_resolution_clock::now();
 
     auto [residual, corr_energy] = cd_ccsd_driver<T>(
@@ -115,6 +112,11 @@ void ccsd_driver() {
             p_evl_sorted, 
             maxiter, thresh, zshiftl, ndiis, 
             2 * ov_alpha, cholVpr);
+
+    #ifdef USE_TALSH
+    //talshStats();
+    if(has_gpu) talsh_instance.shutdown();
+    #endif  
 
     ccsd_stats(ec, hf_energy,residual,corr_energy,thresh);
 
@@ -135,7 +137,7 @@ void ccsd_driver() {
     auto cc_t2 = std::chrono::high_resolution_clock::now();
     double ccsd_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-    if(rank == 0) std::cout << std::endl << "Time taken for Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
+    if(rank == 0) std::cout << std::endl << "Time taken for Open Shell Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
 
     free_tensors(d_r1, d_r2, d_t1, d_t2, d_f1, cholVpr);
     free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);

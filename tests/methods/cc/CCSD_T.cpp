@@ -134,6 +134,7 @@ void ccsd_driver() {
 
     if (rank==0 && energy1!=-999){
 
+        std::cout.precision(15);
         cout << "CCSD[T] correction energy / hartree  = " << energy1 << endl;
         cout << "CCSD[T] correlation energy / hartree = " << corr_energy+energy1 << endl;
         cout << "CCSD[T] total energy / hartree       = " << hf_energy+corr_energy+energy1 << endl;

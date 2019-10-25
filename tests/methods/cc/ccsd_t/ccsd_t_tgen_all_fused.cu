@@ -57,84 +57,11 @@
 __constant__ int const_list_s1_flags_offset[NUM_IA6_LOOPS * NUM_S1_EQUATIONS];
 __constant__ int const_list_d1_flags_offset[NUM_IA6_LOOPS * NUM_D1_EQUATIONS * MAX_NOAB];
 __constant__ int const_list_d2_flags_offset[NUM_IA6_LOOPS * NUM_D2_EQUATIONS * MAX_NVAB];
-// 
-// __constant__ int const_s1_ia6[NUM_S1_EQUATIONS];			// 9 
-// __constant__ int const_d1_ia6[NUM_D1_EQUATIONS * MAX_NOAB];	// 9 * noab
-// __constant__ int const_d2_ia6[NUM_D2_EQUATIONS * MAX_NVAB];	// 9 * nvab
-// // 
-// __constant__ int const_s1_sizes_ext[NUM_IA6_LOOPS * NUM_S1_INDEX];	// 9 * 6
-// __constant__ int const_d1_sizes_ext[NUM_IA6_LOOPS * NUM_D1_INDEX];	// 9 * 6
-// __constant__ int const_d2_sizes_ext[NUM_IA6_LOOPS * NUM_D2_INDEX];	// 9 * 6
-// // 
-// __constant__ int const_s1_flags_offset[NUM_S1_EQUATIONS];
-// __constant__ int const_d1_flags_offset[NUM_D1_EQUATIONS * MAX_NOAB];
-// __constant__ int const_d2_flags_offset[NUM_D2_EQUATIONS * MAX_NVAB];
+
 // 
 __constant__ int const_list_s1_problem_size[NUM_IA6_LOOPS * NUM_S1_INDEX];
 __constant__ int const_list_d1_problem_size[NUM_IA6_LOOPS * NUM_D1_INDEX * MAX_NOAB];
 __constant__ int const_list_d2_problem_size[NUM_IA6_LOOPS * NUM_D2_INDEX * MAX_NVAB];
-
-#if 0
-	//  s1
-	size_t size_s1_t2_1 = size_p4 * size_h1;
-	size_t size_s1_v2_1 = size_h3 * size_h2 * size_p6 * size_p5;
-	size_t size_s1_t2_2 = size_p4 * size_h2;
-	size_t size_s1_v2_2 = size_h3 * size_h1 * size_p6 * size_p5;
-	size_t size_s1_t2_3 = size_p4 * size_h1;
-	size_t size_s1_v2_3 = size_h3 * size_h2 * size_p6 * size_p5;
-	size_t size_s1_t2_4 = size_p5 * size_h1;
-	size_t size_s1_v2_4 = size_h3 * size_h2 * size_p6 * size_p4;
-	size_t size_s1_t2_5 = size_p5 * size_h2;
-	size_t size_s1_v2_5 = size_h3 * size_h1 * size_p6 * size_p4;
-	size_t size_s1_t2_6 = size_p5 * size_h3;
-	size_t size_s1_v2_6 = size_h2 * size_h1 * size_p6 * size_p4;
-	size_t size_s1_t2_7 = size_p6 * size_h1;
-	size_t size_s1_v2_7 = size_h3 * size_h2 * size_p5 * size_p4;
-	size_t size_s1_t2_8 = size_p6 * size_h2;
-	size_t size_s1_v2_8 = size_h3 * size_h1 * size_p5 * size_p4;
-	size_t size_s1_t2_9 = size_p6 * size_h3;
-	size_t size_s1_v2_9 = size_h2 * size_h1 * size_p5 * size_p4;
-
-	//  d1
-	size_t size_d1_t2_1 = size_h1 * size_p5 * size_p4 * size_h7;
-	size_t size_d1_v2_1 = size_h7 * size_p6 * size_h2 * size_h3;
-	size_t size_d1_t2_2 = size_h2 * size_p5 * size_p4 * size_h7;
-	size_t size_d1_v2_2 = size_h7 * size_p6 * size_h1 * size_h3;
-	size_t size_d1_t2_3 = size_h3 * size_p5 * size_p4 * size_h7;
-	size_t size_d1_v2_3 = size_h7 * size_p6 * size_h1 * size_h2;
-	size_t size_d1_t2_4 = size_h1 * size_p6 * size_p5 * size_h7;
-	size_t size_d1_v2_4 = size_h7 * size_p4 * size_h2 * size_h3;
-	size_t size_d1_t2_5 = size_h2 * size_p6 * size_p5 * size_h7;
-	size_t size_d1_v2_5 = size_h7 * size_p4 * size_h1 * size_h3;
-	size_t size_d1_t2_6 = size_h3 * size_p6 * size_p5 * size_h7;
-	size_t size_d1_v2_6 = size_h7 * size_p4 * size_h1 * size_h2;
-	size_t size_d1_t2_7 = size_h1 * size_p6 * size_p4 * size_h7;
-	size_t size_d1_v2_7 = size_h7 * size_p5 * size_h2 * size_h3;
-	size_t size_d1_t2_8 = size_h2 * size_p6 * size_p4 * size_h7;
-	size_t size_d1_v2_8 = size_h7 * size_p5 * size_h1 * size_h3;
-	size_t size_d1_t2_9 = size_h3 * size_p6 * size_p4 * size_h7;
-	size_t size_d1_v2_9 = size_h7 * size_p5 * size_h1 * size_h2;
-
-	//  d2
-	size_t size_d2_t2_1 = size_h2 * size_h1 * size_p4 * size_p7;
-	size_t size_d2_v2_1 = size_p5 * size_p6 * size_h3 * size_p7;
-	size_t size_d2_t2_2 = size_h3 * size_h2 * size_p4 * size_p7;
-	size_t size_d2_v2_2 = size_p5 * size_p6 * size_h1 * size_p7;
-	size_t size_d2_t2_3 = size_h3 * size_h1 * size_p4 * size_p7;
-	size_t size_d2_v2_3 = size_p5 * size_p6 * size_h2 * size_p7;
-	size_t size_d2_t2_4 = size_h2 * size_h1 * size_p5 * size_p7;
-	size_t size_d2_v2_4 = size_p4 * size_p6 * size_h3 * size_p7;
-	size_t size_d2_t2_5 = size_h3 * size_h2 * size_p5 * size_p7;
-	size_t size_d2_v2_5 = size_p4 * size_p6 * size_h1 * size_p7;
-	size_t size_d2_t2_6 = size_h3 * size_h1 * size_p5 * size_p7;
-	size_t size_d2_v2_6 = size_p4 * size_p6 * size_h2 * size_p7;
-	size_t size_d2_t2_7 = size_h2 * size_h1 * size_p6 * size_p7;
-	size_t size_d2_v2_7 = size_p4 * size_p5 * size_h3 * size_p7;
-	size_t size_d2_t2_8 = size_h3 * size_h2 * size_p6 * size_p7;
-	size_t size_d2_v2_8 = size_p4 * size_p5 * size_h1 * size_p7;
-	size_t size_d2_t2_9 = size_h3 * size_h1 * size_p6 * size_p7;
-	size_t size_d2_v2_9 = size_p4 * size_p5 * size_h2 * size_p7;
-#endif
 
 // 
 __global__ 
@@ -143,6 +70,9 @@ void jk_ccsd_t_fully_fused_kernel(	int size_noab, int size_nvab,
 									int size_max_dim_s1_t2, int size_max_dim_s1_v2, 
 									int size_max_dim_d1_t2, int size_max_dim_d1_v2, 
 									int size_max_dim_d2_t2, int size_max_dim_d2_v2, 
+									// 
+									int* dev_list_s1_flags_offset, int* dev_list_d1_flags_offset, int* dev_list_d2_flags_offset, 
+									int* dev_list_s1_problem_size, int* dev_list_d1_problem_size, int* dev_list_d2_problem_size, 
 									//  doubles (sd1)
 									double* dev_d1_t2_all,  double* dev_d1_v2_all,
 									//  doubles (sd2)
@@ -285,40 +215,20 @@ void jk_ccsd_t_fully_fused_kernel(	int size_noab, int size_nvab,
 			for (int iter_noab = 0; iter_noab < size_noab; iter_noab++)
 			{
 				// 
-				int flag_d1_1 = const_list_d1_flags_offset[0 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
-				int flag_d1_2 = const_list_d1_flags_offset[1 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
-				int flag_d1_3 = const_list_d1_flags_offset[2 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
+				int flag_d1_1 = dev_list_d1_flags_offset[0 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
+				int flag_d1_2 = dev_list_d1_flags_offset[1 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
+				int flag_d1_3 = dev_list_d1_flags_offset[2 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
 
 				// 
-				// int local_d1_size_idx_h1b = const_list_d1_problem_size[0 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				// int local_d1_size_idx_h2b = const_list_d1_problem_size[1 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				// int local_d1_size_idx_h3b = const_list_d1_problem_size[2 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				// // int local_d1_size_idx_h7b = const_list_d1_problem_size[3 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				// int local_d1_size_idx_p4b = const_list_d1_problem_size[4 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				// int local_d1_size_idx_p5b = const_list_d1_problem_size[5 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				// int local_d1_size_idx_p6b = const_list_d1_problem_size[6 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_h1b = const_list_d1_problem_size[0 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_h2b = const_list_d1_problem_size[1 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_h3b = const_list_d1_problem_size[2 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_h7b = const_list_d1_problem_size[3 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_p4b = const_list_d1_problem_size[4 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_p5b = const_list_d1_problem_size[5 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_p6b = const_list_d1_problem_size[6 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_h1b = dev_list_d1_problem_size[0 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_h2b = dev_list_d1_problem_size[1 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_h3b = dev_list_d1_problem_size[2 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_h7b = dev_list_d1_problem_size[3 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_p4b = dev_list_d1_problem_size[4 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_p5b = dev_list_d1_problem_size[5 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_p6b = dev_list_d1_problem_size[6 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
 
 				// 
-				// if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				// {
-				// 	printf ("[sd1][part1][ia6 = %2d] h1,h2,h3,p4,p5,p6 = %2d,%2d,%2d,%2d,%2d,%2d\n", iter_ia6, base_size_h1b, base_size_h2b, base_size_h3b, base_size_p4b, base_size_p5b, base_size_p6b);
-				// }
-
-				//	otheres according to the above problem-sizes
-				//	(1) num_blks_h/p*b
-				// num_blks_h1b = CEIL(local_d1_size_idx_h1b, FUSION_SIZE_SLICE_1_H1);
-				// num_blks_h2b = CEIL(local_d1_size_idx_h2b, FUSION_SIZE_SLICE_1_H2);
-				// num_blks_h3b = CEIL(local_d1_size_idx_h3b, FUSION_SIZE_SLICE_1_H3);
-				// num_blks_p4b = CEIL(local_d1_size_idx_p4b, FUSION_SIZE_SLICE_1_P4);
-				// num_blks_p5b = CEIL(local_d1_size_idx_p5b, FUSION_SIZE_SLICE_1_P5);
-				// num_blks_p6b = CEIL(local_d1_size_idx_p6b, FUSION_SIZE_SLICE_1_P6);
 				num_blks_h1b = CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
 				num_blks_h2b = CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
 				num_blks_h3b = CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
@@ -385,6 +295,7 @@ void jk_ccsd_t_fully_fused_kernel(	int size_noab, int size_nvab,
 					double* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_1;
 
 					// 
+					internal_upperbound = 0;
 					#pragma unroll 1
 					for (int l = 0; l < base_size_h7b; l+= FUSION_SIZE_INT_UNIT)
 					{
@@ -545,40 +456,20 @@ void jk_ccsd_t_fully_fused_kernel(	int size_noab, int size_nvab,
 			for (int iter_nvab = 0; iter_nvab < size_nvab; iter_nvab++)
 			{
 				// 
-				int flag_d2_7 = const_list_d2_flags_offset[6 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
-				int flag_d2_8 = const_list_d2_flags_offset[7 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
-				int flag_d2_9 = const_list_d2_flags_offset[8 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
+				int flag_d2_7 = dev_list_d2_flags_offset[6 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
+				int flag_d2_8 = dev_list_d2_flags_offset[7 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
+				int flag_d2_9 = dev_list_d2_flags_offset[8 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
 
 				// 
-				// int local_d2_size_idx_h1b = const_list_d2_problem_size[0 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				// int local_d2_size_idx_h2b = const_list_d2_problem_size[1 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				// int local_d2_size_idx_h3b = const_list_d2_problem_size[2 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				// int local_d2_size_idx_p4b = const_list_d2_problem_size[3 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				// int local_d2_size_idx_p5b = const_list_d2_problem_size[4 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				// int local_d2_size_idx_p6b = const_list_d2_problem_size[5 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				// int local_d2_size_idx_p7b = const_list_d2_problem_size[6 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_h1b = const_list_d2_problem_size[0 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_h2b = const_list_d2_problem_size[1 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_h3b = const_list_d2_problem_size[2 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_p4b = const_list_d2_problem_size[3 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_p5b = const_list_d2_problem_size[4 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_p6b = const_list_d2_problem_size[5 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_p7b = const_list_d2_problem_size[6 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_h1b = dev_list_d2_problem_size[0 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_h2b = dev_list_d2_problem_size[1 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_h3b = dev_list_d2_problem_size[2 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_p4b = dev_list_d2_problem_size[3 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_p5b = dev_list_d2_problem_size[4 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_p6b = dev_list_d2_problem_size[5 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_p7b = dev_list_d2_problem_size[6 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
 
-				// // 
-				// if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				// {
-				// 	printf ("[sd2][part1][ia6 = %2d] h1,h2,h3,p4,p5,p6 = %2d,%2d,%2d,%2d,%2d,%2d\n", iter_ia6, base_size_h1b, base_size_h2b, base_size_h3b, base_size_p4b, base_size_p5b, base_size_p6b);
-				// }
-
-				//	otheres according to the above problem-sizes
-				//	(1) num_blks_h/p*b
-				// num_blks_h1b = CEIL(local_d2_size_idx_h1b, FUSION_SIZE_SLICE_1_H1);
-				// num_blks_h2b = CEIL(local_d2_size_idx_h2b, FUSION_SIZE_SLICE_1_H2);
-				// num_blks_h3b = CEIL(local_d2_size_idx_h3b, FUSION_SIZE_SLICE_1_H3);
-				// num_blks_p4b = CEIL(local_d2_size_idx_p4b, FUSION_SIZE_SLICE_1_P4);
-				// num_blks_p5b = CEIL(local_d2_size_idx_p5b, FUSION_SIZE_SLICE_1_P5);
-				// num_blks_p6b = CEIL(local_d2_size_idx_p6b, FUSION_SIZE_SLICE_1_P6);
+				// 
 				num_blks_h1b = CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
 				num_blks_h2b = CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
 				num_blks_h3b = CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
@@ -805,7 +696,6 @@ void jk_ccsd_t_fully_fused_kernel(	int size_noab, int size_nvab,
 		}
 	}
 	
-
 	// 
 	//  register_transpose (top - bottom)
 	//
@@ -1000,7 +890,6 @@ void jk_ccsd_t_fully_fused_kernel(	int size_noab, int size_nvab,
 		__syncthreads();
 	}
 
-
 	// 
 	#pragma unroll 1
 	for (int iter_ia6 = 0; iter_ia6 < NUM_IA6_LOOPS; iter_ia6++)
@@ -1014,43 +903,23 @@ void jk_ccsd_t_fully_fused_kernel(	int size_noab, int size_nvab,
 			for (int iter_noab = 0; iter_noab < size_noab; iter_noab++)
 			{
 				// 	flags
-				int flag_d1_4 = const_list_d1_flags_offset[3 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
-				int flag_d1_5 = const_list_d1_flags_offset[4 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
-				int flag_d1_6 = const_list_d1_flags_offset[5 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
-				int flag_d1_7 = const_list_d1_flags_offset[6 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
-				int flag_d1_8 = const_list_d1_flags_offset[7 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
-				int flag_d1_9 = const_list_d1_flags_offset[8 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
+				int flag_d1_4 = dev_list_d1_flags_offset[3 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
+				int flag_d1_5 = dev_list_d1_flags_offset[4 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
+				int flag_d1_6 = dev_list_d1_flags_offset[5 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
+				int flag_d1_7 = dev_list_d1_flags_offset[6 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
+				int flag_d1_8 = dev_list_d1_flags_offset[7 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
+				int flag_d1_9 = dev_list_d1_flags_offset[8 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_EQUATIONS];
 
 				// 
-				// int local_d1_size_idx_h1b = const_list_d1_problem_size[0 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				// int local_d1_size_idx_h2b = const_list_d1_problem_size[1 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				// int local_d1_size_idx_h3b = const_list_d1_problem_size[2 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				// // int local_d1_size_idx_h7b = const_list_d1_problem_size[3 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				// int local_d1_size_idx_p4b = const_list_d1_problem_size[4 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				// int local_d1_size_idx_p5b = const_list_d1_problem_size[5 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				// int local_d1_size_idx_p6b = const_list_d1_problem_size[6 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_h1b = const_list_d1_problem_size[0 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_h2b = const_list_d1_problem_size[1 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_h3b = const_list_d1_problem_size[2 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_h7b = const_list_d1_problem_size[3 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_p4b = const_list_d1_problem_size[4 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_p5b = const_list_d1_problem_size[5 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
-				base_size_p6b = const_list_d1_problem_size[6 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_h1b = dev_list_d1_problem_size[0 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_h2b = dev_list_d1_problem_size[1 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_h3b = dev_list_d1_problem_size[2 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_h7b = dev_list_d1_problem_size[3 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_p4b = dev_list_d1_problem_size[4 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_p5b = dev_list_d1_problem_size[5 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
+				base_size_p6b = dev_list_d1_problem_size[6 + (iter_noab + (iter_ia6) * size_noab) * NUM_D1_INDEX];
 
 				// 
-				// if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				// {
-				// 	printf ("[sd1][part2][ia6 = %2d] h1,h2,h3,p4,p5,p6 = %2d,%2d,%2d,%2d,%2d,%2d\n", iter_ia6, base_size_h1b, base_size_h2b, base_size_h3b, base_size_p4b, base_size_p5b, base_size_p6b);
-				// }
-
-				//	otheres according to the above problem-sizes
-				//	(1) num_blks_h/p*b
-				// num_blks_h1b = CEIL(local_d1_size_idx_h1b, FUSION_SIZE_SLICE_1_H1);
-				// num_blks_h2b = CEIL(local_d1_size_idx_h2b, FUSION_SIZE_SLICE_1_H2);
-				// num_blks_h3b = CEIL(local_d1_size_idx_h3b, FUSION_SIZE_SLICE_1_H3);
-				// num_blks_p4b = CEIL(local_d1_size_idx_p4b, FUSION_SIZE_SLICE_1_P4);
-				// num_blks_p5b = CEIL(local_d1_size_idx_p5b, FUSION_SIZE_SLICE_1_P5);
-				// num_blks_p6b = CEIL(local_d1_size_idx_p6b, FUSION_SIZE_SLICE_1_P6);
 				num_blks_h1b = CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
 				num_blks_h2b = CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
 				num_blks_h3b = CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
@@ -1443,43 +1312,23 @@ void jk_ccsd_t_fully_fused_kernel(	int size_noab, int size_nvab,
 			for (int iter_nvab = 0; iter_nvab < size_nvab; iter_nvab++)
 			{
 				//
-				int flag_d2_1 = const_list_d2_flags_offset[0 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
-				int flag_d2_2 = const_list_d2_flags_offset[1 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
-				int flag_d2_3 = const_list_d2_flags_offset[2 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
-				int flag_d2_4 = const_list_d2_flags_offset[3 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
-				int flag_d2_5 = const_list_d2_flags_offset[4 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
-				int flag_d2_6 = const_list_d2_flags_offset[5 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
+				int flag_d2_1 = dev_list_d2_flags_offset[0 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
+				int flag_d2_2 = dev_list_d2_flags_offset[1 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
+				int flag_d2_3 = dev_list_d2_flags_offset[2 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
+				int flag_d2_4 = dev_list_d2_flags_offset[3 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
+				int flag_d2_5 = dev_list_d2_flags_offset[4 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
+				int flag_d2_6 = dev_list_d2_flags_offset[5 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_EQUATIONS];
 
 				// 
-				// int local_d2_size_idx_h1b = const_list_d2_problem_size[0 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				// int local_d2_size_idx_h2b = const_list_d2_problem_size[1 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				// int local_d2_size_idx_h3b = const_list_d2_problem_size[2 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				// int local_d2_size_idx_p4b = const_list_d2_problem_size[3 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				// int local_d2_size_idx_p5b = const_list_d2_problem_size[4 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				// int local_d2_size_idx_p6b = const_list_d2_problem_size[5 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				// int local_d2_size_idx_p7b = const_list_d2_problem_size[6 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_h1b = const_list_d2_problem_size[0 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_h2b = const_list_d2_problem_size[1 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_h3b = const_list_d2_problem_size[2 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_p4b = const_list_d2_problem_size[3 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_p5b = const_list_d2_problem_size[4 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_p6b = const_list_d2_problem_size[5 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
-				base_size_p7b = const_list_d2_problem_size[6 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_h1b = dev_list_d2_problem_size[0 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_h2b = dev_list_d2_problem_size[1 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_h3b = dev_list_d2_problem_size[2 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_p4b = dev_list_d2_problem_size[3 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_p5b = dev_list_d2_problem_size[4 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_p6b = dev_list_d2_problem_size[5 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
+				base_size_p7b = dev_list_d2_problem_size[6 + (iter_nvab + (iter_ia6) * size_nvab) * NUM_D2_INDEX];
 
-				// // 
-				// if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-				// {
-				// 	printf ("[sd2][part2][ia6 = %2d] h1,h2,h3,p4,p5,p6 = %2d,%2d,%2d,%2d,%2d,%2d\n", iter_ia6, base_size_h1b, base_size_h2b, base_size_h3b, base_size_p4b, base_size_p5b, base_size_p6b);
-				// }
-
-				//	otheres according to the above problem-sizes
-				//	(1) num_blks_h/p*b
-				// num_blks_h1b = CEIL(local_d2_size_idx_h1b, FUSION_SIZE_SLICE_1_H1);
-				// num_blks_h2b = CEIL(local_d2_size_idx_h2b, FUSION_SIZE_SLICE_1_H2);
-				// num_blks_h3b = CEIL(local_d2_size_idx_h3b, FUSION_SIZE_SLICE_1_H3);
-				// num_blks_p4b = CEIL(local_d2_size_idx_p4b, FUSION_SIZE_SLICE_1_P4);
-				// num_blks_p5b = CEIL(local_d2_size_idx_p5b, FUSION_SIZE_SLICE_1_P5);
-				// num_blks_p6b = CEIL(local_d2_size_idx_p6b, FUSION_SIZE_SLICE_1_P6);
+				// 
 				num_blks_h1b = CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
 				num_blks_h2b = CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
 				num_blks_h3b = CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
@@ -1881,40 +1730,23 @@ void jk_ccsd_t_fully_fused_kernel(	int size_noab, int size_nvab,
 		//  singles (s1)
 		{	
 			// 	flags
-			int flag_s1_1 = const_list_s1_flags_offset[0 + iter_ia6 * NUM_S1_EQUATIONS];
-			int flag_s1_2 = const_list_s1_flags_offset[1 + iter_ia6 * NUM_S1_EQUATIONS];
-			int flag_s1_3 = const_list_s1_flags_offset[2 + iter_ia6 * NUM_S1_EQUATIONS];
-			int flag_s1_4 = const_list_s1_flags_offset[3 + iter_ia6 * NUM_S1_EQUATIONS];
-			int flag_s1_5 = const_list_s1_flags_offset[4 + iter_ia6 * NUM_S1_EQUATIONS];
-			int flag_s1_6 = const_list_s1_flags_offset[5 + iter_ia6 * NUM_S1_EQUATIONS];
-			int flag_s1_7 = const_list_s1_flags_offset[6 + iter_ia6 * NUM_S1_EQUATIONS];
-			int flag_s1_8 = const_list_s1_flags_offset[7 + iter_ia6 * NUM_S1_EQUATIONS];
-			int flag_s1_9 = const_list_s1_flags_offset[8 + iter_ia6 * NUM_S1_EQUATIONS];
-
-			// if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-			// {
-			// 	printf ("[Device][s1] ia6=%d, flag_s1_(1, 2, 3, 4, 5, 6, 7, 8, 9) = (%2d,%2d,%2d,%2d,%2d,%2d,%2d,%2d,%2d)\n", iter_ia6, flag_s1_1, flag_s1_2, flag_s1_3, flag_s1_4, flag_s1_5, flag_s1_6, flag_s1_7, flag_s1_8, flag_s1_9);
-			// }
-
-			// 	problem-sizes
-			// int local_s1_size_idx_h1b = const_list_s1_problem_size[0 + iter_ia6 * NUM_S1_INDEX];
-			// int local_s1_size_idx_h2b = const_list_s1_problem_size[1 + iter_ia6 * NUM_S1_INDEX];
-			// int local_s1_size_idx_h3b = const_list_s1_problem_size[2 + iter_ia6 * NUM_S1_INDEX];
-			// int local_s1_size_idx_p4b = const_list_s1_problem_size[3 + iter_ia6 * NUM_S1_INDEX];
-			// int local_s1_size_idx_p5b = const_list_s1_problem_size[4 + iter_ia6 * NUM_S1_INDEX];
-			// int local_s1_size_idx_p6b = const_list_s1_problem_size[5 + iter_ia6 * NUM_S1_INDEX];
-			base_size_h1b = const_list_s1_problem_size[0 + iter_ia6 * NUM_S1_INDEX];
-			base_size_h2b = const_list_s1_problem_size[1 + iter_ia6 * NUM_S1_INDEX];
-			base_size_h3b = const_list_s1_problem_size[2 + iter_ia6 * NUM_S1_INDEX];
-			base_size_p4b = const_list_s1_problem_size[3 + iter_ia6 * NUM_S1_INDEX];
-			base_size_p5b = const_list_s1_problem_size[4 + iter_ia6 * NUM_S1_INDEX];
-			base_size_p6b = const_list_s1_problem_size[5 + iter_ia6 * NUM_S1_INDEX];
+			int flag_s1_1 = dev_list_s1_flags_offset[0 + iter_ia6 * NUM_S1_EQUATIONS];
+			int flag_s1_2 = dev_list_s1_flags_offset[1 + iter_ia6 * NUM_S1_EQUATIONS];
+			int flag_s1_3 = dev_list_s1_flags_offset[2 + iter_ia6 * NUM_S1_EQUATIONS];
+			int flag_s1_4 = dev_list_s1_flags_offset[3 + iter_ia6 * NUM_S1_EQUATIONS];
+			int flag_s1_5 = dev_list_s1_flags_offset[4 + iter_ia6 * NUM_S1_EQUATIONS];
+			int flag_s1_6 = dev_list_s1_flags_offset[5 + iter_ia6 * NUM_S1_EQUATIONS];
+			int flag_s1_7 = dev_list_s1_flags_offset[6 + iter_ia6 * NUM_S1_EQUATIONS];
+			int flag_s1_8 = dev_list_s1_flags_offset[7 + iter_ia6 * NUM_S1_EQUATIONS];
+			int flag_s1_9 = dev_list_s1_flags_offset[8 + iter_ia6 * NUM_S1_EQUATIONS];
 
 			// 
-			// if (blockIdx.x == 0 && threadIdx.x == 0 && threadIdx.y == 0)
-			// {
-			// 	printf ("[s1][ia6 = %2d] h1,h2,h3,p4,p5,p6 = %2d,%2d,%2d,%2d,%2d,%2d\n", iter_ia6, base_size_h1b, base_size_h2b, base_size_h3b, base_size_p4b, base_size_p5b, base_size_p6b);
-			// }
+			base_size_h1b = dev_list_s1_problem_size[0 + iter_ia6 * NUM_S1_INDEX];
+			base_size_h2b = dev_list_s1_problem_size[1 + iter_ia6 * NUM_S1_INDEX];
+			base_size_h3b = dev_list_s1_problem_size[2 + iter_ia6 * NUM_S1_INDEX];
+			base_size_p4b = dev_list_s1_problem_size[3 + iter_ia6 * NUM_S1_INDEX];
+			base_size_p5b = dev_list_s1_problem_size[4 + iter_ia6 * NUM_S1_INDEX];
+			base_size_p6b = dev_list_s1_problem_size[5 + iter_ia6 * NUM_S1_INDEX];
 
 			//	otheres according to the above problem-sizes
 			//	(1) num_blks_h/p*b
@@ -2490,9 +2322,12 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 						size_t size_d2_t2_all, size_t size_d2_v2_all,
 						size_t size_s1_t2_all, size_t size_s1_v2_all,
 						// 
-						size_t* list_d1_sizes, 
-						size_t* list_d2_sizes, 
-						size_t* list_s1_sizes, 
+						// size_t* list_d1_sizes, 
+						// size_t* list_d2_sizes, 
+						// size_t* list_s1_sizes, 
+						int* list_d1_sizes, 
+						int* list_d2_sizes, 
+						int* list_s1_sizes, 
 						// 
 						std::vector<int> vec_d1_flags,
 						std::vector<int> vec_d2_flags,
@@ -2522,57 +2357,94 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	double* dev_evl_sorted_p5b = (double*)getGpuMem(base_size_p5b * sizeof(double));
 	double* dev_evl_sorted_p6b = (double*)getGpuMem(base_size_p6b * sizeof(double));
 
-	// 
-	cudaMemcpyToSymbol(const_list_s1_flags_offset, &vec_s1_flags[0], sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_EQUATIONS));
-	cudaMemcpyToSymbol(const_list_d1_flags_offset, &vec_d1_flags[0], sizeof(int) * (NUM_IA6_LOOPS * MAX_NOAB * NUM_D1_EQUATIONS));
-	cudaMemcpyToSymbol(const_list_d2_flags_offset, &vec_d2_flags[0], sizeof(int) * (NUM_IA6_LOOPS * MAX_NVAB * NUM_D2_EQUATIONS));
+	//
+	int* dev_list_s1_flags_offset = (int*)getGpuMem(sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_EQUATIONS));
+	int* dev_list_d1_flags_offset = (int*)getGpuMem(sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_EQUATIONS * size_noab));
+	int* dev_list_d2_flags_offset = (int*)getGpuMem(sizeof(int) * (NUM_IA6_LOOPS * NUM_D2_EQUATIONS * size_nvab));
 
 	// 
-	int tmp_list_s1_sizes[NUM_IA6_LOOPS * NUM_S1_INDEX];
-	for (int i = 0; i < NUM_IA6_LOOPS; i++)
-	{
-		tmp_list_s1_sizes[0 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[0 + (i) * NUM_S1_INDEX];
-		tmp_list_s1_sizes[1 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[1 + (i) * NUM_S1_INDEX];
-		tmp_list_s1_sizes[2 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[2 + (i) * NUM_S1_INDEX];
-		tmp_list_s1_sizes[3 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[3 + (i) * NUM_S1_INDEX];
-		tmp_list_s1_sizes[4 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[4 + (i) * NUM_S1_INDEX];
-		tmp_list_s1_sizes[5 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[5 + (i) * NUM_S1_INDEX];
-	}
+	int* dev_list_s1_problem_size = (int*)getGpuMem(sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_INDEX));
+	int* dev_list_d1_problem_size = (int*)getGpuMem(sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_INDEX * size_noab));
+	int* dev_list_d2_problem_size = (int*)getGpuMem(sizeof(int) * (NUM_IA6_LOOPS * NUM_D2_INDEX * size_nvab));
 
-	int tmp_list_d1_sizes[NUM_IA6_LOOPS * size_noab * NUM_D1_INDEX];
-	for (int i = 0; i < NUM_IA6_LOOPS; i++)
-	{
-		for (int j = 0; j < size_noab; j++)
-		{
-			tmp_list_d1_sizes[0 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[0 + (j + (i) * size_noab) * NUM_D1_INDEX];
-			tmp_list_d1_sizes[1 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[1 + (j + (i) * size_noab) * NUM_D1_INDEX];
-			tmp_list_d1_sizes[2 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[2 + (j + (i) * size_noab) * NUM_D1_INDEX];
-			tmp_list_d1_sizes[3 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[3 + (j + (i) * size_noab) * NUM_D1_INDEX];
-			tmp_list_d1_sizes[4 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[4 + (j + (i) * size_noab) * NUM_D1_INDEX];
-			tmp_list_d1_sizes[5 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[5 + (j + (i) * size_noab) * NUM_D1_INDEX];
-			tmp_list_d1_sizes[6 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[6 + (j + (i) * size_noab) * NUM_D1_INDEX];
-		}
-	}
+#if 0
+	printf ("[Debug] required global memory (bytes): %llu (input tensors of s1)\n", (size_s1_t2_all + size_s1_v2_all) * sizeof(double));
+	printf ("[Debug] required global memory (bytes): %llu (input tensors of d1)\n", (size_d1_t2_all + size_d1_v2_all) * sizeof(double));
+	printf ("[Debug] required global memory (bytes): %llu (input tensors of d2)\n", (size_d2_t2_all + size_d2_v2_all) * sizeof(double));
+	printf ("[Debug] required global memory (bytes): %llu (energies)\n", 			(base_size_h1b + base_size_h2b + base_size_h3b + base_size_p4b + base_size_p5b + base_size_p6b) * sizeof(double));
+	printf ("[Debug] required global memory (bytes): %llu (flags of s1)\n", (NUM_IA6_LOOPS * NUM_S1_EQUATIONS) * sizeof(int));
+	printf ("[Debug] required global memory (bytes): %llu (flags of d1)\n", (NUM_IA6_LOOPS * NUM_D1_EQUATIONS * size_noab) * sizeof(int));
+	printf ("[Debug] required global memory (bytes): %llu (flags of d2)\n", (NUM_IA6_LOOPS * NUM_D2_EQUATIONS * size_nvab) * sizeof(int));
+	printf ("[Debug] required global memory (bytes): %llu (sizes of s1)\n", (NUM_IA6_LOOPS * NUM_S1_INDEX) * sizeof(int));
+	printf ("[Debug] required global memory (bytes): %llu (sizes of d1)\n", (NUM_IA6_LOOPS * NUM_D1_INDEX * size_noab) * sizeof(int));
+	printf ("[Debug] required global memory (bytes): %llu (sizes of d2)\n", (NUM_IA6_LOOPS * NUM_D2_INDEX * size_nvab) * sizeof(int));
+#endif
 
-	int tmp_list_d2_sizes[NUM_IA6_LOOPS * size_nvab * NUM_D2_INDEX];
-	for (int i = 0; i < NUM_IA6_LOOPS; i++)
-	{
-		for (int j = 0; j < size_nvab; j++)
-		{
-			tmp_list_d2_sizes[0 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[0 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-			tmp_list_d2_sizes[1 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[1 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-			tmp_list_d2_sizes[2 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[2 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-			tmp_list_d2_sizes[3 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[3 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-			tmp_list_d2_sizes[4 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[4 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-			tmp_list_d2_sizes[5 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[5 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-			tmp_list_d2_sizes[6 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[6 + (j + (i) * size_nvab) * NUM_D2_INDEX];
-		}
-	}
+	cudaMemcpy(dev_list_s1_flags_offset, &vec_s1_flags[0], sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_EQUATIONS), 				cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_list_d1_flags_offset, &vec_d1_flags[0], sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_EQUATIONS * size_noab),	cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_list_d2_flags_offset, &vec_d2_flags[0], sizeof(int) * (NUM_IA6_LOOPS * NUM_D2_EQUATIONS * size_nvab), 	cudaMemcpyHostToDevice);
+
+	// 
+	// cudaMemcpyToSymbol(const_list_s1_flags_offset, &vec_s1_flags[0], sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_EQUATIONS));
+	// cudaMemcpyToSymbol(const_list_d1_flags_offset, &vec_d1_flags[0], sizeof(int) * (NUM_IA6_LOOPS * MAX_NOAB * NUM_D1_EQUATIONS));
+	// cudaMemcpyToSymbol(const_list_d2_flags_offset, &vec_d2_flags[0], sizeof(int) * (NUM_IA6_LOOPS * MAX_NVAB * NUM_D2_EQUATIONS));
+
+	// 
+	// int tmp_list_s1_sizes[NUM_IA6_LOOPS * NUM_S1_INDEX];
+	// for (int i = 0; i < NUM_IA6_LOOPS; i++)
+	// {
+	// 	tmp_list_s1_sizes[0 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[0 + (i) * NUM_S1_INDEX];
+	// 	tmp_list_s1_sizes[1 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[1 + (i) * NUM_S1_INDEX];
+	// 	tmp_list_s1_sizes[2 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[2 + (i) * NUM_S1_INDEX];
+	// 	tmp_list_s1_sizes[3 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[3 + (i) * NUM_S1_INDEX];
+	// 	tmp_list_s1_sizes[4 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[4 + (i) * NUM_S1_INDEX];
+	// 	tmp_list_s1_sizes[5 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[5 + (i) * NUM_S1_INDEX];
+	// }
+
+	// int tmp_list_d1_sizes[NUM_IA6_LOOPS * size_noab * NUM_D1_INDEX];
+	// for (int i = 0; i < NUM_IA6_LOOPS; i++)
+	// {
+	// 	for (int j = 0; j < size_noab; j++)
+	// 	{
+	// 		tmp_list_d1_sizes[0 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[0 + (j + (i) * size_noab) * NUM_D1_INDEX];
+	// 		tmp_list_d1_sizes[1 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[1 + (j + (i) * size_noab) * NUM_D1_INDEX];
+	// 		tmp_list_d1_sizes[2 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[2 + (j + (i) * size_noab) * NUM_D1_INDEX];
+	// 		tmp_list_d1_sizes[3 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[3 + (j + (i) * size_noab) * NUM_D1_INDEX];
+	// 		tmp_list_d1_sizes[4 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[4 + (j + (i) * size_noab) * NUM_D1_INDEX];
+	// 		tmp_list_d1_sizes[5 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[5 + (j + (i) * size_noab) * NUM_D1_INDEX];
+	// 		tmp_list_d1_sizes[6 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[6 + (j + (i) * size_noab) * NUM_D1_INDEX];
+	// 	}
+	// }
+
+	// int tmp_list_d2_sizes[NUM_IA6_LOOPS * size_nvab * NUM_D2_INDEX];
+	// for (int i = 0; i < NUM_IA6_LOOPS; i++)
+	// {
+	// 	for (int j = 0; j < size_nvab; j++)
+	// 	{
+	// 		tmp_list_d2_sizes[0 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[0 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+	// 		tmp_list_d2_sizes[1 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[1 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+	// 		tmp_list_d2_sizes[2 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[2 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+	// 		tmp_list_d2_sizes[3 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[3 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+	// 		tmp_list_d2_sizes[4 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[4 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+	// 		tmp_list_d2_sizes[5 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[5 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+	// 		tmp_list_d2_sizes[6 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[6 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+	// 	}
+	// }
 
 	//
-	cudaMemcpyToSymbol(const_list_s1_problem_size, tmp_list_s1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_INDEX));
-	cudaMemcpyToSymbol(const_list_d1_problem_size, tmp_list_d1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_INDEX * size_noab));
-	cudaMemcpyToSymbol(const_list_d2_problem_size, tmp_list_d2_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D2_INDEX * size_nvab));
+	cudaMemcpy(dev_list_s1_problem_size, list_s1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_INDEX), 				cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_list_d1_problem_size, list_d1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_INDEX * size_noab), 	cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_list_d2_problem_size, list_d2_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D2_INDEX * size_nvab), 	cudaMemcpyHostToDevice);
+
+	// cudaMemcpyToSymbol(const_list_s1_problem_size, tmp_list_s1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_INDEX));
+	// cudaMemcpyToSymbol(const_list_d1_problem_size, tmp_list_d1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_INDEX * size_noab));
+	// cudaMemcpyToSymbol(const_list_d2_problem_size, tmp_list_d2_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D2_INDEX * size_nvab));
+
+	
+	// printf ("[s1] t2_all[10]: %.14f, v2_all[11]: %.14f\n", host_s1_t2_all[10], host_s1_v2_all[11]);
+	// printf ("[d1] t2_all[11]: %.14f, v2_all[12]: %.14f\n", host_d1_t2_all[10], host_d1_v2_all[11]);
+	// printf ("[d2] t2_all[12]: %.14f, v2_all[13]: %.14f\n", host_d2_t2_all[10], host_d2_v2_all[11]);
+
 
 	// 
 	cudaMemcpy(dev_d1_t2_all, host_d1_t2_all, (size_d1_t2_all) * sizeof(double), cudaMemcpyHostToDevice);
@@ -2602,9 +2474,8 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	dim3 blocksize_1(FUSION_SIZE_TB_1_X, FUSION_SIZE_TB_1_Y);
 
 	// 
-	double* host_energies = (double*)malloc(num_blocks_kernel_1 * NUM_ENERGIES * sizeof(double));
-	// memset(host_energies, 0.0, num_blocks_kernel_1 * NUM_ENERGIES * sizeof(double));
-	double* dev_energies = (double*)getGpuMem(num_blocks_kernel_1 * NUM_ENERGIES * sizeof(double));
+	double* host_energies 	= (double*)getHostMem(num_blocks_kernel_1 * NUM_ENERGIES * sizeof(double));
+	double* dev_energies 	= (double*)getGpuMem (num_blocks_kernel_1 * NUM_ENERGIES * sizeof(double));
 
 #ifdef DEBUG_TIME_FUSED_CCSD_T
 	cudaEvent_t start_ccsd_t, stop_ccsd_t, stop_kernely_only;
@@ -2614,12 +2485,17 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	cudaEventRecord(start_ccsd_t);
 #endif
 
+	// 	
+	// 	to call the fused kernel for singles, doubles and energies.
 	// 
 	jk_ccsd_t_fully_fused_kernel<<<gridsize_1, blocksize_1>>>((int)size_noab, (int)size_nvab, 
 																// 
 																(int)size_max_dim_s1_t2, (int)size_max_dim_s1_v2,
 																(int)size_max_dim_d1_t2, (int)size_max_dim_d1_v2,
 																(int)size_max_dim_d2_t2, (int)size_max_dim_d2_v2,
+																//
+																dev_list_s1_flags_offset, dev_list_d1_flags_offset, dev_list_d2_flags_offset, 
+																dev_list_s1_problem_size, dev_list_d1_problem_size, dev_list_d2_problem_size, 
 																// 
 																dev_d1_t2_all, dev_d1_v2_all, 
 																dev_d2_t2_all, dev_d2_v2_all, 
@@ -2651,14 +2527,11 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	double final_energy_2 = 0.0;
 	for (size_t i = 0; i < num_blocks_kernel_1; i++)
 	{
-		// 
 		final_energy_1 += host_energies[i];
 		final_energy_2 += host_energies[i + num_blocks_kernel_1];
 	}
 
 	// 
-	// final_energy_1 *= factor;
-	// final_energy_2 *= factor;
 	*final_energy_4 = final_energy_1 * factor;
 	*final_energy_5 = final_energy_2 * factor;
 
@@ -2683,6 +2556,9 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	freeGpuMem(dev_evl_sorted_h1b); freeGpuMem(dev_evl_sorted_h2b); freeGpuMem(dev_evl_sorted_h3b);
 	freeGpuMem(dev_evl_sorted_p4b); freeGpuMem(dev_evl_sorted_p5b); freeGpuMem(dev_evl_sorted_p6b);
 
+	freeGpuMem(dev_list_s1_flags_offset); freeGpuMem(dev_list_d1_flags_offset); freeGpuMem(dev_list_d2_flags_offset);
+	freeGpuMem(dev_list_s1_problem_size); freeGpuMem(dev_list_d1_problem_size); freeGpuMem(dev_list_d2_problem_size);
+
 	freeGpuMem(dev_energies);
-	free(host_energies);
+	freeHostMem(host_energies);
 }

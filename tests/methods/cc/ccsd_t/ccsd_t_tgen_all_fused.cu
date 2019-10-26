@@ -1,3 +1,7 @@
+/*
+	To-Do: 	#1. 2D Grid 
+			#2. Optimized Memory
+*/
 #include "header.hpp"
 #include <stdio.h>
 #include <stdlib.h>
@@ -2325,13 +2329,10 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 						size_t* list_d1_sizes, 
 						size_t* list_d2_sizes, 
 						size_t* list_s1_sizes, 
-						// int* list_d1_sizes, 
-						// int* list_d2_sizes, 
-						// int* list_s1_sizes, 
 						// 
-						std::vector<int> vec_d1_flags,
-						std::vector<int> vec_d2_flags,
-						std::vector<int> vec_s1_flags, std::vector<int> vec_s1_ai6, 
+						std::vector<size_t> vec_d1_flags,
+						std::vector<size_t> vec_d2_flags,
+						std::vector<size_t> vec_s1_flags, 
 						// 
 						size_t size_noab, size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2,
 						size_t size_nvab, size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2,
@@ -2380,17 +2381,16 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 	printf ("[Debug] required global memory (bytes): %llu (sizes of d2)\n", (NUM_IA6_LOOPS * NUM_D2_INDEX * size_nvab) * sizeof(int));
 #endif
 
-	cudaMemcpy(dev_list_s1_flags_offset, &vec_s1_flags[0], sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_EQUATIONS), 				cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_list_d1_flags_offset, &vec_d1_flags[0], sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_EQUATIONS * size_noab),	cudaMemcpyHostToDevice);
-	cudaMemcpy(dev_list_d2_flags_offset, &vec_d2_flags[0], sizeof(int) * (NUM_IA6_LOOPS * NUM_D2_EQUATIONS * size_nvab), 	cudaMemcpyHostToDevice);
-
 	// 
-	// cudaMemcpyToSymbol(const_list_s1_flags_offset, &vec_s1_flags[0], sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_EQUATIONS));
-	// cudaMemcpyToSymbol(const_list_d1_flags_offset, &vec_d1_flags[0], sizeof(int) * (NUM_IA6_LOOPS * MAX_NOAB * NUM_D1_EQUATIONS));
-	// cudaMemcpyToSymbol(const_list_d2_flags_offset, &vec_d2_flags[0], sizeof(int) * (NUM_IA6_LOOPS * MAX_NVAB * NUM_D2_EQUATIONS));
+	int tmp_vec_s1_flags[NUM_IA6_LOOPS * NUM_S1_EQUATIONS];
+	int tmp_vec_d1_flags[NUM_IA6_LOOPS * NUM_D1_EQUATIONS * size_noab];
+	int tmp_vec_d2_flags[NUM_IA6_LOOPS * NUM_D2_EQUATIONS * size_nvab];
 
-	// 
 	int tmp_list_s1_sizes[NUM_IA6_LOOPS * NUM_S1_INDEX];
+	int tmp_list_d1_sizes[NUM_IA6_LOOPS * NUM_D1_INDEX * size_noab];
+	int tmp_list_d2_sizes[NUM_IA6_LOOPS * NUM_D2_INDEX * size_nvab];
+
+	// 
 	for (int i = 0; i < NUM_IA6_LOOPS; i++)
 	{
 		tmp_list_s1_sizes[0 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[0 + (i) * NUM_S1_INDEX];
@@ -2399,9 +2399,19 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 		tmp_list_s1_sizes[3 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[3 + (i) * NUM_S1_INDEX];
 		tmp_list_s1_sizes[4 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[4 + (i) * NUM_S1_INDEX];
 		tmp_list_s1_sizes[5 + (i) * NUM_S1_INDEX] = (int)list_s1_sizes[5 + (i) * NUM_S1_INDEX];
+
+		tmp_vec_s1_flags[0 + (i) * NUM_S1_EQUATIONS] = (int)vec_s1_flags.at(0 + (i) * NUM_S1_EQUATIONS);
+		tmp_vec_s1_flags[1 + (i) * NUM_S1_EQUATIONS] = (int)vec_s1_flags.at(1 + (i) * NUM_S1_EQUATIONS);
+		tmp_vec_s1_flags[2 + (i) * NUM_S1_EQUATIONS] = (int)vec_s1_flags.at(2 + (i) * NUM_S1_EQUATIONS);
+		tmp_vec_s1_flags[3 + (i) * NUM_S1_EQUATIONS] = (int)vec_s1_flags.at(3 + (i) * NUM_S1_EQUATIONS);
+		tmp_vec_s1_flags[4 + (i) * NUM_S1_EQUATIONS] = (int)vec_s1_flags.at(4 + (i) * NUM_S1_EQUATIONS);
+		tmp_vec_s1_flags[5 + (i) * NUM_S1_EQUATIONS] = (int)vec_s1_flags.at(5 + (i) * NUM_S1_EQUATIONS);
+		tmp_vec_s1_flags[6 + (i) * NUM_S1_EQUATIONS] = (int)vec_s1_flags.at(6 + (i) * NUM_S1_EQUATIONS);
+		tmp_vec_s1_flags[7 + (i) * NUM_S1_EQUATIONS] = (int)vec_s1_flags.at(7 + (i) * NUM_S1_EQUATIONS);
+		tmp_vec_s1_flags[8 + (i) * NUM_S1_EQUATIONS] = (int)vec_s1_flags.at(8 + (i) * NUM_S1_EQUATIONS);
 	}
 
-	int tmp_list_d1_sizes[NUM_IA6_LOOPS * size_noab * NUM_D1_INDEX];
+	
 	for (int i = 0; i < NUM_IA6_LOOPS; i++)
 	{
 		for (int j = 0; j < size_noab; j++)
@@ -2413,10 +2423,20 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 			tmp_list_d1_sizes[4 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[4 + (j + (i) * size_noab) * NUM_D1_INDEX];
 			tmp_list_d1_sizes[5 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[5 + (j + (i) * size_noab) * NUM_D1_INDEX];
 			tmp_list_d1_sizes[6 + (j + (i) * size_noab) * NUM_D1_INDEX] = (int)list_d1_sizes[6 + (j + (i) * size_noab) * NUM_D1_INDEX];
+
+			tmp_vec_d1_flags[0 + (j + (i) * size_noab) * NUM_D1_EQUATIONS] = (int)vec_d1_flags.at(0 + (j + (i) * size_noab) * NUM_D1_EQUATIONS);
+			tmp_vec_d1_flags[1 + (j + (i) * size_noab) * NUM_D1_EQUATIONS] = (int)vec_d1_flags.at(1 + (j + (i) * size_noab) * NUM_D1_EQUATIONS);
+			tmp_vec_d1_flags[2 + (j + (i) * size_noab) * NUM_D1_EQUATIONS] = (int)vec_d1_flags.at(2 + (j + (i) * size_noab) * NUM_D1_EQUATIONS);
+			tmp_vec_d1_flags[3 + (j + (i) * size_noab) * NUM_D1_EQUATIONS] = (int)vec_d1_flags.at(3 + (j + (i) * size_noab) * NUM_D1_EQUATIONS);
+			tmp_vec_d1_flags[4 + (j + (i) * size_noab) * NUM_D1_EQUATIONS] = (int)vec_d1_flags.at(4 + (j + (i) * size_noab) * NUM_D1_EQUATIONS);
+			tmp_vec_d1_flags[5 + (j + (i) * size_noab) * NUM_D1_EQUATIONS] = (int)vec_d1_flags.at(5 + (j + (i) * size_noab) * NUM_D1_EQUATIONS);
+			tmp_vec_d1_flags[6 + (j + (i) * size_noab) * NUM_D1_EQUATIONS] = (int)vec_d1_flags.at(6 + (j + (i) * size_noab) * NUM_D1_EQUATIONS);
+			tmp_vec_d1_flags[7 + (j + (i) * size_noab) * NUM_D1_EQUATIONS] = (int)vec_d1_flags.at(7 + (j + (i) * size_noab) * NUM_D1_EQUATIONS);
+			tmp_vec_d1_flags[8 + (j + (i) * size_noab) * NUM_D1_EQUATIONS] = (int)vec_d1_flags.at(8 + (j + (i) * size_noab) * NUM_D1_EQUATIONS);
 		}
 	}
 
-	int tmp_list_d2_sizes[NUM_IA6_LOOPS * size_nvab * NUM_D2_INDEX];
+	
 	for (int i = 0; i < NUM_IA6_LOOPS; i++)
 	{
 		for (int j = 0; j < size_nvab; j++)
@@ -2428,23 +2448,28 @@ void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_
 			tmp_list_d2_sizes[4 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[4 + (j + (i) * size_nvab) * NUM_D2_INDEX];
 			tmp_list_d2_sizes[5 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[5 + (j + (i) * size_nvab) * NUM_D2_INDEX];
 			tmp_list_d2_sizes[6 + (j + (i) * size_nvab) * NUM_D2_INDEX] = (int)list_d2_sizes[6 + (j + (i) * size_nvab) * NUM_D2_INDEX];
+
+			tmp_vec_d2_flags[0 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS] = (int)vec_d2_flags.at(0 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS);
+			tmp_vec_d2_flags[1 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS] = (int)vec_d2_flags.at(1 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS);
+			tmp_vec_d2_flags[2 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS] = (int)vec_d2_flags.at(2 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS);
+			tmp_vec_d2_flags[3 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS] = (int)vec_d2_flags.at(3 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS);
+			tmp_vec_d2_flags[4 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS] = (int)vec_d2_flags.at(4 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS);
+			tmp_vec_d2_flags[5 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS] = (int)vec_d2_flags.at(5 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS);
+			tmp_vec_d2_flags[6 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS] = (int)vec_d2_flags.at(6 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS);
+			tmp_vec_d2_flags[7 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS] = (int)vec_d2_flags.at(7 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS);
+			tmp_vec_d2_flags[8 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS] = (int)vec_d2_flags.at(8 + (j + (i) * size_nvab) * NUM_D2_EQUATIONS);
 		}
 	}
+
+	// 
+	cudaMemcpy(dev_list_s1_flags_offset, tmp_vec_s1_flags, sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_EQUATIONS), 				cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_list_d1_flags_offset, tmp_vec_d1_flags, sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_EQUATIONS * size_noab),	cudaMemcpyHostToDevice);
+	cudaMemcpy(dev_list_d2_flags_offset, tmp_vec_d2_flags, sizeof(int) * (NUM_IA6_LOOPS * NUM_D2_EQUATIONS * size_nvab), 	cudaMemcpyHostToDevice);
 
 	//
 	cudaMemcpy(dev_list_s1_problem_size, tmp_list_s1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_INDEX), 				cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_list_d1_problem_size, tmp_list_d1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_INDEX * size_noab), 	cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_list_d2_problem_size, tmp_list_d2_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D2_INDEX * size_nvab), 	cudaMemcpyHostToDevice);
-
-	// cudaMemcpyToSymbol(const_list_s1_problem_size, tmp_list_s1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_S1_INDEX));
-	// cudaMemcpyToSymbol(const_list_d1_problem_size, tmp_list_d1_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D1_INDEX * size_noab));
-	// cudaMemcpyToSymbol(const_list_d2_problem_size, tmp_list_d2_sizes, sizeof(int) * (NUM_IA6_LOOPS * NUM_D2_INDEX * size_nvab));
-
-	
-	// printf ("[s1] t2_all[10]: %.14f, v2_all[11]: %.14f\n", host_s1_t2_all[10], host_s1_v2_all[11]);
-	// printf ("[d1] t2_all[11]: %.14f, v2_all[12]: %.14f\n", host_d1_t2_all[10], host_d1_v2_all[11]);
-	// printf ("[d2] t2_all[12]: %.14f, v2_all[13]: %.14f\n", host_d2_t2_all[10], host_d2_v2_all[11]);
-
 
 	// 
 	cudaMemcpy(dev_d1_t2_all, host_d1_t2_all, (size_d1_t2_all) * sizeof(double), cudaMemcpyHostToDevice);

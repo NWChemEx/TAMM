@@ -87,7 +87,7 @@ void ccsd_driver() {
 
     TiledIndexSpace N = MO("all");
 
-    #if 0
+    #if 1
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
                         (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
@@ -175,7 +175,7 @@ void ccsd_driver() {
 
     ec.flush_and_sync();
 
-    Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, total_orbitals, ov_alpha, nao - ov_alpha, hw);
+    Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, total_orbitals, ov_alpha, nao - ov_alpha, ExecutionHW::CPU);
     Tensor<T>::deallocate(cholVpr);
 
     #ifdef USE_TALSH_T
@@ -185,7 +185,7 @@ void ccsd_driver() {
 
     #endif
 
-    #if 1
+    #if 0
     TiledIndexSpace O = MO("occ");
     TiledIndexSpace V = MO("virt");
     double residual=0, corr_energy=0;
@@ -219,14 +219,12 @@ void ccsd_driver() {
 
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
     {
-        genTime = 0; memTime1 =0; memTime2 = 0;
+        genTime = 0; 
         TimerGuard tg_total{&genTime};    
         Tensor<T>::allocate(&ec,d_t1,d_t2,d_v2);
     }
     if(rank==0) {
         std::cout << "allocate T1,T2,V2: " << genTime << "secs" << std::endl; 
-        std::cout << "Mem1 Time: " << memTime1 << " secs\n";
-        std::cout << "Mem2 Time: " << memTime2 << " secs\n";
     }
 
     auto cc_t1 = std::chrono::high_resolution_clock::now();
@@ -246,7 +244,7 @@ void ccsd_driver() {
     cc_t1 = std::chrono::high_resolution_clock::now();
     double energy1=0, energy2=0;
 
-    #if 0
+    #if 1
     auto n_alpha = ov_alpha;
     TAMM_SIZE n_beta{nao - ov_alpha};
 

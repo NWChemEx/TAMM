@@ -51,7 +51,7 @@ void cd_svd_driver() {
     TAMM_SIZE freeze_core    = 0;
     TAMM_SIZE freeze_virtual = 0;
 
-    auto [options_map, ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis] 
+    auto [options_map, ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis,scf_conv] 
                     = hartree_fock_driver<T>(ec,filename);
 
     auto [MO,total_orbitals] = setupMOIS(options_map.ccsd_options.tilesize,nao,ov_alpha,freeze_core,freeze_virtual);

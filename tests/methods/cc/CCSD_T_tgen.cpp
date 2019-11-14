@@ -171,7 +171,7 @@ void ccsd_driver() {
 
     ec.flush_and_sync();
 
-    Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, total_orbitals, ov_alpha, nao - ov_alpha, hw);
+    Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, total_orbitals, ov_alpha, nao - ov_alpha, ExecutionHW::CPU);
     Tensor<T>::deallocate(cholVpr);
 
     #ifdef USE_TALSH_T

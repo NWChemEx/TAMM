@@ -6,6 +6,7 @@
 void ccsd_driver();
 std::string filename; //bad, but no choice
 double ccsd_t_GetTime = 0;
+double genTime = 0;
 
 int main( int argc, char* argv[] )
 {
@@ -51,7 +52,7 @@ void ccsd_driver() {
     TAMM_SIZE freeze_core    = 0;
     TAMM_SIZE freeze_virtual = 0;
 
-    auto [options_map, ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis] 
+    auto [options_map, ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis,scf_conv]  
                     = hartree_fock_driver<T>(ec,filename);
 
     CCSDOptions ccsd_options = options_map.ccsd_options;
@@ -66,20 +67,67 @@ void ccsd_driver() {
     const TAMM_SIZE nocc = 2 * ov_alpha;
     const TAMM_SIZE nvir = 2*nao - 2*ov_alpha;
     if(rank==0) cout << endl << "#occupied, #virtual = " << nocc << ", " << nvir << endl;
-
+    
     auto [MO,total_orbitals] = setupMOIS(ccsd_options.tilesize,
                     nao,ov_alpha,freeze_core,freeze_virtual);
 
+    std::string out_fp = getfilename(filename)+"."+ccsd_options.basis;
+    std::string files_dir = out_fp+"_files";
+    std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
+    std::string f1file = files_prefix+".f1_mo";
+    std::string t1file = files_prefix+".t1amp";
+    std::string t2file = files_prefix+".t2amp";
+    std::string v2file = files_prefix+".cholv2";
+    std::string cholfile = files_prefix+".cholcount";
+    std::string ccsdstatus = files_prefix+".ccsdstatus";
+    
+    bool ccsd_restart = ccsd_options.readt || 
+        ( (fs::exists(t1file) && fs::exists(t2file)     
+        && fs::exists(f1file) && fs::exists(v2file)) );
+
     TiledIndexSpace N = MO("all");
 
-    #if 1
+    #if 0
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
                         (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
-                                freeze_virtual, C_AO, F_AO, shells, shell_tile_map);
+                                freeze_virtual, C_AO, F_AO, shells, shell_tile_map,
+                                ccsd_restart, cholfile);    
 
     auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
-            = setupTensors(ec,MO,d_f1,ndiis);
+            = setupTensors(ec,MO,d_f1,ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
+
+    if(ccsd_restart) {
+        read_from_disk(d_f1,f1file);
+        read_from_disk(d_t1,t1file);
+        read_from_disk(d_t2,t2file);
+        read_from_disk(cholVpr,v2file);
+        ec.pg().barrier();
+        p_evl_sorted = tamm::diagonal(d_f1);
+    }
+    
+    else if(ccsd_options.writet) {
+        // fs::remove_all(files_dir); 
+        if(!fs::exists(files_dir)) fs::create_directories(files_dir);
+
+        write_to_disk(d_f1,f1file);
+        write_to_disk(cholVpr,v2file);
+
+        if(rank==0){
+          std::ofstream out(cholfile, std::ios::out);
+          if(!out) cerr << "Error opening file " << cholfile << endl;
+          out << chol_count << std::endl;
+          out.close();
+        }        
+    }
+
+    if(rank==0 && debug){
+      cout << "eigen values:" << endl << std::string(50,'-') << endl;
+      for (auto x: p_evl_sorted) cout << x << endl;
+      cout << std::string(50,'-') << endl;
+    }
+    
+    ec.pg().barrier();
 
     ExecutionHW hw = ExecutionHW::CPU;
     const bool has_gpu = ec.has_gpu();
@@ -92,22 +140,38 @@ void ccsd_driver() {
 
     auto cc_t1 = std::chrono::high_resolution_clock::now();
 
+    ccsd_restart = ccsd_restart && fs::exists(ccsdstatus) && scf_conv;
+
     auto [residual, corr_energy] = cd_ccsd_driver<T>(
             ec, MO, CI, d_t1, d_t2, d_f1, 
             d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
             p_evl_sorted, 
             maxiter, thresh, zshiftl, ndiis, 
-            2 * ov_alpha, cholVpr);
+            2 * ov_alpha, cholVpr, ccsd_options.writet, ccsd_restart, files_prefix);
 
     ccsd_stats(ec, hf_energy,residual,corr_energy,thresh);
 
     auto cc_t2 = std::chrono::high_resolution_clock::now();
+
+    if(ccsd_options.writet && !fs::exists(ccsdstatus)) {
+        write_to_disk(d_t1,t1file);
+        write_to_disk(d_t2,t2file);
+        if(rank==0){
+          std::ofstream out(ccsdstatus, std::ios::out);
+          if(!out) cerr << "Error opening file " << ccsdstatus << endl;
+          out << 1 << std::endl;
+          out.close();
+        }                
+    }
+
     double ccsd_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
     if(rank == 0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
 
-    free_tensors(d_r1, d_r2, d_f1);
-    free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);
+    if(!ccsd_restart) {
+        free_tensors(d_r1,d_r2);
+        free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);
+    }
 
     ec.flush_and_sync();
 
@@ -121,39 +185,68 @@ void ccsd_driver() {
 
     #endif
 
-    #if 0
-    auto cc_t1 = std::chrono::high_resolution_clock::now();
+    #if 1
     TiledIndexSpace O = MO("occ");
     TiledIndexSpace V = MO("virt");
     double residual=0, corr_energy=0;
 
-
     Tensor<T> d_f1{{N,N},{1,1}};
-    Tensor<T>::allocate(&ec,d_f1);
     Tensor<T> d_t1{{V,O},{1,1}};
     Tensor<T> d_t2{{V,V,O,O},{2,2}};
 
-    Tensor<T>::allocate(&ec,d_t1,d_t2);
+    {
+        genTime = 0;
+        TimerGuard tg_total{&genTime};
+        Tensor<T>::allocate(&ec,d_f1);
+        Scheduler{ec}(d_f1()=4.20).execute();
+    }
+    if(rank==0) std::cout << "done alloc/init F1: " << genTime << "secs" << std::endl; 
 
-    Scheduler{ec}(d_f1()=4.20).execute();
-    std::vector<T> p_evl_sorted = tamm::diagonal(d_f1);
+    std::vector<T> p_evl_sorted;
+    {
+        genTime = 0;
+        TimerGuard tg_total{&genTime};
+        p_evl_sorted = tamm::diagonal(d_f1);
+    }
+    if(rank==0) std::cout << "diagonal(f1): " << genTime << "secs" << std::endl; 
 
-    Tensor<T>::deallocate(d_f1,C_AO,F_AO);
+    {
+        genTime = 0;
+        TimerGuard tg_total{&genTime};
+        Tensor<T>::deallocate(d_f1,C_AO,F_AO);
+    }
+    if(rank==0) std::cout << "deallocate(d_f1,C_AO,F_AO): " << genTime << "secs" << std::endl; 
 
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
-    Tensor<T>::allocate(&ec,d_v2);
+    {
+        genTime = 0; memTime1 =0; memTime2 = 0;
+        TimerGuard tg_total{&genTime};    
+        Tensor<T>::allocate(&ec,d_t1,d_t2,d_v2);
+    }
+    if(rank==0) {
+        std::cout << "allocate T1,T2,V2: " << genTime << "secs" << std::endl; 
+        std::cout << "Mem1 Time: " << memTime1 << " secs\n";
+        std::cout << "Mem2 Time: " << memTime2 << " secs\n";
+    }
 
-    Scheduler{ec}
-    (d_t1() = 5.21)
-    (d_v2() = 2.3)
-    (d_t2() = 8.234)
-    .execute();
+    auto cc_t1 = std::chrono::high_resolution_clock::now();
+
+    // Scheduler{ec}
+    // (d_t1() = 5.21)
+    // (d_v2() = 2.3)
+    // (d_t2() = 8.234)
+    // .execute();
     auto cc_t2= std::chrono::high_resolution_clock::now();
-    if(rank==0) std::cout << "done allocating V2" << std::endl;
+    double alloc_time = 
+        std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();    
+    if(rank==0) std::cout << "initialize T1,T2,V2: " << alloc_time << "secs" << std::endl; 
+
     #endif
 
     cc_t1 = std::chrono::high_resolution_clock::now();
+    double energy1=0, energy2=0;
 
+    #if 0
     auto n_alpha = ov_alpha;
     TAMM_SIZE n_beta{nao - ov_alpha};
 
@@ -167,7 +260,7 @@ void ccsd_driver() {
 
     if(rank==0) cout << "\nCCSD(T)\n";
 
-    auto [energy1,energy2] = ccsd_t_tgen_driver<T>(ec,k_spin,n_alpha,n_beta,MO,d_t1,d_t2,d_v2,
+    std::tie(energy1,energy2) = ccsd_t_tgen_driver<T>(ec,k_spin,n_alpha,n_beta,MO,d_t1,d_t2,d_v2,
                 p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda);
 
     if (rank==0 && energy1!=-999){
@@ -183,7 +276,9 @@ void ccsd_driver() {
     
     }
 
-    free_tensors(d_t1, d_t2, d_v2);
+    #endif
+
+    free_tensors(d_t1, d_t2, d_f1, d_v2);
 
     ec.flush_and_sync();
     MemoryManagerGA::destroy_coll(mgr);

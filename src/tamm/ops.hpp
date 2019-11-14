@@ -19,7 +19,7 @@
 #include "tamm/kernels/assign.hpp"
 #include "tamm/kernels/multiply.hpp"
 
-#define DO_NB 1
+#define DO_NB 0
 
 namespace tamm {
 

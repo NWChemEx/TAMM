@@ -84,6 +84,8 @@ class SCFOptions: public Options {
       scalapack_np_row = 0;
       scalapack_np_col = 0;
       force_tilesize = false;
+      riscf = 0; //0 for JK, 1 for J, 2 for K
+      riscf_str = "JK";
     }
 
   double tol_int; //tolerance for integral engine
@@ -97,6 +99,8 @@ class SCFOptions: public Options {
   int scalapack_nb;
   int scalapack_np_row;
   int scalapack_np_col;
+  int riscf;
+  std::string riscf_str;
 
     void print() {
       std::cout << std::defaultfloat;
@@ -107,7 +111,8 @@ class SCFOptions: public Options {
       cout << " conve = " << conve << endl;
       cout << " convd = " << convd << endl;
       cout << " diis_hist = " << diis_hist << endl;
-      cout << " AO_tilesize = " << AO_tilesize << endl;     
+      cout << " AO_tilesize = " << AO_tilesize << endl;  
+      cout << " riscf = " << riscf_str << endl;     
       if(scalapack_nb>1) cout << " scalapack_nb = " << scalapack_nb << endl;
       if(scalapack_np_row>0) cout << " scalapack_np_row = " << scalapack_np_row << endl;
       if(scalapack_np_col>0) cout << " scalapack_np_col = " << scalapack_np_col << endl;
@@ -126,7 +131,7 @@ class CDOptions: public Options {
       diagtol = 1e-6;
       // At most 8*ao CholVec's. For vast majority cases, this is way
       // more than enough. For very large basis, it can be increased.
-      max_cvecs_factor = 8; 
+      max_cvecs_factor = 12; 
     }
 
   double diagtol;
@@ -277,7 +282,7 @@ class OptionsMap
 
 
 void nwx_terminate(std::string msg){
-    if(GA_Nodeid()==0) std::cerr << msg << " ... terminating program.\n\n";
+    if(GA_Nodeid()==0) std::cout << msg << " ... terminating program.\n\n";
     GA_Terminate();
     MPI_Finalize();
     exit(0);
@@ -354,6 +359,7 @@ void skip_empty_lines(std::istream& is) {
         trackpos = is.tellg();
       }
     }
+    is.clear();//cannot seek to curpos if eof is reached
     is.seekg(curpos,std::ios_base::beg);
     // std::getline(is, line);
 }
@@ -514,7 +520,12 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("force_tilesize",line)) 
             scf_options.force_tilesize = to_bool(read_option(line));  
           else if(is_in_line("tilesize",line)) 
-            scf_options.AO_tilesize = std::stod(read_option(line));  
+            scf_options.AO_tilesize = std::stod(read_option(line)); 
+          else if(is_in_line("riscf",line)) {
+            std::string riscf_str = read_option(line);
+            if(riscf_str == "J") scf_options.riscf = 1;
+            else if(riscf_str == "K") scf_options.riscf = 2;
+          }
           else if(is_in_line("restart",line))
             scf_options.restart = to_bool(read_option(line));        
           else if(is_in_line("debug",line))

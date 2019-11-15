@@ -15,14 +15,6 @@ using TAMM_GA_SIZE = int64_t;
 
 bool cd_debug = false;
 
-// From integer type to integer type
-template <typename from>
-constexpr typename std::enable_if<std::is_integral<from>::value && std::is_integral<int64_t>::value, int64_t>::type
-cd_ncast(const from& value)
-{
-    return static_cast<int64_t>(value & (static_cast<typename std::make_unsigned<from>::type>(-1)));
-}
-
 #if 0
   std::tuple<Index, Index, size_t,size_t> get_shell_ids
     (const std::vector<size_t> &shell_tile_map, const IndexVector& AO_tiles,

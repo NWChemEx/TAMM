@@ -1569,7 +1569,7 @@ public:
                 #endif
                 bool isgpu = false;
 
-                { 
+                {
                     #ifdef USE_TALSH
                     AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b, 
                         ctensor, std::move(cbuf),translated_cblockid};
@@ -1590,7 +1590,14 @@ public:
                                         rhs1_int_labels_, bbuf.data(), bdims_sz,
                                         rhs2_int_labels_, cscale, (ab->cbuf_).data(),
                                         cdims_sz, lhs_int_labels_, hw, ec.has_gpu());
+
+                    #ifndef DO_NB
+                    // add the computed update to the tensor
+                    ctensor.add(translated_cblockid, ab->cbuf_);
+                    add_bufs.clear();                   
+                    #endif
                 }
+
                 // add the computed update to the tensor
                 // { 
                 //     TimerGuard tg_add{&multOpAddTime};
@@ -1631,6 +1638,8 @@ public:
             //@todo use a scheduler
             //@todo make parallel
             do_work(ec, loop_nest, lambda);
+
+            #ifdef DO_NB
                 { 
                     TimerGuard tg_add{&multOpAddTime};
                     for(auto& ab: add_bufs) {
@@ -1659,6 +1668,7 @@ public:
                     }
                     add_bufs.clear();
                 }
+            #endif
 
 #endif
 

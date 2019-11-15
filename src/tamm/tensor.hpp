@@ -28,8 +28,27 @@ public:
      *
      * @param [in] tis_vec a vector of TiledIndexSpace objects for each mode
      */
-    Tensor(std::vector<TiledIndexSpace> tis_vec) :
-      impl_{std::make_shared<TensorImpl<T>>(tis_vec)} {}
+    Tensor(std::vector<TiledIndexSpace> tis_vec) {
+      // bool is_sparse = false;
+
+      // for(const auto& tis : tis_vec) {
+      //   is_sparse = tis.is_dependent();
+      //   if(is_sparse)
+      //     break;
+      // }
+
+      // if(!is_sparse && tis_vec.size() == 2) {
+      //   impl_ = std::make_shared<DenseTensorImpl<T>>(tis_vec,ProcGrid{});
+      // }
+      // else {
+         impl_ = std::make_shared<TensorImpl<T>>(tis_vec);
+      //}
+    }
+    
+    Tensor(ProcGrid pg, std::vector<TiledIndexSpace> tis_vec) {
+      EXPECTS(tis_vec.size() == 2); 
+      impl_ = std::make_shared<DenseTensorImpl<T>>(tis_vec, pg, true);
+    }
 
     /**
      * @brief Construct a new Tensor object from a vector of TiledIndexLabel
@@ -38,8 +57,28 @@ public:
      * @param [in] til_vec a vector of TiledIndexLabel objects which will be
      * used to extract TiledIndexSpace for Tensor construction
      */
-    Tensor(std::vector<TiledIndexLabel> til_vec) :
-      impl_{std::make_shared<TensorImpl<T>>(til_vec)} {}
+
+    Tensor(std::vector<TiledIndexLabel> til_vec) {
+      // bool is_sparse = false;
+      // for(const auto& til : til_vec) {
+      //   is_sparse = til.is_dependent();
+      //   if(is_sparse)
+      //     break;
+      // }
+
+      // if(!is_sparse && til_vec.size() == 2) {
+      //   impl_ = std::make_shared<DenseTensorImpl<T>>(til_vec,ProcGrid{});
+      // }
+      // else {
+         impl_ = std::make_shared<TensorImpl<T>>(til_vec);
+      //}
+    }
+
+    Tensor(ProcGrid pg, std::vector<TiledIndexLabel> til_vec) {
+      EXPECTS(til_vec.size() == 2); 
+      impl_ = std::make_shared<DenseTensorImpl<T>>(til_vec, pg, true);
+    }
+
 
     // SpinTensor Constructors
     /**
@@ -144,8 +183,27 @@ public:
      *
      * @param [in] tis set of TiledIndexSpace objects for each mode
      */
-    Tensor(std::initializer_list<TiledIndexSpace> tis) :
-      impl_{std::make_shared<TensorImpl<T>>(tis)} {}
+    Tensor(std::initializer_list<TiledIndexSpace> tis) {
+      // bool is_sparse = false;
+
+      // for(const auto& t : tis) {
+      //   is_sparse = t.is_dependent();
+      //   if(is_sparse)
+      //     break;
+      // }
+
+      // if(!is_sparse && tis.size() == 2) {
+      //   impl_ = std::make_shared<DenseTensorImpl<T>>(tis,ProcGrid{});
+      // }
+      // else {
+         impl_ = std::make_shared<TensorImpl<T>>(tis);
+     //}
+    }
+    
+    Tensor(ProcGrid pg, std::initializer_list<TiledIndexSpace> tis) {
+      EXPECTS(tis.size() == 2); 
+      impl_ = std::make_shared<DenseTensorImpl<T>>(tis, pg, true);
+    }
 
     /**
      * @brief Construct a new Tensor object from a set of TiledIndexLabel
@@ -154,8 +212,27 @@ public:
      *
      * @param [in] tis set of TiledIndexLabel objects for each mode
      */
-    Tensor(const std::initializer_list<TiledIndexLabel>& lbls) :
-      impl_{std::make_shared<TensorImpl<T>>(lbls)} {}
+    Tensor(const std::initializer_list<TiledIndexLabel>& lbls) {
+      // bool is_sparse = false;
+
+      // for(const auto& tlbl : lbls) {
+      //   is_sparse = tlbl.is_dependent();
+      //   if(is_sparse)
+      //     break;
+      // }
+
+      // if(!is_sparse && lbls.size() == 2) {
+      //   impl_ = std::make_shared<DenseTensorImpl<T>>(lbls, ProcGrid{});
+      // }
+      // else {
+         impl_ = std::make_shared<TensorImpl<T>>(lbls);
+      //}
+    }
+
+    Tensor(ProcGrid pg, const std::initializer_list<TiledIndexLabel>& lbls) {
+      EXPECTS(lbls.size() == 2); 
+      impl_ = std::make_shared<DenseTensorImpl<T>>(lbls, pg, true);
+    }
 
     /**
      * @brief Constructs a new Tensor object recursively with a set of

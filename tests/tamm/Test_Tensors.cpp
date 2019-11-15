@@ -451,6 +451,57 @@ TEST_CASE("Spin Tensor Construction") {
         failed = true;
     }
     REQUIRE(!failed);
+
+    //ScaLAPACK test
+    failed = false;
+    try {
+        std::cout << "------BEGIN block cyclic dist test------\n";
+        IndexSpace MO_IS{range(0, 7)};
+        TiledIndexSpace MO{MO_IS, {1, 1, 5}};
+        TiledIndexSpace NO{MO_IS, 2};
+        // IndexSpace MO_IS2{range(0, 7)};
+        // TiledIndexSpace MO2{MO_IS2, {1, 1, 3, 1, 1}};
+
+        Tensor<T> pT{MO, MO};
+        Tensor<T> pV{NO, NO};
+
+        Tensor<T> sca{{1,1}, {NO,NO}};
+
+        pT.allocate(ec);
+        pV.allocate(ec);
+        sca.allocate(ec);
+
+        auto tis_list = pT.tiled_index_spaces();
+        Tensor<T> H{tis_list};
+        H.allocate(ec);
+
+        auto h_tis = H.tiled_index_spaces();
+        GA_Print_distribution(pT.ga_handle());
+        // GA_Print(pT.ga_handle());
+
+        Scheduler{*ec}
+         (pT("mu", "nu") = 2.2)
+         (H("mu", "nu") = pT("mu", "ku") * pT("ku", "nu"))
+         (sca() = 2.2)
+          .execute();
+
+        // auto x = tamm::norm(H);
+        GA_Print(H.ga_handle());
+        auto sca1 = to_block_cyclic_tensor({1,1},H);
+        GA_Print(sca1.ga_handle());
+        from_block_cyclic_tensor(sca1,pT);
+        GA_Print(pT.ga_handle());
+
+        Tensor<T>::deallocate(H,pT,sca,sca1);
+
+        std::cout << "------END block cyclic dist test------\n";
+
+    } catch(const std::string& e) {
+        std::cerr << e << std::endl;
+        failed = true;
+    }
+    REQUIRE(!failed);
+    
 }
 
 TEST_CASE("Hash Based Equality and Compatibility Check") {

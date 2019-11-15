@@ -37,6 +37,9 @@ auto-detect (only for x86_64 systems) the architecture.
 
 #CUDA Options 
 -DUSE_CUDA=ON (OFF by Default)  
+
+ #CUDA maxregcount
+ -DCUDA_MAXREGCOUNT=128 (set to 64 by Default)
  
  #Optionally build with cuTensor support when USE_CUDA=ON  
 -DUSE_CUTENSOR=ON -DCUTENSOR_INSTALL_PREFIX=/path/to/cutensor_install_prefix  
@@ -46,9 +49,13 @@ auto-detect (only for x86_64 systems) the architecture.
 
 #CMake options for developers (optional)
 -DUSE_GA_DEV=ON #Build GA's latest development code.
+-DUSE_GA_DEV_AR=ON #Same as above, downloads tarball of the latest development code instead of cloning the repo.
 
 #OpenMP
--DUSE_OPENMP=OFF (ON by default and also when USE_CUDA=ON)
+-DUSE_OPENMP=OFF (ON by default, also required to be ON when USE_CUDA=ON)
+
+#ScaLAPACK
+-DUSE_SCALAPACK=ON (OFF by default)
 
 make -j3
 make install
@@ -87,7 +94,7 @@ CC=gcc CXX=g++ FC=gfortran cmake \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
 -DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
 -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
--DSCALAPACK_LIBRARIES=$TAMM_BLASLIBS -DUSE_SCALAPACK=ON ..
+-DScaLAPACK_LIBRARIES=$TAMM_BLASLIBS -DUSE_SCALAPACK=ON ..
 ```
 
 
@@ -129,14 +136,48 @@ To enable CUDA build, add -DUSE_CUDA=ON
 ```
 
 ```
-For Scalapack build, the following need to be changed above:
+ScaLAPACK build:
 
-module load netlib-scalapack
+module load netlib-scalapack/2.0.2
 
-export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp.so;/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-8.1.1/netlib-scalapack-2.0.2-re7if5fomjhxgqa5morvan7mptnkihdx/lib/libscalapack.so"
+export TAMM_INSTALL_PATH=$HOME/NWChemEx/install
+export ESSL_INC=/sw/summit/essl/6.1.0-2/essl/6.1/include
+export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp.so"
+export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-8.1.1/netlib-lapack-3.8.0-moo2tlhxtaae4ij2vkhrkzcgu2pb3bmy/lib64"
 
-Add -DUSE_SCALAPACK=ON to the cmake line.
 
+CC=gcc CXX=g++ FC=gfortran cmake \
+-DCBLAS_INCLUDE_DIRS=$ESSL_INC \
+-DLAPACKE_INCLUDE_DIRS=$ESSL_INC \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
+-DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
+-DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
+-DTAMM_EXTRA_LIBS="$NETLIB_BLAS_LIBS/liblapack.a" \
+-DTAMM_CXX_FLAGS="-mcpu=power9" -DUSE_SCALAPACK=ON \
+[-DUSE_BLIS=ON -DBLIS_CONFIG=power9 ] ..
+
+```
+
+Build instructions for Theta
+----------------------------
+```
+module unload darshan xalt perftools-base
+module swap PrgEnv-intel PrgEnv-gnu
+module unload darshan xalt perftools-base
+module load cmake/3.14.5
+```
+
+```
+export CRAYPE_LINK_TYPE=dynamic
+export TAMM_INSTALL_PATH=$HOME/NWChemEx/install
+export INTEL_ROOT=/theta-archive/intel/compilers_and_libraries_2019.5.281
+export MKL_INC=$INTEL_ROOT/linux/mkl/include
+export MKL_LIBS=$INTEL_ROOT/linux/mkl/lib/intel64
+export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_intel_thread.a;$MKL_LIBS/libmkl_core.a;$INTEL_ROOT/linux/compiler/lib/intel64/libiomp5.a;-lpthread;-ldl"
+
+CC=cc CXX=CC FC=ftn cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC -DLAPACKE_INCLUDE_DIRS=$MKL_INC -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH -DCBLAS_LIBRARIES=$TAMM_BLASLIBS -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
+
+To enable CUDA build, add -DUSE_CUDA=ON
 
 ```
 

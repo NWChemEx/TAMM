@@ -99,7 +99,7 @@ For allocating and deallocating a `Tensor` object is explicitly done using an `E
 ```c++
 // Constructing process group, memory manager, distribution to construct 
 // an execution context for allocation
-ProcGroup pg{GA_MPI_Comm()};
+ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
 auto manager = MemoryManagerGA::create_coll(pg);
 Distribution_NW distribution{};
 ExecutionContext ec{pg, &distribution, manager};

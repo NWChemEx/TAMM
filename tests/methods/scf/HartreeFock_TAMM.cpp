@@ -13,7 +13,7 @@ TEST_CASE("HartreeFock testcase") {
     // Matrix C;
     // Matrix F;
 
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;

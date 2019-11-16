@@ -282,7 +282,7 @@ tamm::Tensor<T> retile_rank2_tensor(tamm::Tensor<T>& tensor, const tamm::TiledIn
    //auto* ec_tmp = tensor.execution_context(); //TODO: figure out why this seg faults
 
 
-   tamm::ProcGroup pg{GA_MPI_Comm()};
+   tamm::ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
    auto mgr = tamm::MemoryManagerGA::create_coll(pg);
    tamm::Distribution_NW distribution;
    tamm::ExecutionContext ec{pg,&distribution,mgr};

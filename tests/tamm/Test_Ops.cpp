@@ -77,7 +77,7 @@ void test_ops(const TiledIndexSpace& MO) {
     Tensor<T> d_t1{V, O};
     Tensor<T> d_t2{V, V, O, O};
 
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -154,7 +154,7 @@ int main(int argc, char* argv[]) {
 // }
 
 TEST_CASE("Tensor Allocation and Deallocation") {
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -173,7 +173,7 @@ TEST_CASE("Tensor Allocation and Deallocation") {
 
 #if 1
 TEST_CASE("Zero-dimensional ops") {
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -294,7 +294,7 @@ TEST_CASE("Zero-dimensional ops") {
 #endif
 
 TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -552,7 +552,7 @@ void test_setop_with_T(unsigned tilesize) {
     // 0-4 dimensional setops
     // 0-4 dimensional setops
 
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -653,7 +653,7 @@ void test_mapop_with_T(unsigned tilesize) {
     // 0-4 dimensional setops
     // 0-4 dimensional setops
 
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -753,7 +753,7 @@ template<typename T>
 void test_addop_with_T(unsigned tilesize) {
     // 0-4 dimensional addops
     bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -1339,7 +1339,7 @@ TEST_CASE("addop with double complex") {
 #if 1
 TEST_CASE("Two-dimensional ops") {
     bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -1423,7 +1423,7 @@ TEST_CASE("Two-dimensional ops") {
 
 TEST_CASE("Two-dimensional ops with flush and sync") {
     bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -1507,7 +1507,7 @@ TEST_CASE("Two-dimensional ops with flush and sync") {
 
 TEST_CASE("One-dimensional ops") {
     bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -1594,7 +1594,7 @@ TEST_CASE("One-dimensional ops") {
 
 TEST_CASE("Three-dimensional mult ops part I") {
     bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -1685,7 +1685,7 @@ TEST_CASE("Three-dimensional mult ops part I") {
 
 TEST_CASE("Four-dimensional mult ops part I") {
     bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -1776,7 +1776,7 @@ TEST_CASE("Four-dimensional mult ops part I") {
 #if 1
 TEST_CASE("Two-dimensional ops part I") {
     bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -2054,7 +2054,7 @@ TEST_CASE("Two-dimensional ops part I") {
 
 TEST_CASE("MultOp with RHS reduction") {
     bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;

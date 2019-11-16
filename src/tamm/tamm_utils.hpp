@@ -181,7 +181,7 @@ void update_tensor_general(LabeledTensor<T> labeled_tensor, Func lambda) {
  * when Execution context is destructed
  */
 inline ExecutionContext make_execution_context() {
-    ProcGroup* pg = new ProcGroup {GA_MPI_Comm()};
+    ProcGroup* pg = new ProcGroup {ProcGroup::create_coll(GA_MPI_Comm())};
     auto* pMM             = MemoryManagerGA::create_coll(*pg);
     Distribution_NW* dist = new Distribution_NW();
     RuntimeEngine* re = new RuntimeEngine{};

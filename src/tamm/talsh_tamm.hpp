@@ -136,17 +136,6 @@ class TALSH {
     return ret + ")";
   }
 
- void wait_and_destruct(talsh_task_t* task_p) {
-    int done = NOPE;
-    int sts, errc = TALSH_SUCCESS;
-    while(done != YEP && errc == TALSH_SUCCESS) {
-      done=talshTaskComplete(task_p, &sts, &errc);
-    }
-    assert(errc == TALSH_SUCCESS);
-    errc = talshTaskDestruct(task_p);
-    assert(errc == TALSH_SUCCESS);
-  }
-
  public:
   int ngpu_;
   size_t small_buffer_size;
@@ -184,6 +173,17 @@ class TALSH {
     talshShutdown();
   }
 
+ void wait_and_destruct(talsh_task_t* task_p) {
+    int done = NOPE;
+    int sts, errc = TALSH_SUCCESS;
+    while(done != YEP && errc == TALSH_SUCCESS) {
+      done=talshTaskComplete(task_p, &sts, &errc);
+    }
+    assert(errc == TALSH_SUCCESS);
+    errc = talshTaskDestruct(task_p);
+    assert(errc == TALSH_SUCCESS);
+  }
+  
   template<typename T>
  tensor_handle host_block(int rank,
                           const int dims[],

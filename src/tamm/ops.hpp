@@ -19,7 +19,7 @@
 #include "tamm/kernels/assign.hpp"
 #include "tamm/kernels/multiply.hpp"
 
-#define DO_NB 0
+//#define DO_NB
 
 namespace tamm {
 
@@ -1525,7 +1525,7 @@ public:
                 std::vector<TensorElType2> abuf(asize);
                 std::vector<TensorElType3> bbuf(bsize);
                 // get inputs
-#if DO_NB
+#ifdef DO_NB
                 DataCommunicationHandle a_nbhandle,b_nbhandle,c_nbhandle;
 
             {
@@ -1592,10 +1592,18 @@ public:
                                         cdims_sz, lhs_int_labels_, hw, ec.has_gpu());
 
                     #ifndef DO_NB
+                        #ifdef USE_TALSH
+                         gpu_mult->wait_and_destruct(ab->tt_);
+                         talshTensorDestruct(ab->ta_);
+                         talshTensorDestruct(ab->tb_);
+                         talshTensorDestruct(ab->tc_);  
+                         delete gpu_mult;                         
+                        #endif
                     // add the computed update to the tensor
                     ctensor.add(translated_cblockid, ab->cbuf_);
-                    add_bufs.clear();                   
-                    #endif
+                    delete ab;
+                    add_bufs.clear();                                       
+                    #endif                    
                 }
 
                 // add the computed update to the tensor

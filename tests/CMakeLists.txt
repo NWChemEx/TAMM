@@ -5,5 +5,5 @@ include(TargetMacros)
 
 include_directories(${CMAKE_SOURCE_DIR}/methods)
 include(${CMAKE_CURRENT_LIST_DIR}/tamm/test_tamm.cmake)
-include(${CMAKE_CURRENT_LIST_DIR}/methods/scf/test_scf.cmake)
-include(${CMAKE_CURRENT_LIST_DIR}/methods/cc/test_cc.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/methods/scf/scf.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/methods/cc/cc.cmake)

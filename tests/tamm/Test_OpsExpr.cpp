@@ -210,7 +210,7 @@ TEST_CASE("SCF Commutator declarations") {
         using space_type  = tamm::TiledIndexSpace;
         using index_type  = tamm::TiledIndexLabel;
 
-        ProcGroup pg{GA_MPI_Comm()};
+        ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
         auto mgr = MemoryManagerGA::create_coll(pg);
         Distribution_NW distribution;
         RuntimeEngine re;
@@ -271,7 +271,7 @@ TEST_CASE("SCF JK declarations") {
     try {
         using tensor_type = tamm::Tensor<double>;
 
-        ProcGroup pg{GA_MPI_Comm()};
+        ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
         auto mgr = MemoryManagerGA::create_coll(pg);
         Distribution_NW distribution;
         RuntimeEngine re;
@@ -329,7 +329,7 @@ TEST_CASE("CCSD T2") {
     try {
         using T = double;
 
-        ProcGroup pg{GA_MPI_Comm()};
+        ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
         auto mgr = MemoryManagerGA::create_coll(pg);
         Distribution_NW distribution;
         RuntimeEngine re;
@@ -465,7 +465,7 @@ TEST_CASE("Tensor operations on named subspaces") {
 
     std::cerr << "Allocate and deallocate tensors" << std::endl;
 
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;

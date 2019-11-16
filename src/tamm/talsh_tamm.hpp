@@ -136,17 +136,6 @@ class TALSH {
     return ret + ")";
   }
 
- void wait_and_destruct(talsh_task_t* task_p) {
-    int done = NOPE;
-    int sts, errc = TALSH_SUCCESS;
-    while(done != YEP && errc == TALSH_SUCCESS) {
-      done=talshTaskComplete(task_p, &sts, &errc);
-    }
-    assert(errc == TALSH_SUCCESS);
-    errc = talshTaskDestruct(task_p);
-    assert(errc == TALSH_SUCCESS);
-  }
-
  public:
   int ngpu_;
   size_t small_buffer_size;
@@ -162,7 +151,7 @@ class TALSH {
     // talshShutdown();
   }
 
-  void initialize(int rank) {
+  void initialize(int dev_id, int rank=-1) {
     int errc;
     int host_arg_max;
     // small_buffer_size=TALSH_NO_HOST_BUFFER;
@@ -170,8 +159,8 @@ class TALSH {
     errc=talshDeviceCount(DEV_NVIDIA_GPU,&ngpu_);
     assert(!errc);
     if(rank==0) std::cout << "Number of NVIDIA GPUs found per node: " <<  ngpu_ << std::endl;
-    int dev_id = rank % ngpu_;
-    if(ngpu_==1) dev_id=0;
+    // int dev_id = rank % ngpu_;
+    // if(ngpu_==1) dev_id=0;
     //Initialize TAL-SH (with a negligible Host buffer since we will use external memory):
     errc=talshInit(&small_buffer_size,&host_arg_max,1,&dev_id,0,nullptr,0,nullptr);
     // int gpu_list[ngpu_];
@@ -184,6 +173,17 @@ class TALSH {
     talshShutdown();
   }
 
+ void wait_and_destruct(talsh_task_t* task_p) {
+    int done = NOPE;
+    int sts, errc = TALSH_SUCCESS;
+    while(done != YEP && errc == TALSH_SUCCESS) {
+      done=talshTaskComplete(task_p, &sts, &errc);
+    }
+    assert(errc == TALSH_SUCCESS);
+    errc = talshTaskDestruct(task_p);
+    assert(errc == TALSH_SUCCESS);
+  }
+  
   template<typename T>
  tensor_handle host_block(int rank,
                           const int dims[],
@@ -558,14 +558,14 @@ class TALSH {
  *  COPY_MTT, COPY_TTT etc. 
  */ 
   template <typename T>
- void mult_block(int rank, tensor_handle ltens,
-                 tensor_handle r1tens,
-                 tensor_handle r2tens,
+ void mult_block(talsh_task_t &talsh_task, int dev_id, tensor_handle& ltens,
+                 tensor_handle& r1tens,
+                 tensor_handle& r2tens,
                  std::string cop_string,
                  T scale,
                  int move_arg) {
-    int dev_id = rank % ngpu_;
-    if (ngpu_ == 1) dev_id=0;
+    // int dev_id = rank % ngpu_;
+    // if (ngpu_ == 1) dev_id=0;
     talsh_tens_shape_t lshape, r1shape, r2shape;
 
     tensShape_clean(&lshape);
@@ -584,8 +584,8 @@ class TALSH {
     tensShape_destruct(&r1shape);
     tensShape_destruct(&r2shape);
 
-    talsh_task_t talsh_task;
-    talshTaskClean(&talsh_task);
+    // talsh_task_t talsh_task;
+    // talshTaskClean(&talsh_task);
     if constexpr(ti_internal::is_complex_v<T>){
       talshTensorContract(cop_string.c_str(),
                         &ltens,
@@ -620,7 +620,7 @@ class TALSH {
     errc=talshTaskTime(&talsh_task,&total_time);
     printf(" Tensor CONTRACTION total time = %f\n",total_time);
 #endif
-    wait_and_destruct(&talsh_task);
+    // wait_and_destruct(&talsh_task);
   }
 
  void tensor_destruct(tensor_handle tens) {

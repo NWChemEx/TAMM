@@ -13,6 +13,7 @@
 #include <functional>
 #include <gsl/span>
 #include <type_traits>
+#include "ga.h"
 
 namespace tamm {
 
@@ -481,6 +482,332 @@ public:
 protected:
     Func lambda_;   /**< Lambda function for the Tensor */
 }; // class LambdaTensorImpl
+
+/**
+ * @ingroup tensors
+ * @brief Implementation class for TensorBase with dense multidimensional GA
+ *
+ * @tparam T Element type of Tensor
+ */
+template <typename T>
+class DenseTensorImpl : public TensorImpl<T> {
+ public:
+  using  TensorImpl<T>::TensorBase::ec_;
+  using  TensorImpl<T>::TensorBase::allocation_status_;
+  
+  using TensorImpl<T>::block_size;
+  using TensorImpl<T>::block_dims;
+  using TensorImpl<T>::block_offsets;
+  using TensorImpl<T>::TensorBase::tindices;
+  using TensorImpl<T>::TensorBase::num_modes;
+  using TensorImpl<T>::TensorBase::update_status;
+  
+
+  // Ctors
+  DenseTensorImpl() = default;
+
+  // Copy/Move Ctors and Assignment Operators
+  DenseTensorImpl(DenseTensorImpl&&) = default;
+  DenseTensorImpl(const DenseTensorImpl&) = delete;
+  DenseTensorImpl& operator=(DenseTensorImpl&&) = default;
+  DenseTensorImpl& operator=(const DenseTensorImpl&) = delete;
+
+  /**
+   * @brief Construct a new LambdaTensorImpl object using a Lambda function
+   *
+   * @param [in] tis_vec vector of TiledIndexSpace objects for each mode of the
+   * Tensor
+   * @param [in] lambda a function for constructing the Tensor
+   */
+  DenseTensorImpl(const TiledIndexSpaceVec& tis_vec,
+                  const ProcGrid proc_grid, const bool scalapack_distribution=false)
+      : TensorImpl<T>(tis_vec), proc_grid_{proc_grid}, scalapack_distribution_{scalapack_distribution} {
+      // check no dependences
+      // for(auto& tis : tis_vec) { EXPECTS(!tis.is_dependent()); }
+
+      // check index spaces are dense
+  }
+
+  DenseTensorImpl(const IndexLabelVec& til_vec,
+                  const ProcGrid proc_grid, const bool scalapack_distribution=false) 
+        : TensorImpl<T>(til_vec), proc_grid_{proc_grid}, scalapack_distribution_{scalapack_distribution}   {
+    // check no dependences
+    // check index spaces are dense
+    // for(auto& til : til_vec) { EXPECTS(!til.is_dependent()); }
+    
+  }
+
+  // Dtor
+  ~DenseTensorImpl() {
+    // EXPECTS(allocation_status_ == AllocationStatus::deallocated ||
+    //         allocation_status_ == AllocationStatus::invalid);
+  }
+
+  void deallocate() {
+    NGA_Destroy(ga_);
+    update_status(AllocationStatus::deallocated);
+  }
+
+  void allocate(ExecutionContext* ec) {
+    EXPECTS(allocation_status_ == AllocationStatus::invalid);
+
+    ec_ = ec;
+    ga_ = NGA_Create_handle();
+    const int ndims = num_modes();
+
+    auto tis_dims = tindices();
+    std::vector<int64_t> dims;
+    for(auto tis: tis_dims) dims.push_back(tis.index_space().num_indices());
+
+    NGA_Set_data64(ga_,ndims,&dims[0],ga_eltype_);
+
+    const bool is_irreg_tis1 = !tis_dims[0].input_tile_sizes().empty();
+    const bool is_irreg_tis2 = !tis_dims[1].input_tile_sizes().empty();
+    //std::cout << "#dims 0,1 = " << dims[0] << "," << dims[1] << std::endl;
+
+    if (scalapack_distribution_) {
+      // EXPECTS(ndims == 2);
+      std::vector<int64_t> bsize(2);
+      std::vector<int64_t> pgrid(2);
+      {
+        //TODO: grid_factor doesnt work
+        if(proc_grid_.empty()){
+          int idx, idy;
+          grid_factor((*ec).pg().size().value(),&idx,&idy);
+          proc_grid_.push_back(idx);
+          proc_grid_.push_back(idy);
+        }
+        
+        //Cannot provide list of irreg tile sizes
+        EXPECTS(!is_irreg_tis1 && !is_irreg_tis2);
+        
+        bsize[0] = tis_dims[0].input_tile_size();
+        bsize[1] = tis_dims[1].input_tile_size();
+
+        pgrid[0] = proc_grid_[0].value();
+        pgrid[1] = proc_grid_[1].value();
+      }
+      //blocks_ = block sizes for scalapack distribution
+      GA_Set_block_cyclic_proc_grid64(ga_, &bsize[0], &pgrid[0]);
+    } 
+    else {
+      //only needed when irreg tile sizes are provided
+      if(is_irreg_tis1 || is_irreg_tis2){
+        std::vector<Tile> tiles1 = 
+          is_irreg_tis1? tis_dims[0].input_tile_sizes() : std::vector<Tile>{tis_dims[0].input_tile_size()};
+        std::vector<Tile> tiles2 = 
+          is_irreg_tis2? tis_dims[1].input_tile_sizes() : std::vector<Tile>{tis_dims[1].input_tile_size()};
+
+        int64_t size_map;
+        int64_t nblock[ndims];
+
+        int nranks = (*ec).pg().size().value();
+        int ranks_list[nranks];
+        for (int i = 0; i < nranks; i++) ranks_list[i] = i;
+    
+        int idx, idy;
+        grid_factor((*ec).pg().size().value(),&idx,&idy);        
+
+        nblock[0] = is_irreg_tis1? tiles1.size(): std::ceil(dims[0]*1.0/tiles1[0]);
+        nblock[1] = is_irreg_tis2? tiles2.size(): std::ceil(dims[1]*1.0/tiles2[0]);
+
+        // int max_t1 = is_irreg_tis1? *max_element(tiles1.begin(), tiles1.end()) : tiles1[0];
+        // int max_t2 = is_irreg_tis2? *max_element(tiles2.begin(), tiles2.end()) : tiles2[0];
+        // int new_t1 = std::ceil(nblock[0]/idx)*max_t1;
+        // int new_t2 = std::ceil(nblock[1]/idy)*max_t2;
+        nblock[0] = (int64_t)idx;
+        nblock[1] = (int64_t)idy;
+
+        size_map = nblock[0]+nblock[1];
+
+        // std::cout << "#blocks 0,1 = " << nblock[0] << "," << nblock[1] << std::endl;
+
+        //create map
+        std::vector<int64_t> k_map(size_map);
+        {
+          auto mi=0;
+          for (auto idim=0;idim<ndims;idim++){
+              auto size_blk = std::ceil(1.0*dims[idim]/nblock[idim]);
+              //regular tile size
+              for (auto i=0;i<nblock[idim];i++){
+                k_map[mi] = size_blk*i;
+                mi++;
+              }
+          }
+          //k_map[mi] = 0;
+        }
+        GA_Set_irreg_distr64(ga_, &k_map[0], nblock);
+      }
+      else{
+        //fixed tilesize for both dims
+        int64_t chunk[2] = {tis_dims[0].input_tile_size(),tis_dims[1].input_tile_size()};
+        GA_Set_chunk64(ga_,chunk);
+      }
+    }
+    NGA_Allocate(ga_);
+    update_status(AllocationStatus::created);
+  }
+
+  void get(const IndexVector& blockid, span<T> buff_span) const {
+    std::vector<int64_t> lo = compute_lo(blockid);
+    std::vector<int64_t> hi = compute_hi(blockid);
+    std::vector<int64_t> ld = compute_ld(blockid);
+    EXPECTS(block_size(blockid) <= buff_span.size());
+    NGA_Get64(ga_, &lo[0], &hi[0], buff_span.data(), &ld[0]);
+  }
+
+  void put(const IndexVector& blockid, span<T> buff_span) {
+    std::vector<int64_t> lo = compute_lo(blockid);
+    std::vector<int64_t> hi = compute_hi(blockid);
+    std::vector<int64_t> ld = compute_ld(blockid);
+
+    EXPECTS(block_size(blockid) <= buff_span.size());
+    NGA_Put64(ga_, &lo[0], &hi[0], buff_span.data(), &ld[0]);
+  }
+
+  void add(const IndexVector& blockid, span<T> buff_span) {
+    std::vector<int64_t> lo = compute_lo(blockid);
+    std::vector<int64_t> hi = compute_hi(blockid);
+    std::vector<int64_t> ld = compute_ld(blockid);
+    EXPECTS(block_size(blockid) <= buff_span.size());
+    void* alpha;
+    switch (from_ga_eltype(ga_eltype_)) {
+      case ElementType::single_precision:
+        alpha = reinterpret_cast<void*>(&sp_alpha);
+        break;
+      case ElementType::double_precision:
+        alpha = reinterpret_cast<void*>(&dp_alpha);
+        break;
+      case ElementType::single_complex:
+        alpha = reinterpret_cast<void*>(&scp_alpha);
+        break;
+      case ElementType::double_complex:
+        alpha = reinterpret_cast<void*>(&dcp_alpha);
+        break;
+      case ElementType::invalid:
+      default:
+        UNREACHABLE();
+    }
+    NGA_Acc64(ga_, &lo[0], &hi[0], reinterpret_cast<void*>(buff_span.data()), &ld[0], alpha);
+  }
+
+  int ga_handle() { return ga_; }
+
+ protected:
+  std::vector<int64_t> compute_lo(const IndexVector& blockid) const {
+    std::vector<int64_t> retv;
+    std::vector<size_t> off = block_offsets(blockid);
+    for (const auto& i : off) {
+      retv.push_back(static_cast<int64_t>(i));
+    }
+    return retv;
+  }
+
+  std::vector<int64_t> compute_hi(const IndexVector& blockid) const {
+    std::vector<int64_t> retv;
+    std::vector<size_t> boff = block_offsets(blockid);
+    std::vector<size_t> bdims = block_dims(blockid);
+    for (size_t i = 0; i < boff.size(); i++) {
+      retv.push_back(static_cast<int64_t>(boff[i] + bdims[i]-1));
+    }
+    return retv;
+  }
+
+  std::vector<int64_t> compute_ld(const IndexVector& blockid) const {
+    std::vector<size_t> bdims = block_dims(blockid);
+    std::vector<int64_t> retv(bdims.size()-1,1);
+    size_t ri=0;
+    for(size_t i=bdims.size()-1; i>0; i--) {
+        retv[ri] = (int64_t)bdims[i];
+        ri++;
+    }
+    return retv;
+  }
+
+  int ga_;
+  ProcGrid proc_grid_;
+  //true only when a ProcGrid is explicity passed to Tensor constructor
+  bool scalapack_distribution_ = false;
+
+  // constants for NGA_Acc call
+  float sp_alpha = 1.0;
+  double dp_alpha = 1.0;
+  SingleComplex scp_alpha = {1, 0};
+  DoubleComplex dcp_alpha = {1, 0};
+
+  int ga_eltype_ = to_ga_eltype(tensor_element_type<T>());
+
+  /**
+ * Factor p processors into 2D processor grid of dimensions px, py
+ */
+void grid_factor(int p, int *idx, int *idy) {
+  int i, j;
+  const int MAX_FACTOR=512;
+  int ip, ifac, pmax, prime[MAX_FACTOR];
+  int fac[MAX_FACTOR];
+  int ix, iy, ichk;
+
+  i = 1;
+  /**
+   *   factor p completely
+   *   first, find all prime numbers, besides 1, less than or equal to 
+   *   the square root of p
+   */
+  ip = (int)(sqrt((double)p))+1;
+  pmax = 0;
+  for (i=2; i<=ip; i++) {
+    ichk = 1;
+    for (j=0; j<pmax; j++) {
+      if (i%prime[j] == 0) {
+        ichk = 0;
+        break;
+      }
+    }
+    if (ichk) {
+      pmax = pmax + 1;
+      if (pmax > MAX_FACTOR) printf("Overflow in grid_factor\n");
+      prime[pmax-1] = i;
+    }
+  }
+  /**
+   *   find all prime factors of p
+   */
+  ip = p;
+  ifac = 0;
+  for (i=0; i<pmax; i++) {
+    while(ip%prime[i] == 0) {
+      ifac = ifac + 1;
+      fac[ifac-1] = prime[i];
+      ip = ip/prime[i];
+    }
+  }
+  /**
+   *  p is prime
+   */
+  if (ifac==0) {
+    ifac++;
+    fac[0] = p;
+  }
+  /**
+   *    find two factors of p of approximately the
+   *    same size
+   */
+  *idx = 1;
+  *idy = 1;
+  for (i = ifac-1; i >= 0; i--) {
+    ix = *idx;
+    iy = *idy;
+    if (ix <= iy) {
+      *idx = fac[i]*(*idx);
+    } else {
+      *idy = fac[i]*(*idy);
+    }
+  }
+}
+
+
+};  // class DenseTensorImpl
+
 
 } // namespace tamm
 

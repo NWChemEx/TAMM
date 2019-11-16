@@ -328,59 +328,6 @@ class MemoryManagerGA : public MemoryManager {
     return ga_pg;
   }
 
-  /**
-   * Convert a TAMM element type to a GA element type
-   * @param eltype TAMM element type
-   * @return Corresponding GA element type
-   */
-  static int to_ga_eltype(ElementType eltype) {
-    int ret;
-    switch(eltype) {
-      case ElementType::single_precision:
-        ret = C_FLOAT;
-        break;
-      case ElementType::double_precision:
-        ret = C_DBL;
-        break;
-      case ElementType::single_complex:
-        ret = C_SCPL;
-        break;
-      case ElementType::double_complex:
-        ret = C_DCPL;
-        break;
-      case ElementType::invalid:
-      default:
-        UNREACHABLE();
-    }
-    return ret;
-  }
-
-  /**
-   * Convert a GA element type to a TAMM element type
-   * @param eltype GA element type
-   * @return Corresponding TAMM element type
-   */
-  static ElementType from_ga_eltype(int eltype) {
-    ElementType ret;
-    switch(eltype) {
-      case C_FLOAT:
-        ret = ElementType::single_precision;
-        break;
-      case C_DBL:
-        ret = ElementType::double_precision;
-        break;
-      case C_SCPL:
-        ret = ElementType::single_complex;
-        break;
-      case C_DCPL:
-        ret = ElementType::double_complex;
-        break;
-      default:
-        UNREACHABLE();
-    }
-    return ret;
-  }
-
   int ga_pg_;
   int ga_counter_=0;
 

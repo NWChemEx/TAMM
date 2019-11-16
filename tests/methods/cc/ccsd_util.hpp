@@ -274,7 +274,7 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
 
 template<typename T>
 std::tuple<OptionsMap, TAMM_SIZE, TAMM_SIZE, double, 
-  libint2::BasisSet, std::vector<size_t>, Tensor<T>, Tensor<T>, TiledIndexSpace, TiledIndexSpace> 
+  libint2::BasisSet, std::vector<size_t>, Tensor<T>, Tensor<T>, TiledIndexSpace, TiledIndexSpace,bool> 
     hartree_fock_driver(ExecutionContext &ec, const string filename) {
 
     auto rank = ec.pg().rank();
@@ -287,6 +287,7 @@ std::tuple<OptionsMap, TAMM_SIZE, TAMM_SIZE, double,
     TiledIndexSpace tAO; //Fixed Tilesize AO
     TiledIndexSpace tAOt; //original AO TIS
     std::vector<size_t> shell_tile_map;
+    bool scf_conv;
 
     // read geometry from a .nwx file 
     auto is = std::ifstream(filename);
@@ -296,14 +297,14 @@ std::tuple<OptionsMap, TAMM_SIZE, TAMM_SIZE, double,
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-    std::tie(ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, tAO, tAOt) = hartree_fock(ec, filename, atoms, options_map);
+    std::tie(ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, tAO, tAOt,scf_conv) = hartree_fock(ec, filename, atoms, options_map);
     auto hf_t2 = std::chrono::high_resolution_clock::now();
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
     if(rank == 0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
 
-    return std::make_tuple(options_map,ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, tAO, tAOt);
+    return std::make_tuple(options_map,ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, tAO, tAOt, scf_conv);
 }
 
 #if 0
@@ -358,19 +359,24 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(OptionsMap 
 void ccsd_stats(ExecutionContext& ec, double hf_energy,double residual,double energy,double thresh){
 
     auto rank = ec.pg().rank();
-      if(rank == 0) {
-    std::cout << std::string(66, '-') << std::endl;
-    if(residual < thresh) {
-        std::cout << " Iterations converged" << std::endl;
-        std::cout.precision(15);
-        std::cout << " CCSD correlation energy / hartree ="
-                  << std::setw(26) << std::right << energy
-                  << std::endl;
-        std::cout << " CCSD total energy / hartree       ="
-                  << std::setw(26) << std::right
-                  << energy + hf_energy << std::endl;
+    bool ccsd_conv = residual < thresh;
+    if(rank == 0) {
+      std::cout << std::string(66, '-') << std::endl;
+      if(ccsd_conv) {
+          std::cout << " Iterations converged" << std::endl;
+          std::cout.precision(15);
+          std::cout << " CCSD correlation energy / hartree ="
+                    << std::setw(26) << std::right << energy
+                    << std::endl;
+          std::cout << " CCSD total energy / hartree       ="
+                    << std::setw(26) << std::right
+                    << energy + hf_energy << std::endl;
+      }    
     }
-  }
+    if(!ccsd_conv){
+      ec.pg().barrier();
+      nwx_terminate("ERROR: CCSD calculation does not converge!");
+    }
 
 }
 
@@ -451,9 +457,10 @@ setupLambdaTensors(ExecutionContext& ec, TiledIndexSpace& MO, size_t ndiis) {
 template<typename T>
 Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI,
                   Tensor<T> cholVpr, const tamm::Tile chol_count, 
-                  const TAMM_SIZE total_orbitals, TAMM_SIZE n_alpha, TAMM_SIZE n_beta) {
+                  const TAMM_SIZE total_orbitals, TAMM_SIZE n_alpha, TAMM_SIZE n_beta,
+                  ExecutionHW hw = ExecutionHW::CPU) {
 
-    // auto rank = ec.pg().rank();
+    auto rank = ec.pg().rank();
 
     TiledIndexSpace N = MO("all");
     auto [cindex] = CI.labels<1>("all");
@@ -465,11 +472,17 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
     Tensor<T>::allocate(&ec,d_a2,d_v2);
 
-    Scheduler{ec}(d_a2(p, q, r, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex)).execute();
+    auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-    Scheduler{ec}(d_v2(p, q, r, s) = d_a2(p,q,r,s))
-                  (d_v2(p, q, r, s) -= d_a2(p,q,s,r))
-                  .execute();
+    Scheduler{ec}(d_a2(p, q, r, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex))
+                 (d_v2(p, q, r, s) = d_a2(p,q,r,s))
+                 (d_v2(p, q, r, s) -= d_a2(p,q,s,r))
+                 .execute(hw);
+
+    auto cc_t2 = std::chrono::high_resolution_clock::now();
+    double v2_time = 
+        std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
+    if(rank == 0) std::cout << "\nTime to reconstruct V2: " << v2_time << " secs\n";
 
     Tensor<T>::deallocate(d_a2);
     return d_v2;

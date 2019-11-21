@@ -181,7 +181,7 @@ void update_tensor_general(LabeledTensor<T> labeled_tensor, Func lambda) {
  * when Execution context is destructed
  */
 inline ExecutionContext make_execution_context() {
-    ProcGroup* pg = new ProcGroup {GA_MPI_Comm()};
+    ProcGroup* pg = new ProcGroup {ProcGroup::create_coll(GA_MPI_Comm())};
     auto* pMM             = MemoryManagerGA::create_coll(*pg);
     Distribution_NW* dist = new Distribution_NW();
     RuntimeEngine* re = new RuntimeEngine{};
@@ -1108,7 +1108,20 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>>
 // }
 
 template<typename TensorType>
-Tensor<TensorType> to_block_cyclic_tensor(ProcGrid pg, Tensor<TensorType> tensor)
+std::tuple<TensorType*,int64_t> access_local_block_cyclic_buffer(Tensor<TensorType> tensor) 
+{
+   EXPECTS(tensor.num_modes() == 2);
+   int gah = tensor.ga_handle();
+   ExecutionContext& ec = get_ec(tensor());
+   TensorType* lbufptr;
+   int64_t lbufsize;
+   NGA_Access_block_segment64(gah, ec.pg().rank().value(), reinterpret_cast<void*>(&lbufptr), &lbufsize);
+   return std::make_tuple(lbufptr,lbufsize);
+}
+
+
+template<typename TensorType>
+Tensor<TensorType> to_block_cyclic_tensor(Tensor<TensorType> tensor, ProcGrid pg, std::vector<int64_t> tilesizes)
 {
     EXPECTS(tensor.num_modes() == 2);
     LabeledTensor<TensorType> ltensor = tensor();
@@ -1129,6 +1142,12 @@ Tensor<TensorType> to_block_cyclic_tensor(ProcGrid pg, Tensor<TensorType> tensor
     //TODO: Can user provide tilesize for block-cylic tensor?
     Tile max_t1 = is_irreg_tis1? *max_element(tiles1.begin(), tiles1.end()) : tiles1[0];
     Tile max_t2 = is_irreg_tis2? *max_element(tiles2.begin(), tiles2.end()) : tiles2[0];
+
+    if(!tilesizes.empty()) {
+        EXPECTS(tilesizes.size() == 2);
+        max_t1 = static_cast<Tile>(tilesizes[0]);
+        max_t2 = static_cast<Tile>(tilesizes[1]);
+    }
 
     TiledIndexSpace t1{range(tis[0].index_space().num_indices()),max_t1};
     TiledIndexSpace t2{range(tis[1].index_space().num_indices()),max_t2};

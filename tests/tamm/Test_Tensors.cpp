@@ -487,7 +487,10 @@ TEST_CASE("Spin Tensor Construction") {
 
         // auto x = tamm::norm(H);
         GA_Print(H.ga_handle());
-        auto sca1 = to_block_cyclic_tensor({1,1},H);
+        auto sca1 = to_block_cyclic_tensor(H,{1,1},{2,2});
+        auto [lptr, lbufsize] = access_local_block_cyclic_buffer(sca1);
+        for (auto i=0L;i<lbufsize;i++)
+         std::cout << lptr[i] << "\n";
         GA_Print(sca1.ga_handle());
         from_block_cyclic_tensor(sca1,pT);
         GA_Print(pT.ga_handle());

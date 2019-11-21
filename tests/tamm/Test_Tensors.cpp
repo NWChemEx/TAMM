@@ -162,7 +162,7 @@ TEST_CASE("Spin Tensor Construction") {
         REQUIRE((tis_3("virt").spin(3) == Spin{2}));
     }
 
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
@@ -435,7 +435,7 @@ TEST_CASE("Spin Tensor Construction") {
         auto [p] = MOs.labels<1>("all");
         Tensor<T> rho{AOs, AOs};
 
-        ProcGroup pg{GA_MPI_Comm()};
+        ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
         auto* pMM = tamm::MemoryManagerLocal::create_coll(pg);
         tamm::Distribution_NW dist;
         tamm::ExecutionContext ec(pg, &dist, pMM);
@@ -487,7 +487,10 @@ TEST_CASE("Spin Tensor Construction") {
 
         // auto x = tamm::norm(H);
         GA_Print(H.ga_handle());
-        auto sca1 = to_block_cyclic_tensor({1,1},H);
+        auto sca1 = to_block_cyclic_tensor(H,{1,1},{2,2});
+        auto [lptr, lbufsize] = access_local_block_cyclic_buffer(sca1);
+        for (auto i=0L;i<lbufsize;i++)
+         std::cout << lptr[i] << "\n";
         GA_Print(sca1.ga_handle());
         from_block_cyclic_tensor(sca1,pT);
         GA_Print(pT.ga_handle());
@@ -544,7 +547,7 @@ TEST_CASE("Hash Based Equality and Compatibility Check") {
 
 TEST_CASE("GitHub Issues") {
 
-    tamm::ProcGroup pg{GA_MPI_Comm()};
+    tamm::ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     auto *pMM = tamm::MemoryManagerLocal::create_coll(pg);
     tamm::Distribution_NW dist;
     tamm::ExecutionContext ec(pg, &dist, pMM);

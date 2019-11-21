@@ -21,7 +21,7 @@ TEST_CASE("/* Test case for QR */") {
 
     using Complex2DMatrix=Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     auto mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;

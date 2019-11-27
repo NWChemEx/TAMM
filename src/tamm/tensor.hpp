@@ -451,6 +451,14 @@ public:
       return impl_->execution_context();
     }
 
+    bool has_spin() const {
+      return impl_->has_spin();
+    }
+
+    bool has_spatial() const {
+      return impl_->has_spatial();
+    }
+
     template <typename U>
     friend bool operator==(const Tensor<U>& lhs,
                            const Tensor<U>& rhs);

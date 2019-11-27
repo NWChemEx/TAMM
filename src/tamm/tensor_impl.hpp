@@ -44,6 +44,7 @@ public:
      */
     TensorImpl(const TiledIndexSpaceVec& tis) : TensorBase{tis} {
         has_spin_symmetry_ = false;
+        has_spatial_symmetry_ = false;
     }
 
     /**
@@ -56,6 +57,7 @@ public:
      */
     TensorImpl(const std::vector<TiledIndexLabel>& lbls) : TensorBase{lbls} {
         has_spin_symmetry_ = false;
+        has_spatial_symmetry_ = false;
     }
 
     /**
@@ -72,6 +74,7 @@ public:
         num_modes_ = block_indices_.size();
         construct_dep_map();
         has_spin_symmetry_ = false;
+        has_spatial_symmetry_ = false;
     }
 
     // SpinTensor related constructors
@@ -90,6 +93,7 @@ public:
 
         spin_mask_         = spin_mask;
         has_spin_symmetry_ = true;
+        has_spatial_symmetry_ = false;
         // spin_total_        = calculate_spin();
     }
 
@@ -108,6 +112,7 @@ public:
         // }
         spin_mask_         = spin_mask;
         has_spin_symmetry_ = true;
+        has_spatial_symmetry_ = false;
         // spin_total_        = calculate_spin();
     }
 
@@ -145,6 +150,7 @@ public:
 
         spin_mask_         = spin_mask;
         has_spin_symmetry_ = true;
+        has_spatial_symmetry_ = false;
         // spin_total_        = calculate_spin();
     }
 
@@ -185,6 +191,7 @@ public:
 
         spin_mask_         = spin_mask;
         has_spin_symmetry_ = true;
+        has_spatial_symmetry_ = false;
         // spin_total_        = calculate_spin();
     }
 

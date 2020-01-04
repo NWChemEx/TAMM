@@ -47,5 +47,6 @@ CCSD {
     //readt true
     //writet true
     //debug true
+    //balance_tiles true
 }
 

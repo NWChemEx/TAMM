@@ -7,6 +7,15 @@
 #include <type_traits>
 
 namespace tamm {
+
+// From integer type to integer type
+template <typename from>
+constexpr typename std::enable_if<std::is_integral<from>::value && std::is_integral<int64_t>::value, int64_t>::type
+cd_ncast(const from& value)
+{
+    return static_cast<int64_t>(value & (static_cast<typename std::make_unsigned<from>::type>(-1)));
+}
+
 /**
  * @brief Overload of << operator for printing Tensor blocks
  *
@@ -172,11 +181,12 @@ void update_tensor_general(LabeledTensor<T> labeled_tensor, Func lambda) {
  * when Execution context is destructed
  */
 inline ExecutionContext make_execution_context() {
-    ProcGroup pg{GA_MPI_Comm()};
-    auto* pMM             = MemoryManagerGA::create_coll(pg);
+    ProcGroup* pg = new ProcGroup {ProcGroup::create_coll(GA_MPI_Comm())};
+    auto* pMM             = MemoryManagerGA::create_coll(*pg);
     Distribution_NW* dist = new Distribution_NW();
     RuntimeEngine* re = new RuntimeEngine{};
-    return ExecutionContext(pg, dist, pMM, re);
+    ExecutionContext *ec = new ExecutionContext(*pg, dist, pMM, re);
+    return *ec;
 }
 
 /**
@@ -1062,6 +1072,152 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>>
     MPI_Bcast(bfuv.data(), 2, MPI_UNSIGNED_LONG, gmin[1], ec.pg().comm());
 
     return std::make_tuple(gmin[0], minblockid, bfuv);
+}
+
+// following is when tamm tensor is a 2D GA irreg 
+// template<typename TensorType>
+// Tensor<TensorType> to_block_cyclic_tensor(ProcGrid pg, Tensor<TensorType> tensor)
+// {
+//     EXPECTS(tensor.num_modes() == 2);
+//     LabeledTensor<TensorType> ltensor = tensor();
+//     ExecutionContext& ec = get_ec(ltensor);
+
+//     auto tis = tensor.tiled_index_spaces();
+//     const bool is_irreg_tis1 = !tis[0].input_tile_sizes().empty();
+//     const bool is_irreg_tis2 = !tis[1].input_tile_sizes().empty();
+    
+//     std::vector<Tile> tiles1 = 
+//         is_irreg_tis1? tis_dims[0].input_tile_sizes() 
+//       : std::vector<Tile>{tis_dims[0].input_tile_size()};
+//     std::vector<Tile> tiles2 = 
+//         is_irreg_tis2? tis_dims[1].input_tile_sizes() 
+//       : std::vector<Tile>{tis_dims[1].input_tile_size()};
+//     //Choose tile size based on tile sizes of regular tensor
+//     //TODO: Can user provide tilesize for block-cylic tensor?
+//     Tile max_t1 = is_irreg_tis1? *max_element(tiles1.begin(), tiles1.end()) : tiles1[0];
+//     Tile max_t2 = is_irreg_tis2? *max_element(tiles2.begin(), tiles2.end()) : tiles2[0];
+
+//     TiledIndexSpace t1{range(tis[0].index_space().num_indices()),max_t1};
+//     TiledIndexSpace t2{range(tis[1].index_space().num_indices()),max_t2};
+//     Tensor<TensorType> bc_tensor{pg,{t1,t2}};
+//     Tensor<TensorType>::allocate(&ec,bc_tensor);
+//     GA_Copy(tensor.ga_handle(),bc_tensor.ga_handle());
+
+//     //caller is responsible for deallocating bc_tensor
+//     return bc_tensor;
+// }
+
+template<typename TensorType>
+std::tuple<TensorType*,int64_t> access_local_block_cyclic_buffer(Tensor<TensorType> tensor) 
+{
+   EXPECTS(tensor.num_modes() == 2);
+   int gah = tensor.ga_handle();
+   ExecutionContext& ec = get_ec(tensor());
+   TensorType* lbufptr;
+   int64_t lbufsize;
+   NGA_Access_block_segment64(gah, ec.pg().rank().value(), reinterpret_cast<void*>(&lbufptr), &lbufsize);
+   return std::make_tuple(lbufptr,lbufsize);
+}
+
+
+template<typename TensorType>
+Tensor<TensorType> to_block_cyclic_tensor(Tensor<TensorType> tensor, ProcGrid pg, std::vector<int64_t> tilesizes)
+{
+    EXPECTS(tensor.num_modes() == 2);
+    LabeledTensor<TensorType> ltensor = tensor();
+    ExecutionContext& ec = get_ec(ltensor);
+
+    auto tis = tensor.tiled_index_spaces();
+    const bool is_irreg_tis1 = !tis[0].input_tile_sizes().empty();
+    const bool is_irreg_tis2 = !tis[1].input_tile_sizes().empty();
+    
+    std::vector<Tile> tiles1 = 
+        is_irreg_tis1? tis[0].input_tile_sizes() 
+      : std::vector<Tile>{tis[0].input_tile_size()};
+    std::vector<Tile> tiles2 = 
+        is_irreg_tis2? tis[1].input_tile_sizes() 
+      : std::vector<Tile>{tis[1].input_tile_size()};
+
+    //Choose tile size based on tile sizes of regular tensor
+    //TODO: Can user provide tilesize for block-cylic tensor?
+    Tile max_t1 = is_irreg_tis1? *max_element(tiles1.begin(), tiles1.end()) : tiles1[0];
+    Tile max_t2 = is_irreg_tis2? *max_element(tiles2.begin(), tiles2.end()) : tiles2[0];
+
+    if(!tilesizes.empty()) {
+        EXPECTS(tilesizes.size() == 2);
+        max_t1 = static_cast<Tile>(tilesizes[0]);
+        max_t2 = static_cast<Tile>(tilesizes[1]);
+    }
+
+    TiledIndexSpace t1{range(tis[0].index_space().num_indices()),max_t1};
+    TiledIndexSpace t2{range(tis[1].index_space().num_indices()),max_t2};
+    Tensor<TensorType> bc_tensor{pg,{t1,t2}};
+    Tensor<TensorType>::allocate(&ec,bc_tensor);
+    int bc_tensor_gah = bc_tensor.ga_handle();
+
+    //convert regular 2D tamm tensor to block cyclic tamm tensor
+    auto copy_to_bc = [&](const IndexVector& bid){
+        const IndexVector blockid =
+        internal::translate_blockid(bid, ltensor);
+
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+
+        int64_t lo[2] = {cd_ncast<size_t>(block_offset[0]), 
+                         cd_ncast<size_t>(block_offset[1])};
+        int64_t hi[2] = {cd_ncast<size_t>(block_offset[0] + block_dims[0]-1), 
+                         cd_ncast<size_t>(block_offset[1] + block_dims[1]-1)};
+        int64_t ld = cd_ncast<size_t>(block_dims[1]);
+
+        std::vector<TensorType> sbuf(dsize);
+        tensor.get(blockid, sbuf);
+
+        NGA_Put64(bc_tensor_gah,lo,hi,&sbuf[0],&ld);
+
+    };
+
+    block_for(ec, ltensor, copy_to_bc);
+
+    //caller is responsible for deallocating
+    return bc_tensor;
+}
+
+template<typename TensorType>
+void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> tensor)
+{
+    EXPECTS(tensor.num_modes() == 2 && bc_tensor.num_modes() == 2);
+    LabeledTensor<TensorType> ltensor = tensor();
+    ExecutionContext& ec = get_ec(ltensor);
+
+    int bc_handle = bc_tensor.ga_handle();
+
+    // convert a block cyclic tamm tensor to regular 2D tamm tensor
+    auto copy_from_bc = [&](const IndexVector& bid){
+        const IndexVector blockid =
+        internal::translate_blockid(bid, ltensor);
+
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+
+        int64_t lo[2] = {cd_ncast<size_t>(block_offset[0]), 
+                         cd_ncast<size_t>(block_offset[1])};
+        int64_t hi[2] = {cd_ncast<size_t>(block_offset[0] + block_dims[0]-1), 
+                         cd_ncast<size_t>(block_offset[1] + block_dims[1]-1)};
+        int64_t ld = cd_ncast<size_t>(block_dims[1]);
+
+        std::vector<TensorType> sbuf(dsize);
+        NGA_Get64(bc_handle,lo,hi,&sbuf[0],&ld);
+
+        tensor.put(blockid, sbuf);
+
+    };
+
+    block_for(ec, ltensor, copy_from_bc);
+
 }
 
 inline TiledIndexLabel compose_lbl(const TiledIndexLabel& lhs,

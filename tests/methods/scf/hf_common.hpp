@@ -11,7 +11,7 @@
 #include <unsupported/Eigen/MatrixFunctions>
 #undef I
 
-#include "common/input_parser.hpp"
+#include "common/molden.hpp"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -22,9 +22,9 @@
 #include "ga-mpi.h"
 
 // #define EIGEN_DIAG 
-#ifndef SCALAPACK
+// #ifndef SCALAPACK
   #include "common/linalg.hpp"
-#else 
+#ifdef SCALAPACK
   // CXXBLACS BLACS/ScaLAPACK wrapper
   // #include LAPACKE_HEADER
   // #define CXXBLACS_HAS_LAPACK
@@ -92,6 +92,44 @@ tamm::TiledIndexLabel dCocc_til;
 tamm::Tensor<TensorType> xyK_tamm; //n,n,ndf
 tamm::Tensor<TensorType> C_occ_tamm; //n,nocc
 
+struct SystemData {
+  OptionsMap options_map;  
+  int n_occ_alpha;
+  int n_vir_alpha;
+  int n_occ_beta;
+  int n_vir_beta;
+  int n_lindep;
+  int nbf;
+  int nelectrons;
+  int n_frozen_core;
+  int n_frozen_virtual;
+  int nmo;
+  int nocc;
+  int nvir;
+  enum class SCFType { uhf, rhf, rohf };
+  SCFType scf_type; //1-rhf, 2-uhf, 3-rohf
+  std::string scf_type_string; 
+
+  SystemData() {}
+
+  SystemData(OptionsMap options_map_, const int n_occ_alpha_, const int n_vir_alpha_, const int n_occ_beta_, const int n_vir_beta_, const int n_lindep_, const std::string scf_type_string)
+    : options_map(options_map_), n_occ_alpha(n_occ_alpha_), n_vir_alpha(n_vir_alpha_), n_occ_beta(n_occ_beta_), n_vir_beta(n_vir_beta_), n_lindep(n_lindep_), scf_type_string(scf_type_string) {
+      n_vir_alpha = n_vir_alpha + n_lindep;
+      n_vir_beta = n_vir_beta + n_lindep;
+
+      nbf = n_occ_alpha + n_vir_alpha; //lin-deps
+      nocc = n_occ_alpha + n_occ_beta;
+      nvir = n_vir_alpha + n_vir_beta;
+      nelectrons = n_occ_alpha + n_occ_beta;
+      nmo = n_occ_alpha + n_vir_alpha + n_occ_beta + n_vir_beta; //lin-deps
+      scf_type = SCFType::rhf;
+      n_frozen_core = 0;
+      n_frozen_virtual = 0;
+      if(scf_type_string == "uhf") scf_type = SCFType::uhf;
+      else if(scf_type_string == "rohf") scf_type = SCFType::rohf;
+    }
+
+};
 
 //DENSITY FITTING
 struct DFFockEngine {
@@ -100,12 +138,6 @@ struct DFFockEngine {
   DFFockEngine(const libint2::BasisSet& _obs, const libint2::BasisSet& _dfbs)
       : obs(_obs), dfbs(_dfbs) {}
 
-  // typedef btas::RangeNd<CblasRowMajor, std::array<long, 3>> Range3d;
-  // typedef btas::Tensor<double, Range3d> Tensor3d;
-  Tensor3D xyK;
-
-  // a DF-based builder, using coefficients of occupied MOs
-  Matrix compute_2body_fock_dfC(const Matrix& Cocc);
 };
 
 Matrix compute_soad(const std::vector<libint2::Atom> &atoms);
@@ -123,33 +155,7 @@ Matrix compute_schwarz_ints(
     const libint2::BasisSet& bs1, const libint2::BasisSet& bs2 = libint2::BasisSet(),
     bool use_2norm = false,  // use infty norm by default
     typename libint2::operator_traits<Kernel>::oper_params_type params =
-        libint2::operator_traits<Kernel>::default_params());
-
-template <libint2::Operator obtype, typename OperatorParams = 
-typename libint2::operator_traits<obtype>::oper_params_type>
-std::array<Matrix, libint2::operator_traits<obtype>::nopers> compute_1body_ints(
-    const libint2::BasisSet& obs, OperatorParams oparams = OperatorParams());
-
-// an efficient Fock builder; *integral-driven* hence computes
-// permutationally-unique ints once
-// Matrix compute_2body_fock_orig(const std::vector<libint2::Shell> &shells,
-// const Matrix &D);
-
-// an Fock builder that can accept densities expressed a separate basis
-Matrix compute_2body_fock_general(
-    const libint2::BasisSet& obs, const Matrix& D, const libint2::BasisSet& D_bs,
-    bool D_is_sheldiagonal = false,  // set D_is_shelldiagonal if doing SOAD
-    double precision = std::numeric_limits<
-        double>::epsilon()  // discard contributions smaller than this
-    );               
-
-Matrix compute_2body_fock(
-    const libint2::BasisSet& obs, const Matrix& D,
-    double precision = std::numeric_limits<
-        double>::epsilon(),  // discard contributions smaller than this
-    const Matrix& Schwarz = Matrix()  // K_ij = sqrt(||(ij|ij)||_\infty); if
-                                       // empty, do not Schwarz screen
-    );               
+        libint2::operator_traits<Kernel>::default_params());      
 
 // returns {X,X^{-1},S_condition_number_after_conditioning}, where
 // X is the generalized square-root-inverse such that X.transpose() * S * X = I
@@ -217,10 +223,8 @@ std::string getfilename(std::string filename){
   return fname.substr(fname.find_last_of("/")+1,fname.length());
 }
 
-void writeC(Matrix& C, std::string filename, OptionsMap options){
-  if(options.scf_options.restart) return;
-  std::string outputfile = getfilename(filename) +
-        "." + options.scf_options.basis + ".movecs";
+void writeC(Matrix& C, std::string filename, std::string scf_files_prefix){
+  std::string outputfile = scf_files_prefix + ".movecs";
   const auto N = C.rows();
   std::vector<TensorType> Cbuf(N*N);
   TensorType *Hbuf = Cbuf.data();
@@ -623,549 +627,6 @@ Matrix compute_shellblock_norm(const libint2::BasisSet& obs, const Matrix& A) {
   }
 
   return Ash;
-}
-
-
-template <libint2::Operator obtype, typename OperatorParams>
-std::array<Matrix, libint2::operator_traits<obtype>::nopers> compute_1body_ints(
-    const libint2::BasisSet& obs, OperatorParams oparams) {
-  const auto n = obs.nbf();
-  const auto nshells = obs.size();
-  typedef std::array<Matrix, libint2::operator_traits<obtype>::nopers>
-      result_type;
-  const unsigned int nopers = libint2::operator_traits<obtype>::nopers;
-  result_type result;
-  for (auto& r : result) r = Matrix::Zero(n, n);
-
-  // construct the 1-body integrals engine
-  libint2::Engine engine = libint2::Engine(obtype, obs.max_nprim(), obs.max_l(), 0);
-  // pass operator params to the engine, e.g.
-  // nuclear attraction ints engine needs to know where the charges sit ...
-  // the nuclei are charges in this case; in QM/MM there will also be classical
-  // charges
-  engine.set_params(oparams);
-
-  auto shell2bf = obs.shell2bf();
-
-    const auto& buf = engine.results();
-
-    // loop over unique shell pairs, {s1,s2} such that s1 >= s2
-    // this is due to the permutational symmetry of the real integrals over
-    // Hermitian operators: (1|2) = (2|1)
-    for (auto s1 = 0l/*, s12 = 0l*/; s1 != nshells; ++s1) {
-      auto bf1 = shell2bf[s1];  // first basis function in this shell
-      auto n1 = obs[s1].size();
-
-      // auto s1_offset = s1 * (s1+1) / 2;
-      for (auto s2: obs_shellpair_list[s1]) {
-        // auto s12 = s1_offset + s2;
-        ////if (s12 % nthreads != thread_id) continue;
-
-        auto bf2 = shell2bf[s2];
-        auto n2 = obs[s2].size();
-
-        // auto n12 = n1 * n2;
-
-        // compute shell pair; return is the pointer to the buffer
-        engine.compute(obs[s1], obs[s2]);
-
-        for (unsigned int op = 0; op != nopers; ++op) {
-          // "map" buffer to a const Eigen Matrix, and copy it to the
-          // corresponding blocks of the result
-          Eigen::Map<const Matrix> buf_mat(buf[op], n1, n2);
-          result[op].block(bf1, bf2, n1, n2) = buf_mat;
-          if (s1 != s2)  // if s1 >= s2, copy {s1,s2} to the corresponding
-                         // {s2,s1} block, note the transpose!
-            result[op].block(bf2, bf1, n2, n1) = buf_mat.transpose();
-        }
-      }
-    }
-
-  return result;
-}
-
-
-Matrix compute_2body_fock(const libint2::BasisSet& obs, const Matrix& D,
-                          double precision, const Matrix& Schwarz) {
-
-  using libint2::Operator;                            
-  const auto n = obs.nbf();
-  const auto nshells = obs.size();
-  Matrix G = Matrix::Zero(n, n);
-
-  const auto do_schwarz_screen = Schwarz.cols() != 0 && Schwarz.rows() != 0;
-  Matrix D_shblk_norm =
-      compute_shellblock_norm(obs, D);  // matrix of infty-norms of shell blocks
-
-  auto fock_precision = precision;
-  // engine precision controls primitive truncation, assume worst-case scenario
-  // (all primitive combinations add up constructively)
-  auto max_nprim = obs.max_nprim();
-  auto max_nprim4 = max_nprim * max_nprim * max_nprim * max_nprim;
-  auto engine_precision = std::min(fock_precision / D_shblk_norm.maxCoeff(),
-                                   std::numeric_limits<double>::epsilon()) /
-                          max_nprim4;
-  assert(engine_precision > max_engine_precision &&
-      "using precomputed shell pair data limits the max engine precision"
-  " ... make max_engine_precision smaller and recompile");
-
-  // construct the 2-electron repulsion integrals engine pool
-  using libint2::Engine;
-  Engine engine(Operator::coulomb, obs.max_nprim(), obs.max_l(), 0);
-  engine.set_precision(engine_precision);  // shellset-dependent precision
-                                               // control will likely break
-                                               // positive definiteness
-                                               // stick with this simple recipe
-  // std::cout << "compute_2body_fock:precision = " << precision << endl;
-  // std::cout << "Engine::precision = " << engine.precision() << endl;
-  // for (size_t i = 1; i != nthreads; ++i) {
-  //   engines[i] = engines[0];
-  // }
-  std::atomic<size_t> num_ints_computed{0};
-
-
-  auto shell2bf = obs.shell2bf();
-
-    const auto& buf = engine.results();
-
-    // loop over permutationally-unique set of shells
-    for (size_t s1 = 0l/*, s1234 = 0l*/; s1 != nshells; ++s1) {
-      auto bf1_first = shell2bf[s1];  // first basis function in this shell
-      auto n1 = obs[s1].size();       // number of basis functions in this shell
-
-      auto sp12_iter = obs_shellpair_data.at(s1).begin();
-
-      for (const auto& s2 : obs_shellpair_list[s1]) {
-        auto bf2_first = shell2bf[s2];
-        auto n2 = obs[s2].size();
-
-        const auto* sp12 = sp12_iter->get();
-        ++sp12_iter;
-
-        const auto Dnorm12 = do_schwarz_screen ? D_shblk_norm(s1, s2) : 0.;
-
-        for (decltype(s1) s3 = 0; s3 <= s1; ++s3) {
-          auto bf3_first = shell2bf[s3];
-          auto n3 = obs[s3].size();
-
-          const auto Dnorm123 =
-              do_schwarz_screen
-                  ? std::max(D_shblk_norm(s1, s3),
-                             std::max(D_shblk_norm(s2, s3), Dnorm12))
-                  : 0.;
-
-          auto sp34_iter = obs_shellpair_data.at(s3).begin();
-
-          const auto s4_max = (s1 == s3) ? s2 : s3;
-          for (const auto& s4 : obs_shellpair_list[s3]) {
-            if (s4 > s4_max)
-              break;  // for each s3, s4 are stored in monotonically increasing
-                      // order
-
-            // must update the iter even if going to skip s4
-            const auto* sp34 = sp34_iter->get();
-            ++sp34_iter;
-
-            // if ((s1234++) % nthreads != thread_id) continue;
-
-            const auto Dnorm1234 =
-                do_schwarz_screen
-                    ? std::max(
-                          D_shblk_norm(s1, s4),
-                          std::max(D_shblk_norm(s2, s4),
-                                   std::max(D_shblk_norm(s3, s4), Dnorm123)))
-                    : 0.;
-
-            if (do_schwarz_screen &&
-                Dnorm1234 * Schwarz(s1, s2) * Schwarz(s3, s4) <
-                    fock_precision)
-              continue;
-
-            auto bf4_first = shell2bf[s4];
-            auto n4 = obs[s4].size();
-
-            num_ints_computed += n1 * n2 * n3 * n4;
-
-            // compute the permutational degeneracy (i.e. # of equivalents) of
-            // the given shell set
-            auto s12_deg = (s1 == s2) ? 1 : 2;
-            auto s34_deg = (s3 == s4) ? 1 : 2;
-            auto s12_34_deg = (s1 == s3) ? (s2 == s4 ? 1 : 2) : 2;
-            auto s1234_deg = s12_deg * s34_deg * s12_34_deg;
-
-            engine.compute2<Operator::coulomb, libint2::BraKet::xx_xx, 0>(
-                obs[s1], obs[s2], obs[s3], obs[s4], sp12, sp34);
-            const auto* buf_1234 = buf[0];
-            if (buf_1234 == nullptr)
-              continue; // if all integrals screened out, skip to next quartet
-
-            // 1) each shell set of integrals contributes up to 6 shell sets of
-            // the Fock matrix:
-            //    F(a,b) += (ab|cd) * D(c,d)
-            //    F(c,d) += (ab|cd) * D(a,b)
-            //    F(b,d) -= 1/4 * (ab|cd) * D(a,c)
-            //    F(b,c) -= 1/4 * (ab|cd) * D(a,d)
-            //    F(a,c) -= 1/4 * (ab|cd) * D(b,d)
-            //    F(a,d) -= 1/4 * (ab|cd) * D(b,c)
-            // 2) each permutationally-unique integral (shell set) must be
-            // scaled by its degeneracy,
-            //    i.e. the number of the integrals/sets equivalent to it
-            // 3) the end result must be symmetrized
-            for (decltype(n1) f1 = 0, f1234 = 0; f1 != n1; ++f1) {
-              const auto bf1 = f1 + bf1_first;
-              for (decltype(n2) f2 = 0; f2 != n2; ++f2) {
-                const auto bf2 = f2 + bf2_first;
-                for (decltype(n3) f3 = 0; f3 != n3; ++f3) {
-                  const auto bf3 = f3 + bf3_first;
-                  for (decltype(n4) f4 = 0; f4 != n4; ++f4, ++f1234) {
-                    const auto bf4 = f4 + bf4_first;
-
-                    const auto value = buf_1234[f1234];
-
-                    const auto value_scal_by_deg = value * s1234_deg;
-
-                    G(bf1, bf2) += D(bf3, bf4) * value_scal_by_deg;
-                    G(bf3, bf4) += D(bf1, bf2) * value_scal_by_deg;
-                    G(bf1, bf3) -= 0.25 * D(bf2, bf4) * value_scal_by_deg;
-                    G(bf2, bf4) -= 0.25 * D(bf1, bf3) * value_scal_by_deg;
-                    G(bf1, bf4) -= 0.25 * D(bf2, bf3) * value_scal_by_deg;
-                    G(bf2, bf3) -= 0.25 * D(bf1, bf4) * value_scal_by_deg;
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-  // };  // end of lambda
-
-  // std::cout << "# of integrals = " << num_ints_computed << endl;
-  // symmetrize the result and return
-   Matrix GG = 0.5 * (G + G.transpose());
-
-  return GG;
-}
-
-Matrix compute_2body_fock_general(const libint2::BasisSet& obs, const Matrix& D,
-                                  const libint2::BasisSet& D_bs, bool D_is_shelldiagonal,
-                                  double precision) {
-  const auto n = obs.nbf();
-  const auto nshells = obs.size();
-  const auto n_D = D_bs.nbf();
-  EXPECTS(D.cols() == D.rows() && D.cols() == n_D);
-
-  Matrix G = Matrix::Zero(n, n);
-
-  // construct the 2-electron repulsion integrals engine
-  using libint2::Operator;
-  using libint2::BraKet;
-  using libint2::Engine;
-
-  Engine engine(libint2::Operator::coulomb,
-                      std::max(obs.max_nprim(), D_bs.max_nprim()),
-                      std::max(obs.max_l(), D_bs.max_l()), 0);
-  engine.set_precision(precision);  // shellset-dependent precision control
-                                        // will likely break positive
-                                        // definiteness
-                                        // stick with this simple recipe
-
-  auto shell2bf = obs.shell2bf();
-  auto shell2bf_D = D_bs.shell2bf();
-
-    const auto& buf = engine.results();
-
-    // loop over permutationally-unique set of shells
-    for (size_t s1 = 0l, s1234 = 0l; s1 != nshells; ++s1) {
-      auto bf1_first = shell2bf[s1];  // first basis function in this shell
-      auto n1 = obs[s1].size();       // number of basis functions in this shell
-
-      for (decltype(s1) s2 = 0; s2 <= s1; ++s2) {
-        auto bf2_first = shell2bf[s2];
-        auto n2 = obs[s2].size();
-
-        for (decltype(s1) s3 = 0; s3 < D_bs.size(); ++s3) {
-          auto bf3_first = shell2bf_D[s3];
-          auto n3 = D_bs[s3].size();
-
-          auto s4_begin = D_is_shelldiagonal ? s3 : 0;
-          auto s4_fence = D_is_shelldiagonal ? s3 + 1 : D_bs.size();
-
-          for (decltype(s4_fence) s4 = s4_begin; s4 != s4_fence; ++s4, ++s1234) {
-            // if (s1234 % nthreads != thread_id) continue;
-
-            auto bf4_first = shell2bf_D[s4];
-            auto n4 = D_bs[s4].size();
-
-            // compute the permutational degeneracy (i.e. # of equivalents) of
-            // the given shell set
-            auto s12_deg = (s1 == s2) ? 1.0 : 2.0;
-
-            if (s3 >= s4) {
-              auto s34_deg = (s3 == s4) ? 1.0 : 2.0;
-              auto s1234_deg = s12_deg * s34_deg;
-              // auto s1234_deg = s12_deg;
-              engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
-                  obs[s1], obs[s2], D_bs[s3], D_bs[s4]);
-              const auto* buf_1234 = buf[0];
-              if (buf_1234 != nullptr) {
-                for (decltype(n1) f1 = 0, f1234 = 0; f1 != n1; ++f1) {
-                  const auto bf1 = f1 + bf1_first;
-                  for (decltype(n2) f2 = 0; f2 != n2; ++f2) {
-                    const auto bf2 = f2 + bf2_first;
-                    for (decltype(n3) f3 = 0; f3 != n3; ++f3) {
-                      const auto bf3 = f3 + bf3_first;
-                      for (decltype(n4) f4 = 0; f4 != n4; ++f4, ++f1234) {
-                        const auto bf4 = f4 + bf4_first;
-
-                        const auto value = buf_1234[f1234];
-                        const auto value_scal_by_deg = value * s1234_deg;
-                        G(bf1, bf2) += 2.0 * D(bf3, bf4) * value_scal_by_deg;
-                      }
-                    }
-                  }
-                }
-              }
-            }
-
-            engine.compute2<Operator::coulomb, BraKet::xx_xx, 0>(
-                obs[s1], D_bs[s3], obs[s2], D_bs[s4]);
-            const auto* buf_1324 = buf[0];
-            if (buf_1324 == nullptr)
-              continue; // if all integrals screened out, skip to next quartet
-
-            for (decltype(n1) f1 = 0, f1324 = 0; f1 != n1; ++f1) {
-              const auto bf1 = f1 + bf1_first;
-              for (decltype(n3) f3 = 0; f3 != n3; ++f3) {
-                const auto bf3 = f3 + bf3_first;
-                for (decltype(n2) f2 = 0; f2 != n2; ++f2) {
-                  const auto bf2 = f2 + bf2_first;
-                  for (decltype(n4) f4 = 0; f4 != n4; ++f4, ++f1324) {
-                    const auto bf4 = f4 + bf4_first;
-
-                    const auto value = buf_1324[f1324];
-                    const auto value_scal_by_deg = value * s12_deg;
-                    G(bf1, bf2) -= D(bf3, bf4) * value_scal_by_deg;
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-  // symmetrize the result and return
-  return 0.5 * (G + G.transpose());
-}
-
-Matrix compute_2body_2index_ints(const libint2::BasisSet& bs) {
-  const auto n = bs.nbf();
-  const auto nshells = bs.size();
-  Matrix result = Matrix::Zero(n, n);
-
-  // build engines for each thread
-  using libint2::Engine;
-  using libint2::BraKet;
-  
-  auto engine =
-      Engine(libint2::Operator::coulomb, bs.max_nprim(), bs.max_l(), 0);
-  engine.set(BraKet::xs_xs);
-  
-  auto shell2bf = bs.shell2bf();
-  auto unitshell = libint2::Shell::unit();
-
-    const auto& buf = engine.results();
-
-    // loop over unique shell pairs, {s1,s2} such that s1 >= s2
-    // this is due to the permutational symmetry of the real integrals over
-    // Hermitian operators: (1|2) = (2|1)
-    for (size_t s1 = 0l, s12 = 0l; s1 != nshells; ++s1) {
-      auto bf1 = shell2bf[s1];  // first basis function in this shell
-      auto n1 = bs[s1].size();
-
-      for (decltype(s1) s2 = 0; s2 <= s1; ++s2, ++s12) {
-        // if (s12 % nthreads != thread_id) continue;
-
-        auto bf2 = shell2bf[s2];
-        auto n2 = bs[s2].size();
-
-        // compute shell pair; return is the pointer to the buffer
-        engine.compute(bs[s1], bs[s2]);
-        if (buf[0] == nullptr)
-          continue; // if all integrals screened out, skip to next shell set
-
-        // "map" buffer to a const Eigen Matrix, and copy it to the
-        // corresponding blocks of the result
-        Eigen::Map<const Matrix> buf_mat(buf[0], n1, n2);
-        result.block(bf1, bf2, n1, n2) = buf_mat;
-        if (s1 != s2)  // if s1 >= s2, copy {s1,s2} to the corresponding {s2,s1}
-                       // block, note the transpose!
-          result.block(bf2, bf1, n2, n1) = buf_mat.transpose();
-      }
-    }
- 
-
-  return result;
-}
-
-Matrix DFFockEngine::compute_2body_fock_dfC(const Matrix& Cocc) {
-
-  using libint2::Operator;
-  using libint2::BraKet;
-  using libint2::Engine;
-
-  const auto n = obs.nbf();
-  const auto ndf = dfbs.nbf();
-
-      using idx_pair = std::pair<long int, long int>;
-    idx_pair idx_20({2,0}),idx_00({0, 0}),idx_11({1,1}),
-            idx_22({2,2}),idx_10({1,0}); //,idx_21({2,1});
-    std::array<idx_pair,1> aidx_00({idx_00}),aidx_10({idx_10}),aidx_20({idx_20});
-    std::array<idx_pair,2> idx_1122({idx_11,idx_22}), //idx_0022({idx_00,idx_22}),
-                           idx_0011({idx_00,idx_11}); //idx_1021({idx_10,idx_21})
-
-  // using first time? compute 3-center ints and transform to inv sqrt
-  // representation
-  // if (xyK.size() == 0) {
-
-    const auto nshells = obs.size();
-    const auto nshells_df = dfbs.size();
-    const auto& unitshell = libint2::Shell::unit();
-
-    // construct the 2-electron 3-center repulsion integrals engine
-    // since the code assumes (xx|xs) braket, and Engine/libint only produces
-    // (xs|xx), use 4-center engine
-    
-    auto engine = libint2::Engine(libint2::Operator::coulomb,
-                                 std::max(obs.max_nprim(), dfbs.max_nprim()),
-                                 std::max(obs.max_l(), dfbs.max_l()), 0);
-    engine.set(libint2::BraKet::xs_xx);
-
-    auto shell2bf = obs.shell2bf();
-    auto shell2bf_df = dfbs.shell2bf();
-
-    Tensor3D Zxy(ndf, n, n);
-    Zxy.setZero();
-
-      const auto& results = engine.results();
-
-      // loop over permutationally-unique set of shells
-      for (size_t s1 = 0l, s123 = 0l; s1 != nshells_df; ++s1) {
-        auto bf1_first = shell2bf_df[s1];  // first basis function in this shell
-        auto n1 = dfbs[s1].size();  // number of basis functions in this shell
-
-        for (decltype(s1) s2 = 0; s2 != nshells; ++s2) {
-          auto bf2_first = shell2bf[s2];
-          auto n2 = obs[s2].size();
-          // const auto n12 = n1 * n2;
-
-          for (decltype(s1) s3 = 0; s3 != nshells; ++s3, ++s123) {
-            // if (s123 % nthreads != thread_id) continue;
-
-            auto bf3_first = shell2bf[s3];
-            auto n3 = obs[s3].size();
-            // const auto n123 = n12 * n3;
-
-            engine.compute2<Operator::coulomb, BraKet::xs_xx, 0>(
-                dfbs[s1], unitshell, obs[s2], obs[s3]);
-            const auto* buf = results[0];
-            if (buf == nullptr)
-              continue;
-
-          
-            // auto lower_bound = {bf1_first, bf2_first, bf3_first};
-            // auto upper_bound = {bf1_first + n1, bf2_first + n2, bf3_first + n3};
-            // auto view = btas::make_view(
-            //     Zxy.range().slice(lower_bound, upper_bound), Zxy.storage());
-            // std::copy(buf, buf + n123, view.begin());
-
-            for (decltype(n1) f1 = 0, f123 = 0; f1 != n1; ++f1) {
-                const auto bf1 = f1 + bf1_first;
-              for (decltype(n2) f2 = 0; f2 != n2; ++f2) {
-                const auto bf2 = f2 + bf2_first;
-                for (decltype(n3) f3 = 0; f3 != n3; ++f3,++f123) {
-                  const auto bf3 = f3 + bf3_first;
-                    
-                    Zxy(bf1, bf2,bf3) = buf[f123]; 
-                  }
-                }
-              }
-            
-
-          }  // s3
-        }    // s2
-      }      // s1
-
-    Matrix V = compute_2body_2index_ints(dfbs);
-    Eigen::LLT<Matrix> V_LLt(V);
-    Matrix I = Matrix::Identity(ndf, ndf);
-    auto L = V_LLt.matrixL();
-    Matrix V_L = L;
-    Matrix Linv_t = L.solve(I).transpose();
-    // check
-    //  std::cout << "||V - L L^t|| = " << (V - V_L * V_L.transpose()).norm() <<
-    //  endl;
-    //  std::cout << "||I - L L^-1|| = " << (I - V_L *
-    //  Linv_t.transpose()).norm() << endl;
-    //  std::cout << "||V^-1 - L^-1^t L^-1|| = " << (V.inverse() - Linv_t *
-    //  Linv_t.transpose()).norm() << endl;
-
-    Tensor2D K(ndf, ndf);
-    K.setZero();
-    // std::copy(Linv_t.data(), Linv_t.data() + ndf * ndf, K.begin());
-    for (auto i = 0; i<ndf;i++)
-    for(auto j=0;j<ndf;j++)
-    K(i,j) = Linv_t(i,j);
-
-
-    //contract(1.0, Zxy, {1, 2, 3}, K, {1, 4}, 0.0, xyK, {2, 3, 4});
-    //xyK = Tensor3D(n, n, ndf);
-    xyK = Zxy.contract(K,aidx_00); 
-    Zxy.resize(0, 0, 0);  // release memory
-
-  //}  // if (xyK.size() == 0)
-
-  const auto nocc = Cocc.cols();
-  Tensor2D Co(n, nocc);
-  Co.setZero();
-  // std::copy(Cocc.data(), Cocc.data() + n * nocc, Co.begin());
-  for (auto i = 0; i<n;i++)
-    for(auto j=0;j<nocc;j++)
-    Co(i,j) = Cocc(i,j);
-
-  // Tensor3D xiK(n, nocc, ndf);
-  // contract(1.0, xyK, {1, 2, 3}, Co, {2, 4}, 0.0, xiK, {1, 4, 3});
-  Tensor3D xiK_p = xyK.contract(Co, aidx_10); 
-  //n,ndf,nocc
-  std::array<long int, 3> idx_shuffle({0,2,1});
-  Tensor3D xiK = xiK_p.shuffle(idx_shuffle);
-
-  // compute Coulomb
-  Tensor1D Jtmp(ndf);
-  Jtmp.setZero(); 
-  //contract(1.0, xiK, {1, 2, 3}, Co, {1, 2}, 0.0, Jtmp, {3});
-  Jtmp = xiK.contract(Co,idx_0011); 
-
-  //contract(1.0, xiK, {1, 2, 3}, xiK, {4, 2, 3}, 0.0, G, {1, 4});
-  Tensor2D K_ret = xiK.contract(xiK,idx_1122); 
-  xiK.resize(0, 0, 0);
-
-  //contract(2.0, xyK, {1, 2, 3}, Jtmp, {3}, -1.0, G, {1, 2});
-  Tensor2D J_ret = xyK.contract(Jtmp,aidx_20);
-
-  Tensor2D G = 2.0*J_ret - K_ret;
-
-  // copy result to an Eigen::Matrix
-  Matrix result(n, n);
-  result.setZero();
-  // std::copy(G.cbegin(), G.cend(), result.data());
-  for (auto i = 0; i<n;i++)
-    for(auto j=0;j<n;j++)
-    result(i,j) = G(i,j);
-
-  return result;
 }
 
 #endif // TAMM_TESTS_HF_COMMON_HPP_

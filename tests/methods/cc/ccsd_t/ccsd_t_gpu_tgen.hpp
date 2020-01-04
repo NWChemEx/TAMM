@@ -22,7 +22,7 @@ void dprint1(Arg&& arg, Args&&... args)
 
 template<typename T>
 std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
-                   std::vector<int>& k_spin, TAMM_SIZE nocc, TAMM_SIZE nvirt,
+                   std::vector<int>& k_spin,
                    const TiledIndexSpace& MO,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_v2,
@@ -44,9 +44,6 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
     Index noab=MO("occ").num_tiles();
     Index nvab=MO("virt").num_tiles();
 
-    auto tnocc = 2*nocc;
-    auto tnvirt = 2*nvirt; 
-    // auto total_orbitals = tnocc+tnvirt;
     auto mo_tiles = MO.input_tile_sizes();
     std::vector<size_t> k_range;
     std::vector<size_t> k_offset;

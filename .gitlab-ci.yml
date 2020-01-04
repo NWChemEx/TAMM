@@ -36,31 +36,31 @@ variables:
   NWX_Fortran_COMPILER: "gfortran-9"
 
 .modules_kamban: &modules_kamban
-  gcc91: "gcc-9.1.0-gcc-7.4.0-jjv2tsg"
-  clang8: "llvm-8.0.0-gcc-9.1.0-k4l6z4v"
-  mpich33_gcc91: "mpich-3.3-gcc-9.1.0-ennj3ix"
-  cmake314: "cmake-3.14.2-gcc-9.1.0-jzu7ays"
+  gcc91: "gcc-9.2.0-gcc-7.4.0-jugbolv"
+  clang9: "llvm-9.0.0-gcc-9.2.0-fqlxosj"
+  mpich33_gcc91: "mpich-3.3.1-gcc-9.2.0-q7ln3zh"
+  cmake314: "cmake-3.15.4-gcc-9.2.0-zlszrdv"
 
 .cached_libint_linux_gcc9: &cached_libint_linux_gcc9
     LIBINT_INSTALL_PATH: "~/cached_builds/libint-install/gcc9"
 
-.cached_libint_linux_clang8: &cached_libint_linux_clang8
-    LIBINT_INSTALL_PATH: "~/cached_builds/libint-install/clang8"
+.cached_libint_linux_clang9: &cached_libint_linux_clang9
+    LIBINT_INSTALL_PATH: "~/cached_builds/libint-install/clang9"
 
 .cached_libint_macosx_gcc9: &cached_libint_macosx_gcc9
     LIBINT_INSTALL_PATH: "~/cached_builds/libint-install/gcc9"
 
-.cached_libint_macosx_clang8: &cached_libint_macosx_clang8
-    LIBINT_INSTALL_PATH: "~/cached_builds/libint-install/clang8"
+.cached_libint_macosx_clang9: &cached_libint_macosx_clang9
+    LIBINT_INSTALL_PATH: "~/cached_builds/libint-install/clang9"
 
 #GCC9.1 + mpich / openmpi
 .bgcc91_mpich33: &bgcc91_mpich33
     LOAD_MODULE: $gcc91 $mpich33_gcc91
     BUILD_FOLDER: "build_gcc91_mpich33"
 
-.bclang8_mpich33: &bclang8_mpich33
-    LOAD_MODULE: $gcc91 $clang8 $mpich33_gcc91
-    BUILD_FOLDER: "build_clang8_mpich33"
+.bclang9_mpich33: &bclang9_mpich33
+    LOAD_MODULE: $gcc91 $clang9 $mpich33_gcc91
+    BUILD_FOLDER: "build_clang9_mpich33"
 
 .bmacosx_gcc82_openmpi310: &bmacosx_gcc82_openmpi310
     BUILD_FOLDER: "macosx_gcc82_openmpi310"
@@ -111,10 +111,10 @@ gcc91_mpich33:
   tags:
     - linux,kamban   
 
-clang8_mpich33:
+clang9_mpich33:
   <<: [*tamm_build]
   variables:
-    <<: [*l_clang,*modules_kamban,*bclang8_mpich33,*cached_libint_linux_clang8]
+    <<: [*l_clang,*modules_kamban,*bclang9_mpich33,*cached_libint_linux_clang9]
   tags:
     - linux,kamban   
 

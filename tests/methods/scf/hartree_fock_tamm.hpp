@@ -20,9 +20,12 @@
 
 #include "hf_tamm_common.hpp"
 
+#include <filesystem>
+namespace fs = std::filesystem;
+
 #define SCF_THROTTLE_RESOURCES 1
 
-std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace> 
+std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace, bool> 
     hartree_fock(ExecutionContext &exc, const string filename,std::vector<libint2::Atom> atoms, OptionsMap options_map) {
 
     using libint2::Atom;
@@ -91,6 +94,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     }
 
     auto [ndocc, enuc]  = compute_NRE(exc, atoms);
+
+    if(rank==0) std::cout << "#electrons = " << 2*ndocc << std::endl;
+    
     // compute OBS non-negligible shell-pair list
     compute_shellpair_list(exc, shells);
 
@@ -143,6 +149,59 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     exc.pg().barrier();
 
+    std::string scf_files_prefix = getfilename(filename) +
+        "." + scf_options.basis;
+    std::string scfstatusfile = scf_files_prefix + ".scfstatus";
+    const bool scf_conv = restart && fs::exists(scfstatusfile);
+
+    const bool molden_exists = !scf_options.moldenfile.empty();
+    if(molden_exists) {
+      const double scf_energy = scf_options.scf_energy;
+
+      size_t nmo = N;
+      if(scf_options.scf_type == "uhf") nmo = 2*N;
+      std::vector<TensorType> evl_sorted(nmo);
+      C.setZero(N,nmo);
+      F.setZero(nmo,nmo);
+      int n_occ_alpha=0, n_occ_beta=0, n_vir_alpha=0, n_vir_beta=0;
+
+      bool molden_file_valid=std::filesystem::exists(scf_options.moldenfile);
+      if(rank == 0) {
+        cout << "\nReading from molden file provided..." << endl;
+        if(molden_file_valid){
+          // const size_t n_lindep = scf_options.n_lindep;
+          std::tie(n_occ_alpha,n_vir_alpha,n_occ_beta,n_vir_beta) = read_molden<TensorType>(scf_options,evl_sorted,C);
+          for (size_t i=0;i<nmo;i++){
+            F(i,i) = evl_sorted[i];
+          }
+        }
+      }
+      if(!molden_file_valid) nwx_terminate("ERROR: Cannot open moldenfile provided: " + scf_options.moldenfile);
+
+      // GA_Brdcst(&ehf,sizeof(TensorType),0);
+      MPI_Bcast(&n_occ_alpha,1,mpi_type<int>(),0,exc.pg().comm());
+      MPI_Bcast(&n_occ_beta,1,mpi_type<int>(),0,exc.pg().comm());
+      MPI_Bcast(&n_vir_alpha,1,mpi_type<int>(),0,exc.pg().comm());
+      MPI_Bcast(&n_vir_beta,1,mpi_type<int>(),0,exc.pg().comm());
+
+      tamm::Tile ao_tile = static_cast<tamm::Tile>(N*0.05);
+      TiledIndexSpace TAOIS{IndexSpace(range(0, nmo)),ao_tile};
+      Tensor<TensorType> C_tamm{tAO,TAOIS};
+      Tensor<TensorType> F_tamm{TAOIS,TAOIS};
+      Tensor<TensorType>::allocate(&exc,C_tamm,F_tamm);
+      if (rank == 0) {
+        eigen_to_tamm_tensor(C_tamm,C);
+        eigen_to_tamm_tensor(F_tamm,F);
+      }
+      exc.pg().barrier();
+      std::cout.precision(13);
+      if(rank==0) { 
+        cout << "\n** Hartree-Fock energy = " << scf_energy << endl;
+      }
+      SystemData sys_data(options_map,n_occ_alpha,n_vir_alpha,n_occ_beta,n_vir_beta, scf_options.n_lindep, scf_options.scf_type);
+      return std::make_tuple(sys_data, scf_energy, shells, shell_tile_map, C_tamm, F_tamm, tAO, tAOt, scf_conv);
+    }
+
     #if SCF_THROTTLE_RESOURCES
   if (rank < hf_nranks) {
 
@@ -152,14 +211,21 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       EXPECTS(rank==hrank);
       // cout << "rank,hrank = " << rank << "," << hrank << endl;
 
-      ProcGroup pg{hf_comm};
+      ProcGroup pg = ProcGroup::create_coll(hf_comm);
       auto mgr = MemoryManagerGA::create_coll(pg);
       Distribution_NW distribution;
       RuntimeEngine re;
       ExecutionContext ec{pg, &distribution, mgr, &re};
+
     #else 
       ExecutionContext& ec = exc;
     #endif
+
+    ProcGroup pg_l = ProcGroup::create_coll(MPI_COMM_SELF);
+    auto mgr_l = MemoryManagerLocal::create_coll(pg_l);
+    Distribution_NW distribution_l;
+    RuntimeEngine re_l;
+    ExecutionContext ec_l{pg_l, &distribution_l, mgr_l, &re_l};
 
     #ifdef SCALAPACK
 
@@ -220,35 +286,14 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     // pre-compute data for Schwarz bounds
     auto SchwarzK = compute_schwarz_ints<>(shells);
 
-
-    const auto use_hcore_guess = false;  // use core Hamiltonian eigenstates to guess density?
-    // set to true to match the result of versions 0, 1, and 2 of the code
-    // HOWEVER !!! even for medium-size molecules hcore will usually fail !!!
-    // thus set to false to use Superposition-Of-Atomic-Densities (SOAD) guess
-
     Matrix D;
-    // Matrix C;
-    // Matrix C_occ;
-    // Matrix F;
-
-    //     Matrix C_down; //TODO: all are array of 2 vectors
-    // Matrix D_down;
-    // Matrix F_down;
-    // Matrix C_occ_down;
 
     hf_t1 = std::chrono::high_resolution_clock::now();
 
-    if (use_hcore_guess) 
-      compute_hcore_guess(ec, ndocc, shells, SchwarzK, H, X, F, C, C_occ, D);
-    else if (restart)
+    if (restart)
         scf_restart(ec, N, filename, ndocc, C, D);
     else   // SOAD as the guess density
       compute_initial_guess<TensorType>(ec, ndocc, atoms, shells, basis, X, H, C, C_occ, D);
-    
-
-    //     C_down = C;
-    // D_down = D;
-    // C_occ_down = C_occ;
 
     H.resize(0,0);
     hf_t2 = std::chrono::high_resolution_clock::now();
@@ -338,7 +383,8 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     if(do_density_fitting) {
       xyK_tamm = Tensor<TensorType>{tAO, tAO, tdfAO}; //n,n,ndf
       C_occ_tamm = Tensor<TensorType>{tAO,tdfCocc}; //n,nocc
-      Tensor<TensorType>::allocate(&ec, xyK_tamm,C_occ_tamm);
+      Tensor<TensorType>::allocate(&ec, xyK_tamm, C_occ_tamm);
+      // Tensor<TensorType>::allocate(&ec_l,C_occ_tamm);
     }
     //df basis
 
@@ -346,9 +392,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         std::cout << "\n\n";
         std::cout << " Hartree-Fock iterations" << endl;
         std::cout << std::string(70, '-') << endl;
-        std::cout <<
-            " Iter     Energy            E-Diff            RMSD            Time" 
-                << endl;
+        std::string  sph = " Iter     Energy            E-Diff            RMSD            Time";
+        if(scf_conv) sph = " Iter     Energy            E-Diff            Time";
+        std::cout << sph << endl;
         std::cout << std::string(70, '-') << endl;
     }
 
@@ -379,7 +425,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     #endif
                         iter, ndocc, X, F, C, C_occ, D,
                         S1, F1, H1, F1tmp1,FD_tamm, FDS_tamm, D_tamm, D_last_tamm, D_diff,
-                        ehf_tmp, ehf_tamm, diis_hist, fock_hist);
+                        ehf_tmp, ehf_tamm, diis_hist, fock_hist, scf_conv);
 
         // compute difference with last iteration
         ediff = ehf - ehf_last;
@@ -392,7 +438,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
             std::cout << std::setw(5) << iter << "  " << std::setw(14);
             std::cout << std::fixed << std::setprecision(10) << ehf + enuc;
             std::cout << ' ' << std::setw(16)  << ediff;
-            std::cout << ' ' << std::setw(15)  << rmsd << ' ';
+            if(!scf_conv) std::cout << ' ' << std::setw(15)  << rmsd << ' ';
             std::cout << std::fixed << std::setprecision(2);
             std::cout << ' ' << std::setw(12)  << loop_time << ' ' << endl;
         }
@@ -405,7 +451,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
             break;
         }
 
-    } while (((fabs(ediff) > conve) || (fabs(rmsd) > convd)));
+        if(scf_conv) break;
+
+    } while ( (fabs(ediff) > conve) || (fabs(rmsd) > convd) );
 
     // ec.pg().barrier(); 
     if(rank == 0) {
@@ -415,7 +463,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
         else {
             cout << endl << std::string(50, '*') << endl;
             cout << std::string(10, ' ') << 
-                    "ERROR: HF Does not converge!!!" << endl;
+                    "ERROR: Hartree-Fock calculation does not converge!!!" << endl;
             cout << std::string(50, '*') << endl;
         }        
     }
@@ -427,14 +475,23 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     Tensor<TensorType>::deallocate(H1, S1, D_tamm, ehf_tmp, ehf_tamm); 
     Tensor<TensorType>::deallocate(F1tmp1, D_last_tamm, D_diff, FD_tamm, FDS_tamm);
 
-    if(!is_conv) {
-      nwx_terminate("Please check SCF input parameters");
+    if(rank==0 && !scf_conv) {
+     cout << "writing orbitals to file... ";
+     writeC(C,filename,scf_files_prefix);
+     cout << "done." << endl;
     }
 
-    if(rank==0 && !restart) {
-     cout << "writing orbitals to file... ";
-     writeC(C,filename,options_map);
-     cout << "done." << endl;
+    if(!is_conv) {
+      ec.pg().barrier();
+      nwx_terminate("Please check SCF input parameters");
+    }
+    else{
+        if(rank==0 && !scf_conv){
+          std::ofstream out(scfstatusfile, std::ios::out);
+          if(!out) cerr << "Error opening file " << scfstatusfile << endl;
+          out << 1 << std::endl;
+          out.close();
+        }    
     }
 
       if(rank == 0) tamm_to_eigen_tensor(F1,F);
@@ -444,13 +501,28 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       #if SCF_THROTTLE_RESOURCES
       ec.flush_and_sync();
       MemoryManagerGA::destroy_coll(mgr);
+      #endif
+
+      ec_l.flush_and_sync();
+      MemoryManagerLocal::destroy_coll(mgr_l);      
+
+      #ifdef SCALAPACK
+
+      // Free up created comms / groups
+      MPI_Comm_free( &scalapack_comm );
+      MPI_Group_free( &scalapack_group );
+      MPI_Group_free( &world_group );
+
+      #endif
+    
+    #if SCF_THROTTLE_RESOURCES
 
     } //end scaled down process group
 
       // MPI_Group_free(&wgroup);
       // MPI_Group_free(&hfgroup);
       // MPI_Comm_free(&hf_comm);
-      #endif
+    #endif
 
     //C,F1 is not allocated for ranks > hf_nranks 
     exc.pg().barrier(); 
@@ -467,17 +539,9 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
 
     exc.pg().barrier();
 
-    #ifdef SCALAPACK
-
-    // Free up created comms / groups
-    MPI_Comm_free( &scalapack_comm );
-    MPI_Group_free( &scalapack_group );
-    MPI_Group_free( &world_group );
-
-    #endif
-
     //F, C are not deallocated.
-    return std::make_tuple(ndocc, nao, ehf + enuc, shells, shell_tile_map, C_tamm, F_tamm, tAO, tAOt);
+    SystemData sys_data{options_map,static_cast<int>(ndocc),static_cast<int>(nao-ndocc),static_cast<int>(ndocc),static_cast<int>(nao-ndocc), 0, "rhf"};
+    return std::make_tuple(sys_data, ehf + enuc, shells, shell_tile_map, C_tamm, F_tamm, tAO, tAOt, scf_conv);
 }
 
 

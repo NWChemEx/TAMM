@@ -145,7 +145,7 @@ void test_setop_with_T(unsigned tilesize) {
     //0-4 dimensional setops
     //0-4 dimensional setops
 
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -237,7 +237,7 @@ template<typename T>
 void test_addop_with_T(unsigned tilesize) {
     //0-4 dimensional addops
     bool failed;
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;
@@ -519,7 +519,7 @@ void test_addop_with_T(unsigned tilesize) {
 template<typename T> 
 void test_dependent_space_with_T(Index tilesize) {
     bool success = false;
-    ProcGroup pg{GA_MPI_Comm()};
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW distribution;
     RuntimeEngine re;

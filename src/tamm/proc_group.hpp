@@ -153,7 +153,7 @@ void destroy_coll() {
   bool is_valid_;
 
   static void deleter(MPI_Comm* mpi_comm) {
-    assert(*mpi_comm == MPI_COMM_NULL);
+    assert(*mpi_comm != MPI_COMM_NULL);
     delete mpi_comm;
   }
 

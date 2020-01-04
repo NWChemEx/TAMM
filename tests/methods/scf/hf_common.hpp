@@ -11,7 +11,7 @@
 #include <unsupported/Eigen/MatrixFunctions>
 #undef I
 
-#include "common/input_parser.hpp"
+#include "common/molden.hpp"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -92,6 +92,44 @@ tamm::TiledIndexLabel dCocc_til;
 tamm::Tensor<TensorType> xyK_tamm; //n,n,ndf
 tamm::Tensor<TensorType> C_occ_tamm; //n,nocc
 
+struct SystemData {
+  OptionsMap options_map;  
+  int n_occ_alpha;
+  int n_vir_alpha;
+  int n_occ_beta;
+  int n_vir_beta;
+  int n_lindep;
+  int nbf;
+  int nelectrons;
+  int n_frozen_core;
+  int n_frozen_virtual;
+  int nmo;
+  int nocc;
+  int nvir;
+  enum class SCFType { uhf, rhf, rohf };
+  SCFType scf_type; //1-rhf, 2-uhf, 3-rohf
+  std::string scf_type_string; 
+
+  SystemData() {}
+
+  SystemData(OptionsMap options_map_, const int n_occ_alpha_, const int n_vir_alpha_, const int n_occ_beta_, const int n_vir_beta_, const int n_lindep_, const std::string scf_type_string)
+    : options_map(options_map_), n_occ_alpha(n_occ_alpha_), n_vir_alpha(n_vir_alpha_), n_occ_beta(n_occ_beta_), n_vir_beta(n_vir_beta_), n_lindep(n_lindep_), scf_type_string(scf_type_string) {
+      n_vir_alpha = n_vir_alpha + n_lindep;
+      n_vir_beta = n_vir_beta + n_lindep;
+
+      nbf = n_occ_alpha + n_vir_alpha; //lin-deps
+      nocc = n_occ_alpha + n_occ_beta;
+      nvir = n_vir_alpha + n_vir_beta;
+      nelectrons = n_occ_alpha + n_occ_beta;
+      nmo = n_occ_alpha + n_vir_alpha + n_occ_beta + n_vir_beta; //lin-deps
+      scf_type = SCFType::rhf;
+      n_frozen_core = 0;
+      n_frozen_virtual = 0;
+      if(scf_type_string == "uhf") scf_type = SCFType::uhf;
+      else if(scf_type_string == "rohf") scf_type = SCFType::rohf;
+    }
+
+};
 
 //DENSITY FITTING
 struct DFFockEngine {

@@ -261,11 +261,54 @@ public:
 
     template<typename LabeledTensorType, typename Func, size_t N>
     Scheduler& gop(LabeledTensorType lhs, std::array<LabeledTensorType, N> rhs,
-                   Func func, ResultMode mode = ResultMode::set) {
+                   Func func, ResultMode mode = ResultMode::set, bool do_translate = true) {
         ops_.push_back(std::make_shared<MapOp<LabeledTensorType, Func, N>>(
-          lhs, func, rhs, mode));
+          lhs, func, rhs, mode, do_translate));
         return *this;
     }
+
+    template<typename T>
+    Scheduler& exact_copy(LabeledTensor<T> lhs, LabeledTensor<T> rhs) {          
+        auto copy_buf = [](const Tensor<T>& t, const IndexVector& lhs_iv,
+                           std::vector<T>& lhs_buf, const IndexVector rhs_iv[],
+                           std::vector<T> rhs_buf[]) {
+            std::copy(rhs_buf[0].begin(), rhs_buf[0].end(), lhs_buf.begin());
+        };
+        
+        auto rhs_arr = std::array<LabeledTensor<T>, 1>{rhs};
+
+        ops_.push_back(std::make_shared<MapOp<LabeledTensor<T>, decltype(copy_buf), 1>>(
+          lhs, copy_buf, rhs_arr, ResultMode::set, false));
+
+        return *this;
+    }
+
+
+template<typename TensorType>
+inline void exact_copy(Tensor<TensorType>& dst, const Tensor<TensorType>& src,
+                       bool is_assign = false, TensorType scale = TensorType{1},
+                       const IndexVector& perm = {}) {
+    auto lambda = [&](const IndexVector& itval) {
+        IndexVector src_id = itval;
+        for(size_t i = 0; i < perm.size(); i++) { src_id[i] = itval[perm[i]]; }
+        size_t size = dst.block_size(itval);
+        std::vector<TensorType> buf(size);
+        src.get(src_id, buf);
+        TensorType {1};
+        if(scale != TensorType{1}) {
+            for(size_t i = 0; i < size; i++) { 
+                buf[i] *= scale; 
+            }
+        }
+        if(is_assign)
+            dst.put(itval, buf);
+        else
+            dst.add(itval, buf);
+    };
+    auto ec = dst.execution_context();
+    block_for(*ec, dst(), lambda);
+}
+    
 
 private:
     ExecutionContext& ec_;

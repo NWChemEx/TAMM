@@ -47,28 +47,16 @@ void ccsd_driver() {
     ExecutionContext ec{pg, &distribution, mgr, &re};
     auto rank = ec.pg().rank();
 
-    //TODO: read from input file, assume no freezing for now
-    TAMM_SIZE freeze_core    = 0;
-    TAMM_SIZE freeze_virtual = 0;
-
-    auto [options_map, ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis,scf_conv]  
+    auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis,scf_conv]  
                     = hartree_fock_driver<T>(ec,filename);
 
-    CCSDOptions ccsd_options = options_map.ccsd_options;
+    CCSDOptions ccsd_options = sys_data.options_map.ccsd_options;
     debug = ccsd_options.debug;
     if(rank == 0) ccsd_options.print();
 
-    int maxiter    = ccsd_options.ccsd_maxiter;
-    double thresh  = ccsd_options.threshold;
-    double zshiftl = 0.0;
-    size_t ndiis   = 5;
-
-    const TAMM_SIZE nocc = 2 * ov_alpha;
-    const TAMM_SIZE nvir = 2*nao - 2*ov_alpha;
-    if(rank==0) cout << endl << "#occupied, #virtual = " << nocc << ", " << nvir << endl;
+    if(rank==0) cout << endl << "#occupied, #virtual = " << sys_data.nocc << ", " << sys_data.nvir << endl;
     
-    auto [MO,total_orbitals] = setupMOIS(ccsd_options.tilesize,
-                    nao,ov_alpha,freeze_core,freeze_virtual);
+    auto [MO,total_orbitals] = setupMOIS(sys_data);
 
     std::string out_fp = getfilename(filename)+"."+ccsd_options.basis;
     std::string files_dir = out_fp+"_files";
@@ -86,14 +74,13 @@ void ccsd_driver() {
 
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
-                        (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
-                                freeze_virtual, C_AO, F_AO, shells, shell_tile_map,
+                        (sys_data, ec, MO, AO_opt, C_AO, F_AO, shells, shell_tile_map,
                                 ccsd_restart, cholfile);
 
     TiledIndexSpace N = MO("all");
 
     auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
-            = setupTensors(ec,MO,d_f1,ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
+            = setupTensors(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
 
     if(ccsd_restart) {
         read_from_disk(d_f1,f1file);
@@ -121,7 +108,7 @@ void ccsd_driver() {
 
     if(rank==0 && debug){
       cout << "eigen values:" << endl << std::string(50,'-') << endl;
-      for (auto x: p_evl_sorted) cout << x << endl;
+      for (size_t i=0;i<p_evl_sorted.size();i++) cout << i+1 << "   " << p_evl_sorted[i] << endl;
       cout << std::string(50,'-') << endl;
     }
     
@@ -138,13 +125,12 @@ void ccsd_driver() {
     ccsd_restart = ccsd_restart && fs::exists(ccsdstatus) && scf_conv;
 
     auto [residual, corr_energy] = cd_ccsd_driver<T>(
-            ec, MO, CI, d_t1, d_t2, d_f1, 
+            sys_data, ec, MO, CI, d_t1, d_t2, d_f1, 
             d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
             p_evl_sorted, 
-            maxiter, thresh, zshiftl, ndiis, 
-            2 * ov_alpha, cholVpr, ccsd_options.writet, ccsd_restart, files_prefix);
+            cholVpr, ccsd_restart, files_prefix);
 
-    ccsd_stats(ec, hf_energy,residual,corr_energy,thresh);
+    ccsd_stats(ec, hf_energy,residual,corr_energy,ccsd_options.threshold);
 
     if(ccsd_options.writet && !fs::exists(ccsdstatus)) {
         write_to_disk(d_t1,t1file);
@@ -165,7 +151,8 @@ void ccsd_driver() {
     auto cc_t2 = std::chrono::high_resolution_clock::now();
     double ccsd_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-    if(rank == 0) std::cout << std::endl << "Time taken for Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
+    if(rank == 0) 
+      std::cout << std::endl << "Time taken for Open Shell Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
 
     if(!ccsd_restart) {
         free_tensors(d_r1,d_r2);

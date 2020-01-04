@@ -25,7 +25,7 @@ namespace fs = std::filesystem;
 
 #define SCF_THROTTLE_RESOURCES 1
 
-std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace, bool> 
+std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace, bool> 
     hartree_fock(ExecutionContext &exc, const string filename,std::vector<libint2::Atom> atoms, OptionsMap options_map) {
 
     using libint2::Atom;
@@ -154,6 +154,54 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     std::string scfstatusfile = scf_files_prefix + ".scfstatus";
     const bool scf_conv = restart && fs::exists(scfstatusfile);
 
+    const bool molden_exists = !scf_options.moldenfile.empty();
+    if(molden_exists) {
+      const double scf_energy = scf_options.scf_energy;
+
+      size_t nmo = N;
+      if(scf_options.scf_type == "uhf") nmo = 2*N;
+      std::vector<TensorType> evl_sorted(nmo);
+      C.setZero(N,nmo);
+      F.setZero(nmo,nmo);
+      int n_occ_alpha=0, n_occ_beta=0, n_vir_alpha=0, n_vir_beta=0;
+
+      bool molden_file_valid=std::filesystem::exists(scf_options.moldenfile);
+      if(rank == 0) {
+        cout << "\nReading from molden file provided..." << endl;
+        if(molden_file_valid){
+          // const size_t n_lindep = scf_options.n_lindep;
+          std::tie(n_occ_alpha,n_vir_alpha,n_occ_beta,n_vir_beta) = read_molden<TensorType>(scf_options,evl_sorted,C);
+          for (size_t i=0;i<nmo;i++){
+            F(i,i) = evl_sorted[i];
+          }
+        }
+      }
+      if(!molden_file_valid) nwx_terminate("ERROR: Cannot open moldenfile provided: " + scf_options.moldenfile);
+
+      // GA_Brdcst(&ehf,sizeof(TensorType),0);
+      MPI_Bcast(&n_occ_alpha,1,mpi_type<int>(),0,exc.pg().comm());
+      MPI_Bcast(&n_occ_beta,1,mpi_type<int>(),0,exc.pg().comm());
+      MPI_Bcast(&n_vir_alpha,1,mpi_type<int>(),0,exc.pg().comm());
+      MPI_Bcast(&n_vir_beta,1,mpi_type<int>(),0,exc.pg().comm());
+
+      tamm::Tile ao_tile = static_cast<tamm::Tile>(N*0.05);
+      TiledIndexSpace TAOIS{IndexSpace(range(0, nmo)),ao_tile};
+      Tensor<TensorType> C_tamm{tAO,TAOIS};
+      Tensor<TensorType> F_tamm{TAOIS,TAOIS};
+      Tensor<TensorType>::allocate(&exc,C_tamm,F_tamm);
+      if (rank == 0) {
+        eigen_to_tamm_tensor(C_tamm,C);
+        eigen_to_tamm_tensor(F_tamm,F);
+      }
+      exc.pg().barrier();
+      std::cout.precision(13);
+      if(rank==0) { 
+        cout << "\n** Hartree-Fock energy = " << scf_energy << endl;
+      }
+      SystemData sys_data(options_map,n_occ_alpha,n_vir_alpha,n_occ_beta,n_vir_beta, scf_options.n_lindep, scf_options.scf_type);
+      return std::make_tuple(sys_data, scf_energy, shells, shell_tile_map, C_tamm, F_tamm, tAO, tAOt, scf_conv);
+    }
+
     #if SCF_THROTTLE_RESOURCES
   if (rank < hf_nranks) {
 
@@ -163,7 +211,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       EXPECTS(rank==hrank);
       // cout << "rank,hrank = " << rank << "," << hrank << endl;
 
-      ProcGroup pg{hf_comm};
+      ProcGroup pg = ProcGroup::create_coll(hf_comm);
       auto mgr = MemoryManagerGA::create_coll(pg);
       Distribution_NW distribution;
       RuntimeEngine re;
@@ -173,7 +221,7 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
       ExecutionContext& ec = exc;
     #endif
 
-    ProcGroup pg_l{MPI_COMM_SELF};
+    ProcGroup pg_l = ProcGroup::create_coll(MPI_COMM_SELF);
     auto mgr_l = MemoryManagerLocal::create_coll(pg_l);
     Distribution_NW distribution_l;
     RuntimeEngine re_l;
@@ -492,7 +540,8 @@ std::tuple<int, int, double, libint2::BasisSet, std::vector<size_t>, Tensor<doub
     exc.pg().barrier();
 
     //F, C are not deallocated.
-    return std::make_tuple(ndocc, nao, ehf + enuc, shells, shell_tile_map, C_tamm, F_tamm, tAO, tAOt, scf_conv);
+    SystemData sys_data{options_map,static_cast<int>(ndocc),static_cast<int>(nao-ndocc),static_cast<int>(ndocc),static_cast<int>(nao-ndocc), 0, "rhf"};
+    return std::make_tuple(sys_data, ehf + enuc, shells, shell_tile_map, C_tamm, F_tamm, tAO, tAOt, scf_conv);
 }
 
 

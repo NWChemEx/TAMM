@@ -9,7 +9,8 @@ namespace tamm {
 
 template<typename T>
 inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
-                   T shift, bool transpose, std::vector<double>& evl_sorted, const TAMM_SIZE& noab) {
+                   T shift, bool transpose, std::vector<double>& evl_sorted, 
+                   const TAMM_SIZE& n_occ_alpha, const TAMM_SIZE& n_occ_beta) {
     // EXPECTS(transpose == false);
     block_for(ec, d_r(), [&](IndexVector blockid) {
         const TAMM_SIZE rsize = d_r.block_size(blockid);
@@ -23,6 +24,7 @@ inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
         auto& rtiss      = d_r.tiled_index_spaces();
         auto rblock_dims = d_r.block_dims(blockid);
 
+        TAMM_SIZE noab = n_occ_alpha+n_occ_beta;
         std::vector<double> p_evl_sorted_occ(noab);
         std::vector<double> p_evl_sorted_virt(evl_sorted.size()-noab);
         std::copy(evl_sorted.begin(), evl_sorted.begin() + noab,
@@ -104,7 +106,7 @@ inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
 
 template<typename T>
 inline void jacobi_eom(ExecutionContext& ec, LabeledTensor<T> d_r_lt, LabeledTensor<T> d_t_lt,
-                      T shift, bool transpose, std::vector<double>& evl_sorted, const TAMM_SIZE& noab) {
+                      T shift, bool transpose, std::vector<double>& evl_sorted, const TAMM_SIZE n_occ_alpha, const TAMM_SIZE n_occ_beta) {
     // EXPECTS(transpose == false);
      Tensor<T> d_r = d_r_lt.tensor();
      Tensor<T> d_t = d_t_lt.tensor();
@@ -120,10 +122,11 @@ inline void jacobi_eom(ExecutionContext& ec, LabeledTensor<T> d_r_lt, LabeledTen
 
         std::vector<T> tbuf(tsize);
 
-        auto& rtiss      = d_r.tiled_index_spaces();
+        // auto& rtiss      = d_r.tiled_index_spaces();
         auto rblock_dims = d_r.block_dims(blockid);
         auto rblock_offset = d_r.block_offsets(blockid);
 
+        TAMM_SIZE noab = n_occ_alpha+n_occ_beta;
         std::vector<double> p_evl_sorted_occ(noab);
         std::vector<double> p_evl_sorted_virt(evl_sorted.size()-noab);
         std::copy(evl_sorted.begin(), evl_sorted.begin() + noab,
@@ -155,8 +158,8 @@ inline void jacobi_eom(ExecutionContext& ec, LabeledTensor<T> d_r_lt, LabeledTen
                     }
                 }
             }
-            auto last_id = rtiss[2].translate(blockid[2], d_t.tiled_index_spaces()[2]);
-            blockid[2] = last_id;
+            // auto last_id = rtiss[2].translate(blockid[2], d_t.tiled_index_spaces()[2]);
+            // blockid[2] = last_id;
             d_t.add(blockid, tbuf);
         } else if(d_r.num_modes() == 5) {
             
@@ -196,8 +199,8 @@ inline void jacobi_eom(ExecutionContext& ec, LabeledTensor<T> d_r_lt, LabeledTen
                     }
                 }
             }
-            auto last_id = rtiss[4].translate(blockid[4], d_t.tiled_index_spaces()[4]);
-            blockid[4] = last_id;
+            // auto last_id = rtiss[4].translate(blockid[4], d_t.tiled_index_spaces()[4]);
+            // blockid[4] = last_id;
             d_t.add(blockid, tbuf);
         } else {
             assert(0); // @todo implement

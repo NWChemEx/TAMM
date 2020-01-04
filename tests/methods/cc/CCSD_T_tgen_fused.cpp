@@ -25,7 +25,7 @@ int main( int argc, char* argv[] )
     MPI_Init(&argc,&argv);
     GA_Initialize();
     MA_init(MT_DBL, 8000000, 20000000);
-    
+
     ccsd_driver();
 
     GA_Terminate();
@@ -33,7 +33,6 @@ int main( int argc, char* argv[] )
 
     return 0;
 }
-
 
 void ccsd_driver() {
 
@@ -48,28 +47,16 @@ void ccsd_driver() {
     ExecutionContext ec{pg, &distribution, mgr, &re};
     auto rank = ec.pg().rank();
 
-    //TODO: read from input file, assume no freezing for now
-    TAMM_SIZE freeze_core    = 0;
-    TAMM_SIZE freeze_virtual = 0;
-
-    auto [options_map, ov_alpha, nao, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis,scf_conv]  
+    auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis,scf_conv]  
                     = hartree_fock_driver<T>(ec,filename);
 
-    CCSDOptions ccsd_options = options_map.ccsd_options;
+    CCSDOptions ccsd_options = sys_data.options_map.ccsd_options;
     debug = ccsd_options.debug;
     if(rank == 0) ccsd_options.print();
-
-    int maxiter    = ccsd_options.ccsd_maxiter;
-    double thresh  = ccsd_options.threshold;
-    double zshiftl = 0.0;
-    size_t ndiis   = 5;
-
-    const TAMM_SIZE nocc = 2 * ov_alpha;
-    const TAMM_SIZE nvir = 2*nao - 2*ov_alpha;
-    if(rank==0) cout << endl << "#occupied, #virtual = " << nocc << ", " << nvir << endl;
     
-    auto [MO,total_orbitals] = setupMOIS(ccsd_options.tilesize,
-                    nao,ov_alpha,freeze_core,freeze_virtual);
+    if(rank==0) cout << endl << "#occupied, #virtual = " << sys_data.nocc << ", " << sys_data.nvir << endl;
+    
+    auto [MO,total_orbitals] = setupMOIS(sys_data);
 
     std::string out_fp = getfilename(filename)+"."+ccsd_options.basis;
     std::string files_dir = out_fp+"_files";
@@ -90,12 +77,11 @@ void ccsd_driver() {
     #if 1
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
-                        (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
-                                freeze_virtual, C_AO, F_AO, shells, shell_tile_map,
-                                ccsd_restart, cholfile);    
+                        (sys_data, ec, MO, AO_opt, C_AO, F_AO, shells, shell_tile_map,
+                                ccsd_restart, cholfile);
 
     auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
-            = setupTensors(ec,MO,d_f1,ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
+            = setupTensors(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
 
     if(ccsd_restart) {
         read_from_disk(d_f1,f1file);
@@ -123,16 +109,15 @@ void ccsd_driver() {
 
     if(rank==0 && debug){
       cout << "eigen values:" << endl << std::string(50,'-') << endl;
-      for (auto x: p_evl_sorted) cout << x << endl;
+      for (size_t i=0;i<p_evl_sorted.size();i++) cout << i+1 << "   " << p_evl_sorted[i] << endl;
       cout << std::string(50,'-') << endl;
     }
     
     ec.pg().barrier();
 
-    ExecutionHW hw = ExecutionHW::CPU;
-    const bool has_gpu = ec.has_gpu();
-
     #ifdef USE_TALSH_T
+    ExecutionHW hw = ExecutionHW::CPU;
+    const bool has_gpu = ec.has_gpu();    
     hw = ExecutionHW::GPU;
     TALSH talsh_instance;
     if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
@@ -143,13 +128,12 @@ void ccsd_driver() {
     ccsd_restart = ccsd_restart && fs::exists(ccsdstatus) && scf_conv;
 
     auto [residual, corr_energy] = cd_ccsd_driver<T>(
-            ec, MO, CI, d_t1, d_t2, d_f1, 
+            sys_data, ec, MO, CI, d_t1, d_t2, d_f1, 
             d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
             p_evl_sorted, 
-            maxiter, thresh, zshiftl, ndiis, 
-            2 * ov_alpha, cholVpr, ccsd_options.writet, ccsd_restart, files_prefix);
+            cholVpr, ccsd_restart, files_prefix);
 
-    ccsd_stats(ec, hf_energy,residual,corr_energy,thresh);
+    ccsd_stats(ec, hf_energy,residual,corr_energy,ccsd_options.threshold);
 
     auto cc_t2 = std::chrono::high_resolution_clock::now();
 
@@ -175,7 +159,7 @@ void ccsd_driver() {
 
     ec.flush_and_sync();
 
-    Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, total_orbitals, ov_alpha, nao - ov_alpha, ExecutionHW::CPU);
+    Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, ExecutionHW::CPU);
     Tensor<T>::deallocate(cholVpr);
 
     #ifdef USE_TALSH_T
@@ -245,8 +229,6 @@ void ccsd_driver() {
     double energy1=0, energy2=0;
 
     #if 1
-    auto n_alpha = ov_alpha;
-    TAMM_SIZE n_beta{nao - ov_alpha};
 
     Index noab=MO("occ").num_tiles();
     Index nvab=MO("virt").num_tiles();
@@ -256,10 +238,16 @@ void ccsd_driver() {
     for(auto x=0;x<nvab/2;x++) k_spin.push_back(1);
     for(auto x=nvab/2;x<nvab;x++) k_spin.push_back(2);
 
-    if(rank==0) cout << "\nCCSD(T)\n";
+    if(rank==0) cout << "\nCCSD(T) tgen fused.\n";
 
-    std::tie(energy1,energy2) = ccsd_t_tgen_driver<T>(ec,k_spin,n_alpha,n_beta,MO,d_t1,d_t2,d_v2,
-                p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda);
+    std::tie(energy1,energy2) = ccsd_t_tgen_driver<T>(ec,k_spin,MO,d_t1,d_t2,d_v2,
+                                    p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda);
+
+    double g_energy1,g_energy2;
+    MPI_Reduce(&energy1, &g_energy1, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+    MPI_Reduce(&energy2, &g_energy2, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+    energy1 = g_energy1;
+    energy2 = g_energy2;
 
     if (rank==0 && energy1!=-999){
 

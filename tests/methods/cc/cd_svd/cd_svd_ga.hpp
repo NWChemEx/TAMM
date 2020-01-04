@@ -57,16 +57,24 @@ bool cd_debug = false;
     return ret;
   }
 
-Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndexSpace& tAO,
-  const TAMM_GA_SIZE ndocc, const TAMM_GA_SIZE nao, const TAMM_GA_SIZE freeze_core,
-  const TAMM_GA_SIZE freeze_virtual, const tamm::Tile itile_size, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
-  Tensor<TensorType> F_MO, TAMM_SIZE& chol_count, const TAMM_GA_SIZE max_cvecs, double diagtol,
+Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndexSpace& tAO,
+  Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
+  Tensor<TensorType> F_MO, TAMM_SIZE& chol_count, const TAMM_GA_SIZE max_cvecs,
   libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map) {
 
     using libint2::Atom;
     using libint2::Shell;
     using libint2::Engine;
     using libint2::Operator;
+
+  double diagtol = sys_data.options_map.cd_options.diagtol;
+  const tamm::Tile itile_size = sys_data.options_map.ccsd_options.itilesize;
+  SCFOptions scf_options = sys_data.options_map.scf_options;
+  const TAMM_GA_SIZE n_occ_alpha=sys_data.n_occ_alpha;
+  const TAMM_GA_SIZE n_occ_beta=sys_data.n_occ_beta;
+  const TAMM_GA_SIZE nao=sys_data.nbf;
+  const TAMM_GA_SIZE freeze_core=sys_data.n_frozen_core;
+  const TAMM_GA_SIZE freeze_virtual=sys_data.n_frozen_virtual;
 
     auto rank = ec.pg().rank();
 
@@ -78,20 +86,15 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
     // auto [mu, nu, ku] = tAO.labels<3>("all");
     // auto [pmo, rmo] = tMO.labels<2>("all");
 
-
-    if(rank == 0){
-      cout << "\n-----------------------------------------------------" << endl;
-      cout << "Begin Cholesky Decomposition ... " << endl;
-      cout << "\n#AOs, #electrons = " << nao << " , " << ndocc << endl;
-    }
-
-    auto ov_alpha_freeze = ndocc - freeze_core;
-    auto ov_beta_freeze  = nao - ndocc - freeze_virtual;
+    TAMM_GA_SIZE n_vir_alpha = nao - n_occ_alpha;
+    TAMM_GA_SIZE n_vir_beta = nao - n_occ_beta; 
+    auto n_occ_alpha_freeze = n_occ_alpha - freeze_core;
+    auto n_vir_beta_freeze  = n_vir_beta - freeze_virtual;
     
     // const auto v2dim  = 2 * nao - 2 * freeze_core - 2 * freeze_virtual;
-    // const int n_alpha = ov_alpha_freeze;
-    // const int n_beta  = ov_beta_freeze;
-    // auto ov_alpha     = ndocc;
+    // const int n_alpha = n_occ_alpha_freeze;
+    // const int n_beta  = n_vir_beta_freeze;
+    // auto ov_alpha     = n_occ_alpha;
     // TAMM_GA_SIZE ov_beta{nao - ov_alpha};
 
     // 2-index transform
@@ -105,30 +108,44 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
     auto N = 2 * nao - 2 * freeze_core - 2 * freeze_virtual;
     Matrix CTiled(nao, N);
 
+    const bool molden_exists = !scf_options.moldenfile.empty();
+    const bool is_uhf = scf_options.scf_type == "uhf";
+    const bool is_rohf = scf_options.scf_type == "rohf";
+
     if(rank == 0){
 
-      Matrix C(nao,nao);
+      cout << "\n-----------------------------------------------------" << endl;
+      cout << "Begin Cholesky Decomposition ... " << endl;
+      cout << "\n#AOs, #electrons = " << nao << " , " << n_occ_alpha+n_occ_beta << endl;
+
+      Matrix C;
+      if(is_uhf) C.setZero(nao,2*nao);
+      else C.setZero(nao,nao);
       tamm_to_eigen_tensor(C_AO,C);
       // replicate horizontally
-      Matrix C_2N(nao, 2 * nao);
-      C_2N << C, C;
+      Matrix C_2N(nao, N);
+      if(is_uhf) C_2N = C;
+      else C_2N << C, C;
       C.resize(0,0);
       // cout << "\n\t C_2N Matrix:\n";
       // cout << C_2N << endl;
 
-      Matrix C_noa = C_2N.block(0, freeze_core, nao, ov_alpha_freeze);
+      cout << "n_occ_alpha, n_vir_alpha, n_occ_beta, n_vir_beta = " 
+           << n_occ_alpha << "," << n_vir_alpha << "," << n_occ_beta << "," << n_vir_beta << endl;
+
+      Matrix C_noa = C_2N.block(0, freeze_core, nao, n_occ_alpha_freeze);
       //  cout << "\n\t C occupied alpha:\n";
       //  cout << C_noa << endl;
 
-      Matrix C_nva = C_2N.block(0, ndocc, nao, ov_beta_freeze);
+      Matrix C_nva = C_2N.block(0, n_occ_alpha, nao, n_vir_alpha);
       //  cout << "\n\t C virtual alpha:\n";
       //  cout << C_nva << endl;
 
-      Matrix C_nob = C_2N.block(0, nao + freeze_core, nao, ov_alpha_freeze);
+      Matrix C_nob = C_2N.block(0, nao, nao, n_occ_beta);
       //  cout << "\n\t C occupied beta:\n";
       //  cout << C_nob << endl;
 
-      Matrix C_nvb = C_2N.block(0, ndocc + nao, nao, ov_beta_freeze);
+      Matrix C_nvb = C_2N.block(0, n_occ_beta + nao, nao, n_vir_beta_freeze);
       //  cout << "\n\t C virtual beta:\n";
       //  cout << C_nvb << endl;
 
@@ -139,9 +156,38 @@ Tensor<TensorType> cd_svd_ga(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
       //  cout << "\n\t CTiled Matrix = [C_noa C_nob C_nva C_nvb]:\n";
       //  cout << CTiled << endl;
 
-      Matrix F(nao,nao);
-      tamm_to_eigen_tensor(F_AO,F);
-      F = CTiled.transpose() * (F * CTiled); //F is resized to 2N*2N
+      Matrix F1;
+      if(is_uhf) F1.setZero(N,N);
+      else F1.setZero(nao,nao);
+      Matrix F(2*nao,2*nao);
+      tamm_to_eigen_tensor(F_AO,F1);
+
+      // if(scf_options.debug) 
+      // for (TAMM_GA_SIZE i=0;i<F1.rows();i++) cout << i+1 << "   " << F1(i,i) << endl;
+
+      if(molden_exists){
+        TAMM_GA_SIZE k = 0;
+        for (TAMM_GA_SIZE i=0;i<n_occ_alpha+n_occ_beta;i++){
+          F(i,i) = F1(k,k);
+          k++;
+          if(k==n_occ_alpha) {
+           if(is_uhf) k = nao;
+           else k = 0;
+          }
+        }
+        k = n_occ_alpha;
+        for (TAMM_GA_SIZE i=n_occ_alpha+n_occ_beta;i<2*nao;i++) {
+          F(i,i) = F1(k,k);
+          k++;
+          if(k==nao){
+            if(is_uhf) k = nao+n_occ_beta;
+            else if(is_rohf) k = n_occ_beta;
+            else k = n_occ_alpha;
+            
+          }
+        }
+      }
+      else F = CTiled.transpose() * (F1 * CTiled); //F is resized to 2N*2N
       
       // eigen_to_tamm_tensor(CTiled_tamm,CTiled);
       eigen_to_tamm_tensor(F_MO,F);

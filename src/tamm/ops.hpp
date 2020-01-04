@@ -675,10 +675,11 @@ public:
     using T   = typename LabeledTensorT::element_type;
 
     MapOp(LabeledTensorT& lhs, Func func, RHS& rhs,
-          ResultMode mode = ResultMode::set) :
+          ResultMode mode = ResultMode::set, bool do_translate = true) :
       lhs_{lhs},
       func_{func},
-      rhs_{rhs} {
+      rhs_{rhs},
+      do_translate_{do_translate} {
         fillin_labels();
         validate();
     }
@@ -698,6 +699,30 @@ public:
                                  rlt.labels().end());
         }
         LabelLoopNest loop_nest{merged_labels};
+        auto lambda_no_translate = [&](const IndexVector& itval) {
+            auto ltensor = lhs_.tensor();
+            IndexVector lblockid, rblockid[N];
+            auto it = itval.begin();
+            lblockid.insert(lblockid.end(), it, it + lhs_.labels().size());
+            it += lhs_.labels().size();
+            for(size_t i = 0; i < N; i++) {
+                rblockid[i].insert(rblockid[i].end(), it,
+                                   it + rhs_[i].labels().size());
+                it += rhs_[i].labels().size();
+            }
+
+            const size_t lsize = ltensor.block_size(lblockid);
+            std::vector<TensorElType> lbuf(lsize);
+            std::vector<TensorElType> rbuf[N];
+            for(size_t i = 0; i < N; i++) {
+                const auto& rtensor_i = rhs_[i].tensor();
+                const size_t isz      = rtensor_i.block_size(rblockid[i]);
+                rbuf[i].resize(isz);
+                rtensor_i.get(rblockid[i], rbuf[i]);
+            }
+            func_(ltensor, lblockid, lbuf, rblockid, rbuf);
+            ltensor.put(lblockid, lbuf);
+        };
 
         auto lambda = [&](const IndexVector& itval) {
             auto ltensor = lhs_.tensor();
@@ -728,7 +753,10 @@ public:
             ltensor.put(lblockid, lbuf);
         };
         //@todo use a scheduler
-        do_work(ec, loop_nest, lambda);
+        if(do_translate_)
+            do_work(ec, loop_nest, lambda);
+        else
+            do_work(ec, loop_nest, lambda_no_translate);
     }
 
     TensorBase* writes() const {
@@ -810,6 +838,7 @@ protected:
     LabeledTensorT& lhs_;
     Func func_;
     std::array<LabeledTensorT, N> rhs_;
+    bool do_translate_; 
 };
 
 template<typename T>

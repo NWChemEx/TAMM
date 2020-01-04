@@ -104,11 +104,16 @@ inline void gemm_wrapper<std::complex<double>>(
 namespace kernels {
 
 template<typename T, typename T1, typename T2, typename T3>
-void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
-                    const IntLabelVec& alabels, const T3* bbuf,
-                    const SizeVec& bdims, const IntLabelVec& blabels, T beta,
-                    T1* cbuf, const SizeVec& cdims, const IntLabelVec& clabels, 
-                    ExecutionHW hw = ExecutionHW::CPU, int ngpu = 0) {
+void block_multiply(bool &isgpuOp,  
+        #ifdef USE_TALSH
+          TALSH& gpu_mult, talsh_task_t& talsh_task, 
+          tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, 
+        #endif
+          int dev_id, T alpha, const T2* abuf, const SizeVec& adims,
+          const IntLabelVec& alabels, const T3* bbuf,
+          const SizeVec& bdims, const IntLabelVec& blabels, T beta,
+          T1* cbuf, const SizeVec& cdims, const IntLabelVec& clabels, 
+          ExecutionHW hw = ExecutionHW::CPU, bool has_gpu = false) {
     const Size asize = std::accumulate(adims.begin(), adims.end(), Size{1},
                                        std::multiplies<Size>());
     const Size bsize = std::accumulate(bdims.begin(), bdims.end(), Size{1},
@@ -463,11 +468,12 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
       if (r1 && r2) reduction_op = true;
     }
 
-    if(hadamard || reduction_op || hw == ExecutionHW::CPU || ngpu == 0) {
+    if(hadamard || reduction_op || hw == ExecutionHW::CPU || !has_gpu) {
       bmult_cpu_lambda(); 
     }
 
     else {
+      isgpuOp = true;
       // std::cout << "not hadamard\n";
       // std::cout << talsh_op_string << std::endl;
       // std::cout << aid_size << ":" << bid_size << ":" << cid_size << std::endl;
@@ -479,24 +485,24 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
       // double *bdata = host_pinned_memory(bbatch_ld*sizeof(double)); 
       // double *cdata = host_pinned_memory(cbatch_ld*sizeof(double)); 
 
-      TALSH gpu_mult{ngpu};
+      // TALSH gpu_mult{ngpu};
       T2* abufp = const_cast<T2*>(abuf); 
       T3* bbufp = const_cast<T3*>(bbuf); 
 
       if constexpr(std::is_same_v<T1,T2> && std::is_same_v<T1,T3>){
-          tensor_handle th_a = gpu_mult.host_block(adims.size(), 
+           th_a = gpu_mult.host_block(adims.size(), 
               tal_adims, abufp); 
-          tensor_handle th_b = gpu_mult.host_block(bdims.size(), 
+           th_b = gpu_mult.host_block(bdims.size(), 
               tal_bdims, bbufp); 
-          tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
+           th_c = gpu_mult.host_block(cdims.size(), 
               tal_cdims, cbuf); 
 
-          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+          gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string, 
               alpha, COPY_TTT); 
 
-          talshTensorDestruct(&th_a);
-          talshTensorDestruct(&th_b);
-          talshTensorDestruct(&th_c);
+          // talshTensorDestruct(&th_a);
+          // talshTensorDestruct(&th_b);
+          // talshTensorDestruct(&th_c);
 
       }
       #ifdef USE_BLIS
@@ -520,7 +526,7 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
           tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
               tal_cdims, cbuf); 
 
-          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+          gpu_mult.mult_block(dev_id, th_c, th_a, th_b, talsh_op_string, 
               alpha, COPY_TTT); 
 
           talshTensorDestruct(&th_a);
@@ -544,7 +550,7 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
           tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
               tal_cdims, cbuf); 
 
-          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+          gpu_mult.mult_block(dev_id, th_c, th_a, th_b, talsh_op_string, 
               alpha, COPY_TTT); 
 
           talshTensorDestruct(&th_a);
@@ -571,7 +577,7 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
           tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
               tal_cdims, cbuf); 
 
-          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+          gpu_mult.mult_block(dev_id, th_c, th_a, th_b, talsh_op_string, 
               alpha, COPY_TTT); 
 
           talshTensorDestruct(&th_a);
@@ -595,7 +601,7 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
           tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
               tal_cdims, cbuf); 
 
-          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+          gpu_mult.mult_block(dev_id, th_c, th_a, th_b, talsh_op_string, 
               alpha, COPY_TTT); 
 
           talshTensorDestruct(&th_a);
@@ -629,7 +635,7 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
           tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
               tal_cdims, cbuf); 
 
-          gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+          gpu_mult.mult_block(dev_id, th_c, th_a, th_b, talsh_op_string, 
               alpha, COPY_TTT); 
 
           talshTensorDestruct(&th_a);
@@ -649,7 +655,7 @@ void block_multiply(int my_rank, T alpha, const T2* abuf, const SizeVec& adims,
       // tensor_handle th_c = gpu_mult.host_block(cdims.size(), 
       //     tal_cdims, cbuf); 
 
-      // gpu_mult.mult_block(my_rank, th_c, th_a, th_b, talsh_op_string, 
+      // gpu_mult.mult_block(dev_id, th_c, th_a, th_b, talsh_op_string, 
       //     alpha, COPY_TTT); 
 
       // talshTensorDestruct(&th_a);

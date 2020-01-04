@@ -468,18 +468,23 @@ void ccsd_t2(/* ExecutionContext& ec, */
 
 
 template<typename T>
-std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
-                    const TiledIndexSpace& CI,
+std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& ec, 
+                   const TiledIndexSpace& MO, const TiledIndexSpace& CI,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_f1, 
                    Tensor<T>& d_r1, Tensor<T>& d_r2, std::vector<Tensor<T>>& d_r1s, 
                    std::vector<Tensor<T>>& d_r2s, std::vector<Tensor<T>>& d_t1s, 
                    std::vector<Tensor<T>>& d_t2s, std::vector<T>& p_evl_sorted,
-                   int maxiter, double thresh,
-                   double zshiftl, int ndiis, 
-                   const TAMM_SIZE& noab,
-                   Tensor<T>& cv3d, bool writet=false, bool ccsd_restart=false, std::string out_fp="") {
+                   Tensor<T>& cv3d, bool ccsd_restart=false, std::string out_fp="") {
 
+    double zshiftl = 0.0;                
+    int maxiter    = sys_data.options_map.ccsd_options.ccsd_maxiter;
+    int ndiis = sys_data.options_map.ccsd_options.ndiis;
+    double thresh  = sys_data.options_map.ccsd_options.threshold;
+    bool writet = sys_data.options_map.ccsd_options.writet;
+    const TAMM_SIZE n_occ_alpha = static_cast<TAMM_SIZE>(sys_data.n_occ_alpha);
+    const TAMM_SIZE n_occ_beta = static_cast<TAMM_SIZE>(sys_data.n_occ_beta);
+    
     std::string t1file = out_fp+".t1amp";
     std::string t2file = out_fp+".t2amp";                       
 
@@ -497,13 +502,15 @@ std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexS
 
     const int otiles = O.num_tiles();
     const int vtiles = V.num_tiles();
-    const int oabtiles = otiles/2;
-    const int vabtiles = vtiles/2;
+    const int oatiles = MO("occ_alpha").num_tiles();
+    const int obtiles = MO("occ_beta").num_tiles();
+    const int vatiles = MO("virt_alpha").num_tiles();
+    const int vbtiles = MO("virt_beta").num_tiles();
 
-    o_alpha = {MO("occ"), range(oabtiles)};
-    v_alpha = {MO("virt"), range(vabtiles)};
-    o_beta = {MO("occ"), range(oabtiles,otiles)};
-    v_beta = {MO("virt"), range(vabtiles,vtiles)};
+    o_alpha = {MO("occ"), range(oatiles)};
+    v_alpha = {MO("virt"), range(vatiles)};
+    o_beta = {MO("occ"), range(obtiles,otiles)};
+    v_beta = {MO("virt"), range(vbtiles,vtiles)};
 
     auto [p1_va, p2_va] = v_alpha.labels<2>("all");
     auto [p1_vb, p2_vb] = v_beta.labels<2>("all");
@@ -689,7 +696,7 @@ std::tuple<double,double> cd_ccsd_driver(ExecutionContext& ec, const TiledIndexS
 
             //   GA_Sync();
             std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
-                                            d_e, p_evl_sorted, zshiftl, noab);
+                                            d_e, p_evl_sorted, zshiftl, n_occ_alpha, n_occ_beta);
 
             update_r2(ec, d_r2());
 

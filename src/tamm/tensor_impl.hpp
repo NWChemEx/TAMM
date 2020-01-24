@@ -651,6 +651,7 @@ class DenseTensorImpl : public TensorImpl<T> {
         GA_Set_chunk64(ga_,chunk);
       }
     }
+    GA_Set_pgroup(ga_, ec->pg().ga_pg());
     NGA_Allocate(ga_);
     update_status(AllocationStatus::created);
   }

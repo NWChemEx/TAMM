@@ -49,7 +49,6 @@ auto-detect (only for x86_64 systems) the architecture.
 
 #CMake options for developers (optional)
 -DUSE_GA_DEV=ON #Build GA's latest development code.
--DUSE_GA_DEV_AR=ON #Same as above, downloads tarball of the latest development code instead of cloning the repo.
 
 #OpenMP
 -DUSE_OPENMP=OFF (ON by default, also required to be ON when USE_CUDA=ON)

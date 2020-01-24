@@ -1,9 +1,9 @@
 
-#ifndef CCSD_T_GPU_TGEN_HPP_
-#define CCSD_T_GPU_TGEN_HPP_
+#ifndef CCSD_T_FUSED_HPP_
+#define CCSD_T_FUSED_HPP_
 
-#include "ccsd_t_gpu_all_fused.hpp"
-#include "header.hpp"
+#include "ccsd_t_all_fused.hpp"
+#include "ccsd_t_common.hpp"
 
 int check_device(long);
 int device_init(long icuda,int *cuda_device_number );
@@ -21,25 +21,26 @@ void dprint1(Arg&& arg, Args&&... args)
 }
 
 template<typename T>
-std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
+std::tuple<double,double> ccsd_t_fused_driver(ExecutionContext& ec,
                    std::vector<int>& k_spin,
                    const TiledIndexSpace& MO,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_v2,
                    std::vector<T>& k_evl_sorted,
-                   double hf_ccsd_energy, int icuda) {
+                   double hf_ccsd_energy, int icuda,
+                   bool is_restricted) {
 
     auto rank = GA_Nodeid();
     bool nodezero = rank==0;
 
-    size_t kcalls=0;
-    size_t kcalls_fused=0;
-    size_t kcalls_pfused=0;
+    // size_t kcalls=0;
+    // size_t kcalls_fused=0;
+    // size_t kcalls_pfused=0;
 
-    if(icuda==0) {
-      if(nodezero)std::cout << "\nERROR: Please specify number of cuda devices to use in the input file!\n\n"; //TODO
-      return std::make_tuple(-999,-999);
-    }
+    // if(icuda==0) {
+    //   if(nodezero)std::cout << "\nERROR: Please specify number of cuda devices to use in the input file!\n\n"; //TODO
+    //   return std::make_tuple(-999,-999);
+    // }
 
     Index noab=MO("occ").num_tiles();
     Index nvab=MO("virt").num_tiles();
@@ -73,6 +74,7 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
     int cuda_device_number=0;
     //Check whether this process is associated with a GPU
     auto has_GPU = check_device(icuda);
+    if(icuda==0) has_GPU=0;
     // cout << "rank,has_gpu" << rank << "," << has_GPU << endl;
     if(has_GPU == 1){
       device_init(icuda, &cuda_device_number);
@@ -90,8 +92,6 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
     ac->allocate(0);
     int64_t taskcount = 0;
     int64_t next = ac->fetch_add(0, 1);
-
-  if(has_GPU == 1){
 
     size_t max_pdim = 0;
     size_t max_hdim = 0;
@@ -148,9 +148,8 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                       //               k_range[t_h2b] * k_range[t_h3b];
 
                       //TODO: cpu buffers not needed for gpu code path                                    
-                      std::vector<double> k_singles(2);/*size*/
-                      std::vector<double> k_doubles(2);
-                      has_GPU = check_device(icuda);
+                      //std::vector<double> k_singles(2);/*size*/
+                      //std::vector<double> k_doubles(2);
                       if (has_GPU==1) {
                         initmemmodule();
                       }
@@ -179,7 +178,6 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                       //  else factor = 1.0;
 
                       // cout << "restricted = " << factor << endl;
-                      
 
                       if ((t_p4b == t_p5b) && (t_p5b == t_p6b)) {
                         factor /= 6.0;
@@ -193,12 +191,12 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
                         factor /= 2.0;
                       }
 
-                      ccsd_t_gpu_all_fused(ec,MO,noab,nvab,
-                        k_spin,k_offset,k_doubles,d_t1,d_t2,d_v2,
+                      ccsd_t_all_fused(ec,MO,noab,nvab,
+                        k_spin,k_offset,/*k_doubles,*/d_t1,d_t2,d_v2,
                         k_evl_sorted,k_range,t_h1b,t_h2b,t_h3b,
                         t_p4b,t_p5b,t_p6b, k_abufs1, k_bbufs1, 
                         k_abuf1,k_bbuf1,k_abuf2,k_bbuf2,factor,
-                        energy_l,has_GPU); 
+                        energy_l,has_GPU,is_restricted); 
                           
 
                       //  cout << "singles = " << k_singles << endl;
@@ -314,8 +312,7 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
       k_abufs1.shrink_to_fit();
       k_bbufs1.shrink_to_fit();
 
-  } //has_gpu
-    next = ac->fetch_add(0, 1); //TODO: is this needed ? 
+    next = ac->fetch_add(0, 1); 
     ec.pg().barrier();
     ac->deallocate();
     delete ac;
@@ -336,4 +333,4 @@ std::tuple<double,double> ccsd_t_tgen_driver(ExecutionContext& ec,
  
 }
 
-#endif //CCSD_T_GPU_HPP_
+#endif //CCSD_T_FUSED_HPP_

@@ -1,10 +1,11 @@
 // #define CATCH_CONFIG_RUNNER
 
 #include "cd_ccsd_common.hpp"
-#include "ccsd_t/ccsd_t_gpu.hpp"
+#include "ccsd_t/ccsd_t_unfused_driver.hpp"
 
 void ccsd_driver();
 std::string filename; //bad, but no choice
+bool use_nwc_gpu_kernels = false;
 
 int main( int argc, char* argv[] )
 {
@@ -28,6 +29,7 @@ int main( int argc, char* argv[] )
 
     GA_Terminate();
     MPI_Finalize();
+
 
     return 0;
 }
@@ -113,9 +115,7 @@ void ccsd_driver() {
     ec.pg().barrier();
 
     #ifdef USE_TALSH_T
-    ExecutionHW hw = ExecutionHW::CPU;
-    const bool has_gpu = ec.has_gpu();    
-    hw = ExecutionHW::GPU;
+    const bool has_gpu = ec.has_gpu();
     TALSH talsh_instance;
     if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
     #endif
@@ -176,8 +176,11 @@ void ccsd_driver() {
 
     if(rank==0) cout << "\nCCSD(T)\n";
 
-    auto [energy1,energy2] = ccsd_t_driver(ec,k_spin,MO,d_t1,d_t2,d_v2,
-                p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda);
+    bool is_restricted = true;
+    if(sys_data.options_map.scf_options.scf_type == "uhf") is_restricted = false;
+
+    auto [energy1,energy2] = ccsd_t_unfused_driver(ec,k_spin,MO,d_t1,d_t2,d_v2,
+                p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted,use_nwc_gpu_kernels);
 
     double g_energy1,g_energy2;
     MPI_Reduce(&energy1, &g_energy1, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());

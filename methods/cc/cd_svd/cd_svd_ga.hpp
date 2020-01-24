@@ -119,12 +119,13 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
       cout << "\n#AOs, #electrons = " << nao << " , " << n_occ_alpha+n_occ_beta << endl;
 
       Matrix C;
-      if(is_uhf) C.setZero(nao,2*nao);
+      if(is_uhf && molden_exists) C.setZero(nao,2*nao);
       else C.setZero(nao,nao);
       tamm_to_eigen_tensor(C_AO,C);
+
       // replicate horizontally
       Matrix C_2N(nao, N);
-      if(is_uhf) C_2N = C;
+      if(is_uhf && molden_exists) C_2N = C;
       else C_2N << C, C;
       C.resize(0,0);
       // cout << "\n\t C_2N Matrix:\n";
@@ -157,7 +158,7 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
       //  cout << CTiled << endl;
 
       Matrix F1;
-      if(is_uhf) F1.setZero(N,N);
+      if(is_uhf && molden_exists) F1.setZero(N,N);
       else F1.setZero(nao,nao);
       Matrix F(2*nao,2*nao);
       tamm_to_eigen_tensor(F_AO,F1);
@@ -165,7 +166,7 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
       // if(scf_options.debug) 
       // for (TAMM_GA_SIZE i=0;i<F1.rows();i++) cout << i+1 << "   " << F1(i,i) << endl;
 
-      if(molden_exists){
+      if(is_uhf && molden_exists){
         TAMM_GA_SIZE k = 0;
         for (TAMM_GA_SIZE i=0;i<n_occ_alpha+n_occ_beta;i++){
           F(i,i) = F1(k,k);
@@ -192,7 +193,15 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
       // eigen_to_tamm_tensor(CTiled_tamm,CTiled);
       eigen_to_tamm_tensor(F_MO,F);
 
-      // cout << "F_MO dims = " << F.rows() << "," << F.cols()  << endl;
+      // cout << "debug C\n";
+      // cout.precision(5);
+      // cout << std::defaultfloat << endl;
+      // for (auto x=0;x<nao;x++) {
+      // cout << "--------" << x << "-------------\n";
+      // for (auto i=0;i<nao;i++) {
+      //   cout << i << ":   " << (C(i,x)) << endl;
+      // }
+      // }
     }
 
     std::vector<TensorType> CTiledBuf(nao*N);

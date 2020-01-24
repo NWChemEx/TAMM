@@ -16,6 +16,7 @@ endif()
 
 set(tamm_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/tamm)
 set(tamm_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/)
+set(tamm_METHODS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/methods/)
 
 if(NOT CMAKE_BUILD_TYPE)
     set (CMAKE_BUILD_TYPE Release)

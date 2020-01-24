@@ -353,15 +353,15 @@ talsh_mult_op_string(const std::vector<IntLabel>& clabel,
 }
 
 inline std::string
-talsh_add_op_string(const IndexLabelVec& clabel,
-        const IndexLabelVec& alabel) {
+talsh_add_op_string(const std::vector<IntLabel>& clabel,
+        const std::vector<IntLabel>& alabel){
   std::vector<char> c_label;
   std::vector<char> a_label;
   const std::string sep = ",";
 
   char talsh_index_base = 'a';
   int label_count = 0;
-  std::map<TiledIndexLabel, char> imap;
+  std::map<IntLabel, char> imap;
   for (auto &l : clabel) {
       imap[l] = talsh_index_base + label_count;
       label_count += 1;
@@ -380,15 +380,18 @@ talsh_add_op_string(const IndexLabelVec& clabel,
       a_label.push_back(imap[l]);
   }
 
+  std::reverse(a_label.begin(),a_label.end());
+  std::reverse(c_label.begin(),c_label.end());
+
   std::ostringstream oss;
   if(c_label.size() == 0) {
     /// scalar addition
     oss << "C()+="
-            << "A(" <<join(a_label, ",") << ")"; 
+            << "A(" <<join(a_label, ",") << ")";
   } else {
     /// normal add operation
     oss << "C(" << join(c_label, ",") << ")+="
-            << "A(" <<join(a_label, ",") << ")"; 
+            << "A(" <<join(a_label, ",") << ")";
   }
   return oss.str();
 }
@@ -579,7 +582,7 @@ inline void update_labels(IndexLabelVec& labels){
         EXPECTS(i != -1);
     }
     
-    for(size_t i = 0; i < labels.size(); i++) {
+    for(int i = 0; i < labels.size(); i++) {
         if(lbl_map[i] < i){
             labels[i] = labels[lbl_map[i]];
             continue;
@@ -625,6 +628,64 @@ inline void print_labels(const IndexLabelVec& labels) {
     }
     std::cout << "-------" << std::endl;
 }
+
+inline bool is_dense_labels(const IndexLabelVec& labels) {
+    for(auto& lbl : labels) {
+        if(lbl.is_dependent())
+            return false;
+    }
+    return true;
+}
+template<typename LabeledTensorT>
+inline bool is_slicing(const LabeledTensorT& lt) {
+    const auto& tis_vec = lt.tensor().tiled_index_spaces();
+    const auto& labels = lt.labels();
+    EXPECTS(tis_vec.size() == labels.size());
+    for (size_t i = 0; i < labels.size(); i++) {
+        if(!labels[i].tiled_index_space().is_identical(tis_vec[i])) return true;
+    }
+    return false;
+}
+
+  inline bool empty_reduction_primary_labels(const IndexLabelVec& lhs_labels,
+				  const IndexLabelVec& rhs_labels) {
+    std::set<TileLabelElement> lhs_plabels, rhs_plabels;
+    for(const auto& lbl: lhs_labels) {
+      lhs_plabels.insert(lbl.primary_label());
+    }
+    for(const auto& lbl: rhs_labels) {
+      rhs_plabels.insert(lbl.primary_label());
+    }
+    std::set<TileLabelElement> result;
+    std::set_difference(lhs_plabels.begin(), lhs_plabels.end(), rhs_plabels.begin(), rhs_plabels.end(),
+    std::inserter(result, result.end()));
+    return result.empty();
+  }
+
+/**
+ * @brief New optimized loop related functions
+ * 
+ * @todo: move these to a new loop function
+ * 
+ */
+
+// template <typename Func>
+// inline void loop_nest_exec(const std::vector<Range>& ranges, Func&& func,
+//                     std::vector<Index>& itr) {
+//   EXPECTS(itr.size() == ranges.size());
+//   int N = itr.size();
+//   if (N == 1) {
+//     loop_nest_y_1(func, &itr[0], &ranges[0])();
+//   } else if (N == 2) {
+//     loop_nest_y_2(func, &itr[0], &ranges[0])();
+//   } else if (N == 3) {
+//     loop_nest_y_3(func, &itr[0], &ranges[0])();
+//   } else if (N == 4) {
+//     loop_nest_y_4(func, &itr[0], &ranges[0])();
+//   } else {
+//     NOT_IMPLEMENTED();
+//   }
+// }
 
 } // namespace internal
 

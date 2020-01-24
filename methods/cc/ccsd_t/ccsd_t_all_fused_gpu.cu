@@ -2,7 +2,7 @@
 	To-Do: 	#1. 2D Grid 
 			#2. Optimized Memory
 */
-#include "header.hpp"
+#include "ccsd_t_common.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
@@ -2315,7 +2315,7 @@ void jk_ccsd_t_fully_fused_kernel(	int size_noab, int size_nvab,
 }
 
 // 
-void total_fused_ccsd_t(size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, 
+void total_fused_ccsd_t_gpu(size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, 
 						size_t base_size_p4b, size_t base_size_p5b, size_t base_size_p6b,
 						// 
 						double* host_d1_t2_all, double* host_d1_v2_all,

@@ -1,6 +1,9 @@
 
 
+#include "diis.hpp"
 #include "ccsd_util.hpp"
+#include "macdecls.h"
+#include "ga-mpi.h"
 
 using namespace tamm;
 
@@ -299,62 +302,81 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
 }
 
 template<typename T>
-std::tuple<double,double> ccsd_spin_driver(ExecutionContext& ec, const TiledIndexSpace& MO,
+std::tuple<double,double> ccsd_spin_driver(SystemData sys_data, ExecutionContext& ec, const TiledIndexSpace& MO,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_f1, Tensor<T>& d_v2,
                    Tensor<T>& d_r1, Tensor<T>& d_r2, std::vector<Tensor<T>>& d_r1s, 
                    std::vector<Tensor<T>>& d_r2s, std::vector<Tensor<T>>& d_t1s, 
                    std::vector<Tensor<T>>& d_t2s, std::vector<T>& p_evl_sorted,
-                   size_t maxiter, double thresh,
-                   double zshiftl,
-                   size_t ndiis, const TAMM_SIZE& noab) {
+                   bool ccsd_restart=false, std::string out_fp="") {
 
+    double zshiftl = 0.0;                
+    int maxiter    = sys_data.options_map.ccsd_options.ccsd_maxiter;
+    int ndiis = sys_data.options_map.ccsd_options.ndiis;
+    double thresh  = sys_data.options_map.ccsd_options.threshold;
+    bool writet = sys_data.options_map.ccsd_options.writet;
+    const TAMM_SIZE n_occ_alpha = static_cast<TAMM_SIZE>(sys_data.n_occ_alpha);
+    const TAMM_SIZE n_occ_beta = static_cast<TAMM_SIZE>(sys_data.n_occ_beta);
+    
+    std::string t1file = out_fp+".t1amp";
+    std::string t2file = out_fp+".t2amp";                       
 
     std::cout.precision(15);
 
     double residual = 0.0;
     double energy = 0.0;
 
-  for(size_t titer = 0; titer < maxiter; titer += ndiis) {
-      for(size_t iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
+    Tensor<T> d_e{};
+    Tensor<T>::allocate(&ec, d_e);
+    Scheduler sch{ec};
 
-          const auto timer_start = std::chrono::high_resolution_clock::now();
-          
-          int off = iter - titer;
+    if(!ccsd_restart) {
+        sch
+        (d_r1() = 0)
+        (d_r2() = 0);
 
-          Tensor<T> d_e{};
-          Tensor<T> d_r1_residual{};
-          Tensor<T> d_r2_residual{};
+  for(int titer = 0; titer < maxiter; titer += ndiis) {
+      for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
 
-          Tensor<T>::allocate(&ec, d_e, d_r1_residual, d_r2_residual);
+        const auto timer_start = std::chrono::high_resolution_clock::now();
+        
+        int off = iter - titer;
+        Tensor<T> d_r1_residual{};
+        Tensor<T> d_r2_residual{};
 
-          Scheduler sch{ec};
+        Tensor<T>::allocate(&ec, d_r1_residual, d_r2_residual);
 
-          sch(d_e() = 0)(d_r1_residual() = 0)(d_r2_residual() = 0)
-            .execute();
+        sch(d_e() = 0)
+        (d_r1_residual() = 0)
+        (d_r2_residual() = 0)
+        ((d_t1s[off])() = d_t1())
+        ((d_t2s[off])() = d_t2())
+        .execute();
 
-          sch((d_t1s[off])() = d_t1())((d_t2s[off])() = d_t2())
-            .execute();
+        ccsd_e(ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t1(ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t2(ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
 
-          ccsd_e(ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
-          ccsd_t1(ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
-          ccsd_t2(ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
+        #ifdef USE_TALSH
+            sch.execute(ExecutionHW::GPU);
+        #else
+            sch.execute();
+        #endif
 
-          GA_Sync();
-          std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
-                                            d_e, p_evl_sorted, zshiftl, noab);
+        std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
+                        d_e, p_evl_sorted, zshiftl, n_occ_alpha, n_occ_beta);
 
-          update_r2(ec, d_r2());
+        update_r2(ec, d_r2());
 
-          sch((d_r1s[off])() = d_r1())((d_r2s[off])() = d_r2()).execute();
+        sch((d_r1s[off])() = d_r1())((d_r2s[off])() = d_r2()).execute();
 
-          const auto timer_end = std::chrono::high_resolution_clock::now();
-          auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
+        const auto timer_end = std::chrono::high_resolution_clock::now();
+        auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-          iteration_print(ec.pg(), iter, residual, energy, iter_time);
-          Tensor<T>::deallocate(d_e, d_r1_residual, d_r2_residual);
+        iteration_print(ec.pg(), iter, residual, energy, iter_time);
+        Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
 
-          if(residual < thresh) { break; }
+        if(residual < thresh) { break; }
       }
 
       if(residual < thresh || titer + ndiis >= maxiter) { break; }
@@ -366,11 +388,24 @@ std::tuple<double,double> ccsd_spin_driver(ExecutionContext& ec, const TiledInde
           std::cout << std::right << "5" << std::endl;
       }
 
+
       std::vector<std::vector<Tensor<T>>> rs{d_r1s, d_r2s};
       std::vector<std::vector<Tensor<T>>> ts{d_t1s, d_t2s};
       std::vector<Tensor<T>> next_t{d_t1, d_t2};
       diis<T>(ec, rs, ts, next_t);
+      if(writet) {
+            write_to_disk(d_t1,t1file);
+            write_to_disk(d_t2,t2file);
+      }
   }
+ } //no restart
+    else {
+            sch(d_e()=0);
+            ccsd_e(ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
+            sch.execute();
+            energy = get_scalar(d_e);
+            residual = 0.0;
+    }
 
   return std::make_tuple(residual,energy);
 

@@ -47,6 +47,8 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     // int max_hist = scf_options.diis_hist; 
     auto debug = scf_options.debug;
     auto restart = scf_options.restart;
+    bool is_spherical = (scf_options.sphcart == "spherical");
+    const bool is_rhf = (scf_options.scf_type == "rhf");
 
     //TODO:adjust tol_int as needed
     // double tol_int = scf_options.tol_int;
@@ -65,6 +67,9 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
 
     // LIBINT_INSTALL_DIR/share/libint/2.4.0-beta.1/basis
     libint2::BasisSet shells(std::string(basis), atoms);
+    if(is_spherical) shells.set_pure(true);
+    else shells.set_pure(false);  // use cartesian gaussians
+
     // auto shells = make_sto3g_basis(atoms);
     const size_t N = nbasis(shells);
     size_t nao = N;
@@ -109,6 +114,9 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
 
     if (do_density_fitting) {
       dfbs = BasisSet(dfbasisname, atoms);
+      if(is_spherical) dfbs.set_pure(true);
+      else dfbs.set_pure(false);  // use cartesian gaussians
+
       if (rank==0) cout << "density-fitting basis set rank = " << dfbs.nbf() << endl;
       // compute DFBS non-negligible shell-pair list
       #if 0
@@ -167,10 +175,10 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
 
       bool molden_file_valid=std::filesystem::exists(scf_options.moldenfile);
       if(rank == 0) {
-        cout << "\nReading from molden file provided..." << endl;
+        cout << "\nReading from molden file provided ..." << endl;
         if(molden_file_valid){
           // const size_t n_lindep = scf_options.n_lindep;
-          std::tie(n_occ_alpha,n_vir_alpha,n_occ_beta,n_vir_beta) = read_molden<TensorType>(scf_options,evl_sorted,C);
+          std::tie(n_occ_alpha,n_vir_alpha,n_occ_beta,n_vir_beta) = read_molden<TensorType>(scf_options,evl_sorted,C,atoms.size());
           for (size_t i=0;i<nmo;i++){
             F(i,i) = evl_sorted[i];
           }
@@ -184,7 +192,10 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
       MPI_Bcast(&n_vir_alpha,1,mpi_type<int>(),0,exc.pg().comm());
       MPI_Bcast(&n_vir_beta,1,mpi_type<int>(),0,exc.pg().comm());
 
-      tamm::Tile ao_tile = static_cast<tamm::Tile>(N*0.05);
+      if(!is_rhf) {
+      tamm::Tile ao_tile = scf_options.AO_tilesize;
+      if(tile_size < N*0.05 && !scf_options.force_tilesize)
+         ao_tile = static_cast<tamm::Tile>(std::ceil(N*0.05));
       TiledIndexSpace TAOIS{IndexSpace(range(0, nmo)),ao_tile};
       Tensor<TensorType> C_tamm{tAO,TAOIS};
       Tensor<TensorType> F_tamm{TAOIS,TAOIS};
@@ -200,6 +211,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
       }
       SystemData sys_data(options_map,n_occ_alpha,n_vir_alpha,n_occ_beta,n_vir_beta, scf_options.n_lindep, scf_options.scf_type);
       return std::make_tuple(sys_data, scf_energy, shells, shell_tile_map, C_tamm, F_tamm, tAO, tAOt, scf_conv);
+      }
     }
 
     #if SCF_THROTTLE_RESOURCES
@@ -293,7 +305,13 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     if (restart)
         scf_restart(ec, N, filename, ndocc, C, D);
     else   // SOAD as the guess density
-      compute_initial_guess<TensorType>(ec, ndocc, atoms, shells, basis, X, H, C, C_occ, D);
+      if(!molden_exists)
+      compute_initial_guess<TensorType>(ec, ndocc, atoms, shells, basis, X, H, C, C_occ, D, is_spherical);
+
+    if(molden_exists && is_rhf) {
+      C_occ = C.leftCols(ndocc);
+      D     = C_occ * C_occ.transpose();
+    }
 
     H.resize(0,0);
     hf_t2 = std::chrono::high_resolution_clock::now();

@@ -1,11 +1,10 @@
 
-#ifndef CCSD_T_GPU_HPP_
-#define CCSD_T_GPU_HPP_
+#ifndef CCSD_T_UNFUSED_HPP_
+#define CCSD_T_UNFUSED_HPP_
 
-#include "ccsd_t_singles_gpu.hpp"
-#include "ccsd_t_doubles_gpu.hpp"
-
-#include "header.hpp"
+#include "ccsd_t_singles_unfused.hpp"
+#include "ccsd_t_doubles_unfused.hpp"
+#include "ccsd_t_common.hpp"
 
 int check_device(long);
 int device_init(long icuda,int *cuda_device_number );
@@ -23,21 +22,22 @@ void dprint1(Arg&& arg, Args&&... args)
 }
 
 template<typename T>
-std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
+std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                    std::vector<int>& k_spin, 
                    const TiledIndexSpace& MO,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_v2,
                    std::vector<T>& k_evl_sorted,
-                   double hf_ccsd_energy, int icuda) {
+                   double hf_ccsd_energy, int icuda,
+                   bool is_restricted, bool use_nwc_gpu_kernels) {
 
     auto rank = GA_Nodeid();
     bool nodezero = rank==0;
 
-    if(icuda==0) {
-      if(nodezero)std::cout << "\nERROR: Please specify number of cuda devices to use in the input file!\n\n"; //TODO
-      return std::make_tuple(-999,-999);
-    }
+    // if(icuda==0) {
+    //   if(nodezero)std::cout << "\nERROR: Please specify number of cuda devices to use in the input file!\n\n"; //TODO
+    //   return std::make_tuple(-999,-999);
+    // }
 
     Index noab=MO("occ").num_tiles();
     Index nvab=MO("virt").num_tiles();
@@ -71,6 +71,7 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
     int cuda_device_number=0;
     //Check whether this process is associated with a GPU
     auto has_GPU = check_device(icuda);
+    if(icuda==0) has_GPU=0;
     // cout << "rank,has_gpu" << rank << "," << has_GPU << endl;
     if(has_GPU == 1){
       device_init(icuda, &cuda_device_number);
@@ -88,8 +89,6 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
     ac->allocate(0);
     int64_t taskcount = 0;
     int64_t next = ac->fetch_add(0, 1);
-
-  if(has_GPU == 1){
 
   for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
     for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
@@ -114,19 +113,20 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                 //                                       k_sym[t_h3b])))))
                 //     ) {
               if (next == taskcount) {
-                      // size_t size = k_range[t_p4b] * k_range[t_p5b] *
-                      //               k_range[t_p6b] * k_range[t_h1b] *
-                      //               k_range[t_h2b] * k_range[t_h3b];
+                      size_t size = k_range[t_p4b] * k_range[t_p5b] *
+                                    k_range[t_p6b] * k_range[t_h1b] *
+                                    k_range[t_h2b] * k_range[t_h3b];
 
-                      //TODO: cpu buffers not needed for gpu code path                                    
-                      std::vector<double> k_singles(2);/*size*/
-                      std::vector<double> k_doubles(2);
-                      has_GPU = check_device(icuda);
-                      if (has_GPU==1) {
-                        initmemmodule();
+                      std::vector<double> k_singles;
+                      std::vector<double> k_doubles;
+                      if(!has_GPU) {
+                        k_singles.resize(size,0);
+                        k_doubles.resize(size,0);
                       }
 
-                      if ((has_GPU==1)) {
+                      else {
+                        initmemmodule();
+
                         dev_mem_s(k_range[t_h1b],k_range[t_h2b],
                                   k_range[t_h3b],k_range[t_p4b],
                                   k_range[t_p5b],k_range[t_p6b]);
@@ -141,17 +141,14 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                       // cout << "p4,5,6,h1,2,3 = ";
                       // dprint(t_p4b,t_p5b,t_p6b,t_h1b,t_h2b,t_h3b);
 
-                      ccsd_t_singles_gpu(ec,MO,noab,nvab,k_spin,
+                      ccsd_t_singles_unfused(ec,MO,noab,nvab,k_spin,
                           k_singles, d_t1, d_v2, k_evl_sorted,
                           k_range,t_h1b, t_h2b, t_h3b, t_p4b, 
-                          t_p5b, t_p6b, has_GPU);
-                      ccsd_t_doubles_gpu(ec,MO,noab,nvab,
+                          t_p5b, t_p6b, has_GPU, is_restricted, use_nwc_gpu_kernels);
+                      ccsd_t_doubles_unfused(ec,MO,noab,nvab,
                           k_spin,k_doubles,d_t2,d_v2,
                           k_evl_sorted,k_range,t_h1b,t_h2b,t_h3b,
-                          t_p4b,t_p5b,t_p6b, has_GPU); 
-
-                      //  cout << "singles = " << k_singles << endl;
-                      // cout << "doubles = " << k_doubles << endl;
+                          t_p4b,t_p5b,t_p6b, has_GPU, is_restricted, use_nwc_gpu_kernels); 
 
                       double factor = 0.0;
 
@@ -160,7 +157,6 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                       //  else factor = 1.0;
 
                       // cout << "restricted = " << factor << endl;
-                      
 
                       if ((t_p4b == t_p5b) && (t_p5b == t_p6b)) {
                         factor /= 6.0;
@@ -174,40 +170,33 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                         factor /= 2.0;
                       }
                       
-                      #if 0
-                      auto indx = 0;
-                      for (auto t_p4=0;t_p4 < k_range[t_p4b];t_p4++)
-                      for (auto t_p5=0;t_p5 < k_range[t_p5b];t_p5++)
-                      for (auto t_p6=0;t_p6 < k_range[t_p6b];t_p6++)
-                      for (auto t_h1=0;t_h1 < k_range[t_h1b];t_h1++)
-                      for (auto t_h2=0;t_h2 < k_range[t_h2b];t_h2++)
-                      for (auto t_h3=0;t_h3 < k_range[t_h3b];t_h3++)
-                      {
-                          energy1 += (factor * k_doubles[indx] * k_doubles[indx])
-                          /(-1*k_evl_sorted[k_offset[t_p4b]+t_p4]
-                              -k_evl_sorted[k_offset[t_p5b]+t_p5] 
-                              -k_evl_sorted[k_offset[t_p6b]+t_p6]
-                              +k_evl_sorted[k_offset[t_h1b]+t_h1]
-                              +k_evl_sorted[k_offset[t_h2b]+t_h2]
-                              +k_evl_sorted[k_offset[t_h3b]+t_h3] );
+                      if(!has_GPU){
+                        size_t indx = 0;
+                        for (auto t_p4=0;t_p4 < k_range[t_p4b];t_p4++)
+                        for (auto t_p5=0;t_p5 < k_range[t_p5b];t_p5++)
+                        for (auto t_p6=0;t_p6 < k_range[t_p6b];t_p6++)
+                        for (auto t_h1=0;t_h1 < k_range[t_h1b];t_h1++)
+                        for (auto t_h2=0;t_h2 < k_range[t_h2b];t_h2++)
+                        for (auto t_h3=0;t_h3 < k_range[t_h3b];t_h3++)
+                        {
+                          double denom = 
+                             (-1*k_evl_sorted[k_offset[t_p4b]+t_p4]
+                                -k_evl_sorted[k_offset[t_p5b]+t_p5] 
+                                -k_evl_sorted[k_offset[t_p6b]+t_p6]
+                                +k_evl_sorted[k_offset[t_h1b]+t_h1]
+                                +k_evl_sorted[k_offset[t_h2b]+t_h2]
+                                +k_evl_sorted[k_offset[t_h3b]+t_h3] );
 
-                          energy2 += (factor * k_doubles[indx] *
-                                     (k_singles[indx] * k_doubles[indx]) )
-                          /(-1*k_evl_sorted[k_offset[t_p4b]+t_p4]
-                              -k_evl_sorted[k_offset[t_p5b]+t_p5] 
-                              -k_evl_sorted[k_offset[t_p6b]+t_p6]
-                              +k_evl_sorted[k_offset[t_h1b]+t_h1]
-                              +k_evl_sorted[k_offset[t_h2b]+t_h2]
-                              +k_evl_sorted[k_offset[t_h3b]+t_h3] );                              
+                            energy1 += (factor * k_doubles[indx] * k_doubles[indx]) / denom;
 
-                        indx++;
+                            energy2 += (factor * k_doubles[indx] *
+                                          (k_singles[indx] + k_doubles[indx])) / denom;
+                                          
+                          indx++;
+                        }
                       }
-                      #else
+                      else {
                       auto factor_l = factor;
-
-                      // cout << "doubles size = " << size << endl;
-                      // for(auto x:k_doubles)
-                      // cout << x << endl;
 
                       // cout << "factor-l=" << factor_l << endl;
                       // cout << "k_evl_sorted_full=" << k_evl_sorted << endl;
@@ -240,9 +229,7 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
 
                       // cout << "omg: " << k_range[t_h1b] << ", " << k_range[t_h2b] << ", " << k_range[t_h3b] << ", " << k_range[t_p4b] << ", " << k_range[t_p5b] << ", " << k_range[t_p6b] << endl;
                       // cout << "factor_l: " << factor_l << endl;
-                      
 
-                      //TODO
                       compute_energy(factor_l, &energy_l[0],
                                   &k_evl_sorted[k_offset[t_h1b]],
                                   &k_evl_sorted[k_offset[t_h2b]],
@@ -257,12 +244,12 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
                       // cout << "AFTER energy-l=" << energy_l << endl;                                  
                       energy1 += energy_l[0];
                       energy2 += energy_l[1];
-                      #endif
 
                       // cout << "e1,e2=" << energy1 << "," << energy2 << endl;
                       // cout << "-----------------------------------------\n";
                       dev_release();
                       finalizememmodule();
+                    }
 
                       next = ac->fetch_add(0, 1); 
                     }
@@ -279,8 +266,7 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
         }
       }
 
-  } //has_gpu
-    next = ac->fetch_add(0, 1); //TODO: is this needed ? 
+    next = ac->fetch_add(0, 1); 
     ec.pg().barrier();
     ac->deallocate();
     delete ac;
@@ -289,4 +275,4 @@ std::tuple<double,double> ccsd_t_driver(ExecutionContext& ec,
  
 }
 
-#endif //CCSD_T_GPU_HPP_
+#endif //CCSD_T_UNFUSED_HPP_

@@ -1,4 +1,4 @@
-#include "header.hpp"
+#include "ccsd_t_common.hpp"
 
 __device__ double* t3_s_d;
 __device__ double* t3_d;

@@ -46,12 +46,14 @@ class Options {
       basis = "sto-3g";
       dfbasis = "";
       geom_units = "bohr";
+      sphcart = "spherical";
     }
 
     bool debug;
     int maxiter;
     std::string basis;
     std::string dfbasis;
+    std::string sphcart;
     std::string geom_units;
 
     void print() {
@@ -59,7 +61,9 @@ class Options {
       cout << "\nCommon Options\n";
       cout << "{\n";
       cout << " max iter = " << maxiter << endl;
-      cout << " basis = " << basis << endl;
+      cout << " basis = " << basis << " ";
+      cout << sphcart;
+      cout << endl;
       if(!dfbasis.empty()) cout << " dfbasis = " << dfbasis << endl;
       cout << " geom_units = " << geom_units << endl;
       print_bool(" debug", debug);
@@ -90,6 +94,7 @@ class SCFOptions: public Options {
       scf_energy = 0.0;
       n_lindep = 0;
       scf_type = "rhf";
+      multiplicity = 0;
     }
 
   double tol_int; //tolerance for integral engine
@@ -109,6 +114,7 @@ class SCFOptions: public Options {
   //ignored when moldenfile not provided
   int n_lindep;
   double scf_energy; 
+  int multiplicity;
   std::string scf_type;
   
     void print() {
@@ -122,9 +128,10 @@ class SCFOptions: public Options {
       cout << " diis_hist = " << diis_hist << endl;
       cout << " AO_tilesize = " << AO_tilesize << endl;  
       cout << " riscf = " << riscf_str << endl; 
+      cout << " riscf = " << riscf_str << endl; 
       if(!moldenfile.empty()) {
         cout << " moldenfile = " << moldenfile << endl;    
-        cout << " scf_type = " << scf_type << endl;
+        cout << " multiplicity = " << multiplicity << endl;
         //cout << " n_lindep = " << n_lindep << endl;
         cout << " scf_energy = " << scf_energy << endl;
       }
@@ -506,14 +513,24 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
       skip_empty_lines(is);
       std::getline(is, line);
 
-      if(is_in_line("basis",line)) 
-        options.basis = read_option(line);      
+      if(is_in_line("basis",line)) {
+        std::istringstream iss(line);
+        std::vector<std::string> basis_line{std::istream_iterator<std::string>{iss},
+                                            std::istream_iterator<std::string>{}};
+        assert(basis_line.size() == 2 || basis_line.size()==3);
+        options.basis = basis_line[1];
+        if(basis_line.size()==3){
+          options.sphcart = basis_line[2];
+          if(!strequal_case(options.sphcart, "cartesian") && !strequal_case(options.sphcart, "spherical"))
+            nwx_terminate("unknown sphcart value for basis specified");      
+        }
+      }
       else if(is_in_line("maxiter",line))
         options.maxiter = std::stoi(read_option(line));
       else if(is_in_line("debug",line))
         options.debug = to_bool(read_option(line));        
       else if(is_in_line("dfbasis",line)) 
-        options.dfbasis = read_option(line);    
+        options.dfbasis = read_option(line);  
       else if(is_in_line("geometry",line)){
         //geometry units
         std::istringstream iss(line);
@@ -521,7 +538,7 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
                                             std::istream_iterator<std::string>{}};
         assert(geom_units.size() == 3);
         auto gunit = geom_units[2];
-        if(gunit != "bohr" && gunit != "angstrom")
+        if(!strequal_case(gunit,"bohr") && !strequal_case(gunit,"angstrom"))
           nwx_terminate("unknown geometry units specified");
         options.geom_units = gunit;
       }
@@ -577,6 +594,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             scf_options.n_lindep = std::stoi(read_option(line)); 
           else if(is_in_line("scf_energy",line))
             scf_options.scf_energy = std::stod(read_option(line));                                 
+          else if(is_in_line("multiplicity",line))
+            scf_options.multiplicity = std::stoi(read_option(line)); 
           else if(is_in_line("scalapack_nb",line)) 
             scf_options.scalapack_nb = std::stoi(read_option(line));   
           else if(is_in_line("scalapack_np_row",line)) 

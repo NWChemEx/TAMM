@@ -835,7 +835,7 @@ protected:
         }
     }
 
-    LabeledTensorT& lhs_;
+    LabeledTensorT lhs_;
     Func func_;
     std::array<LabeledTensorT, N> rhs_;
     bool do_translate_; 
@@ -1243,7 +1243,7 @@ protected:
 template<typename T>
 struct AddBuf {
     //AddBuf() = default;
-    AddBuf(bool isgpu, talsh_task_t* tt, tensor_handle* tc, tensor_handle*ta, tensor_handle* tb, Tensor<T> tensor, 
+    AddBuf(bool isgpu, talsh_task_t* tt, tensor_handle* tc, tensor_handle* ta, tensor_handle* tb, Tensor<T> tensor, 
         std::vector<T>&& cbuf, const IndexVector& blockid)
     : tensor_{tensor}, blockid_{blockid}, cbuf_{cbuf}, tt_{tt}, tc_{tc}, ta_{ta}, tb_{tb}, isgpu_{isgpu} {
         // tensor.nb_add(blockid, buf_, &nbhdl_);
@@ -1263,6 +1263,8 @@ struct AddBuf {
     }
 
     std::vector<T> cbuf_;
+    std::vector<T> abuf_;
+    std::vector<T> bbuf_;
     IndexVector blockid_;
     bool isgpu_;
     Tensor<T> tensor_;
@@ -1293,6 +1295,8 @@ struct AddBuf {
     }
 
     std::vector<T> cbuf_;
+    std::vector<T> abuf_;
+    std::vector<T> bbuf_;
     IndexVector blockid_;
     bool isgpu_;
     Tensor<T> tensor_;
@@ -1598,42 +1602,51 @@ public:
                 #endif
                 bool isgpu = false;
 
-                {
-                    #ifdef USE_TALSH
-                    AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b, 
-                        ctensor, std::move(cbuf),translated_cblockid};
-                        #else
-                    AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, 
-                        ctensor, std::move(cbuf),translated_cblockid};                        
-                    #endif
-                    add_bufs.push_back(ab);
+                #ifdef USE_TALSH
+                AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b, 
+                    ctensor, std::move(cbuf),translated_cblockid};
+                #else
+                AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, 
+                    ctensor, std::move(cbuf),translated_cblockid};                        
+                #endif
+                add_bufs.push_back(ab);
 
+                {
                     TimerGuard tg_dgemm{&multOpDgemmTime};                    
                     kernels::block_multiply<T,TensorElType1,TensorElType2,TensorElType3>
                                         (ab->isgpu_, 
                                         #ifdef USE_TALSH
-                                        *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, 
+                                        *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, COPY_TTT,
                                         #endif
                                         dev_id, alpha_, 
                                         abuf.data(), adims_sz,
                                         rhs1_int_labels_, bbuf.data(), bdims_sz,
                                         rhs2_int_labels_, cscale, (ab->cbuf_).data(),
                                         cdims_sz, lhs_int_labels_, hw, ec.has_gpu());
+                }
 
-                    #ifndef DO_NB
-                        #ifdef USE_TALSH
-                         gpu_mult->wait_and_destruct(ab->tt_);
-                         talshTensorDestruct(ab->ta_);
-                         talshTensorDestruct(ab->tb_);
-                         talshTensorDestruct(ab->tc_);  
-                         delete gpu_mult;                         
-                        #endif
+                #ifndef DO_NB
+                    #ifdef USE_TALSH
+                       if(hw == ExecutionHW::GPU && ab->isgpu_){
+                       {
+                        TimerGuard tg_dgemm{&multOpDgemmTime}; 
+                        gpu_mult->wait_and_destruct(ab->tt_);
+                       }
+                        talshTensorDestruct(ab->ta_);
+                        talshTensorDestruct(ab->tb_);
+                        talshTensorDestruct(ab->tc_);  
+                       }
+                        delete gpu_mult;                         
+                    #endif
+                    {
+                    TimerGuard tg_get{&multOpAddTime};
                     // add the computed update to the tensor
                     ctensor.add(translated_cblockid, ab->cbuf_);
+                    }
                     delete ab;
                     add_bufs.clear();                                       
-                    #endif                    
-                }
+                #endif       
+
 
                 // add the computed update to the tensor
                 // { 

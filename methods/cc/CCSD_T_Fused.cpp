@@ -1,12 +1,13 @@
 // #define CATCH_CONFIG_RUNNER
 
 #include "cd_ccsd_common.hpp"
-#include "ccsd_t/ccsd_t_gpu_tgen.hpp"
+#include "ccsd_t/ccsd_t_fused_driver.hpp"
 
 void ccsd_driver();
 std::string filename; //bad, but no choice
 double ccsd_t_GetTime = 0;
 double genTime = 0;
+double ccsd_t_data_per_rank = 0; //in GB
 
 int main( int argc, char* argv[] )
 {
@@ -30,6 +31,7 @@ int main( int argc, char* argv[] )
 
     GA_Terminate();
     MPI_Finalize();
+
 
     return 0;
 }
@@ -167,9 +169,9 @@ void ccsd_driver() {
     if(has_gpu) talsh_instance.shutdown();
     #endif  
 
-    #endif
+    #endif 
 
-    #if 0
+    #if 0   
     TiledIndexSpace O = MO("occ");
     TiledIndexSpace V = MO("virt");
     double residual=0, corr_energy=0;
@@ -197,19 +199,36 @@ void ccsd_driver() {
     {
         genTime = 0;
         TimerGuard tg_total{&genTime};
-        Tensor<T>::deallocate(d_f1,C_AO,F_AO);
+        Tensor<T>::deallocate(C_AO,F_AO);
     }
-    if(rank==0) std::cout << "deallocate(d_f1,C_AO,F_AO): " << genTime << "secs" << std::endl; 
+    if(rank==0) std::cout << "deallocate(C_AO,F_AO): " << genTime << "secs" << std::endl; 
 
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
     {
-        genTime = 0; 
+      genTime = 0; memTime1 =0; memTime2 = 0; memTime3=0; memTime4=0;
+      memTime5=0; memTime6=0; memTime7=0; memTime8=0;
         TimerGuard tg_total{&genTime};    
-        Tensor<T>::allocate(&ec,d_t1,d_t2,d_v2);
+        Tensor<T>::allocate(&ec,d_v2);
     }
     if(rank==0) {
-        std::cout << "allocate T1,T2,V2: " << genTime << "secs" << std::endl; 
+        std::cout << "Time to allocate V2: " << genTime << "secs" << std::endl; 
+        std::cout << "   -> timpl: allocate: total: " << memTime1 << "secs" << std::endl; 
+        std::cout << "   -> timpl: allocate: dist clone: " << memTime2 << "secs" << std::endl; 
+        std::cout << "   -> mmga: alloc_coll: total: " << memTime3 << "secs" << std::endl; 
+        std::cout << "   -> mmga: alloc_coll: ga-create-irreg: " << memTime4 << "secs" << std::endl; 
+        std::cout << "   -> mmga: alloc_coll: all_reduce: " << memTime5 << "secs" << std::endl; 
+        std::cout << "   -> mmga: alloc_coll: all_gather: " << memTime6 << "secs" << std::endl; 
+        std::cout << "   -> mmga: alloc_coll: partial_sum: " << memTime7 << "secs" << std::endl; 
+        std::cout << "   -> mmga: alloc_coll: ga-dist: " << memTime8 << "secs" << std::endl; 
     }
+
+    {
+       genTime = 0;
+       TimerGuard tg_total{&genTime};    
+       Tensor<T>::allocate(&ec,d_t1,d_t2);
+    }
+    if(rank==0) 
+        std::cout << "allocate T1,T2: " << genTime << "secs" << std::endl; 
 
     auto cc_t1 = std::chrono::high_resolution_clock::now();
 
@@ -240,8 +259,11 @@ void ccsd_driver() {
 
     if(rank==0) cout << "\nCCSD(T) tgen fused.\n";
 
-    std::tie(energy1,energy2) = ccsd_t_tgen_driver<T>(ec,k_spin,MO,d_t1,d_t2,d_v2,
-                                    p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda);
+    bool is_restricted = true;
+    if(sys_data.options_map.scf_options.scf_type == "uhf") is_restricted = false;
+
+    std::tie(energy1,energy2) = ccsd_t_fused_driver<T>(ec,k_spin,MO,d_t1,d_t2,d_v2,
+                                    p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted);
 
     double g_energy1,g_energy2;
     MPI_Reduce(&energy1, &g_energy1, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
@@ -273,9 +295,33 @@ void ccsd_driver() {
     cc_t2 = std::chrono::high_resolution_clock::now();
     auto ccsd_t_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
+
+
+    double g_ccsd_t_time,g_getTime,min_tgetTime,max_tgetTime,g_ccsd_t_data_per_rank;
+
+    MPI_Reduce(&ccsd_t_time, &g_ccsd_t_time, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+
+    MPI_Reduce(&ccsd_t_GetTime, &g_getTime, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+    MPI_Reduce(&ccsd_t_GetTime, &min_tgetTime, 1, MPI_DOUBLE, MPI_MIN, 0, ec.pg().comm());
+    MPI_Reduce(&ccsd_t_GetTime, &max_tgetTime, 1, MPI_DOUBLE, MPI_MAX, 0, ec.pg().comm());
+
+    ccsd_t_data_per_rank = (ccsd_t_data_per_rank * 8.0) / (1024*1024.0*1024); //GB
+    MPI_Reduce(&ccsd_t_data_per_rank, &g_ccsd_t_data_per_rank, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+
     if(rank == 0 && energy1!=-999) {
-        std::cout << "\nTime taken for CCSD(T): " << ccsd_t_time << " secs\n";
-        std::cout << "Communication Time: " << ccsd_t_GetTime << " secs\n";
+        auto nranks = ec.pg().size().value();
+        // cout << "nranks,ngpus = " << nranks << endl;
+        ccsd_t_time = g_ccsd_t_time/nranks;
+
+        auto print_profile_stats = [&](const std::string& timer_type, const double g_tval, const double tval_min, const double tval_max){
+            const double tval = g_tval/nranks;
+            std::cout.precision(3);
+            std::cout << "   -> " << timer_type << ": " << tval << "s (" << tval*100.0/ccsd_t_time << "%), (min,max) = (" << tval_min << "," << tval_max << ")" << std::endl;
+        };
+
+        std::cout << "\nTotal CCSD(T) Time: " << ccsd_t_time << " secs\n";
+        print_profile_stats("GetTime", g_getTime, min_tgetTime, max_tgetTime);
+        std::cout << "   -> Data Transfer (GB): " << g_ccsd_t_data_per_rank/nranks << std::endl;
     }
 
 

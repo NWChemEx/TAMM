@@ -5,12 +5,16 @@
 static long long device_id=-1;
 #include <stdio.h>
 #include <stdlib.h>
-#include "header.hpp"
-// #include "ga.h"
-// #include "typesf2c.h"
+#include "ccsd_t_common.hpp"
+#include "mpi.h"
+#include "ga.h"
+#include "ga-mpi.h"
+#include "typesf2c.h"
 
-// void FATR util_getppn_(Integer *);
-int util_my_smp_index();
+int util_my_smp_index(){
+  auto ppn = GA_Cluster_nprocs(0);
+  return GA_Nodeid()%ppn;
+}
 
 int check_device(long icuda) {
   /* Check whether this process is associated with a GPU */

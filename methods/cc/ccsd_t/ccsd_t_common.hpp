@@ -1,19 +1,14 @@
-#ifndef __header_hpp__
-#define __header_hpp__
+#ifndef CCSD_T_COMMON_HPP_
+#define CCSD_T_COMMON_HPP_
 
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-//static int notset;
-// extern "C" {
-
 #include <stdio.h>
-#include <cuda.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <assert.h>
 #include <time.h>
-////#include "util.h"
 
 #ifdef USE_TALSH
   #define USE_TALSH_T
@@ -32,6 +27,7 @@
 
 
 typedef long Integer;
+//static int notset;
 
 #define DIV_UB(x,y) ((x)/(y)+((x)%(y)?1:0))
 #define MIN(x,y) ((x)<(y)?(x):(y))
@@ -43,6 +39,4 @@ void freeHostMem(void *p);
 void freeGpuMem(void *p);
 void finalizeMemModule();
 
-// }
-
-#endif /*__header_hpp__*/
+#endif /*CCSD_T_COMMON_HPP_*/

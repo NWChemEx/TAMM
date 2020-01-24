@@ -330,8 +330,8 @@ protected:
 
     std::vector<TiledIndexSpace> block_indices_;
     Spin spin_total_;
-    bool has_spatial_symmetry_;
-    bool has_spin_symmetry_;
+    bool has_spatial_symmetry_ = false;
+    bool has_spin_symmetry_ = false;
     AllocationStatus allocation_status_;
 
     TensorRank num_modes_;

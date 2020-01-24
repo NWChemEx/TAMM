@@ -1044,7 +1044,7 @@ template<typename TensorType>
 void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
       const std::vector<libint2::Atom>& atoms, const libint2::BasisSet& shells,
       const std::string& basis, const Matrix& X, const Matrix& H, 
-      Matrix& C, Matrix& C_occ, Matrix& D){
+      Matrix& C, Matrix& C_occ, Matrix& D, bool is_spherical){
 
     const auto rank       = ec.pg().rank();
     const auto world_size = ec.pg().size();
@@ -1052,6 +1052,8 @@ void compute_initial_guess(ExecutionContext& ec, const int& ndocc,
     
     auto D_minbs = compute_soad(atoms);  // compute guess in minimal basis
     libint2::BasisSet minbs("STO-3G", atoms);
+    if(is_spherical) minbs.set_pure(true);
+    else minbs.set_pure(false);  // use cartesian gaussians  
 
     #ifndef NDEBUG
       std::tie(minbs_shellpair_list, minbs_shellpair_data) = compute_shellpairs(minbs);

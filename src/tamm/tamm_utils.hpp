@@ -29,7 +29,7 @@ template<typename T>
 std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
     os << "[";
     for(auto& x : vec) os << x << ",";
-    os << "]" << std::endl;
+    os << "]";// << std::endl;
     return os;
 }
 
@@ -328,6 +328,42 @@ void fill_sparse_tensor(LabeledTensor<TensorType> ltensor,
     block_for(ec, ltensor, lambda);
 }
 
+template<typename TensorType>
+std::tuple<int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType> tensor, MPI_Comm &subcomm) {
+
+    int nranks = gec.pg().size().value();
+
+    long double nelements = 1;
+    //Heuristic: Use 1 agg for every 14gb
+    const long double ne_mb = 131072 * 14.0;
+    const int ndims = tensor.num_modes();
+    for (auto i=0;i<ndims;i++) nelements *= tensor.tiled_index_spaces()[i].index_space().num_indices();
+    int nagg = (nelements / (ne_mb * 1024) ) + 1;
+    // const int nnodes = GA_Cluster_nnodes();
+    const int ppn = GA_Cluster_nprocs(0);
+    const int avail_nodes = nranks/ppn + 1;
+    if(nagg > avail_nodes) nagg = avail_nodes;
+    
+    int subranks = nagg * ppn;
+    if(subranks > nranks) subranks = nranks;
+
+    //TODO: following does not work if gec was created via MPI_Group_incl.
+    MPI_Group group; //, world_group;
+    // MPI_Comm_group(GA_MPI_Comm(), &world_group);
+    auto comm = gec.pg().comm();
+    MPI_Comm_group(comm,&group);
+
+    int ranks[subranks]; //,ranks_world[subranks];
+    for (int i = 0; i < subranks; i++) ranks[i] = i;    
+    // MPI_Group_translate_ranks(group, subranks, ranks, world_group, ranks_world);
+
+    MPI_Group subgroup;
+    MPI_Group_incl(group,subranks,ranks,&subgroup);
+    MPI_Comm_create(comm,subgroup,&subcomm);
+
+    return std::make_tuple(nagg,ppn);
+}
+
 /**
  * @brief write tensor to disk
  *
@@ -338,52 +374,113 @@ void fill_sparse_tensor(LabeledTensor<TensorType> ltensor,
 template<typename TensorType>
 void write_to_disk(Tensor<TensorType> tensor, const std::string& filename) {
 
-    ExecutionContext& ec = get_ec(tensor());
+    ExecutionContext& gec = get_ec(tensor());
     auto io_t1 = std::chrono::high_resolution_clock::now();
 
-    MPI_File fh;
-    MPI_Info info;
-    MPI_Status status;
-    MPI_Offset file_offset;
-    MPI_Info_create(&info);
-    // MPI_Info_set(info,"romio_cb_write", "enable");
-    // MPI_Info_set(info,"striping_unit","4194304");                    
-    MPI_Info_set(info,"cb_nodes",std::to_string(GA_Cluster_nnodes()).c_str());    
-    MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY,
-                 info, &fh);
-    MPI_Info_free(&info);                 
-    
-    auto ltensor = tensor();
-    LabelLoopNest loop_nest{ltensor.labels()};    
+    MPI_Comm io_comm;
+    int rank = gec.pg().rank().value();
+    auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm);
 
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+    if(io_comm != MPI_COMM_NULL) {
+        ProcGroup pg = ProcGroup {ProcGroup::create_coll(io_comm)};
+        auto mgr = MemoryManagerGA::create_coll(pg);
+        Distribution_NW distribution;
+        RuntimeEngine re;
+        ExecutionContext ec{pg, &distribution, mgr, &re};
 
-        file_offset = 0;
-        for(const IndexVector& pbid : loop_nest) {
-            if(pbid==blockid) break;
-            file_offset += tensor.block_size(pbid);
-        }
-
-        file_offset = file_offset*sizeof(TensorType);
+        MPI_File fh;
+        MPI_Info info;
+        MPI_Status status;
+        MPI_Offset file_offset;
+        MPI_Info_create(&info);
+        // MPI_Info_set(info,"romio_cb_write", "enable");
+        // MPI_Info_set(info,"striping_unit","4194304");                    
+        MPI_Info_set(info,"cb_nodes",std::to_string(nagg).c_str());    
+        MPI_File_open(io_comm, filename.c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY,
+                    info, &fh);
+        MPI_Info_free(&info);                 
         
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
+        auto ltensor = tensor();
+        LabelLoopNest loop_nest{ltensor.labels()};    
 
-        MPI_File_write_at(fh,file_offset,reinterpret_cast<void*>(&dbuf[0]),
-                          static_cast<int>(dsize),mpi_type<TensorType>(),&status);
+        auto tis_dims = tensor.tiled_index_spaces();
+        bool is_irreg = false;
+        for (auto x:tis_dims)
+          is_irreg = is_irreg || !tis_dims[0].input_tile_sizes().empty();
 
-    };
-    block_for(ec, ltensor, lambda);
+        if(is_irreg){
+        auto lambda = [&](const IndexVector& bid) {
+            const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
 
-    MPI_File_close(&fh);
+            file_offset = 0;
+            for(const IndexVector& pbid : loop_nest) {
+                if(pbid==blockid) break;
+                file_offset += tensor.block_size(pbid);
+            }
+
+            file_offset = file_offset*sizeof(TensorType);
+            
+            const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+            std::vector<TensorType> dbuf(dsize);
+            tensor.get(blockid, dbuf);
+
+            MPI_File_write_at(fh,file_offset,reinterpret_cast<void*>(&dbuf[0]),
+                            static_cast<int>(dsize),mpi_type<TensorType>(),&status);
+
+        };
+        
+            block_for(ec, ltensor, lambda);
+        }
+        else{
+            // std::vector<int64_t> dims;
+            // for(auto tis: tis_dims) dims.push_back(tis.index_space().num_indices());
+
+            int gah = tensor.ga_handle();
+            int itype;
+            int ndim;
+            int gasize;
+
+            // const int64_t dsize = std::accumulate(std::begin(dims), std::end(dims), 1, std::multiplies<int64_t>());
+            NGA_Inquire(gah,&itype,&ndim,&gasize);
+
+            const int64_t nranks = ec.pg().size().value();
+            const int64_t my_rank = ec.pg().rank().value();
+
+            int64_t dsize = static_cast<int64_t>(gasize);
+            int64_t bal_block_size = static_cast<int64_t>(std::ceil(dsize/(1.0*nranks)));
+            int64_t block_size = bal_block_size;
+            if(my_rank == nranks-1) block_size = dsize - block_size*(nranks-1);
+            std::vector<TensorType> dbuf(block_size);
+
+            // std::cout << "rank, dsize, block_size: " << my_rank << ":" << dsize << ":" << block_size << std::endl;
+
+            int64_t lo = my_rank*block_size;
+            if(my_rank == nranks-1) lo = my_rank*bal_block_size;
+            int64_t hi = cd_ncast<size_t>(lo+block_size-1);  
+            int64_t ld = -1;
+
+            //std::cout << "rank, ndim, lo, hi: " << my_rank << ":" << ndim << " --> " << lo << ":" << hi << std::endl;
+
+            NGA_Get64(gah,&lo,&hi,&dbuf[0],&ld);
+            MPI_File_write_at(fh,static_cast<int>(lo)*sizeof(TensorType),reinterpret_cast<void*>(&dbuf[0]),
+                            static_cast<int>(block_size),mpi_type<TensorType>(),&status);
+
+        }
+        ec.flush_and_sync();
+        MemoryManagerGA::destroy_coll(mgr);
+        MPI_Comm_free(&io_comm);
+        MPI_File_close(&fh);
+    }
+
+    gec.pg().barrier();
 
     auto io_t2 = std::chrono::high_resolution_clock::now();
 
+    const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
+
     double io_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-    //if(ec.pg().rank() == 0) std::cout << "Time for writing " << filename << " to disk: " << io_time << " secs" << std::endl;
+    //if(rank == 0) std::cout << "Time for writing " << filename << " to disk (" << nppn << "): " << io_time << " secs" << std::endl;
 
 }
 
@@ -398,51 +495,108 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename) {
 template<typename TensorType>
 void read_from_disk(Tensor<TensorType> tensor, const std::string& filename) {
 
-    ExecutionContext& ec = get_ec(tensor());
+    ExecutionContext& gec = get_ec(tensor());
     auto io_t1 = std::chrono::high_resolution_clock::now();
 
-    MPI_File fh;
-    MPI_Info info;
-    MPI_Status status;
-    MPI_Offset file_offset;
-    MPI_Info_create(&info);
-    // MPI_Info_set(info,"romio_cb_read", "enable");
-    // MPI_Info_set(info,"striping_unit","4194304"); 
-    MPI_Info_set(info,"cb_nodes",std::to_string(GA_Cluster_nnodes()).c_str());    
+    MPI_Comm io_comm;
+    int rank = gec.pg().rank().value();
+    auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm);
 
-    MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_RDONLY,
-                    info, &fh);
-    MPI_Info_free(&info);                     
+    if(io_comm != MPI_COMM_NULL) {
+        ProcGroup pg = ProcGroup {ProcGroup::create_coll(io_comm)};
+        auto mgr = MemoryManagerGA::create_coll(pg);
+        Distribution_NW distribution;
+        RuntimeEngine re;
+        ExecutionContext ec{pg, &distribution, mgr, &re};
 
-    auto ltensor = tensor();
-    LabelLoopNest loop_nest{ltensor.labels()};                    
+        MPI_File fh;
+        MPI_Info info;
+        MPI_Status status;
+        MPI_Offset file_offset;
+        MPI_Info_create(&info);
+        // MPI_Info_set(info,"romio_cb_read", "enable");
+        // MPI_Info_set(info,"striping_unit","4194304"); 
+        MPI_Info_set(info,"cb_nodes",std::to_string(nagg).c_str());    
 
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
-        file_offset = 0;
-        for(const IndexVector& pbid : loop_nest) {
-            if(pbid==blockid) break;
-            file_offset += tensor.block_size(pbid);
+        MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_RDONLY,
+                        info, &fh);
+        MPI_Info_free(&info);                     
+
+        auto ltensor = tensor();
+        LabelLoopNest loop_nest{ltensor.labels()};                    
+        
+        auto tis_dims = tensor.tiled_index_spaces();
+        bool is_irreg = false;
+        for (auto x:tis_dims)
+          is_irreg = is_irreg || !tis_dims[0].input_tile_sizes().empty();
+
+        if(is_irreg) {
+            auto lambda = [&](const IndexVector& bid) {
+                const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+                file_offset = 0;
+                for(const IndexVector& pbid : loop_nest) {
+                    if(pbid==blockid) break;
+                    file_offset += tensor.block_size(pbid);
+                }
+
+                file_offset = file_offset*sizeof(TensorType);
+
+                const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+                std::vector<TensorType> dbuf(dsize);
+
+                MPI_File_read_at(fh,file_offset,reinterpret_cast<void*>(&dbuf[0]),
+                                static_cast<int>(dsize),mpi_type<TensorType>(),&status);
+                tensor.put(blockid,dbuf);
+            };
+
+                block_for(ec, ltensor, lambda);
+        }
+         else {
+            // std::vector<int64_t> dims;
+            // for(auto tis: tis_dims) dims.push_back(tis.index_space().num_indices());
+
+            int gah = tensor.ga_handle();
+            int itype;
+            int ndim;
+            int gasize;
+
+            // const int64_t dsize = std::accumulate(std::begin(dims), std::end(dims), 1, std::multiplies<int64_t>());
+            NGA_Inquire(gah,&itype,&ndim,&gasize);
+            
+            const int64_t nranks = ec.pg().size().value();
+            const int64_t my_rank = ec.pg().rank().value();
+
+            int64_t dsize = static_cast<int64_t>(gasize);
+            int64_t bal_block_size = static_cast<int64_t>(std::ceil(dsize/(1.0*nranks)));
+            int64_t block_size = bal_block_size;
+            if(my_rank == nranks-1) block_size = dsize - block_size*(nranks-1);
+            std::vector<TensorType> dbuf(block_size);
+
+            int64_t lo = my_rank*block_size;
+            if(my_rank == nranks-1) lo = my_rank*bal_block_size;
+            int64_t hi = cd_ncast<size_t>(lo+block_size-1);  
+            int64_t ld = -1;
+
+            MPI_File_read_at(fh,static_cast<int>(lo)*sizeof(TensorType),reinterpret_cast<void*>(&dbuf[0]),
+                            static_cast<int>(block_size),mpi_type<TensorType>(),&status);
+            NGA_Put64(gah,&lo,&hi,&dbuf[0],&ld);
         }
 
-        file_offset = file_offset*sizeof(TensorType);
+        ec.flush_and_sync();
+        MemoryManagerGA::destroy_coll(mgr);
+        MPI_Comm_free(&io_comm);
+        MPI_File_close(&fh);
+    }
 
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-
-        MPI_File_read_at(fh,file_offset,reinterpret_cast<void*>(&dbuf[0]),
-                        static_cast<int>(dsize),mpi_type<TensorType>(),&status);
-        tensor.put(blockid,dbuf);
-    };
-    block_for(ec, ltensor, lambda);
-
-    MPI_File_close(&fh);
+    gec.pg().barrier();
 
     auto io_t2 = std::chrono::high_resolution_clock::now();
 
+    const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
+
     double io_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-    //if(ec.pg().rank() == 0) std::cout << "Time for reading " << filename << " from disk: " << io_time << " secs" << std::endl;
+    //if(rank == 0) std::cout << "Time for reading " << filename << " from disk (" << nppn << "): " << io_time << " secs" << std::endl;
 }
 
 /**
@@ -455,18 +609,33 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename) {
 template<typename TensorType>
 void apply_ewise_ip(LabeledTensor<TensorType> ltensor,
                  std::function<TensorType(TensorType)> func) {
-    ExecutionContext& ec = get_ec(ltensor);
+    ExecutionContext& gec = get_ec(ltensor);
     Tensor<TensorType> tensor = ltensor.tensor();
 
-    auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        for(size_t c = 0; c < dsize; c++) dbuf[c] = func(dbuf[c]);
-        tensor.put(blockid, dbuf);
-    };
-    block_for(ec, ltensor, lambda);
+    MPI_Comm sub_comm;
+    get_subgroup_info(gec,tensor,sub_comm);
+
+    if(sub_comm != MPI_COMM_NULL) {
+        ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
+        auto mgr = MemoryManagerGA::create_coll(pg);
+        Distribution_NW distribution;
+        RuntimeEngine re;
+        ExecutionContext ec{pg, &distribution, mgr, &re};
+
+        auto lambda = [&](const IndexVector& bid) {
+            const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+            const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+            std::vector<TensorType> dbuf(dsize);
+            tensor.get(blockid, dbuf);
+            for(size_t c = 0; c < dsize; c++) dbuf[c] = func(dbuf[c]);
+            tensor.put(blockid, dbuf);
+        };
+        block_for(ec, ltensor, lambda);
+        ec.flush_and_sync();
+        MemoryManagerGA::destroy_coll(mgr);
+        MPI_Comm_free(&sub_comm);
+    }
+    gec.pg().barrier();        
 }
 
 // Several convenience functions using apply_ewise_ip. 
@@ -656,22 +825,40 @@ Tensor<TensorType> random_ip(Tensor<TensorType> tensor) {
 
 template<typename TensorType>
 TensorType sum(LabeledTensor<TensorType> ltensor) {
-    ExecutionContext& ec = get_ec(ltensor);
+    ExecutionContext& gec = get_ec(ltensor);
     TensorType lsumsq         = 0;
     TensorType gsumsq         = 0;
     Tensor<TensorType> tensor = ltensor.tensor();
 
-    auto getnorm = [&](const IndexVector& bid) {
-        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        if constexpr(std::is_same_v<TensorType, std::complex<double>>
-                  || std::is_same_v<TensorType, std::complex<float>>)
-        for(auto val : dbuf) lsumsq += val;
-    };
-    block_for(ec, ltensor, getnorm);
-    MPI_Allreduce(&lsumsq, &gsumsq, 1, mpi_type<TensorType>(), MPI_SUM, ec.pg().comm());
+    MPI_Comm sub_comm;
+    int rank = gec.pg().rank().value();
+    get_subgroup_info(gec,tensor,sub_comm);
+
+    if(sub_comm != MPI_COMM_NULL) {
+        ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
+        auto mgr = MemoryManagerGA::create_coll(pg);
+        Distribution_NW distribution;
+        RuntimeEngine re;
+        ExecutionContext ec{pg, &distribution, mgr, &re};
+
+        auto getnorm = [&](const IndexVector& bid) {
+            const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+            const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+            std::vector<TensorType> dbuf(dsize);
+            tensor.get(blockid, dbuf);
+            if constexpr(std::is_same_v<TensorType, std::complex<double>>
+                    || std::is_same_v<TensorType, std::complex<float>>)
+            for(auto val : dbuf) lsumsq += val;
+        };
+        block_for(ec, ltensor, getnorm);
+        ec.flush_and_sync();
+        MemoryManagerGA::destroy_coll(mgr);
+        MPI_Comm_free(&sub_comm);
+    }
+
+    gec.pg().barrier();   
+ 
+    MPI_Allreduce(&lsumsq, &gsumsq, 1, mpi_type<TensorType>(), MPI_SUM, gec.pg().comm());
     return gsumsq;
 }
 
@@ -707,25 +894,224 @@ TensorType norm(Tensor<TensorType> tensor) {
 
 template<typename TensorType>
 TensorType norm(LabeledTensor<TensorType> ltensor) {
-    ExecutionContext& ec = get_ec(ltensor);
+    ExecutionContext& gec = get_ec(ltensor);
+
     TensorType lsumsq         = 0;
     TensorType gsumsq         = 0;
     Tensor<TensorType> tensor = ltensor.tensor();
 
-    auto getnorm = [&](const IndexVector& bid) {
-        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-        if constexpr(std::is_same_v<TensorType, std::complex<double>>
-                  || std::is_same_v<TensorType, std::complex<float>>)
-            for(auto val : dbuf) lsumsq += val * std::conj(val);         
-        else
-            for(auto val : dbuf) lsumsq += val * val;
-    };
-    block_for(ec, ltensor, getnorm);
-    MPI_Allreduce(&lsumsq, &gsumsq, 1, mpi_type<TensorType>(), MPI_SUM, ec.pg().comm());
+    MPI_Comm sub_comm;
+    int rank = gec.pg().rank().value();
+    get_subgroup_info(gec,tensor,sub_comm);
+
+    if(sub_comm != MPI_COMM_NULL) {
+        ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
+        auto mgr = MemoryManagerGA::create_coll(pg);
+        Distribution_NW distribution;
+        RuntimeEngine re;
+        ExecutionContext ec{pg, &distribution, mgr, &re};
+
+        auto getnorm = [&](const IndexVector& bid) {
+            const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+            const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+            std::vector<TensorType> dbuf(dsize);
+            tensor.get(blockid, dbuf);
+            if constexpr(std::is_same_v<TensorType, std::complex<double>>
+                    || std::is_same_v<TensorType, std::complex<float>>)
+                for(auto val : dbuf) lsumsq += val * std::conj(val);         
+            else
+                for(auto val : dbuf) lsumsq += val * val;
+        };
+        block_for(ec, ltensor, getnorm);
+        ec.flush_and_sync();
+        MemoryManagerGA::destroy_coll(mgr);
+        MPI_Comm_free(&sub_comm);
+    }
+
+    gec.pg().barrier();
+
+    MPI_Allreduce(&lsumsq, &gsumsq, 1, mpi_type<TensorType>(), MPI_SUM, gec.pg().comm());
     return std::sqrt(gsumsq);
+}
+
+template<typename TensorType>
+void gf_peak_coord(int nmodes, std::vector<TensorType> dbuf,
+std::vector<size_t> block_dims, std::vector<size_t> block_offset, 
+double threshold, double x_norm_sq, int rank, std::ostringstream& spfe){
+     size_t c          = 0;
+
+        if(nmodes == 1) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++, c++) {
+                auto val = dbuf[c];
+                double lv = 0;
+                if constexpr(std::is_same_v<TensorType, std::complex<double>>
+                    || std::is_same_v<TensorType, std::complex<float>>)
+                    lv = std::real(val * std::conj(val));  
+                else lv = val * val;  
+
+                size_t x1    = i;
+                double weight = lv/x_norm_sq;
+		        if(weight>threshold)
+                    spfe << "   coord. = (" << x1 << "), wt. = " << weight << std::endl;
+                }
+        } else if(nmodes == 2) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++, c++) {
+
+                auto val = dbuf[c];
+                double lv = 0;
+                if constexpr(std::is_same_v<TensorType, std::complex<double>>
+                    || std::is_same_v<TensorType, std::complex<float>>)
+                    lv = std::real(val * std::conj(val));  
+                else lv = val * val;  
+
+                size_t x1    = i;
+                size_t x2    = j;
+                double weight = lv/x_norm_sq;
+		        if(weight>threshold){
+                    spfe << "   coord. = (" << x1 << "," << x2 << "), wt. = " << weight << std::endl;
+                    }
+		        }
+            }
+        }
+         else if(nmodes == 3) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++) {
+                    for(size_t k = block_offset[2];
+                        k < block_offset[2] + block_dims[2]; k++, c++) {
+
+                auto val = dbuf[c];
+                double lv = 0;
+                if constexpr(std::is_same_v<TensorType, std::complex<double>>
+                    || std::is_same_v<TensorType, std::complex<float>>)
+                    lv = std::real(val * std::conj(val));  
+                else lv = val * val;  
+
+                //if(lv>threshold) {
+                size_t x1    = i; 
+                size_t x2    = j; 
+                size_t x3    = k; 
+                double weight = lv/x_norm_sq;
+		        if(weight>threshold)
+                    spfe << "   coord. = (" << x1 << "," << x2 << "," 
+                    << x3 << "), wt. = " << weight << std::endl;
+                    }
+                }
+            }
+        } else if(nmodes == 4) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++) {
+                    for(size_t k = block_offset[2];
+                        k < block_offset[2] + block_dims[2]; k++) {
+                        for(size_t l = block_offset[3];
+                            l < block_offset[3] + block_dims[3]; l++, c++) {
+
+                auto val = dbuf[c];
+                double lv = 0;
+                if constexpr(std::is_same_v<TensorType, std::complex<double>>
+                    || std::is_same_v<TensorType, std::complex<float>>)
+                    lv = std::real(val * std::conj(val));  
+                else lv = val * val;  
+
+                size_t x1    = i;
+                size_t x2    = j;
+                size_t x3    = k;
+                size_t x4    = l;
+                double weight = lv/x_norm_sq;
+		        if(weight>threshold)
+                    spfe << "   coord. = (" << x1 << "," << x2 << "," 
+                    << x3 << "," << x4 << "), wt. = " << weight << std::endl;
+
+                        }
+                    }
+                }
+            }
+        } else if(nmodes == 5) {
+            for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+                i++) {
+                for(size_t j = block_offset[1];
+                    j < block_offset[1] + block_dims[1]; j++) {
+                    for(size_t k = block_offset[2];
+                        k < block_offset[2] + block_dims[2]; k++) {
+                        for(size_t l = block_offset[3];
+                            l < block_offset[3] + block_dims[3]; l++) {
+                            for(size_t m = block_offset[4];
+                                m < block_offset[4] + block_dims[4]; m++, c++) {
+
+                auto val = dbuf[c];
+                double lv = 0;
+                if constexpr(std::is_same_v<TensorType, std::complex<double>>
+                    || std::is_same_v<TensorType, std::complex<float>>)
+                    lv = std::real(val * std::conj(val));  
+                else lv = val * val;  
+
+                // if(lv>threshold) {
+                size_t x1    = i;
+                size_t x2    = j;
+                size_t x3    = k;
+                size_t x4    = l;
+                size_t x5    = m;
+                double weight = lv/x_norm_sq;
+                if(weight>threshold) 
+                    spfe << "   coord. = (" << x1 << "," << x2 << "," 
+                    << x3 << "," << x4 << "," << x5 << "), wt. = " << weight << std::endl;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+template<typename TensorType>
+void gf_peak(Tensor<TensorType> tensor, double threshold, double x_norm_sq, std::ostringstream& spfe) {
+    return gf_peak(tensor(),threshold,x_norm_sq,spfe);
+}
+
+template<typename TensorType>
+void gf_peak(LabeledTensor<TensorType> ltensor, double threshold, double x_norm_sq, std::ostringstream& spfe) {
+    ExecutionContext& gec = get_ec(ltensor);
+
+    Tensor<TensorType> tensor = ltensor.tensor();
+
+    MPI_Comm sub_comm;
+    int rank = gec.pg().rank().value();
+    get_subgroup_info(gec,tensor,sub_comm);
+
+    if(sub_comm != MPI_COMM_NULL) {
+        ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
+        auto mgr = MemoryManagerGA::create_coll(pg);
+        Distribution_NW distribution;
+        RuntimeEngine re;
+        ExecutionContext ec{pg, &distribution, mgr, &re};
+        auto nmodes               = tensor.num_modes();
+
+        auto getnorm = [&](const IndexVector& bid) {
+            const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+            const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+            std::vector<TensorType> dbuf(dsize);
+            tensor.get(blockid, dbuf);
+            auto block_dims   = tensor.block_dims(blockid);
+            auto block_offset = tensor.block_offsets(blockid);
+           
+            gf_peak_coord(nmodes,dbuf,block_dims,block_offset,threshold,x_norm_sq,rank,spfe);
+        };
+        block_for(ec, ltensor, getnorm);
+        ec.flush_and_sync();
+        MemoryManagerGA::destroy_coll(mgr);
+        MPI_Comm_free(&sub_comm);
+    }
+
+    gec.pg().barrier();
+
 }
 
 // returns max_element, blockids, coordinates of max element in the block
@@ -1148,7 +1534,7 @@ Tensor<TensorType> to_block_cyclic_tensor(Tensor<TensorType> tensor, ProcGrid pg
         max_t1 = static_cast<Tile>(tilesizes[0]);
         max_t2 = static_cast<Tile>(tilesizes[1]);
     }
-
+    
     TiledIndexSpace t1{range(tis[0].index_space().num_indices()),max_t1};
     TiledIndexSpace t2{range(tis[1].index_space().num_indices()),max_t2};
     Tensor<TensorType> bc_tensor{pg,{t1,t2}};

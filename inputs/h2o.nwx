@@ -6,7 +6,7 @@ O    0.000000000000000   0.000000000000000   0.000000000000000
 H    0.000000000000000   1.579252144093028  -2.174611055780858
 
 COMMON {  
-    basis sto-3g
+    basis sto-3g cartesian
     maxiter 50
     geometry units bohr
     //dfbasis sto-3g
@@ -30,20 +30,23 @@ SCF
     //scalapack_nb 1
     //scalapack_np_row 0
     //scalapack_np_col 0
+    //scf_type uhf 
+    //n_lindep 1
+    //moldenfile /home/user/water.molden
+    //scf_energy -74.753859796210
 }
 
 CD {
     diagtol 1e-8
-    max_cvecs 8 //factor*nao
     //debug false
 }
 
 CCSD {
-    cuda 2
+    //cuda 2
     threshold 1e-10
-    //ccsd_maxiter 5
     tilesize 10
     itilesize 10
+    //ccsd_maxiter 5
     //readt true
     //writet true
     //debug true

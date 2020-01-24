@@ -1,11 +1,13 @@
 #ifndef TAMM_PROC_GROUP_H_
 #define TAMM_PROC_GROUP_H_
 
+#include <ga.h>
 #include <mpi.h>
 #include <pthread.h>
 #include <cassert>
 #include <map>
 #include <vector>
+#include "ga-mpi.h"
 
 #include "tamm/types.hpp"
 
@@ -37,12 +39,14 @@ class ProcGroup {
     ProcGroup pg;
     pg.mpi_comm_.reset(comm_out, deleter);
     pg.is_valid_ = true;
+    pg.ga_pg_ = create_ga_process_group_coll(mpi_comm);
     return pg;
   }
 
   ProcGroup(const ProcGroup&) = default;
   ProcGroup(ProcGroup&& pg)  // TBD: check if this can be default
-      : mpi_comm_{std::move(pg.mpi_comm_)} {}
+      : mpi_comm_{std::move(pg.mpi_comm_)},
+      ga_pg_{pg.ga_pg_} {}
 
   ProcGroup& operator=(const ProcGroup&) = default;
 
@@ -95,6 +99,10 @@ class ProcGroup {
     return *mpi_comm_;
   }
 
+  int ga_pg() const {
+    return ga_pg_;
+  }
+
   /**
    * Duplicate/clone the wrapped MPI communicator
    * @return A copy.
@@ -112,6 +120,7 @@ class ProcGroup {
 
 void destroy_coll() { 
   MPI_Comm_free(mpi_comm_.get());
+  GA_Pgroup_destroy(ga_pg_);
   is_valid_ = false;
   }
   /**
@@ -130,7 +139,8 @@ void destroy_coll() {
    */
   void barrier() {
     //MPI_Barrier(comm_);
-    MPI_Barrier(*mpi_comm_);
+    //MPI_Barrier(*mpi_comm_);
+    GA_Pgroup_sync(ga_pg_);
   }
   
   Proc rank_translate(Proc proc, const ProcGroup& pg2) {
@@ -148,12 +158,39 @@ void destroy_coll() {
   
 
  private:
-  //MPI_Comm comm_;// = MPI_COMM_NULL;
+  /**
+   * Create a GA process group corresponding to the given proc group
+   * @param pg TAMM process group
+   * @return GA processes group on this TAMM process group
+   */
+  static int create_ga_process_group_coll(MPI_Comm comm) {
+    int nranks;
+    MPI_Comm_size(comm, &nranks);
+    MPI_Group group, group_world;
+    int ranks[nranks], ranks_world[nranks];
+    MPI_Comm_group(comm, &group);
+
+    MPI_Comm_group(GA_MPI_Comm(), &group_world);
+
+    for (int i = 0; i < nranks; i++) {
+      ranks[i] = i;
+    }
+    MPI_Group_translate_ranks(group, nranks, ranks, group_world, ranks_world);
+
+    int ga_pg_default = GA_Pgroup_get_default();
+    GA_Pgroup_set_default(GA_Pgroup_get_world());
+    int ga_pg = GA_Pgroup_create(ranks_world, nranks);
+    GA_Pgroup_set_default(ga_pg_default);
+    return ga_pg;
+  }
+
+  // MPI_Comm comm_;// = MPI_COMM_NULL;
   std::shared_ptr<MPI_Comm> mpi_comm_;
+  int ga_pg_;
   bool is_valid_;
 
   static void deleter(MPI_Comm* mpi_comm) {
-    assert(*mpi_comm != MPI_COMM_NULL);
+    EXPECTS(*mpi_comm != MPI_COMM_NULL);
     delete mpi_comm;
   }
 
@@ -173,8 +210,6 @@ void destroy_coll() {
 };  // class ProcGroup
 
 
-} // namespace tamm
+}  // namespace tamm
 
-
-#endif // TAMM_PROC_GROUP_H_
-
+#endif  // TAMM_PROC_GROUP_H_

@@ -451,6 +451,10 @@ public:
       return impl_->execution_context();
     }
 
+    const Distribution& distribution() const {
+      return impl_->distribution();
+    }
+
     bool has_spin() const {
       return impl_->has_spin();
     }
@@ -462,6 +466,26 @@ public:
     template <typename U>
     friend bool operator==(const Tensor<U>& lhs,
                            const Tensor<U>& rhs);
+
+    bool is_sparse() const {
+      for(auto& tis : tiled_index_spaces()) {
+        if(tis.is_dependent())
+          return true;
+      }
+      return false;
+    }
+
+    bool is_dense() const {
+      return !is_sparse();
+    }
+
+    T* access_local_buf() {
+      return impl_->access_local_buf();
+    }
+
+    const T* access_local_buf() const {
+      return impl_->access_local_buf();
+    }
 
 private:
     std::shared_ptr<TensorImpl<T>>

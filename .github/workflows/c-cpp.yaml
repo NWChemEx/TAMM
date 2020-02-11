@@ -1,0 +1,54 @@
+name: C_C++_CI
+
+on: push
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with: 
+         python-version: '3.x'
+    - name: get-gcc
+      run: |
+            sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+            sudo apt-get update
+            sudo apt-get install gcc-8 g++-8 gfortran-8
+            sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 95 --slave /usr/bin/g++ g++ /usr/bin/g++-8 --slave /usr/bin/gfortran gfortran /usr/bin/gfortran-8 --slave /usr/bin/gcov gcov /usr/bin/gcov-8
+            gcc       --version
+            g++       --version
+            gfortran  --version
+            gcov      --version
+    - name: get-gcovr
+      run:  pip install gcovr
+    - name: get-cmakebuild
+      uses: actions/checkout@v2
+      with:  
+         repository: 'https://github.com/NWChemEx-Project/CMakeBuild'
+         path: CMakeBuild
+    - name: get-cmake
+      run: |
+            wget https://github.com/Kitware/CMake/releases/download/v3.16.3/cmake-3.16.3-Linux-x86_64.sh
+            yes | /bin/sh cmake-3.16.3-Linux-x86_64.sh
+            ls -l 
+            ls -l CMakeBuild
+    - name: cmake
+      run:  cmake-3.16.3-Linux-x86_64/bin/cmake -H. -Bbuild -DBUILD_TESTING=TRUE -DCATCH_ENABLE_COVERAGE=ON -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_C_FLAGS="--coverage" -DCMAKE_Fortran-FLAGS="--coverage" -DCMAKE_EXE_LINKER_FLAGS="-fprofile-arcs"
+    - name: ctest
+      run: |
+            #cmake-3.16.3-Linux-x86_64/bin/ctest --build-and-test build build --build-nocmake --build-generator "Unix Makefiles" --test-command make test
+            cd build
+            make
+            make test
+    - name: gcovr
+      run: |
+           cd ..
+           gcovr --root TAMM --filter TAMM --exclude TAMM/tests --xml TAMM/coverage.xml
+           ls -al TAMM
+    - uses: codecov/codecov-action@v1
+      with:
+         token: ${{ secrets.CODECOV_TOKEN }}
+         file: ./coverage.xml

@@ -27,7 +27,7 @@ jobs:
     - name: get-cmakebuild
       uses: actions/checkout@v2
       with:  
-         repository: 'https://github.com/NWChemEx-Project/CMakeBuild'
+         repository: NWChemEx-Project/CMakeBuild
          path: CMakeBuild
     - name: get-cmake
       run: |

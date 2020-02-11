@@ -57,13 +57,14 @@ jobs:
     - name: cmake
       run: |
             export INSTALL_PATH=`pwd`/install
-            cmake-3.16.3-Linux-x86_64/bin/cmake -H. -Bbuild -DBUILD_TESTING=TRUE -DCATCH_ENABLE_COVERAGE=ON -DCMAKE_CXX_FLAGS="-O0 --coverage" -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_Fortran-FLAGS="-O0 --coverage" -DCMAKE_EXE_LINKER_FLAGS="-O0 -fprofile-arcs" -DCMAKE_PREFIX_PATH=${INSTALL_PATH}
+            cmake-3.16.3-Linux-x86_64/bin/cmake -H. -Bbuild -DBUILD_TESTS=ON -DCATCH_ENABLE_COVERAGE=ON -DCMAKE_CXX_FLAGS="-O0 --coverage" -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_Fortran_FLAGS="-O0 --coverage" -DCMAKE_EXE_LINKER_FLAGS="-O0 -fprofile-arcs" -DCMAKE_PREFIX_PATH=${INSTALL_PATH}
     - name: ctest
       run: |
             #cmake-3.16.3-Linux-x86_64/bin/ctest --build-and-test build build --build-nocmake --build-generator "Unix Makefiles" --test-command make test
             cd build
             make
-            make test
+            #make test
+            ../cmake-3.16.3-Linux-x86_64/bin/ctest -VV
     - name: gcovr
       run: |
            cd ..

@@ -41,8 +41,8 @@ RUN wget https://github.com/Kitware/CMake/releases/download/v3.16.3/cmake-3.16.3
 RUN yes | /bin/sh cmake-3.16.3-Linux-x86_64.sh
 RUN git clone https://${github_token}@github.com/NWChemEx-Project/CMakeBuild.git
 RUN export INSTALL_PATH=`pwd`/install; cd CMakeBuild; ../cmake-3.16.3-Linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=${INSTALL_PATH}; cd build; make; make install
-RUN export INSTALL_PATH=`pwd`/install; cmake-3.16.3-Linux-x86_64/bin/cmake -H. -Bbuild -DBUILD_TESTS=ON -DCATCH_ENABLE_COVERAGE=ON -DMPIEXEC_POSTFLAGS="--allow-run-as-root" -DCMAKE_CXX_FLAGS="-O0 --coverage" -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_Fortran_FLAGS="-O0 --coverage" -DCMAKE_EXE_LINKER_FLAGS="-O0 -fprofile-arcs" -DCMAKE_PREFIX_PATH=${INSTALL_PATH}
+RUN export INSTALL_PATH=`pwd`/install; cmake-3.16.3-Linux-x86_64/bin/cmake -H. -Bbuild -DBUILD_TESTS=ON -DCATCH_ENABLE_COVERAGE=ON -DMPIEXEC_NUMPROC_FLAG="--allow-run-as-root -n" -DMPIEXEC_POSTFLAGS="--allow-run-as-root" -DCMAKE_CXX_FLAGS="-O0 --coverage" -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_Fortran_FLAGS="-O0 --coverage" -DCMAKE_EXE_LINKER_FLAGS="-O0 -fprofile-arcs" -DCMAKE_PREFIX_PATH=${INSTALL_PATH}
 # OpenMPI developers are allergic about anyone running programs as root.
 # Now we have to set two environment variables to get around their sensitivities,
 # even though in a Docker container this is the reasonable thing to do.
-RUN export OMPI_ALLOW_RUN_AS_ROOT=1; export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1; cd build; make -j4; ../cmake-3.16.3-Linux-x86_64/bin/ctest -VV
+RUN export LIBINT_DATA_PATH=/TAMM/TAMM/build/stage/usr/local/share/libint/2.6.0/basis; export OMPI_ALLOW_RUN_AS_ROOT=1; export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1; cd build; make; ../cmake-3.16.3-Linux-x86_64/bin/ctest -VV

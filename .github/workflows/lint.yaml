@@ -1,0 +1,31 @@
+name: Lint Master
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  format-code:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtain Source
+        uses: actions/checkout@v2
+      - name: Get .clang-format.in
+        env:
+          nwx_url: https://raw.githubusercontent.com/NWChemEx-Project
+          clang_format_url: DeveloperTools/master/ci/lint/clang-format.in
+        run:  wget "${nwx_url}/${clang_format_url}" -O .clang-format
+      - name: Get clang-format-9
+        run: |
+              sudo apt update
+              sudo apt-get install -f clang-format-9
+      - name: Run clang-format-9
+        run: |
+              find utilities -name '*.hpp' -or -name '*.cpp' | xargs clang-format-9 -style=file -i -fallback-style=none
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.CREATE_PULL_REQUEST_TOKEN }}
+
+

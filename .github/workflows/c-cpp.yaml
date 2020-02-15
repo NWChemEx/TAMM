@@ -1,0 +1,77 @@
+name: C_C++_CI
+
+on: push
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v1
+      with: 
+         python-version: '3.x'
+    - name: get-gcc
+      run: |
+            sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+            sudo apt-get update
+            sudo apt-get install gcc-8 g++-8 gfortran-8
+            sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 95 --slave /usr/bin/g++ g++ /usr/bin/g++-8 --slave /usr/bin/gfortran gfortran /usr/bin/gfortran-8 --slave /usr/bin/gcov gcov /usr/bin/gcov-8
+            gcc       --version
+            g++       --version
+            gfortran  --version
+            gcov      --version
+            git       --version
+    - name: get-blas-lapack
+      run:  sudo apt-get install libopenblas-base libopenblas-dev libgslcblas0 libgsl-dev liblapacke liblapacke-dev
+    - name: get-boost
+      run:  sudo apt-get install libboost-dev libboost-all-dev
+    - name: get-eigen3
+      run:  sudo apt-get install libeigen3-dev
+    - name: get-openmpi
+      run: |
+            sudo apt-get install openmpi-bin libopenmpi-dev
+            mpicc   -show
+            mpifort -show
+            mpicxx  -show
+            mpiexec --version
+    - name: get-gcovr
+      run:  pip install gcovr
+    - name: get-cmakebuild
+      env:  
+            CPP_GITHUB_TOKEN: ${{ secrets.CPP_GITHUB_TOKEN }}
+      run:  GIT_TRACE=1 git clone https://${CPP_GITHUB_TOKEN}@github.com/NWChemEx-Project/CMakeBuild.git
+    - name: get-cmake
+      run: |
+            wget https://github.com/Kitware/CMake/releases/download/v3.16.3/cmake-3.16.3-Linux-x86_64.sh
+            yes | /bin/sh cmake-3.16.3-Linux-x86_64.sh
+    - name: build-cmakebuild
+      run: |
+            export INSTALL_PATH=`pwd`/install
+            cd CMakeBuild
+            ../cmake-3.16.3-Linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=${INSTALL_PATH}
+            cd build 
+            make
+            make install
+    - name: cmake
+      run: |
+            export INSTALL_PATH=`pwd`/install
+            cmake-3.16.3-Linux-x86_64/bin/cmake -H. -Bbuild -DBUILD_TESTS=ON -DCATCH_ENABLE_COVERAGE=ON -DCMAKE_CXX_FLAGS="-O0 --coverage" -DCMAKE_C_FLAGS="-O0 --coverage" -DCMAKE_Fortran_FLAGS="-O0 --coverage" -DCMAKE_EXE_LINKER_FLAGS="-O0 -fprofile-arcs" -DCMAKE_PREFIX_PATH=${INSTALL_PATH}
+    - name: ctest
+      run: |
+            #cmake-3.16.3-Linux-x86_64/bin/ctest --build-and-test build build --build-nocmake --build-generator "Unix Makefiles" --test-command make test
+            cd build
+            export LIBINT_DATA_PATH=`pwd`/stage/usr/local/share/libint/2.6.0/basis
+            make
+            #make test
+            ../cmake-3.16.3-Linux-x86_64/bin/ctest -VV
+    - name: gcovr
+      run: |
+           cd ..
+           gcovr --root TAMM --filter TAMM --exclude TAMM/tests --xml TAMM/coverage.xml
+           ls -al TAMM
+    - uses: codecov/codecov-action@v1
+      with:
+         token: ${{ secrets.CODECOV_TOKEN }}
+         file: ./coverage.xml

@@ -105,6 +105,105 @@ inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
 }
 
 template<typename T>
+inline void jacobi_cs(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
+                   T shift, bool transpose, std::vector<double>& evl_sorted, 
+                   const TAMM_SIZE& n_occ_alpha, const TAMM_SIZE& n_vir_alpha) {
+    // EXPECTS(transpose == false);
+    block_for(ec, d_r(), [&](IndexVector blockid) {
+        const TAMM_SIZE rsize = d_r.block_size(blockid);
+        std::vector<T> rbuf(rsize);
+        d_r.get(blockid, rbuf);
+
+        const TAMM_SIZE tsize = d_t.block_size(blockid);
+
+        std::vector<T> tbuf(tsize);
+
+        auto& rtiss      = d_r.tiled_index_spaces();
+        auto rblock_dims = d_r.block_dims(blockid);
+
+        TAMM_SIZE noa  = n_occ_alpha;
+        TAMM_SIZE noab = n_occ_alpha + n_occ_alpha;
+        TAMM_SIZE nva  = n_vir_alpha;
+        std::vector<double> p_evl_sorted_occ(noa);
+        std::vector<double> p_evl_sorted_virt(nva);
+        std::copy(evl_sorted.begin(), evl_sorted.begin() + noa,
+                  p_evl_sorted_occ.begin());
+        std::copy(evl_sorted.begin() + noab, evl_sorted.begin() + noab + nva,
+                  p_evl_sorted_virt.begin());
+
+        if(d_r.num_modes() == 2) {
+            auto ioff  = rtiss[0].tile_offset(blockid[0]);
+            auto joff  = rtiss[1].tile_offset(blockid[1]);
+            auto isize = rblock_dims[0];
+            auto jsize = rblock_dims[1];
+
+            if(!transpose) {
+                for(auto i = 0U, c = 0U; i < isize; i++) {
+                    for(auto j = 0U; j < jsize; j++, c++) {
+                        tbuf[c] =
+                          rbuf[c] / (-p_evl_sorted_virt[ioff + i] +
+                                     p_evl_sorted_occ[joff + j] + shift);
+                    }
+                }
+            } else {
+                for(auto i = 0U, c = 0U; i < isize; i++) {
+                    for(auto j = 0U; j < jsize; j++, c++) {
+                        tbuf[c] =
+                          rbuf[c] / (p_evl_sorted_occ[ioff + i] -
+                                     p_evl_sorted_virt[joff + j] + shift);
+                    }
+                }
+            }
+            d_t.add(blockid, tbuf);
+        } else if(d_r.num_modes() == 4) {
+            
+            auto rblock_offset = d_r.block_offsets(blockid);
+
+            std::vector<size_t> ioff;
+            for(auto x : rblock_offset) { ioff.push_back(x); }
+            std::vector<size_t> isize;
+            for(auto x : rblock_dims) { isize.push_back(x); }
+
+            if(!transpose) {
+                for(auto i0 = 0U, c = 0U; i0 < isize[0]; i0++) {
+                    for(auto i1 = 0U; i1 < isize[1]; i1++) {
+                        for(auto i2 = 0U; i2 < isize[2]; i2++) {
+                            for(auto i3 = 0U; i3 < isize[3]; i3++, c++) {
+                                tbuf[c] =
+                                  rbuf[c] /
+                                  (-p_evl_sorted_virt[ioff[0] + i0] -
+                                   p_evl_sorted_virt[ioff[1] + i1] +
+                                   p_evl_sorted_occ[ioff[2] + i2] +
+                                   p_evl_sorted_occ[ioff[3] + i3] + shift);
+                            }
+                        }
+                    }
+                }
+            } else {
+                for(auto i0 = 0U, c = 0U; i0 < isize[0]; i0++) {
+                    for(auto i1 = 0U; i1 < isize[1]; i1++) {
+                        for(auto i2 = 0U; i2 < isize[2]; i2++) {
+                            for(auto i3 = 0U; i3 < isize[3]; i3++, c++) {
+                                tbuf[c] =
+                                  rbuf[c] /
+                                  (p_evl_sorted_occ[ioff[0] + i0] +
+                                   p_evl_sorted_occ[ioff[1] + i1] -
+                                   p_evl_sorted_virt[ioff[2] + i2] -
+                                   p_evl_sorted_virt[ioff[3] + i3] + shift);
+                            }
+                        }
+                    }
+                }
+            }
+            d_t.add(blockid, tbuf);
+        } else {
+            assert(0); // @todo implement
+        }
+    });
+    // GA_Sync();
+}
+
+template<typename T>
 inline void jacobi_eom(ExecutionContext& ec, LabeledTensor<T> d_r_lt, LabeledTensor<T> d_t_lt,
                       T shift, bool transpose, std::vector<double>& evl_sorted, const TAMM_SIZE n_occ_alpha, const TAMM_SIZE n_occ_beta) {
     // EXPECTS(transpose == false);

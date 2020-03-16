@@ -8,7 +8,7 @@
 #include <algorithm>
 #ifdef USE_BLIS
 // disable BLAS prototypes within BLIS.
-// #define BLIS_DISABLE_BLAS_DEFS    
+#define BLIS_DISABLE_BLAS_DEFS    
 #include "blis/blis.h"
 #endif
 #include CBLAS_HEADER

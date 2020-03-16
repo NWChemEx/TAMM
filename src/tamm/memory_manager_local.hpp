@@ -269,13 +269,13 @@ public:
     for(size_t i=0; i<mp.local_nelements().value(); i++) {
       switch(mp.eltype_) {
         case ElementType::double_precision:
-          os<<i<<"     "<<(reinterpret_cast<const double*>(mp.buf_))[i]<<"\n";
+          os<<i<<"     "<<(reinterpret_cast<const double*>(mp.buf_))[i]<<std::endl;
           break;
         default:
           NOT_IMPLEMENTED();
       }
     }
-    os<<"\n\n";
+    os<<std::endl<<std::endl;
   }
 }; // class MemoryManagerLocal
 

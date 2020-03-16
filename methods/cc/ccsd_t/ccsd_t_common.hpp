@@ -30,7 +30,7 @@ typedef long Integer;
 //static int notset;
 
 #define DIV_UB(x,y) ((x)/(y)+((x)%(y)?1:0))
-#define MIN(x,y) ((x)<(y)?(x):(y))
+#define TG_MIN(x,y) ((x)<(y)?(x):(y))
 
 void initMemModule();
 void *getGpuMem(size_t bytes);

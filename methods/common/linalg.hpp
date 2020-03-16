@@ -97,7 +97,7 @@ extern "C" {
 //                const linalg::nwx_blas_int*, double*, 
 //                const linalg::nwx_blas_int* );
 
-#if !defined(INTEL_MKL_VERSION) && !defined(BLIS_H)
+#if !defined(INTEL_MKL_VERSION) //&& !defined(BLIS_H)
   void dgemm_( char*, char*, const linalg::nwx_blas_int*, 
                const linalg::nwx_blas_int*, const linalg::nwx_blas_int*,  
                const double*, const double*, 
@@ -152,6 +152,11 @@ extern "C" {
                 const linalg::nwx_lapack_int*, double*, double*, 
                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int*,
                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int* );
+
+  void dspsvx_( const char*, const char*, const linalg::nwx_lapack_int*, const linalg::nwx_lapack_int*,
+    const double*, double*, linalg::nwx_lapack_int*, const double*, const linalg::nwx_lapack_int*,
+    double*, const linalg::nwx_lapack_int*, double*, double*, double*, double*, 
+    linalg::nwx_lapack_int*, linalg::nwx_lapack_int* ); 
 //  #endif
 
 //   void dsygvd_( const linalg::nwx_lapack_int*, char*, 
@@ -575,6 +580,62 @@ namespace lapack {
     return int64_t(INFO);
 
   }
+
+template <typename T>
+struct Real {
+  using type =  T;
+};
+template <typename T>
+struct Real<std::complex<T>> {
+  using type = T;
+};
+template <typename T>
+using real_t = typename Real<T>::type;
+template <typename T>
+struct is_complex : public std::false_type {};
+template <typename T>
+struct is_complex<std::complex<T>> : public std::true_type {};
+template <typename T>
+constexpr inline bool is_complex_v = is_complex<T>::value;
+
+  template <typename T>
+  detail::enable_if_linalg_supported_t<T,int64_t>
+  spsvx( char FACT, char UPLO, int64_t N, int64_t NRHS, 
+    const T* AP, T* AFP, int64_t* IPIV, const T* B, int64_t LDB, 
+    T* X, int64_t LDX, real_t<T>& RCOND, real_t<T>* FERR, 
+    real_t<T>* BERR ) {
+
+    linalg::nwx_lapack_int _N    = N;
+    linalg::nwx_lapack_int _NRHS = NRHS;
+    linalg::nwx_lapack_int _LDB  = LDB;
+    linalg::nwx_lapack_int _LDX  = LDX;
+    std::vector<linalg::nwx_lapack_int> _IPIV( N );
+    if( FACT == 'F' )
+      std::copy( IPIV, IPIV + N, _IPIV.begin() );
+    using real_type = real_t<T>;
+    
+    linalg::nwx_lapack_int LWORK  = is_complex_v<T> ? 2*N : 3*N;
+    linalg::nwx_lapack_int LRWORK = is_complex_v<T> ? N   : 0;
+    linalg::nwx_lapack_int LIWORK = is_complex_v<T> ? 0   : N;
+    LWORK  = std::max( (linalg::nwx_lapack_int)1, LWORK );
+    LRWORK = std::max( (linalg::nwx_lapack_int)1, LRWORK );
+    LIWORK = std::max( (linalg::nwx_lapack_int)1, LIWORK );
+    std::vector<T>          WORK(LWORK);
+    std::vector<linalg::nwx_lapack_int> IWORK(LIWORK);
+    std::vector<real_type>  RWORK(LRWORK);
+    linalg::nwx_lapack_int INFO;
+    if constexpr ( std::is_same_v< T, double >)
+      dspsvx_( &FACT, &UPLO, &_N, &_NRHS, AP, AFP, _IPIV.data(), B, &_LDB,
+        X, &_LDX, &RCOND, FERR, BERR, WORK.data(), IWORK.data(), &INFO );
+    if constexpr ( std::is_same_v< T, std::complex<double> > )
+      zspsvx_( &FACT, &UPLO, &_N, &_NRHS, AP, AFP, _IPIV.data(), B, &_LDB,
+        X, &_LDX, &RCOND, FERR, BERR, WORK.data(), IWORK.data(), &INFO );        
+    if( FACT == 'N' )
+      std::copy( _IPIV.begin(), _IPIV.end(), IPIV );
+    return INFO;
+  }
+
+
 } // namespace lapack
 
 

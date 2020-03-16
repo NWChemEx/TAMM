@@ -43,13 +43,6 @@ void sd_t_s1_7_cuda(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,do
 void sd_t_s1_8_cuda(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void sd_t_s1_9_cuda(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 
-// template <typename Arg, typename... Args>
-// void dprint(Arg&& arg, Args&&... args)
-// {
-//     cout << std::forward<Arg>(arg);
-//     ((cout << ',' << std::forward<Args>(args)), ...);
-//     cout << "\n";
-// }
 
 // template<typename T>
 using T=double;
@@ -143,15 +136,15 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
       if((a3(ia6,0) == a3(ja6,0)) && (a3(ia6,1) == a3(ja6,1))
        && (a3(ia6,2) == a3(ja6,2)) && (a3(ia6,3) == a3(ja6,3))
        && (a3(ia6,4) == a3(ja6,4)) && (a3(ia6,5) == a3(ja6,5)))
-       {
-        a3(ja6,0)=0;
-        a3(ja6,1)=0;
-        a3(ja6,2)=0;
-        a3(ja6,3)=0;
-        a3(ja6,4)=0;
-        a3(ja6,5)=0;
-      }
-      } 
+        {
+          a3(ja6,0)=0;
+          a3(ja6,1)=0;
+          a3(ja6,2)=0;
+          a3(ja6,3)=0;
+          a3(ja6,4)=0;
+          a3(ja6,5)=0;
+        }
+       } 
       }
     }
 
@@ -168,7 +161,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
       h3b=a3(ia6,5);
 
       // cout << "p456,h123= ";
-      // dprint(p4b,p5b,p6b,h1b,h2b,h3b);
+      // print_varlist(p4b,p5b,p6b,h1b,h2b,h3b);
     
 
       // if ((has_gpu==1)&&(notset==1)) {
@@ -183,7 +176,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
          +k_spin[h1b]+k_spin[h2b]+k_spin[h3b]!=12)) {
 
           //  cout << "spin1,2 = ";
-          //  dprint(k_spin[p4b]+k_spin[p5b]+k_spin[p6b], k_spin[h1b]+k_spin[h2b]+k_spin[h3b]);
+          //  print_varlist(k_spin[p4b]+k_spin[p5b]+k_spin[p6b], k_spin[h1b]+k_spin[h2b]+k_spin[h3b]);
 
          if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          == k_spin[h1b]+k_spin[h2b]+k_spin[h3b]) {
@@ -199,7 +192,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
           if(dima>0 && dimb>0) {
 
           //  cout << "spin1,2 = ";
-          //  dprint(k_spin[p4b]+k_spin[p5b]+k_spin[p6b], k_spin[h1b]+k_spin[h2b]+k_spin[h3b]);
+          //  print_varlist(k_spin[p4b]+k_spin[p5b]+k_spin[p6b], k_spin[h1b]+k_spin[h2b]+k_spin[h3b]);
 
             std::vector<T> k_a(dima);
             std::vector<T> k_a_sort(dima);
@@ -209,7 +202,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
 
             const int ndim = 2;
             int perm[ndim]={1,0};
-            int size[ndim]={k_range[p4b],k_range[h1b]};
+            int size[ndim]={(int)k_range[p4b],(int)k_range[h1b]};
             
             // create a plan (shared_ptr)
             auto plan = hptt::create_plan(perm, ndim, 1, &k_a[0], size, NULL, 0, &k_a_sort[0],
@@ -222,7 +215,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
       && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
      {
-        // dprint(1);
+        // print_varlist(1);
         if(has_gpu){
 
         if(use_nwc_gpu_kernels) 
@@ -247,7 +240,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
       && (t_h1b == h2b) && (t_h2b == h1b) && (t_h3b == h3b))
       {
-        // dprint(2);
+        // print_varlist(2);
         if(has_gpu) {
           if(use_nwc_gpu_kernels) 
             sd_t_s1_2_cuda(k_range[h1b],k_range[h2b],
@@ -271,10 +264,10 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
       && (t_h1b == h2b) && (t_h2b == h3b) && (t_h3b == h1b))
      {
-      //  dprint(3);
+      //  print_varlist(3);
         if(has_gpu) {
           if(use_nwc_gpu_kernels) 
-           sd_t_s1_3_cuda(k_range[h1b],k_range[h2b],
+            sd_t_s1_3_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
@@ -295,7 +288,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
      if ((t_p4b == p5b) && (t_p5b == p4b) && (t_p6b == p6b)
       && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
       {
-        // dprint(4);
+        // print_varlist(4);
         if(has_gpu) {
           if(use_nwc_gpu_kernels) 
             sd_t_s1_4_cuda(k_range[h1b],k_range[h2b],
@@ -319,7 +312,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
     if ((t_p4b == p5b) && (t_p5b == p4b) && (t_p6b == p6b)
       && (t_h1b == h2b) && (t_h2b == h1b) && (t_h3b == h3b)) 
       {
-        // dprint(5);
+        // print_varlist(5);
         if(has_gpu) {
           if(use_nwc_gpu_kernels) 
             sd_t_s1_5_cuda(k_range[h1b],k_range[h2b],
@@ -342,7 +335,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
     if ((t_p4b == p5b) && (t_p5b == p4b) && (t_p6b == p6b)
       && (t_h1b == h2b) && (t_h2b == h3b) && (t_h3b == h1b))
      {
-      //  dprint(6);
+      //  print_varlist(6);
         if(has_gpu) {
           if(use_nwc_gpu_kernels) 
             sd_t_s1_6_cuda(k_range[h1b],k_range[h2b],
@@ -365,7 +358,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
      if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
       && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b)) 
       {
-      // dprint(7);
+      // print_varlist(7);
         if(has_gpu) {
           if(use_nwc_gpu_kernels) 
             sd_t_s1_7_cuda(k_range[h1b],k_range[h2b],
@@ -388,7 +381,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
      if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
       && (t_h1b == h2b) && (t_h2b == h1b) && (t_h3b == h3b)) 
       {
-        // dprint(8);
+        // print_varlist(8);
         if(has_gpu) {
           if(use_nwc_gpu_kernels) 
             sd_t_s1_8_cuda(k_range[h1b],k_range[h2b],
@@ -411,7 +404,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
      if ((t_p4b == p5b) && (t_p5b == p6b) && (t_p6b == p4b)
       && (t_h1b == h2b) && (t_h2b == h3b) && (t_h3b == h1b)) 
       {
-        // dprint(9);
+        // print_varlist(9);
         if(has_gpu) {
           if(use_nwc_gpu_kernels) 
             sd_t_s1_9_cuda(k_range[h1b],k_range[h2b],

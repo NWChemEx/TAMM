@@ -6,7 +6,7 @@ O    0.000000000000000   0.000000000000000   0.000000000000000
 H    0.000000000000000   1.579252144093028  -2.174611055780858
 
 COMMON {  
-    basis sto-3g cartesian
+    basis sto-3g
     maxiter 50
     geometry units bohr
     //dfbasis sto-3g
@@ -23,17 +23,20 @@ SCF
     conve 1e-6
     convd 1e-5
     diis_hist 10
+    // write movecs to disk after every 10 steps
+    writem 10 
     force_tilesize false
     tilesize 30
+    //nnodes 1
     //debug true
     //restart true
+    //noscf true
     //scalapack_nb 1
     //scalapack_np_row 0
     //scalapack_np_col 0
     //scf_type uhf 
     //n_lindep 1
     //moldenfile /home/user/water.molden
-    //scf_energy -74.753859796210
 }
 
 CD {
@@ -44,12 +47,15 @@ CD {
 CCSD {
     //cuda 2
     threshold 1e-10
-    tilesize 10
-    itilesize 10
+    //force_tilesize true
+    tilesize 50
+    itilesize 1000
+    ccsdt_tilesize 28
     //ccsd_maxiter 5
     //readt true
     //writet true
+    //writet_iter 5
     //debug true
-    //balance_tiles true
+
 }
 

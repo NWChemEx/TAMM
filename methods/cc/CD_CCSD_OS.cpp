@@ -84,8 +84,10 @@ void ccsd_driver() {
 
     if(ccsd_restart) {
         read_from_disk(d_f1,f1file);
-        read_from_disk(d_t1,t1file);
-        read_from_disk(d_t2,t2file);
+        if(fs::exists(t1file) && fs::exists(t2file)) {
+            read_from_disk(d_t1,t1file);
+            read_from_disk(d_t2,t2file);
+        }
         read_from_disk(cholVpr,v2file);
         ec.pg().barrier();
         p_evl_sorted = tamm::diagonal(d_f1);
@@ -133,8 +135,8 @@ void ccsd_driver() {
     ccsd_stats(ec, hf_energy,residual,corr_energy,ccsd_options.threshold);
 
     if(ccsd_options.writet && !fs::exists(ccsdstatus)) {
-        write_to_disk(d_t1,t1file);
-        write_to_disk(d_t2,t2file);
+        // write_to_disk(d_t1,t1file);
+        // write_to_disk(d_t2,t2file);
         if(rank==0){
           std::ofstream out(ccsdstatus, std::ios::out);
           if(!out) cerr << "Error opening file " << ccsdstatus << endl;

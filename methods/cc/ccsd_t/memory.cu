@@ -7,7 +7,7 @@ using namespace std;
 
 // extern "C" {
 
-static int is_init=0;
+// static int is_init=0;
 
 static map<size_t,set<void*> > free_list_gpu, free_list_host;
 static map<void *,size_t> live_ptrs_gpu, live_ptrs_host;
@@ -36,7 +36,7 @@ static void clearHostFreeList()
   free_list_host.clear();
 }
 
-static size_t num_resurrections=0, num_morecore=0;
+static size_t num_resurrections=0;// num_morecore=0;
 
 typedef cudaError (*mallocfn_t)(void **ptr, size_t bytes);
 
@@ -72,12 +72,12 @@ static inline void *resurrect_from_free_list(map<size_t,set<void *> > &free_map,
 
 void initmemmodule()
 {
-  is_init=1;
+  //is_init=1;
 }
 
 void *getGpuMem(size_t bytes) 
 {
-  assert(is_init);
+  //assert(is_init);
   void *ptr;
 #ifdef NO_OPT
   CUDA_SAFE(cudaMalloc((void **) &ptr, bytes));
@@ -111,7 +111,7 @@ void *getGpuMem(size_t bytes)
 
 void *getHostMem(size_t bytes) 
 {
-  assert(is_init);
+  //assert(is_init);
   void *ptr;
 #ifdef NO_OPT
   CUDA_SAFE(cudaMallocHost((void **) &ptr, bytes));
@@ -153,7 +153,7 @@ void *getHostMem(size_t bytes)
 void freeHostMem(void *p) 
 {
   size_t bytes;
-  assert(is_init);
+  //assert(is_init);
 #ifdef NO_OPT
   cudaFreeHost(p);
 #else
@@ -167,7 +167,7 @@ void freeHostMem(void *p)
 void freeGpuMem(void *p) 
 {
   size_t bytes;
-  assert(is_init);
+  //assert(is_init);
 #ifdef NO_OPT
   cudaFree(p);
 #else
@@ -180,8 +180,8 @@ void freeGpuMem(void *p)
 
 void finalizememmodule() 
 {
-  assert(is_init);
-  is_init = 0;
+  //assert(is_init);
+  //is_init = 0;
 
   /*there should be no live pointers*/
   assert(live_ptrs_gpu.size()==0);

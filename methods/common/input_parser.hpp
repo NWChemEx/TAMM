@@ -84,6 +84,7 @@ class SCFOptions: public Options {
       diis_hist = 10;
       AO_tilesize = 30;
       restart = false;
+      noscf = false;
       scalapack_nb = 1;
       scalapack_np_row = 0;
       scalapack_np_col = 0;
@@ -91,10 +92,12 @@ class SCFOptions: public Options {
       riscf = 0; //0 for JK, 1 for J, 2 for K
       riscf_str = "JK";
       moldenfile = "";
-      scf_energy = 0.0;
       n_lindep = 0;
       scf_type = "rhf";
-      multiplicity = 0;
+      multiplicity = 1;
+      alpha = 0.7;
+      nnodes = 1;
+      writem = diis_hist;
     }
 
   double tol_int; //tolerance for integral engine
@@ -104,16 +107,19 @@ class SCFOptions: public Options {
   int diis_hist; //number of diis history entries
   int AO_tilesize; 
   bool restart; //Read movecs from disk
+  bool noscf; //only recompute energy from movecs
   bool force_tilesize;
   int scalapack_nb;
   int scalapack_np_row;
   int scalapack_np_col;
   int riscf;
+  int nnodes;
   std::string riscf_str;
   std::string moldenfile;
   //ignored when moldenfile not provided
   int n_lindep;
-  double scf_energy; 
+  int writem; 
+  double alpha; //density mixing parameter
   int multiplicity;
   std::string scf_type;
   
@@ -127,19 +133,21 @@ class SCFOptions: public Options {
       cout << " convd = " << convd << endl;
       cout << " diis_hist = " << diis_hist << endl;
       cout << " AO_tilesize = " << AO_tilesize << endl;  
-      cout << " riscf = " << riscf_str << endl; 
-      cout << " riscf = " << riscf_str << endl; 
+      cout << " writem = " << writem << endl;  
+      if(alpha != 0.7) cout << " alpha = " << alpha << endl;
+      // cout << " riscf = " << riscf_str << endl; 
+      // cout << " riscf = " << riscf_str << endl; 
       if(!moldenfile.empty()) {
         cout << " moldenfile = " << moldenfile << endl;    
         cout << " multiplicity = " << multiplicity << endl;
         //cout << " n_lindep = " << n_lindep << endl;
-        cout << " scf_energy = " << scf_energy << endl;
       }
       if(scalapack_nb>1) cout << " scalapack_nb = " << scalapack_nb << endl;
       if(scalapack_np_row>0) cout << " scalapack_np_row = " << scalapack_np_row << endl;
       if(scalapack_np_col>0) cout << " scalapack_np_col = " << scalapack_np_col << endl;
       print_bool(" restart", restart);
       print_bool(" debug", debug); 
+      if(restart) print_bool(" noscf", noscf);
       cout << "}\n";
     }
 };
@@ -178,12 +186,15 @@ class CCSDOptions: public Options {
     threshold = 1e-10;
     tilesize = 50;
     itilesize = 1000;
+    ccsdt_tilesize = 28;
     icuda = 0;
     ndiis = 5;
     eom_nroots = 0;
     eom_threshold = 1e-10;
     eom_microiter = o.maxiter;
     writet = false;
+    writet_iter = ndiis;
+    force_tilesize = false;
     readt = false;
     gf_ip = true;
     gf_ea = false;
@@ -220,9 +231,12 @@ class CCSDOptions: public Options {
   int eom_nroots;
   int tilesize;
   int itilesize;
+  int ccsdt_tilesize;
+  bool force_tilesize;
   int icuda;
   int ndiis;
   int eom_microiter;
+  int writet_iter;
   bool readt, writet, gf_restart, gf_ip, gf_ea, gf_os, gf_cs, balance_tiles;
   double threshold;
   double eom_threshold;
@@ -258,7 +272,10 @@ class CCSDOptions: public Options {
     std::cout << std::defaultfloat;
     cout << "\nCCSD Options\n";
     cout << "{\n";
-    if(icuda > 0) cout << " #cuda = " << icuda << endl;
+    if(icuda > 0) {
+      cout << " #cuda = " << icuda << endl;
+      cout << " ccsdt_tilesize = " << ccsdt_tilesize << endl;
+    }
     cout << " ndiis = " << ndiis << endl;
     cout << " threshold = " << threshold << endl;
     cout << " tilesize = " << tilesize << endl;
@@ -267,6 +284,7 @@ class CCSDOptions: public Options {
     if(gf_nprocs_poi > 0) cout << " gf_nprocs_poi = " << gf_nprocs_poi << endl;
     print_bool(" readt", readt); 
     print_bool(" writet", writet);
+    cout << " writet_iter = " << writet_iter << endl;
     print_bool(" balance_tiles", balance_tiles); 
 
     if(eom_nroots > 0){
@@ -577,13 +595,21 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             scf_options.force_tilesize = to_bool(read_option(line));  
           else if(is_in_line("tilesize",line)) 
             scf_options.AO_tilesize = std::stod(read_option(line)); 
+          else if(is_in_line("alpha",line)) 
+            scf_options.alpha = std::stod(read_option(line));  
+          else if(is_in_line("writem",line)) 
+            scf_options.writem = std::stoi(read_option(line));    
+          else if(is_in_line("nnodes",line)) 
+            scf_options.nnodes = std::stoi(read_option(line));                                      
           else if(is_in_line("riscf",line)) {
             std::string riscf_str = read_option(line);
             if(riscf_str == "J") scf_options.riscf = 1;
             else if(riscf_str == "K") scf_options.riscf = 2;
           }
           else if(is_in_line("restart",line))
-            scf_options.restart = to_bool(read_option(line));        
+            scf_options.restart = to_bool(read_option(line));  
+          else if(is_in_line("noscf",line))
+            scf_options.noscf = to_bool(read_option(line));                    
           else if(is_in_line("debug",line))
             scf_options.debug = to_bool(read_option(line)); 
           else if(is_in_line("moldenfile",line))
@@ -592,8 +618,6 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             scf_options.scf_type = read_option(line); 
           else if(is_in_line("n_lindep",line))
             scf_options.n_lindep = std::stoi(read_option(line)); 
-          else if(is_in_line("scf_energy",line))
-            scf_options.scf_energy = std::stod(read_option(line));                                 
           else if(is_in_line("multiplicity",line))
             scf_options.multiplicity = std::stoi(read_option(line)); 
           else if(is_in_line("scalapack_nb",line)) 
@@ -649,6 +673,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             ccsd_options.threshold = std::stod(read_option(line));  
           else if(is_in_line("tilesize",line))
             ccsd_options.tilesize = std::stoi(read_option(line));
+          else if(is_in_line("ccsdt_tilesize",line))
+            ccsd_options.ccsdt_tilesize = std::stoi(read_option(line));            
           else if(is_in_line("itilesize",line))
             ccsd_options.itilesize = std::stoi(read_option(line));            
           else if(is_in_line("cuda",line))
@@ -659,8 +685,12 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             ccsd_options.readt = to_bool(read_option(line)); 
           else if(is_in_line("writet",line))
             ccsd_options.writet = to_bool(read_option(line));
+          else if(is_in_line("writet_iter",line))
+            ccsd_options.writet_iter = std::stoi(read_option(line));            
           else if(is_in_line("balance_tiles",line))
-            ccsd_options.balance_tiles = to_bool(read_option(line));            
+            ccsd_options.balance_tiles = to_bool(read_option(line));     
+          else if(is_in_line("force_tilesize",line)) 
+            ccsd_options.force_tilesize = to_bool(read_option(line));                     
           else if(is_in_line("gf_ip",line))
             ccsd_options.gf_ip = to_bool(read_option(line)); 
           else if(is_in_line("gf_ea",line))

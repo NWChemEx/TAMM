@@ -416,14 +416,14 @@ std::tuple<int,int, double, libint2::BasisSet> hartree_fock(const string filenam
     const auto loop_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((loop_stop - loop_start)).count();
 
-    // cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf <<", " << ediff <<  "," <<rmsd << "\n";
+    // cout << "iter, ehf, ediff, rmsd = " << iter << "," << ehf <<", " << ediff <<  "," <<rmsd << std::endl;
     if(rank == 0) {
       std::cout << std::setw(5) << iter << "  " << std::setw(14);
       std::cout << std::fixed << std::setprecision(10) << ehf + enuc;
       std::cout << ' ' << std::setw(16)  << ediff;
       std::cout << ' ' << std::setw(15)  << rmsd << ' ';
       std::cout << std::fixed << std::setprecision(2);
-      std::cout << ' ' << std::setw(12)  << loop_time << ' ' << "\n";    
+      std::cout << ' ' << std::setw(12)  << loop_time << ' ' << std::endl;    
     }
 
    if(iter > maxiter) {

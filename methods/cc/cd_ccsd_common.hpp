@@ -347,6 +347,7 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
     int ndiis = sys_data.options_map.ccsd_options.ndiis;
     double thresh  = sys_data.options_map.ccsd_options.threshold;
     bool writet = sys_data.options_map.ccsd_options.writet;
+    int writet_iter  = sys_data.options_map.ccsd_options.writet_iter;
     const TAMM_SIZE n_occ_alpha = static_cast<TAMM_SIZE>(sys_data.n_occ_alpha);
     const TAMM_SIZE n_occ_beta = static_cast<TAMM_SIZE>(sys_data.n_occ_beta);
     
@@ -357,6 +358,7 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
 
     double residual = 0.0;
     double energy = 0.0;
+    int niter = 0;
 
     const TiledIndexSpace &O = MO("occ");
     const TiledIndexSpace &V = MO("virt");
@@ -567,6 +569,7 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
 
             const auto timer_start = std::chrono::high_resolution_clock::now();
 
+            niter = iter;
             int off = iter - titer;
             
             Tensor<T> d_r1_residual{};
@@ -634,6 +637,12 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
             iteration_print(ec.pg(), iter, residual, energy, iter_time);
             Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
 
+            if(writet && ( ((iter+1)%writet_iter == 0) || (residual < thresh) ) ) {
+                write_to_disk(d_t1,t1file);
+                write_to_disk(d_t2,t2file);
+            }
+
+
         if(residual < thresh) { 
             Tensor<T> t2_copy{{V,V,O,O},{2,2}};
             sch.allocate(t2_copy)
@@ -661,12 +670,7 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
         std::vector<std::vector<Tensor<T>>> ts{d_t1s, d_t2s};
         std::vector<Tensor<T>> next_t{d_t1, d_t2};
         diis<T>(ec, rs, ts, next_t);
-        if(writet) {
-            write_to_disk(d_t1,t1file);
-            write_to_disk(d_t2,t2file);
-        }
     }
-
 
     { //deallocate all intermediates 
         
@@ -695,6 +699,11 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
             residual = 0.0;
     }
 
+  sys_data.ccsd_iterations = niter+1;
+  sys_data.ccsd_corr_energy = energy;
+  sys_data.ccsd_total_energy = sys_data.scf_energy+energy;
+  if(ec.pg().rank() == 0) write_results(sys_data,"CCSD");
+
   sch.deallocate(_a01,_a02_aa,_a02_bb,_a03_aa,_a03_bb); //ccsd_e
   sch.deallocate(d_e,_a004_aaaa,_a004_abab,_a004_bbbb);
   //t2_baba
@@ -703,6 +712,7 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
                 f1_aa_oo, f1_aa_ov, f1_aa_vo, f1_aa_vv, f1_bb_oo, f1_bb_ov, f1_bb_vo, f1_bb_vv,
                 chol3d_aa_oo, chol3d_aa_ov, chol3d_aa_vo, chol3d_aa_vv,
                 chol3d_bb_oo, chol3d_bb_ov, chol3d_bb_vo, chol3d_bb_vv).execute();
+
 
   return std::make_tuple(residual,energy);
 

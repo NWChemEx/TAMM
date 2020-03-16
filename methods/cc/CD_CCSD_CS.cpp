@@ -80,12 +80,14 @@ void ccsd_driver() {
     TiledIndexSpace N = MO("all");
 
     auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
-            = setupTensors(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
+            = setupTensors_cs(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
 
     if(ccsd_restart) {
         read_from_disk(d_f1,f1file);
-        read_from_disk(d_t1,t1file);
-        read_from_disk(d_t2,t2file);
+        if(fs::exists(t1file) && fs::exists(t2file)) {
+            read_from_disk(d_t1,t1file);
+            read_from_disk(d_t2,t2file);
+        }
         read_from_disk(cholVpr,v2file);
         ec.pg().barrier();
         p_evl_sorted = tamm::diagonal(d_f1);
@@ -133,8 +135,8 @@ void ccsd_driver() {
     ccsd_stats(ec, hf_energy,residual,corr_energy,ccsd_options.threshold);
 
     if(ccsd_options.writet && !fs::exists(ccsdstatus)) {
-        write_to_disk(d_t1,t1file);
-        write_to_disk(d_t2,t2file);
+        // write_to_disk(d_t1,t1file);
+        // write_to_disk(d_t2,t2file);
         if(rank==0){
           std::ofstream out(ccsdstatus, std::ios::out);
           if(!out) cerr << "Error opening file " << ccsdstatus << endl;

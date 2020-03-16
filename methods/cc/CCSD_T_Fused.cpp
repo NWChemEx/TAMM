@@ -4,8 +4,9 @@
 #include "ccsd_t/ccsd_t_fused_driver.hpp"
 
 void ccsd_driver();
-std::string filename; //bad, but no choice
-double ccsd_t_GetTime = 0;
+std::string filename;
+double ccsd_t_t2_GetTime = 0;
+double ccsd_t_v2_GetTime = 0;
 double genTime = 0;
 double ccsd_t_data_per_rank = 0; //in GB
 
@@ -52,6 +53,9 @@ void ccsd_driver() {
     auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis,scf_conv]  
                     = hartree_fock_driver<T>(ec,filename);
 
+    //force writet on
+    sys_data.options_map.ccsd_options.writet = true;
+
     CCSDOptions ccsd_options = sys_data.options_map.ccsd_options;
     debug = ccsd_options.debug;
     if(rank == 0) ccsd_options.print();
@@ -87,8 +91,10 @@ void ccsd_driver() {
 
     if(ccsd_restart) {
         read_from_disk(d_f1,f1file);
-        read_from_disk(d_t1,t1file);
-        read_from_disk(d_t2,t2file);
+        if(fs::exists(t1file) && fs::exists(t2file)) {
+            read_from_disk(d_t1,t1file);
+            read_from_disk(d_t2,t2file);
+        }
         read_from_disk(cholVpr,v2file);
         ec.pg().barrier();
         p_evl_sorted = tamm::diagonal(d_f1);
@@ -117,10 +123,11 @@ void ccsd_driver() {
     
     ec.pg().barrier();
 
-    #ifdef USE_TALSH_T
     ExecutionHW hw = ExecutionHW::CPU;
-    const bool has_gpu = ec.has_gpu();    
+
+    #ifdef USE_TALSH_T
     hw = ExecutionHW::GPU;
+    const bool has_gpu = ec.has_gpu();    
     TALSH talsh_instance;
     if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
     #endif
@@ -140,8 +147,8 @@ void ccsd_driver() {
     auto cc_t2 = std::chrono::high_resolution_clock::now();
 
     if(ccsd_options.writet && !fs::exists(ccsdstatus)) {
-        write_to_disk(d_t1,t1file);
-        write_to_disk(d_t2,t2file);
+        // write_to_disk(d_t1,t1file);
+        // write_to_disk(d_t2,t2file);
         if(rank==0){
           std::ofstream out(ccsdstatus, std::ios::out);
           if(!out) cerr << "Error opening file " << ccsdstatus << endl;
@@ -159,9 +166,21 @@ void ccsd_driver() {
         free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);
     }
 
+    free_tensors(d_t1, d_t2, d_f1);
     ec.flush_and_sync();
 
-    Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, ExecutionHW::CPU);
+    std::string fullV2file = files_prefix+".fullV2";
+    bool  ccsd_t_restart =
+        ( (fs::exists(t1file) && fs::exists(t2file)     
+        && fs::exists(f1file) && fs::exists(fullV2file)) );
+
+    Tensor<T> d_v2;
+    if(!ccsd_t_restart) {
+        d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, hw);
+        write_to_disk(d_v2,fullV2file);
+        Tensor<T>::deallocate(d_v2);
+    }
+
     Tensor<T>::deallocate(cholVpr);
 
     #ifdef USE_TALSH_T
@@ -171,7 +190,7 @@ void ccsd_driver() {
 
     #endif 
 
-    #if 0   
+    #if 0
     TiledIndexSpace O = MO("occ");
     TiledIndexSpace V = MO("virt");
     double residual=0, corr_energy=0;
@@ -247,22 +266,60 @@ void ccsd_driver() {
     cc_t1 = std::chrono::high_resolution_clock::now();
     double energy1=0, energy2=0;
 
-    #if 1
+    if(rank==0) {
+        auto mo_tiles = MO.input_tile_sizes();
+        cout << endl << "CCSD MO Tiles = " << mo_tiles << endl;   
+    }
 
-    Index noab=MO("occ").num_tiles();
-    Index nvab=MO("virt").num_tiles();
+    auto [MO1,total_orbitals1] = setupMOIS(sys_data,true);
+    TiledIndexSpace N1 = MO1("all");
+    TiledIndexSpace O1 = MO1("occ");
+    TiledIndexSpace V1 = MO1("virt");     
+
+    Tensor<T> t_d_f1{{N1,N1},{1,1}};
+    Tensor<T> t_d_t1{{V1,O1},{1,1}};
+    Tensor<T> t_d_t2{{V1,V1,O1,O1},{2,2}};
+    Tensor<T> t_d_v2{{N1,N1,N1,N1},{2,2}};
+    Tensor<T>::allocate(&ec,t_d_f1,t_d_t1,t_d_t2,t_d_v2);
+
+    Scheduler{ec}   
+    (t_d_f1() = 0)
+    (t_d_t1() = 0)
+    (t_d_t2() = 0)
+    (t_d_v2() = 0)
+    .execute();
+
+    TiledIndexSpace O = MO("occ");
+    TiledIndexSpace V = MO("virt");
+    Tensor<T> wd_f1{{N,N},{1,1}};
+    Tensor<T> wd_t1{{V,O},{1,1}};
+    Tensor<T> wd_t2{{V,V,O,O},{2,2}};
+    Tensor<T> wd_v2{{N,N,N,N},{2,2}};
+
+    read_from_disk(t_d_f1,f1file,false,wd_f1);
+    read_from_disk(t_d_t1,t1file,false,wd_t1);
+    read_from_disk(t_d_t2,t2file,false,wd_t2);
+    read_from_disk(t_d_v2,fullV2file,false,wd_v2); 
+
+    ec.pg().barrier();
+    p_evl_sorted = tamm::diagonal(t_d_f1);
+
+    cc_t1 = std::chrono::high_resolution_clock::now();
+
+    Index noab=MO1("occ").num_tiles();
+    Index nvab=MO1("virt").num_tiles();
     std::vector<int> k_spin;
-    for(auto x=0;x<noab/2;x++) k_spin.push_back(1);
-    for(auto x=noab/2;x<noab;x++) k_spin.push_back(2);
-    for(auto x=0;x<nvab/2;x++) k_spin.push_back(1);
-    for(auto x=nvab/2;x<nvab;x++) k_spin.push_back(2);
+    for(tamm::Index x=0;x<noab/2;x++) k_spin.push_back(1);
+    for(tamm::Index x=noab/2;x<noab;x++) k_spin.push_back(2);
+    for(tamm::Index x=0;x<nvab/2;x++) k_spin.push_back(1);
+    for(tamm::Index x=nvab/2;x<nvab;x++) k_spin.push_back(2);
 
-    if(rank==0) cout << "\nCCSD(T) tgen fused.\n";
+    if(rank==0) cout << endl << "Running CCSD(T) calculation" << endl;
 
     bool is_restricted = true;
     if(sys_data.options_map.scf_options.scf_type == "uhf") is_restricted = false;
 
-    std::tie(energy1,energy2) = ccsd_t_fused_driver<T>(ec,k_spin,MO,d_t1,d_t2,d_v2,
+    std::tie(energy1,energy2) = ccsd_t_fused_driver<T>(sys_data,ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
                                     p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted);
 
     double g_energy1,g_energy2;
@@ -284,9 +341,7 @@ void ccsd_driver() {
     
     }
 
-    #endif
-
-    free_tensors(d_t1, d_t2, d_f1, d_v2);
+    free_tensors(t_d_t1, t_d_t2, t_d_f1, t_d_v2);
 
     ec.flush_and_sync();
     MemoryManagerGA::destroy_coll(mgr);
@@ -297,13 +352,18 @@ void ccsd_driver() {
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
 
 
-    double g_ccsd_t_time,g_getTime,min_tgetTime,max_tgetTime,g_ccsd_t_data_per_rank;
+    double g_ccsd_t_time,g_ccsd_t_data_per_rank;
+    double g_t2_getTime,min_t2_getTime,max_t2_getTime, g_v2_getTime,min_v2_getTime,max_v2_getTime;
 
     MPI_Reduce(&ccsd_t_time, &g_ccsd_t_time, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
 
-    MPI_Reduce(&ccsd_t_GetTime, &g_getTime, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
-    MPI_Reduce(&ccsd_t_GetTime, &min_tgetTime, 1, MPI_DOUBLE, MPI_MIN, 0, ec.pg().comm());
-    MPI_Reduce(&ccsd_t_GetTime, &max_tgetTime, 1, MPI_DOUBLE, MPI_MAX, 0, ec.pg().comm());
+    MPI_Reduce(&ccsd_t_t2_GetTime, &g_t2_getTime,   1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+    MPI_Reduce(&ccsd_t_t2_GetTime, &min_t2_getTime, 1, MPI_DOUBLE, MPI_MIN, 0, ec.pg().comm());
+    MPI_Reduce(&ccsd_t_t2_GetTime, &max_t2_getTime, 1, MPI_DOUBLE, MPI_MAX, 0, ec.pg().comm());
+
+    MPI_Reduce(&ccsd_t_v2_GetTime, &g_v2_getTime,   1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+    MPI_Reduce(&ccsd_t_v2_GetTime, &min_v2_getTime, 1, MPI_DOUBLE, MPI_MIN, 0, ec.pg().comm());
+    MPI_Reduce(&ccsd_t_v2_GetTime, &max_v2_getTime, 1, MPI_DOUBLE, MPI_MAX, 0, ec.pg().comm());    
 
     ccsd_t_data_per_rank = (ccsd_t_data_per_rank * 8.0) / (1024*1024.0*1024); //GB
     MPI_Reduce(&ccsd_t_data_per_rank, &g_ccsd_t_data_per_rank, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
@@ -320,7 +380,8 @@ void ccsd_driver() {
         };
 
         std::cout << "\nTotal CCSD(T) Time: " << ccsd_t_time << " secs\n";
-        print_profile_stats("GetTime", g_getTime, min_tgetTime, max_tgetTime);
+        print_profile_stats("T2 GetTime", g_t2_getTime, min_t2_getTime, max_t2_getTime);
+        print_profile_stats("V2 GetTime", g_v2_getTime, min_v2_getTime, max_v2_getTime);
         std::cout << "   -> Data Transfer (GB): " << g_ccsd_t_data_per_rank/nranks << std::endl;
     }
 

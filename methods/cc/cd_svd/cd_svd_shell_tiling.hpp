@@ -268,7 +268,7 @@ Tensor<TensorType> cd_svd_ao(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
             dibuf[f3*n4+f4] -=  vtmp*vtmp;
             tbuf[(count*n3+f3)*n4+f4] = vtmp;
 
-            //cout << bf3 << " " << bf4 << " " << bfu << " " << bfv << " " <<  buf_3412[f3412] << "\n" << endl;
+            //cout << bf3 << " " << bf4 << " " << bfu << " " << bfv << " " <<  buf_3412[f3412] << endl << endl;
           }
         }
 

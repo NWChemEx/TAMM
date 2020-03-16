@@ -11073,7 +11073,7 @@ void jk_ccsd_t_s1_1(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 	double *dev_v2; 
 
     // t3
-    size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
+    // size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
 
     // s1_1:   t3[h3,h2,h1,p6,p5,p4] -= t2[p4,h1] * v2[h3,h2,p6,p5]
     size_t size_t2 = sizeof(double) * size_p4 * size_h1;
@@ -11279,7 +11279,7 @@ void jk_ccsd_t_s1_2(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2; 
 
     // t3
-    size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
+    // size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
 
     // s1_2:   t3[h3,h2,h1,p6,p5,p4] -= t2[p4,h2] * v2[h3,h1,p6,p5]
     size_t size_t2 = sizeof(double) * size_p4 * size_h2;
@@ -11482,7 +11482,7 @@ void jk_ccsd_t_s1_3(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2; 
 
     // t3
-    size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
+    // size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
 
     // s1_3:   t3[h3,h2,h1,p6,p5,p4] += t1[p4,h3] * v2[h2,h1,p6,p5]
     size_t size_t2 = sizeof(double) * size_p4 * size_h3;
@@ -11690,7 +11690,7 @@ void jk_ccsd_t_s1_4(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2; 
 
     // t3
-    size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
+    // size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
 
     // s1_4:   t3[h3,h2,h1,p6,p5,p4] -= t2[p5,h1] * v2[h3,h2,p6,p4]
     size_t size_t2 = sizeof(double) * size_p5 * size_h1;
@@ -11898,7 +11898,7 @@ void jk_ccsd_t_s1_5(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2; 
 
     // t3
-    size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
+    // size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
 
     // s1_5:   t3[h3,h2,h1,p6,p5,p4] -= t2[p5,h2] * v2[h3,h1,p6,p4]
     size_t size_t2 = sizeof(double) * size_p5 * size_h2;
@@ -12106,7 +12106,7 @@ void jk_ccsd_t_s1_6(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2; 
 
     // t3
-    size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
+    // size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
 
     // s1_6:   t3[h3,h2,h1,p6,p5,p4] -= t2[p5,h3] * v2[h2,h1,p6,p4]
     size_t size_t2 = sizeof(double) * size_p5 * size_h3;
@@ -12303,7 +12303,7 @@ void jk_ccsd_t_s1_7(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2; 
 
     // t3
-    size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
+    // size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
 
     // s1_7:   t3[h3,h2,h1,p6,p5,p4] -= t2[p6,h1] * v2[h3,h2,p5,p4]
     size_t size_t2 = sizeof(double) * size_p6 * size_h1;
@@ -12499,7 +12499,7 @@ void jk_ccsd_t_s1_8(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2; 
 
     // t3
-    size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
+    // size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
 
     // s1_8:   t3[h3,h2,h1,p6,p5,p4] -= t2[p6,h2] * v2[h3,h1,p5,p4]
     size_t size_t2 = sizeof(double) * size_p6 * size_h2;
@@ -12695,7 +12695,7 @@ void jk_ccsd_t_s1_9(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2; 
 
     // t3
-    size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
+    // size_t size_t3   = sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4;
 
     // s1_9:   t3[h3,h2,h1,p6,p5,p4] -= t2[p6,h3] * v2[h2,h1,p5,p4]
     size_t size_t2 = sizeof(double) * size_p6 * size_h3;

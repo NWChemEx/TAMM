@@ -491,9 +491,9 @@ TEST_CASE("Spin Tensor Construction") {
         auto [lptr, lbufsize] = access_local_block_cyclic_buffer(sca1);
         for (auto i=0L;i<lbufsize;i++)
          std::cout << lptr[i] << "\n";
-        GA_Print(sca1.ga_handle());
+        // GA_Print(sca1.ga_handle());
         from_block_cyclic_tensor(sca1,pT);
-        GA_Print(pT.ga_handle());
+        // GA_Print(pT.ga_handle());
 
         Tensor<T>::deallocate(H,pT,sca,sca1);
 
@@ -505,6 +505,61 @@ TEST_CASE("Spin Tensor Construction") {
     }
     REQUIRE(!failed);
     
+}
+
+TEST_CASE("Non trivial ScaLAPACK test") {
+    using T = double;
+    IndexSpace SpinIS{range(0, 20),
+                      {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}},
+                      {{Spin{1}, {range(0, 5), range(10, 15)}},
+                       {Spin{2}, {range(5, 10), range(15, 20)}}}};
+
+    IndexSpace IS{range(0, 20)};
+
+    TiledIndexSpace SpinTIS{SpinIS, 5};
+    TiledIndexSpace TIS{IS, 5};
+
+    std::vector<SpinPosition> spin_mask_2D{SpinPosition::lower,
+                                           SpinPosition::upper};
+
+    TiledIndexLabel i, j, k, l;
+    std::tie(i, j) = SpinTIS.labels<2>("all");
+    std::tie(k, l) = TIS.labels<2>("all");
+
+    bool failed = false;
+
+
+    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+    auto mgr = MemoryManagerGA::create_coll(pg);
+    Distribution_NW distribution;
+    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    
+    // Non trivial ScaLAPACK test
+    try {
+        std::cout << "------BEGIN non trivial block cyclic dist test------\n";
+
+        size_t n = 512;
+        tamm::Tile ts = 20;
+        int64_t nb = 128;
+
+        size_t npr = 1, npc = 1;
+
+        IndexSpace is{ range(0, n ) };
+        TiledIndexSpace tis{ is, ts };
+
+        Tensor<T> A{ tis, tis };
+        A.allocate(ec);
+        Scheduler{*ec}(  A("i","j") = 1. ).execute();
+
+        auto A_scal = to_block_cyclic_tensor( A, {npr,npc}, {nb, nb} );
+
+        std::cout << "------END non trivial block cyclic dist test------\n";
+
+    } catch(const std::string& e) {
+        std::cerr << e << std::endl;
+        failed = true;
+    }
+    REQUIRE(!failed);
 }
 
 TEST_CASE("Hash Based Equality and Compatibility Check") {

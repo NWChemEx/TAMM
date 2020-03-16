@@ -3,23 +3,22 @@
 __device__ double* t3_s_d;
 __device__ double* t3_d;
 
-     void dev_mem_d(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d)
+void dev_mem_d(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d)
 {
-    // size_t size_t3;
-    size_t size_t3 = h1d*h2d*h3d*p4d*p5d*p6d;
-    t3_d = (double *) getGpuMem(size_t3*sizeof(double));
-    cudaMemset(t3_d,0,size_t3*sizeof(double));
+  // size_t size_t3;
+  size_t size_t3 = h1d*h2d*h3d*p4d*p5d*p6d;
+  t3_d = (double *) getGpuMem(size_t3*sizeof(double));
+  cudaMemset(t3_d,0,size_t3*sizeof(double));
 }
 //            void
 // dev_mem_d(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d)
 // {
 //     set_dev_mem_d((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d);
 // }
-  void
-dev_release()
+void dev_release()
 {
-        freeGpuMem(t3_d);
-        freeGpuMem(t3_s_d);
+  freeGpuMem(t3_d);
+  freeGpuMem(t3_s_d);
 }
 //   void
 // dev_release_()
@@ -106,7 +105,7 @@ __global__ void sd_t_d1_1_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
   p4_3=rest_y;
   p6_3=rest_x;
   size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
-    h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
+    h7l_hi = TG_MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+p6_0*p6ld_v2sub;
     if(thread_y+T1*0<total_y)for(h7l=threadIdx.x;h7l<h7l_hi;h7l+=blockDim.x){
@@ -269,17 +268,17 @@ __global__ void sd_t_d1_1_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
   void sd_t_d1_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p6ld_triplesx,p5ld_triplesx,p4ld_triplesx;
-  size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
+  size_t /*size_triplesx,size_block_triplesx,size_el_block_triplesx,*/size_t2sub,size_v2sub;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2sub_d,*v2sub_d;
-  size_triplesx=h3d*h1d*p6d*p5d*p4d*sizeof(double);
+  //size_triplesx=h3d*h1d*p6d*p5d*p4d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*p6d*h7d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d1_1_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_triplesx=size_triplesx/nstreams;
-  size_el_block_triplesx=size_block_triplesx/sizeof(double);
+  //size_block_triplesx=size_triplesx/nstreams;
+  //size_el_block_triplesx=size_block_triplesx/sizeof(double);
   t2sub_d=(double*)getGpuMem(size_t2sub);
   v2sub_d=(double*)getGpuMem(size_v2sub);
   streams=(cudaStream_t*) malloc(nstreams*sizeof(cudaStream_t));
@@ -308,7 +307,7 @@ __global__ void sd_t_d1_1_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
     sd_t_d1_1_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p6ld_triplesx,p5ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   freeGpuMem(t2sub_d);
@@ -399,7 +398,7 @@ __global__ void sd_t_d1_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,siz
   p4_3=rest_y;
   h2_3=rest_x;
   size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
-    h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
+    h7l_hi = TG_MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+h2_0*h2ld_v2sub;
     if(thread_y+T1*0<total_y)for(h7l=threadIdx.x;h7l<h7l_hi;h7l+=blockDim.x){
@@ -554,17 +553,17 @@ __global__ void sd_t_d1_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,siz
   void sd_t_d1_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h2d=h2d*p6d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p4ld_triplesx;
-  size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
+  size_t /*size_triplesx,size_block_triplesx,size_el_block_triplesx,*/size_t2sub,size_v2sub;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2sub_d,*v2sub_d;
-  size_triplesx=h3d*h1d*h2d*p5d*p4d*sizeof(double);
+  //size_triplesx=h3d*h1d*h2d*p5d*p4d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*h2d*h7d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d1_2_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_triplesx=size_triplesx/nstreams;
-  size_el_block_triplesx=size_block_triplesx/sizeof(double);
+  //size_block_triplesx=size_triplesx/nstreams;
+  //size_el_block_triplesx=size_block_triplesx/sizeof(double);
   t2sub_d=(double*)getGpuMem(size_t2sub);
   v2sub_d=(double*)getGpuMem(size_v2sub);
   streams=(cudaStream_t*) malloc(nstreams*sizeof(cudaStream_t));
@@ -597,7 +596,7 @@ __global__ void sd_t_d1_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,siz
     sd_t_d1_2_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,h7d,p4d,p5d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   freeGpuMem(t2sub_d);
@@ -680,7 +679,7 @@ __global__ void sd_t_d1_3_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
   p4_3=rest_y;
   h3_3=rest_x;
   size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
-    h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
+    h7l_hi = TG_MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub;
     if(thread_y+T1*0<total_y)for(h7l=threadIdx.x;h7l<h7l_hi;h7l+=blockDim.x){
@@ -836,17 +835,17 @@ __global__ void sd_t_d1_3_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
   h3d=h3d*h2d;
   h3d=h3d*p6d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p4ld_triplesx;
-  size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
+  size_t /*size_triplesx,size_block_triplesx,size_el_block_triplesx,*/size_t2sub,size_v2sub;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2sub_d,*v2sub_d;
-  size_triplesx=h1d*h3d*p5d*p4d*sizeof(double);
+  //size_triplesx=h1d*h3d*p5d*p4d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*h7d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d1_3_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_triplesx=size_triplesx/nstreams;
-  size_el_block_triplesx=size_block_triplesx/sizeof(double);
+  //size_block_triplesx=size_triplesx/nstreams;
+  //size_el_block_triplesx=size_block_triplesx/sizeof(double);
   t2sub_d=(double*)getGpuMem(size_t2sub);
   v2sub_d=(double*)getGpuMem(size_v2sub);
   streams=(cudaStream_t*) malloc(nstreams*sizeof(cudaStream_t));
@@ -873,7 +872,7 @@ __global__ void sd_t_d1_3_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
     sd_t_d1_3_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h3d,h7d,p4d,p5d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   freeGpuMem(t2sub_d);
@@ -964,7 +963,7 @@ __global__ void sd_t_d1_4_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
   p4_3=rest_y;
   p6_3=rest_x;
   size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
-    h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
+    h7l_hi = TG_MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+p6_0*p6ld_v2sub;
     if(thread_y+T1*0<total_y)for(h7l=threadIdx.x;h7l<h7l_hi;h7l+=blockDim.x){
@@ -1119,17 +1118,17 @@ __global__ void sd_t_d1_4_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
   void sd_t_d1_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx;
-  size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
+  size_t /*size_triplesx,size_block_triplesx,size_el_block_triplesx,*/size_t2sub,size_v2sub;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2sub_d,*v2sub_d;
-  size_triplesx=h3d*h1d*p5d*p4d*p6d*sizeof(double);
+  //size_triplesx=h3d*h1d*p5d*p4d*p6d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*p6d*h7d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d1_4_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_triplesx=size_triplesx/nstreams;
-  size_el_block_triplesx=size_block_triplesx/sizeof(double);
+  //size_block_triplesx=size_triplesx/nstreams;
+  //size_el_block_triplesx=size_block_triplesx/sizeof(double);
   t2sub_d=(double*)getGpuMem(size_t2sub);
   v2sub_d=(double*)getGpuMem(size_v2sub);
   streams=(cudaStream_t*) malloc(nstreams*sizeof(cudaStream_t));
@@ -1158,7 +1157,7 @@ __global__ void sd_t_d1_4_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
     sd_t_d1_4_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   freeGpuMem(t2sub_d);
@@ -1257,7 +1256,7 @@ __global__ void sd_t_d1_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,siz
   p4_3=rest_y;
   p6_3=rest_x;
   size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
-    h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
+    h7l_hi = TG_MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+h2_0*h2ld_v2sub+p6_0*p6ld_v2sub;
     if(thread_y+T1*0<total_y)for(h7l=threadIdx.x;h7l<h7l_hi;h7l+=blockDim.x){
@@ -1411,17 +1410,17 @@ __global__ void sd_t_d1_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,siz
 }
   void sd_t_d1_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx;
-  size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
+  size_t /*size_triplesx,size_block_triplesx,size_el_block_triplesx,*/size_t2sub,size_v2sub;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2sub_d,*v2sub_d;
-  size_triplesx=h3d*h1d*h2d*p5d*p4d*p6d*sizeof(double);
+  //size_triplesx=h3d*h1d*h2d*p5d*p4d*p6d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*h2d*p6d*h7d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d1_5_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_triplesx=size_triplesx/nstreams;
-  size_el_block_triplesx=size_block_triplesx/sizeof(double);
+  //size_block_triplesx=size_triplesx/nstreams;
+  //size_el_block_triplesx=size_block_triplesx/sizeof(double);
   t2sub_d=(double*)getGpuMem(size_t2sub);
   v2sub_d=(double*)getGpuMem(size_v2sub);
   streams=(cudaStream_t*) malloc(nstreams*sizeof(cudaStream_t));
@@ -1452,7 +1451,7 @@ __global__ void sd_t_d1_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,siz
     sd_t_d1_5_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   freeGpuMem(t2sub_d);
@@ -1543,7 +1542,7 @@ __global__ void sd_t_d1_6_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
   p4_3=rest_y;
   p6_3=rest_x;
   size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
-    h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
+    h7l_hi = TG_MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+p6_0*p6ld_v2sub;
     if(thread_y+T1*0<total_y)for(h7l=threadIdx.x;h7l<h7l_hi;h7l+=blockDim.x){
@@ -1698,17 +1697,17 @@ __global__ void sd_t_d1_6_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
   void sd_t_d1_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx;
-  size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
+  size_t /*size_triplesx,size_block_triplesx,size_el_block_triplesx,*/size_t2sub,size_v2sub;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2sub_d,*v2sub_d;
-  size_triplesx=h1d*h3d*p5d*p4d*p6d*sizeof(double);
+  //size_triplesx=h1d*h3d*p5d*p4d*p6d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*p6d*h7d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d1_6_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_triplesx=size_triplesx/nstreams;
-  size_el_block_triplesx=size_block_triplesx/sizeof(double);
+  //size_block_triplesx=size_triplesx/nstreams;
+  //size_el_block_triplesx=size_block_triplesx/sizeof(double);
   t2sub_d=(double*)getGpuMem(size_t2sub);
   v2sub_d=(double*)getGpuMem(size_v2sub);
   streams=(cudaStream_t*) malloc(nstreams*sizeof(cudaStream_t));
@@ -1737,7 +1736,7 @@ __global__ void sd_t_d1_6_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
     sd_t_d1_6_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   freeGpuMem(t2sub_d);
@@ -1828,7 +1827,7 @@ __global__ void sd_t_d1_7_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
   p4_3=rest_y;
   p6_3=rest_x;
   size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
-    h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
+    h7l_hi = TG_MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+p6_0*p6ld_v2sub;
     if(thread_y+T1*0<total_y)for(h7l=threadIdx.x;h7l<h7l_hi;h7l+=blockDim.x){
@@ -1983,17 +1982,17 @@ __global__ void sd_t_d1_7_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
   void sd_t_d1_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx;
-  size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
+  size_t /*size_triplesx,size_block_triplesx,size_el_block_triplesx,*/size_t2sub,size_v2sub;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2sub_d,*v2sub_d;
-  size_triplesx=h3d*h1d*p5d*p6d*p4d*sizeof(double);
+  //size_triplesx=h3d*h1d*p5d*p6d*p4d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*p6d*h7d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d1_7_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_triplesx=size_triplesx/nstreams;
-  size_el_block_triplesx=size_block_triplesx/sizeof(double);
+  //size_block_triplesx=size_triplesx/nstreams;
+  //size_el_block_triplesx=size_block_triplesx/sizeof(double);
   t2sub_d=(double*)getGpuMem(size_t2sub);
   v2sub_d=(double*)getGpuMem(size_v2sub);
   streams=(cudaStream_t*) malloc(nstreams*sizeof(cudaStream_t));
@@ -2022,7 +2021,7 @@ __global__ void sd_t_d1_7_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
     sd_t_d1_7_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   freeGpuMem(t2sub_d);
@@ -2121,7 +2120,7 @@ __global__ void sd_t_d1_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,siz
   p4_3=rest_y;
   p6_3=rest_x;
   size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
-    h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
+    h7l_hi = TG_MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+h2_0*h2ld_v2sub+p6_0*p6ld_v2sub;
     if(thread_y+T1*0<total_y)for(h7l=threadIdx.x;h7l<h7l_hi;h7l+=blockDim.x){
@@ -2275,17 +2274,17 @@ __global__ void sd_t_d1_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,siz
 }
   void sd_t_d1_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx;
-  size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
+  size_t /*size_triplesx,size_block_triplesx,size_el_block_triplesx,*/size_t2sub,size_v2sub;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2sub_d,*v2sub_d;
-  size_triplesx=h3d*h1d*h2d*p5d*p6d*p4d*sizeof(double);
+  //size_triplesx=h3d*h1d*h2d*p5d*p6d*p4d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*h2d*p6d*h7d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d1_8_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_triplesx=size_triplesx/nstreams;
-  size_el_block_triplesx=size_block_triplesx/sizeof(double);
+  //size_block_triplesx=size_triplesx/nstreams;
+  //size_el_block_triplesx=size_block_triplesx/sizeof(double);
   t2sub_d=(double*)getGpuMem(size_t2sub);
   v2sub_d=(double*)getGpuMem(size_v2sub);
   streams=(cudaStream_t*) malloc(nstreams*sizeof(cudaStream_t));
@@ -2316,7 +2315,7 @@ __global__ void sd_t_d1_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,siz
     sd_t_d1_8_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   freeGpuMem(t2sub_d);
@@ -2407,7 +2406,7 @@ __global__ void sd_t_d1_9_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
   p4_3=rest_y;
   p6_3=rest_x;
   size_t t2sub_d_off, v2sub_d_off;for(h7T=0;h7T<h7d;h7T+=Tcomm){size_t h7l_hi;
-    h7l_hi = MIN(Tcomm+h7T,h7d)-h7T;
+    h7l_hi = TG_MIN(Tcomm+h7T,h7d)-h7T;
     t2sub_d_off=p4_0*p4ld_t2sub+p5_0*p5ld_t2sub+h1_0*h1ld_t2sub;
     v2sub_d_off=h3_0*h3ld_v2sub+p6_0*p6ld_v2sub;
     if(thread_y+T1*0<total_y)for(h7l=threadIdx.x;h7l<h7l_hi;h7l+=blockDim.x){
@@ -2562,17 +2561,17 @@ __global__ void sd_t_d1_9_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
   void sd_t_d1_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, size_t p5d, size_t p6d, double *triplesx, double *t2sub, double *v2sub) {
   h3d=h3d*h2d;
   size_t h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx;
-  size_t size_triplesx,size_block_triplesx,size_el_block_triplesx,size_t2sub,size_v2sub;
+  size_t /*size_triplesx,size_block_triplesx,size_el_block_triplesx,*/size_t2sub,size_v2sub;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2sub_d,*v2sub_d;
-  size_triplesx=h1d*h3d*p5d*p6d*p4d*sizeof(double);
+  //size_triplesx=h1d*h3d*p5d*p6d*p4d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*p6d*h7d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d1_9_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_triplesx=size_triplesx/nstreams;
-  size_el_block_triplesx=size_block_triplesx/sizeof(double);
+  //size_block_triplesx=size_triplesx/nstreams;
+  //size_el_block_triplesx=size_block_triplesx/sizeof(double);
   t2sub_d=(double*)getGpuMem(size_t2sub);
   v2sub_d=(double*)getGpuMem(size_v2sub);
   streams=(cudaStream_t*) malloc(nstreams*sizeof(cudaStream_t));
@@ -2601,7 +2600,7 @@ __global__ void sd_t_d1_9_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
     sd_t_d1_9_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   freeGpuMem(t2sub_d);
@@ -2693,7 +2692,7 @@ __global__ void sd_t_d2_1_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   p4_3=rest_y;
   p6_3=rest_x;
   size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
-    p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
+    p7l_hi = TG_MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2;
     if(thread_y+T1*0<total_y)for(p7l=threadIdx.x;p7l<p7l_hi;p7l+=blockDim.x){
@@ -2848,17 +2847,17 @@ __global__ void sd_t_d2_1_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   void sd_t_d2_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   p6d=p6d*p5d;
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3;
-  size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
+  size_t /*size_t3,size_block_t3,size_el_block_t3,*/size_t2,size_v2;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2_d,*v2_d;
-  size_t3=h3d*h2d*h1d*p6d*p4d*sizeof(double);
+  //size_t3=h3d*h2d*h1d*p6d*p4d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d2_1_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_t3=size_t3/nstreams;
-  size_el_block_t3=size_block_t3/sizeof(double);
+  //size_block_t3=size_t3/nstreams;
+  //size_el_block_t3=size_block_t3/sizeof(double);
   //t3d=(double*)getGpuMem(size_t3);
   t2_d=(double*)getGpuMem(size_t2);
   v2_d=(double*)getGpuMem(size_v2);
@@ -2888,7 +2887,7 @@ __global__ void sd_t_d2_1_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
     sd_t_d2_1_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   //freeGpuMem(t3d);
@@ -2972,7 +2971,7 @@ __global__ void sd_t_d2_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   p4_3=rest_y;
   h3_3=rest_x;
   size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
-    p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
+    p7l_hi = TG_MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2;
     if(thread_y+T1*0<total_y)for(p7l=threadIdx.x;p7l<p7l_hi;p7l+=blockDim.x){
@@ -3128,17 +3127,17 @@ __global__ void sd_t_d2_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   h3d=h3d*p6d;
   h3d=h3d*p5d;
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3;
-  size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
+  size_t /*size_t3,size_block_t3,size_el_block_t3,*/size_t2,size_v2;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2_d,*v2_d;
-  size_t3=h2d*h1d*h3d*p4d*sizeof(double);
+  //size_t3=h2d*h1d*h3d*p4d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d2_2_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_t3=size_t3/nstreams;
-  size_el_block_t3=size_block_t3/sizeof(double);
+  //size_block_t3=size_t3/nstreams;
+  //size_el_block_t3=size_block_t3/sizeof(double);
   //t3d=(double*)getGpuMem(size_t3);
   t2_d=(double*)getGpuMem(size_t2);
   v2_d=(double*)getGpuMem(size_v2);
@@ -3166,7 +3165,7 @@ __global__ void sd_t_d2_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
     sd_t_d2_2_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   //freeGpuMem(t3d);
@@ -3258,7 +3257,7 @@ __global__ void sd_t_d2_3_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   p4_3=rest_y;
   p6_3=rest_x;
   size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
-    p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
+    p7l_hi = TG_MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2;
     if(thread_y+T1*0<total_y)for(p7l=threadIdx.x;p7l<p7l_hi;p7l+=blockDim.x){
@@ -3413,17 +3412,17 @@ __global__ void sd_t_d2_3_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   void sd_t_d2_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   p6d=p6d*p5d;
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p6ld_t3,p4ld_t3;
-  size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
+  size_t /*size_t3,size_block_t3,size_el_block_t3,*/size_t2,size_v2;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2_d,*v2_d;
-  size_t3=h2d*h3d*h1d*p6d*p4d*sizeof(double);
+  //size_t3=h2d*h3d*h1d*p6d*p4d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d2_3_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_t3=size_t3/nstreams;
-  size_el_block_t3=size_block_t3/sizeof(double);
+  //size_block_t3=size_t3/nstreams;
+  //size_el_block_t3=size_block_t3/sizeof(double);
   //t3d=(double*)getGpuMem(size_t3);
   t2_d=(double*)getGpuMem(size_t2);
   v2_d=(double*)getGpuMem(size_v2);
@@ -3453,7 +3452,7 @@ __global__ void sd_t_d2_3_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
     sd_t_d2_3_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
 //  freeGpuMem(t3_d);
@@ -3553,7 +3552,7 @@ __global__ void sd_t_d2_4_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   p4_3=rest_y;
   p5_3=rest_x;
   size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
-    p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
+    p7l_hi = TG_MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2+p5_0*p5ld_v2;
     if(thread_y+T1*0<total_y)for(p7l=threadIdx.x;p7l<p7l_hi;p7l+=blockDim.x){
@@ -3707,17 +3706,17 @@ __global__ void sd_t_d2_4_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 }
   void sd_t_d2_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,p5ld_t3;
-  size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
+  size_t /*size_t3,size_block_t3,size_el_block_t3,*/size_t2,size_v2;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2_d,*v2_d;
-  size_t3=h3d*h2d*h1d*p6d*p4d*p5d*sizeof(double);
+  //size_t3=h3d*h2d*h1d*p6d*p4d*p5d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*p5d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d2_4_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_t3=size_t3/nstreams;
-  size_el_block_t3=size_block_t3/sizeof(double);
+  //size_block_t3=size_t3/nstreams;
+  //size_el_block_t3=size_block_t3/sizeof(double);
   //t3d=(double*)getGpuMem(size_t3);
   t2_d=(double*)getGpuMem(size_t2);
   v2_d=(double*)getGpuMem(size_v2);
@@ -3749,7 +3748,7 @@ __global__ void sd_t_d2_4_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
     sd_t_d2_4_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   //freeGpuMem(t3d);
@@ -3841,7 +3840,7 @@ __global__ void sd_t_d2_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   p4_3=rest_y;
   p5_3=rest_x;
   size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
-    p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
+    p7l_hi = TG_MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p5_0*p5ld_v2;
     if(thread_y+T1*0<total_y)for(p7l=threadIdx.x;p7l<p7l_hi;p7l+=blockDim.x){
@@ -3996,17 +3995,17 @@ __global__ void sd_t_d2_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   void sd_t_d2_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   h3d=h3d*p6d;
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p5ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,p5ld_t3;
-  size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
+  size_t /*size_t3,size_block_t3,size_el_block_t3,*/size_t2,size_v2;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2_d,*v2_d;
-  size_t3=h2d*h1d*h3d*p4d*p5d*sizeof(double);
+  //size_t3=h2d*h1d*h3d*p4d*p5d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p5d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d2_5_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_t3=size_t3/nstreams;
-  size_el_block_t3=size_block_t3/sizeof(double);
+  //size_block_t3=size_t3/nstreams;
+  //size_el_block_t3=size_block_t3/sizeof(double);
   //t3d=(double*)getGpuMem(size_t3);
   t2_d=(double*)getGpuMem(size_t2);
   v2_d=(double*)getGpuMem(size_v2);
@@ -4036,7 +4035,7 @@ __global__ void sd_t_d2_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
     sd_t_d2_5_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p5ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   //freeGpuMem(t3d);
@@ -4136,7 +4135,7 @@ __global__ void sd_t_d2_6_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   p4_3=rest_y;
   p5_3=rest_x;
   size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
-    p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
+    p7l_hi = TG_MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2+p5_0*p5ld_v2;
     if(thread_y+T1*0<total_y)for(p7l=threadIdx.x;p7l<p7l_hi;p7l+=blockDim.x){
@@ -4290,17 +4289,17 @@ __global__ void sd_t_d2_6_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 }
   void sd_t_d2_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,p5ld_t3;
-  size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
+  size_t /*size_t3,size_block_t3,size_el_block_t3,*/size_t2,size_v2;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2_d,*v2_d;
-  size_t3=h2d*h3d*h1d*p6d*p4d*p5d*sizeof(double);
+  //size_t3=h2d*h3d*h1d*p6d*p4d*p5d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*p5d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d2_6_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_t3=size_t3/nstreams;
-  size_el_block_t3=size_block_t3/sizeof(double);
+  //size_block_t3=size_t3/nstreams;
+  //size_el_block_t3=size_block_t3/sizeof(double);
   //t3d=(double*)getGpuMem(size_t3);
   t2_d=(double*)getGpuMem(size_t2);
   v2_d=(double*)getGpuMem(size_v2);
@@ -4332,7 +4331,7 @@ __global__ void sd_t_d2_6_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
     sd_t_d2_6_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR();
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   //freeGpuMem(t3d);
@@ -4432,7 +4431,7 @@ __global__ void sd_t_d2_7_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   p4_3=rest_y;
   p5_3=rest_x;
   size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
-    p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
+    p7l_hi = TG_MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2+p5_0*p5ld_v2;
     if(thread_y+T1*0<total_y)for(p7l=threadIdx.x;p7l<p7l_hi;p7l+=blockDim.x){
@@ -4586,17 +4585,17 @@ __global__ void sd_t_d2_7_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 }
   void sd_t_d2_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p4ld_t3,p6ld_t3,p5ld_t3;
-  size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
+  size_t /*size_t3,size_block_t3,size_el_block_t3,*/size_t2,size_v2;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2_d,*v2_d;
-  size_t3=h3d*h2d*h1d*p4d*p6d*p5d*sizeof(double);
+  //size_t3=h3d*h2d*h1d*p4d*p6d*p5d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*p5d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d2_7_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_t3=size_t3/nstreams;
-  size_el_block_t3=size_block_t3/sizeof(double);
+  //size_block_t3=size_t3/nstreams;
+  //size_el_block_t3=size_block_t3/sizeof(double);
   //t3d=(double*)getGpuMem(size_t3);
   t2_d=(double*)getGpuMem(size_t2);
   v2_d=(double*)getGpuMem(size_v2);
@@ -4628,7 +4627,7 @@ __global__ void sd_t_d2_7_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
     sd_t_d2_7_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p4ld_t3,p6ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   //freeGpuMem(t3d);
@@ -4728,7 +4727,7 @@ __global__ void sd_t_d2_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   p4_3=rest_y;
   p5_3=rest_x;
   size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){size_t p7l_hi;
-    p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
+    p7l_hi = TG_MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2+p5_0*p5ld_v2;
     if(thread_y+T1*0<total_y)for(p7l=threadIdx.x;p7l<p7l_hi;p7l+=blockDim.x){
@@ -4882,17 +4881,17 @@ __global__ void sd_t_d2_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 }
   void sd_t_d2_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,p6ld_t3,p5ld_t3;
-  size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
+  size_t /*size_t3,size_block_t3,size_el_block_t3,*/size_t2,size_v2;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2_d,*v2_d;
-  size_t3=h2d*h1d*h3d*p4d*p6d*p5d*sizeof(double);
+  //size_t3=h2d*h1d*h3d*p4d*p6d*p5d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*p5d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d2_8_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_t3=size_t3/nstreams;
-  size_el_block_t3=size_block_t3/sizeof(double);
+  //size_block_t3=size_t3/nstreams;
+  //size_el_block_t3=size_block_t3/sizeof(double);
   //t3d=(double*)getGpuMem(size_t3);
   t2_d=(double*)getGpuMem(size_t2);
   v2_d=(double*)getGpuMem(size_v2);
@@ -4924,7 +4923,7 @@ __global__ void sd_t_d2_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
     sd_t_d2_8_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,p6ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   //freeGpuMem(t3d);
@@ -5025,7 +5024,7 @@ __global__ void sd_t_d2_9_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
   p5_3=rest_x;
   size_t t2_d_off, v2_d_off;for(p7T=0;p7T<p7d;p7T+=Tcomm){
     size_t p7l_hi;
-    p7l_hi = MIN(Tcomm+p7T,p7d)-p7T;
+    p7l_hi = TG_MIN(Tcomm+p7T,p7d)-p7T;
     t2_d_off=p4_0*p4ld_t2+h1_0*h1ld_t2+h2_0*h2ld_t2;
     v2_d_off=h3_0*h3ld_v2+p6_0*p6ld_v2+p5_0*p5ld_v2;
     if(thread_y+T1*0<total_y)for(p7l=threadIdx.x;p7l<p7l_hi;p7l+=blockDim.x){
@@ -5179,17 +5178,17 @@ __global__ void sd_t_d2_9_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 }
   void sd_t_d2_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, size_t p7d, double *t3, double *t2, double *v2) {
   size_t p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p4ld_t3,p6ld_t3,p5ld_t3;
-  size_t size_t3,size_block_t3,size_el_block_t3,size_t2,size_v2;
+  size_t /*size_t3,size_block_t3,size_el_block_t3,*/size_t2,size_v2;
   cudaStream_t *streams;
   size_t nstreams,i;
   double *t2_d,*v2_d;
-  size_t3=h2d*h3d*h1d*p4d*p6d*p5d*sizeof(double);
+  //size_t3=h2d*h3d*h1d*p4d*p6d*p5d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*p5d*sizeof(double);
   cudaFuncSetCacheConfig(sd_t_d2_9_kernel, cudaFuncCachePreferShared);
   nstreams=1;
-  size_block_t3=size_t3/nstreams;
-  size_el_block_t3=size_block_t3/sizeof(double);
+  //size_block_t3=size_t3/nstreams;
+  //size_el_block_t3=size_block_t3/sizeof(double);
   //t3d=(double*)getGpuMem(size_t3);
   t2_d=(double*)getGpuMem(size_t2);
   v2_d=(double*)getGpuMem(size_v2);
@@ -5221,7 +5220,7 @@ __global__ void sd_t_d2_9_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
     sd_t_d2_9_kernel<<<dimGrid,dimBlock,0,streams[i]>>>(h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p4ld_t3,p6ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  cudaThreadSynchronize();
+  cudaDeviceSynchronize();
   for(i=0;i<nstreams;++i){
     cudaStreamDestroy(streams[i]);}
   //freeGpuMem(t3d);
@@ -5243,13 +5242,13 @@ t3_d must be passed as parameter to kernel function. A __global__ function can't
 
 __global__ void compute_energy_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,size_t p5d,size_t p6d,double* eval1,double* eval2,double* eval3,double* eval4,double* eval5,double* eval6, double* energy, double factor, size_t total_size, double* t3d, double* t3_sd)
 {
-  size_t h1,h2,p6,p4,p5, h3,i=0;
+  size_t h1,h2,p6,p4,p5; //,h3,i=0;
   double e1,e2,e4,e5,e6;
   //  __shared__ double t2_shm[MAX_h3];
   __shared__ double energy_s[T1];
   __shared__ double energy2_s[T1];
   double inner_fac;
-  size_t limit;
+  // size_t limit;
   size_t rest_x=blockIdx.x;
   size_t thread_x = T2*T1 * rest_x + threadIdx.x;
   if(threadIdx.x==0)
@@ -5337,7 +5336,7 @@ __global__ void compute_energy_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4
     size_t total_elements = h1d*h2d*p4d*p5d*p6d;
     
     energy_d = (double*)getGpuMem(size_energy*total_block*2);
-    size_t i=0,in; 
+    // size_t i=0,in; 
     double* t3 = (double*)malloc(sizeof(double)*h3d*total_elements);
     double* ts3 = (double*)malloc(sizeof(double)*h3d*total_elements);
 
@@ -5362,7 +5361,7 @@ __global__ void compute_energy_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4
     dim3 dimBlock(1); //T2*T1);
     dim3 dimGrid(total_block);
     compute_energy_kernel<<<dimGrid,dimBlock,0>>>(h1d,h2d,h3d,p4d,p5d,p6d, eval_d1,eval_d2,eval_d3,eval_d4,eval_d5,eval_d6,energy_d, factor, h1d*h2d*p4d*p5d*p6d, t3_d, t3_s_d);
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
     //CHECK_ERR("Kernel execution failed");
     CUDA_SAFE(cudaMemcpy(((char *) energy_h) , ((char *) energy_d) , 
     size_energy*total_block*2, cudaMemcpyDeviceToHost));
@@ -5463,22 +5462,22 @@ __global__ void sd_t_s1_1_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
            void 
 sd_t_s1_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, double *t3, double *t2, double *v2)
 {
-    double st, et;
-//ckbn    st = timer(); 
-	size_t          p7ld_t2, p4ld_t2, h1ld_t2, h2ld_v2, p7ld_v2, h3ld_v2,
-	                p6ld_v2, p5ld_v2, h3ld_t3, h2ld_t3, h1ld_t3, p6ld_t3,
-	                p5ld_t3, p4ld_t3;
-	size_t          size_t3, size_block_t3, size_el_block_t3, size_t2,
+    // double st, et;
+  //ckbn    st = timer(); 
+  size_t          p4ld_t2, h1ld_t2, h2ld_v2, h3ld_v2, h1ld_t3,
+                  p6ld_v2, p4ld_t3, h3ld_t3, h2ld_t3, p6ld_t3;
+                  //p7ld_t2, p7ld_v2, p5ld_v2, p5ld_t3;
+	size_t          /*size_t3, size_block_t3, size_el_block_t3,*/ size_t2,
 	                size_v2;
 	cudaStream_t   *streams;
-	size_t          nstreams, i;
-	double         *t2_d, *v2_d, *t3_p;
+	size_t          nstreams, i=0;
+	double         *t2_d, *v2_d;//, *t3_p;
 	//size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
-	size_block_t3 = size_t3 / nstreams;
-	size_el_block_t3 = size_block_t3 / sizeof(double);
+	//size_block_t3=size_t3 / nstreams;
+	//size_el_block_t3=size_block_t3 / sizeof(double);
 //CUDA_SAFE(cudaMalloc((void**) &t3_d, size_t3));
 //CUDA_SAFE(cudaMalloc((void**) &t2_d, size_t2));
 //CUDA_SAFE(cudaMalloc((void**) &v2_d, size_v2));
@@ -5530,7 +5529,7 @@ sd_t_s1_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		stream++;
 	}
 */
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
 
 //	CUDA_SAFE(cudaMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, cudaMemcpyDeviceToHost));
 	for (i = 0; i < nstreams; ++i) {
@@ -5592,22 +5591,22 @@ __global__ void sd_t_s1_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
            void 
 sd_t_s1_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d, double *t3, double *t2, double *v2)
 {
-    double st, et;
-//ckbn    st = timer(); 
-	size_t          p7ld_t2, p4ld_t2, h1ld_t2, h2ld_v2, p7ld_v2, h3ld_v2,
-	                p6ld_v2, p5ld_v2, h3ld_t3, h2ld_t3, h1ld_t3, p6ld_t3,
-	                p5ld_t3, p4ld_t3;
-	size_t          size_t3, size_block_t3, size_el_block_t3, size_t2,
-	                size_v2;
+    // double st, et;
+  //ckbn    st = timer(); 
+	size_t          p4ld_t2, h1ld_t2, h2ld_v2, h3ld_v2, h1ld_t3,
+	                p6ld_v2, p4ld_t3, h3ld_t3, h2ld_t3, p6ld_t3;
+	                //p7ld_t2, p7ld_v2, p5ld_v2, p5ld_t3;
+  size_t          /*size_t3, size_block_t3, size_el_block_t3,*/ 
+                  size_t2, size_v2;
 	cudaStream_t   *streams;
-	size_t          nstreams, i;
-	double         *t2_d, *v2_d, *t3_p;
+	size_t          nstreams, i=0;
+	double         *t2_d, *v2_d; //, *t3_p;
 	//size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
-	size_block_t3 = size_t3 / nstreams;
-	size_el_block_t3 = size_block_t3 / sizeof(double);
+	//size_block_t3=size_t3 / nstreams;
+	//size_el_block_t3=size_block_t3 / sizeof(double);
 /*    if(first==1)
     {
 		t3_d = (double *) getGpuMem(size_t3);
@@ -5662,7 +5661,7 @@ sd_t_s1_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		}
 		stream++;
 	}*/
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
 //	CUDA_SAFE(cudaMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, cudaMemcpyDeviceToHost));
 /*
 	for (i = 0; i < nstreams; ++i) {
@@ -5681,22 +5680,22 @@ sd_t_s1_2_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
            void 
 sd_t_s1_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
-    double st, et;
-//ckbn    st = timer(); 
-	size_t          p7ld_t2, p4ld_t2, h1ld_t2, h2ld_v2, p7ld_v2, h3ld_v2,
-	                p6ld_v2, p5ld_v2, h3ld_t3, h2ld_t3, h1ld_t3, p6ld_t3,
-	                p5ld_t3, p4ld_t3;
-	size_t          size_t3, size_block_t3, size_el_block_t3, size_t2,
+    // double st, et;
+  //ckbn    st = timer();
+  size_t          p4ld_t2, h1ld_t2, h2ld_v2, h3ld_v2, h1ld_t3,
+                  p6ld_v2, p4ld_t3, h3ld_t3, h2ld_t3, p6ld_t3;
+                  //p7ld_t2, p7ld_v2, p5ld_v2, p5ld_t3;
+	size_t          /*size_t3, size_block_t3, size_el_block_t3,*/ size_t2,
 	                size_v2;
 	cudaStream_t   *streams;
-	size_t          nstreams, i;
-	double         *t2_d, *v2_d, *t3_p;
+	size_t          nstreams, i=0;
+	double         *t2_d, *v2_d;// *t3_p;
 	//size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
-	size_block_t3 = size_t3 / nstreams;
-	size_el_block_t3 = size_block_t3 / sizeof(double);
+	//size_block_t3=size_t3 / nstreams;
+	//size_el_block_t3=size_block_t3 / sizeof(double);
   /*  if(first==1)
     {
         t3_d = (double *) getGpuMem(size_t3);
@@ -5749,7 +5748,7 @@ sd_t_s1_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		}
 		stream++;
 	}
-*/	cudaThreadSynchronize();
+*/	cudaDeviceSynchronize();
 	//CUDA_SAFE(cudaMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, cudaMemcpyDeviceToHost));
 
 	for (i = 0; i < nstreams; ++i) {
@@ -5811,22 +5810,22 @@ __global__ void sd_t_s1_4_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
            void 
 sd_t_s1_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
-    double st, et;
-//ckbn    st = timer(); 
-	size_t          p7ld_t2, p4ld_t2, h1ld_t2, h2ld_v2, p7ld_v2, h3ld_v2,
-	                p6ld_v2, p5ld_v2, h3ld_t3, h2ld_t3, h1ld_t3, p6ld_t3,
-	                p5ld_t3, p4ld_t3;
-	size_t          size_t3, size_block_t3, size_el_block_t3, size_t2,
+    // double st, et;
+  //ckbn    st = timer(); 
+  size_t          p4ld_t2, h1ld_t2, h2ld_v2, h3ld_v2, h1ld_t3,
+                  p6ld_v2, p4ld_t3, h3ld_t3, h2ld_t3, p6ld_t3,
+                  /*p7ld_t2, p7ld_v2*/ p5ld_v2, p5ld_t3;
+	size_t          /*size_t3, size_block_t3, size_el_block_t3,*/ size_t2,
 	                size_v2;
 	cudaStream_t   *streams;
-	size_t          nstreams, i;
-	double         *t2_d, *v2_d, *t3_p;
+	size_t          nstreams, i=0;
+	double         *t2_d, *v2_d; // *t3_p;
 	//size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
-	size_block_t3 = size_t3 / nstreams;
-	size_el_block_t3 = size_block_t3 / sizeof(double);
+	//size_block_t3=size_t3 / nstreams;
+	//size_el_block_t3=size_block_t3 / sizeof(double);
   /*  if(first==1)
     {
         t3_d = (double *) getGpuMem(size_t3);
@@ -5869,7 +5868,7 @@ sd_t_s1_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 //	}
 
 
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
 	/*	CUDA_SAFE(cudaMemcpy(((char *) t3_p) , ((char *) t3_d) , size_block_t3, cudaMemcpyDeviceToHost));
 	printf("Time for Async DeviceToHost %f\n", et-st);
 	stream = 0;
@@ -5883,7 +5882,7 @@ sd_t_s1_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 //		stream++;
 //	}
 */
-//	cudaThreadSynchronize();
+//	cudaDeviceSynchronize();
 /*
 	for (i = 0; i < nstreams; ++i) {
 		cudaStreamDestroy(streams[i]);
@@ -5945,22 +5944,23 @@ __global__ void sd_t_s1_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
            void 
 sd_t_s1_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
-    double st, et;
-//ckbn    st = timer(); 
-	size_t          p7ld_t2, p4ld_t2, h1ld_t2, h2ld_v2, p7ld_v2, h3ld_v2,
-	                p6ld_v2, p5ld_v2, h3ld_t3, h2ld_t3, h1ld_t3, p6ld_t3,
-	                p5ld_t3, p4ld_t3;
-	size_t          size_t3, size_block_t3, size_el_block_t3, size_t2,
+    // double st, et;
+  //ckbn    st = timer(); 
+  size_t          p4ld_t2, h1ld_t2, h2ld_v2, h3ld_v2, h1ld_t3,
+                  p6ld_v2, p4ld_t3, h3ld_t3, h2ld_t3, p6ld_t3,
+                  /*p7ld_t2, p7ld_v2*/ p5ld_v2, p5ld_t3;
+
+	size_t          /*size_t3, size_block_t3, size_el_block_t3,*/ size_t2,
 	                size_v2;
 	cudaStream_t   *streams;
-	size_t          nstreams, i;
-	double         *t2_d, *v2_d, *t3_p;
+	size_t          nstreams, i=0;
+	double         *t2_d, *v2_d;// *t3_p;
 	//size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
-	size_block_t3 = size_t3 / nstreams;
-	size_el_block_t3 = size_block_t3 / sizeof(double);
+	//size_block_t3=size_t3 / nstreams;
+	//size_el_block_t3=size_block_t3 / sizeof(double);
   /*  if(first==1)
     {
         t3_d = (double *) getGpuMem(size_t3);
@@ -6015,7 +6015,7 @@ sd_t_s1_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		stream++;
 	}
 */
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
 
 	//CUDA_SAFE(cudaMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, cudaMemcpyDeviceToHost));
 	for (i = 0; i < nstreams; ++i) {
@@ -6078,22 +6078,23 @@ __global__ void sd_t_s1_6_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
            void 
 sd_t_s1_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
-    double st, et;
-//ckbn    st = timer(); 
-	size_t          p7ld_t2, p4ld_t2, h1ld_t2, h2ld_v2, p7ld_v2, h3ld_v2,
-	                p6ld_v2, p5ld_v2, h3ld_t3, h2ld_t3, h1ld_t3, p6ld_t3,
-	                p5ld_t3, p4ld_t3;
-	size_t          size_t3, size_block_t3, size_el_block_t3, size_t2,
+    // double st, et;
+  //ckbn    st = timer(); 
+  size_t          p4ld_t2, h1ld_t2, h2ld_v2, h3ld_v2, h1ld_t3,
+                  p6ld_v2, p4ld_t3, h3ld_t3, h2ld_t3, p6ld_t3,
+                  /*p7ld_t2, p7ld_v2*/ p5ld_v2, p5ld_t3;
+
+	size_t          /*size_t3, size_block_t3, size_el_block_t3,*/ size_t2,
 	                size_v2;
 	cudaStream_t   *streams;
-	size_t          nstreams, i;
-	double          *t2_d, *v2_d, *t3_p;
+	size_t          nstreams, i=0;
+	double          *t2_d, *v2_d;// *t3_p;
 	//size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
-	size_block_t3 = size_t3 / nstreams;
-	size_el_block_t3 = size_block_t3 / sizeof(double);
+	//size_block_t3=size_t3 / nstreams;
+	//size_el_block_t3=size_block_t3 / sizeof(double);
   /*  if(first==1)
     {
         t3_d = (double *) getGpuMem(size_t3);
@@ -6146,7 +6147,7 @@ sd_t_s1_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		}
 		stream++;
 	}*/
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
 	//CUDA_SAFE(cudaMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, cudaMemcpyDeviceToHost));
 
 	for (i = 0; i < nstreams; ++i) {
@@ -6214,22 +6215,23 @@ __global__ void sd_t_s1_7_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
            void 
 sd_t_s1_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
-    double st, et;
-//ckbn    st = timer(); 
-	size_t          p7ld_t2, p4ld_t2, h1ld_t2, h2ld_v2, p7ld_v2, h3ld_v2,
-	                p6ld_v2, p5ld_v2, h3ld_t3, h2ld_t3, h1ld_t3, p6ld_t3,
-	                p5ld_t3, p4ld_t3;
-	size_t          size_t3, size_block_t3, size_el_block_t3, size_t2,
+    // double st, et;
+  //ckbn    st = timer(); 
+  size_t          p4ld_t2, h1ld_t2, h2ld_v2, h3ld_v2, h1ld_t3,
+                  p6ld_v2, p4ld_t3, h3ld_t3, h2ld_t3, p6ld_t3;
+                  //p7ld_t2, p7ld_v2, p5ld_v2, p5ld_t3;
+
+	size_t          /*size_t3, size_block_t3, size_el_block_t3,*/ size_t2,
 	                size_v2;
 	cudaStream_t   *streams;
-	size_t          nstreams, i;
-	double         *t2_d, *v2_d, *t3_p;
+	size_t          nstreams, i=0;
+	double         *t2_d, *v2_d;// *t3_p;
 	//size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
-	size_block_t3 = size_t3 / nstreams;
-	size_el_block_t3 = size_block_t3 / sizeof(double);
+	//size_block_t3=size_t3 / nstreams;
+	//size_el_block_t3=size_block_t3 / sizeof(double);
   /*  if(first==1)
     {
         t3_d = (double *) getGpuMem(size_t3);
@@ -6283,7 +6285,7 @@ sd_t_s1_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		}
 		stream++;
 	}*/
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
 	//CUDA_SAFE(cudaMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, cudaMemcpyDeviceToHost));
 
 	for (i = 0; i < nstreams; ++i) {
@@ -6345,22 +6347,23 @@ __global__ void sd_t_s1_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
            void 
 sd_t_s1_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
-    double st, et;
-//ckbn    st = timer(); 
-	size_t          p7ld_t2, p4ld_t2, h1ld_t2, h2ld_v2, p7ld_v2, h3ld_v2,
-	                p6ld_v2, p5ld_v2, h3ld_t3, h2ld_t3, h1ld_t3, p6ld_t3,
-	                p5ld_t3, p4ld_t3;
-	size_t          size_t3, size_block_t3, size_el_block_t3, size_t2,
+    // double st, et;
+  //ckbn    st = timer(); 
+  size_t          p4ld_t2, h1ld_t2, h2ld_v2, h3ld_v2, h1ld_t3,
+                  p6ld_v2, p4ld_t3, h3ld_t3, h2ld_t3, p6ld_t3;
+                  //p7ld_t2, p7ld_v2, p5ld_v2, p5ld_t3;
+
+	size_t          /*size_t3, size_block_t3, size_el_block_t3,*/ size_t2,
 	                size_v2;
 	cudaStream_t   *streams;
-	size_t          nstreams, i;
-	double          *t2_d, *v2_d, *t3_p;
+	size_t          nstreams, i=0;
+	double          *t2_d, *v2_d;// *t3_p;
 	//size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
-	size_block_t3 = size_t3 / nstreams;
-	size_el_block_t3 = size_block_t3 / sizeof(double);
+	//size_block_t3=size_t3 / nstreams;
+	//size_el_block_t3=size_block_t3 / sizeof(double);
   /*  if(first==1)
     {
         t3_d = (double *) getGpuMem(size_t3);
@@ -6413,7 +6416,7 @@ sd_t_s1_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		}
 		stream++;
 	}*/
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
 //	CUDA_SAFE(cudaMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, cudaMemcpyDeviceToHost));
 
 	for (i = 0; i < nstreams; ++i) {
@@ -6436,22 +6439,23 @@ sd_t_s1_8_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Inte
            void 
 sd_t_s1_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
 {
-    double st, et;
-//ckbn    st = timer(); 
-	size_t          p7ld_t2, p4ld_t2, h1ld_t2, h2ld_v2, p7ld_v2, h3ld_v2,
-	                p6ld_v2, p5ld_v2, h3ld_t3, h2ld_t3, h1ld_t3, p6ld_t3,
-	                p5ld_t3, p4ld_t3;
-	size_t          size_t3, size_block_t3, size_el_block_t3, size_t2,
+    // double st, et;
+  //ckbn    st = timer(); 
+  size_t          p4ld_t2, h1ld_t2, h2ld_v2, h3ld_v2, h1ld_t3,
+                  p6ld_v2, p4ld_t3, h3ld_t3, h2ld_t3, p6ld_t3;
+                  //p7ld_t2, p7ld_v2, p5ld_v2, p5ld_t3;
+
+	size_t          /*size_t3, size_block_t3, size_el_block_t3,*/ size_t2,
 	                size_v2;
 	cudaStream_t   *streams;
-	size_t          nstreams, i;
-	double          *t2_d, *v2_d, *t3_p;
+	size_t          nstreams, i=0;
+	double          *t2_d, *v2_d;// *t3_p;
 	//size_t3 = h3d * h2d * h1d * p6d * p5d * p4d * sizeof(double);
 	size_t2 = p4d * h1d * sizeof(double);
 	size_v2 = h3d * h2d * p6d * p5d * sizeof(double);
 	nstreams = 1;
-	size_block_t3 = size_t3 / nstreams;
-	size_el_block_t3 = size_block_t3 / sizeof(double);
+	//size_block_t3=size_t3 / nstreams;
+	//size_el_block_t3=size_block_t3 / sizeof(double);
   /*  if(first==1)
     {
         t3_d = (double *) getGpuMem(size_t3);
@@ -6504,7 +6508,7 @@ sd_t_s1_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		}
 		stream++;
 	}*/
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
 	//CUDA_SAFE(cudaMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, cudaMemcpyDeviceToHost));
 
 //  printf("out is %lf\n", t3_p[0]);

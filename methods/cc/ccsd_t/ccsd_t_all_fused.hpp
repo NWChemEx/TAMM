@@ -4,8 +4,10 @@
 
 #include "tamm/tamm.hpp"
 // using namespace tamm;
+#include "lru_cache.hpp"
 
-extern double ccsd_t_GetTime;
+extern double ccsd_t_t2_GetTime;
+extern double ccsd_t_v2_GetTime;
 extern double ccsd_t_data_per_rank;
 void initmemmodule();
 void dev_mem_s(size_t,size_t,size_t,size_t,size_t,size_t);
@@ -85,7 +87,10 @@ void ccsd_t_all_fused(ExecutionContext& ec,
                    std::vector<T>& k_abuf1, std::vector<T>& k_bbuf1,
                    std::vector<T>& k_abuf2, std::vector<T>& k_bbuf2,                   
                    double& factor, std::vector<double>& energy_l, 
-                   int has_gpu, bool is_restricted) {
+                   int has_gpu, bool is_restricted,
+                   LRUCache<Index>& cache_s1t, LRUCache<Index>& cache_s1v,
+                   LRUCache<Index>& cache_d1t, LRUCache<Index>& cache_d1v,
+                   LRUCache<Index>& cache_d2t, LRUCache<Index>& cache_d2v) {
 
   // initmemmodule();
   size_t abufs1_size = k_abufs1.size();
@@ -363,22 +368,22 @@ void ccsd_t_all_fused(ExecutionContext& ec,
   std::vector<size_t> sd_t_s1_exec(9*9,-1);
   std::vector<size_t> s1_sizes_ext(9*6);
 
-  size_t s1c = 0;
+  // size_t s1c = 0;
   size_t s1b = 0;
   size_t s1e = 0;
 
   //doubles 1
   std::vector<size_t> sd_t_d1_exec(9*9*noab,-1);
   std::vector<size_t> d1_sizes_ext(9*7*noab);
-  size_t d1c = 0;
+  // size_t d1c = 0;
   size_t d1b = 0;
   size_t d1e = 0;
 
   //doubles 2
   std::vector<size_t> sd_t_d2_exec(9*9*nvab,-1);
   std::vector<size_t> d2_sizes_ext(9*7*nvab);
+  // size_t d2c=0;
   size_t d2b=0;
-  size_t d2c=0;
   size_t d2e=0;
         
   for (auto ia6=0; ia6<9; ia6++)
@@ -414,20 +419,21 @@ void ccsd_t_all_fused(ExecutionContext& ec,
 
             if(dima>0 && dimb>0)
             {
+
               std::vector<T> k_a(dima);
               std::vector<T> k_a_sort(dima);
 
               //TODO 
               IndexVector bids = {p4b-noab,h1b};
               {
-               TimerGuard tg_total{&ccsd_t_GetTime}; 
+               TimerGuard tg_total{&ccsd_t_t2_GetTime}; 
                ccsd_t_data_per_rank += dima;
                d_t1.get(bids,k_a);
               }
 
               const int ndim = 2;
               int perm[ndim]={1,0};
-              int size[ndim]={k_range[p4b],k_range[h1b]};
+              int size[ndim]={(int)k_range[p4b],(int)k_range[h1b]};
               
               // create a plan (shared_ptr)
               auto plan = hptt::create_plan(perm, ndim, 1, &k_a[0], size, NULL, 0, &k_a_sort[0],
@@ -436,10 +442,14 @@ void ccsd_t_all_fused(ExecutionContext& ec,
 
               std::vector<T> k_b_sort(dimb);
               {
-               TimerGuard tg_total{&ccsd_t_GetTime};  
+               TimerGuard tg_total{&ccsd_t_v2_GetTime};  
                ccsd_t_data_per_rank += dimb;             
                d_v2.get({p5b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,p5b
               }
+
+              cache_s1t.log_access({p4b-noab,h1b});
+              cache_s1v.log_access({p5b,p6b,h2b,h3b});
+
 
               if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b) && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
               {
@@ -561,6 +571,10 @@ void ccsd_t_all_fused(ExecutionContext& ec,
         if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
         == k_spin[h1b]+k_spin[h2b]+k_spin[h3b]) 
         {
+          
+          cache_d1t.log_access({p4b-noab,p5b-noab,h1b});
+          cache_d1v.log_access({p6b,h2b,h3b});
+
           for (Index h7b=0;h7b<noab;h7b++)
           {
 
@@ -591,12 +605,12 @@ void ccsd_t_all_fused(ExecutionContext& ec,
                 if(h7b<h1b) 
                 {
                   {
-                  TimerGuard tg_total{&ccsd_t_GetTime}; 
+                  TimerGuard tg_total{&ccsd_t_t2_GetTime}; 
                   ccsd_t_data_per_rank += dima;
                   d_t2.get({p4b-noab,p5b-noab,h7b,h1b},k_a); //h1b,h7b,p5b-noab,p4b-noab
                   }
                   int perm[4]={3,1,0,2}; //3,1,0,2
-                  int size[4]={k_range[p4b],k_range[p5b],k_range[h7b],k_range[h1b]};
+                  int size[4]={(int)k_range[p4b],(int)k_range[p5b],(int)k_range[h7b],(int)k_range[h1b]};
                   
                   auto plan = hptt::create_plan
                   (perm, 4, -1.0, &k_a[0], size, NULL, 0, &k_a_sort[0],
@@ -606,12 +620,12 @@ void ccsd_t_all_fused(ExecutionContext& ec,
                 if(h1b<=h7b)
                 {
                   {
-                  TimerGuard tg_total{&ccsd_t_GetTime};
+                  TimerGuard tg_total{&ccsd_t_t2_GetTime};
                   ccsd_t_data_per_rank += dima;                   
                   d_t2.get({p4b-noab,p5b-noab,h1b,h7b},k_a); //h7b,h1b,p5b-noab,p4b-noab
                   }
                   int perm[4]={2,1,0,3}; //2,1,0,3
-                  int size[4]={k_range[p4b],k_range[p5b],k_range[h1b],k_range[h7b]};
+                  int size[4]={(int)k_range[p4b],(int)k_range[p5b],(int)k_range[h1b],(int)k_range[h7b]};
                   
                   auto plan = hptt::create_plan
                   (perm, 4, 1.0, &k_a[0], size, NULL, 0, &k_a_sort[0],
@@ -621,9 +635,9 @@ void ccsd_t_all_fused(ExecutionContext& ec,
 
                 std::vector<T> k_b_sort(dimb);
                 if(h7b <= p6b)
-                {
+                { 
                   {
-                  TimerGuard tg_total{&ccsd_t_GetTime};
+                  TimerGuard tg_total{&ccsd_t_v2_GetTime};
                   ccsd_t_data_per_rank += dimb;                   
                   d_v2.get({h7b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,h7b
                   }
@@ -754,6 +768,10 @@ void ccsd_t_all_fused(ExecutionContext& ec,
         if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
         == k_spin[h1b]+k_spin[h2b]+k_spin[h3b]) 
         {
+
+          cache_d2t.log_access({p4b-noab,h1b,h2b});
+          cache_d2v.log_access({p5b,p6b,h3b});
+
           for (Index p7b=noab;p7b<noab+nvab;p7b++)
           {
             // 
@@ -782,13 +800,13 @@ void ccsd_t_all_fused(ExecutionContext& ec,
                 if(p7b<p4b) 
                 {
                   {
-                  TimerGuard tg_total{&ccsd_t_GetTime};   
+                  TimerGuard tg_total{&ccsd_t_t2_GetTime};   
                   ccsd_t_data_per_rank += dima;                
                   d_t2.get({p7b-noab,p4b-noab,h1b,h2b},k_a); //h2b,h1b,p4b-noab,p7b-noab
                   }
                   // for (auto x=0;x<dima;x++) k_a_sort[x] = -1 * k_a[x];
                   int perm[4]={3,2,1,0};
-                  int size[4]={k_range[p7b],k_range[p4b],k_range[h1b],k_range[h2b]};
+                  int size[4]={(int)k_range[p7b],(int)k_range[p4b],(int)k_range[h1b],(int)k_range[h2b]};
                   
                   auto plan = hptt::create_plan
                   (perm, 4, -1.0, &k_a[0], size, NULL, 0, &k_a_sort[0],
@@ -798,12 +816,12 @@ void ccsd_t_all_fused(ExecutionContext& ec,
                 if(p4b<=p7b) 
                 {
                   {
-                  TimerGuard tg_total{&ccsd_t_GetTime};  
+                  TimerGuard tg_total{&ccsd_t_t2_GetTime};  
                   ccsd_t_data_per_rank += dima;                 
                   d_t2.get({p4b-noab,p7b-noab,h1b,h2b},k_a); //h2b,h1b,p7b-noab,p4b-noab
                   }
                   int perm[4]={3,2,0,1}; //0,1,3,2
-                  int size[4]={k_range[p4b],k_range[p7b],k_range[h1b],k_range[h2b]};
+                  int size[4]={(int)k_range[p4b],(int)k_range[p7b],(int)k_range[h1b],(int)k_range[h2b]};
                   
                   auto plan = hptt::create_plan
                   (perm, 4, 1.0, &k_a[0], size, NULL, 0, &k_a_sort[0],
@@ -815,7 +833,7 @@ void ccsd_t_all_fused(ExecutionContext& ec,
                 if(h3b <= p7b)
                 {
                   {
-                  TimerGuard tg_total{&ccsd_t_GetTime};  
+                  TimerGuard tg_total{&ccsd_t_v2_GetTime};  
                   ccsd_t_data_per_rank += dimb;                 
                   d_v2.get({p5b,p6b,h3b,p7b},k_b_sort); //p7b,h3b,p6b,p5b
                   }

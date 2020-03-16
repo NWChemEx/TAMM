@@ -72,40 +72,28 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
   SCFOptions scf_options = sys_data.options_map.scf_options;
   const TAMM_GA_SIZE n_occ_alpha=sys_data.n_occ_alpha;
   const TAMM_GA_SIZE n_occ_beta=sys_data.n_occ_beta;
-  const TAMM_GA_SIZE nao=sys_data.nbf;
+  const TAMM_GA_SIZE northo=sys_data.nbf;
+  const TAMM_GA_SIZE nao=sys_data.nbf_orig;
   const TAMM_GA_SIZE freeze_core=sys_data.n_frozen_core;
   const TAMM_GA_SIZE freeze_virtual=sys_data.n_frozen_virtual;
+  const TAMM_GA_SIZE n_vir_alpha = sys_data.n_vir_alpha;
+  const TAMM_GA_SIZE n_vir_beta = sys_data.n_vir_beta;
+  const TAMM_GA_SIZE n_lindep = sys_data.n_lindep;
 
     auto rank = ec.pg().rank();
-
-    // auto iptilesize = tAO.input_tile_sizes()[0];
 
     std::vector<unsigned int> AO_tiles;
     for(auto s : shells) AO_tiles.push_back(s.size());
 
-    // auto [mu, nu, ku] = tAO.labels<3>("all");
-    // auto [pmo, rmo] = tMO.labels<2>("all");
-
-    TAMM_GA_SIZE n_vir_alpha = nao - n_occ_alpha;
-    TAMM_GA_SIZE n_vir_beta = nao - n_occ_beta; 
     auto n_occ_alpha_freeze = n_occ_alpha - freeze_core;
     auto n_vir_beta_freeze  = n_vir_beta - freeze_virtual;
-    
-    // const auto v2dim  = 2 * nao - 2 * freeze_core - 2 * freeze_virtual;
-    // const int n_alpha = n_occ_alpha_freeze;
-    // const int n_beta  = n_vir_beta_freeze;
-    // auto ov_alpha     = n_occ_alpha;
-    // TAMM_GA_SIZE ov_beta{nao - ov_alpha};
 
     // 2-index transform
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-    //TODO: CTiled_tamm not needed
-    // Tensor<TensorType> CTiled_tamm{tAO,tMO};
-    // Tensor<TensorType>::allocate(&ec, CTiled_tamm);
-
-    auto N = 2 * nao - 2 * freeze_core - 2 * freeze_virtual;
+    //N = nmo
+    auto N = 2 * nao - 2 * freeze_core - 2 * freeze_virtual - 2 * n_lindep;
     Matrix CTiled(nao, N);
 
     const bool molden_exists = !scf_options.moldenfile.empty();
@@ -119,8 +107,8 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
       cout << "\n#AOs, #electrons = " << nao << " , " << n_occ_alpha+n_occ_beta << endl;
 
       Matrix C;
-      if(is_uhf && molden_exists) C.setZero(nao,2*nao);
-      else C.setZero(nao,nao);
+      if(is_uhf && molden_exists) C.setZero(nao,N);
+      else C.setZero(nao,northo);
       tamm_to_eigen_tensor(C_AO,C);
 
       // replicate horizontally
@@ -142,11 +130,11 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
       //  cout << "\n\t C virtual alpha:\n";
       //  cout << C_nva << endl;
 
-      Matrix C_nob = C_2N.block(0, nao, nao, n_occ_beta);
+      Matrix C_nob = C_2N.block(0, northo, nao, n_occ_beta);
       //  cout << "\n\t C occupied beta:\n";
       //  cout << C_nob << endl;
 
-      Matrix C_nvb = C_2N.block(0, n_occ_beta + nao, nao, n_vir_beta_freeze);
+      Matrix C_nvb = C_2N.block(0, n_occ_beta + northo, nao, n_vir_beta_freeze);
       //  cout << "\n\t C virtual beta:\n";
       //  cout << C_nvb << endl;
 
@@ -160,7 +148,7 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
       Matrix F1;
       if(is_uhf && molden_exists) F1.setZero(N,N);
       else F1.setZero(nao,nao);
-      Matrix F(2*nao,2*nao);
+      Matrix F(N,N);
       tamm_to_eigen_tensor(F_AO,F1);
 
       // if(scf_options.debug) 
@@ -188,7 +176,7 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
           }
         }
       }
-      else F = CTiled.transpose() * (F1 * CTiled); //F is resized to 2N*2N
+      else F = 0.5*CTiled.transpose() * (F1 * CTiled); //F is resized to N*N
       
       // eigen_to_tamm_tensor(CTiled_tamm,CTiled);
       eigen_to_tamm_tensor(F_MO,F);
@@ -311,7 +299,7 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
 
   //line 103-112
   // NGA_Inquire(g_chol,&itype,&ndim,dims);
-  // cout << "dims = " << dims[0] << "," << dims[1] << "," << dims[2] << "\n";
+  // cout << "dims = " << dims[0] << "," << dims[1] << "," << dims[2] << std::endl;
 
   int64_t dims2[2] = {nbf,nbf};
   int64_t nblock2[2] = {nblock[0],nblock[1]};

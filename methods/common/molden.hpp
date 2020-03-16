@@ -15,9 +15,9 @@ std::tuple<int,int,int,int> read_mo(SCFOptions scf_options, std::istream& is, st
   std::string line;
   
   size_t nmo = evl_sorted.size();
-  size_t N = nmo;
-  if(scf_options.scf_type == "uhf") N = N/2;
-  const size_t n_lindep = scf_options.n_lindep;
+  size_t N = C.rows(); //nmo
+  //if(scf_options.scf_type == "uhf") N = N/2;
+  //const size_t n_lindep = scf_options.n_lindep;
   std::vector<T> eigenvecs(N); 
   bool is_spherical = (scf_options.sphcart == "spherical");
 
@@ -96,7 +96,7 @@ std::tuple<int,int,int,int> read_mo(SCFOptions scf_options, std::istream& is, st
   
   bool mo_end = false;
   size_t i = 0;
-  size_t kb = 0;
+  // size_t kb = 0;
   while(!mo_end) { 
     
     std::getline(is, line);
@@ -232,15 +232,16 @@ std::tuple<int,int,int,int> read_mo(SCFOptions scf_options, std::istream& is, st
 
       mo_end=false;
       i++;
-      if(i==N-n_lindep) i=i+n_lindep;
+      //if(i==N-n_lindep) i=i+n_lindep;
     }
 
-    kb++;
-    if(i==nmo-n_lindep) mo_end=true;
-    if(kb==4*nmo) {
-      // cout << "Assuming n_lindep = " << nmo-i << endl;
-      mo_end=true;
-    }
+    // kb++;
+    // if(i==nmo-n_lindep) mo_end=true;
+    if(i==nmo) mo_end=true;
+    // if(kb==4*nmo) {
+    //   // cout << "Assuming n_lindep = " << nmo-i << endl;
+    //   mo_end=true;
+    // }
     
   }
 

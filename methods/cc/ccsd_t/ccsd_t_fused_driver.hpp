@@ -12,16 +12,8 @@ void finalizememmodule();
 // void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,
 // size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* host1, double* host2);
 
-template <typename Arg, typename... Args>
-void dprint1(Arg&& arg, Args&&... args)
-{
-    cout << std::forward<Arg>(arg);
-    ((cout << ',' << std::forward<Args>(args)), ...);
-    cout << "\n";
-}
-
 template<typename T>
-std::tuple<double,double> ccsd_t_fused_driver(ExecutionContext& ec,
+std::tuple<double,double> ccsd_t_fused_driver(SystemData& sys_data, ExecutionContext& ec,
                    std::vector<int>& k_spin,
                    const TiledIndexSpace& MO,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
@@ -30,7 +22,7 @@ std::tuple<double,double> ccsd_t_fused_driver(ExecutionContext& ec,
                    double hf_ccsd_energy, int icuda,
                    bool is_restricted) {
 
-    auto rank = GA_Nodeid();
+    auto rank = ec.pg().rank().value();
     bool nodezero = rank==0;
 
     // size_t kcalls=0;
@@ -120,6 +112,13 @@ std::tuple<double,double> ccsd_t_fused_driver(ExecutionContext& ec,
     k_abuf2.resize(abuf_size2);
     k_bbuf2.resize(bbuf_size2);
 
+    LRUCache<Index> cache_s1t{32};
+    LRUCache<Index> cache_s1v{32};
+    LRUCache<Index> cache_d1t{32};
+    LRUCache<Index> cache_d1v{32};
+    LRUCache<Index> cache_d2t{32};
+    LRUCache<Index> cache_d2v{32};
+
   for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
     for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
       for (size_t t_p6b = t_p5b; t_p6b < noab + nvab; t_p6b++) {
@@ -127,7 +126,7 @@ std::tuple<double,double> ccsd_t_fused_driver(ExecutionContext& ec,
           for (size_t t_h2b = t_h1b; t_h2b < noab; t_h2b++) {
             for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {
 
-              // dprint(k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b],
+              // print_varlist(k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b],
               // k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]);
 
             if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
@@ -168,7 +167,7 @@ std::tuple<double,double> ccsd_t_fused_driver(ExecutionContext& ec,
                       //TODO:chk args, d_t1 should be local
 
                       // cout << "p4,5,6,h1,2,3 = ";
-                      // dprint(t_p4b,t_p5b,t_p6b,t_h1b,t_h2b,t_h3b);
+                      // print_varlist(t_p4b,t_p5b,t_p6b,t_h1b,t_h2b,t_h3b);
 
 
                       double factor = 0.0;
@@ -196,7 +195,8 @@ std::tuple<double,double> ccsd_t_fused_driver(ExecutionContext& ec,
                         k_evl_sorted,k_range,t_h1b,t_h2b,t_h3b,
                         t_p4b,t_p5b,t_p6b, k_abufs1, k_bbufs1, 
                         k_abuf1,k_bbuf1,k_abuf2,k_bbuf2,factor,
-                        energy_l,has_GPU,is_restricted); 
+                        energy_l,has_GPU,is_restricted,
+                        cache_s1t,cache_s1v,cache_d1t,cache_d1v,cache_d2t,cache_d2v); 
                           
 
                       //  cout << "singles = " << k_singles << endl;
@@ -241,18 +241,18 @@ std::tuple<double,double> ccsd_t_fused_driver(ExecutionContext& ec,
                       // cout << "factor-l=" << factor_l << endl;
                       // cout << "k_evl_sorted_full=" << k_evl_sorted << endl;
                       // cout << "h123,p456= ";
-                      // dprint1(t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b);
+                      // print_varlist(t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b);
 
                       // cout << "factor-l=" << factor_l << endl;
                       // cout << "energy-l=" << energy_l << endl;
 
                       //  cout << "k-range of h123,p456= ";
-                      //  dprint1(k_range[t_h1b],k_range[t_h2b],
+                      //  print_varlist(k_range[t_h1b],k_range[t_h2b],
                       //             k_range[t_h3b],k_range[t_p4b],
                       //             k_range[t_p5b],k_range[t_p6b]);
 
                       // cout << "k_evl_sorted= ";
-                      // dprint1(    k_evl_sorted[k_offset[t_h1b]],
+                      // print_varlist(    k_evl_sorted[k_offset[t_h1b]],
                       //             k_evl_sorted[k_offset[t_h2b]],
                       //             k_evl_sorted[k_offset[t_h3b]],
                       //             k_evl_sorted[k_offset[t_p4b]],
@@ -260,7 +260,7 @@ std::tuple<double,double> ccsd_t_fused_driver(ExecutionContext& ec,
                       //             k_evl_sorted[k_offset[t_p6b]]);
 
                       // cout << "k_offset= ";
-                      // dprint1(    k_offset[t_h1b],
+                      // print_varlist(    k_offset[t_h1b],
                       //             k_offset[t_h2b],
                       //             k_offset[t_h3b],
                       //             k_offset[t_p4b],
@@ -317,15 +317,59 @@ std::tuple<double,double> ccsd_t_fused_driver(ExecutionContext& ec,
     ac->deallocate();
     delete ac;
 
-  //   size_t global_kcalls;
-  //   size_t global_kcalls_fused;
-  //   size_t global_kcalls_pfused;
-  //   MPI_Reduce(&kcalls, &global_kcalls, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
-  //          ec.pg().comm());
-  //   MPI_Reduce(&kcalls_fused, &global_kcalls_fused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
-  //          ec.pg().comm());
-  //   MPI_Reduce(&kcalls_pfused, &global_kcalls_pfused, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0,
-  //          ec.pg().comm());           
+    std::vector<Index> cvec_s1t;
+    std::vector<Index> cvec_s1v;
+    std::vector<Index> cvec_d1t;
+    std::vector<Index> cvec_d1v;
+    std::vector<Index> cvec_d2t;
+    std::vector<Index> cvec_d2v;
+
+    cache_s1t.gather_stats(cvec_s1t);
+    cache_s1v.gather_stats(cvec_s1v);
+    cache_d1t.gather_stats(cvec_d1t);
+    cache_d1v.gather_stats(cvec_d1v);
+    cache_d2t.gather_stats(cvec_d2t);
+    cache_d2v.gather_stats(cvec_d2v);
+
+    std::vector<Index> g_cvec_s1t(cvec_s1t.size());
+    std::vector<Index> g_cvec_s1v(cvec_s1v.size());
+    std::vector<Index> g_cvec_d1t(cvec_d1t.size());
+    std::vector<Index> g_cvec_d1v(cvec_d1v.size());
+    std::vector<Index> g_cvec_d2t(cvec_d2t.size());
+    std::vector<Index> g_cvec_d2v(cvec_d2v.size());
+    MPI_Reduce(&cvec_s1t[0], &g_cvec_s1t[0], cvec_s1t.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());
+    MPI_Reduce(&cvec_s1v[0], &g_cvec_s1v[0], cvec_s1v.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());
+    MPI_Reduce(&cvec_d1t[0], &g_cvec_d1t[0], cvec_d1t.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
+    MPI_Reduce(&cvec_d1v[0], &g_cvec_d1v[0], cvec_d1v.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
+    MPI_Reduce(&cvec_d2t[0], &g_cvec_d2t[0], cvec_d2t.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
+    MPI_Reduce(&cvec_d2v[0], &g_cvec_d2v[0], cvec_d2v.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
+
+    std::string out_fp = sys_data.input_molecule+"."+sys_data.options_map.ccsd_options.basis;
+    std::string files_dir = out_fp+"_files/ccsd_t";
+    if(!fs::exists(files_dir)) fs::create_directories(files_dir);    
+    std::string fp = files_dir+"/";
+
+    auto print_stats = [&](std::ostream& os, std::vector<uint32_t>& vec){
+      for (uint32_t i = 0; i < vec.size(); i++) {
+        os << i << " : " << vec[i] << std::endl;
+      }
+    };
+
+    if(rank == 0) {
+      std::ofstream fp_s1t(fp+"s1t_rank"+std::to_string(rank));
+      std::ofstream fp_s1v(fp+"s1v_rank"+std::to_string(rank));
+      std::ofstream fp_d1t(fp+"d1t_rank"+std::to_string(rank));
+      std::ofstream fp_d1v(fp+"d1v_rank"+std::to_string(rank));
+      std::ofstream fp_d2t(fp+"d2t_rank"+std::to_string(rank));
+      std::ofstream fp_d2v(fp+"d2v_rank"+std::to_string(rank));
+
+      print_stats(fp_s1t,g_cvec_s1t);
+      print_stats(fp_s1v,g_cvec_s1v);
+      print_stats(fp_d1t,g_cvec_d1t);
+      print_stats(fp_d1v,g_cvec_d1v);
+      print_stats(fp_d2t,g_cvec_d2t);
+      print_stats(fp_d2v,g_cvec_d2v);
+    }
 
   // if(rank == 0) cout << "Total kernel (doubles) calls = " << global_kcalls << ", #fused calls = " << global_kcalls_fused << ", #partial fused calls = " << global_kcalls_pfused << endl;
 

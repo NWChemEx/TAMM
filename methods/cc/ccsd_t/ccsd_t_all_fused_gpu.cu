@@ -2533,7 +2533,7 @@ void total_fused_ccsd_t_gpu(size_t base_size_h1b, size_t base_size_h2b, size_t b
 																CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3), CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2), CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1), 
 																CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6), CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5), CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4),
 																// 
-																(int)base_size_h1b, (int)base_size_h2b, (int)base_size_h1b, 
+																(int)base_size_h1b, (int)base_size_h2b, (int)base_size_h3b, 
 																(int)base_size_p4b, (int)base_size_p5b, (int)base_size_p6b);
 
 	//

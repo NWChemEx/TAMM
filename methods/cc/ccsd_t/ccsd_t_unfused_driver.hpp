@@ -13,13 +13,6 @@ void finalizememmodule();
 void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,
 size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* host1, double* host2);
 
-template <typename Arg, typename... Args>
-void dprint1(Arg&& arg, Args&&... args)
-{
-    cout << std::forward<Arg>(arg);
-    ((cout << ',' << std::forward<Args>(args)), ...);
-    cout << "\n";
-}
 
 template<typename T>
 std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
@@ -97,7 +90,7 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
           for (size_t t_h2b = t_h1b; t_h2b < noab; t_h2b++) {
             for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {
 
-              // dprint(k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b],
+              // print_varlist(k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b],
               // k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]);
 
             if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
@@ -139,7 +132,7 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                       //TODO:chk args, d_t1 should be local
 
                       // cout << "p4,5,6,h1,2,3 = ";
-                      // dprint(t_p4b,t_p5b,t_p6b,t_h1b,t_h2b,t_h3b);
+                      // print_varlist(t_p4b,t_p5b,t_p6b,t_h1b,t_h2b,t_h3b);
 
                       ccsd_t_singles_unfused(ec,MO,noab,nvab,k_spin,
                           k_singles, d_t1, d_v2, k_evl_sorted,
@@ -172,12 +165,12 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                       
                       if(!has_GPU){
                         size_t indx = 0;
-                        for (auto t_p4=0;t_p4 < k_range[t_p4b];t_p4++)
-                        for (auto t_p5=0;t_p5 < k_range[t_p5b];t_p5++)
-                        for (auto t_p6=0;t_p6 < k_range[t_p6b];t_p6++)
-                        for (auto t_h1=0;t_h1 < k_range[t_h1b];t_h1++)
-                        for (auto t_h2=0;t_h2 < k_range[t_h2b];t_h2++)
-                        for (auto t_h3=0;t_h3 < k_range[t_h3b];t_h3++)
+                        for (size_t t_p4=0;t_p4 < k_range[t_p4b];t_p4++)
+                        for (size_t t_p5=0;t_p5 < k_range[t_p5b];t_p5++)
+                        for (size_t t_p6=0;t_p6 < k_range[t_p6b];t_p6++)
+                        for (size_t t_h1=0;t_h1 < k_range[t_h1b];t_h1++)
+                        for (size_t t_h2=0;t_h2 < k_range[t_h2b];t_h2++)
+                        for (size_t t_h3=0;t_h3 < k_range[t_h3b];t_h3++)
                         {
                           double denom = 
                              (-1*k_evl_sorted[k_offset[t_p4b]+t_p4]
@@ -201,18 +194,18 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                       // cout << "factor-l=" << factor_l << endl;
                       // cout << "k_evl_sorted_full=" << k_evl_sorted << endl;
                       // cout << "h123,p456= ";
-                      // dprint1(t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b);
+                      // print_varlist(t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b);
 
                       // cout << "factor-l=" << factor_l << endl;
                       // cout << "energy-l=" << energy_l << endl;
 
                       //  cout << "k-range of h123,p456= ";
-                      //  dprint1(k_range[t_h1b],k_range[t_h2b],
+                      //  print_varlist(k_range[t_h1b],k_range[t_h2b],
                       //             k_range[t_h3b],k_range[t_p4b],
                       //             k_range[t_p5b],k_range[t_p6b]);
 
                       // cout << "k_evl_sorted= ";
-                      // dprint1(    k_evl_sorted[k_offset[t_h1b]],
+                      // print_varlist(    k_evl_sorted[k_offset[t_h1b]],
                       //             k_evl_sorted[k_offset[t_h2b]],
                       //             k_evl_sorted[k_offset[t_h3b]],
                       //             k_evl_sorted[k_offset[t_p4b]],
@@ -220,7 +213,7 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                       //             k_evl_sorted[k_offset[t_p6b]]);
 
                       // cout << "k_offset= ";
-                      // dprint1(    k_offset[t_h1b],
+                      // print_varlist(    k_offset[t_h1b],
                       //             k_offset[t_h2b],
                       //             k_offset[t_h3b],
                       //             k_offset[t_p4b],

@@ -58,8 +58,8 @@ class Options {
 
     void print() {
       std::cout << std::defaultfloat;
-      cout << "\nCommon Options\n";
-      cout << "{\n";
+      cout << endl << "Common Options" << endl ;
+      cout << "{" << endl;
       cout << " max iter = " << maxiter << endl;
       cout << " basis = " << basis << " ";
       cout << sphcart;
@@ -67,7 +67,7 @@ class Options {
       if(!dfbasis.empty()) cout << " dfbasis = " << dfbasis << endl;
       cout << " geom_units = " << geom_units << endl;
       print_bool(" debug", debug);
-      cout << "}\n";
+      cout << "}" << endl;
     }
 };
 
@@ -125,8 +125,8 @@ class SCFOptions: public Options {
   
     void print() {
       std::cout << std::defaultfloat;
-      cout << "\nSCF Options\n";
-      cout << "{\n";
+      cout << endl << "SCF Options" << endl;
+      cout << "{" << endl;
       cout << " tol_int = " << tol_int << endl;
       cout << " tol_lindep = " << tol_lindep << endl;
       cout << " conve = " << conve << endl;
@@ -148,7 +148,7 @@ class SCFOptions: public Options {
       print_bool(" restart", restart);
       print_bool(" debug", debug); 
       if(restart) print_bool(" noscf", noscf);
-      cout << "}\n";
+      cout << "}" << endl;
     }
 };
 
@@ -169,12 +169,12 @@ class CDOptions: public Options {
 
   void print() {
     std::cout << std::defaultfloat;
-    cout << "\nCD Options\n";
-    cout << "{\n";
+    cout << endl << "CD Options" << endl;
+    cout << "{" << endl;
     cout << " diagtol = " << diagtol << endl;
     cout << " max_cvecs_factor = " << max_cvecs_factor << endl;
     print_bool(" debug", debug);   
-    cout << "}\n"; 
+    cout << "}" << endl; 
   }
 };
 
@@ -206,6 +206,7 @@ class CCSDOptions: public Options {
     
     gf_p_oi_range = 0; //1-number of occupied, 2-all MOs
     gf_ndiis = 10;
+    gf_ngmres = 10;
     gf_maxiter = 500;
     gf_eta = -0.01;       
     gf_damping_factor = 1.0;
@@ -245,6 +246,7 @@ class CCSDOptions: public Options {
   //GF
   int gf_p_oi_range;
   int gf_ndiis;
+  int gf_ngmres;  
   int gf_maxiter;
   double gf_eta;
   // double gf_level_shift;
@@ -270,8 +272,8 @@ class CCSDOptions: public Options {
   
   void print() {
     std::cout << std::defaultfloat;
-    cout << "\nCCSD Options\n";
-    cout << "{\n";
+    cout << endl << "CCSD Options" << endl;
+    cout << "{" << endl;
     if(icuda > 0) {
       cout << " #cuda = " << icuda << endl;
       cout << " ccsdt_tilesize = " << ccsdt_tilesize << endl;
@@ -301,6 +303,7 @@ class CCSDOptions: public Options {
       print_bool(" gf_cs", gf_cs); 
       print_bool(" gf_restart", gf_restart);       
       cout << " gf_ndiis       = " << gf_ndiis << endl;
+      cout << " gf_ngmres       = " << gf_ngmres << endl;
       cout << " gf_maxiter     = " << gf_maxiter << endl;
       cout << " gf_eta         = " << gf_eta << endl;
       // cout << " gf_level_shift         = " << gf_level_shift << endl;
@@ -329,7 +332,7 @@ class CCSDOptions: public Options {
     }   
 
     print_bool(" debug", debug); 
-    cout << "}\n";
+    cout << "}" << endl;
   }
 
 };
@@ -345,8 +348,8 @@ class OptionsMap
 };
 
 
-void nwx_terminate(std::string msg){
-    if(GA_Nodeid()==0) std::cout << msg << " ... terminating program.\n\n";
+void nwx_terminate(std::string msg) {
+    if(GA_Nodeid()==0) std::cout << msg << " ... terminating program." << endl << endl;
     GA_Terminate();
     MPI_Finalize();
     exit(0);
@@ -708,6 +711,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           }
           else if(is_in_line("gf_ndiis",line)) 
             ccsd_options.gf_ndiis = std::stoi(read_option(line)); 
+          else if(is_in_line("gf_ngmres",line)) 
+            ccsd_options.gf_ngmres = std::stoi(read_option(line)); 
           else if(is_in_line("gf_maxiter",line)) 
             ccsd_options.gf_maxiter = std::stoi(read_option(line));
           else if(is_in_line("gf_nprocs_poi",line)) 

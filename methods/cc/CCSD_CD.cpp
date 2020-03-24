@@ -319,14 +319,14 @@ std::string filename; //bad, but no choice
 int main( int argc, char* argv[] )
 {
     if(argc<2){
-        std::cout << "Please provide an input file!\n";
+        std::cout << "Please provide an input file!" << std::endl;
         return 1;
     }
 
     filename = std::string(argv[1]);
     std::ifstream testinput(filename); 
     if(!testinput){
-        std::cout << "Input file provided [" << filename << "] does not exist!\n";
+        std::cout << "Input file provided [" << filename << "] does not exist!" << std::endl;
         return 1;
     }
 
@@ -442,7 +442,7 @@ void ccsd_driver() {
   auto cc_t2 = std::chrono::high_resolution_clock::now();
   double ccsd_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-  if(rank == 0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
+  if(rank == 0) std::cout << std::endl << "Time taken for Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
 
   free_tensors(d_r1, d_r2, d_t1, d_t2, d_f1);
   free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s, chol_vecs);

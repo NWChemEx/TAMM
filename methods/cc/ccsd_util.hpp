@@ -68,14 +68,14 @@ std::string ccsd_test( int argc, char* argv[] )
 {
 
     if(argc<2){
-        std::cout << "Please provide an input file!\n";
+        std::cout << "Please provide an input file!" << std::endl;
         exit(0);
     }
 
     auto filename = std::string(argv[1]);
     std::ifstream testinput(filename); 
     if(!testinput){
-        std::cout << "Input file provided [" << filename << "] does not exist!\n";
+        std::cout << "Input file provided [" << filename << "] does not exist!" << std::endl;
         exit(0);
     }
 
@@ -325,7 +325,7 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
     update_tensor(d_f1(),lambda2);
 
  if(rank == 0) {
-    std::cout << "\n\n";
+    std::cout << std::endl << std::endl;
     std::cout << " CCSD iterations" << std::endl;
     std::cout << std::string(66, '-') << std::endl;
     std::cout <<
@@ -396,7 +396,7 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
     update_tensor(d_f1(),lambda2);
 
  if(rank == 0) {
-    std::cout << "\n\n";
+    std::cout << std::endl << std::endl;
     std::cout << " CCSD iterations" << std::endl;
     std::cout << std::string(66, '-') << std::endl;
     std::cout <<
@@ -462,7 +462,7 @@ std::tuple<SystemData, double,
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime taken for Hartree-Fock: " << hf_time << " secs\n";
+    if(rank == 0) std::cout << std::endl << "Time taken for Hartree-Fock: " << hf_time << " secs" << std::endl;
 
     return std::make_tuple(sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, tAO, tAOt, scf_conv);
 }
@@ -498,8 +498,8 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(OptionsMap 
     double cd_svd_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-    if(rank == 0) std::cout << "\nTotal Time taken for CD (+SVD): " << cd_svd_time
-              << " secs\n";
+    if(rank == 0) std::cout << std::endl << "Total Time taken for CD (+SVD): " << cd_svd_time
+              << " secs" << std::endl;
 
     Tensor<T>::deallocate(C_AO,F_AO);
 
@@ -589,7 +589,7 @@ setupLambdaTensors(ExecutionContext& ec, TiledIndexSpace& MO, size_t ndiis) {
     .execute();
 
   if(rank == 0) {
-    std::cout << "\n\n";
+    std::cout << std::endl << std::endl;
     std::cout << " Lambda CCSD iterations" << std::endl;
     std::cout << std::string(44, '-') << std::endl;
     std::cout <<
@@ -641,7 +641,7 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI
     auto cc_t2 = std::chrono::high_resolution_clock::now();
     double v2_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-    if(rank == 0) std::cout << "\nTime to reconstruct V2: " << v2_time << " secs\n";
+    if(rank == 0) std::cout << std::endl << "Time to reconstruct V2: " << v2_time << " secs" << std::endl;
 
     Tensor<T>::deallocate(d_a2);
     return d_v2;
@@ -764,8 +764,8 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_g
     double cd_svd_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-    if(rank == 0) std::cout << "\nTotal Time taken for CD (+SVD): " << cd_svd_time
-              << " secs\n";
+    if(rank == 0) std::cout << std::endl << "Total Time taken for CD (+SVD): " << cd_svd_time
+              << " secs" << std::endl;
 
     Tensor<T>::deallocate(C_AO,F_AO);
 

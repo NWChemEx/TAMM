@@ -12,4 +12,3 @@ add_mpi_unit_test(Test_Eigen 2 "")
 # add_mpi_unit_test(Test_PG 2 "")
 add_mpi_unit_test(Test_Mult_Ops 2 "" )
 
-# add_mpi_unit_test(Test_QR 2 "")

@@ -13,14 +13,14 @@ double ccsd_t_data_per_rank = 0; //in GB
 int main( int argc, char* argv[] )
 {
     if(argc<2){
-        std::cout << "Please provide an input file!\n";
+        std::cout << "Please provide an input file!" << std::endl;
         return 1;
     }
 
     filename = std::string(argv[1]);
     std::ifstream testinput(filename); 
     if(!testinput){
-        std::cout << "Input file provided [" << filename << "] does not exist!\n";
+        std::cout << "Input file provided [" << filename << "] does not exist!" << std::endl;
         return 1;
     }
 
@@ -159,7 +159,7 @@ void ccsd_driver() {
 
     double ccsd_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-    if(rank == 0) std::cout << "\nTime taken for Cholesky CCSD: " << ccsd_time << " secs\n";
+    if(rank == 0) std::cout << std::endl << "Time taken for Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
 
     if(!ccsd_restart) {
         free_tensors(d_r1,d_r2);
@@ -379,7 +379,7 @@ void ccsd_driver() {
             std::cout << "   -> " << timer_type << ": " << tval << "s (" << tval*100.0/ccsd_t_time << "%), (min,max) = (" << tval_min << "," << tval_max << ")" << std::endl;
         };
 
-        std::cout << "\nTotal CCSD(T) Time: " << ccsd_t_time << " secs\n";
+        std::cout << std::endl << "Total CCSD(T) Time: " << ccsd_t_time << " secs" << std::endl;
         print_profile_stats("T2 GetTime", g_t2_getTime, min_t2_getTime, max_t2_getTime);
         print_profile_stats("V2 GetTime", g_v2_getTime, min_v2_getTime, max_v2_getTime);
         std::cout << "   -> Data Transfer (GB): " << g_ccsd_t_data_per_rank/nranks << std::endl;

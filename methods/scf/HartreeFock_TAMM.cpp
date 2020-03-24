@@ -8,8 +8,9 @@ std::string filename;
 
 int main( int argc, char* argv[] )
 {
+    
     if(argc<2){
-        std::cout << "Please provide an input file!\n";
+        std::cout << "Please provide an input file!" << std::endl;
         return 1;
     }
 
@@ -17,7 +18,7 @@ int main( int argc, char* argv[] )
 
     std::ifstream testinput(filename); 
     if(!testinput){
-        std::cout << "Input file provided [" << filename << "] does not exist!\n";
+        std::cout << "Input file provided [" << filename << "] does not exist!" << std::endl;
         return 1;
     }
 
@@ -57,7 +58,7 @@ int main( int argc, char* argv[] )
     // delete ec;
 
     if(GA_Nodeid() == 0)
-    std::cout << "\nTotal Time taken for Hartree-Fock: " << hf_time << " secs\n";
+    std::cout << std::endl << "Total Time taken for Hartree-Fock: " << hf_time << " secs" << std::endl;
 
     #ifdef USE_TALSH
     talsh_instance.shutdown();

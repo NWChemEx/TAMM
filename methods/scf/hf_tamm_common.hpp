@@ -58,7 +58,7 @@ void t2e_hf_helper(const ExecutionContext& ec, tamm::Tensor<T>& ttensor,Matrix& 
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
    
     //ec.pg().barrier(); //TODO
-    if(rank == 0) std::cout << "\nTime for tamm to eigen " << pstr << " : " << hf_time << " secs" << endl;
+    if(rank == 0) std::cout << std::endl << "Time for tamm to eigen " << pstr << " : " << hf_time << " secs" << endl;
 }
 
 
@@ -81,7 +81,7 @@ void compute_shellpair_list(const ExecutionContext& ec, const libint2::BasisSet&
 std::tuple<int,double> compute_NRE(const ExecutionContext& ec, std::vector<libint2::Atom>& atoms, const int focc){
 
   auto rank = ec.pg().rank(); 
-      //  std::cout << "Geometries in bohr units \n";
+      //  std::cout << "Geometries in bohr units " << std::endl;
     //  for (auto i = 0; i < atoms.size(); ++i)
     //    std::cout << atoms[i].atomic_number << "  " << atoms[i].x<< "  " <<
     //    atoms[i].y<< "  " << atoms[i].z << endl;
@@ -185,7 +185,7 @@ Matrix compute_orthogonalizer(const ExecutionContext& ec, SystemData& sys_data, 
     //TODO: not used ?
     Xinv.resize(0,0);
 
-    if(rank == 0) std::cout << "Time for computing orthogonalizer: " << hf_time << " secs\n" << endl;
+    if(rank == 0) std::cout << "Time for computing orthogonalizer: " << hf_time << " secs" << endl << endl;
 
     return X;
 
@@ -221,7 +221,7 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
     auto hf_t2 = std::chrono::high_resolution_clock::now();
     auto hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime for computing 1-e integrals T, V, S: " << hf_time << " secs" << endl;
+    if(rank == 0) std::cout << std::endl << "Time for computing 1-e integrals T, V, S: " << hf_time << " secs" << endl;
 
     hf_t1 = std::chrono::high_resolution_clock::now();
     // Core Hamiltonian = T + V
@@ -234,7 +234,7 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime for computing Core Hamiltonian H=T+V: " << hf_time << " secs" << endl;
+    if(rank == 0) std::cout << std::endl << "Time for computing Core Hamiltonian H=T+V: " << hf_time << " secs" << endl;
 
     t2e_hf_helper<TensorType,2>(ec, ttensors.H1, etensors.H, "H1-H");
     t2e_hf_helper<TensorType,2>(ec, ttensors.S1, etensors.S, "S1-S");
@@ -329,12 +329,14 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       Tensor<TensorType>& FD_tamm   = ttensors.FD_tamm;
       Tensor<TensorType>& FDS_tamm  = ttensors.FDS_tamm;
       Tensor<TensorType>& D_tamm = ttensors.D_tamm;
+      Tensor<TensorType>& D_beta_tamm = ttensors.D_beta_tamm;
       Tensor<TensorType>& D_last_tamm = ttensors.D_last_tamm;
       Tensor<TensorType>& D_diff = ttensors.D_diff;
 
       Tensor<TensorType>& ehf_tmp = ttensors.ehf_tmp;
       Tensor<TensorType>& ehf_tamm = ttensors.ehf_tamm; 
 
+      Tensor<TensorType>& ehf_beta_tmp = ttensors.ehf_beta_tmp;
       Tensor<TensorType>& F1_beta = ttensors.F1_beta;
       Tensor<TensorType>& F1tmp1_beta = ttensors.F1tmp1_beta;
       Tensor<TensorType>& D_last_beta_tamm = ttensors.D_last_beta_tamm;
@@ -342,7 +344,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       Tensor<TensorType>& FDS_beta_tamm  = ttensors.FDS_beta_tamm; 
 
       const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
-      const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+      // const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
 
         Scheduler sch{ec};
 
@@ -361,7 +363,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
             (F1(mu, nu) += F1tmp1(mu, nu)).execute();
         //}
 
-        if(sys_data.scf_type == sys_data.SCFType::uhf) {
+        if(is_uhf) {
             sch(F1_beta(mu, nu) = H1(mu, nu))
             (F1_beta(mu, nu) += F1tmp1_beta(mu, nu)).execute();
         }
@@ -437,6 +439,8 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         if(rank == 0 && debug) std::cout << "diis:" << do_time << "s, ";    
         tamm_to_eigen_tensor(F1,F);
         if(is_uhf) tamm_to_eigen_tensor(F1_beta,F_beta);
+
+        //if(rank == 0 && debug) cout << "F,f_beta norm:" << F.norm() << "," << F_beta.norm() << endl;
 
         do_t1 = std::chrono::high_resolution_clock::now();
         if(!scf_restart){
@@ -526,7 +530,6 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
 
           if( rank == 0 ) {
           Matrix Fp = F; // XXX: Can F be destroyed?
-          // TODO: Check for linear dep case
 
           // Take into account row major
           // X -> X**T
@@ -556,6 +559,40 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
 
           if( ec.pg().size() > 1 )
             MPI_Bcast( C.data(), C.size(), MPI_DOUBLE, 0, ec.pg().comm() );
+
+          if(is_uhf) {
+            if( rank == 0 ) {
+            Matrix Fp = F_beta; // XXX: Can F_beta be destroyed?
+
+            // Take into account row major
+            // X -> X**T
+            // Ft is [N,N]
+            // X**T is [Northo, N]
+            C_beta.resize(N,Northo);
+            linalg::blas::gemm( 'N', 'T', N, Northo, N,
+                                1., Fp.data(), N, X.data(), Northo, 
+                                0., C_beta.data(), N );
+            linalg::blas::gemm( 'N', 'N', Northo, Northo, N,
+                                1., X.data(), Northo, C_beta.data(), N, 
+                                0., Fp.data(), Northo );
+
+            std::vector<double> eps(Northo);
+            linalg::lapack::syevd( 'V', 'L', Northo, Fp.data(), Northo, eps.data() );
+            // Take into account row major
+            // X -> X**T
+            // C_beta -> C_beta**T = Ft**T * X**T
+            // X**T is [Northo, N]
+            // Fp is [Northo, Northo]
+            // C_beta**T is [Northo, N] 
+            // C_beta.resize(N, Northo);
+            linalg::blas::gemm( 'T', 'N', Northo, N, Northo, 1., Fp.data(), Northo, X.data(), Northo, 0., C_beta.data(), Northo );
+
+            } else C_beta.resize( N, Northo );
+          
+            if( ec.pg().size() > 1 )
+              MPI_Bcast( C_beta.data(), C_beta.size(), MPI_DOUBLE, 0, ec.pg().comm() );
+          }
+
       #endif
 
         // compute density, D = C(occ) . C(occ)T
@@ -579,6 +616,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
 
         eigen_to_tamm_tensor(D_tamm,D);
         // eigen_to_tamm_tensor(F1,F);
+        if(is_uhf) eigen_to_tamm_tensor(D_beta_tamm,D_beta);
 
         do_t2 = std::chrono::high_resolution_clock::now();
         do_time =
@@ -591,26 +629,31 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         // e = D * (H+F);
 
         double ehf = 0.0;
-        if(is_rhf) {
+        sch
+          (ehf_tmp(mu,nu) = H1(mu,nu))
+          (ehf_tmp(mu,nu) += F1(mu,nu))
+          (ehf_tamm() = D_tamm() * ehf_tmp()).execute();
+
+        if(is_uhf) {
           sch
-            (ehf_tmp(mu,nu) = H1(mu,nu))
-            (ehf_tmp(mu,nu) += F1(mu,nu))
-            (ehf_tamm() = D_tamm() * ehf_tmp()).execute();
-
-           //ehf = get_scalar(ehf_tamm);
-           ehf = 0.5*get_scalar(ehf_tamm);
-        }
-
-        //TODO:UHF
-        if(is_uhf){
-          // auto ehf = H + 
-          ;
+            (ehf_beta_tmp(mu,nu) = H1(mu,nu))
+            (ehf_beta_tmp(mu,nu) += F1_beta(mu,nu))
+            (ehf_tamm() += D_beta_tamm() * ehf_beta_tmp())
+            .execute();
         }
         
+        //ehf = get_scalar(ehf_tamm);
+        ehf = 0.5*get_scalar(ehf_tamm);
+
         // rmsd  = (D - D_last).norm();
         sch(D_diff() = D_tamm())
            (D_diff() -= D_last_tamm()).execute();
         double rmsd = norm(D_diff)/(double)(1.0*N);
+        if(is_uhf) {
+          sch(D_diff() = D_beta_tamm())
+           (D_diff() -= D_last_beta_tamm()).execute();
+           rmsd += norm(D_diff)/(double)(1.0*N);        
+        }
 
         double alpha = sys_data.options_map.scf_options.alpha;
         if(rmsd < 1e-6) {
@@ -622,6 +665,12 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         sch(D_tamm() += (1.0-alpha)*D_last_tamm()).execute();
         tamm_to_eigen_tensor(D_tamm,D);
 
+        if(is_uhf) {
+          // D_beta = alpha*D_beta + (1.0-alpha)*D_last_beta;
+          tamm::scale_ip(D_beta_tamm(),alpha);
+          sch(D_beta_tamm() += (1.0-alpha)*D_last_beta_tamm()).execute();
+          tamm_to_eigen_tensor(D_beta_tamm,D_beta);
+        }
 
         do_t2 = std::chrono::high_resolution_clock::now();
         do_time =
@@ -647,10 +696,9 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
       Tensor<TensorType>& F1tmp1 = ttensors.F1tmp1;
       Tensor<TensorType>& xyK_tamm = ttensors.xyK_tamm;
 
-      if(is_uhf) {
-        D = etensors.D_beta;
-        F1tmp1 = ttensors.F1tmp1_beta;
-      }
+      Matrix& G_beta = etensors.G_beta;
+      Matrix& D_beta = etensors.D_beta;
+      Tensor<TensorType>& F1tmp1_beta = ttensors.F1tmp1_beta;
 
         auto N = sys_data.nbf_orig; 
         double fock_precision = std::min(sys_data.options_map.scf_options.tol_int, 1e-3 * sys_data.options_map.scf_options.conve);
@@ -796,12 +844,35 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
                     const auto value = buf_1234[f1234];
                     const auto value_scal_by_deg = value * s1234_deg;
 
-                    G(bf1, bf2) += D(bf3, bf4) * value_scal_by_deg;
-                    G(bf3, bf4) += D(bf1, bf2) * value_scal_by_deg;
-                    G(bf1, bf3) -= 0.25 * D(bf2, bf4) * value_scal_by_deg;
-                    G(bf2, bf4) -= 0.25 * D(bf1, bf3) * value_scal_by_deg;
-                    G(bf1, bf4) -= 0.25 * D(bf2, bf3) * value_scal_by_deg;
-                    G(bf2, bf3) -= 0.25 * D(bf1, bf4) * value_scal_by_deg;
+                    if(is_uhf) {
+                      //alpha_part
+                      G(bf1, bf2) += D(bf3, bf4) * value_scal_by_deg;
+                      G(bf3, bf4) += D(bf1, bf2) * value_scal_by_deg;
+                      G(bf1, bf2) += D_beta(bf3, bf4) * value_scal_by_deg;
+                      G(bf3, bf4) += D_beta(bf1, bf2) * value_scal_by_deg;
+                      G(bf1, bf3) -= 0.5 * D(bf2, bf4) * value_scal_by_deg;
+                      G(bf2, bf4) -= 0.5 * D(bf1, bf3) * value_scal_by_deg;
+                      G(bf1, bf4) -= 0.5 * D(bf2, bf3) * value_scal_by_deg;
+                      G(bf2, bf3) -= 0.5 * D(bf1, bf4) * value_scal_by_deg;
+
+                      //beta_part
+                      G_beta(bf1, bf2) += D_beta(bf3, bf4) * value_scal_by_deg;
+                      G_beta(bf3, bf4) += D_beta(bf1, bf2) * value_scal_by_deg;
+                      G_beta(bf1, bf2) += D(bf3, bf4) * value_scal_by_deg;
+                      G_beta(bf3, bf4) += D(bf1, bf2) * value_scal_by_deg;
+                      G_beta(bf1, bf3) -= 0.5 * D_beta(bf2, bf4) * value_scal_by_deg;
+                      G_beta(bf2, bf4) -= 0.5 * D_beta(bf1, bf3) * value_scal_by_deg;
+                      G_beta(bf1, bf4) -= 0.5 * D_beta(bf2, bf3) * value_scal_by_deg;
+                      G_beta(bf2, bf3) -= 0.5 * D_beta(bf1, bf4) * value_scal_by_deg;
+                    }
+                    else {
+                      G(bf1, bf2) += D(bf3, bf4) * value_scal_by_deg;
+                      G(bf3, bf4) += D(bf1, bf2) * value_scal_by_deg;
+                      G(bf1, bf3) -= 0.25 * D(bf2, bf4) * value_scal_by_deg;
+                      G(bf2, bf4) -= 0.25 * D(bf1, bf3) * value_scal_by_deg;
+                      G(bf1, bf4) -= 0.25 * D(bf2, bf3) * value_scal_by_deg;
+                      G(bf2, bf3) -= 0.25 * D(bf1, bf4) * value_scal_by_deg;
+                    }
 
                   }
                 }
@@ -822,10 +893,15 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
 
     if(!do_density_fitting){
       G.setZero(N,N);
+      if(is_uhf) G_beta.setZero(N,N);
       block_for(ec, F1tmp(), comp_2bf_lambda);
       // Rescaling G by 2
       Matrix Gt = 1.0*(G + G.transpose());
       G = Gt;
+      if(is_uhf) {
+        Gt = 1.0*(G_beta + G_beta.transpose());
+        G_beta = Gt;
+      }
       Gt.resize(0,0);
       do_t2 = std::chrono::high_resolution_clock::now();
       do_time =
@@ -836,6 +912,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
 
       do_t1 = std::chrono::high_resolution_clock::now();
       eigen_to_tamm_tensor_acc(F1tmp1,G);
+      if(is_uhf) eigen_to_tamm_tensor_acc(F1tmp1_beta,G_beta);
       do_t2 = std::chrono::high_resolution_clock::now();
       do_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
@@ -1181,8 +1258,8 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
       std::tie(minbs_shellpair_list, minbs_shellpair_data) = compute_shellpairs(minbs);
     #endif
 
-      if(rank == 0) std::cout << 
-    "\nProjecting minimal basis SOAD onto basis set specified (" << basis << ")" << endl;
+      if(rank == 0) std::cout << std::endl << 
+    "Projecting minimal basis SOAD onto basis set specified (" << basis << ")" << endl;
     
     auto ig1 = std::chrono::high_resolution_clock::now();
 
@@ -1348,7 +1425,7 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
     auto igtime =
       std::chrono::duration_cast<std::chrono::duration<double>>((ig2 - ig1)).count();
 
-    if(rank == 0) std::cout << "\nInitial guess: Time to compute guess: " << igtime << " secs" << endl;
+    if(rank == 0) std::cout << std::endl << "Initial guess: Time to compute guess: " << igtime << " secs" << endl;
 
     ig1 = std::chrono::high_resolution_clock::now();
 
@@ -1575,8 +1652,7 @@ void diis(ExecutionContext& ec, TiledIndexSpace& tAO, tamm::Tensor<TensorType> F
     std::copy ( X.begin()+1, X.end(), X_final.begin() );
 
     //if(rank==0 && scf_options.debug) 
-    // std::cout << "diis weights sum, vector: " << std::setprecision(5) << std::accumulate(X.begin(),X.end(),0.0d) << "\n" << X << "\n" << X_final << std::endl;
-
+    // std::cout << "diis weights sum, vector: " << std::setprecision(5) << std::accumulate(X.begin(),X.end(),0.0d) << std::endl << X << std::endl << X_final << std::endl;
 
     sch(F() = 0).execute();
     for(int j = 0; j < idim; j++) { 

@@ -43,6 +43,7 @@ set(tamm_INCLUDES
     eigen_utils.hpp
     runtime_engine.hpp
     block_buffer.hpp
+    lru_cache.hpp
     kernels/assign.hpp
     kernels/multiply.hpp
     "${tamm_cuda_INCS}"

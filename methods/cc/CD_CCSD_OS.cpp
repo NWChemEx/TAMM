@@ -11,14 +11,14 @@ std::string filename; //bad, but no choice
 int main( int argc, char* argv[] )
 {
     if(argc<2){
-        std::cout << "Please provide an input file!\n";
+        std::cout << "Please provide an input file!" << std::endl;
         return 1;
     }
 
     filename = std::string(argv[1]);
     std::ifstream testinput(filename); 
     if(!testinput){
-        std::cout << "Input file provided [" << filename << "] does not exist!\n";
+        std::cout << "Input file provided [" << filename << "] does not exist!" << std::endl;
         return 1;
     }
 

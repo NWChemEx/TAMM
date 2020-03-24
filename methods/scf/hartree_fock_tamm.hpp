@@ -97,7 +97,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
 
     
     if(rank == 0) {
-      cout << "\nNumber of nodes, mpi ranks per node provided: " << nnodes << ", " << GA_Cluster_nprocs(0) << endl;
+      cout << std::endl << "Number of nodes, mpi ranks per node provided: " << nnodes << ", " << GA_Cluster_nprocs(0) << endl;
       #if SCF_THROTTLE_RESOURCES
         cout << "Number of nodes, mpi ranks per node used for SCF calculation: " << hf_nnodes << ", " << ppn << endl;
       #endif
@@ -114,8 +114,10 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     sys_data.nelectrons_beta = nelectrons - sys_data.nelectrons_alpha;
     
     if(rank==0) {
-      std::cout << std::endl << "Total number of electrons = " << nelectrons << std::endl;
       std::cout << std::endl << "Number of basis functions = " << N << std::endl;
+      std::cout << std::endl << "Total number of electrons = " << nelectrons << std::endl;      
+      std::cout <<              "--> alpha = " << sys_data.nelectrons_alpha << std::endl;
+      std::cout <<              "--> beta = "  << sys_data.nelectrons_beta << std::endl;
       std::cout << std::endl << "Nuclear repulsion energy = " << std::setprecision(15) << enuc << std::endl << std::endl; 
     }
 
@@ -165,7 +167,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
 
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << "\nTime for initial setup: " << hf_time << " secs" << endl;
+    if(rank == 0) std::cout << std::endl << "Time for initial setup: " << hf_time << " secs" << endl;
 
     double ehf           = 0.0;
 
@@ -192,7 +194,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
 
       bool molden_file_valid=std::filesystem::exists(scf_options.moldenfile);
       if(rank == 0) {
-        cout << "\nReading from molden file provided ..." << endl;
+        cout << endl << "Reading from molden file provided ..." << endl;
         if(molden_file_valid) {
           // const size_t n_lindep = scf_options.n_lindep;
           std::tie(n_occ_alpha,n_vir_alpha,n_occ_beta,n_vir_beta) = read_molden<TensorType>(scf_options,evl_sorted,etensors.C,atoms.size());
@@ -271,7 +273,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
 
       std::chrono::duration<double> blacs_time = blacs_setup_en - blacs_setup_st;
       
-      if(rank == 0) std::cout << "\nTime for BLACS setup: " << blacs_time.count() << " secs\n";
+      if(rank == 0) std::cout << std::endl << "Time for BLACS setup: " << blacs_time.count() << " secs" << std::endl;
 
       if(debug and blacs_grid) blacs_grid->printCoord( std::cout );
     #endif
@@ -332,7 +334,6 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     ec.pg().barrier();
     if(rank == 0) std::cout << "Total Time to compute initial guess: " << hf_time << " secs" << endl;
 
-    if(rank == 0 && scf_options.debug) cout << "debug #electrons = " << (etensors.D*etensors.S).trace() << endl;
 
     hf_t1 = std::chrono::high_resolution_clock::now();
     /*** =========================== ***/
@@ -357,6 +358,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     ttensors.FDS_tamm         = {tAO, tAO};
 
     if(is_uhf) {
+      ttensors.ehf_beta_tmp     = {tAO, tAO};
       ttensors.F1_beta          = {tAO, tAO};
       ttensors.F1tmp1_beta      = {tAO, tAO};
       ttensors.D_beta_tamm      = {tAO, tAO};
@@ -368,20 +370,32 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     Tensor<TensorType>::allocate(&ec, ttensors.F1, ttensors.F1tmp1, ttensors.ehf_tmp, ttensors.ehf_tamm);
     Tensor<TensorType>::allocate(&ec, ttensors.D_tamm, ttensors.D_diff, ttensors.D_last_tamm);
     Tensor<TensorType>::allocate(&ec, ttensors.FD_tamm, ttensors.FDS_tamm);
-    if(is_uhf) Tensor<TensorType>::allocate(&ec,ttensors.F1_beta,ttensors.F1tmp1_beta,
+    if(is_uhf) Tensor<TensorType>::allocate(&ec,ttensors.F1_beta,ttensors.F1tmp1_beta,ttensors.ehf_beta_tmp,
                ttensors.D_beta_tamm,ttensors.D_last_beta_tamm,ttensors.FD_beta_tamm,ttensors.FDS_beta_tamm);
 
     hf_t2 = std::chrono::high_resolution_clock::now();
     hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
     //ec.pg().barrier();
-    if(rank == 0 && debug) std::cout << "\nTime to setup tensors for iterative loop: " << hf_time << " secs" << endl;
+    if(rank == 0 && debug) std::cout << std::endl << "Time to setup tensors for iterative loop: " << hf_time << " secs" << endl;
 
     eigen_to_tamm_tensor(ttensors.D_tamm,etensors.D);
 
     etensors.F = Matrix::Zero(N,N);
     const libint2::BasisSet& obs = shells;
     etensors.G = Matrix::Zero(N,N);
+    if(is_uhf) {
+      etensors.G_beta = Matrix::Zero(N,N);
+      //FIXME
+      etensors.D_beta = etensors.D;
+      eigen_to_tamm_tensor(ttensors.D_beta_tamm,etensors.D_beta);
+    }
+
+    if(rank == 0 && scf_options.debug) {
+      cout << "debug #alpha electrons = " << (etensors.D*etensors.S).trace() << endl;
+      if(is_uhf) cout << "debug #beta electrons = " << (etensors.D_beta*etensors.S).trace() << endl;
+    }
+
     const auto do_schwarz_screen = SchwarzK.cols() != 0 && SchwarzK.rows() != 0;
     // auto fock_precision = precision;
     // engine precision controls primitive truncation, assume worst-case scenario
@@ -419,7 +433,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     //df basis
 
     if(rank == 0) {
-        std::cout << "\n\n";
+        std::cout << std::endl << std::endl;
         std::cout << " Hartree-Fock iterations" << endl;
         std::cout << std::string(65, '-') << endl;
         std::string  sph = " Iter     Energy            E-Diff        RMSD        Time(s)";
@@ -517,7 +531,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     if(rank == 0) {
         std::cout.precision(13);
         if (is_conv)
-            cout << "\n** Hartree-Fock energy = " << ehf << endl;
+            cout << endl << "** Hartree-Fock energy = " << ehf << endl;
         else {
             cout << endl << std::string(50, '*') << endl;
             cout << std::string(10, ' ') << 
@@ -535,7 +549,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     }
 
     if(rank == 0) 
-      std::cout << "\nNuclear repulsion energy = " << std::setprecision(15) << enuc << endl;       
+      std::cout << std::endl << "Nuclear repulsion energy = " << std::setprecision(15) << enuc << endl;       
     print_energies(ec, ttensors);
 
     if(do_density_fitting) Tensor<TensorType>::deallocate(ttensors.xyK_tamm,ttensors.C_occ_tamm);
@@ -543,7 +557,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     Tensor<TensorType>::deallocate(ttensors.D_last_tamm, ttensors.D_diff, ttensors.FD_tamm, ttensors.FDS_tamm);
     Tensor<TensorType>::deallocate(ttensors.H1, ttensors.T1, ttensors.V1, ttensors.F1tmp1);
 
-    if(is_uhf) Tensor<TensorType>::deallocate(ttensors.F1_beta,ttensors.F1tmp1_beta,
+    if(is_uhf) Tensor<TensorType>::deallocate(ttensors.F1_beta,ttensors.F1tmp1_beta,ttensors.ehf_beta_tmp,
             ttensors.D_beta_tamm,ttensors.D_last_beta_tamm,ttensors.FD_beta_tamm,ttensors.FDS_beta_tamm);
 
 

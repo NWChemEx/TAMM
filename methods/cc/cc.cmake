@@ -1,9 +1,9 @@
 
 include(TargetMacros)
-add_mpi_unit_test(CD_CCSD_CS 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
+#add_mpi_unit_test(CD_CCSD_CS 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
 add_mpi_unit_test(CD_CCSD_OS 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
 
-if(USE_CUDA)
+if(USE_CUDA_1)
     set(CCSD_T_SRCDIR ${CMAKE_CURRENT_SOURCE_DIR}/cc/ccsd_t)
     set(CCSD_T_SRCS 
         ${CCSD_T_SRCDIR}/memory.cu  

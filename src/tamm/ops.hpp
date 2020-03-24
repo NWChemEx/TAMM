@@ -1616,7 +1616,7 @@ public:
                     kernels::block_multiply<T,TensorElType1,TensorElType2,TensorElType3>
                                         (ab->isgpu_, 
                                         #ifdef USE_TALSH
-                                        *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, COPY_TTT,
+                                        *gpu_mult, *(ec.ct_handle), *talsh_task, *th_c, *th_a, *th_b, COPY_TTT,
                                         #endif
                                         dev_id, alpha_, 
                                         abuf.data(), adims_sz,
@@ -1626,7 +1626,7 @@ public:
                 }
 
                 #ifndef DO_NB
-                    #ifdef USE_TALSH
+                    #ifdef USE_TALSH1
                        if(hw == ExecutionHW::GPU && ab->isgpu_){
                        {
                         TimerGuard tg_dgemm{&multOpDgemmTime}; 

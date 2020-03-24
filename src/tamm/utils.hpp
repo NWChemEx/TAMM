@@ -300,7 +300,7 @@ join(const Container& c, const std::string& sep) {
 // talsh_mult_op_string(const IndexLabelVec& clabel,
 //         const IndexLabelVec& alabel,
 //         const IndexLabelVec& blabel)
-inline std::string
+inline std::tuple<std::vector<char>,std::vector<char>,std::vector<char>>
 talsh_mult_op_string(const std::vector<IntLabel>& clabel,
         const std::vector<IntLabel>& alabel,
         const std::vector<IntLabel>& blabel) {
@@ -333,23 +333,24 @@ talsh_mult_op_string(const std::vector<IntLabel>& clabel,
       b_label.push_back(imap[l]);
   }
 
-  std::reverse(a_label.begin(),a_label.end());
-  std::reverse(b_label.begin(),b_label.end());
-  std::reverse(c_label.begin(),c_label.end());
+//   std::reverse(a_label.begin(),a_label.end());
+//   std::reverse(b_label.begin(),b_label.end());
+//   std::reverse(c_label.begin(),c_label.end());
 
-  std::ostringstream oss;
-  if(c_label.size() == 0) {
-    /// inner-product leading to a scalar
-    oss << "C()+="
-            << "A(" <<join(a_label, ",") << ")"
-            << "*B(" << join(b_label, ",") << ")";
-  } else {
-    /// normal mult operation
-    oss << "C(" << join(c_label, ",") << ")+="
-            << "A(" <<join(a_label, ",") << ")"
-            << "*B(" << join(b_label, ",") << ")";
-  }
-  return oss.str();
+//   std::ostringstream oss;
+//   if(c_label.size() == 0) {
+//     /// inner-product leading to a scalar
+//     oss << "C()+="
+//             << "A(" <<join(a_label, ",") << ")"
+//             << "*B(" << join(b_label, ",") << ")";
+//   } else {
+//     /// normal mult operation
+//     oss << "C(" << join(c_label, ",") << ")+="
+//             << "A(" <<join(a_label, ",") << ")"
+//             << "*B(" << join(b_label, ",") << ")";
+//   }
+//   return oss.str();
+    return std::make_tuple(a_label,b_label,c_label);
 }
 
 inline std::string

@@ -14,6 +14,7 @@
 
 #if USE_TALSH
 #include "talshxx.hpp"
+#include <cutensor.h>
 #endif 
 
 namespace tamm {
@@ -82,6 +83,8 @@ public:
     #endif
         // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
     }
+
+    cutensorHandle_t* ct_handle;
     RuntimeEngine* runtime_ptr();
 
     ~ExecutionContext() {

@@ -30,6 +30,14 @@ using tensor_handle = talsh_tens_t;
 #undef C8
 #undef C9
 #undef C10
+
+#include <cutensor.h>
+#define HANDLE_ERROR(x) {                                                              \
+  const auto err = x;                                                                  \
+  if( x != CUTENSOR_STATUS_SUCCESS )                                                   \
+  { printf("Error: %s in line %d\n", cutensorGetErrorString(x), __LINE__); exit(-1); } \
+}
+
 #endif
 
 namespace tamm {
@@ -106,7 +114,7 @@ namespace kernels {
 template<typename T, typename T1, typename T2, typename T3>
 void block_multiply(bool &isgpuOp,  
         #ifdef USE_TALSH
-          TALSH& gpu_mult, talsh_task_t& talsh_task, 
+          TALSH& gpu_mult, cutensorHandle_t& handle, talsh_task_t& talsh_task, 
           tensor_handle& th_c, tensor_handle& th_a, tensor_handle& th_b, 
           int copy_ctrl,
         #endif
@@ -423,15 +431,16 @@ void block_multiply(bool &isgpuOp,
     
     #else 
     
-    auto talsh_op_string = internal::talsh_mult_op_string(
+    auto [ct_alabel,ct_blabel,ct_clabel] = internal::talsh_mult_op_string(
                                 clabels, alabels, blabels); 
 
+    
     auto aid_size = adims.size();
     auto bid_size = bdims.size();
     auto cid_size = cdims.size();
-    int tal_adims[aid_size];
-    int tal_bdims[bid_size];
-    int tal_cdims[cid_size];
+    // int tal_adims[aid_size];
+    // int tal_bdims[bid_size];
+    // int tal_cdims[cid_size];
     
     std::vector<int> taid;
     std::vector<int> tbid;
@@ -443,13 +452,13 @@ void block_multiply(bool &isgpuOp,
     std::transform(std::begin(cdims), std::end(cdims),
                  std::back_inserter(tcid),[](tamm::Size i) -> int {return i.value();});
 
-    std::reverse(taid.begin(),taid.end());
-    std::reverse(tbid.begin(),tbid.end());
-    std::reverse(tcid.begin(),tcid.end());
+    // std::reverse(taid.begin(),taid.end());
+    // std::reverse(tbid.begin(),tbid.end());
+    // std::reverse(tcid.begin(),tcid.end());
 
-    std::copy(taid.begin(),taid.end(),tal_adims);
-    std::copy(tbid.begin(),tbid.end(),tal_bdims);
-    std::copy(tcid.begin(),tcid.end(),tal_cdims);
+    // std::copy(taid.begin(),taid.end(),tal_adims);
+    // std::copy(tbid.begin(),tbid.end(),tal_bdims);
+    // std::copy(tcid.begin(),tcid.end(),tal_cdims);
 
     bool hadamard = false;
     for(auto x: cinter_labels) {
@@ -476,32 +485,220 @@ void block_multiply(bool &isgpuOp,
 
     else {
       isgpuOp = true;
-      // std::cout << "not hadamard\n";
-      // std::cout << talsh_op_string << std::endl;
-      // std::cout << aid_size << ":" << bid_size << ":" << cid_size << std::endl;
 
-      // adata, bdata, cdata will have to be created 
-      // using pinned memory else where for now using 
-      // regular memory
-      // double *adata = host_pinned_memory(abatch_ld*sizeof(double)); 
-      // double *bdata = host_pinned_memory(bbatch_ld*sizeof(double)); 
-      // double *cdata = host_pinned_memory(cbatch_ld*sizeof(double)); 
 
-      // TALSH gpu_mult{ngpu};
-      T2* abufp = const_cast<T2*>(abuf); 
-      T3* bbufp = const_cast<T3*>(bbuf); 
+  cudaDataType_t typeA = CUDA_R_64F;
+  cudaDataType_t typeB = CUDA_R_64F;
+  cudaDataType_t typeC = CUDA_R_64F;
+  cutensorComputeType_t typeCompute = CUTENSOR_R_MIN_64F;
 
-      if constexpr(std::is_same_v<T1,T2> && std::is_same_v<T1,T3>){
-           th_a = gpu_mult.host_block(adims.size(), 
-              tal_adims, abufp); 
-           th_b = gpu_mult.host_block(bdims.size(), 
-              tal_bdims, bbufp); 
-          if(copy_ctrl == COPY_TTT)
-            th_c = gpu_mult.host_block(cdims.size(), 
-               tal_cdims, cbuf); 
+      //Modes
+      std::vector<int> modeC;
+      std::vector<int> modeB;
+      std::vector<int> modeA;
+    std::transform(std::begin(ct_alabel), std::end(ct_alabel),
+                 std::back_inserter(modeA),[](char i) -> int {return i;});
+    std::transform(std::begin(ct_blabel), std::end(ct_blabel),
+                 std::back_inserter(modeB),[](char i) -> int {return i;});
+    std::transform(std::begin(ct_clabel), std::end(ct_clabel),
+                 std::back_inserter(modeC),[](char i) -> int {return i;});
 
-          gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string, 
-              alpha, copy_ctrl, is_assign); 
+  int nmodeA = modeA.size();
+  int nmodeB = modeB.size();
+  int nmodeC = modeC.size();
+
+    //extent
+    std::unordered_map<int, int64_t> extent;
+    for(auto x=0;x<cid_size;x++) extent[modeC[x]] = tcid[x]; 
+    for(auto x=0;x<bid_size;x++) extent[modeB[x]] = tbid[x]; 
+    for(auto x=0;x<aid_size;x++) extent[modeA[x]] = taid[x]; 
+
+
+    //extent vectors    
+    std::vector<int64_t> extentC;
+    for(auto mode : modeC)
+        extentC.push_back(extent[mode]);
+    std::vector<int64_t> extentA;
+    for(auto mode : modeA)
+        extentA.push_back(extent[mode]);
+    std::vector<int64_t> extentB;
+    for(auto mode : modeB)
+        extentB.push_back(extent[mode]);
+
+  size_t elementsA = asize.value();
+  size_t elementsB = bsize.value();
+  size_t elementsC = csize.value();
+  // for(auto mode : modeA)
+  //     elementsA *= extent[mode];
+  // size_t elementsB = 1;
+  // for(auto mode : modeB)
+  //     elementsB *= extent[mode];
+  // size_t elementsC = 1;
+  // for(auto mode : modeC)
+  //     elementsC *= extent[mode];
+
+  size_t sizeA = sizeof(double) * elementsA;
+  size_t sizeB = sizeof(double) * elementsB;
+  size_t sizeC = sizeof(double) * elementsC;  
+
+  void *A_d, *B_d, *C_d;
+  cudaMalloc((void**)&A_d, sizeA);
+  cudaMalloc((void**)&B_d, sizeB);
+  cudaMalloc((void**)&C_d, sizeC);
+
+  // TALSH gpu_mult{ngpu};
+  T2* abufp = const_cast<T2*>(abuf); 
+  T3* bbufp = const_cast<T3*>(bbuf); 
+
+  if constexpr(std::is_same_v<T1,T2> && std::is_same_v<T1,T3>){
+
+  cudaMemcpy(C_d, cbuf, sizeC, cudaMemcpyHostToDevice);
+  cudaMemcpy(A_d, abufp, sizeA, cudaMemcpyHostToDevice);
+  cudaMemcpy(B_d, bbufp, sizeB, cudaMemcpyHostToDevice);
+
+  // Create Tensor Descriptors
+
+  //   std::cout << "sizeC, nmodeC = " << sizeC << "," << nmodeC << std::endl;
+  // std::cout << "modeC = ";
+  // for (auto x: modeC) std::cout << (char)x << ", ";
+  // std::cout << std::endl;
+  // std::cout << "extentC = ";
+  // for (auto x: extentC) std::cout << x << ", ";
+  // std::cout << std::endl;
+  
+  // std::cout << "sizeA, nmodeA = " <<  sizeA << "," << nmodeA << std::endl;
+  // std::cout << "modeA = ";
+  // for (auto x: modeA) std::cout << (char)x << ", ";
+  // std::cout << std::endl;
+
+  // std::cout << "extentA = ";
+  // for (auto x: extentA) std::cout << x << ", ";
+  // std::cout << std::endl;
+
+  //   std::cout << "sizeB, nmodeB = " << sizeB << "," << nmodeB << std::endl;
+  // std::cout << "modeB = ";
+  // for (auto x: modeB) std::cout << (char)x << ", ";
+  // std::cout << std::endl;    
+  // std::cout << "extentB = ";
+  // for (auto x: extentB) std::cout << x << ", ";
+  // std::cout << std::endl;
+
+
+
+  
+  cutensorTensorDescriptor_t descA;
+  HANDLE_ERROR( cutensorInitTensorDescriptor( &handle,
+              &descA,
+              nmodeA,
+              extentA.data(),
+              NULL,/*stride*/
+              typeA, CUTENSOR_OP_IDENTITY ) );
+
+  cutensorTensorDescriptor_t descB;
+  HANDLE_ERROR( cutensorInitTensorDescriptor( &handle,
+              &descB,
+              nmodeB,
+              extentB.data(),
+              NULL,/*stride*/
+              typeB, CUTENSOR_OP_IDENTITY ) );
+
+  cutensorTensorDescriptor_t descC;
+  HANDLE_ERROR( cutensorInitTensorDescriptor( &handle,
+              &descC,
+              nmodeC,
+              extentC.data(),
+              NULL,/*stride*/
+              typeC, CUTENSOR_OP_IDENTITY ) );   
+
+   //Retrieve the memory alignment for each tensor
+   uint32_t alignmentRequirementA;
+   HANDLE_ERROR( cutensorGetAlignmentRequirement( &handle,
+              A_d,
+              &descA,
+              &alignmentRequirementA) );
+
+   uint32_t alignmentRequirementB;
+   HANDLE_ERROR( cutensorGetAlignmentRequirement( &handle,
+              B_d,
+              &descB,
+              &alignmentRequirementB) );
+
+   uint32_t alignmentRequirementC;
+   HANDLE_ERROR( cutensorGetAlignmentRequirement( &handle,
+              C_d,
+              &descC,
+              &alignmentRequirementC) );
+
+  // Create the Contraction Descriptor
+  cutensorContractionDescriptor_t desc;
+  HANDLE_ERROR( cutensorInitContractionDescriptor( &handle,
+              &desc,
+              &descA, modeA.data(), alignmentRequirementA,
+              &descB, modeB.data(), alignmentRequirementB,
+              &descC, modeC.data(), alignmentRequirementC,
+              &descC, modeC.data(), alignmentRequirementC,
+              typeCompute) );
+
+  // Set the algorithm to use
+  cutensorContractionFind_t find;
+  HANDLE_ERROR( cutensorInitContractionFind(
+              &handle, &find,
+              CUTENSOR_ALGO_TTGT) );
+
+  size_t worksize = 0;
+  HANDLE_ERROR( cutensorContractionGetWorkspace(&handle,
+              &desc,
+              &find,
+              CUTENSOR_WORKSPACE_MAX, &worksize ) );
+
+  // Allocate workspace
+  void *work = nullptr;
+  if(worksize > 0)
+  {
+      if( cudaSuccess != cudaMalloc(&work, worksize) ) // This is optional!
+      {
+          work = nullptr;
+          worksize = 0;
+      }
+  }
+
+  // Create Contraction Plan
+  cutensorContractionPlan_t plan;
+  HANDLE_ERROR( cutensorInitContractionPlan(&handle,
+                                            &plan,
+                                            &desc,
+                                            &find,
+                                            worksize) );
+
+  cutensorStatus_t err;
+
+  // Execute the tensor contraction
+  err = cutensorContraction(&handle,
+                            &plan,
+                     (void*)&alpha, A_d,
+                                    B_d,
+                     (void*)&beta,  C_d,
+                                    C_d,
+                            work, worksize, 0 /* stream */);
+  cudaDeviceSynchronize();
+
+  cudaMemcpy(C_d, cbuf, sizeC, cudaMemcpyDeviceToHost);
+
+  if ( A_d ) cudaFree( A_d );
+  if ( B_d ) cudaFree( B_d );
+  if ( C_d ) cudaFree( C_d );
+  if ( work ) cudaFree( work );
+
+          //  th_a = gpu_mult.host_block(adims.size(), 
+          //     tal_adims, abufp); 
+          //  th_b = gpu_mult.host_block(bdims.size(), 
+          //     tal_bdims, bbufp); 
+          // if(copy_ctrl == COPY_TTT)
+          //   th_c = gpu_mult.host_block(cdims.size(), 
+          //      tal_cdims, cbuf); 
+
+          // gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string, 
+          //     alpha, copy_ctrl, is_assign); 
 
           // talshTensorDestruct(&th_a);
           // talshTensorDestruct(&th_b);

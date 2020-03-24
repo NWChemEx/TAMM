@@ -121,7 +121,10 @@ void ccsd_driver() {
     #ifdef USE_TALSH
     const bool has_gpu = ec.has_gpu();
     TALSH talsh_instance;
-    if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
+    ec.ct_handle = new cutensorHandle_t();
+    
+    cutensorInit(ec.ct_handle);
+    // if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
     #endif
 
     ccsd_restart = ccsd_restart && fs::exists(ccsdstatus) && scf_conv;
@@ -145,10 +148,10 @@ void ccsd_driver() {
         }                
     }
 
-    #ifdef USE_TALSH
+    //#ifdef USE_TALSH
     //talshStats();
-    if(has_gpu) talsh_instance.shutdown();
-    #endif  
+    // if(has_gpu) talsh_instance.shutdown();
+    //#endif  
 
     auto cc_t2 = std::chrono::high_resolution_clock::now();
     double ccsd_time = 

@@ -95,7 +95,7 @@ struct EigenTensors {
   Matrix H,S,C;
   Matrix D,F,G,X;
   Matrix C_occ;
-  Matrix C_beta, D_beta, F_beta;
+  Matrix C_beta, G_beta, D_beta, F_beta;
 };
 
 struct TAMMTensors {
@@ -106,6 +106,7 @@ struct TAMMTensors {
     std::vector<Tensor<TensorType>> fock_hist_beta;
     
     Tensor<TensorType> ehf_tmp;
+    Tensor<TensorType> ehf_beta_tmp;
     Tensor<TensorType> ehf_tamm;
 
     Tensor<TensorType> H1;
@@ -283,7 +284,7 @@ void write_results(SystemData sys_data, const std::string module){
     results["output"]["CCSD"]["energy"]["total"] =  sys_data.ccsd_total_energy;
   }
   
-  // std::cout << "\n\n" << results.dump() << std::endl;
+  // std::cout << std::endl << std::endl << results.dump() << std::endl;
   std::ofstream res_file(json_file);
   res_file << std::setw(4) << results << std::endl;
 }
@@ -485,7 +486,7 @@ std::tuple<Matrix, Matrix, size_t, double, double, int64_t> gensqrtinv(
   n_cond    = N - n_illcond;
 
   if(n_illcond > 0) {
-    std::cout << "\nWARNING: Found " << n_illcond << " linear dependencies" << std::endl;
+    std::cout << std::endl << "WARNING: Found " << n_illcond << " linear dependencies" << std::endl;
     cout << "First eigen value above tol_lindep = " << *first_above_thresh << endl;
     std::cout << "The overlap matrix has " << n_illcond << " vectors deemed linearly dependent with eigenvalues:" << std::endl;
     
@@ -574,7 +575,7 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
   if (obs_nbf_omitted > 0) {
     Matrix should_be_I = X.transpose() * S * X;
     Matrix I = Matrix::Identity(should_be_I.rows(), should_be_I.cols());
-    if(ec.pg().rank()==0) std::cout << "\n||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
+    if(ec.pg().rank()==0) std::cout << std::endl << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
               << " (should be 0)" << endl;
   }
 

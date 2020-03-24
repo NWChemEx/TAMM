@@ -9,8 +9,6 @@ int check_device(long);
 int device_init(long icuda,int *cuda_device_number );
 void dev_release();
 void finalizememmodule();
-// void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,
-// size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* host1, double* host2);
 
 template<typename T>
 std::tuple<double,double> ccsd_t_fused_driver(SystemData& sys_data, ExecutionContext& ec,
@@ -24,10 +22,6 @@ std::tuple<double,double> ccsd_t_fused_driver(SystemData& sys_data, ExecutionCon
 
     auto rank = ec.pg().rank().value();
     bool nodezero = rank==0;
-
-    // size_t kcalls=0;
-    // size_t kcalls_fused=0;
-    // size_t kcalls_pfused=0;
 
     // if(icuda==0) {
     //   if(nodezero)std::cout << "\nERROR: Please specify number of cuda devices to use in the input file!\n\n"; //TODO
@@ -59,7 +53,7 @@ std::tuple<double,double> ccsd_t_fused_driver(SystemData& sys_data, ExecutionCon
     cudaGetDeviceCount(&dev_count_check);
     if(dev_count_check < icuda){
       if(nodezero) cout << "ERROR: Please check whether you have " << icuda <<
-       " cuda devices per node. Terminating program...\n\n";
+       " cuda devices per node. Terminating program..." << endl << endl;
       return std::make_tuple(-999,-999);
     }
     
@@ -72,7 +66,8 @@ std::tuple<double,double> ccsd_t_fused_driver(SystemData& sys_data, ExecutionCon
       device_init(icuda, &cuda_device_number);
       // if(cuda_device_number==30) // QUIT
     }
-    if(nodezero) std::cout << "Using " << icuda << " gpu devices per node\n\n";
+    if(nodezero) std::cout << "Using " << icuda << " gpu devices per node" << endl << endl;
+    //std::cout << std::flush;
 
     //TODO replicate d_t1 L84-89 ccsd_t_gpu.F
 
@@ -112,12 +107,12 @@ std::tuple<double,double> ccsd_t_fused_driver(SystemData& sys_data, ExecutionCon
     k_abuf2.resize(abuf_size2);
     k_bbuf2.resize(bbuf_size2);
 
-    LRUCache<Index> cache_s1t{32};
-    LRUCache<Index> cache_s1v{32};
-    LRUCache<Index> cache_d1t{32};
-    LRUCache<Index> cache_d1v{32};
-    LRUCache<Index> cache_d2t{32};
-    LRUCache<Index> cache_d2v{32};
+    LRUCache<Index,std::vector<T>> cache_s1t{0};
+    LRUCache<Index,std::vector<T>> cache_s1v{0};
+    LRUCache<Index,std::vector<T>> cache_d1t{0};
+    LRUCache<Index,std::vector<T>> cache_d1v{0};
+    LRUCache<Index,std::vector<T>> cache_d2t{0};
+    LRUCache<Index,std::vector<T>> cache_d2v{0};
 
   for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
     for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
@@ -125,9 +120,6 @@ std::tuple<double,double> ccsd_t_fused_driver(SystemData& sys_data, ExecutionCon
         for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) {
           for (size_t t_h2b = t_h1b; t_h2b < noab; t_h2b++) {
             for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {
-
-              // print_varlist(k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b],
-              // k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]);
 
             if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
                 (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
@@ -166,10 +158,6 @@ std::tuple<double,double> ccsd_t_fused_driver(SystemData& sys_data, ExecutionCon
 
                       //TODO:chk args, d_t1 should be local
 
-                      // cout << "p4,5,6,h1,2,3 = ";
-                      // print_varlist(t_p4b,t_p5b,t_p6b,t_h1b,t_h2b,t_h3b);
-
-
                       double factor = 0.0;
 
                       // if (restricted) 
@@ -198,95 +186,9 @@ std::tuple<double,double> ccsd_t_fused_driver(SystemData& sys_data, ExecutionCon
                         energy_l,has_GPU,is_restricted,
                         cache_s1t,cache_s1v,cache_d1t,cache_d1v,cache_d2t,cache_d2v); 
                           
-
-                      //  cout << "singles = " << k_singles << endl;
-                      // cout << "doubles = " << k_doubles << endl;
-
-                      
-                      #if 0
-                      auto indx = 0;
-                      for (auto t_p4=0;t_p4 < k_range[t_p4b];t_p4++)
-                      for (auto t_p5=0;t_p5 < k_range[t_p5b];t_p5++)
-                      for (auto t_p6=0;t_p6 < k_range[t_p6b];t_p6++)
-                      for (auto t_h1=0;t_h1 < k_range[t_h1b];t_h1++)
-                      for (auto t_h2=0;t_h2 < k_range[t_h2b];t_h2++)
-                      for (auto t_h3=0;t_h3 < k_range[t_h3b];t_h3++)
-                      {
-                          energy1 += (factor * k_doubles[indx] * k_doubles[indx])
-                          /(-1*k_evl_sorted[k_offset[t_p4b]+t_p4]
-                              -k_evl_sorted[k_offset[t_p5b]+t_p5] 
-                              -k_evl_sorted[k_offset[t_p6b]+t_p6]
-                              +k_evl_sorted[k_offset[t_h1b]+t_h1]
-                              +k_evl_sorted[k_offset[t_h2b]+t_h2]
-                              +k_evl_sorted[k_offset[t_h3b]+t_h3] );
-
-                          energy2 += (factor * k_doubles[indx] *
-                                     (k_singles[indx] * k_doubles[indx]) )
-                          /(-1*k_evl_sorted[k_offset[t_p4b]+t_p4]
-                              -k_evl_sorted[k_offset[t_p5b]+t_p5] 
-                              -k_evl_sorted[k_offset[t_p6b]+t_p6]
-                              +k_evl_sorted[k_offset[t_h1b]+t_h1]
-                              +k_evl_sorted[k_offset[t_h2b]+t_h2]
-                              +k_evl_sorted[k_offset[t_h3b]+t_h3] );                              
-
-                        indx++;
-                      }
-                      #else
-                      // auto factor_l = factor;
-
-                      // cout << "doubles size = " << size << endl;
-                      // for(auto x:k_doubles)
-                      // cout << x << endl;
-
-                      // cout << "factor-l=" << factor_l << endl;
-                      // cout << "k_evl_sorted_full=" << k_evl_sorted << endl;
-                      // cout << "h123,p456= ";
-                      // print_varlist(t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b);
-
-                      // cout << "factor-l=" << factor_l << endl;
-                      // cout << "energy-l=" << energy_l << endl;
-
-                      //  cout << "k-range of h123,p456= ";
-                      //  print_varlist(k_range[t_h1b],k_range[t_h2b],
-                      //             k_range[t_h3b],k_range[t_p4b],
-                      //             k_range[t_p5b],k_range[t_p6b]);
-
-                      // cout << "k_evl_sorted= ";
-                      // print_varlist(    k_evl_sorted[k_offset[t_h1b]],
-                      //             k_evl_sorted[k_offset[t_h2b]],
-                      //             k_evl_sorted[k_offset[t_h3b]],
-                      //             k_evl_sorted[k_offset[t_p4b]],
-                      //             k_evl_sorted[k_offset[t_p5b]],
-                      //             k_evl_sorted[k_offset[t_p6b]]);
-
-                      // cout << "k_offset= ";
-                      // print_varlist(    k_offset[t_h1b],
-                      //             k_offset[t_h2b],
-                      //             k_offset[t_h3b],
-                      //             k_offset[t_p4b],
-                      //             k_offset[t_p5b],
-                      //             k_offset[t_p6b]);                                  
-
-                      
-                      //TODO
-                      // compute_energy(factor_l, &energy_l[0],
-                      //             &k_evl_sorted[k_offset[t_h1b]],
-                      //             &k_evl_sorted[k_offset[t_h2b]],
-                      //             &k_evl_sorted[k_offset[t_h3b]],
-                      //             &k_evl_sorted[k_offset[t_p4b]],
-                      //             &k_evl_sorted[k_offset[t_p5b]],
-                      //             &k_evl_sorted[k_offset[t_p6b]],
-                      //             k_range[t_h1b],k_range[t_h2b],
-                      //             k_range[t_h3b],k_range[t_p4b],
-                      //             k_range[t_p5b],k_range[t_p6b],
-                      //             &k_doubles[0], &k_singles[0]);
-                      // cout << "AFTER energy-l=" << energy_l << endl;                                  
                       energy1 += energy_l[0];
                       energy2 += energy_l[1];
-                      #endif
 
-                      // cout << "e1,e2=" << energy1 << "," << energy2 << endl;
-                      // cout << "-----------------------------------------\n";
                       // dev_release();
                       finalizememmodule();
 
@@ -317,6 +219,7 @@ std::tuple<double,double> ccsd_t_fused_driver(SystemData& sys_data, ExecutionCon
     ac->deallocate();
     delete ac;
 
+    #if 0
     std::vector<Index> cvec_s1t;
     std::vector<Index> cvec_s1v;
     std::vector<Index> cvec_d1t;
@@ -370,6 +273,7 @@ std::tuple<double,double> ccsd_t_fused_driver(SystemData& sys_data, ExecutionCon
       print_stats(fp_d2t,g_cvec_d2t);
       print_stats(fp_d2v,g_cvec_d2v);
     }
+    #endif
 
   // if(rank == 0) cout << "Total kernel (doubles) calls = " << global_kcalls << ", #fused calls = " << global_kcalls_fused << ", #partial fused calls = " << global_kcalls_pfused << endl;
 

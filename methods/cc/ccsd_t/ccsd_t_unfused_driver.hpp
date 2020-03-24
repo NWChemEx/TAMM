@@ -90,9 +90,6 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
           for (size_t t_h2b = t_h1b; t_h2b < noab; t_h2b++) {
             for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {
 
-              // print_varlist(k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b],
-              // k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]);
-
             if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
                 (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
               if (//(!restricted) ||
@@ -130,9 +127,6 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                       }
 
                       //TODO:chk args, d_t1 should be local
-
-                      // cout << "p4,5,6,h1,2,3 = ";
-                      // print_varlist(t_p4b,t_p5b,t_p6b,t_h1b,t_h2b,t_h3b);
 
                       ccsd_t_singles_unfused(ec,MO,noab,nvab,k_spin,
                           k_singles, d_t1, d_v2, k_evl_sorted,
@@ -190,38 +184,6 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                       }
                       else {
                       auto factor_l = factor;
-
-                      // cout << "factor-l=" << factor_l << endl;
-                      // cout << "k_evl_sorted_full=" << k_evl_sorted << endl;
-                      // cout << "h123,p456= ";
-                      // print_varlist(t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b);
-
-                      // cout << "factor-l=" << factor_l << endl;
-                      // cout << "energy-l=" << energy_l << endl;
-
-                      //  cout << "k-range of h123,p456= ";
-                      //  print_varlist(k_range[t_h1b],k_range[t_h2b],
-                      //             k_range[t_h3b],k_range[t_p4b],
-                      //             k_range[t_p5b],k_range[t_p6b]);
-
-                      // cout << "k_evl_sorted= ";
-                      // print_varlist(    k_evl_sorted[k_offset[t_h1b]],
-                      //             k_evl_sorted[k_offset[t_h2b]],
-                      //             k_evl_sorted[k_offset[t_h3b]],
-                      //             k_evl_sorted[k_offset[t_p4b]],
-                      //             k_evl_sorted[k_offset[t_p5b]],
-                      //             k_evl_sorted[k_offset[t_p6b]]);
-
-                      // cout << "k_offset= ";
-                      // print_varlist(    k_offset[t_h1b],
-                      //             k_offset[t_h2b],
-                      //             k_offset[t_h3b],
-                      //             k_offset[t_p4b],
-                      //             k_offset[t_p5b],
-                      //             k_offset[t_p6b]);                                  
-
-                      // cout << "omg: " << k_range[t_h1b] << ", " << k_range[t_h2b] << ", " << k_range[t_h3b] << ", " << k_range[t_p4b] << ", " << k_range[t_p5b] << ", " << k_range[t_p6b] << endl;
-                      // cout << "factor_l: " << factor_l << endl;
 
                       compute_energy(factor_l, &energy_l[0],
                                   &k_evl_sorted[k_offset[t_h1b]],

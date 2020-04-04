@@ -96,100 +96,94 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
     auto N = 2 * nao - 2 * freeze_core - 2 * freeze_virtual - 2 * n_lindep;
     Matrix CTiled(nao, N);
 
-    const bool molden_exists = !scf_options.moldenfile.empty();
-    const bool is_uhf = scf_options.scf_type == "uhf";
-    const bool is_rohf = scf_options.scf_type == "rohf";
+    const bool is_uhf  = (sys_data.scf_type == sys_data.SCFType::uhf);
+    // const bool molden_exists = !scf_options.moldenfile.empty();
+    // const bool is_rohf = (scf_options.scf_type == sys_data.SCFType::rohf);
 
     if(rank == 0){
 
-      cout << "\n-----------------------------------------------------" << endl;
+      cout << endl << "-----------------------------------------------------" << endl;
       cout << "Begin Cholesky Decomposition ... " << endl;
-      cout << "\n#AOs, #electrons = " << nao << " , " << n_occ_alpha+n_occ_beta << endl;
+      cout <<  endl << "#AOs, #electrons = " << nao << " , " << n_occ_alpha+n_occ_beta << endl;
 
-      Matrix C;
-      if(is_uhf && molden_exists) C.setZero(nao,N);
-      else C.setZero(nao,northo);
+      Matrix C, C_beta;
+      // if(is_uhf && molden_exists) C.setZero(nao,N);
+      { //TODO: rohf
+        C.setZero(nao,northo);
+        if(is_uhf) C_beta.setZero(nao,northo);
+      }
       tamm_to_eigen_tensor(C_AO,C);
 
       // replicate horizontally
       Matrix C_2N(nao, N);
-      if(is_uhf && molden_exists) C_2N = C;
-      else C_2N << C, C;
+      // if(is_uhf && molden_exists) C_2N = C;
+      {
+        //TODO: rohf
+        if(is_uhf) C_2N << C, C_beta;
+        else C_2N << C, C;
+      }
       C.resize(0,0);
-      // cout << "\n\t C_2N Matrix:\n";
-      // cout << C_2N << endl;
+      if(is_uhf) C_beta.resize(0,0);
 
       cout << "n_occ_alpha, n_vir_alpha, n_occ_beta, n_vir_beta = " 
            << n_occ_alpha << "," << n_vir_alpha << "," << n_occ_beta << "," << n_vir_beta << endl;
 
       Matrix C_noa = C_2N.block(0, freeze_core, nao, n_occ_alpha_freeze);
-      //  cout << "\n\t C occupied alpha:\n";
       //  cout << C_noa << endl;
 
       Matrix C_nva = C_2N.block(0, n_occ_alpha, nao, n_vir_alpha);
-      //  cout << "\n\t C virtual alpha:\n";
       //  cout << C_nva << endl;
 
       Matrix C_nob = C_2N.block(0, northo, nao, n_occ_beta);
-      //  cout << "\n\t C occupied beta:\n";
       //  cout << C_nob << endl;
 
       Matrix C_nvb = C_2N.block(0, n_occ_beta + northo, nao, n_vir_beta_freeze);
-      //  cout << "\n\t C virtual beta:\n";
       //  cout << C_nvb << endl;
 
       // For now C_noa = C_nob and C_nva = C_nvb
       // Matrix CTiled(nao, 2 * nao - 2 * freeze_core - 2 * freeze_virtual);
       CTiled << C_noa, C_nob, C_nva, C_nvb;
 
-      //  cout << "\n\t CTiled Matrix = [C_noa C_nob C_nva C_nvb]:\n";
       //  cout << CTiled << endl;
 
       Matrix F1;
-      if(is_uhf && molden_exists) F1.setZero(N,N);
-      else F1.setZero(nao,nao);
+      // if(is_uhf && molden_exists) F1.setZero(N,N);
+      F1.setZero(nao,nao);
       Matrix F(N,N);
       tamm_to_eigen_tensor(F_AO,F1);
 
       // if(scf_options.debug) 
       // for (TAMM_GA_SIZE i=0;i<F1.rows();i++) cout << i+1 << "   " << F1(i,i) << endl;
 
-      if(is_uhf && molden_exists){
-        TAMM_GA_SIZE k = 0;
-        for (TAMM_GA_SIZE i=0;i<n_occ_alpha+n_occ_beta;i++){
-          F(i,i) = F1(k,k);
-          k++;
-          if(k==n_occ_alpha) {
-           if(is_uhf) k = nao;
-           else k = 0;
-          }
-        }
-        k = n_occ_alpha;
-        for (TAMM_GA_SIZE i=n_occ_alpha+n_occ_beta;i<2*nao;i++) {
-          F(i,i) = F1(k,k);
-          k++;
-          if(k==nao){
-            if(is_uhf) k = nao+n_occ_beta;
-            else if(is_rohf) k = n_occ_beta;
-            else k = n_occ_alpha;
+      //DO NOT DELETE
+      // if(is_uhf && molden_exists){
+      //   TAMM_GA_SIZE k = 0;
+      //   for (TAMM_GA_SIZE i=0;i<n_occ_alpha+n_occ_beta;i++){
+      //     F(i,i) = F1(k,k);
+      //     k++;
+      //     if(k==n_occ_alpha) {
+      //      if(is_uhf) k = nao;
+      //      else k = 0;
+      //     }
+      //   }
+      //   k = n_occ_alpha;
+      //   for (TAMM_GA_SIZE i=n_occ_alpha+n_occ_beta;i<2*nao;i++) {
+      //     F(i,i) = F1(k,k);
+      //     k++;
+      //     if(k==nao){
+      //       if(is_uhf) k = nao+n_occ_beta;
+      //       else if(is_rohf) k = n_occ_beta;
+      //       else k = n_occ_alpha;
             
-          }
-        }
-      }
-      else F = 0.5*CTiled.transpose() * (F1 * CTiled); //F is resized to N*N
+      //     }
+      //   }
+      // }
+      // else 
+      F = 0.5*CTiled.transpose() * (F1 * CTiled); //F is resized to N*N
       
       // eigen_to_tamm_tensor(CTiled_tamm,CTiled);
       eigen_to_tamm_tensor(F_MO,F);
 
-      // cout << "debug C\n";
-      // cout.precision(5);
-      // cout << std::defaultfloat << endl;
-      // for (auto x=0;x<nao;x++) {
-      // cout << "--------" << x << "-------------\n";
-      // for (auto i=0;i<nao;i++) {
-      //   cout << i << ":   " << (C(i,x)) << endl;
-      // }
-      // }
     }
 
     std::vector<TensorType> CTiledBuf(nao*N);
@@ -201,7 +195,7 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
   auto hf_t2 = std::chrono::high_resolution_clock::now();
   auto hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(rank == 0) std::cout << "\nTime taken for 2-index transform: " << hf_time << " secs" << endl;
+  if(rank == 0) std::cout <<  endl << "Time taken for 2-index transform: " << hf_time << " secs" << endl;
   GA_Sync();
   
   hf_t1 = std::chrono::high_resolution_clock::now();
@@ -222,8 +216,10 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
     if(cd_nranks%ppn>0 || cd_nnodes==0) cd_nnodes++;
     if(cd_nnodes > nnodes) cd_nnodes = nnodes;
     cd_nranks = cd_nnodes * ppn;
-    if(rank == 0)  cout << "Total # of mpi ranks used for Cholesky decomposition: " << cd_nranks 
-        << "\n  --> Number of nodes, mpi ranks per node: " << cd_nnodes << ", " << ppn << endl;
+    if(rank == 0)  {
+      cout << "Total # of mpi ranks used for Cholesky decomposition: " << cd_nranks 
+        <<  endl << "  --> Number of nodes, mpi ranks per node: " << cd_nnodes << ", " << ppn << endl;
+    }
   #endif
 
 
@@ -287,11 +283,6 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
 
   k_map = create_map(dims,nblock);
 
-  // cout << "print k_map\n";
-  // for (auto x=0;x<=mi;x++)
-  // cout << k_map[x] << ",";
-  // cout << endl;
-
   int g_chol = NGA_Create_irreg64(ga_eltype,3,dims,const_cast<char*>("CholX"),nblock,&k_map[0]);
 
   //util_eri_cholesky(rtdb,tol,g_chol,k,int_mb(k_map),nblock)
@@ -322,19 +313,6 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
   NGA_Distribution64(g_chol,iproc,lo_b,hi_b);
   NGA_Distribution64(g_d,iproc,lo_d,hi_d);
   NGA_Distribution64(g_r,iproc,lo_r,hi_r);
-
-  // auto lo_hi_print = [] (auto& lo_b, auto& hi_b, string arr){
-  //   cout << "lo_" << arr << ", hi_" << arr << " = ";
-  //   cout << "[" << lo_b[0] << " " << lo_b[1] << "], [";
-  //   cout << hi_b[0] << " " << hi_b[1] << "]\n";
-  // };
-
-  // if(cd_debug){
-  //   lo_hi_print(lo_b,hi_b,"b");
-  //   lo_hi_print(lo_d,hi_d,"d");
-  //   lo_hi_print(lo_r,hi_r,"r");
-  //   cout << "------debug0-----\n";
-  // }
   
 
   auto shell2bf = map_shell_to_basis_function(shells);
@@ -385,7 +363,6 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
     } //#if s1
   } //s1
 
-  // if(cd_debug) cout << "debug1\n";
 
 // Step C. Find the coordinates of the maximum element of the diagonal.
 
@@ -393,7 +370,6 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
   TensorType val_d0;
   NGA_Select_elem64(g_d,const_cast<char*>("max"),&val_d0,indx_d0);
 
-  // cout << "debug2\n";
 
   int64_t lo_x[GA_MAX_DIM]; // The lower limits of blocks
   int64_t hi_x[GA_MAX_DIM]; // The upper limits of blocks
@@ -402,9 +378,6 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
 //     Step D. Start the while loop
 
   while(val_d0 > diagtol && count < max_cvecs){
-
-      // cout << "iter, maxval, max_indx = " << count << ", " << val_d0 << 
-      // ", [" << indx_d0[0] << "," << indx_d0[1] << "]\n";
 
     NGA_Zero(g_r);
     auto bfu = indx_d0[0];
@@ -466,8 +439,6 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
     } //s3
     NGA_Sync();
 
-    // if(cd_debug) cout << "debug3\n";
-
    //  Step F. Update the residual
     lo_x[0] = indx_d0[0];
     lo_x[1] = indx_d0[1];
@@ -485,15 +456,6 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
     NGA_Access64(g_r, lo_r, hi_r, &indx_r, ld_r);
     NGA_Access64(g_chol, lo_b, hi_b, &indx_b, ld_b);
 
-    // cout << "lo_r,hi_r = [" << lo_r[0] << "," << lo_r[1]
-    // << "], [" << hi_r[0] << "," << hi_r[1] << "]\n";
-
-    // cout << "lo_b,hi_b = [" << lo_b[0] << "," << lo_b[1] << "," << lo_b[2]
-    // << "], [" << hi_b[0] << "," << hi_b[1] << "," << hi_b[2] << "]\n";
-
-    // cout << "ld_r,ld_b = [" << ld_r[0] << "," << ld_r[1]
-    // << "], [" << ld_b[0] << "," << ld_b[1] << "]\n";
-
     for(decltype(count) icount = 0;icount < count; icount++){
       for(int64_t i = 0; i<= hi_r[0] - lo_r[0]; i++) {
         for(int64_t j = 0; j <= hi_r[1] - lo_r[1]; j++) {
@@ -503,17 +465,12 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
       }
     }
 
-    // if(cd_debug) cout << "debug4: end update res\n";
-
     NGA_Release64(g_chol,lo_b,hi_b);
     NGA_Release_update64(g_r,lo_r,hi_r);
 
    // Step G. Compute the new Cholesky vector
    NGA_Access64(g_r,lo_r,hi_r,&indx_r,ld_r);
    NGA_Access64(g_chol,lo_b,hi_b,&indx_b,ld_b);
-
-    //    cout << "ld_r,ld_b = [" << ld_r[0] << "," << ld_r[1]
-    // << "], [" << ld_b[0] << "," << ld_b[1] << "]\n";
 
     for(auto i = 0; i <= hi_r[0] - lo_r[0]; i++) {
       for(auto j = 0; j <= hi_r[1] - lo_r[1]; j++) {
@@ -533,9 +490,6 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
     NGA_Access64(g_d,lo_d,hi_d,&indx_d,ld_d);
     NGA_Access64(g_chol,lo_b,hi_b,&indx_b,ld_b);
 
-    // cout << "ld_d,ld_b = [" << ld_d[0] << "," << ld_d[1]
-    // << "], [" << ld_b[0] << "," << ld_b[1] << "]\n";
-
     for(auto i = 0;i<= hi_d[0] - lo_d[0];i++) {
       for(auto j = 0; j<= hi_d[1] - lo_d[1];j++) {
         auto tmp = indx_b[count-1 + j*ld_b[1] + i*ld_b[1]*ld_b[0]];
@@ -551,8 +505,6 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
   //Step J. Find the coordinates of the maximum element of the diagonal.
   NGA_Select_elem64(g_d,const_cast<char*>("max"),&val_d0,indx_d0);
 
-  // cout << "-----------------------------------------\n";
-
   }
 
   if (iproc == 0) cout << "Number of cholesky vectors = " << count << endl;
@@ -562,7 +514,7 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
   hf_t2 = std::chrono::high_resolution_clock::now();
   hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(iproc == 0) std::cout << "\nTime taken for cholesky decomp: " << hf_time << " secs" << endl;
+  if(iproc == 0) std::cout << endl << "Time taken for cholesky decomp: " << hf_time << " secs" << endl;
 
  
   dimsmo[0] = N; dimsmo[1] = N; dimsmo[2] = count;
@@ -693,11 +645,9 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
 
       //---------Two-Step-Contraction----
       auto cvpr_t1 = std::chrono::high_resolution_clock::now();
-      //  cout << "contraction1\n";
       cblas_dgemm(CblasRowMajor,CblasTrans,CblasNoTrans,N,nbf,nbf,
           1,k_movecs_sorted,N,&k_ij[0],nbf,0,&k_pj[0],nbf);
         
-      // cout << "contraction2\n";
       cblas_dgemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,N,N,nbf,
           1,&k_pj[0],nbf,k_movecs_sorted,N,0,&k_pq[0],N);
       // cblas_dgemm(CblasRowMajor,CblasTrans,CblasTrans,nbf,N,N,
@@ -736,7 +686,7 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
   hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
   if(rank == 0) {
-    std::cout << "\nTotal Time for constructing CholVpr: " << hf_time << " secs" << endl;
+    std::cout << endl << "Total Time for constructing CholVpr: " << hf_time << " secs" << endl;
     std::cout << "  --> Time for 2-step contraction: " << cvpr_time << " secs" << endl;
   }
 
@@ -823,7 +773,7 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
   hf_t2 = std::chrono::high_resolution_clock::now();
   hf_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(rank == 0) std::cout << "\nTime for ga_chol_mo -> CholVpr_tamm conversion: " << hf_time << " secs" << endl;
+  if(rank == 0) std::cout << endl << "Time for ga_chol_mo -> CholVpr_tamm conversion: " << hf_time << " secs" << endl;
 
 
   #if 0
@@ -842,7 +792,7 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
   hf_t2 = std::chrono::high_resolution_clock::now();
   hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(rank == 0) std::cout << "\nTime taken for computing CholVpv: " << hf_time << " secs\n";
+  if(rank == 0) std::cout << endl << "Time taken for computing CholVpv: " << hf_time << " secs" << endl;
 
   //Contraction 2
   hf_t1 = std::chrono::high_resolution_clock::now();
@@ -855,7 +805,7 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
   hf_t2 = std::chrono::high_resolution_clock::now();
   hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(rank == 0) std::cout << "\nTime taken for computing CholVpr: " << hf_time << " secs\n";
+  if(rank == 0) std::cout << endl << "Time taken for computing CholVpr: " << hf_time << " secs" << endl;
 
   #endif
 

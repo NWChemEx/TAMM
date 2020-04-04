@@ -369,7 +369,6 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
             }        
 
             if(residual < thresh) { 
-                // TODO, only fill t1_aa and t2_abab for close-shell
                 break; 
             }
         }

@@ -274,7 +274,7 @@ std::tuple<int,int,int,int> read_molden(SCFOptions scf_options, std::vector<T>& 
   // std::cout << "evl-sorted:" << std::endl;
   // for (auto x: evl_sorted)
   // std::cout << x << std::endl;
-  // std::cout << "movecs\n";
+  // std::cout << "movecs" << std::endl;
   // std::cout << C << std::endl;
 
   return std::make_tuple(n_occ_alpha,n_occ_beta,n_vir_alpha,n_vir_beta);

@@ -3,7 +3,7 @@
 #include <set>
 using namespace std;
 
-//  #define NO_OPT 
+// #define NO_OPT 
 
 // extern "C" {
 

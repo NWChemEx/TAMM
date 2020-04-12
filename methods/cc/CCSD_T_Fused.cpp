@@ -5,8 +5,12 @@
 
 void ccsd_driver();
 std::string filename;
-double ccsd_t_t2_GetTime = 0;
-double ccsd_t_v2_GetTime = 0;
+double ccsdt_s1_t1_GetTime = 0;
+double ccsdt_s1_v2_GetTime = 0;
+double ccsdt_d1_t2_GetTime = 0;
+double ccsdt_d1_v2_GetTime = 0;
+double ccsdt_d2_t2_GetTime = 0;
+double ccsdt_d2_v2_GetTime = 0;
 double genTime = 0;
 double ccsd_t_data_per_rank = 0; //in GB
 
@@ -319,8 +323,22 @@ void ccsd_driver() {
     bool is_restricted = true;
     if(sys_data.options_map.scf_options.scf_type == "uhf") is_restricted = false;
 
-    std::tie(energy1,energy2) = ccsd_t_fused_driver<T>(sys_data,ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
-                                    p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted);
+    bool seq_h3b=true;
+    Index cache_size=32;
+    LRUCache<Index,std::vector<T>> cache_s1t{cache_size};
+    LRUCache<Index,std::vector<T>> cache_s1v{cache_size};
+    LRUCache<Index,std::vector<T>> cache_d1t{cache_size*noab};
+    LRUCache<Index,std::vector<T>> cache_d1v{cache_size*noab};
+    LRUCache<Index,std::vector<T>> cache_d2t{cache_size*nvab};
+    LRUCache<Index,std::vector<T>> cache_d2v{cache_size*nvab};
+
+    if(rank==0 && seq_h3b) cout << "running seq h3b loop variant..." << endl;
+
+    // ccsd_t_fused_driver_new
+    std::tie(energy1,energy2) = ccsd_t_fused_driver_new<T>(sys_data,ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
+                                    p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted,
+                                    cache_s1t,cache_s1v,cache_d1t,
+                                    cache_d1v,cache_d2t,cache_d2v,seq_h3b);
 
     double g_energy1,g_energy2;
     MPI_Reduce(&energy1, &g_energy1, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
@@ -343,47 +361,108 @@ void ccsd_driver() {
 
     free_tensors(t_d_t1, t_d_t2, t_d_f1, t_d_v2);
 
-    ec.flush_and_sync();
-    MemoryManagerGA::destroy_coll(mgr);
-    // delete ec;
+    ec.pg().barrier();
 
     cc_t2 = std::chrono::high_resolution_clock::now();
     auto ccsd_t_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
 
 
+    auto nranks = ec.pg().size().value();
+
     double g_ccsd_t_time,g_ccsd_t_data_per_rank;
-    double g_t2_getTime,min_t2_getTime,max_t2_getTime, g_v2_getTime,min_v2_getTime,max_v2_getTime;
-
     MPI_Reduce(&ccsd_t_time, &g_ccsd_t_time, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+    ccsd_t_time = g_ccsd_t_time/nranks;
+    if(rank == 0) std::cout << std::endl << "Total CCSD(T) Time: " << ccsd_t_time << " secs" << std::endl;
 
-    MPI_Reduce(&ccsd_t_t2_GetTime, &g_t2_getTime,   1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
-    MPI_Reduce(&ccsd_t_t2_GetTime, &min_t2_getTime, 1, MPI_DOUBLE, MPI_MIN, 0, ec.pg().comm());
-    MPI_Reduce(&ccsd_t_t2_GetTime, &max_t2_getTime, 1, MPI_DOUBLE, MPI_MAX, 0, ec.pg().comm());
+    auto print_profile_stats = [&](const std::string& timer_type, const double g_tval, const double tval_min, const double tval_max){
+        const double tval = g_tval/nranks;
+        std::cout.precision(3);
+        std::cout << "   -> " << timer_type << ": " << tval << "s (" << tval*100.0/ccsd_t_time << "%), (min,max) = (" << tval_min << "," << tval_max << ")" << std::endl;
+    };
 
-    MPI_Reduce(&ccsd_t_v2_GetTime, &g_v2_getTime,   1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
-    MPI_Reduce(&ccsd_t_v2_GetTime, &min_v2_getTime, 1, MPI_DOUBLE, MPI_MIN, 0, ec.pg().comm());
-    MPI_Reduce(&ccsd_t_v2_GetTime, &max_v2_getTime, 1, MPI_DOUBLE, MPI_MAX, 0, ec.pg().comm());    
+    auto comm_stats = [&](const std::string& timer_type, const double ctime){
+        double g_getTime,g_min_getTime,g_max_getTime;
+        MPI_Reduce(&ctime, &g_getTime,     1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+        MPI_Reduce(&ctime, &g_min_getTime, 1, MPI_DOUBLE, MPI_MIN, 0, ec.pg().comm());
+        MPI_Reduce(&ctime, &g_max_getTime, 1, MPI_DOUBLE, MPI_MAX, 0, ec.pg().comm());
+        if(rank == 0) 
+        print_profile_stats(timer_type, g_getTime, g_min_getTime, g_max_getTime);        
+    };
+
+    comm_stats("S1-T1 GetTime", ccsdt_s1_t1_GetTime);
+    comm_stats("S1-V2 GetTime", ccsdt_s1_v2_GetTime);
+    comm_stats("D1-T2 GetTime", ccsdt_d1_t2_GetTime);
+    comm_stats("D1-V2 GetTime", ccsdt_d1_v2_GetTime);
+    comm_stats("D2-T2 GetTime", ccsdt_d2_t2_GetTime);
+    comm_stats("D2-V2 GetTime", ccsdt_d2_v2_GetTime);
 
     ccsd_t_data_per_rank = (ccsd_t_data_per_rank * 8.0) / (1024*1024.0*1024); //GB
     MPI_Reduce(&ccsd_t_data_per_rank, &g_ccsd_t_data_per_rank, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
-
-    if(rank == 0 && energy1!=-999) {
-        auto nranks = ec.pg().size().value();
-        // cout << "nranks,ngpus = " << nranks << endl;
-        ccsd_t_time = g_ccsd_t_time/nranks;
-
-        auto print_profile_stats = [&](const std::string& timer_type, const double g_tval, const double tval_min, const double tval_max){
-            const double tval = g_tval/nranks;
-            std::cout.precision(3);
-            std::cout << "   -> " << timer_type << ": " << tval << "s (" << tval*100.0/ccsd_t_time << "%), (min,max) = (" << tval_min << "," << tval_max << ")" << std::endl;
-        };
-
-        std::cout << std::endl << "Total CCSD(T) Time: " << ccsd_t_time << " secs" << std::endl;
-        print_profile_stats("T2 GetTime", g_t2_getTime, min_t2_getTime, max_t2_getTime);
-        print_profile_stats("V2 GetTime", g_v2_getTime, min_v2_getTime, max_v2_getTime);
+    if(rank == 0) 
         std::cout << "   -> Data Transfer (GB): " << g_ccsd_t_data_per_rank/nranks << std::endl;
-    }
 
+    ec.pg().barrier();
+
+    #if 1
+    std::vector<Index> cvec_s1t;
+    std::vector<Index> cvec_s1v;
+    std::vector<Index> cvec_d1t;
+    std::vector<Index> cvec_d1v;
+    std::vector<Index> cvec_d2t;
+    std::vector<Index> cvec_d2v;
+
+    cache_s1t.gather_stats(cvec_s1t);
+    cache_s1v.gather_stats(cvec_s1v);
+    cache_d1t.gather_stats(cvec_d1t);
+    cache_d1v.gather_stats(cvec_d1v);
+    cache_d2t.gather_stats(cvec_d2t);
+    cache_d2v.gather_stats(cvec_d2v);
+
+    std::vector<Index> g_cvec_s1t(cvec_s1t.size());
+    std::vector<Index> g_cvec_s1v(cvec_s1v.size());
+    std::vector<Index> g_cvec_d1t(cvec_d1t.size());
+    std::vector<Index> g_cvec_d1v(cvec_d1v.size());
+    std::vector<Index> g_cvec_d2t(cvec_d2t.size());
+    std::vector<Index> g_cvec_d2v(cvec_d2v.size());
+    MPI_Reduce(&cvec_s1t[0], &g_cvec_s1t[0], cvec_s1t.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());
+    MPI_Reduce(&cvec_s1v[0], &g_cvec_s1v[0], cvec_s1v.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());
+    MPI_Reduce(&cvec_d1t[0], &g_cvec_d1t[0], cvec_d1t.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
+    MPI_Reduce(&cvec_d1v[0], &g_cvec_d1v[0], cvec_d1v.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
+    MPI_Reduce(&cvec_d2t[0], &g_cvec_d2t[0], cvec_d2t.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
+    MPI_Reduce(&cvec_d2v[0], &g_cvec_d2v[0], cvec_d2v.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
+
+    out_fp = sys_data.input_molecule+"."+sys_data.options_map.ccsd_options.basis;
+    files_dir = out_fp+"_files/ccsd_t";
+    if(seq_h3b) files_dir = out_fp+"_files/ccsd_t_seq_h3b";
+    if(!fs::exists(files_dir)) fs::create_directories(files_dir);    
+    std::string fp = files_dir+"/";
+
+    auto print_stats = [&](std::ostream& os, std::vector<uint32_t>& vec){
+      for (uint32_t i = 0; i < vec.size(); i++) {
+        os << i << " : " << vec[i] << std::endl;
+      }
+    };
+
+    if(rank == 0) {
+      std::ofstream fp_s1t(fp+"s1t_stats");
+      std::ofstream fp_s1v(fp+"s1v_stats");
+      std::ofstream fp_d1t(fp+"d1t_stats");
+      std::ofstream fp_d1v(fp+"d1v_stats");
+      std::ofstream fp_d2t(fp+"d2t_stats");
+      std::ofstream fp_d2v(fp+"d2v_stats");
+
+      print_stats(fp_s1t,g_cvec_s1t);
+      print_stats(fp_s1v,g_cvec_s1v);
+      print_stats(fp_d1t,g_cvec_d1t);
+      print_stats(fp_d1v,g_cvec_d1v);
+      print_stats(fp_d2t,g_cvec_d2t);
+      print_stats(fp_d2v,g_cvec_d2v);
+    }
+    #endif
+
+    ec.flush_and_sync();
+    MemoryManagerGA::destroy_coll(mgr);
+    // delete ec;
 
 }

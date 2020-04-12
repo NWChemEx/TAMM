@@ -259,7 +259,7 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
     double thresh      = sys_data.options_map.ccsd_options.threshold;
     bool   writet      = sys_data.options_map.ccsd_options.writet;
     int    writet_iter = sys_data.options_map.ccsd_options.writet_iter;
-    double zshiftl     = 0.0;                
+    double zshiftl     = sys_data.options_map.ccsd_options.lshift;                
     double residual    = 0.0;
     double energy      = 0.0;
     int    niter       = 0;

@@ -16,13 +16,13 @@ void total_fused_ccsd_t_cpu(size_t base_size_h1b, size_t base_size_h2b, size_t b
                             size_t size_d2_t2_all, size_t size_d2_v2_all,
                             size_t size_s1_t2_all, size_t size_s1_v2_all,
                             // 
-                            size_t* list_d1_sizes, 
-                            size_t* list_d2_sizes, 
-                            size_t* list_s1_sizes, 
+                            int* list_d1_sizes, 
+                            int* list_d2_sizes, 
+                            int* list_s1_sizes, 
                             // 
-                            std::vector<size_t> vec_d1_flags,
-                            std::vector<size_t> vec_d2_flags,
-                            std::vector<size_t> vec_s1_flags, 
+                            std::vector<int> vec_d1_flags,
+                            std::vector<int> vec_d2_flags,
+                            std::vector<int> vec_s1_flags, 
                             // 
                             size_t size_noab, size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2,
                             size_t size_nvab, size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2,

@@ -172,12 +172,16 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
                    std::vector<Tensor<T>>& d_t2s, std::vector<T>& p_evl_sorted,
                    Tensor<T>& cv3d, bool ccsd_restart=false, std::string out_fp="") {
 
-    double zshiftl = 0.0;                
-    int maxiter    = sys_data.options_map.ccsd_options.ccsd_maxiter;
-    int ndiis = sys_data.options_map.ccsd_options.ndiis;
-    double thresh  = sys_data.options_map.ccsd_options.threshold;
-    bool writet = sys_data.options_map.ccsd_options.writet;
-    int writet_iter  = sys_data.options_map.ccsd_options.writet_iter;
+    int    maxiter     = sys_data.options_map.ccsd_options.ccsd_maxiter;
+    int    ndiis       = sys_data.options_map.ccsd_options.ndiis;
+    double thresh      = sys_data.options_map.ccsd_options.threshold;
+    bool   writet      = sys_data.options_map.ccsd_options.writet;
+    int    writet_iter = sys_data.options_map.ccsd_options.writet_iter;
+    double zshiftl     = sys_data.options_map.ccsd_options.lshift;                
+    double residual    = 0.0;
+    double energy      = 0.0;
+    int    niter       = 0;
+
     const TAMM_SIZE n_occ_alpha = static_cast<TAMM_SIZE>(sys_data.n_occ_alpha);
     const TAMM_SIZE n_vir_alpha = static_cast<TAMM_SIZE>(sys_data.n_vir_alpha);
     
@@ -185,9 +189,6 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
     std::string t2file = out_fp+".t2amp";                       
 
     std::cout.precision(15);
-
-    double residual = 0.0;
-    double energy = 0.0;
 
     const TiledIndexSpace &O = MO("occ");
     const TiledIndexSpace &V = MO("virt");
@@ -327,6 +328,7 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
         for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
             const auto timer_start = std::chrono::high_resolution_clock::now();
 
+            niter   = iter;
             int off = iter - titer;
             
             Tensor<T> d_r1_residual{};
@@ -382,7 +384,6 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
             std::cout << std::right << "5" << std::endl;
         }
 
-
         std::vector<std::vector<Tensor<T>>> rs{d_r1s, d_r2s};
         std::vector<std::vector<Tensor<T>>> ts{d_t1s, d_t2s};
         std::vector<Tensor<T>> next_t{t1_aa, t2_abab};
@@ -406,6 +407,12 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
             energy = get_scalar(d_e);
             residual = 0.0;
     }
+
+    sys_data.ccsd_iterations   = niter+1;
+    sys_data.ccsd_corr_energy  = energy;
+    sys_data.ccsd_total_energy = sys_data.scf_energy+energy;
+
+    if(ec.pg().rank() == 0) write_results(sys_data,"CCSD");
 
   sch.deallocate(i0_temp,t2_aaaa_temp,_a01,_a02_aa,_a03_aa);
   sch.deallocate(d_e,_a004_aaaa,_a004_abab);

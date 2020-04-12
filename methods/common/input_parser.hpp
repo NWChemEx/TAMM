@@ -60,13 +60,14 @@ class Options {
       std::cout << std::defaultfloat;
       cout << endl << "Common Options" << endl ;
       cout << "{" << endl;
-      cout << " max iter = " << maxiter << endl;
-      cout << " basis = " << basis << " ";
+      cout << " maxiter    = " << maxiter << endl;
+      cout << " basis      = " << basis << " ";
       cout << sphcart;
       cout << endl;
-      if(!dfbasis.empty()) cout << " dfbasis = " << dfbasis << endl;
+      if(!dfbasis.empty()) 
+        cout << " dfbasis    = " << dfbasis << endl;
       cout << " geom_units = " << geom_units << endl;
-      print_bool(" debug", debug);
+      print_bool(" debug     ", debug);
       cout << "}" << endl;
     }
 };
@@ -77,77 +78,82 @@ class SCFOptions: public Options {
     SCFOptions() = default;
     SCFOptions(Options o): Options(o)
     {
-      tol_int = 1e-8;
-      tol_lindep = 1e-6;
-      conve = 1e-6;
-      convd = 1e-5;
-      diis_hist = 10;
-      AO_tilesize = 30;
-      restart = false;
-      noscf = false;
-      scalapack_nb = 1;
-      scalapack_np_row = 0;
-      scalapack_np_col = 0;
+      charge         = 0;
+      multiplicity   = 1;
+      tol_int        = 1e-8;
+      tol_lindep     = 1e-6;
+      conve          = 1e-6;
+      convd          = 1e-5;
+      diis_hist      = 10;
+      AO_tilesize    = 30;
+      restart        = false;
+      noscf          = false;
+      scalapack_nb   = 1;
+      scalapack_np_row   = 0;
+      scalapack_np_col   = 0;
       force_tilesize = false;
-      riscf = 0; //0 for JK, 1 for J, 2 for K
-      riscf_str = "JK";
-      moldenfile = "";
-      n_lindep = 0;
-      scf_type = "rhf";
-      multiplicity = 1;
-      alpha = 0.7;
-      nnodes = 1;
-      writem = diis_hist;
+      riscf          = 0; //0 for JK, 1 for J, 2 for K
+      riscf_str      = "JK";
+      moldenfile     = "";
+      n_lindep       = 0;
+      scf_type       = "rhf";
+      alpha          = 0.7;
+      nnodes         = 1;
+      writem         = diis_hist;
     }
 
-  double tol_int; //tolerance for integral engine
+  int    charge;
+  int    multiplicity;
+  double tol_int;    //tolerance for integral engine
   double tol_lindep; //tolerance for linear dependencies
-  double conve; //energy convergence
-  double convd; //density convergence
-  int diis_hist; //number of diis history entries
-  int AO_tilesize; 
-  bool restart; //Read movecs from disk
-  bool noscf; //only recompute energy from movecs
-  bool force_tilesize;
-  int scalapack_nb;
-  int scalapack_np_row;
-  int scalapack_np_col;
-  int riscf;
-  int nnodes;
+  double conve;      //energy convergence
+  double convd;      //density convergence
+  int    diis_hist;  //number of diis history entries
+  int    AO_tilesize; 
+  bool   restart;    //Read movecs from disk
+  bool   noscf;      //only recompute energy from movecs
+  bool   force_tilesize;
+  int    scalapack_nb;
+  int    scalapack_np_row;
+  int    scalapack_np_col;
+  int    riscf;
+  int    nnodes;
   std::string riscf_str;
   std::string moldenfile;
   //ignored when moldenfile not provided
   int n_lindep;
   int writem; 
   double alpha; //density mixing parameter
-  int multiplicity;
   std::string scf_type;
   
     void print() {
       std::cout << std::defaultfloat;
       cout << endl << "SCF Options" << endl;
       cout << "{" << endl;
-      cout << " tol_int = " << tol_int << endl;
-      cout << " tol_lindep = " << tol_lindep << endl;
-      cout << " conve = " << conve << endl;
-      cout << " convd = " << convd << endl;
-      cout << " diis_hist = " << diis_hist << endl;
-      cout << " AO_tilesize = " << AO_tilesize << endl;  
-      cout << " writem = " << writem << endl;  
-      if(alpha != 0.7) cout << " alpha = " << alpha << endl;
-      // cout << " riscf = " << riscf_str << endl; 
-      // cout << " riscf = " << riscf_str << endl; 
+      cout << " charge       = " << charge       << endl;
+      cout << " multiplicity = " << multiplicity << endl;
+      cout << " tol_int      = " << tol_int      << endl;
+      cout << " tol_lindep   = " << tol_lindep   << endl;
+      cout << " conve        = " << conve        << endl;
+      cout << " convd        = " << convd        << endl;
+      cout << " diis_hist    = " << diis_hist    << endl;
+      cout << " AO_tilesize  = " << AO_tilesize  << endl;  
+      cout << " writem       = " << writem       << endl;  
+      if(alpha != 0.7) 
+        cout << " alpha        = " << alpha << endl;
       if(!moldenfile.empty()) {
-        cout << " moldenfile = " << moldenfile << endl;    
-        cout << " multiplicity = " << multiplicity << endl;
+        cout << " moldenfile   = " << moldenfile << endl;    
         //cout << " n_lindep = " << n_lindep << endl;
       }
-      if(scalapack_nb>1) cout << " scalapack_nb = " << scalapack_nb << endl;
-      if(scalapack_np_row>0) cout << " scalapack_np_row = " << scalapack_np_row << endl;
-      if(scalapack_np_col>0) cout << " scalapack_np_col = " << scalapack_np_col << endl;
-      print_bool(" restart", restart);
-      print_bool(" debug", debug); 
-      if(restart) print_bool(" noscf", noscf);
+      if(scalapack_nb>1) 
+        cout << " scalapack_nb = " << scalapack_nb << endl;
+      if(scalapack_np_row>0) 
+        cout << " scalapack_np_row = " << scalapack_np_row << endl;
+      if(scalapack_np_col>0) 
+        cout << " scalapack_np_col = " << scalapack_np_col << endl;
+      print_bool(" restart     ", restart);
+      print_bool(" debug       ", debug); 
+      if(restart) print_bool(" noscf       ", noscf);
       cout << "}" << endl;
     }
 };
@@ -165,15 +171,15 @@ class CDOptions: public Options {
     }
 
   double diagtol;
-  int max_cvecs_factor;
+  int    max_cvecs_factor;
 
   void print() {
     std::cout << std::defaultfloat;
     cout << endl << "CD Options" << endl;
     cout << "{" << endl;
-    cout << " diagtol = " << diagtol << endl;
+    cout << " diagtol          = " << diagtol          << endl;
     cout << " max_cvecs_factor = " << max_cvecs_factor << endl;
-    print_bool(" debug", debug);   
+    print_bool(" debug           ", debug);   
     cout << "}" << endl; 
   }
 };
@@ -183,74 +189,76 @@ class CCSDOptions: public Options {
   CCSDOptions() = default;
   CCSDOptions(Options o): Options(o)
   {
-    threshold = 1e-10;
-    tilesize = 50;
-    itilesize = 1000;
+    threshold      = 1e-10;
+    tilesize       = 50;
+    itilesize      = 1000;
     ccsdt_tilesize = 28;
-    icuda = 0;
-    ndiis = 5;
-    eom_nroots = 0;
-    eom_threshold = 1e-10;
-    eom_microiter = o.maxiter;
-    writet = false;
-    writet_iter = ndiis;
+    icuda          = 0;
+    ndiis          = 5;
+    lshift         = 0;
+    eom_nroots     = 0;
+    eom_threshold  = 1e-10;
+    eom_microiter  = o.maxiter;
+    writet         = false;
+    writet_iter    = ndiis;
     force_tilesize = false;
-    readt = false;
-    gf_ip = true;
-    gf_ea = false;
-    gf_os = false;
-    gf_cs = true;
-    gf_restart = true;
-    ccsd_maxiter = 50;
-    balance_tiles = false;
+    readt          = false;
+    gf_ip          = true;
+    gf_ea          = false;
+    gf_os          = false;
+    gf_cs          = true;
+    gf_restart     = false;
+    ccsd_maxiter   = 50;
+    balance_tiles  = false;
     
-    gf_p_oi_range = 0; //1-number of occupied, 2-all MOs
-    gf_ndiis = 10;
-    gf_ngmres = 10;
-    gf_maxiter = 500;
-    gf_eta = -0.01;       
-    gf_damping_factor = 1.0;
-    // gf_level_shift = 0;
-    gf_nprocs_poi = 0;
-    // gf_omega = -0.4; //a.u (range min to max)     
-    gf_threshold = 1e-2;  
-    gf_omega_min_ip = -0.8;  
-    gf_omega_max_ip = -0.4;  
-    gf_omega_min_ip_e = -2.0; 
-    gf_omega_max_ip_e = 0;    
-    gf_omega_min_ea = 0.0;  
-    gf_omega_max_ea = 0.1;  
-    gf_omega_min_ea_e = 0.0; 
-    gf_omega_max_ea_e = 2.0;    
-    gf_omega_delta = 0.01;
-    gf_omega_delta_e = 0.002;
+    gf_p_oi_range        = 0; //1-number of occupied, 2-all MOs
+    gf_ndiis             = 10;
+    gf_ngmres            = 10;
+    gf_maxiter           = 500;
+    gf_eta               = -0.01;       
+    gf_damping_factor    = 1.0;
+    // gf_level_shift    = 0;
+    gf_nprocs_poi        = 0;
+    // gf_omega          = -0.4; //a.u (range min to max)     
+    gf_threshold         = 1e-2;  
+    gf_omega_min_ip      = -0.8;  
+    gf_omega_max_ip      = -0.4;  
+    gf_omega_min_ip_e    = -2.0; 
+    gf_omega_max_ip_e    = 0;    
+    gf_omega_min_ea      = 0.0;  
+    gf_omega_max_ea      = 0.1;  
+    gf_omega_min_ea_e    = 0.0; 
+    gf_omega_max_ea_e    = 2.0;    
+    gf_omega_delta       = 0.01;
+    gf_omega_delta_e     = 0.002;
     gf_extrapolate_level = 0;
-    gf_analyze_level = 0;
+    gf_analyze_level     = 0;
     gf_analyze_num_omega = 0;
   }
 
-  int eom_nroots;
-  int tilesize;
-  int itilesize;
-  int ccsdt_tilesize;
-  bool force_tilesize;
-  int icuda;
-  int ndiis;
-  int eom_microiter;
-  int writet_iter;
-  bool readt, writet, gf_restart, gf_ip, gf_ea, gf_os, gf_cs, balance_tiles;
+  int    eom_nroots;
+  int    tilesize;
+  int    itilesize;
+  int    ccsdt_tilesize;
+  bool   force_tilesize;
+  int    icuda;
+  int    ndiis;
+  int    eom_microiter;
+  int    writet_iter;
+  bool   readt, writet, gf_restart, gf_ip, gf_ea, gf_os, gf_cs, balance_tiles;
+  double lshift;
   double threshold;
   double eom_threshold;
-  int ccsd_maxiter;
+  int    ccsd_maxiter;
 
   //GF
-  int gf_p_oi_range;
-  int gf_ndiis;
-  int gf_ngmres;  
-  int gf_maxiter;
+  int    gf_p_oi_range;
+  int    gf_ndiis;
+  int    gf_ngmres;  
+  int    gf_maxiter;
   double gf_eta;
   // double gf_level_shift;
-  int gf_nprocs_poi;
+  int    gf_nprocs_poi;
   double gf_damping_factor;
   // double gf_omega;       
   double gf_threshold;
@@ -264,10 +272,9 @@ class CCSDOptions: public Options {
   double gf_omega_max_ea_e;
   double gf_omega_delta;
   double gf_omega_delta_e;
-  int gf_extrapolate_level;
-
-  int gf_analyze_level;
-  int gf_analyze_num_omega;
+  int    gf_extrapolate_level;
+  int    gf_analyze_level;
+  int    gf_analyze_num_omega;
   std::vector<double> gf_analyze_omega;
   
   void print() {
@@ -275,63 +282,66 @@ class CCSDOptions: public Options {
     cout << endl << "CCSD Options" << endl;
     cout << "{" << endl;
     if(icuda > 0) {
-      cout << " #cuda = " << icuda << endl;
-      cout << " ccsdt_tilesize = " << ccsdt_tilesize << endl;
+      cout << " #cuda              = " << icuda          << endl;
+      cout << " ccsdt_tilesize     = " << ccsdt_tilesize << endl;
     }
-    cout << " ndiis = " << ndiis << endl;
-    cout << " threshold = " << threshold << endl;
-    cout << " tilesize = " << tilesize << endl;
-    cout << " ccsd_maxiter = " << ccsd_maxiter << endl;
-    cout << " itilesize = " << itilesize << endl;
-    if(gf_nprocs_poi > 0) cout << " gf_nprocs_poi = " << gf_nprocs_poi << endl;
-    print_bool(" readt", readt); 
-    print_bool(" writet", writet);
-    cout << " writet_iter = " << writet_iter << endl;
-    print_bool(" balance_tiles", balance_tiles); 
+    cout << " ndiis                = " << ndiis            << endl;
+    cout << " threshold            = " << threshold        << endl;
+    cout << " tilesize             = " << tilesize         << endl;
+    cout << " ccsd_maxiter         = " << ccsd_maxiter     << endl;
+    cout << " itilesize            = " << itilesize        << endl;
+    if(lshift != 0) 
+      cout << " lshift               = " << lshift           << endl;
+    if(gf_nprocs_poi > 0) 
+      cout << " gf_nprocs_poi        = " << gf_nprocs_poi  << endl;
+    print_bool(" readt               ", readt); 
+    print_bool(" writet              ", writet);
+    cout << " writet_iter          = " << writet_iter      << endl;
+    print_bool(" balance_tiles       ", balance_tiles); 
 
     if(eom_nroots > 0){
-      cout << " eom_nroots = " << eom_nroots << endl;
-      cout << " eom_microiter = " << eom_microiter << endl;
-      cout << " eom_threshold = " << eom_threshold << endl;
+      cout << " eom_nroots           = " << eom_nroots        << endl;
+      cout << " eom_microiter        = " << eom_microiter     << endl;
+      cout << " eom_threshold        = " << eom_threshold     << endl;
     }
 
     if(gf_p_oi_range > 0) {
-      cout << " gf_p_oi_range  = " << gf_p_oi_range << endl;
-      print_bool(" gf_ip", gf_ip); 
-      print_bool(" gf_ea", gf_ea); 
-      print_bool(" gf_os", gf_os); 
-      print_bool(" gf_cs", gf_cs); 
-      print_bool(" gf_restart", gf_restart);       
-      cout << " gf_ndiis       = " << gf_ndiis << endl;
-      cout << " gf_ngmres       = " << gf_ngmres << endl;
-      cout << " gf_maxiter     = " << gf_maxiter << endl;
-      cout << " gf_eta         = " << gf_eta << endl;
+      cout << " gf_p_oi_range        = " << gf_p_oi_range     << endl;
+      print_bool(" gf_ip               ", gf_ip); 
+      print_bool(" gf_ea               ", gf_ea); 
+      print_bool(" gf_os               ", gf_os); 
+      print_bool(" gf_cs               ", gf_cs); 
+      print_bool(" gf_restart          ", gf_restart);       
+      cout << " gf_ndiis             = " << gf_ndiis          << endl;
+      cout << " gf_ngmres            = " << gf_ngmres         << endl;
+      cout << " gf_maxiter           = " << gf_maxiter        << endl;
+      cout << " gf_eta               = " << gf_eta            << endl;
       // cout << " gf_level_shift         = " << gf_level_shift << endl;
-      cout << " gf_damping_factor         = " << gf_damping_factor << endl;
+      cout << " gf_damping_factor    = " << gf_damping_factor << endl;
       
       // cout << " gf_omega       = " << gf_omega << endl;
-      cout << " gf_threshold   = " << gf_threshold  << endl;
-      cout << " gf_omega_min_ip   = " << gf_omega_min_ip  << endl;
-      cout << " gf_omega_max_ip   = " << gf_omega_max_ip  << endl;
-      cout << " gf_omega_min_ip_e = " << gf_omega_min_ip_e << endl;
-      cout << " gf_omega_max_ip_e = " << gf_omega_max_ip_e << endl;
-      cout << " gf_omega_min_ea   = " << gf_omega_min_ea  << endl;
-      cout << " gf_omega_max_ea   = " << gf_omega_max_ea  << endl;
-      cout << " gf_omega_min_ea_e = " << gf_omega_min_ea_e << endl;
-      cout << " gf_omega_max_ea_e = " << gf_omega_max_ea_e << endl;
-      cout << " gf_omega_delta = " << gf_omega_delta << endl; 
-      cout << " gf_omega_delta_e = " << gf_omega_delta_e << endl; 
+      cout << " gf_threshold         = " << gf_threshold      << endl;
+      cout << " gf_omega_min_ip      = " << gf_omega_min_ip   << endl;
+      cout << " gf_omega_max_ip      = " << gf_omega_max_ip   << endl;
+      cout << " gf_omega_min_ip_e    = " << gf_omega_min_ip_e << endl;
+      cout << " gf_omega_max_ip_e    = " << gf_omega_max_ip_e << endl;
+      cout << " gf_omega_min_ea      = " << gf_omega_min_ea   << endl;
+      cout << " gf_omega_max_ea      = " << gf_omega_max_ea   << endl;
+      cout << " gf_omega_min_ea_e    = " << gf_omega_min_ea_e << endl;
+      cout << " gf_omega_max_ea_e    = " << gf_omega_max_ea_e << endl;
+      cout << " gf_omega_delta       = " << gf_omega_delta    << endl; 
+      cout << " gf_omega_delta_e     = " << gf_omega_delta_e  << endl; 
       if(gf_analyze_level > 0) {
-        cout << " gf_analyze_level = " << gf_analyze_level << endl; 
+        cout << " gf_analyze_level     = " << gf_analyze_level     << endl; 
         cout << " gf_analyze_num_omega = " << gf_analyze_num_omega << endl; 
-        cout << " gf_analyze_omega = [";
+        cout << " gf_analyze_omega     = [";
         for(auto x: gf_analyze_omega) cout << x << ",";
         cout << "]" << endl;      
       }
       if(gf_extrapolate_level>0) cout << " gf_extrapolate_level = " << gf_extrapolate_level << endl; 
     }   
 
-    print_bool(" debug", debug); 
+    print_bool(" debug               ", debug); 
     cout << "}" << endl;
   }
 
@@ -584,7 +594,11 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           skip_empty_lines(is);
           std::getline(is, line);
 
-          if(is_in_line("tol_int",line)) 
+          if(is_in_line("charge",line)) 
+            scf_options.charge = std::stod(read_option(line));   
+          else if(is_in_line("multiplicity",line)) 
+            scf_options.multiplicity = std::stod(read_option(line));   
+          else if(is_in_line("tol_int",line)) 
             scf_options.tol_int = std::stod(read_option(line));   
           else if(is_in_line("tol_lindep",line)) 
             scf_options.tol_lindep = std::stod(read_option(line));
@@ -621,8 +635,6 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             scf_options.scf_type = read_option(line); 
           else if(is_in_line("n_lindep",line))
             scf_options.n_lindep = std::stoi(read_option(line)); 
-          else if(is_in_line("multiplicity",line))
-            scf_options.multiplicity = std::stoi(read_option(line)); 
           else if(is_in_line("scalapack_nb",line)) 
             scf_options.scalapack_nb = std::stoi(read_option(line));   
           else if(is_in_line("scalapack_np_row",line)) 
@@ -664,12 +676,14 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
 
           if(is_in_line("ndiis",line)) 
             ccsd_options.ndiis = std::stoi(read_option(line));  
-          if(is_in_line("eom_nroots",line)) 
+          else if(is_in_line("eom_nroots",line)) 
             ccsd_options.eom_nroots = std::stoi(read_option(line));  
           else if(is_in_line("eom_microiter",line)) 
             ccsd_options.eom_microiter = std::stoi(read_option(line));  
           else if(is_in_line("ccsd_maxiter",line)) 
-            ccsd_options.ccsd_maxiter = std::stoi(read_option(line));                          
+            ccsd_options.ccsd_maxiter = std::stoi(read_option(line));    
+          else if(is_in_line("lshift",line)) 
+            ccsd_options.lshift = std::stod(read_option(line)); 
           else if(is_in_line("eom_threshold",line)) 
             ccsd_options.eom_threshold = std::stod(read_option(line));              
           else if(is_in_line("threshold",line)) 

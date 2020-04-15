@@ -62,7 +62,7 @@ void ccsd_driver() {
     
     if(rank==0) cout << endl << "#occupied, #virtual = " << sys_data.nocc << ", " << sys_data.nvir << endl;
     
-    auto [MO,total_orbitals] = setupMOIS(sys_data);
+    auto [MO,total_orbitals] = setupMOIS(sys_data,true);
 
     std::string out_fp = getfilename(filename)+"."+ccsd_options.basis;
     std::string files_dir = out_fp+"_files";
@@ -80,7 +80,7 @@ void ccsd_driver() {
 
     TiledIndexSpace N = MO("all");
 
-    #if 1
+    #if 0
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
                         (sys_data, ec, MO, AO_opt, C_AO, F_AO, C_beta_AO, F_beta_AO, shells, shell_tile_map,
@@ -177,7 +177,7 @@ void ccsd_driver() {
     Tensor<T> d_v2;
     if(!ccsd_t_restart) {
         d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, hw);
-        write_to_disk(d_v2,fullV2file,true);
+        write_to_disk(d_v2,fullV2file);
         Tensor<T>::deallocate(d_v2);
     }
 
@@ -190,7 +190,7 @@ void ccsd_driver() {
 
     #endif 
 
-    #if 0
+    #if 1
     TiledIndexSpace O = MO("occ");
     TiledIndexSpace V = MO("virt");
     double residual=0, corr_energy=0;
@@ -276,6 +276,8 @@ void ccsd_driver() {
     TiledIndexSpace O1 = MO1("occ");
     TiledIndexSpace V1 = MO1("virt");     
 
+    #if 0
+
     Tensor<T> t_d_f1{{N1,N1},{1,1}};
     Tensor<T> t_d_t1{{V1,O1},{1,1}};
     Tensor<T> t_d_t2{{V1,V1,O1,O1},{2,2}};
@@ -299,15 +301,16 @@ void ccsd_driver() {
     read_from_disk(t_d_f1,f1file,false,wd_f1);
     read_from_disk(t_d_t1,t1file,false,wd_t1);
     read_from_disk(t_d_t2,t2file,false,wd_t2);
-    read_from_disk(t_d_v2,fullV2file,false,wd_v2,true); 
+    read_from_disk(t_d_v2,fullV2file,false,wd_v2); 
 
     ec.pg().barrier();
     p_evl_sorted = tamm::diagonal(t_d_f1);
+    #endif
 
     cc_t1 = std::chrono::high_resolution_clock::now();
 
-    Index noab=MO1("occ").num_tiles();
-    Index nvab=MO1("virt").num_tiles();
+    Index noab=MO("occ").num_tiles();
+    Index nvab=MO("virt").num_tiles();
     std::vector<int> k_spin;
     for(tamm::Index x=0;x<noab/2;x++) k_spin.push_back(1);
     for(tamm::Index x=noab/2;x<noab;x++) k_spin.push_back(2);
@@ -330,8 +333,7 @@ void ccsd_driver() {
 
     if(rank==0 && seq_h3b) cout << "running seq h3b loop variant..." << endl;
 
-    // ccsd_t_fused_driver_new
-    std::tie(energy1,energy2) = ccsd_t_fused_driver_new<T>(sys_data,ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
+    std::tie(energy1,energy2) = ccsd_t_fused_driver_new<T>(sys_data,ec,k_spin,MO,d_t1,d_t2,d_v2,
                                     p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted,
                                     cache_s1t,cache_s1v,cache_d1t,
                                     cache_d1v,cache_d2t,cache_d2v,seq_h3b);
@@ -355,15 +357,13 @@ void ccsd_driver() {
     
     }
 
-    free_tensors(t_d_t1, t_d_t2, t_d_f1, t_d_v2);
+    free_tensors(d_t1, d_t2, d_f1, d_v2);
 
     ec.pg().barrier();
 
     cc_t2 = std::chrono::high_resolution_clock::now();
     auto ccsd_t_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-
-
 
     size_t total_num_ops = 0;  
     //
@@ -386,7 +386,6 @@ void ccsd_driver() {
     if(rank == 0) std::cout << std::endl << "Total CCSD(T) Time: " << ccsd_t_time << " secs" << std::endl;
     if(rank == 0) std::cout << "# of Operations: " << total_num_ops << std::endl;
     if(rank == 0) std::cout << "GFLOPS " << total_num_ops / (ccsd_t_time * 1000000000) << std::endl;
-
 
     auto print_profile_stats = [&](const std::string& timer_type, const double g_tval, const double tval_min, const double tval_max){
         const double tval = g_tval/nranks;
@@ -417,7 +416,7 @@ void ccsd_driver() {
 
     ec.pg().barrier();
 
-    #if 1
+   #if 1
     std::vector<Index> cvec_s1t;
     std::vector<Index> cvec_s1v;
     std::vector<Index> cvec_d1t;

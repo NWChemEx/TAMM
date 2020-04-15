@@ -22,10 +22,7 @@ int main( int argc, char* argv[] )
         return 1;
     }
 
-    MPI_Init(&argc,&argv);
-    GA_Initialize();
-    MA_init(MT_DBL, 8000000, 20000000);
-    
+    tamm::initialize(argc, argv);
     int mpi_rank;
     MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
     #ifdef USE_TALSH
@@ -63,8 +60,8 @@ int main( int argc, char* argv[] )
     #ifdef USE_TALSH
     talsh_instance.shutdown();
     #endif    
-    GA_Terminate();
-    MPI_Finalize();
+    
+    tamm::finalize();
 
     return 0;
 }

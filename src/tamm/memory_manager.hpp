@@ -3,6 +3,7 @@
 
 #include <iosfwd>
 
+#include <chrono>
 #include "tamm/types.hpp"
 #include "tamm/proc_group.hpp"
 
@@ -16,6 +17,31 @@
 
 
 namespace tamm {
+
+extern double memTime1;
+extern double memTime2;
+extern double memTime3;
+extern double memTime4;
+extern double memTime5;
+extern double memTime6;
+extern double memTime7;
+extern double memTime8;
+extern double memTime9; 
+
+class TimerGuard {
+public:
+    TimerGuard(double *refptr)
+    : refptr_{refptr} {
+        start_time_ = std::chrono::high_resolution_clock::now();
+    }
+    ~TimerGuard() {
+        std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
+        *refptr_ += std::chrono::duration_cast<std::chrono::duration<double>>((end_time - start_time_)).count();
+    }
+private:
+    double *refptr_;
+    std::chrono::time_point<std::chrono::high_resolution_clock> start_time_;
+};  // TimeGuard
 
 enum class MemoryManagerType { local, distributed };
 
@@ -51,6 +77,19 @@ class MemoryManager {
   virtual MemoryRegion* alloc_coll(ElementType eltype, Size nelements) = 0;
 
   /**
+   * @brief Collective allocation of a memory region.
+   *
+   * Collective on the process group.
+   * @param eltype Element type (should be the same on all ranks making this
+   * call)
+   * @param max_nelements All ranks pass the same number of elements to
+   * allocated per rank
+   * @return Allocated memory region
+   */
+  virtual MemoryRegion* alloc_coll_balanced(ElementType eltype,
+                                            Size max_nelements) = 0;
+
+  /**
    * @brief Attach a memory region to the process group.
    *
    * This is collective on the memory region's process group.
@@ -69,10 +108,18 @@ class MemoryManager {
   
   virtual ~MemoryManager() {}
 
+/**
+     * @brief Return the memory manager type type
+     * 
+     * @return MemoryManagerType 
+     */
+  MemManageKind kind() const {
+      return kind_;
+    }
 
  protected:
-  explicit MemoryManager(ProcGroup pg)
-      : pg_{pg} {}
+  explicit MemoryManager(ProcGroup pg, MemManageKind kind)
+      : pg_{pg}, kind_{kind} {}
 
 
  public:
@@ -223,10 +270,17 @@ class MemoryManager {
    */
   virtual void print_coll(const MemoryRegion& mr, std::ostream& os) = 0;
 
+  ProcGroup get_proc_group() {
+    return pg_;
+  }
+
  protected:
   ProcGroup pg_;
 
+  MemManageKind kind_; /**< MemoryManager kind */
+
   friend class MemoryRegion;
+  friend class ExecutionContext;
 }; // class MemoryManager
 
 /**

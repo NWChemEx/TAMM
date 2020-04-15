@@ -97,6 +97,18 @@ enum class ElementType {
     double_complex
 };
 
+enum class DistKind {
+  invalid,
+  nw,
+  dense
+};
+
+enum class MemManageKind {
+  invalid,
+  ga,
+  local
+};
+
 template<typename T>
 constexpr ElementType tensor_element_type() {
     return ElementType::invalid;

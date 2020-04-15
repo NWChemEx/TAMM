@@ -192,14 +192,14 @@ void update_tensor_general(LabeledTensor<T> labeled_tensor, Func lambda) {
  * @todo there is possible memory leak as distribution will not be unallocated
  * when Execution context is destructed
  */
-inline ExecutionContext make_execution_context() {
-    ProcGroup* pg = new ProcGroup {ProcGroup::create_coll(GA_MPI_Comm())};
-    auto* pMM             = MemoryManagerGA::create_coll(*pg);
-    Distribution_NW* dist = new Distribution_NW();
-    RuntimeEngine* re = new RuntimeEngine{};
-    ExecutionContext *ec = new ExecutionContext(*pg, dist, pMM, re);
-    return *ec;
-}
+// inline ExecutionContext make_execution_context() {
+//     ProcGroup* pg = new ProcGroup {ProcGroup::create_coll(GA_MPI_Comm())};
+//     auto* pMM             = MemoryManagerGA::create_coll(*pg);
+//     Distribution_NW* dist = new Distribution_NW();
+//     RuntimeEngine* re = new RuntimeEngine{};
+//     ExecutionContext *ec = new ExecutionContext(*pg, dist, pMM, re);
+//     return *ec;
+// }
 
 /**
  * @brief method for getting the sum of the values on the diagonal
@@ -341,7 +341,7 @@ void fill_sparse_tensor(LabeledTensor<TensorType> ltensor,
 }
 
 template<typename TensorType>
-std::tuple<int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType> tensor, MPI_Comm &subcomm) {
+std::tuple<int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType> tensor, MPI_Comm &subcomm,int nagg_hint=0) {
 
     int nranks = gec.pg().size().value();
 
@@ -350,11 +350,13 @@ std::tuple<int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType>
     const long double ne_mb = 131072 * 14.0;
     const int ndims = tensor.num_modes();
     for (auto i=0;i<ndims;i++) nelements *= tensor.tiled_index_spaces()[i].index_space().num_indices();
+    // nelements = tensor.size();
     int nagg = (nelements / (ne_mb * 1024) ) + 1;
     // const int nnodes = GA_Cluster_nnodes();
     const int ppn = GA_Cluster_nprocs(0);
-    const int avail_nodes = nranks/ppn + 1;
+    const int avail_nodes = nranks/ppn;
     if(nagg > avail_nodes) nagg = avail_nodes;
+    if(nagg_hint > 0) nagg = nagg_hint;
     
     int subranks = nagg * ppn;
     if(subranks > nranks) subranks = nranks;
@@ -432,17 +434,19 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor) {
  */
 template<typename TensorType>
 void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, 
-                    bool tammio=true) {
+                    bool tammio=true, bool profile=false, int nagg_hint=0) {
 
     ExecutionContext& gec = get_ec(tensor());
     auto io_t1 = std::chrono::high_resolution_clock::now();
 
     MPI_Comm io_comm;
     int rank = gec.pg().rank().value();
-    auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm);
+    auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm,nagg_hint);
     int ga_tens;
     if(!tammio) ga_tens = tamm_to_ga(gec,tensor);
     size_t ndims = tensor.num_modes();
+    const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
+    if(rank == 0 && profile) std::cout << "write to disk using: " << nppn << std::endl;
 
     if(io_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(io_comm)};
@@ -569,11 +573,9 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
 
     auto io_t2 = std::chrono::high_resolution_clock::now();
 
-    const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
-
     double io_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-    //if(rank == 0) std::cout << "Time for writing " << filename << " to disk (" << nppn << "): " << io_time << " secs" << std::endl;
+    if(rank == 0 && profile) std::cout << "Time for writing " << filename << " to disk (" << nppn << "): " << io_time << " secs" << std::endl;
 
 }
 
@@ -628,14 +630,18 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor, int ga_tens) {
  */
 template<typename TensorType>
 void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, 
-                    bool tammio=true,Tensor<TensorType> wtensor={}) {
+                    bool tammio=true, Tensor<TensorType> wtensor={}, 
+                    bool profile=false, int nagg_hint=0) {
 
     ExecutionContext& gec = get_ec(tensor());
     auto io_t1 = std::chrono::high_resolution_clock::now();
 
     MPI_Comm io_comm;
     int rank = gec.pg().rank().value();
-    auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm);
+    auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm,nagg_hint);
+
+    const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
+    if(rank == 0 && profile) std::cout << "read from disk using: " << nppn << std::endl;
 
     int ga_tens;
     
@@ -791,11 +797,9 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
 
     auto io_t2 = std::chrono::high_resolution_clock::now();
 
-    const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
-
     double io_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-    //if(rank == 0) std::cout << "Time for reading " << filename << " from disk (" << nppn << "): " << io_time << " secs" << std::endl;
+    if(rank == 0 && profile) std::cout << "Time for reading " << filename << " from disk (" << nppn << "): " << io_time << " secs" << std::endl;
 }
 
 /**
@@ -1117,9 +1121,9 @@ TensorType norm(LabeledTensor<TensorType> ltensor) {
             tensor.get(blockid, dbuf);
             if constexpr(std::is_same_v<TensorType, std::complex<double>>
                     || std::is_same_v<TensorType, std::complex<float>>)
-                for(auto val : dbuf) lsumsq += val * std::conj(val);         
+                for(TensorType val : dbuf) lsumsq += val * std::conj(val);         
             else
-                for(auto val : dbuf) lsumsq += val * val;
+                for(TensorType val : dbuf) lsumsq += val * val;
         };
         block_for(ec, ltensor, getnorm);
         ec.flush_and_sync();

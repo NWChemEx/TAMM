@@ -4,6 +4,7 @@
 #define TAMM_WORK_HPP_
 
 #include "tamm/atomic_counter.hpp"
+#include "labeled_tensor.hpp"
 
 
 namespace tamm {

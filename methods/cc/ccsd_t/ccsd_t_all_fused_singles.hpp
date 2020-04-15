@@ -755,4 +755,122 @@ void ccsd_t_data_s1_new(
   // printf ("[%s] ------------------------------------------------ df_num_s1_enabled: %d\n", __func__, *df_num_s1_enabled);
 } // ccsd_t_data_s1
 
+// singles data driver
+template <typename T>
+void ccsd_t_data_s1_info_only(const Index noab, const Index nvab, 
+                              std::vector<int>& k_spin, 
+                              std::vector<T>& k_evl_sorted, std::vector<size_t>& k_range, 
+                              size_t t_h1b, size_t t_h2b, size_t t_h3b, 
+                              size_t t_p4b, size_t t_p5b, size_t t_p6b,
+                              // 
+                              int* df_simple_s1_size, int* df_simple_s1_exec)
+{
+  std::tuple<Index, Index, Index, Index, Index, Index> a3_s1[] = {
+      std::make_tuple(t_p4b, t_p5b, t_p6b, t_h1b, t_h2b, t_h3b),
+      std::make_tuple(t_p4b, t_p5b, t_p6b, t_h2b, t_h1b, t_h3b),
+      std::make_tuple(t_p4b, t_p5b, t_p6b, t_h3b, t_h1b, t_h2b),
+      std::make_tuple(t_p5b, t_p4b, t_p6b, t_h1b, t_h2b, t_h3b),
+      std::make_tuple(t_p5b, t_p4b, t_p6b, t_h2b, t_h1b, t_h3b),
+      std::make_tuple(t_p5b, t_p4b, t_p6b, t_h3b, t_h1b, t_h2b),
+      std::make_tuple(t_p6b, t_p4b, t_p5b, t_h1b, t_h2b, t_h3b),
+      std::make_tuple(t_p6b, t_p4b, t_p5b, t_h2b, t_h1b, t_h3b),
+      std::make_tuple(t_p6b, t_p4b, t_p5b, t_h3b, t_h1b, t_h2b)};
+
+  for (auto ia6 = 0; ia6 < 8; ia6++) {
+    if (std::get<0>(a3_s1[ia6]) != 0) {
+      for (auto ja6 = ia6 + 1; ja6 < 9; ja6++) {  // TODO: ja6 start ?
+        if (a3_s1[ia6] == a3_s1[ja6]) {
+          a3_s1[ja6] = std::make_tuple(0,0,0,0,0,0);
+        }
+      }
+    }
+  }
+
+  // 
+  df_simple_s1_size[0] = (int)k_range[t_h1b];
+  df_simple_s1_size[1] = (int)k_range[t_h2b];
+  df_simple_s1_size[2] = (int)k_range[t_h3b];
+  df_simple_s1_size[3] = (int)k_range[t_p4b];
+  df_simple_s1_size[4] = (int)k_range[t_p5b];
+  df_simple_s1_size[5] = (int)k_range[t_p6b];
+
+  std::vector<bool> ia6_enabled(9,false);
+  
+  //ia6 -- compute which variants are enabled
+  for (auto ia6 = 0; ia6 < 9; ia6++) {
+    auto [p4b, p5b, p6b, h1b, h2b, h3b] = a3_s1[ia6];
+
+    if (!((p5b <= p6b) && (h2b <= h3b) && p4b != 0)) {
+      continue;
+    }
+    if (!(k_spin[p4b] + k_spin[p5b] + k_spin[p6b] + k_spin[h1b] + k_spin[h2b] +
+               k_spin[h3b] !=
+           12)) {
+      continue;
+    }
+    if(!(k_spin[p4b] + k_spin[p5b] + k_spin[p6b] ==
+            k_spin[h1b] + k_spin[h2b] + k_spin[h3b])) {
+      continue;
+    }
+    if (!(k_spin[p4b] == k_spin[h1b])) {
+      continue;
+    }
+    if (!(k_range[p4b] > 0 && k_range[p5b] > 0 && k_range[p6b] > 0 &&
+          k_range[h1b] > 0 && k_range[h2b] > 0 && k_range[h3b] > 0)) {
+      continue;
+    }
+
+    ia6_enabled[ia6] = true;
+  } // end ia6
+
+  //ia6 -- compute sizes and permutations
+  int idx_offset = 0;
+  for (auto ia6 = 0; ia6 < 9; ia6++) {
+    if (!ia6_enabled[ia6]) {
+      continue;
+    }
+    auto [p4b, p5b, p6b, h1b, h2b, h3b] = a3_s1[ia6];
+    auto ref_p456_h123 = std::make_tuple(t_p4b, t_p5b, t_p6b, t_h1b, t_h2b, t_h3b);
+    auto cur_p456_h123 = std::make_tuple(p4b, p5b, p6b, h1b, h2b, h3b);
+    auto cur_p456_h213 = std::make_tuple(p4b, p5b, p6b, h2b, h1b, h3b);
+    auto cur_p456_h231 = std::make_tuple(p4b, p5b, p6b, h2b, h3b, h1b);
+    auto cur_p546_h123 = std::make_tuple(p5b, p4b, p6b, h1b, h2b, h3b);
+    auto cur_p546_h213 = std::make_tuple(p5b, p4b, p6b, h2b, h1b, h3b);
+    auto cur_p546_h231 = std::make_tuple(p5b, p4b, p6b, h2b, h3b, h1b);
+    auto cur_p564_h123 = std::make_tuple(p5b, p6b, p4b, h1b, h2b, h3b);
+    auto cur_p564_h213 = std::make_tuple(p5b, p6b, p4b, h2b, h1b, h3b);
+    auto cur_p564_h231 = std::make_tuple(p5b, p6b, p4b, h2b, h3b, h1b);
+
+    if (ref_p456_h123 == cur_p456_h123) {
+      df_simple_s1_exec[0] = idx_offset;
+    }
+    if (ref_p456_h123 == cur_p456_h213) {
+      df_simple_s1_exec[1] = idx_offset;
+    }
+    if (ref_p456_h123 == cur_p456_h231) {
+      df_simple_s1_exec[2] = idx_offset;
+    }
+    if (ref_p456_h123 == cur_p546_h123) {
+      df_simple_s1_exec[3] = idx_offset;
+    }
+    if (ref_p456_h123 == cur_p546_h213) {
+      df_simple_s1_exec[4] = idx_offset;
+    }
+    if (ref_p456_h123 == cur_p546_h231) {
+      df_simple_s1_exec[5] = idx_offset;
+    }
+    if (ref_p456_h123 == cur_p564_h123) {
+      df_simple_s1_exec[6] = idx_offset;
+    }
+    if (ref_p456_h123 == cur_p564_h213) {
+      df_simple_s1_exec[7] = idx_offset;
+    }
+    if (ref_p456_h123 == cur_p564_h231) {
+      df_simple_s1_exec[8] = idx_offset;
+    }
+    // 
+    idx_offset++;
+  } // end ia6
+} // ccsd_t_data_s1
+
 #endif //CCSD_T_ALL_FUSED_SINGLES_HPP_

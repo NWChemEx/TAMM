@@ -1,6 +1,6 @@
 
-#ifndef TAMM_TESTS_HF_COMMON_HPP_
-#define TAMM_TESTS_HF_COMMON_HPP_
+#ifndef TAMM_METHODS_HF_COMMON_HPP_
+#define TAMM_METHODS_HF_COMMON_HPP_
 
 #include <cctype>
 
@@ -61,12 +61,17 @@ using shellpair_list_t = std::unordered_map<size_t, std::vector<size_t>>;
 shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
 shellpair_list_t dfbs_shellpair_list;  // shellpair list for DFBS
 shellpair_list_t minbs_shellpair_list;  // shellpair list for minBS
+shellpair_list_t obs_shellpair_list_atom;  // shellpair list for OBS for specfied atom
+shellpair_list_t minbs_shellpair_list_atom;  // shellpair list for minBS for specfied atom
 using shellpair_data_t = std::vector<std::vector<std::shared_ptr<libint2::ShellPair>>>;  // in same order as shellpair_list_t
 shellpair_data_t obs_shellpair_data;  // shellpair data for OBS
 shellpair_data_t dfbs_shellpair_data;  // shellpair data for DFBS
 shellpair_data_t minbs_shellpair_data;  // shellpair data for minBS
+shellpair_data_t obs_shellpair_data_atom;  // shellpair data for OBS for specfied atom
+shellpair_data_t minbs_shellpair_data_atom;  // shellpair data for minBS for specfied atom
 
 int idiis  = 0;
+int iediis  = 0;
 bool switch_diis=false;
 
 //AO
@@ -92,23 +97,27 @@ tamm::TiledIndexSpace tdfCocc;
 tamm::TiledIndexLabel dCocc_til;
 
 struct EigenTensors {
-  Matrix H,S,C;
-  Matrix D,F,G,X;
+  Matrix H,S;
+  Matrix C,G,D,F,X;
   Matrix C_occ;
-  Matrix C_beta, G_beta, D_beta, F_beta;
+  Matrix C_beta,G_beta,D_beta,F_beta,X_beta;
 };
 
 struct TAMMTensors {
+    std::vector<Tensor<TensorType>> ehf_tamm_hist;
+    
     std::vector<Tensor<TensorType>> diis_hist;
     std::vector<Tensor<TensorType>> fock_hist;
+    std::vector<Tensor<TensorType>> D_hist;
 
-    std::vector<Tensor<TensorType>> diis_hist_beta;
-    std::vector<Tensor<TensorType>> fock_hist_beta;
+    std::vector<Tensor<TensorType>> diis_beta_hist;
+    std::vector<Tensor<TensorType>> fock_beta_hist;
+    std::vector<Tensor<TensorType>> D_beta_hist;
     
+    Tensor<TensorType> ehf_tamm;
     Tensor<TensorType> ehf_tmp;
     Tensor<TensorType> ehf_beta_tmp;
-    Tensor<TensorType> ehf_tamm;
-
+    
     Tensor<TensorType> H1;
     Tensor<TensorType> S1;
     Tensor<TensorType> T1;
@@ -120,11 +129,11 @@ struct TAMMTensors {
     Tensor<TensorType> F1tmp; //not allocated {tAOt, tAOt}
 
     Tensor<TensorType> D_tamm;
+    Tensor<TensorType> D_beta_tamm;
     Tensor<TensorType> D_diff;
     Tensor<TensorType> D_last_tamm;
-    Tensor<TensorType> D_beta_tamm;
-    Tensor<TensorType> D_last_beta_tamm;  
-
+    Tensor<TensorType> D_last_beta_tamm;
+    
     Tensor<TensorType> FD_tamm;
     Tensor<TensorType> FDS_tamm;
     Tensor<TensorType> FD_beta_tamm;
@@ -137,22 +146,23 @@ struct TAMMTensors {
 
 struct SystemData {
   OptionsMap options_map;  
-  int n_occ_alpha;
-  int n_vir_alpha;
-  int n_occ_beta;
-  int n_vir_beta;
-  int n_lindep;
-  int nbf;
-  int nbf_orig;
-  int nelectrons;
-  int nelectrons_alpha;
-  int nelectrons_beta;  
-  int n_frozen_core;
-  int n_frozen_virtual;
-  int nmo;
-  int nocc;
-  int nvir;
-  int focc;
+  int  n_occ_alpha;
+  int  n_vir_alpha;
+  int  n_occ_beta;
+  int  n_vir_beta;
+  int  n_lindep;
+  int  nbf;
+  int  nbf_orig;
+  int  nelectrons;
+  int  nelectrons_alpha;
+  int  nelectrons_beta;  
+  int  n_frozen_core;
+  int  n_frozen_virtual;
+  int  nmo;
+  int  nocc;
+  int  nvir;
+  int  focc;
+  bool ediis;
 
   enum class SCFType { uhf, rhf, rohf };
   SCFType scf_type; //1-rhf, 2-uhf, 3-rohf
@@ -306,7 +316,7 @@ Matrix compute_shellblock_norm(const libint2::BasisSet& obs, const Matrix& A);
 std::tuple<shellpair_list_t,shellpair_data_t>
 compute_shellpairs(const libint2::BasisSet& bs1,
                    const libint2::BasisSet& bs2 = libint2::BasisSet(),
-                   double threshold = 1e-12);
+                   double threshold = 1e-16);
 
 template <libint2::Operator Kernel = libint2::Operator::coulomb>
 Matrix compute_schwarz_ints(
@@ -380,20 +390,36 @@ std::string getfilename(std::string filename){
   return fname.substr(fname.find_last_of("/")+1,fname.length());
 }
 
-void writeC(Matrix& C, std::string filename, std::string scf_files_prefix){
+void writeC(Matrix& C, std::string scf_files_prefix){
   std::string outputfile = scf_files_prefix + ".movecs";
   const auto N = C.rows();
   const auto Northo = C.cols();
   std::vector<TensorType> Cbuf(N*Northo);
-  TensorType *Hbuf = Cbuf.data();
-  Eigen::Map<Matrix>(Hbuf,N,Northo) = C;  
+  TensorType *buf = Cbuf.data();
+  Eigen::Map<Matrix>(buf,N,Northo) = C;  
   std::ofstream out(outputfile, std::ios::out | std::ios::binary);
   if(!out) {
     cerr << "ERROR: Cannot open file " << outputfile << endl;
     return;
   }
 
-  out.write((char *)(Hbuf), sizeof(TensorType) *N*Northo);
+  out.write((char *)(buf), sizeof(TensorType) *N*Northo);
+  out.close();
+}
+
+void writeD(Matrix& D, std::string scf_files_prefix){
+  std::string outputfile = scf_files_prefix + ".density";
+  const auto N = D.rows();
+  std::vector<TensorType> Dbuf(N*N);
+  TensorType *buf = Dbuf.data();
+  Eigen::Map<Matrix>(buf,N,N) = D;  
+  std::ofstream out(outputfile, std::ios::out | std::ios::binary);
+  if(!out) {
+    cerr << "ERROR: Cannot open file " << outputfile << endl;
+    return;
+  }
+
+  out.write((char *)(buf), sizeof(TensorType) *N*N);
   out.close();
 }
 
@@ -404,6 +430,36 @@ std::vector<size_t> sort_indexes(std::vector<T>& v){
     sort(idx.begin(),idx.end(),[&v](size_t x, size_t y) {return v[x] < v[y];});
 
     return idx;
+}
+
+template<typename T, int ndim>
+void t2e_hf_helper(const ExecutionContext& ec, tamm::Tensor<T>& ttensor,Matrix& etensor,
+                   const std::string& ustr = "") {
+
+    const string pstr = "(" + ustr + ")";                     
+
+    // auto hf_t1 = std::chrono::high_resolution_clock::now();
+
+    const auto rank = ec.pg().rank();
+    const auto N = etensor.rows(); //TODO
+
+    if(rank == 0)
+      tamm_to_eigen_tensor(ttensor, etensor);
+    ec.pg().barrier();
+    std::vector<T> Hbufv(N*N);
+    T *Hbuf = &Hbufv[0];//Hbufv.data();
+    Eigen::Map<Matrix>(Hbuf,N,N) = etensor;  
+    // GA_Brdcst(Hbuf,N*N*sizeof(T),0);
+    MPI_Bcast(Hbuf,N*N,mpi_type<T>(),0,ec.pg().comm());
+    etensor = Eigen::Map<Matrix>(Hbuf,N,N);
+    Hbufv.clear(); Hbufv.shrink_to_fit();
+
+    // auto hf_t2 = std::chrono::high_resolution_clock::now();
+    // auto hf_time =
+    //   std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+   
+    // //ec.pg().barrier(); //TODO
+    // if(rank == 0) std::cout << std::endl << "Time for tamm to eigen " << pstr << " : " << hf_time << " secs" << endl;
 }
 
 // returns {X,X^{-1},rank,A_condition_number,result_A_condition_number}, where
@@ -606,12 +662,12 @@ compute_shellpairs(const libint2::BasisSet& bs1,
                        std::max(bs1.max_l(), bs2.max_l()), 0);
 
 
-  if(GA_Nodeid()==0)
-    std::cout << "computing non-negligible shell-pair list ... ";
+  // if(GA_Nodeid()==0)
+  //   std::cout << "computing non-negligible shell-pair list ... ";
     
-  libint2::Timers<1> timer;
-  timer.set_now_overhead(25);
-  timer.start(0);
+  // libint2::Timers<1> timer;
+  // timer.set_now_overhead(25);
+  // timer.start(0);
 
   shellpair_list_t splist;
 
@@ -675,38 +731,11 @@ compute_shellpairs(const libint2::BasisSet& bs1,
       // }
     }
   
-  timer.stop(0);
-  if(GA_Nodeid()==0)     
-    std::cout << "done (" << timer.read(0) << " s)" << endl;
+  // timer.stop(0);
+  // if(GA_Nodeid()==0)     
+  //   std::cout << "done (" << timer.read(0) << " s)" << endl;
 
   return std::make_tuple(splist,spdata);
-}
-
-// computes Superposition-Of-Atomic-Densities guess for the molecular density
-// matrix
-// in minimal basis; occupies subshells by smearing electrons evenly over the
-// orbitals
-Matrix compute_soad(const std::vector<Atom>& atoms) {
-  // compute number of atomic orbitals
-  size_t nao = 0;
-  for (const auto& atom : atoms) {
-    const auto Z = atom.atomic_number;
-    nao += libint2::sto3g_num_ao(Z);
-  }
-
-  // compute the minimal basis density
-  Matrix D = Matrix::Zero(nao, nao);
-  size_t ao_offset = 0;  // first AO of this atom
-  for (const auto& atom : atoms) {
-    const auto Z = atom.atomic_number;
-    const auto& occvec = libint2::sto3g_ao_occupation_vector(Z);
-    for(const auto& occ: occvec) {
-      D(ao_offset, ao_offset) = occ;
-      ++ao_offset;
-    }
-  }
-
-  return D * 0.5;  // we use densities normalized to # of electrons/2
 }
 
 template <libint2::Operator Kernel>
@@ -731,14 +760,14 @@ Matrix compute_schwarz_ints(
   Engine engine = Engine(Kernel, std::max(bs1.max_nprim(), bs2.max_nprim()),
                       std::max(bs1.max_l(), bs2.max_l()), 0, epsilon, params);
 
-    if(GA_Nodeid()==0) {
-      std::cout << "computing Schwarz bound prerequisites (kernel=" 
-            << (int)Kernel << ") ... ";
-    }
+    // if(GA_Nodeid()==0) {
+    //   std::cout << "computing Schwarz bound prerequisites (kernel=" 
+    //         << (int)Kernel << ") ... ";
+    // }
 
-    libint2::Timers<1> timer;
-    timer.set_now_overhead(25);
-    timer.start(0);
+    // libint2::Timers<1> timer;
+    // timer.set_now_overhead(25);
+    // timer.start(0);
   
     const auto& buf = engine.results();
 
@@ -768,9 +797,9 @@ Matrix compute_schwarz_ints(
       }
     }
 
-  timer.stop(0);
-  if(GA_Nodeid()==0) 
-    std::cout << "done (" << timer.read(0) << " s)" << endl;
+  // timer.stop(0);
+  // if(GA_Nodeid()==0) 
+  //   std::cout << "done (" << timer.read(0) << " s)" << endl;
  
   return K;
 }
@@ -795,4 +824,4 @@ Matrix compute_shellblock_norm(const libint2::BasisSet& obs, const Matrix& A) {
   return Ash;
 }
 
-#endif // TAMM_TESTS_HF_COMMON_HPP_
+#endif // TAMM_METHODS_HF_COMMON_HPP_

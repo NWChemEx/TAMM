@@ -90,12 +90,11 @@ COMMON {
 
 SCF 
 {  //start of scf section
-
-    tol_int 1e-8
-    tol_lindep 1e-6
+    tol_int 1e-16
+    tol_lindep 1e-12
     conve 1e-6
     convd 1e-5
-    diis_hist 10
+    diis_hist 12
     tilesize 30
     //debug true
     //restart true
@@ -103,13 +102,14 @@ SCF
 
 CD {
     diagtol 1e-6
-    max_cvecs 8 
 }
 
 CCSD {
     cuda 6
-    threshold 1e-1
-    tilesize 100
+    threshold 1e-2
+    //ccsd_maxiter 1
+    //force_tilesize true
+    //tilesize 50
     debug false
 
 }

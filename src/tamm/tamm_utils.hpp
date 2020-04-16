@@ -354,7 +354,7 @@ std::tuple<int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType>
     int nagg = (nelements / (ne_mb * 1024) ) + 1;
     // const int nnodes = GA_Cluster_nnodes();
     const int ppn = GA_Cluster_nprocs(0);
-    const int avail_nodes = nranks/ppn;
+    const int avail_nodes = std::min(nranks/ppn + 1,GA_Cluster_nnodes());
     if(nagg > avail_nodes) nagg = avail_nodes;
     if(nagg_hint > 0) nagg = nagg_hint;
     

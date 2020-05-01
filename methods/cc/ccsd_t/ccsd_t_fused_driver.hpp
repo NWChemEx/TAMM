@@ -14,7 +14,7 @@ void finalizememmodule();
 // 
 // 
 template<typename T>
-std::tuple<double,double> ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
+std::tuple<double,double,double,double> ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                    std::vector<int>& k_spin,
                    const TiledIndexSpace& MO,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
@@ -25,7 +25,7 @@ std::tuple<double,double> ccsd_t_fused_driver_new(SystemData& sys_data, Executio
                    LRUCache<Index,std::vector<T>>& cache_s1t, LRUCache<Index,std::vector<T>>& cache_s1v,
                    LRUCache<Index,std::vector<T>>& cache_d1t, LRUCache<Index,std::vector<T>>& cache_d1v,
                    LRUCache<Index,std::vector<T>>& cache_d2t, LRUCache<Index,std::vector<T>>& cache_d2v,
-                   bool seq_h3b=false) 
+                   bool seq_h3b=false, bool tilesize_opt=true) 
 {
   // 
   auto rank     = ec.pg().rank().value();
@@ -33,6 +33,9 @@ std::tuple<double,double> ccsd_t_fused_driver_new(SystemData& sys_data, Executio
 
   Index noab=MO("occ").num_tiles();
   Index nvab=MO("virt").num_tiles();
+
+  Index noa=MO("occ_alpha").num_tiles();
+  Index nva=MO("virt_alpha").num_tiles();  
 
   auto mo_tiles = MO.input_tile_sizes();
   std::vector<size_t> k_range;
@@ -45,6 +48,7 @@ std::tuple<double,double> ccsd_t_fused_driver_new(SystemData& sys_data, Executio
   } 
 
   if(nodezero){
+    cout << "noa,nva = " << noa << ", " << nva << endl;
     cout << "noab,nvab = " << noab << ", " << nvab << endl;
     // cout << "k_spin = " << k_spin << endl;
     // cout << "k_range = " << k_range << endl;
@@ -57,7 +61,7 @@ std::tuple<double,double> ccsd_t_fused_driver_new(SystemData& sys_data, Executio
   if(dev_count_check < icuda){
     if(nodezero) cout << "ERROR: Please check whether you have " << icuda <<
       " cuda devices per node. Terminating program..." << endl << endl;
-    return std::make_tuple(-999,-999);
+    return std::make_tuple(-999,-999,0,0);
   }
   
   int cuda_device_number=0;
@@ -87,6 +91,8 @@ std::tuple<double,double> ccsd_t_fused_driver_new(SystemData& sys_data, Executio
   int64_t taskcount = 0;
   int64_t next = ac->fetch_add(0, 1);
 
+  auto cc_t1 = std::chrono::high_resolution_clock::now();
+
   size_t max_pdim = 0;
   size_t max_hdim = 0;
   for (size_t t_p4b=noab; t_p4b < noab + nvab; t_p4b++) 
@@ -94,24 +100,70 @@ std::tuple<double,double> ccsd_t_fused_driver_new(SystemData& sys_data, Executio
   for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) 
     max_hdim = std::max(max_hdim,k_range[t_h1b]);
 
+  size_t max_d1_kernels_pertask = 9*noab;
+  size_t max_d2_kernels_pertask = 9*nvab;
+  if(tilesize_opt) {
+    max_d1_kernels_pertask = 9*noa;
+    max_d2_kernels_pertask = 9*nva;    
+  }
+
   // 
   size_t size_T_s1_t1 = 9 * (max_pdim) * (max_hdim);
   size_t size_T_s1_v2 = 9 * (max_pdim * max_pdim) * (max_hdim * max_hdim);
-  size_t size_T_d1_t2 = 9 * noab * (max_pdim * max_pdim) * (max_hdim * max_hdim);
-  size_t size_T_d1_v2 = 9 * noab * (max_pdim) * (max_hdim * max_hdim * max_hdim);
-  size_t size_T_d2_t2 = 9 * nvab * (max_pdim * max_pdim) * (max_hdim * max_hdim);
-  size_t size_T_d2_v2 = 9 * nvab * (max_pdim * max_pdim * max_pdim) * (max_hdim);
+  size_t size_T_d1_t2 = max_d1_kernels_pertask * (max_pdim * max_pdim) * (max_hdim * max_hdim);
+  size_t size_T_d1_v2 = max_d1_kernels_pertask * (max_pdim) * (max_hdim * max_hdim * max_hdim);
+  size_t size_T_d2_t2 = max_d2_kernels_pertask * (max_pdim * max_pdim) * (max_hdim * max_hdim);
+  size_t size_T_d2_v2 = max_d2_kernels_pertask * (max_pdim * max_pdim * max_pdim) * (max_hdim);
+
+  // 
+  // 
+  // 
+  T* df_host_pinned_s1_t1 = (T*)getHostMem(sizeof(double) * size_T_s1_t1);
+  T* df_host_pinned_s1_v2 = (T*)getHostMem(sizeof(double) * size_T_s1_v2);
+  T* df_host_pinned_d1_t2 = (T*)getHostMem(sizeof(double) * size_T_d1_t2);
+  T* df_host_pinned_d1_v2 = (T*)getHostMem(sizeof(double) * size_T_d1_v2);
+  T* df_host_pinned_d2_t2 = (T*)getHostMem(sizeof(double) * size_T_d2_t2);
+  T* df_host_pinned_d2_v2 = (T*)getHostMem(sizeof(double) * size_T_d2_v2);
+
+  // 
+  int* df_simple_s1_size = (int*)getHostMem(sizeof(int) * (6));
+  int* df_simple_s1_exec = (int*)getHostMem(sizeof(int) * (9));
+
+  int* df_simple_d1_size = (int*)getHostMem(sizeof(int) * (7 * noab));
+  int* df_simple_d1_exec = (int*)getHostMem(sizeof(int) * (9 * noab));
+
+  int* df_simple_d2_size = (int*)getHostMem(sizeof(int) * (7 * nvab));
+  int* df_simple_d2_exec = (int*)getHostMem(sizeof(int) * (9 * nvab));
+
+  // 
+  double* df_dev_s1_t1_all = (double*)getGpuMem(sizeof(double) * size_T_s1_t1);
+	double* df_dev_s1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_s1_v2);
+  double* df_dev_d1_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_t2);
+	double* df_dev_d1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_v2);
+  double* df_dev_d2_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_t2);
+	double* df_dev_d2_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_v2);
+
+  // 
+  size_t max_num_blocks = sys_data.options_map.ccsd_options.ccsdt_tilesize;
+  max_num_blocks = std::ceil((max_num_blocks+4-1)/4.0);
+
+  double* df_host_energies  = (double*)getHostMem(sizeof(double) * std::pow(max_num_blocks, 6) * 2);
+  double* df_dev_energies 	= (double*)getGpuMem (sizeof(double) * std::pow(max_num_blocks, 6) * 2);
 
   // 
   int num_task = 0;
   if(!seq_h3b) 
   {
+    if(rank==0) {
+      std::cout << "456123 parallel 6d loop variant" << std::endl;
+      std::cout << "tile142563,kernel,memcpy,data,total" << std::endl;
+    }
     for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
     for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
     for (size_t t_p6b = t_p5b; t_p6b < noab + nvab; t_p6b++) {
     for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) { //    
     for (size_t t_h2b = t_h1b; t_h2b < noab; t_h2b++) {
-    for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {
+    for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {      
       if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
           (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
         if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
@@ -143,9 +195,23 @@ std::tuple<double,double> ccsd_t_fused_driver_new(SystemData& sys_data, Executio
                                                 d_t1, d_t2, d_v2, 
                                                 k_evl_sorted,
                                                 // 
+                                                df_host_pinned_s1_t1, df_host_pinned_s1_v2, 
+                                                df_host_pinned_d1_t2, df_host_pinned_d1_v2, 
+                                                df_host_pinned_d2_t2, df_host_pinned_d2_v2,
+                                                df_host_energies, 
+                                                // 
+                                                df_simple_s1_size, df_simple_d1_size, df_simple_d2_size, 
+                                                df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec, 
+                                                // 
+                                                df_dev_s1_t1_all, df_dev_s1_v2_all, 
+                                                df_dev_d1_t2_all, df_dev_d1_v2_all, 
+                                                df_dev_d2_t2_all, df_dev_d2_v2_all, 
+                                                df_dev_energies,
+                                                // 
                                                 t_h1b, t_h2b, t_h3b,
                                                 t_p4b, t_p5b, t_p6b,
-                                                factor,
+                                                factor, taskcount, 
+                                                max_d1_kernels_pertask, max_d2_kernels_pertask,
                                                 //  
                                                 size_T_s1_t1, size_T_s1_v2, 
                                                 size_T_d1_t2, size_T_d1_v2, 
@@ -165,11 +231,25 @@ std::tuple<double,double> ccsd_t_fused_driver_new(SystemData& sys_data, Executio
   } // parallel h3b loop
   else 
   { //seq h3b loop
+    #if 1
+    if(rank==0) {
+      std::cout << "14256-seq3 loop variant" << std::endl;
+      std::cout << "tile142563,kernel,memcpy,data,total" << std::endl;
+    }
+    for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) { //    
+    for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
+    for (size_t t_h2b = t_h1b; t_h2b < noab; t_h2b++) {    
+    for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
+    for (size_t t_p6b = t_p5b; t_p6b < noab + nvab; t_p6b++) {
+    #endif  
+
+    #if 0
     for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
     for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
     for (size_t t_p6b = t_p5b; t_p6b < noab + nvab; t_p6b++) {
     for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) {
     for (size_t t_h2b = t_h1b; t_h2b < noab; t_h2b++) {
+    #endif
       if (next == taskcount) {
         // if (has_GPU==1) {
         //   initmemmodule();
@@ -204,9 +284,23 @@ std::tuple<double,double> ccsd_t_fused_driver_new(SystemData& sys_data, Executio
                                                   d_t1, d_t2, d_v2, 
                                                   k_evl_sorted,
                                                   // 
+                                                  df_host_pinned_s1_t1, df_host_pinned_s1_v2, 
+                                                  df_host_pinned_d1_t2, df_host_pinned_d1_v2, 
+                                                  df_host_pinned_d2_t2, df_host_pinned_d2_v2, 
+                                                  df_host_energies,
+                                                  // 
+                                                  df_simple_s1_size, df_simple_d1_size, df_simple_d2_size, 
+                                                  df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec, 
+                                                  // 
+                                                  df_dev_s1_t1_all, df_dev_s1_v2_all, 
+                                                  df_dev_d1_t2_all, df_dev_d1_v2_all, 
+                                                  df_dev_d2_t2_all, df_dev_d2_v2_all, 
+                                                  df_dev_energies,
+                                                  // 
                                                   t_h1b, t_h2b, t_h3b,
                                                   t_p4b, t_p5b, t_p6b,
-                                                  factor,
+                                                  factor, taskcount,
+                                                  max_d1_kernels_pertask, max_d2_kernels_pertask,
                                                   //  
                                                   size_T_s1_t1, size_T_s1_v2, 
                                                   size_T_d1_t2, size_T_d1_v2, 
@@ -231,15 +325,51 @@ std::tuple<double,double> ccsd_t_fused_driver_new(SystemData& sys_data, Executio
   energy2 = tmp_energy_l[1];
 
   // 
+  // 
+  //  free shared deivce mem
+  // 
+  freeGpuMem(df_dev_s1_t1_all); freeGpuMem(df_dev_s1_v2_all);
+  freeGpuMem(df_dev_d1_t2_all); freeGpuMem(df_dev_d1_v2_all);
+  freeGpuMem(df_dev_d2_t2_all); freeGpuMem(df_dev_d2_v2_all);
+  freeGpuMem(df_dev_energies);
+
+  // 
+  //  free shared host mem.
+  // 
+  freeHostMem(df_host_pinned_s1_t1);
+  freeHostMem(df_host_pinned_s1_v2);
+  freeHostMem(df_host_pinned_d1_t2);
+  freeHostMem(df_host_pinned_d1_v2);
+  freeHostMem(df_host_pinned_d2_t2);
+  freeHostMem(df_host_pinned_d2_v2);
+  freeHostMem(df_host_energies);
+
+  // 
+  freeHostMem(df_simple_s1_exec);
+  freeHostMem(df_simple_s1_size);
+  freeHostMem(df_simple_d1_exec);
+  freeHostMem(df_simple_d1_size);
+  freeHostMem(df_simple_d2_exec);
+  freeHostMem(df_simple_d2_size);
+
+  // 
   finalizememmodule();
+
+  auto cc_t2 = std::chrono::high_resolution_clock::now();
+  auto ccsd_t_time = 
+        std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
+
+  ec.pg().barrier ();
+  cc_t2 = std::chrono::high_resolution_clock::now();
+  auto total_t_time = 
+        std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
 
   // 
   next = ac->fetch_add(0, 1); 
-  ec.pg().barrier ();
   ac->deallocate();
   delete ac;
 
-  return std::make_tuple(energy1,energy2);
+  return std::make_tuple(energy1,energy2,ccsd_t_time,total_t_time);
 }
 
 template<typename T>
@@ -249,17 +379,12 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
                                         std::vector<T>& k_evl_sorted,
                                         double hf_ccsd_energy, int icuda,
                                         bool is_restricted,
-                                        size_t* total_num_ops, 
+                                        long double& total_num_ops, 
                                         // 
                                         bool seq_h3b=false) 
 {
   //
   auto rank = ec.pg().rank().value();
-  bool nodezero = rank==0;
-
-  // 
-  int world_size;
-  MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
   Index noab=MO("occ").num_tiles();
   Index nvab=MO("virt").num_tiles();
@@ -273,22 +398,6 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
     k_offset.push_back(sum);
     sum+=x;
   } 
-
-  // 
-  size_t max_pdim = 0;
-  size_t max_hdim = 0;
-  for (size_t t_p4b=noab; t_p4b < noab + nvab; t_p4b++) 
-    max_pdim = std::max(max_pdim,k_range[t_p4b]);
-  for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) 
-    max_hdim = std::max(max_hdim,k_range[t_h1b]);
-
-  // 
-  size_t size_T_s1_t1 = 9 * (max_pdim) * (max_hdim);
-  size_t size_T_s1_v2 = 9 * (max_pdim * max_pdim) * (max_hdim * max_hdim);
-  size_t size_T_d1_t2 = 9 * noab * (max_pdim * max_pdim) * (max_hdim * max_hdim);
-  size_t size_T_d1_v2 = 9 * noab * (max_pdim) * (max_hdim * max_hdim * max_hdim);
-  size_t size_T_d2_t2 = 9 * nvab * (max_pdim * max_pdim) * (max_hdim * max_hdim);
-  size_t size_T_d2_v2 = 9 * nvab * (max_pdim * max_pdim * max_pdim) * (max_hdim);
 
   // 
   //  "list of tasks": size (t_h1b, t_h2b, t_h3b, t_p4b, t_p5b, t_p6b), factor, 
@@ -372,7 +481,7 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
   // 
   //    
   // 
-  *total_num_ops = ccsd_t_fully_fused_performance(list_tasks, 
+  total_num_ops = (long double) ccsd_t_fully_fused_performance(list_tasks, 
                                 rank, 1, 
                                 noab, nvab,
                                 k_spin,k_range,k_offset,

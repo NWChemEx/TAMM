@@ -263,7 +263,6 @@ void ccsd_driver() {
 
     #endif
 
-    cc_t1 = std::chrono::high_resolution_clock::now();
     double energy1=0, energy2=0;
 
     if(rank==0) {
@@ -330,11 +329,16 @@ void ccsd_driver() {
 
     if(rank==0 && seq_h3b) cout << "running seq h3b loop variant..." << endl;
 
-    // ccsd_t_fused_driver_new
-    std::tie(energy1,energy2) = ccsd_t_fused_driver_new<T>(sys_data,ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
+    double ccsd_t_time = 0, total_t_time = 0;
+    // cc_t1 = std::chrono::high_resolution_clock::now();
+    std::tie(energy1,energy2,ccsd_t_time,total_t_time) = ccsd_t_fused_driver_new<T>(sys_data,ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
                                     p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted,
                                     cache_s1t,cache_s1v,cache_d1t,
                                     cache_d1v,cache_d2t,cache_d2v,seq_h3b);
+
+    // cc_t2 = std::chrono::high_resolution_clock::now();
+    // auto ccsd_t_time = 
+    //     std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
 
     double g_energy1,g_energy2;
     MPI_Reduce(&energy1, &g_energy1, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
@@ -355,43 +359,26 @@ void ccsd_driver() {
     
     }
 
-    free_tensors(t_d_t1, t_d_t2, t_d_f1, t_d_v2);
-
-    ec.pg().barrier();
-
-    cc_t2 = std::chrono::high_resolution_clock::now();
-    auto ccsd_t_time = 
-        std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-
-
-
-    size_t total_num_ops = 0;  
+    long double total_num_ops = 0;  
     //
     if (rank == 0)     
     {
         // std::cout << "--------------------------------------------------------------------" << std::endl;
         ccsd_t_fused_driver_calculator_ops<T>(sys_data,ec,k_spin,MO1,
                                     p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted,
-                                    &total_num_ops, 
+                                    total_num_ops, 
                                     seq_h3b);
         // std::cout << "--------------------------------------------------------------------" << std::endl;
     }
 
+    ec.pg().barrier();
 
     auto nranks = ec.pg().size().value();
-
-    double g_ccsd_t_time,g_ccsd_t_data_per_rank;
-    MPI_Reduce(&ccsd_t_time, &g_ccsd_t_time, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
-    ccsd_t_time = g_ccsd_t_time/nranks;
-    if(rank == 0) std::cout << std::endl << "Total CCSD(T) Time: " << ccsd_t_time << " secs" << std::endl;
-    if(rank == 0) std::cout << "# of Operations: " << total_num_ops << std::endl;
-    if(rank == 0) std::cout << "GFLOPS " << total_num_ops / (ccsd_t_time * 1000000000) << std::endl;
-
 
     auto print_profile_stats = [&](const std::string& timer_type, const double g_tval, const double tval_min, const double tval_max){
         const double tval = g_tval/nranks;
         std::cout.precision(3);
-        std::cout << "   -> " << timer_type << ": " << tval << "s (" << tval*100.0/ccsd_t_time << "%), (min,max) = (" << tval_min << "," << tval_max << ")" << std::endl;
+        std::cout << "   -> " << timer_type << ": " << tval << "s (" << tval*100.0/total_t_time << "%), (min,max) = (" << tval_min << "," << tval_max << ")" << std::endl;
     };
 
     auto comm_stats = [&](const std::string& timer_type, const double ctime){
@@ -400,9 +387,23 @@ void ccsd_driver() {
         MPI_Reduce(&ctime, &g_min_getTime, 1, MPI_DOUBLE, MPI_MIN, 0, ec.pg().comm());
         MPI_Reduce(&ctime, &g_max_getTime, 1, MPI_DOUBLE, MPI_MAX, 0, ec.pg().comm());
         if(rank == 0) 
-        print_profile_stats(timer_type, g_getTime, g_min_getTime, g_max_getTime);        
+        print_profile_stats(timer_type, g_getTime, g_min_getTime, g_max_getTime);   
+        return g_getTime/nranks;        
     };
 
+    // cout << rank << "," << ccsd_t_time << endl;
+    // ec.pg().barrier();
+    if(rank == 0) {
+      std::cout << std::endl << "------CCSD(T) Performance------" << std::endl;
+      std::cout << "Total CCSD(T) Time: " << total_t_time << std::endl;
+    }
+    ccsd_t_time = comm_stats("CCSD(T) Avg. Work Time", ccsd_t_time);
+    if(rank == 0) {
+      std::cout << std::scientific << "   -> Total Number of Operations: " << total_num_ops << std::endl;
+      std::cout << std::fixed << "   -> GFLOPS: " << total_num_ops / (total_t_time * 1e9) << std::endl;
+      std::cout << std::fixed << "   -> Load imbalance: " << (1.0 - ccsd_t_time / total_t_time) << std::endl;
+    }
+    
     comm_stats("S1-T1 GetTime", ccsdt_s1_t1_GetTime);
     comm_stats("S1-V2 GetTime", ccsdt_s1_v2_GetTime);
     comm_stats("D1-T2 GetTime", ccsdt_d1_t2_GetTime);
@@ -410,6 +411,7 @@ void ccsd_driver() {
     comm_stats("D2-T2 GetTime", ccsdt_d2_t2_GetTime);
     comm_stats("D2-V2 GetTime", ccsdt_d2_v2_GetTime);
 
+    double g_ccsd_t_data_per_rank;
     ccsd_t_data_per_rank = (ccsd_t_data_per_rank * 8.0) / (1024*1024.0*1024); //GB
     MPI_Reduce(&ccsd_t_data_per_rank, &g_ccsd_t_data_per_rank, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
     if(rank == 0) 
@@ -473,6 +475,8 @@ void ccsd_driver() {
       print_stats(fp_d2v,g_cvec_d2v);
     }
     #endif
+
+    free_tensors(t_d_t1, t_d_t2, t_d_f1, t_d_v2);
 
     ec.flush_and_sync();
     MemoryManagerGA::destroy_coll(mgr);

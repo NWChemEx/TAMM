@@ -158,24 +158,25 @@ public:
 
         compute_key_offsets();
         max_block_size_ = 0;
-        // for(const auto& blockid : tensor_structure_->loop_nest()) {
-        //     if(tensor_structure_->is_non_zero(blockid)) {
-        //       Size sz = tensor_structure_->block_size(blockid);
-        //       max_block_size_ = std::max(max_block_size_, sz);
-        //       hash_.push_back({compute_key(blockid), sz});
-        //     }
-        // }
-        
-        auto loop_nest = tensor_structure_->loop_nest();
-        
-        loop_nest.iterate([&](IndexVector blockid) {
-            if(tensor_structure_->is_non_zero(blockid)) {
+        if (!tensor_structure->is_dense()) {
+          for (const auto &blockid : tensor_structure_->loop_nest()) {
+            if (tensor_structure_->is_non_zero(blockid)) {
               Size sz = tensor_structure_->block_size(blockid);
               max_block_size_ = std::max(max_block_size_, sz);
               hash_.push_back({compute_key(blockid), sz});
             }
-        });
+          }
+        } else {
+          auto loop_nest = tensor_structure_->loop_nest();
 
+          loop_nest.iterate([&](IndexVector blockid) {
+            if (tensor_structure_->is_non_zero(blockid)) {
+              Size sz = tensor_structure_->block_size(blockid);
+              max_block_size_ = std::max(max_block_size_, sz);
+              hash_.push_back({compute_key(blockid), sz});
+            }
+          });
+        }
 
         EXPECTS(hash_.size() > 0);
 
@@ -319,6 +320,125 @@ private:
     std::vector<Offset> key_offsets_;  /**< Vector of offsets for each key value */
 
 }; // class Distribution_NW
+
+/**
+ *  @brief A simple round-robin distribution that allocates equal-sized blocks
+ * (or the largest block) in a round-robin fashion. This distribution
+ * over-allocates and ignores sparsity.
+ *
+ */
+class Distribution_SimpleRoundRobin : public Distribution {
+ public:
+  using Key = int64_t;
+
+  Distribution_SimpleRoundRobin(const TensorBase* tensor_structure = nullptr,
+                                Proc nproc = Proc{1})
+      : Distribution{tensor_structure, nproc, DistKind::simple_round_robin} {
+    EXPECTS(nproc > 0);
+    if (tensor_structure == nullptr) {
+      return;
+    }
+
+    compute_key_offsets();
+    // compute number of tiles
+    total_num_tiles_ = 1;
+    EXPECTS(tensor_structure != nullptr);
+    for (const auto& tis : tensor_structure->tiled_index_spaces()) {
+      total_num_tiles_ *= tis.max_num_tiles();
+    }
+    // compute max block size
+    max_block_size_ = 1;
+    for (const auto& tis : tensor_structure->tiled_index_spaces()) {
+      max_block_size_ *= max_tile_size(tis);
+    }
+    // compute max buffer size on any proc
+    max_proc_buf_size_ = ((total_num_tiles_ / nproc_.value()) +
+                          (total_num_tiles_.value() % nproc_.value() ? 1 : 0)) *
+                         max_block_size_;
+  }
+
+  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
+    /** @warning
+     *  totalview LD on following statement
+     *  back traced to tamm::Tensor<double>::alloc shared_ptr_base.h
+     *  backtraced to ccsd_driver<double> execution_context.h
+     *  back traced to main
+     */
+    return new Distribution_SimpleRoundRobin(tensor_structure, nproc);
+  }
+
+  std::pair<Proc, Offset> locate(const IndexVector& blockid) const {
+    auto key = compute_key(blockid);
+    EXPECTS(key >= 0 && key < total_num_tiles_);
+    return {key % nproc_.value(), (key / nproc_.value()) * max_block_size_.value()};
+  }
+
+  Size buf_size(Proc proc) const {
+    EXPECTS(proc >= 0);
+    EXPECTS(proc < nproc_);
+    return max_proc_buf_size_;
+  }
+
+  Size max_proc_buf_size() const override { return max_proc_buf_size_; }
+
+  Size max_block_size() const override { return max_block_size_; }
+
+  /**
+   * @brief Total size of the distribution across all ranks
+   *
+   * @return Size
+   */
+  Size total_size() const override {
+    return nproc_.value() * max_proc_buf_size_;
+  }
+
+ private:
+  /**
+   * @brief Computes offset for each key value
+   *
+   */
+  void compute_key_offsets() {
+    const auto& tis_list = tensor_structure_->tindices();
+    int rank = tis_list.size();
+    key_offsets_.resize(rank);
+    if (rank > 0) {
+      key_offsets_[rank - 1] = 1;
+    }
+    for (int i = rank - 2; i >= 0; i--) {
+      key_offsets_[i] = key_offsets_[i + 1] * tis_list[i + 1].max_num_tiles();
+    }
+  }
+
+  /**
+   * @brief Computes the key value for a given block id
+   *
+   * @param [in] blockid identifier for the tensor block
+   * @returns a key value
+   */
+  Key compute_key(const IndexVector& blockid) const {
+    Key key{0};
+    const auto rank = blockid.size();
+    for (size_t i = 0; i < rank; i++) {
+      key += blockid[i] * key_offsets_[i].value();
+    }
+    return key;
+  }
+
+  size_t max_tile_size(const TiledIndexSpace& tis) {
+    EXPECTS(!tis.is_dependent());
+
+    size_t max_size = 0;
+    for (size_t i = 0; i < tis.num_tiles(); i++) {
+      max_size = std::max(max_size, tis.tile_size(i));
+    }
+    return max_size;
+  }
+
+  Offset total_num_tiles_;          /**< Total numnber of tiles */
+  Size max_proc_buf_size_;          /**< Max buffer size on any rank */
+  Size max_block_size_;             /**< Max size of any block */
+  std::vector<Offset> key_offsets_; /**< Vector of offsets for each key value */
+};                                  // class Distribution_SimpleRoundRobin
 
 /**
  * @brief Dense distribution logic for dense multidimensional tensors.

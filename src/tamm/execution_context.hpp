@@ -38,7 +38,7 @@ class RuntimeEngine;
 
 class Distribution_NW;
 class Distribution_Dense;
-
+class Distribution_SimpleRoundRobin;
 
 /**
  * @brief Wrapper class to hold information during execution.
@@ -333,6 +333,9 @@ std::unique_ptr<Distribution> distribution_factory(DistKind dkind, Args&&... arg
     case DistKind::nw:
       return std::make_unique<Distribution_NW>(std::forward<Args>(args)...);
       break;
+    case DistKind::simple_round_robin:
+      return std::make_unique<Distribution_SimpleRoundRobin>(std::forward<Args>(args)...);
+      break;      
   }
   UNREACHABLE();
   return nullptr;

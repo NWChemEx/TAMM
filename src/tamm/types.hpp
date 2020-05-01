@@ -100,7 +100,8 @@ enum class ElementType {
 enum class DistKind {
   invalid,
   nw,
-  dense
+  dense,
+  simple_round_robin
 };
 
 enum class MemManageKind {

@@ -102,24 +102,38 @@ void total_fused_ccsd_t_cpu(size_t base_size_h1b, size_t base_size_h2b, size_t b
 void helper_calculate_num_ops(const Index noab, const Index nvab, 
                               int* df_simple_s1_size, int* df_simple_d1_size, int* df_simple_d2_size, 
                               int* df_simple_s1_exec, int* df_simple_d1_exec, int* df_simple_d2_exec, 
-                              size_t* task_num_ops_s1, size_t* task_num_ops_d1, size_t* task_num_op_sd2, 
-                              size_t* total_num_ops_s1, size_t* total_num_ops_d1, size_t* total_num_ops_d2);
+                              long double& task_num_ops_s1, long double& task_num_ops_d1, long double& task_num_op_sd2, 
+                              long double& total_num_ops_s1, long double& total_num_ops_d1, long double& total_num_ops_d2);
 
 
 // #define OPT_ALL_TIMING
 // #define OPT_KERNEL_TIMING
 
 template<typename T>
-void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, auto rank, 
+void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, int64_t rank, 
                                           std::vector<int>& k_spin,
                                           std::vector<size_t>& k_range,
                                           std::vector<size_t>& k_offset,
                                           Tensor<T>& d_t1, Tensor<T>& d_t2, Tensor<T>& d_v2, 
                                           std::vector<T>& k_evl_sorted,
                                           // 
+                                          T* df_host_pinned_s1_t1, T* df_host_pinned_s1_v2, 
+                                          T* df_host_pinned_d1_t2, T* df_host_pinned_d1_v2,
+                                          T* df_host_pinned_d2_t2, T* df_host_pinned_d2_v2,
+                                          T* host_energies, 
+                                          // 
+                                          int* df_simple_s1_size, int* df_simple_d1_size, int* df_simple_d2_size, 
+                                          int* df_simple_s1_exec, int* df_simple_d1_exec, int* df_simple_d2_exec, 
+                                          // 
+                                          T* df_dev_s1_t1_all, T* df_dev_s1_v2_all, 
+                                          T* df_dev_d1_t2_all, T* df_dev_d1_v2_all, 
+                                          T* df_dev_d2_t2_all, T* df_dev_d2_v2_all, 
+                                          T* dev_energies, 
+                                          // 
                                           size_t t_h1b, size_t t_h2b, size_t t_h3b,
                                           size_t t_p4b, size_t t_p5b, size_t t_p6b,
-                                          double factor,
+                                          double factor, size_t taskid,
+                                          size_t max_d1_kernels_pertask, size_t max_d2_kernels_pertask,
                                           //  
                                           size_t size_T_s1_t1, size_t size_T_s1_v2, 
                                           size_t size_T_d1_t2, size_t size_T_d1_v2, 
@@ -131,10 +145,10 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
                                           LRUCache<Index,std::vector<T>>& cache_d2t, LRUCache<Index,std::vector<T>>& cache_d2v) 
 {
 #ifdef OPT_KERNEL_TIMING
-  size_t total_num_ops_s1 = 0;
-  size_t total_num_ops_d1 = 0;
-  size_t total_num_ops_d2 = 0;
-  size_t total_num_ops_total = 0;
+  long double total_num_ops_s1 = 0;
+  long double total_num_ops_d1 = 0;
+  long double total_num_ops_d2 = 0;
+  // long double total_num_ops_total = 0;
 #endif
 
 #ifdef OPT_ALL_TIMING
@@ -166,10 +180,10 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
   // Index p4b,p5b,p6b,h1b,h2b,h3b;
   const size_t max_dim_s1_t1 = size_T_s1_t1 / 9;
   const size_t max_dim_s1_v2 = size_T_s1_v2 / 9;
-  const size_t max_dim_d1_t2 = size_T_d1_t2 / (9 * noab);
-  const size_t max_dim_d1_v2 = size_T_d1_v2 / (9 * noab);
-  const size_t max_dim_d2_t2 = size_T_d2_t2 / (9 * nvab);
-  const size_t max_dim_d2_v2 = size_T_d2_v2 / (9 * nvab);
+  const size_t max_dim_d1_t2 = size_T_d1_t2 / max_d1_kernels_pertask;
+  const size_t max_dim_d1_v2 = size_T_d1_v2 / max_d1_kernels_pertask;
+  const size_t max_dim_d2_t2 = size_T_d2_t2 / max_d2_kernels_pertask;
+  const size_t max_dim_d2_v2 = size_T_d2_v2 / max_d2_kernels_pertask;
 
   // 
   //  >> for pinned host memory (should support redundant calls)
@@ -177,6 +191,7 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
   // 
   //  pinned host memory for s1 (t1, v2), d1 (t2, v2), and d2 (t2, v2)
   // 
+#if 0
   T* df_host_pinned_s1_t1;
   T* df_host_pinned_s1_v2;
   T* df_host_pinned_d1_t2;
@@ -187,12 +202,14 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
   // 
   int*  df_simple_s1_size;   int*  df_simple_d1_size;   int* df_simple_d2_size;
   int*  df_simple_s1_exec;   int*  df_simple_d1_exec;   int* df_simple_d2_exec;
+#endif
   int   df_num_s1_enabled;   int   df_num_d1_enabled;   int  df_num_d2_enabled;
 
   // 
   //  Host-Level
   //  to allocate host (pinned) memory for double-buffering (does not depend on a task)
   // 
+#if 0
   df_host_pinned_s1_t1 = (T*)getHostMem(sizeof(double) * size_T_s1_t1);
   df_host_pinned_s1_v2 = (T*)getHostMem(sizeof(double) * size_T_s1_v2);
   df_host_pinned_d1_t2 = (T*)getHostMem(sizeof(double) * size_T_d1_t2);
@@ -209,6 +226,7 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
 
   df_simple_d2_size = (int*)getHostMem(sizeof(int) * (7 * nvab));
   df_simple_d2_exec = (int*)getHostMem(sizeof(int) * (9 * nvab));
+#endif
 
   // 
   cudaStreamCreate(&stream);
@@ -219,13 +237,14 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
   // 
   //  Device-Level
   // 
+#if 0
   double* df_dev_s1_t1_all = (double*)getGpuMem(sizeof(double) * size_T_s1_t1);
 	double* df_dev_s1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_s1_v2);
   double* df_dev_d1_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_t2);
 	double* df_dev_d1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_v2);
   double* df_dev_d2_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_t2);
 	double* df_dev_d2_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_v2);
-
+#endif
 
   // 
   size_t base_size_h1b = k_range[t_h1b];
@@ -286,6 +305,7 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
                 d_t1,d_t2,d_v2,
                 k_evl_sorted,k_range,
                 t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b,
+                max_d1_kernels_pertask,
                 // 
                 size_T_d1_t2,         size_T_d1_v2, 
                 df_host_pinned_d1_t2, df_host_pinned_d1_v2, 
@@ -299,6 +319,7 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
                 d_t1,d_t2,d_v2,
                 k_evl_sorted,k_range,
                 t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b,
+                max_d2_kernels_pertask,
                 // 
                 size_T_d2_t2,           size_T_d2_v2, 
                 df_host_pinned_d2_t2,   df_host_pinned_d2_v2, 
@@ -347,22 +368,22 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
   size_t num_blocks = CEIL(base_size_h3b, 4) * CEIL(base_size_h2b, 4) * CEIL(base_size_h1b, 4) * 
                       CEIL(base_size_p6b, 4) * CEIL(base_size_p5b, 4) * CEIL(base_size_p4b, 4);
   
-  double* host_energies = (double*)getHostMem(sizeof(double) * num_blocks * 2);
-  double* dev_energies 	= (double*)getGpuMem (sizeof(double) * num_blocks * 2);
+  // double* host_energies = (double*)getHostMem(sizeof(double) * num_blocks * 2);
+  // double* dev_energies 	= (double*)getGpuMem (sizeof(double) * std::pow(max_num_blocks, 6) * 2);
 
 #ifdef OPT_KERNEL_TIMING
   // 
-  size_t task_num_ops_s1 = 0;
-  size_t task_num_ops_d1 = 0;
-  size_t task_num_ops_d2 = 0;
-  size_t task_num_ops_total = 0;
+  long double task_num_ops_s1 = 0;
+  long double task_num_ops_d1 = 0;
+  long double task_num_ops_d2 = 0;
+  long double task_num_ops_total = 0;
 
   // 
   helper_calculate_num_ops(noab, nvab, 
                           df_simple_s1_size, df_simple_d1_size, df_simple_d2_size, 
                           df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
-                          &task_num_ops_s1, &task_num_ops_d1, &task_num_ops_d2, 
-                          &total_num_ops_s1, &total_num_ops_d1, &total_num_ops_d2);
+                          task_num_ops_s1, task_num_ops_d1, task_num_ops_d2, 
+                          total_num_ops_s1, total_num_ops_d1, total_num_ops_d2);
 
   // 
   task_num_ops_total = task_num_ops_s1 + task_num_ops_d1 + task_num_ops_d2;
@@ -421,7 +442,7 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
   if (rank == 0)
   {
     // printf ("[%s] s1: %lu, d1: %lu, d2: %lu >> total: %lu\n", __func__, task_num_ops_s1, task_num_ops_d1, task_num_ops_d2, task_num_ops_total);
-    printf ("[ms_time_kernel_only] time: %f (ms) >> # of ops: %lu >> %f GFLOPS\n", ms_time_kernel_only, task_num_ops_total, task_num_ops_total / (ms_time_kernel_only * 1000000));
+    printf ("[ms_time_kernel_only] time: %f (ms) >> # of ops: %Lf >> %Lf GFLOPS\n", ms_time_kernel_only, task_num_ops_total, task_num_ops_total / (ms_time_kernel_only * 1000000));
   }
 #endif 
 
@@ -457,12 +478,14 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
   // 
   //  free device and host mem. for a task.
   // 
-  freeGpuMem(dev_energies);
-  freeHostMem(host_energies);
 
   freeGpuMem(dev_evl_sorted_h1b); freeGpuMem(dev_evl_sorted_h2b); freeGpuMem(dev_evl_sorted_h3b);
   freeGpuMem(dev_evl_sorted_p4b); freeGpuMem(dev_evl_sorted_p5b); freeGpuMem(dev_evl_sorted_p6b);
 
+#if 0
+
+  freeGpuMem(dev_energies);
+  freeHostMem(host_energies);
   // 
   //  free shared deivce mem
   // 
@@ -487,7 +510,7 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
   freeHostMem(df_simple_d1_size);
   freeHostMem(df_simple_d2_exec);
   freeHostMem(df_simple_d2_size);
-
+#endif
   // 
 #ifdef OPT_ALL_TIMING
   cudaEventRecord(stop_post_processing);
@@ -499,26 +522,32 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, au
   cudaEventElapsedTime(&time_ms_collecting_data,  start_collecting_data,  stop_collecting_data);
   cudaEventElapsedTime(&time_ms_post_processing,  start_post_processing,  stop_post_processing);
 
-  if (rank == 0)
-  {
-    int tmp_dev_id = 0;
-    cudaGetDevice(&tmp_dev_id);
-    printf ("[%s] performed by rank: %d with dev-id: %d ----------------------\n", __func__, rank, tmp_dev_id);
-    printf ("[%s][df-based] time-init             : %f (ms)\n", __func__, time_ms_init);
-    printf ("[%s][df-based] time-pre-processing   : %f (ms)\n", __func__, time_ms_pre_processing);
-    printf ("[%s][df-based] time-fused-kernel     : %f (ms)\n", __func__, time_ms_fused_kernel);
-    printf ("[%s][df-based] time-collecting-data  : %f (ms)\n", __func__, time_ms_collecting_data);
-    printf ("[%s][df-based] time-post-processing  : %f (ms)\n", __func__, time_ms_post_processing);
-    printf ("[%s] ------------------------------------------------------------\n", __func__);
-  }
+  // if (rank == 0)
+  // {
+  //   int tmp_dev_id = 0;
+  //   cudaGetDevice(&tmp_dev_id);
+  //   printf ("[%s] performed by rank: %d with dev-id: %d ----------------------\n", __func__, rank, tmp_dev_id);
+  //   printf ("[%s][df-based] time-init             : %f (ms)\n", __func__, time_ms_init);
+  //   printf ("[%s][df-based] time-pre-processing   : %f (ms)\n", __func__, time_ms_pre_processing);
+  //   printf ("[%s][df-based] time-fused-kernel     : %f (ms)\n", __func__, time_ms_fused_kernel);
+  //   printf ("[%s][df-based] time-collecting-data  : %f (ms)\n", __func__, time_ms_collecting_data);
+  //   printf ("[%s][df-based] time-post-processing  : %f (ms)\n", __func__, time_ms_post_processing);
+  //   printf ("[%s] ------------------------------------------------------------\n", __func__);
+  // }
+  double task_memcpy_time = time_ms_init + time_ms_pre_processing + time_ms_post_processing;
+  double total_task_time =  task_memcpy_time + time_ms_fused_kernel + time_ms_collecting_data;
+  //6dtaskid-142563,kernel,memcpy,data,total
+  cout << std::fixed << std::setprecision(2) << t_h1b << "-" << t_p4b << "-" << t_h2b << "-" << t_p5b << "-" << t_p6b << "-" << t_h3b
+       << ", " << time_ms_fused_kernel/1e3 << "," << task_memcpy_time/1e3 << "," 
+       << time_ms_collecting_data/1e3 << "," << total_task_time/1e3 << endl;
 #endif
 }
 
 
 
 template<typename T>
-size_t ccsd_t_fully_fused_performance(std::vector<std::tuple<size_t, size_t, size_t, size_t, size_t, size_t, T>>& list_tasks, 
-                                    auto rank, int task_stride, 
+long double ccsd_t_fully_fused_performance(std::vector<std::tuple<size_t, size_t, size_t, size_t, size_t, size_t, T>>& list_tasks, 
+                                    int64_t rank, int task_stride, 
                                     const Index noab, const Index nvab,
                                     std::vector<int>& k_spin,
                                     std::vector<size_t>& k_range,
@@ -526,10 +555,10 @@ size_t ccsd_t_fully_fused_performance(std::vector<std::tuple<size_t, size_t, siz
                                     std::vector<T>& k_evl_sorted)
 {
   // 
-  size_t total_num_ops_s1    = 0;
-  size_t total_num_ops_d1    = 0;
-  size_t total_num_ops_d2    = 0;
-  size_t total_num_ops_total = 0;
+  long double total_num_ops_s1    = 0;
+  long double total_num_ops_d1    = 0;
+  long double total_num_ops_d2    = 0;
+  // long double total_num_ops_total = 0;
 
   // 
   int* df_simple_s1_size = (int*)malloc(sizeof(int) * (6));
@@ -541,16 +570,22 @@ size_t ccsd_t_fully_fused_performance(std::vector<std::tuple<size_t, size_t, siz
 
   // 
   unsigned int init_id        = rank;
-  unsigned int offset_current = 0;
-  unsigned int offset_next    = 1;
+  // unsigned int offset_current = 0;
+  // unsigned int offset_next    = 1;
 
   for (unsigned int current_id = init_id; current_id < list_tasks.size(); current_id+=task_stride)
   {
     // 
-    size_t task_num_ops_s1    = 0;
-    size_t task_num_ops_d1    = 0;
-    size_t task_num_ops_d2    = 0;
-    size_t task_num_ops_total = 0;
+    long double task_num_ops_s1    = 0;
+    long double task_num_ops_d1    = 0;
+    long double task_num_ops_d2    = 0;
+    // long double task_num_ops_total = 0;
+    size_t total_comm_data    = 0;
+
+    // 
+    int num_s1_enabled_kernels = 0;
+    int num_d1_enabled_kernels = 0;
+    int num_d2_enabled_kernels = 0;
 
     // 
     size_t t_h1b = std::get<0>(list_tasks[(int)current_id]);
@@ -571,33 +606,46 @@ size_t ccsd_t_fully_fused_performance(std::vector<std::tuple<size_t, size_t, siz
                   k_evl_sorted,k_range,
                   t_h1b,t_h2b,t_h3b,
                   t_p4b,t_p5b,t_p6b,
-                  df_simple_s1_size, df_simple_s1_exec);
+                  df_simple_s1_size, df_simple_s1_exec,
+                  &num_s1_enabled_kernels,total_comm_data);
 
     ccsd_t_data_d1_info_only(noab,nvab,
                   k_spin,
                   k_evl_sorted,k_range,
                   t_h1b,t_h2b,t_h3b,
                   t_p4b,t_p5b,t_p6b,
-                  df_simple_d1_size, df_simple_d1_exec);
+                  df_simple_d1_size, df_simple_d1_exec, 
+                  &num_d1_enabled_kernels,total_comm_data);
 
     ccsd_t_data_d2_info_only(noab,nvab,
                   k_spin,
                   k_evl_sorted,k_range,
                   t_h1b,t_h2b,t_h3b,
                   t_p4b,t_p5b,t_p6b,
-                  df_simple_d2_size, df_simple_d2_exec);
+                  df_simple_d2_size, df_simple_d2_exec, 
+                  &num_d2_enabled_kernels,total_comm_data);
+
+    //printf ("[%s] each_kernel[%4d] >> total: %lu\n", __func__, current_id, total_comm_data);
+
+    // size_t total_enabled_kernels = num_s1_enabled_kernels + num_d1_enabled_kernels + num_d2_enabled_kernels;
+    // printf ("[%s] each_kernel[%4d] s1: %d, d1: %d, d2: %d >> total: %lu\n", __func__, current_id, num_s1_enabled_kernels, num_d1_enabled_kernels, num_d2_enabled_kernels, total_enabled_kernels);
 
     //  
     helper_calculate_num_ops(noab, nvab, 
                         df_simple_s1_size, df_simple_d1_size, df_simple_d2_size, 
                         df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
-                        &task_num_ops_s1, &task_num_ops_d1, &task_num_ops_d2, 
-                        &total_num_ops_s1, &total_num_ops_d1, &total_num_ops_d2);
+                        task_num_ops_s1, task_num_ops_d1, task_num_ops_d2, 
+                        total_num_ops_s1, total_num_ops_d1, total_num_ops_d2);
+
+    // long double total_each = task_num_ops_s1 + task_num_ops_d1 + task_num_ops_d2;
+    // printf ("[%s] each task >> s1: %lu, d1: %lu, d2: %lu >> total: %lu\n", __func__, task_num_ops_s1, task_num_ops_d1, task_num_ops_d2, total_each);
   }    
 
   // 
-  size_t total_overall = total_num_ops_s1 + total_num_ops_d1 + total_num_ops_d2;
-  // printf ("[%s] total task >> s1: %lu, d1: %lu, d2: %lu >> total: %lu\n", __func__, total_num_ops_s1, total_num_ops_d1, total_num_ops_d2, total_overall);
+  long double total_overall = total_num_ops_s1 + total_num_ops_d1 + total_num_ops_d2;
+  //printf ("[%s] total task >> s1: %lu, d1: %lu, d2: %lu >> total: %lu\n", __func__, total_num_ops_s1, total_num_ops_d1, total_num_ops_d2, total_overall);
+
+  
 
   // 
   return total_overall;
@@ -607,18 +655,18 @@ size_t ccsd_t_fully_fused_performance(std::vector<std::tuple<size_t, size_t, siz
 void helper_calculate_num_ops(const Index noab, const Index nvab, 
                               int* df_simple_s1_size, int* df_simple_d1_size, int* df_simple_d2_size, 
                               int* df_simple_s1_exec, int* df_simple_d1_exec, int* df_simple_d2_exec, 
-                              size_t* task_num_ops_s1, size_t* task_num_ops_d1, size_t* task_num_ops_d2, 
-                              size_t* total_num_ops_s1, size_t* total_num_ops_d1, size_t* total_num_ops_d2)
+                              long double& task_num_ops_s1, long double& task_num_ops_d1, long double& task_num_ops_d2, 
+                              long double& total_num_ops_s1, long double& total_num_ops_d1, long double& total_num_ops_d2)
 {
   // 
   //  s1
   // 
-  size_t num_ops_s1 = 0;
-  size_t num_ops_d1 = 0;
-  size_t num_ops_d2 = 0;
+  long double num_ops_s1 = 0;
+  long double num_ops_d1 = 0;
+  long double num_ops_d2 = 0;
   {
-    size_t base_num_ops_s1_per_eq = ((size_t)df_simple_s1_size[0]) * ((size_t)df_simple_s1_size[1]) * ((size_t)df_simple_s1_size[2]) * 
-                                    ((size_t)df_simple_s1_size[3]) * ((size_t)df_simple_s1_size[4]) * ((size_t)df_simple_s1_size[5]) * 2;
+    long double base_num_ops_s1_per_eq = ((long double)df_simple_s1_size[0]) * ((long double)df_simple_s1_size[1]) * ((long double)df_simple_s1_size[2]) * 
+                                    ((long double)df_simple_s1_size[3]) * ((long double)df_simple_s1_size[4]) * ((long double)df_simple_s1_size[5]) * 2;
   
   #if 0
     printf ("[%s] s1: h1,h2,h3,p4,p5,p6=%2d,%2d,%2d,%2d,%2d,%2d\n", __func__, df_simple_s1_size[0], df_simple_s1_size[1], df_simple_s1_size[2], 
@@ -646,10 +694,10 @@ void helper_calculate_num_ops(const Index noab, const Index nvab,
   //  d1
   // 
   {
-    for (int idx_noab = 0; idx_noab < noab; idx_noab++)
+    for (Index idx_noab = 0; idx_noab < noab; idx_noab++)
     {
-      size_t base_num_ops_d1_per_eq = ((size_t)df_simple_d1_size[0 + (idx_noab) * 7]) * ((size_t)df_simple_d1_size[1 + (idx_noab) * 7]) * ((size_t)df_simple_d1_size[2 + (idx_noab) * 7]) * 
-                                      ((size_t)df_simple_d1_size[3 + (idx_noab) * 7]) * ((size_t)df_simple_d1_size[4 + (idx_noab) * 7]) * ((size_t)df_simple_d1_size[5 + (idx_noab) * 7]) * ((size_t)df_simple_d1_size[6 + (idx_noab) * 7]) * 2;
+      long double base_num_ops_d1_per_eq = ((long double)df_simple_d1_size[0 + (idx_noab) * 7]) * ((long double)df_simple_d1_size[1 + (idx_noab) * 7]) * ((long double)df_simple_d1_size[2 + (idx_noab) * 7]) * 
+                                      ((long double)df_simple_d1_size[3 + (idx_noab) * 7]) * ((long double)df_simple_d1_size[4 + (idx_noab) * 7]) * ((long double)df_simple_d1_size[5 + (idx_noab) * 7]) * ((long double)df_simple_d1_size[6 + (idx_noab) * 7]) * 2;
 
     #if 0
       printf ("[%s] d1 with noab: %d >> h1,h2,h3,h7,p4,p5,p6=%2d,%2d,%2d,%2d,%2d,%2d,%2d\n", __func__, idx_noab, 
@@ -672,7 +720,6 @@ void helper_calculate_num_ops(const Index noab, const Index nvab,
       if (df_simple_d1_exec[6 + (idx_noab) * 9] >= 0) num_ops_d1 += base_num_ops_d1_per_eq;
       if (df_simple_d1_exec[7 + (idx_noab) * 9] >= 0) num_ops_d1 += base_num_ops_d1_per_eq;
       if (df_simple_d1_exec[8 + (idx_noab) * 9] >= 0) num_ops_d1 += base_num_ops_d1_per_eq;
-
     }
   }
   
@@ -680,10 +727,10 @@ void helper_calculate_num_ops(const Index noab, const Index nvab,
   //  d2
   // 
   {
-    for (int idx_nvab = 0; idx_nvab < nvab; idx_nvab++)
+    for (Index idx_nvab = 0; idx_nvab < nvab; idx_nvab++)
     {
-      size_t base_num_ops_d2_per_eq = ((size_t)df_simple_d2_size[0 + (idx_nvab) * 7]) * ((size_t)df_simple_d2_size[1 + (idx_nvab) * 7]) * ((size_t)df_simple_d2_size[2 + (idx_nvab) * 7]) * 
-                                      ((size_t)df_simple_d2_size[3 + (idx_nvab) * 7]) * ((size_t)df_simple_d2_size[4 + (idx_nvab) * 7]) * ((size_t)df_simple_d2_size[5 + (idx_nvab) * 7]) * ((size_t)df_simple_d2_size[6 + (idx_nvab) * 7]) * 2;
+      long double base_num_ops_d2_per_eq = ((long double)df_simple_d2_size[0 + (idx_nvab) * 7]) * ((long double)df_simple_d2_size[1 + (idx_nvab) * 7]) * ((long double)df_simple_d2_size[2 + (idx_nvab) * 7]) * 
+                                      ((long double)df_simple_d2_size[3 + (idx_nvab) * 7]) * ((long double)df_simple_d2_size[4 + (idx_nvab) * 7]) * ((long double)df_simple_d2_size[5 + (idx_nvab) * 7]) * ((long double)df_simple_d2_size[6 + (idx_nvab) * 7]) * 2;
 
     #if 0
       printf ("[%s] d2 with noab: %d >> h1,h2,h3,p4,p5,p6,p7=%2d,%2d,%2d,%2d,%2d,%2d,%2d\n", __func__, idx_nvab, 
@@ -715,13 +762,13 @@ void helper_calculate_num_ops(const Index noab, const Index nvab,
   // printf ("[%s][# of ops] s1: %lu, d1: %lu, d2: %lu\n", __func__, num_ops_s1, num_ops_d1, num_ops_d2);
 
   // 
-  *task_num_ops_s1 = num_ops_s1;
-  *task_num_ops_d1 = num_ops_d1;
-  *task_num_ops_d2 = num_ops_d2;
+  task_num_ops_s1 = num_ops_s1;
+  task_num_ops_d1 = num_ops_d1;
+  task_num_ops_d2 = num_ops_d2;
 
   // 
-  *total_num_ops_s1 += num_ops_s1;
-  *total_num_ops_d1 += num_ops_d1;
-  *total_num_ops_d2 += num_ops_d2;
+  total_num_ops_s1 += num_ops_s1;
+  total_num_ops_d1 += num_ops_d1;
+  total_num_ops_d2 += num_ops_d2;
 }
 #endif //CCSD_T_ALL_FUSED_HPP_

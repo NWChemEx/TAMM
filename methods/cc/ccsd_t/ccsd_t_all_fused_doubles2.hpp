@@ -424,6 +424,7 @@ void ccsd_t_data_d2_new(
     std::vector<T>& k_evl_sorted, std::vector<size_t>& k_range, 
     size_t t_h1b, size_t t_h2b, size_t t_h3b, 
     size_t t_p4b, size_t t_p5b, size_t t_p6b,
+    size_t max_d2_kernels_pertask,
     // 
     size_t size_T_d2_t2,    size_t size_T_d2_v2, 
     // T* T_d2_t2,             T* T_d2_v2, 
@@ -462,15 +463,15 @@ void ccsd_t_data_d2_new(
     }
   }
 
-  const size_t max_dima2 = abuf_size2 / (9*nvab);
-  const size_t max_dimb2 = bbuf_size2 / (9*nvab);
+  const size_t max_dima2 = abuf_size2 / max_d2_kernels_pertask;
+  const size_t max_dimb2 = bbuf_size2 / max_d2_kernels_pertask;
 
   //doubles 2
   // std::vector<size_t> sd_t_d2_exec(9*9*nvab,-1);
   // std::vector<size_t> d2_sizes_ext(9*7*nvab);
 
   // size_t d2b = 0;
-  int d2b = 0;
+  // int d2b = 0;
 
 #if 0
   for (auto ia6 = 0; ia6 < 9; ia6++) {
@@ -603,7 +604,7 @@ void ccsd_t_data_d2_new(
   } // end ia6
 
   //ia6 -- get for t2
-  d2b = 0;
+  // d2b = 0;
   idx_offset = 0;
   // printf ("[%s] ---------------------------------------------------------------\n", __func__);
   for (auto ia6 = 0; ia6 < 9; ia6++) {
@@ -730,7 +731,7 @@ void ccsd_t_data_d2_new(
   } // end ia6
   // printf ("[%s] ---------------------------------------------------------------\n", __func__);
   //ia6 -- get for v2
-  d2b = 0;
+  // d2b = 0;
   idx_offset = 0;
   for (auto ia6 = 0; ia6 < 9; ia6++) {
     
@@ -841,7 +842,8 @@ void ccsd_t_data_d2_info_only(
     std::vector<T>& k_evl_sorted, std::vector<size_t>& k_range, 
     size_t t_h1b, size_t t_h2b, size_t t_h3b, 
     size_t t_p4b, size_t t_p5b, size_t t_p6b,
-    int* df_simple_d2_size, int* df_simple_d2_exec)
+    int* df_simple_d2_size, int* df_simple_d2_exec, 
+    int* num_enabled_kernels, size_t& comm_data_elems)
 {    
   // 
   std::tuple<Index, Index, Index, Index, Index, Index> a3_d2[] = {
@@ -914,6 +916,22 @@ void ccsd_t_data_d2_info_only(
 
   //ia6 -- compute sizes and permutations
   int idx_offset = 0;
+  int detailed_stats[nvab][9];
+
+  for (Index idx_nvab = 0; idx_nvab < nvab; idx_nvab++)
+  {
+    detailed_stats[idx_nvab][0] = 0;
+    detailed_stats[idx_nvab][1] = 0;
+    detailed_stats[idx_nvab][2] = 0;
+    detailed_stats[idx_nvab][3] = 0;
+    detailed_stats[idx_nvab][4] = 0;
+    detailed_stats[idx_nvab][5] = 0;
+    detailed_stats[idx_nvab][6] = 0;
+    detailed_stats[idx_nvab][7] = 0;
+    detailed_stats[idx_nvab][8] = 0;
+  }
+
+
   for (auto ia6 = 0; ia6 < 9; ia6++) {
 
     auto [p4b, p5b, p6b, h1b, h2b, h3b] = a3_d2[ia6];
@@ -928,40 +946,89 @@ void ccsd_t_data_d2_info_only(
     auto cur_p564_h312 = std::make_tuple(p5b, p6b, p4b, h3b, h1b, h2b);
     auto cur_p564_h132 = std::make_tuple(p5b, p6b, p4b, h1b, h3b, h2b);
 
+    
     for (Index p7b=noab;p7b<noab+nvab;p7b++) 
     {
+      detailed_stats[p7b - noab][0] = 0;
+      detailed_stats[p7b - noab][1] = 0;
+      detailed_stats[p7b - noab][2] = 0;
+      detailed_stats[p7b - noab][3] = 0;
+      detailed_stats[p7b - noab][4] = 0;
+      detailed_stats[p7b - noab][5] = 0;
+      detailed_stats[p7b - noab][6] = 0;
+      detailed_stats[p7b - noab][7] = 0;
+      detailed_stats[p7b - noab][8] = 0;
+
+      int idx_new_offset = 0;
       if(!ia6_enabled[ia6*nvab + p7b-noab]) continue;
     
+      size_t dim_common = k_range[p7b];
+      size_t dima_sort = k_range[p4b]*k_range[h1b]*k_range[h2b];
+      size_t dimb_sort = k_range[p5b]*k_range[p6b]*k_range[h3b];
+      comm_data_elems += dim_common * (dima_sort + dimb_sort);
+
       if (ref_p456_h123 == cur_p456_h123) {
         df_simple_d2_exec[0 + (p7b - noab) * 9] = idx_offset;
+        *num_enabled_kernels = *num_enabled_kernels + 1;
+        idx_new_offset++;
+        detailed_stats[p7b - noab][0] = detailed_stats[p7b - noab][0] + 1;
       }
       if (ref_p456_h123 == cur_p456_h312) {
         df_simple_d2_exec[1 + (p7b - noab) * 9] = idx_offset;
+        *num_enabled_kernels = *num_enabled_kernels + 1;
+        idx_new_offset++;
+        detailed_stats[p7b - noab][1] = detailed_stats[p7b - noab][1] + 1;
       }
       if (ref_p456_h123 == cur_p456_h132) {
         df_simple_d2_exec[2 + (p7b - noab) * 9] = idx_offset;
+        *num_enabled_kernels = *num_enabled_kernels + 1;
+        idx_new_offset++;
+        detailed_stats[p7b - noab][2] = detailed_stats[p7b - noab][2] + 1;
       }
       if (ref_p456_h123 == cur_p546_h123) {
         df_simple_d2_exec[3 + (p7b - noab) * 9] = idx_offset;
+        *num_enabled_kernels = *num_enabled_kernels + 1;
+        idx_new_offset++;
+        detailed_stats[p7b - noab][3] = detailed_stats[p7b - noab][3] + 1;
       }
       if (ref_p456_h123 == cur_p546_h312) {
         df_simple_d2_exec[4 + (p7b - noab) * 9] = idx_offset;
+        *num_enabled_kernels = *num_enabled_kernels + 1;
+        idx_new_offset++;
+        detailed_stats[p7b - noab][4] = detailed_stats[p7b - noab][4] + 1;
       }
       if (ref_p456_h123 == cur_p546_h132) {
         df_simple_d2_exec[5 + (p7b - noab) * 9] = idx_offset;
+        *num_enabled_kernels = *num_enabled_kernels + 1;
+        idx_new_offset++;
+        detailed_stats[p7b - noab][5] = detailed_stats[p7b - noab][5] + 1;
       }
       if (ref_p456_h123 == cur_p564_h123) {
         df_simple_d2_exec[6 + (p7b - noab) * 9] = idx_offset;
+        *num_enabled_kernels = *num_enabled_kernels + 1;
+        idx_new_offset++;
+        detailed_stats[p7b - noab][6] = detailed_stats[p7b - noab][6] + 1;
       }
       if (ref_p456_h123 == cur_p564_h312) {
         df_simple_d2_exec[7 + (p7b - noab) * 9] = idx_offset;
+        *num_enabled_kernels = *num_enabled_kernels + 1;
+        idx_new_offset++;
+        detailed_stats[p7b - noab][7] = detailed_stats[p7b - noab][7] + 1;
       }
       if (ref_p456_h123 == cur_p564_h132) {
         df_simple_d2_exec[8 + (p7b - noab) * 9] = idx_offset;
+        *num_enabled_kernels = *num_enabled_kernels + 1;
+        idx_new_offset++;
+        detailed_stats[p7b - noab][8] = detailed_stats[p7b - noab][8] + 1;
       }
 
       // 
       idx_offset++;
+      // printf ("[%s] d2, nvab=%2d, #: %d\n", __func__, p7b - noab, idx_new_offset);
+      // printf ("[%s] d2, nvab=%2d, #: %d >> %d,%d,%d,%d,%d,%d,%d,%d,%d\n", __func__, p7b - noab, idx_new_offset,
+      // detailed_stats[p7b - noab][0], detailed_stats[p7b - noab][1], detailed_stats[p7b - noab][2], 
+      // detailed_stats[p7b - noab][3], detailed_stats[p7b - noab][4], detailed_stats[p7b - noab][5], 
+      // detailed_stats[p7b - noab][6], detailed_stats[p7b - noab][7], detailed_stats[p7b - noab][8]);
     } //p7b
   } // end ia6
 } // ccsd_t_data_s1

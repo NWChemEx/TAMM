@@ -27,11 +27,6 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
     auto rank = GA_Nodeid();
     bool nodezero = rank==0;
 
-    // if(icuda==0) {
-    //   if(nodezero)std::cout << "\nERROR: Please specify number of cuda devices to use in the input file!\n\n"; //TODO
-    //   return std::make_tuple(-999,-999);
-    // }
-
     Index noab=MO("occ").num_tiles();
     Index nvab=MO("virt").num_tiles();
 
@@ -57,7 +52,7 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
     cudaGetDeviceCount(&dev_count_check);
     if(dev_count_check < icuda){
       if(nodezero) cout << "ERROR: Please check whether you have " << icuda <<
-       " cuda devices per node. Terminating program...\n\n";
+      " cuda devices per node. Terminating program..." << endl << endl;
       return std::make_tuple(-999,-999);
     }
     
@@ -70,7 +65,7 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
       device_init(icuda, &cuda_device_number);
       // if(cuda_device_number==30) // QUIT
     }
-    if(nodezero) std::cout << "Using " << icuda << " gpu devices per node\n\n";
+    if(nodezero) std::cout << "Using " << icuda << " gpu devices per node" << endl << endl;
 
     //TODO replicate d_t1 L84-89 ccsd_t_gpu.F
 
@@ -201,7 +196,6 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                       energy2 += energy_l[1];
 
                       // cout << "e1,e2=" << energy1 << "," << energy2 << endl;
-                      // cout << "-----------------------------------------\n";
                       dev_release();
                       finalizememmodule();
                     }

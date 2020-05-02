@@ -23,25 +23,34 @@ class LRUCache {
     if (max_size_ == 0) {
       clear(); // "hack" to disable cache
     }
-    if (auto it = cache_.find(key); it != cache_.end()) {
+    auto it = cache_.find(key);
+    if (it != cache_.end()) {
       // hit
       hit = true;
       auto c2k_it = cycle_to_key_.find(it->second);
+      //EXPECTS(c2k_it != cycle_to_key_.end());      
       auto dist = std::distance(c2k_it, cycle_to_key_.end());
       ++reuse_distance_histogram_[dist-1];
       cycle_to_key_.erase(c2k_it);
-      it->second = cycle_;
-      cycle_to_key_[cycle_] = key;
+      // it->second = cycle_;
+      cache_.erase(it); 
+      // cache_[key] = cycle_;
+      // cycle_to_key_[cycle_] = key;
+      cache_.insert({key,cycle_});
+      cycle_to_key_.insert({cycle_,key});
     } else {  // miss
       hit = false;
       ++reuse_distance_histogram_[max_size_];
       if (cache_.size() == max_size_ && max_size_ > 0) {   // eviction
-        auto it = cycle_to_key_.begin();  // oldest entry
-        cache_.erase(it->second);
-        cycle_to_key_.erase(it);
+        auto c2k_it = cycle_to_key_.begin();  // oldest entry
+        cache_.erase(c2k_it->second);
+        cached_value_.erase(c2k_it->second);
+        cycle_to_key_.erase(c2k_it);
       }
-      cycle_to_key_[cycle_] = key;
-      cache_[key] = cycle_;
+      // cycle_to_key_[cycle_] = key;
+      // cache_[key] = cycle_;
+      cycle_to_key_.insert({cycle_,key});
+      cache_.insert({key,cycle_});
     }
     ++cycle_;
     return {hit, cached_value_[key]};

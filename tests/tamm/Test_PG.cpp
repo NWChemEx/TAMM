@@ -14,17 +14,17 @@ using std::endl;
 using T = double;
 
 // TEST_CASE("/* Testing process groups */") 
-void test_pg(int dim) {
+void test_pg(int dim, int nproc) {
 
-    ProcGroup gpg{GA_MPI_Comm()};
+    ProcGroup gpg = ProcGroup::create_coll(GA_MPI_Comm());
     auto gmgr = MemoryManagerGA::create_coll(gpg);
-    Distribution_NW gdistribution;
+    Distribution_Dense gdistribution;
     RuntimeEngine gre;
     ExecutionContext gec{gpg, &gdistribution, gmgr, &gre};
 
     auto rank = gec.pg().rank();
 
-    auto subranks=30;
+    auto subranks=nproc;
     int ranks[subranks];
     for (int i = 0; i < subranks; i++) ranks[i] = i;
 
@@ -43,9 +43,10 @@ void test_pg(int dim) {
             MPI_Comm_rank(subcomm,&hrank);
             EXPECTS(rank==hrank);
 
-            ProcGroup pg{subcomm};
+            ProcGroup pg = ProcGroup::create_coll(subcomm);
+
             auto mgr = MemoryManagerGA::create_coll(pg);
-            Distribution_NW distribution;
+            Distribution_Dense distribution;
             RuntimeEngine re;
             ExecutionContext ec{pg, &distribution, mgr, &re};
 
@@ -132,9 +133,9 @@ void test_pg(int dim) {
 // TEST_CASE("/* Test case for replicated A/B */")
 void test_replicate_AB(int dim) {
 
-    ProcGroup gpg{GA_MPI_Comm()};
+    ProcGroup gpg = ProcGroup::create_coll(GA_MPI_Comm());
     auto gmgr = MemoryManagerGA::create_coll(gpg);
-    Distribution_NW gdistribution;
+    Distribution_Dense gdistribution;
     RuntimeEngine gre;
     ExecutionContext gec{gpg, &gdistribution, gmgr, &gre};
 
@@ -153,9 +154,9 @@ void test_replicate_AB(int dim) {
 
     { // B is replicated
 
-        ProcGroup pg{MPI_COMM_SELF};
+        ProcGroup pg = ProcGroup::create_coll(MPI_COMM_SELF);
         auto mgr = MemoryManagerLocal::create_coll(pg);
-        Distribution_NW distribution;
+        Distribution_Dense distribution;
         RuntimeEngine re;
         ExecutionContext ec{pg, &distribution, mgr, &re};
 
@@ -181,20 +182,16 @@ void test_replicate_AB(int dim) {
 
 
 int main(int argc, char* argv[]) {
-    MPI_Init(&argc, &argv);
-    GA_Initialize();
-    MA_init(MT_DBL, 8000000, 20000000);
-
-    int mpi_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    
+    tamm::initialize(argc,argv);
 
     auto dim = 20;
+    int nproc = 20;
     if(argc == 2) dim = std::atoi(argv[1]);
-    test_pg(dim);
-    test_replicate_AB(dim);
+    if(argc == 3) nproc = std::atoi(argv[2]);
+    test_pg(dim,nproc);
+    //test_replicate_AB(dim);
     
-    GA_Terminate();
-    MPI_Finalize();
-
+    tamm::finalize();
     return 0;
 }

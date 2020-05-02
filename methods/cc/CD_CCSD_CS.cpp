@@ -22,14 +22,11 @@ int main( int argc, char* argv[] )
         return 1;
     }
 
-    MPI_Init(&argc,&argv);
-    GA_Initialize();
-    MA_init(MT_DBL, 8000000, 20000000);
+    tamm::initialize(argc, argv);
 
     ccsd_driver();
 
-    GA_Terminate();
-    MPI_Finalize();
+    tamm::finalize();
 
     return 0;
 }
@@ -47,7 +44,7 @@ void ccsd_driver() {
     ExecutionContext ec{pg, &distribution, mgr, &re};
     auto rank = ec.pg().rank();
 
-    auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis,scf_conv]  
+    auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, AO_opt, AO_tis,scf_conv]  
                     = hartree_fock_driver<T>(ec,filename);
 
     CCSDOptions ccsd_options = sys_data.options_map.ccsd_options;
@@ -74,7 +71,7 @@ void ccsd_driver() {
 
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
-                        (sys_data, ec, MO, AO_opt, C_AO, F_AO, shells, shell_tile_map,
+                        (sys_data, ec, MO, AO_opt, C_AO, F_AO, C_beta_AO, F_beta_AO, shells, shell_tile_map,
                                 ccsd_restart, cholfile);
 
     TiledIndexSpace N = MO("all");

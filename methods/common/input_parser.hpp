@@ -1,6 +1,6 @@
 
-#ifndef TAMM_TESTS_INPUT_PARSER_HPP_
-#define TAMM_TESTS_INPUT_PARSER_HPP_
+#ifndef TAMM_METHODS_INPUT_PARSER_HPP_
+#define TAMM_METHODS_INPUT_PARSER_HPP_
 
 #include <cctype>
 #include <string>
@@ -80,17 +80,18 @@ class SCFOptions: public Options {
     {
       charge         = 0;
       multiplicity   = 1;
-      tol_int        = 1e-8;
-      tol_lindep     = 1e-6;
-      conve          = 1e-6;
-      convd          = 1e-5;
+      lshift         = 0;
+      tol_int        = 1e-12;
+      tol_lindep     = 1e-5;
+      conve          = 1e-8;
+      convd          = 1e-6;
       diis_hist      = 10;
       AO_tilesize    = 30;
       restart        = false;
       noscf          = false;
-      scalapack_nb   = 1;
-      scalapack_np_row   = 0;
-      scalapack_np_col   = 0;
+      ediis          = false;
+      ediis_off      = 1e-5;
+      sad            = false;
       force_tilesize = false;
       riscf          = 0; //0 for JK, 1 for J, 2 for K
       riscf_str      = "JK";
@@ -100,10 +101,14 @@ class SCFOptions: public Options {
       alpha          = 0.7;
       nnodes         = 1;
       writem         = diis_hist;
+      scalapack_nb   = 1;
+      scalapack_np_row   = 0;
+      scalapack_np_col   = 0;      
     }
 
   int    charge;
   int    multiplicity;
+  double lshift;     //level shift factor, +ve value b/w 0 and 1
   double tol_int;    //tolerance for integral engine
   double tol_lindep; //tolerance for linear dependencies
   double conve;      //energy convergence
@@ -112,12 +117,15 @@ class SCFOptions: public Options {
   int    AO_tilesize; 
   bool   restart;    //Read movecs from disk
   bool   noscf;      //only recompute energy from movecs
+  bool   ediis;
+  double ediis_off;
+  bool   sad;
   bool   force_tilesize;
   int    scalapack_nb;
-  int    scalapack_np_row;
-  int    scalapack_np_col;
   int    riscf;
   int    nnodes;
+  int    scalapack_np_row;
+  int    scalapack_np_col;  
   std::string riscf_str;
   std::string moldenfile;
   //ignored when moldenfile not provided
@@ -132,6 +140,7 @@ class SCFOptions: public Options {
       cout << "{" << endl;
       cout << " charge       = " << charge       << endl;
       cout << " multiplicity = " << multiplicity << endl;
+      cout << " level shift  = " << lshift       << endl;
       cout << " tol_int      = " << tol_int      << endl;
       cout << " tol_lindep   = " << tol_lindep   << endl;
       cout << " conve        = " << conve        << endl;
@@ -154,6 +163,9 @@ class SCFOptions: public Options {
       print_bool(" restart     ", restart);
       print_bool(" debug       ", debug); 
       if(restart) print_bool(" noscf       ", noscf);
+      print_bool(" ediis       ", ediis);
+      cout << " ediis_off    = " << ediis_off   << endl;  
+      print_bool(" sad         ", sad); 
       cout << "}" << endl;
     }
 };
@@ -189,7 +201,7 @@ class CCSDOptions: public Options {
   CCSDOptions() = default;
   CCSDOptions(Options o): Options(o)
   {
-    threshold      = 1e-10;
+    threshold      = 1e-6;
     tilesize       = 50;
     itilesize      = 1000;
     ccsdt_tilesize = 28;
@@ -197,7 +209,7 @@ class CCSDOptions: public Options {
     ndiis          = 5;
     lshift         = 0;
     eom_nroots     = 0;
-    eom_threshold  = 1e-10;
+    eom_threshold  = 1e-6;
     eom_microiter  = o.maxiter;
     writet         = false;
     writet_iter    = ndiis;
@@ -291,7 +303,7 @@ class CCSDOptions: public Options {
     cout << " ccsd_maxiter         = " << ccsd_maxiter     << endl;
     cout << " itilesize            = " << itilesize        << endl;
     if(lshift != 0) 
-      cout << " lshift               = " << lshift           << endl;
+      cout << " lshift               = " << lshift           << endl;    
     if(gf_nprocs_poi > 0) 
       cout << " gf_nprocs_poi        = " << gf_nprocs_poi  << endl;
     print_bool(" readt               ", readt); 
@@ -598,6 +610,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             scf_options.charge = std::stod(read_option(line));   
           else if(is_in_line("multiplicity",line)) 
             scf_options.multiplicity = std::stod(read_option(line));   
+          else if(is_in_line("lshift",line)) 
+            scf_options.lshift = std::stod(read_option(line));              
           else if(is_in_line("tol_int",line)) 
             scf_options.tol_int = std::stod(read_option(line));   
           else if(is_in_line("tol_lindep",line)) 
@@ -626,7 +640,13 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("restart",line))
             scf_options.restart = to_bool(read_option(line));  
           else if(is_in_line("noscf",line))
-            scf_options.noscf = to_bool(read_option(line));                    
+            scf_options.noscf = to_bool(read_option(line));     
+          else if(is_in_line("ediis",line))
+            scf_options.ediis = to_bool(read_option(line));
+          else if(is_in_line("ediis_off",line))
+            scf_options.ediis_off = std::stod(read_option(line));  
+          else if(is_in_line("sad",line))
+            scf_options.sad = to_bool(read_option(line));                  
           else if(is_in_line("debug",line))
             scf_options.debug = to_bool(read_option(line)); 
           else if(is_in_line("moldenfile",line))
@@ -640,7 +660,7 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("scalapack_np_row",line)) 
             scf_options.scalapack_np_row = std::stoi(read_option(line));                                                             
           else if(is_in_line("scalapack_np_col",line)) 
-            scf_options.scalapack_np_col = std::stoi(read_option(line));                                                             
+            scf_options.scalapack_np_col = std::stoi(read_option(line));               
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line,"SCF");
           
@@ -681,9 +701,9 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("eom_microiter",line)) 
             ccsd_options.eom_microiter = std::stoi(read_option(line));  
           else if(is_in_line("ccsd_maxiter",line)) 
-            ccsd_options.ccsd_maxiter = std::stoi(read_option(line));    
+            ccsd_options.ccsd_maxiter = std::stoi(read_option(line)); 
           else if(is_in_line("lshift",line)) 
-            ccsd_options.lshift = std::stod(read_option(line)); 
+            ccsd_options.lshift = std::stod(read_option(line));                                      
           else if(is_in_line("eom_threshold",line)) 
             ccsd_options.eom_threshold = std::stod(read_option(line));              
           else if(is_in_line("threshold",line)) 
@@ -835,4 +855,4 @@ inline std::tuple<std::vector<Atom>, OptionsMap>
 }
 
 
-#endif // TAMM_TESTS_INPUT_PARSER_HPP_
+#endif // TAMM_METHODS_INPUT_PARSER_HPP_

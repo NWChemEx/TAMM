@@ -20,31 +20,31 @@
 #include "tamm/kernels/multiply.hpp"
 
 //#define DO_NB
+//#define DO_NB_GET
+#define ADDOP_LOCALIZE_LHS
+// #define SETOP_LOCALIZE_LHS
+//#define MULTOP_PARTIAL_PARALLELIZE_RHS
 
 namespace tamm {
 
+extern int mult_counter;
+extern double tbarrierTime;
+extern double tgetTime;
+extern double taddTime;
+extern double twaitTime;
+extern double tgemmTime;
 extern double multOpTime;
+extern double setOpTime;
+extern double addOpTime;
+extern double allocOpTime;
+extern double deallocOpTime;
 extern double multOpGetTime;
 extern double multOpWaitTime;
 extern double multOpAddTime;
 extern double multOpDgemmTime;
 
-class TimerGuard {
-public:
-    TimerGuard(double *refptr)
-    : refptr_{refptr} {
-        start_time_ = std::chrono::high_resolution_clock::now();
-    }
-    ~TimerGuard() {
-        std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
-        *refptr_ += std::chrono::duration_cast<std::chrono::duration<double>>((end_time - start_time_)).count();
-    }
-private:
-    double *refptr_;
-    std::chrono::time_point<std::chrono::high_resolution_clock> start_time_;
-};  // TimeGuard
-
 enum class ResultMode { update, set };
+enum class OpType { alloc, dealloc, set, add, mult, scan, map };
 
 namespace internal {
 
@@ -325,7 +325,9 @@ public:
     virtual void execute(ExecutionContext& ec,
                          ExecutionHW hw = ExecutionHW::CPU) = 0;
     virtual OpList canonicalize() const                     = 0;
+    virtual OpType op_type() const                          = 0;
     virtual ~Op() {}
+    std::string opstr_;
 };
 
 class OpList : public std::vector<std::shared_ptr<Op>> {
@@ -376,8 +378,16 @@ public:
         return std::shared_ptr<Op>(new SetOp<T, LabeledTensorT>{*this});
     }
 
+    OpType op_type() const override { return OpType::set; }
     void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
-        
+        const auto& tensor = lhs_.tensor();
+        if (tensor.is_dense() && !internal::is_slicing(lhs_) &&
+            lhs_.tensor().distribution().kind() == DistKind::dense
+            // && !tensor.has_spin() && !tensor.has_spatial()
+        ) {
+          execute_optimized(ec, hw);
+          return;
+        }
 #if 0
 //previous implementation
         using TensorElType = typename LabeledTensorT::element_type;
@@ -461,8 +471,125 @@ public:
                         AccumPermission{IndexedTensor{tensor, translated_blockid}});
             }
         };
+#if defined(SETOP_LOCALIZE_LHS)
+        const auto& ldist = lhs_.tensor().distribution();
+        Proc me = ec.pg().rank();
+        for (const auto& lblockid : loop_nest) {
+          const auto translated_lblockid =
+              internal::translate_blockid(lblockid, lhs_);
+          if (lhs_.tensor().is_non_zero(translated_lblockid) &&
+              std::get<0>(ldist.locate(translated_lblockid)) == me) {
+            lambda(lblockid);
+          }
+        }
+#else
         do_work(ec, loop_nest, lambda);
 #endif
+#endif
+    }
+    /*
+    [DONE] @todo Implement lhs.tensor().is_dense_distribution()
+
+    [DONE] @todo Allocate buf once (max buf size). Also put needs to works with
+    larger buffer sizes
+
+    @todo Tensor access local buf directly instead of put/acc
+
+    @todo An efficient put path (only cheap EXPECTS checks) and do put
+
+    [DONE?] @todo Efficient way of determine offset of blockid in proc local buf
+
+    @todo support dense (aka Cartesian) slicing
+    */
+    void execute_optimized(ExecutionContext& ec,
+                           ExecutionHW hw = ExecutionHW::CPU) const {
+        // std::cout << "Execute Optimized" << std::endl;
+        EXPECTS(!internal::is_slicing(lhs_)); // dense and no slicing in labels
+        EXPECTS(lhs_.tensor().distribution().kind() ==
+                DistKind::dense); // tensor uses Distribution_Dense
+        // EXPECTS(
+        //   lhs_.tensor().execution_context()->pg() ==
+        //   pg); // tensor allocation proc grid same as op execution proc grid
+        auto pg = ec.pg();
+        const Distribution_Dense& dd =
+          static_cast<const Distribution_Dense&>(lhs_.tensor().distribution());
+        Proc rank                        = pg.rank();
+        const auto& grid_rank            = dd.proc_rank_to_grid_rank(rank);
+        const std::vector<Range>& ranges = dd.proc_tile_extents(grid_rank);
+        std::vector<Index> blockid(ranges.size());
+        // using LT_eltype = typename LabeledTensorT::element_type;
+        //std::vector<T> buf(dd.max_block_size().value(), T{alpha_});
+        T talpha{alpha_};
+        T* lbuf = lhs_.tensor().access_local_buf();
+        Offset off      = 0;
+        if(is_assign_) {
+#if 0
+            internal::loop_nest_exec(ranges,
+                           [&]() {
+#if 1
+                               auto sz = dd.block_size(blockid);
+                               std::copy(buf.begin(), buf.begin() + sz.value(), &lbuf[off.value()]);
+                               off += sz;
+#elif 0
+            // lhs_.tensor().put(blockid, buf);
+#else
+                               Proc proc;
+                               Offset off;
+                               std::tie(proc, off) = dd.locate(blockid);
+                               std::copy(buf, buf + dd.block_size(blockid).value(),
+                                         &lbuf[off.value()]);
+#endif
+                           },
+                           blockid);
+#else
+            std::vector<Size> block_dims(ranges.size());
+            std::vector<Size> block_size_prefix(ranges.size()+1, 1);
+            const std::vector<TiledIndexSpace>& tiss = lhs_.tensor().tiled_index_spaces();
+            auto noop = [](int){};
+            loop_nest_exec(
+                [&]() {
+                  auto sz = block_size_prefix.back(); ////dd.block_size(blockid);
+                //   std::copy(buf.begin(), buf.begin() + sz.value(),
+                //             &lbuf[off.value()]);
+                std::fill_n(&lbuf[off.value()], sz, alpha_);
+                  off += sz;
+                }, noop,
+                // [&](int p) {
+                //   EXPECTS(p == 0 || p == 1);
+                //   block_dims[p] = tiss[p].tile_size(blockid[p]);
+                //   block_size_prefix[p + 1] =
+                //       block_dims[p] * block_size_prefix[p];
+                // },
+                [&](int p) {
+                  block_dims[p] = tiss[p].tile_size(blockid[p]);
+                  block_size_prefix[p + 1] =
+                      block_dims[p] * block_size_prefix[p];
+                },
+                blockid, ranges, 0);
+
+#endif
+        } else {
+          loop_nest_exec(
+              [&]() {
+#if 1
+                auto sz = dd.block_size(blockid);
+                for (size_t i = 0; i < sz; i++) {
+                  lbuf[i] += talpha; //buf[i];
+                }
+                off += sz;
+#elif 0
+                lhs_.tensor().add(blockid, buf);
+#else
+                Proc proc;
+                Offset off;
+                std::tie(proc, off) = dd.locate(blockid);
+                for (size_t i = 0; i < dd.block_size(blockid); i++) {
+                  lbuf[off + i] += buf[i];
+                }
+#endif
+              },
+              blockid, ranges);
+        }
     }
 
     TensorBase* writes() const {
@@ -543,6 +670,8 @@ protected:
     LabeledTensorT lhs_;
     T alpha_;
     bool is_assign_;
+    public:
+    std::string opstr_;
 }; // class SetOp
 
 template<typename LabeledTensorT, typename Func>
@@ -553,6 +682,8 @@ public:
     }
 
     OpList canonicalize() const override { return OpList{(*this)}; }
+
+    OpType op_type() const override { return OpType::scan; }
 
     std::shared_ptr<Op> clone() const override {
         return std::shared_ptr<Op>(new ScanOp<LabeledTensorT, Func>{*this});
@@ -685,6 +816,8 @@ public:
     }
 
     OpList canonicalize() const override { return OpList{(*this)}; }
+
+    OpType op_type() const override { return OpType::map; }
 
     std::shared_ptr<Op> clone() const override {
         return std::shared_ptr<Op>(new MapOp<LabeledTensorT, Func, N>{*this});
@@ -839,6 +972,8 @@ protected:
     Func func_;
     std::array<LabeledTensorT, N> rhs_;
     bool do_translate_; 
+    public:
+    std::string opstr_;
 };
 
 template<typename T>
@@ -898,6 +1033,8 @@ public:
 
     bool is_assign() const { return is_assign_; }
 
+    OpType op_type() const override { return OpType::add; }
+
     OpList canonicalize() const override {
         OpList result{};
 
@@ -918,7 +1055,18 @@ public:
         return std::shared_ptr<Op>(new AddOp<T, LabeledTensorT1, LabeledTensorT2>{*this});
     }
 
-    void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
+  void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
+        const auto& tensor = lhs_.tensor();
+#if 0 && 5
+        // if (tensor.is_dense() && !internal::is_slicing(lhs_) &&
+        //     lhs_.tensor().distribution().kind() == Distribution::Kind::dense
+	//     // && internal::reduction_labels(lhs_.labels(), rhs_.labels()).empty()
+        //     // && !tensor.has_spin() && !tensor.has_spatial()
+        // ) {
+        //   execute_dense_optimized(ec, hw);
+        //   return;
+        // }
+#endif
     #if 1
         // std::cerr<<"DOING ADDOP\n";
 
@@ -935,7 +1083,7 @@ public:
             IndexLabelVec extracted_llabels, extracted_rlabels;
 #if 1
             split_block_id(lblockid, rblockid, lhs_.labels().size(), rhs_.labels().size(), blockid);
-            
+
             std::tie(extracted_llabels, lblockid) =
               internal::extract_blockid_and_label(
                 loop_nest.sorted_unique_labels(), lblockid, lhs_.labels());
@@ -1107,17 +1255,131 @@ public:
         };
 
         //@todo use a scheduler
+#if defined(ADDOP_LOCALIZE_LHS)
+	if (internal::empty_reduction_primary_labels(lhs_.labels(), rhs_.labels())) {
+            const auto& ldist = lhs_.tensor().distribution();
+            Proc me           = ec.pg().rank();
+            for(const auto& blockid : loop_nest) {
+                IndexVector lblockid, rblockid;
+                split_block_id(lblockid, rblockid, lhs_.labels().size(),
+                               rhs_.labels().size(), blockid);
+        
+                const auto translated_lblockid =
+                  internal::translate_blockid(lblockid, lhs_);
+                if(lhs_.tensor().is_non_zero(translated_lblockid)) {
+                    if(std::get<0>(ldist.locate(translated_lblockid)) == me) {
+                        lambda(blockid);
+                    }
+                }
+            }
+        } else {
+            do_work(ec, loop_nest, lambda);
+          }
+#else
         do_work(ec, loop_nest, lambda);
+#endif
     #endif
         
     }
 
-    TensorBase* writes() const {
-        if(is_assign()) {
-            return lhs_.base_ptr();
-        } else {
-            return nullptr;
+#if 0 && 5
+    void execute_lhs_optimized(ExecutionContext& ec,
+                               ExecutionHW hw = ExecutionHW::CPU) {
+      using LT_eltype = lhs_::element_type;
+      using RT_eltype = rhs_::element_type;
+      static_assert(std::is_same_v<LT_eltype, RT_eltype>,
+                    "LHS optimized AddOp not implemented for non-identical "
+                    "tensor element types");
+      Tensor<LT_eltype> ltensor = lhs_.tensor();
+      Tensor<RT_eltype> rtensor = rhs_.tensor();
+      IndexVector reduction_labels;
+      // compute reduction_labels
+      std::vector<LT_eltype>* lbuf;
+      std::vector<RT_eltype> rbuf(rtensor.distribution().max_block_size());
+      auto lambda = [&]] (const IndexVector& lblockid) {
+        IndexVector translated_lblockid;
+        // get translated lblockid
+        EXPECTS(ltensor.non_zero(translated_lblockid));
+        if (!ltensor.is_local(translated_lblockid)) {
+          return;
         }
+        lbuf = ltensor.access(translated_lblockid);
+        if (is_assign_) {
+          std::fill_n(lbuf, ltensor.block_size(translated_lblockid), 0);
+        }
+        SizeVec ldims_sz;
+        for (const auto v : ltensor.block_dims(translated_lblockid)) {
+          ldims_sz.push_back(v);
+        }
+
+        LabelLoopNest reduction_loop_nest{reduction_labels};
+        for (const auto& reduction_blockid : reduction_loop_nest) {
+          IndexVector rblockid;
+          // compute rblockid
+          IndexVector translated_rblockid;
+          // compute translated_rblockid
+          EXPECTS(rtensor.non_zero(translated_rblockid));
+          rtensor.get(rbuf);
+          SizeVec rdims_sz;
+          for (const auto v : rbf.block_dims()) {
+            rdims_sz.push_back(v);
+          }
+          kernels::assign(lbuf.data(), ldims_sz, lhs_int_labels_, alpha_,
+                          rbuf.data(), rdims_sz, rhs_int_labels_, false);
+        }
+      }
+      LabelLoopNest lhs_loop_nest{lhs_.labels()};
+      do_work(lhs_loop_nest, lambda);
+    }
+
+    void execute_dense_optimized(ExecutionContext& ec,
+                               ExecutionHW hw = ExecutionHW::CPU) {
+      using LT_eltype = lhs_::element_type;
+      using RT_eltype = rhs_::element_type;
+      static_assert(std::is_same_v<LT_eltype, RT_eltype>,
+                    "LHS optimized AddOp not implemented for non-identical "
+                    "tensor element types");
+      //EXPECTS(no_reduction_labels);  //@todo implement
+      EXPECTS(!internal::is_slicing(lhs_));  // dense and no slicing in labels
+      EXPECTS(lhs_.tensor().distribution().kind() ==
+              Distribution::Kind::dense);  // tensor uses Distribution_Dense
+      Tensor<LT_eltype> ltensor = lhs_.tensor();
+      Tensor<RT_eltype> rtensor = rhs_.tensor();
+      EXPECTS(lhs_.tensor().execution_context()->pg() ==
+              ec.pg());  // tensor allocation proc grid same as op execution
+                         // proc grid
+      auto pg = ec.pg();
+      const Distribution_Dense& dd =
+          static_cast<const Distribution_Dense&>(lhs_.tensor().distribution());
+      Proc rank = pg.rank();
+      const auto& grid_rank = dd.proc_rank_to_grid_rank(rank);
+      LT_eltype* lbuf = lhs_.tensor().access_local_buf();
+      Offset off = 0;
+      const std::vector<Range>& ranges = dd.proc_tile_extents(grid_rank);
+      std::vector<Index> lblockid(ranges.size());
+      auto init_func = ()[]{};
+      auto update_func = ()[]{};
+      SizeVec ldims_sz, rdims_sz;
+      //compute lhs_int_labels
+      //compute rhs_int_labels
+      auto body_func = [&]() {
+        T* lbuf = ltensor.access(lblockid);
+        //get rbuf
+        //compute ldims_sz, rdims_sz,
+        kernels::assign(lbuf.data(), ldims_sz, lhs_int_labels_, alpha_,
+                        rbuf.data(), rdims_sz, rhs_int_labels_, is_assign_);
+
+      };
+      loop_nest_exec(body_func, init_func, update_func, lblockid, ranges);
+    }
+#endif
+
+    TensorBase* writes() const {
+      if (is_assign()) {
+        return lhs_.base_ptr();
+      } else {
+        return nullptr;
+      }
     }
 
     TensorBase* accumulates() const {
@@ -1237,6 +1499,8 @@ protected:
     LabeledTensorT2 rhs_;
     IntLabelVec lhs_int_labels_, rhs_int_labels_;
     bool is_assign_;
+    public:
+    std::string opstr_;
 }; // class AddOp
 
  #ifdef USE_TALSH
@@ -1296,7 +1560,7 @@ struct AddBuf {
 
     std::vector<T> cbuf_;
     std::vector<T> abuf_;
-    std::vector<T> bbuf_;
+    std::vector<T> bbuf_;    
     IndexVector blockid_;
     bool isgpu_;
     Tensor<T> tensor_;
@@ -1361,6 +1625,8 @@ public:
     LabeledTensorT3 rhs2() const { return rhs2_; }
 
     bool is_assign() const { return is_assign_; }
+
+    OpType op_type() const override { return OpType::mult; }
 
     OpList canonicalize() const override {
         OpList result{};
@@ -1545,7 +1811,7 @@ public:
             else
 #endif            
             {
-                TimerGuard tg_total{&multOpTime};
+                
                 const int dev_id = ec.gpu_devid();
                 // determine set of all labels
 
@@ -1686,8 +1952,40 @@ public:
 
             };
             //@todo use a scheduler
-            //@todo make parallel
-            do_work(ec, loop_nest, lambda);
+            //@todo make parallel  
+            // do_work(ec, loop_nest, lambda);
+
+            bool has_sparse_labels = false;
+            for(auto& lbl : all_labels) {
+                if(lbl.is_dependent()) {
+                    has_sparse_labels = true;
+                    break;
+                }
+            }
+
+            // std::cout << "has_sparse_labels " << has_sparse_labels << std::endl;
+            // do_work(ec, loop_nest, lambda);
+            #if 0
+            int64_t num_lhs_tiles = 0;
+            {
+                LabelLoopNest lhs_loop_nest{lhs_.labels()};
+                for(const auto &lblockid:lhs_loop_nest) {
+                    if(lhs_.tensor().is_non_zero(lblockid)) {
+                    num_lhs_tiles += 1;
+                    }
+                }
+            }
+            #endif
+
+            if(1 && (lhs_.tensor().is_dense() /* && !lhs_.tensor().has_spin() */) &&
+            (rhs1_.tensor().is_dense() /* && !rhs1_.tensor().has_spin() */) &&
+            (rhs2_.tensor().is_dense() /* && !rhs2_.tensor().has_spin() */) &&
+	       !has_sparse_labels && !lhs_.labels().empty() ) { //&& num_lhs_tiles >= ec.pg().size() ) {
+                // std::cout << "Execute Buffer Accumulate" << std::endl;
+                execute_bufacc(ec, hw);
+            } else {
+                do_work(ec, loop_nest, lambda);
+            }
 
             #ifdef DO_NB
                 { 
@@ -1719,6 +2017,582 @@ public:
                     add_bufs.clear();
                 }
             #endif
+
+#endif
+
+    }
+
+    void execute_bufacc(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) {
+        EXPECTS(!is_assign_);
+        #if 1
+        using TensorElType = typename LabeledTensorT1::element_type;
+        // determine set of all labels
+        /* std::set<TiledIndexLabel> lhs_set{lhs_.labels()};
+        std::set<TiledIndexLabel> rhs_set{rhs1_.labels()};
+        rhs_set.insert(rhs_set.end(), rhs2_.labels().begin(), rhs_2.labels().end()); */
+
+        IndexLabelVec lhs_labels{lhs_.labels()};
+        IndexLabelVec rhs1_labels{rhs1_.labels()};
+        IndexLabelVec rhs2_labels{rhs2_.labels()};
+        IndexLabelVec all_rhs_labels{rhs1_.labels()};
+        all_rhs_labels.insert(all_rhs_labels.end(), rhs2_.labels().begin(),
+                              rhs2_.labels().end());
+        
+        LabelLoopNest lhs_loop_nest{lhs_.labels()};
+
+        //compute the reduction labels
+        std::sort(lhs_labels.begin(), lhs_labels.end());
+        auto unique_labels =
+          internal::unique_entries_by_primary_label(all_rhs_labels);
+        std::sort(unique_labels.begin(), unique_labels.end());
+        IndexLabelVec reduction_labels; //{reduction.begin(), reduction.end()};
+        std::set_difference(unique_labels.begin(), unique_labels.end(),
+                            lhs_labels.begin(), lhs_labels.end(),
+                            std::back_inserter(reduction_labels));
+
+        /* std::vector<size_t> rhs_indices;
+        for(auto& lbl : lhs_labels){
+            auto it = std::find(rhs_labels.begin(), rhs_labels.end(), lbl);
+            size_t idx = std::distance(it, rhs_labels.begin());
+            rhs_indices[it]
+        } */
+
+        std::vector<int> rhs1_map_output;
+        std::vector<int> rhs2_map_output;
+        std::vector<int> rhs1_map_reduction;
+        std::vector<int> rhs2_map_reduction;
+        const auto& lhs_lbls = lhs_.labels();
+        for(auto& lbl : rhs1_labels) {
+            auto it_out = std::find(lhs_lbls.begin(), lhs_lbls.end(), lbl);
+            if(it_out != lhs_lbls.end())
+                rhs1_map_output.push_back(it_out - lhs_lbls.begin());
+            else
+                rhs1_map_output.push_back(-1);
+
+            // auto it_red = std::find(reduction.begin(), reduction.end(), lbl);
+            auto it_red =
+              std::find(reduction_labels.begin(), reduction_labels.end(), lbl);
+            if(it_red != reduction_labels.end())
+                rhs1_map_reduction.push_back(it_red - reduction_labels.begin());
+            else
+                rhs1_map_reduction.push_back(-1);
+        }
+
+        for(auto& lbl : rhs2_labels) {
+            auto it_out = std::find(lhs_lbls.begin(), lhs_lbls.end(), lbl);
+            if(it_out != lhs_lbls.end())
+                rhs2_map_output.push_back(it_out - lhs_lbls.begin());
+            else
+                rhs2_map_output.push_back(-1);
+
+            auto it_red =
+              std::find(reduction_labels.begin(), reduction_labels.end(), lbl);
+            if(it_red != reduction_labels.end())
+                rhs2_map_reduction.push_back(it_red - reduction_labels.begin());
+            else
+                rhs2_map_reduction.push_back(-1);
+        }
+
+        // std::cout << "rhs1_map_output" << std::endl;
+        // std::cout << rhs1_map_output << std::endl;
+        // std::cout << "rhs2_map_output" << std::endl;
+        // std::cout << rhs2_map_output << std::endl;
+        // std::cout << "rhs1_map_reduction" << std::endl;
+        // std::cout << rhs1_map_reduction << std::endl;
+        // std::cout << "rhs2_map_reduction" << std::endl;
+        // std::cout << rhs2_map_reduction << std::endl;
+
+
+        /* //obtain reduction_labels
+        std::set<TiledIndexLabel> reduction_set;
+        std::set_difference(rhs_set.begin(), rhs_set.end(), lhs_set.begin(), lhs_set.end(),
+         std::inserter(reduction_set, reduction_set.end())); */
+
+        //IndexLabelVec reduction_lbls{reduction.begin(), reduction.end()};
+        std::vector<AddBuf<T>*> add_bufs;
+
+#if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
+        int64_t n_lhs_blocks, nranks_per_lhs_block, lhs_counter;
+#endif
+
+        // function to compute one block
+        auto lambda = [&](const IndexVector itval) { // i, j
+            auto ctensor = lhs_.tensor();
+            auto atensor = rhs1_.tensor();
+            auto btensor = rhs2_.tensor();
+            // compute blockids from the loop indices. itval is the loop index
+
+#if 0      
+            auto it = itval.begin();
+            IndexVector citval{it, it + lhs_.labels().size()};
+            it += lhs_.labels().size();
+            IndexVector aitval{it, it + rhs1_.labels().size()};
+            it += rhs1_.labels().size();
+            IndexVector bitval{it, it + rhs2_.labels().size()};
+
+            auto [extracted_clabels, cblockid] = internal::extract_blockid_and_label(
+                loop_nest.sorted_unique_labels(), citval, lhs_.labels());
+
+            auto [extracted_alabels, ablockid] = internal::extract_blockid_and_label(
+                loop_nest.sorted_unique_labels(), aitval, rhs1_.labels());
+            
+            auto [extracted_blabels, bblockid] = internal::extract_blockid_and_label(
+                loop_nest.sorted_unique_labels(), bitval, rhs2_.labels());
+            
+            EXPECTS(lhs_.labels().size() == extracted_clabels.size());
+            EXPECTS(rhs1_.labels().size() == extracted_alabels.size());
+            EXPECTS(rhs2_.labels().size() == extracted_blabels.size());
+
+            for(size_t i = 0; i < extracted_clabels.size(); i++) {
+                EXPECTS(
+                    extracted_clabels[i].tiled_index_space().is_compatible_with(
+                    lhs_.labels()[i].tiled_index_space()));
+            }
+
+            for(size_t i = 0; i < extracted_alabels.size(); i++) {
+                EXPECTS(
+                    extracted_alabels[i].tiled_index_space().is_compatible_with(
+                    rhs1_.labels()[i].tiled_index_space()));
+            }
+
+            for(size_t i = 0; i < extracted_blabels.size(); i++) {
+                EXPECTS(
+                    extracted_blabels[i].tiled_index_space().is_compatible_with(
+                    rhs2_.labels()[i].tiled_index_space()));
+            }
+
+            for(size_t i = 0; i < extracted_clabels.size(); i++) {
+                EXPECTS(
+                    extracted_clabels[i].tiled_index_space().is_compatible_with(
+                    lhs_.tensor()().labels()[i].tiled_index_space()));
+            }
+
+            for(size_t i = 0; i < extracted_alabels.size(); i++) {
+                EXPECTS(
+                    extracted_alabels[i].tiled_index_space().is_compatible_with(
+                    rhs1_.tensor()().labels()[i].tiled_index_space()));
+            }
+
+            for(size_t i = 0; i < extracted_blabels.size(); i++) {
+                EXPECTS(
+                    extracted_blabels[i].tiled_index_space().is_compatible_with(
+                    rhs2_.tensor()().labels()[i].tiled_index_space()));
+            }
+
+            IndexVector blockid{cblockid};
+            blockid.insert(blockid.end(), ablockid.begin(), ablockid.end());
+            blockid.insert(blockid.end(), bblockid.begin(), bblockid.end());
+
+            IndexLabelVec extracted_lbls{extracted_clabels};
+            extracted_lbls.insert(extracted_lbls.end(), extracted_alabels.begin(), extracted_alabels.end());
+            extracted_lbls.insert(extracted_lbls.end(), extracted_blabels.begin(), extracted_blabels.end());
+
+            auto tc_lbls = lhs_.tensor()().labels();
+            auto ta_lbls = rhs1_.tensor()().labels();
+            auto tb_lbls = rhs2_.tensor()().labels();
+
+            IndexLabelVec tensor_lbls{tc_lbls};
+            tensor_lbls.insert(tensor_lbls.end(), ta_lbls.begin(), ta_lbls.end());
+            tensor_lbls.insert(tensor_lbls.end(), tb_lbls.begin(), tb_lbls.end());
+            
+            IndexVector translated_blockid;
+            bool tb_valid;
+
+            std::tie(translated_blockid, tb_valid) =
+              internal::translate_blockid_if_possible(
+                blockid, extracted_lbls, tensor_lbls);
+
+            auto id_it = translated_blockid.begin();
+            IndexVector translated_cblockid{id_it, id_it + lhs_.labels().size()};
+            id_it += lhs_.labels().size();
+            IndexVector translated_ablockid{id_it, id_it + rhs1_.labels().size()};
+            id_it += rhs1_.labels().size();
+            IndexVector translated_bblockid{id_it, id_it + rhs2_.labels().size()};
+            
+            for(const auto id : translated_cblockid) {
+                if (id == -1) return;
+            }
+            for(const auto id : translated_ablockid) {
+                if (id == -1) return;
+            }
+            for(const auto id : translated_bblockid) {
+                if (id == -1) return;
+            }
+        
+#else
+            IndexVector c_block_id{itval};
+            // print the c_block_id
+            // std::cout << "C Block ID: " ;
+            // for(int i=0; i<c_block_id.size(); i++)
+            //     std::cout << c_block_id[i] << ' ';
+            // std::cout << std::endl;
+            const auto translated_cblockid = internal::translate_blockid(c_block_id, lhs_);
+            if( !ctensor.is_non_zero(translated_cblockid) )
+                 return;
+            //const auto translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
+            //const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
+
+#endif
+            /* if( !ctensor.is_non_zero(translated_cblockid) || 
+                !atensor.is_non_zero(translated_ablockid) ||
+                !btensor.is_non_zero(translated_bblockid)) 
+                return; */
+
+            using TensorElType1 = typename LabeledTensorT1::element_type;
+            using TensorElType2 = typename LabeledTensorT2::element_type;
+            using TensorElType3 = typename LabeledTensorT3::element_type;
+
+            // compute block size and allocate buffers for cbuf
+            const size_t csize = ctensor.block_size(translated_cblockid);
+            std::vector<TensorElType1> cbuf(csize, 0);
+            const auto& cdims = ctensor.block_dims(translated_cblockid);
+
+            SizeVec cdims_sz;
+            for(const auto v : cdims) { cdims_sz.push_back(v); }
+
+            bool isgpu = false;
+            const int dev_id = ec.gpu_devid();
+
+            #ifdef USE_TALSH    
+                TALSH *gpu_mult = new TALSH{ec.num_gpu()};
+
+                // AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b, 
+                //     ctensor, std::move(cbuf),translated_cblockid};
+                talsh_task_t* tt1 = new talsh_task_t();
+                talsh_task_t* tt2;
+                
+                tensor_handle *th_a = new tensor_handle();
+                tensor_handle *th_b = new tensor_handle();
+                tensor_handle *th_c = new tensor_handle();
+                tensor_handle *th_a2;
+                tensor_handle *th_b2;  
+                tensor_handle *th_c2;                 
+                AddBuf<TensorElType1> *ab1;
+                AddBuf<TensorElType1> *ab2;   
+
+                if(hw == ExecutionHW::GPU) {
+                    int tal_cdims[cdims_sz.size()];
+                    std::vector<int> tcid;
+                    std::transform(std::begin(cdims_sz), std::end(cdims_sz),
+                                std::back_inserter(tcid),[](tamm::Size i) -> int {return i.value();});
+                    std::reverse(tcid.begin(),tcid.end());
+                    std::copy(tcid.begin(),tcid.end(),tal_cdims);
+
+                    tt2 = new talsh_task_t();
+                    talshTaskClean(tt1);
+                    talshTaskClean(tt2);
+
+                    th_a2 = new tensor_handle();
+                    th_b2 = new tensor_handle();            
+                    th_c2 = new tensor_handle(); 
+
+                    *th_c = gpu_mult->gpu_block(cdims_sz.size(), tal_cdims, dev_id);                         
+                    *th_c2 = gpu_mult->gpu_block(cdims_sz.size(), tal_cdims, dev_id);                         
+            
+                    ab1 = new AddBuf<TensorElType1>{isgpu, tt1, th_c, th_a, th_b, 
+                                        ctensor, {}, translated_cblockid};
+                    ab2 = new AddBuf<TensorElType1>{isgpu, tt2, th_c2, th_a2, th_b2, 
+                                        ctensor, {}, translated_cblockid};       
+                }
+                else {
+                    AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, 
+                                            tt1, th_c, th_a, th_b,
+                                            ctensor, {}, translated_cblockid};        
+                    add_bufs.push_back(ab);   
+                }              
+            #else
+                AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, 
+                    ctensor, {}, translated_cblockid};        
+                add_bufs.push_back(ab);                
+            #endif
+
+                           
+#if 0
+            if constexpr(std::is_same_v<TensorElType1,TensorElType2> 
+                         && std::is_same_v<TensorElType1,TensorElType3>) {
+                ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc){
+                        BlockBuffer cbuf = rc.get_buf_tmp(ctensor, translated_cblockid);
+                        BlockBuffer abuf = rc.get_buf_read(atensor, translated_ablockid);
+                        BlockBuffer bbuf = rc.get_buf_read(btensor, translated_bblockid);
+                        // double cscale = is_assign_ ? 0 : 1;
+                        TensorElType cscale{0};
+
+                        SizeVec adims_sz, bdims_sz, cdims_sz;
+                        for(const auto v : abuf.block_dims()) { adims_sz.push_back(v); }
+                        for(const auto v : bbuf.block_dims()) { bdims_sz.push_back(v); }
+                        for(const auto v : cbuf.block_dims()) { cdims_sz.push_back(v); }
+                        kernels::block_multiply(ec.pg().rank().value(),alpha_, abuf.data(), adims_sz,
+                                rhs1_int_labels_, bbuf.data(), bdims_sz,
+                                rhs2_int_labels_, cscale, cbuf.data(),
+                                cdims_sz, lhs_int_labels_, hw, ec.has_gpu());
+
+                        // add the computed update to the tensor
+                        cbuf.release_add();
+
+                        }, TempAccess{IndexedTensor{ctensor, translated_cblockid}},
+                        AccumPermission{IndexedTensor{ctensor, translated_cblockid}}, 
+                        ReadAccess{IndexedTensor{atensor, translated_ablockid}}, 
+                        ReadAccess{IndexedTensor{btensor, translated_bblockid}}); 
+            }
+            else
+#endif            
+            {
+                //LabelLoopNest inner_loop{reduction_lbls};
+                LabelLoopNest inner_loop{reduction_labels};
+
+                //TimerGuard tg_total{&multOpTime};
+
+                int loop_counter = 0;
+#if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
+                nranks_per_lhs_block =
+                    (ec.pg().size().value() / n_lhs_blocks) + 1 -
+                    (lhs_counter >= (ec.pg().size().value() % n_lhs_blocks));
+#endif
+                int slc = 0;
+                for(const auto& inner_it_val : inner_loop) { // k
+
+                    IndexVector a_block_id(rhs1_.labels().size());
+
+                    for(size_t i = 0; i < rhs1_map_output.size(); i++){
+                        if(rhs1_map_output[i] != -1){
+                            a_block_id[i] = itval[rhs1_map_output[i]];
+                        }
+                    }
+
+                    for(size_t i = 0; i < rhs1_map_reduction.size(); i++){
+                        if(rhs1_map_reduction[i] != -1){
+                            a_block_id[i] = inner_it_val[rhs1_map_reduction[i]];
+                        }
+                    }
+
+                    const auto translated_ablockid = internal::translate_blockid(a_block_id, rhs1_);
+                    if (!atensor.is_non_zero(translated_ablockid))
+                        continue;
+
+
+                    IndexVector b_block_id(rhs2_.labels().size());
+
+                    for(size_t i = 0; i < rhs2_map_output.size(); i++){
+                        if(rhs2_map_output[i] != -1){
+                            b_block_id[i] = itval[rhs2_map_output[i]];
+                        }
+                    }
+
+                    for(size_t i = 0; i < rhs2_map_reduction.size(); i++){
+                        if(rhs2_map_reduction[i] != -1){
+                            b_block_id[i] = inner_it_val[rhs2_map_reduction[i]];
+                        }
+                    }
+
+                    const auto translated_bblockid = internal::translate_blockid(b_block_id, rhs2_);
+                    if(!btensor.is_non_zero(translated_bblockid))
+                       continue;
+
+#if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
+                  if (!(loop_counter++ % nranks_per_lhs_block ==
+                        ec.pg().rank().value() / n_lhs_blocks)) {
+                    continue;
+                  }
+#endif
+                    // compute block size and allocate buffers for abuf and bbuf
+                    const size_t asize = atensor.block_size(translated_ablockid);
+                    const size_t bsize = btensor.block_size(translated_bblockid);
+
+                    std::vector<TensorElType2> abuf(asize);
+                    std::vector<TensorElType3> bbuf(bsize);
+
+#ifdef DO_NB_GET
+                DataCommunicationHandle a_nbhandle,b_nbhandle;
+
+                {
+                    TimerGuard tg_get{&multOpGetTime};
+                    atensor.nb_get(translated_ablockid, abuf, &a_nbhandle);
+                    btensor.nb_get(translated_bblockid, bbuf, &b_nbhandle);
+                }
+                {
+                    TimerGuard tg_wait{&multOpWaitTime};
+                    if(!a_nbhandle.getCompletionStatus()) a_nbhandle.waitForCompletion();
+                    if(!b_nbhandle.getCompletionStatus()) b_nbhandle.waitForCompletion();
+                }
+#else
+                { 
+                    TimerGuard tg_get{&multOpGetTime};
+                    atensor.get(translated_ablockid, abuf);
+                }
+                { 
+                    TimerGuard tg_get{&multOpGetTime};
+                    btensor.get(translated_bblockid, bbuf);
+                }
+#endif
+                    const auto& adims = atensor.block_dims(translated_ablockid);
+                    const auto& bdims = btensor.block_dims(translated_bblockid);
+
+                    //changed cscale from 0 to 1 to aggregate on cbuf
+                    T cscale{1};
+
+                    SizeVec adims_sz, bdims_sz;
+                    for(const auto v : adims) { adims_sz.push_back(v); }
+                    for(const auto v : bdims) { bdims_sz.push_back(v); }
+
+                    // A*B
+                    
+                    {
+                    AddBuf<TensorElType1>* abptr = nullptr;
+                    #ifdef USE_TALSH
+                        abptr = slc%2==0? ab1: ab2;
+                        if(hw == ExecutionHW::CPU) abptr = add_bufs[0];
+                        talsh_task_t* tt_handle = abptr->tt_;
+
+                        if(slc>1){
+                            if(abptr->isgpu_) {
+                                gpu_mult->wait_and_destruct(tt_handle);
+                                // abptr->tt_ = new talsh_task_t();
+                                // talshTaskClean(abptr->tt_);
+                                gpu_mult->free_block(*(abptr->ta_));
+                                gpu_mult->free_block(*(abptr->tb_));
+                            }
+                            // delete abptr->abuf_;
+                            // delete abptr->bbuf_;
+                        }
+                    #else
+                        abptr = add_bufs[0];
+                        // if(slc>0){
+                        //     delete abptr->abuf_;
+                        //     delete abptr->bbuf_;                        
+                        // }
+                    #endif
+                    abptr->abuf_ = std::move(abuf);
+                    abptr->bbuf_ = std::move(bbuf);
+
+                    TimerGuard tg_dgemm{&multOpDgemmTime};                    
+                    kernels::block_multiply<T,TensorElType1,TensorElType2,TensorElType3>
+                                        (abptr->isgpu_, 
+                                        #ifdef USE_TALSH
+                                        *gpu_mult, *(abptr->tt_), *(abptr->tc_), *(abptr->ta_), *(abptr->tb_), COPY_MTT,
+                                        #endif
+                                        dev_id, alpha_, 
+                                        (abptr->abuf_).data(), adims_sz,
+                                        rhs1_int_labels_, (abptr->bbuf_).data(), bdims_sz,
+                                        rhs2_int_labels_, cscale, cbuf.data(),
+                                        cdims_sz, lhs_int_labels_, hw, ec.has_gpu(), false);
+
+                
+                    }
+            slc++;
+            } // end of reduction loop
+
+            {
+                TimerGuard tg_dgemm{&multOpDgemmTime};   
+                #ifdef USE_TALSH                   
+                if(hw == ExecutionHW::GPU){
+                    if(ab1->isgpu_){
+                        gpu_mult->wait_and_destruct(ab1->tt_);
+                        gpu_mult->free_block(*(ab1->ta_));
+                        gpu_mult->free_block(*(ab1->tb_));   
+                    }                     
+                    if(slc>1 && ab2->isgpu_) {
+                        gpu_mult->wait_and_destruct(ab2->tt_);
+                        gpu_mult->free_block(*(ab2->ta_));
+                        gpu_mult->free_block(*(ab2->tb_));    
+                    }                    
+                } 
+                #endif
+            }
+
+
+            // add the computed update to the tensor
+            {
+                #ifdef USE_TALSH                
+                 if(hw == ExecutionHW::GPU){
+                     //if(ab1->isgpu_ && ab2->isgpu_){
+                     std::string aop_string = internal::talsh_add_op_string(lhs_int_labels_,lhs_int_labels_);
+                     gpu_mult->add_block(aop_string,dev_id,*th_c,*th_c2,(TensorElType1)1.0);
+
+                     talsh_task_t* tph1 = new talsh_task_t();
+                     talshTaskClean(tph1);
+
+                    int errc=talshTensorPlace(th_c,0,DEV_HOST,cbuf.data(),COPY_M, tph1);
+                    if(errc != TALSH_SUCCESS) {
+                        talshTaskPrint(tph1);
+                    }
+                    else {
+                        int ierr;
+                        int werrc = talshTaskWait(tph1,&ierr);
+                    }
+                    talshTaskDestruct(tph1);
+                     //}
+                 }
+                #endif
+                {
+                    TimerGuard tg_add{&multOpAddTime};
+                    ctensor.add(translated_cblockid, cbuf);
+                }
+
+            }
+
+            #ifndef DO_NB
+                #ifdef USE_TALSH
+                if(hw == ExecutionHW::GPU){
+                    gpu_mult->free_block(*th_c);
+                    gpu_mult->free_block(*th_c2);    
+                    delete ab1;
+                    delete ab2;    
+                }      
+                    delete gpu_mult;                         
+                #endif
+                for(auto& ab: add_bufs)
+                    delete ab;
+                add_bufs.clear();                                       
+            #endif
+
+                    
+        } //multoptime
+
+        };
+        //@todo use a scheduler
+        //@todo make parallel
+
+#if 0 && 6
+            do_work(ec, lhs_loop_nest, lambda);
+#elif defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
+        {
+          const auto& ldist = lhs_.tensor().distribution();
+          int me = ec.pg().rank().value();
+          int nranks = ec.pg().rank().value();
+          int n_lhs_blocks = 0;
+          for (const auto& lblockid : lhs_loop_nest) {
+            if (lhs_.tensor().is_non_zero(lblockid)) {
+              n_lhs_blocks += 1;
+            }
+          }
+          int lhs_counter = 0;
+
+          for (const auto& lblockid : lhs_loop_nest) {
+            if (!lhs_.tensor().is_non_zero(lblockid)) {
+              continue;
+            }
+            lhs_counter += 1;
+            if (std::get<0>(ldist.locate(lblockid)) == me % n_lhs_blocks) {
+              nranks_per_lhs_block = (nranks / n_lhs_blocks) + 1 -
+                                     (lhs_counter >= (nranks % n_lhs_blocks));
+              lambda(lblockid);
+              // multOpGetTime += 1;
+            }
+          }
+        }
+#else
+        {
+          const auto& ldist = lhs_.tensor().distribution();
+          Proc me = ec.pg().rank();
+
+          for (const auto& lblockid : lhs_loop_nest) {
+            if (lhs_.tensor().is_non_zero(lblockid) &&
+                std::get<0>(ldist.locate(lblockid)) == me) {
+              lambda(lblockid);
+            }
+          }
+        }
+#endif
 
 #endif
 
@@ -1850,6 +2724,8 @@ protected:
     IntLabelVec rhs1_int_labels_;
     IntLabelVec rhs2_int_labels_;
     bool is_assign_;
+    public:
+    std::string opstr_;
 }; // class MultOp
 
 template<typename TensorType>
@@ -1864,6 +2740,8 @@ public:
     TensorType tensor() const { return tensor_; }
 
     OpList canonicalize() const override { return OpList{(*this)}; }
+
+    OpType op_type() const override { return OpType::alloc; }
 
     std::shared_ptr<Op> clone() const override {
         return std::shared_ptr<Op>(new AllocOp{*this});
@@ -1890,6 +2768,8 @@ public:
 protected:
     TensorType tensor_;
     ExecutionContext& ec_;
+    public:
+    std::string opstr_;
 }; // class AllocOp
 
 template<typename TensorType>
@@ -1902,6 +2782,8 @@ public:
     TensorType tensor() const { return tensor_; }
 
     OpList canonicalize() const override { return OpList{(*this)}; }
+
+    OpType op_type() const override { return OpType::dealloc; }
 
     std::shared_ptr<Op> clone() const override {
         return std::shared_ptr<Op>(new DeallocOp{*this});
@@ -1924,9 +2806,11 @@ public:
     bool is_memory_barrier() const {
         return false;
     }
-
+    std::string opstr_;
+    
 protected:
     TensorType tensor_;
+    
 }; // class AllocOp
 
 } // namespace tamm

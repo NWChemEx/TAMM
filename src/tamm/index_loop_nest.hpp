@@ -351,6 +351,75 @@ public:
 
     const Iterator& end() const { return itend_; }
 
+    template <typename Func>
+    void iterate(Func&& func) {
+      bool dense_case = is_dense_case();
+      size_t ndim = iss_.size();
+      if (is_dense_case() && ndim <= 4) {
+        IndexVector blockid(ndim);
+        size_t dims[ndim];
+        for (int i = 0; i < iss_.size(); i++) {
+          dims[i] = iss_[i].num_tiles();
+        }
+        if (ndim == 0) {
+          func(blockid);
+        } else if (ndim == 1) {
+          for (blockid[0] = 0; blockid[0] < dims[0]; ++blockid[0]) {
+            func(blockid);
+          }
+        } else if (ndim == 2) {
+          for (blockid[0] = 0; blockid[0] < dims[0]; ++blockid[0]) {
+            for (blockid[1] = 0; blockid[1] < dims[1]; ++blockid[1]) {
+              func(blockid);
+            }
+          }
+        } else if (ndim == 3) {
+          for (blockid[0] = 0; blockid[0] < dims[0]; ++blockid[0]) {
+            for (blockid[1] = 0; blockid[1] < dims[1]; ++blockid[1]) {
+              for (blockid[2] = 0; blockid[2] < dims[2]; ++blockid[2]) {
+                func(blockid);
+              }
+            }
+          }
+        } else if (ndim == 4) {
+          for (blockid[0] = 0; blockid[0] < dims[0]; ++blockid[0]) {
+            for (blockid[1] = 0; blockid[1] < dims[1]; ++blockid[1]) {
+              for (blockid[2] = 0; blockid[2] < dims[2]; ++blockid[2]) {
+                for (blockid[3] = 0; blockid[3] < dims[3]; ++blockid[3]) {
+                  func(blockid);
+                }
+              }
+            }
+          }
+        } else {
+          // general case
+          for (auto it = begin(); it != end(); it++) {
+            func(*it);
+          }
+        }
+      }
+    }
+
+    //check if a simple dense loop will suffice
+    bool is_dense_case() {
+      for (const auto& is : iss_) {
+        if (is.is_dependent()) {
+          return false;
+        }
+      }
+      for (const auto& lb : lb_indices_) {
+        if (!lb.empty()) {
+          return false;
+        }
+      }
+      for (const auto& ub : ub_indices_) {
+        if (!ub.empty()) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     bool is_valid() const {
         bool ret = true;
         ret      = ret && iss_.size() != lb_indices_.size();
@@ -484,6 +553,12 @@ public:
     const Iterator& begin() const { return itbegin_; }
 
     const Iterator& end() const { return itend_; }
+
+    template <typename Func>
+    void iterate(Func&& func) {
+      index_loop_nest_.iterate(func);
+    }
+
 
 private:
     std::vector<std::vector<size_t>> construct_dep_map(

@@ -435,7 +435,7 @@ void ccsd_t_data_s1_new(
   const size_t s1_max_dimb = bbufs1_size / 9;
 
   // size_t s1b = 0;
-  int s1b = 0;
+  // int s1b = 0;
 #if 0
   for (auto ia6 = 0; ia6 < 9; ia6++) {
     df_s1_size[0 + ia6 * 6] = (int)k_range[t_h1b];
@@ -543,7 +543,7 @@ void ccsd_t_data_s1_new(
   } // end ia6
 
   //ia6 -- get for t1
-  s1b = 0;
+  // s1b = 0;
   idx_offset = 0;
   for (auto ia6 = 0; ia6 < 9; ia6++) 
   {
@@ -654,7 +654,7 @@ void ccsd_t_data_s1_new(
   } // end ia6
 
   //ia6 -- get for v2
-  s1b = 0;
+  // s1b = 0;
   idx_offset = 0;
   for (auto ia6 = 0; ia6 < 9; ia6++) 
   {
@@ -753,6 +753,181 @@ void ccsd_t_data_s1_new(
 
   *df_num_s1_enabled = idx_offset;
   // printf ("[%s] ------------------------------------------------ df_num_s1_enabled: %d\n", __func__, *df_num_s1_enabled);
+} // ccsd_t_data_s1
+
+// singles data driver
+template <typename T>
+void ccsd_t_data_s1_info_only(const Index noab, const Index nvab, 
+                              std::vector<int>& k_spin, 
+                              std::vector<T>& k_evl_sorted, std::vector<size_t>& k_range, 
+                              size_t t_h1b, size_t t_h2b, size_t t_h3b, 
+                              size_t t_p4b, size_t t_p5b, size_t t_p6b,
+                              // 
+                              int* df_simple_s1_size, int* df_simple_s1_exec, 
+                              int* num_enabled_kernels, size_t& comm_data_elems)
+{
+  std::tuple<Index, Index, Index, Index, Index, Index> a3_s1[] = {
+      std::make_tuple(t_p4b, t_p5b, t_p6b, t_h1b, t_h2b, t_h3b),
+      std::make_tuple(t_p4b, t_p5b, t_p6b, t_h2b, t_h1b, t_h3b),
+      std::make_tuple(t_p4b, t_p5b, t_p6b, t_h3b, t_h1b, t_h2b),
+      std::make_tuple(t_p5b, t_p4b, t_p6b, t_h1b, t_h2b, t_h3b),
+      std::make_tuple(t_p5b, t_p4b, t_p6b, t_h2b, t_h1b, t_h3b),
+      std::make_tuple(t_p5b, t_p4b, t_p6b, t_h3b, t_h1b, t_h2b),
+      std::make_tuple(t_p6b, t_p4b, t_p5b, t_h1b, t_h2b, t_h3b),
+      std::make_tuple(t_p6b, t_p4b, t_p5b, t_h2b, t_h1b, t_h3b),
+      std::make_tuple(t_p6b, t_p4b, t_p5b, t_h3b, t_h1b, t_h2b)};
+
+  for (auto ia6 = 0; ia6 < 8; ia6++) {
+    if (std::get<0>(a3_s1[ia6]) != 0) {
+      for (auto ja6 = ia6 + 1; ja6 < 9; ja6++) {  // TODO: ja6 start ?
+        if (a3_s1[ia6] == a3_s1[ja6]) {
+          a3_s1[ja6] = std::make_tuple(0,0,0,0,0,0);
+        }
+      }
+    }
+  }
+
+  // 
+  df_simple_s1_size[0] = (int)k_range[t_h1b];
+  df_simple_s1_size[1] = (int)k_range[t_h2b];
+  df_simple_s1_size[2] = (int)k_range[t_h3b];
+  df_simple_s1_size[3] = (int)k_range[t_p4b];
+  df_simple_s1_size[4] = (int)k_range[t_p5b];
+  df_simple_s1_size[5] = (int)k_range[t_p6b];
+
+  std::vector<bool> ia6_enabled(9,false);
+  
+  //ia6 -- compute which variants are enabled
+  for (auto ia6 = 0; ia6 < 9; ia6++) {
+    auto [p4b, p5b, p6b, h1b, h2b, h3b] = a3_s1[ia6];
+
+    if (!((p5b <= p6b) && (h2b <= h3b) && p4b != 0)) {
+      continue;
+    }
+    if (!(k_spin[p4b] + k_spin[p5b] + k_spin[p6b] + k_spin[h1b] + k_spin[h2b] +
+               k_spin[h3b] !=
+           12)) {
+      continue;
+    }
+    if(!(k_spin[p4b] + k_spin[p5b] + k_spin[p6b] ==
+            k_spin[h1b] + k_spin[h2b] + k_spin[h3b])) {
+      continue;
+    }
+    if (!(k_spin[p4b] == k_spin[h1b])) {
+      continue;
+    }
+    if (!(k_range[p4b] > 0 && k_range[p5b] > 0 && k_range[p6b] > 0 &&
+          k_range[h1b] > 0 && k_range[h2b] > 0 && k_range[h3b] > 0)) {
+      continue;
+    }
+
+    ia6_enabled[ia6] = true;
+  } // end ia6
+
+  int detailed_stats[9];
+
+  detailed_stats[0] = 0;
+  detailed_stats[1] = 0;
+  detailed_stats[2] = 0;
+  detailed_stats[3] = 0;
+  detailed_stats[4] = 0;
+  detailed_stats[5] = 0;
+  detailed_stats[6] = 0;
+  detailed_stats[7] = 0;
+  detailed_stats[8] = 0;
+
+
+  //ia6 -- compute sizes and permutations
+  int idx_offset = 0;
+  int idx_new_offset = 0;
+  for (auto ia6 = 0; ia6 < 9; ia6++) {
+    if (!ia6_enabled[ia6]) {
+      continue;
+    }
+
+    auto [p4b, p5b, p6b, h1b, h2b, h3b] = a3_s1[ia6];
+    auto ref_p456_h123 = std::make_tuple(t_p4b, t_p5b, t_p6b, t_h1b, t_h2b, t_h3b);
+    auto cur_p456_h123 = std::make_tuple(p4b, p5b, p6b, h1b, h2b, h3b);
+    auto cur_p456_h213 = std::make_tuple(p4b, p5b, p6b, h2b, h1b, h3b);
+    auto cur_p456_h231 = std::make_tuple(p4b, p5b, p6b, h2b, h3b, h1b);
+    auto cur_p546_h123 = std::make_tuple(p5b, p4b, p6b, h1b, h2b, h3b);
+    auto cur_p546_h213 = std::make_tuple(p5b, p4b, p6b, h2b, h1b, h3b);
+    auto cur_p546_h231 = std::make_tuple(p5b, p4b, p6b, h2b, h3b, h1b);
+    auto cur_p564_h123 = std::make_tuple(p5b, p6b, p4b, h1b, h2b, h3b);
+    auto cur_p564_h213 = std::make_tuple(p5b, p6b, p4b, h2b, h1b, h3b);
+    auto cur_p564_h231 = std::make_tuple(p5b, p6b, p4b, h2b, h3b, h1b);
+
+    size_t dim_common = 1;
+    size_t dima_sort  = k_range[p4b]*k_range[h1b];
+    size_t dimb_sort =
+        k_range[p5b] * k_range[p6b] * k_range[h2b] * k_range[h3b];
+
+    comm_data_elems += dim_common * (dima_sort + dimb_sort);
+    
+    if (ref_p456_h123 == cur_p456_h123) {
+      df_simple_s1_exec[0] = idx_offset;
+      *num_enabled_kernels = *num_enabled_kernels + 1;
+      idx_new_offset++;
+      detailed_stats[0] = detailed_stats[0] + 1;
+    }
+    if (ref_p456_h123 == cur_p456_h213) {
+      df_simple_s1_exec[1] = idx_offset;
+      *num_enabled_kernels = *num_enabled_kernels + 1;
+      idx_new_offset++;
+      detailed_stats[1] = detailed_stats[1] + 1;
+    }
+    if (ref_p456_h123 == cur_p456_h231) {
+      df_simple_s1_exec[2] = idx_offset;
+      *num_enabled_kernels = *num_enabled_kernels + 1;
+      idx_new_offset++;
+      detailed_stats[2] = detailed_stats[2] + 1;
+    }
+    if (ref_p456_h123 == cur_p546_h123) {
+      df_simple_s1_exec[3] = idx_offset;
+      *num_enabled_kernels = *num_enabled_kernels + 1;
+      idx_new_offset++;
+      detailed_stats[3] = detailed_stats[3] + 1;
+    }
+    if (ref_p456_h123 == cur_p546_h213) {
+      df_simple_s1_exec[4] = idx_offset;
+      *num_enabled_kernels = *num_enabled_kernels + 1;
+      idx_new_offset++;
+      detailed_stats[4] = detailed_stats[4] + 1;
+    }
+    if (ref_p456_h123 == cur_p546_h231) {
+      df_simple_s1_exec[5] = idx_offset;
+      *num_enabled_kernels = *num_enabled_kernels + 1;
+      idx_new_offset++;
+      detailed_stats[5] = detailed_stats[5] + 1;
+    }
+    if (ref_p456_h123 == cur_p564_h123) {
+      df_simple_s1_exec[6] = idx_offset;
+      *num_enabled_kernels = *num_enabled_kernels + 1;
+      idx_new_offset++;
+      detailed_stats[6] = detailed_stats[6] + 1;
+    }
+    if (ref_p456_h123 == cur_p564_h213) {
+      df_simple_s1_exec[7] = idx_offset;
+      *num_enabled_kernels = *num_enabled_kernels + 1;
+      idx_new_offset++;
+      detailed_stats[7] = detailed_stats[7] + 1;
+    }
+    if (ref_p456_h123 == cur_p564_h231) {
+      df_simple_s1_exec[8] = idx_offset;
+      *num_enabled_kernels = *num_enabled_kernels + 1;
+      idx_new_offset++;
+      detailed_stats[8] = detailed_stats[8] + 1;
+    }
+    // 
+    idx_offset++;
+  } // end ia6
+
+  // printf ("[%s] s1, #: %d >> %d,%d,%d,%d,%d,%d,%d,%d,%d\n", __func__, idx_new_offset,
+  //     detailed_stats[0], detailed_stats[1], detailed_stats[2], 
+  //     detailed_stats[3], detailed_stats[4], detailed_stats[5], 
+  //     detailed_stats[6], detailed_stats[7], detailed_stats[8]);
+
+  // printf ("[%s] s1: %d\n", __func__, idx_new_offset);
 } // ccsd_t_data_s1
 
 #endif //CCSD_T_ALL_FUSED_SINGLES_HPP_

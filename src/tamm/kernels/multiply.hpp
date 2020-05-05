@@ -294,6 +294,7 @@ void block_multiply(bool &isgpuOp,
                                 ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
                                 ainter_ld, beta, cinter_buf_dev + i * cbatch_ld,
                                 cinter_ld);
+                dev_queue.wait();
 #else
                   internal::gemm_wrapper<T>(
                     CblasRowMajor, transA, transB, M, N, K, alpha,
@@ -552,6 +553,13 @@ void block_multiply(bool &isgpuOp,
     }
     #endif
     // C[0]="<<cinter_buf[0]<<"\n";
+
+#ifdef USE_DPCPP
+    cl::sycl::free(ainter_buf_dev, syclContxt);
+    cl::sycl::free(binter_buf_dev, syclContxt);
+    cl::sycl::free(cinter_buf_dev, syclContxt);
+#endif
+
     assign<T1>(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,
            cinter_labels, is_assign);
     };

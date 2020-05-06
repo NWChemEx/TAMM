@@ -279,6 +279,7 @@ void block_multiply(bool &isgpuOp,
     // host-->device copy
     cl::sycl::event evt_ainter_h2d = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(ainter_buf_dev, ainter_buf.data(), ainter_buf.size()*sizeof(T2)); });
     cl::sycl::event evt_binter_h2d = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(binter_buf_dev, binter_buf.data(), binter_buf.size()*sizeof(T3)); });
+    cl::sycl::event evt_cinter_h2d = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(cinter_buf_dev, cinter_buf.data(), cinter_buf.size()*sizeof(T1)); });
     dev_queue.wait_and_throw();
 #endif
 

@@ -100,7 +100,7 @@ void ccsd_t_data_d1(
     if (!((p4b <= p5b) && (h2b <= h3b) && p4b != 0)) {
       continue;
     }
-    if (!(k_spin[p4b] + k_spin[p5b] + k_spin[p6b] + k_spin[h1b] + k_spin[h2b] +
+    if (is_restricted && !(k_spin[p4b] + k_spin[p5b] + k_spin[p6b] + k_spin[h1b] + k_spin[h2b] +
                k_spin[h3b] !=
            12)) {
       continue;
@@ -421,7 +421,7 @@ void ccsd_t_data_d1(
 
 // singles data driver
 template <typename T>
-void ccsd_t_data_d1_new(
+void ccsd_t_data_d1_new(bool is_restricted,
     // ExecutionContext& ec, const TiledIndexSpace& MO, 
     const Index noab, const Index nvab,
     std::vector<int>& k_spin, 
@@ -512,7 +512,7 @@ void ccsd_t_data_d1_new(
     if (!((p4b <= p5b) && (h2b <= h3b) && p4b != 0)) {
       continue;
     }
-    if (!(k_spin[p4b] + k_spin[p5b] + k_spin[p6b] + k_spin[h1b] + k_spin[h2b] +
+    if (is_restricted && !(k_spin[p4b] + k_spin[p5b] + k_spin[p6b] + k_spin[h1b] + k_spin[h2b] +
                k_spin[h3b] !=
            12)) {
       continue;
@@ -846,7 +846,7 @@ void ccsd_t_data_d1_new(
 } // ccsd_t_data_s1
 
 template <typename T>
-void ccsd_t_data_d1_info_only(const Index noab, const Index nvab,
+void ccsd_t_data_d1_info_only(bool is_restricted, const Index noab, const Index nvab,
                               std::vector<int>& k_spin, 
                               std::vector<T>& k_evl_sorted, std::vector<size_t>& k_range, 
                               size_t t_h1b, size_t t_h2b, size_t t_h3b, 
@@ -900,7 +900,7 @@ void ccsd_t_data_d1_info_only(const Index noab, const Index nvab,
     if (!((p4b <= p5b) && (h2b <= h3b) && p4b != 0)) {
       continue;
     }
-    if (!(k_spin[p4b] + k_spin[p5b] + k_spin[p6b] + k_spin[h1b] + k_spin[h2b] +
+    if (is_restricted && !(k_spin[p4b] + k_spin[p5b] + k_spin[p6b] + k_spin[h1b] + k_spin[h2b] +
                k_spin[h3b] !=
            12)) {
       continue;

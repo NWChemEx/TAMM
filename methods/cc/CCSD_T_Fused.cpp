@@ -45,7 +45,7 @@ void ccsd_driver() {
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
+    Distribution_SimpleRoundRobin distribution;
     RuntimeEngine re;
     ExecutionContext ec{pg, &distribution, mgr, &re};
     auto rank = ec.pg().rank();
@@ -313,10 +313,13 @@ void ccsd_driver() {
     for(tamm::Index x=0;x<nvab/2;x++) k_spin.push_back(1);
     for(tamm::Index x=nvab/2;x<nvab;x++) k_spin.push_back(2);
 
-    if(rank==0) cout << endl << "Running CCSD(T) calculation" << endl;
-
     bool is_restricted = true;
     if(sys_data.options_map.scf_options.scf_type == "uhf") is_restricted = false;
+
+    if(rank==0) {
+        if(is_restricted) cout << endl << "Running Closed Shell CCSD(T) calculation" << endl;
+        else cout << endl << "Running Open Shell CCSD(T) calculation" << endl;
+    }
 
     bool seq_h3b=true;
     Index cache_size=32;

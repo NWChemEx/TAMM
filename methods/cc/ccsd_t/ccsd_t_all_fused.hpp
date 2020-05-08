@@ -110,7 +110,7 @@ void helper_calculate_num_ops(const Index noab, const Index nvab,
 // #define OPT_KERNEL_TIMING
 
 template<typename T>
-void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, int64_t rank, 
+void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, const Index nvab, int64_t rank, 
                                           std::vector<int>& k_spin,
                                           std::vector<size_t>& k_range,
                                           std::vector<size_t>& k_offset,
@@ -287,7 +287,7 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, in
   std::fill(df_simple_d2_exec, df_simple_d2_exec + (9 * nvab), -1);
 
   // 
-  ccsd_t_data_s1_new(noab,nvab,k_spin,
+  ccsd_t_data_s1_new(is_restricted,noab,nvab,k_spin,
                 d_t1,d_t2,d_v2,
                 k_evl_sorted,k_range,
                 t_h1b,t_h2b,t_h3b,
@@ -301,7 +301,7 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, in
                 cache_s1t,cache_s1v);
 
   // 
-  ccsd_t_data_d1_new(noab,nvab,k_spin,
+  ccsd_t_data_d1_new(is_restricted,noab,nvab,k_spin,
                 d_t1,d_t2,d_v2,
                 k_evl_sorted,k_range,
                 t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b,
@@ -315,7 +315,7 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, in
                 cache_d1t,cache_d1v);
 
   // 
-  ccsd_t_data_d2_new(noab,nvab,k_spin,
+  ccsd_t_data_d2_new(is_restricted,noab,nvab,k_spin,
                 d_t1,d_t2,d_v2,
                 k_evl_sorted,k_range,
                 t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b,
@@ -546,7 +546,7 @@ void ccsd_t_fully_fused_none_df_none_task(const Index noab, const Index nvab, in
 
 
 template<typename T>
-long double ccsd_t_fully_fused_performance(std::vector<std::tuple<size_t, size_t, size_t, size_t, size_t, size_t, T>>& list_tasks, 
+long double ccsd_t_fully_fused_performance(bool is_restricted, std::vector<std::tuple<size_t, size_t, size_t, size_t, size_t, size_t, T>>& list_tasks, 
                                     int64_t rank, int task_stride, 
                                     const Index noab, const Index nvab,
                                     std::vector<int>& k_spin,
@@ -601,7 +601,7 @@ long double ccsd_t_fully_fused_performance(std::vector<std::tuple<size_t, size_t
     std::fill(df_simple_d2_exec, df_simple_d2_exec + (9 * nvab), -1);
 
 
-    ccsd_t_data_s1_info_only(noab,nvab,
+    ccsd_t_data_s1_info_only(is_restricted,noab,nvab,
                   k_spin,
                   k_evl_sorted,k_range,
                   t_h1b,t_h2b,t_h3b,
@@ -609,7 +609,7 @@ long double ccsd_t_fully_fused_performance(std::vector<std::tuple<size_t, size_t
                   df_simple_s1_size, df_simple_s1_exec,
                   &num_s1_enabled_kernels,total_comm_data);
 
-    ccsd_t_data_d1_info_only(noab,nvab,
+    ccsd_t_data_d1_info_only(is_restricted,noab,nvab,
                   k_spin,
                   k_evl_sorted,k_range,
                   t_h1b,t_h2b,t_h3b,
@@ -617,7 +617,7 @@ long double ccsd_t_fully_fused_performance(std::vector<std::tuple<size_t, size_t
                   df_simple_d1_size, df_simple_d1_exec, 
                   &num_d1_enabled_kernels,total_comm_data);
 
-    ccsd_t_data_d2_info_only(noab,nvab,
+    ccsd_t_data_d2_info_only(is_restricted,noab,nvab,
                   k_spin,
                   k_evl_sorted,k_range,
                   t_h1b,t_h2b,t_h3b,

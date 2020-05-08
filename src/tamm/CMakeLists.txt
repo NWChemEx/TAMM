@@ -8,7 +8,7 @@ if(USE_CUDA)
 endif()
 
 #Add the current directory's sources to the list
-set(tamm_SRCS tamm.cpp index_space.cpp "${tamm_cuda_SRCS}")
+set(tamm_SRCS tamm.cpp index_space.cpp execution_context.cpp "${tamm_cuda_SRCS}")
 
 #Add the current directory's header files to the list
 set(tamm_INCLUDES

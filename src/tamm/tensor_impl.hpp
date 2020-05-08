@@ -228,24 +228,42 @@ public:
      * @param [in] ec ExecutionContext to be used for allocation 
      */
     virtual void allocate(ExecutionContext* ec) {
+              {
+        TimerGuard tg_total{&memTime1};
         EXPECTS(allocation_status_ == AllocationStatus::invalid);
-        Distribution* distribution    = ec->distribution();
+        auto defd = ec->get_default_distribution();
+        Distribution* distribution    = ec->distribution(defd->get_tensor_base(), defd->get_dist_proc()); //defd->kind());
+        //Distribution* distribution    = ec->distribution(defd.tensor_base(), nproc );
         MemoryManager* memory_manager = ec->memory_manager();
         EXPECTS(distribution != nullptr);
         EXPECTS(memory_manager != nullptr);
         ec_ = ec;
         // distribution_ = DistributionFactory::make_distribution(*distribution,
         // this, pg.size());
+             {
+        TimerGuard tg_total{&memTime2};
         distribution_ = std::shared_ptr<Distribution>(
-          distribution->clone(this, memory_manager->pg().size()));
-        auto rank     = memory_manager->pg().rank();
+            distribution->clone(this, memory_manager->pg().size()));
+	    }
+#if 0
+        auto rank = memory_manager->pg().rank();
         auto buf_size = distribution_->buf_size(rank);
-        auto eltype   = tensor_element_type<T>();
+        auto eltype = tensor_element_type<T>();
         EXPECTS(buf_size >= 0);
         mpb_ = memory_manager->alloc_coll(eltype, buf_size);
+#else
+        auto eltype = tensor_element_type<T>();
+        mpb_ = memory_manager->alloc_coll_balanced(
+            eltype, distribution_->max_proc_buf_size());
+#endif
         EXPECTS(mpb_ != nullptr);
         ec_->register_for_dealloc(mpb_);
         update_status(AllocationStatus::created);
+              }
+    }
+
+    const Distribution& distribution() const {
+      return *distribution_.get();
     }
 
     // Tensor Accessors
@@ -423,6 +441,21 @@ public:
         return mr.ga();
     }
 
+    virtual T* access_local_buf() {
+      EXPECTS(mpb_);
+      return static_cast<T*>(mpb_->mgr().access(*mpb_, Offset{0}));
+    }
+
+    virtual const T* access_local_buf() const {
+      EXPECTS(mpb_);
+      return static_cast<T*>(mpb_->mgr().access(*mpb_, Offset{0}));
+    }
+
+    virtual int64_t size() const {
+      EXPECTS(distribution_ != nullptr);
+      return distribution_->total_size().value();
+    }
+
 protected:
     std::shared_ptr<Distribution> distribution_;    /**< shared pointer to associated Distribution */
     MemoryRegion* mpb_ = nullptr;   /**< Raw pointer memory region (default null) */
@@ -484,6 +517,18 @@ public:
 
     void add(const IndexVector& idx_vec, span<T> buff_span) override {
         NOT_ALLOWED();
+    }
+
+    T* access_local_buf() override {
+      NOT_ALLOWED();
+    }
+
+    const T* access_local_buf() const override {
+      NOT_ALLOWED();
+    }
+
+    int64_t size() const override {
+      NOT_ALLOWED();
     }
 
 protected:
@@ -700,6 +745,29 @@ class DenseTensorImpl : public TensorImpl<T> {
   }
 
   int ga_handle() { return ga_; }
+
+  //@todo Should this be GA_Nodeid() or GA_Proup_nodeid(GA_Get_pgroup(ga_))
+  T* access_local_buf() override {
+    T* ptr;
+    int64_t len;
+    NGA_Access_block_segment64(ga_, GA_Pgroup_nodeid(GA_Get_pgroup(ga_)), reinterpret_cast<void*>(&ptr),
+                               &len);
+    return ptr;
+  }
+
+  //@todo Should this be GA_Nodeid() or GA_Proup_nodeid(GA_Get_pgroup(ga_))
+  const T* access_local_buf() const override {
+    T* ptr;
+    int64_t len;
+    NGA_Access_block_segment64(ga_, GA_Pgroup_nodeid(GA_Get_pgroup(ga_)), reinterpret_cast<void*>(&ptr),
+                               &len);
+    return ptr;
+  }
+
+  int64_t size() const override {
+    NOT_IMPLEMENTED();
+    return 0;
+  }
 
  protected:
   std::vector<int64_t> compute_lo(const IndexVector& blockid) const {

@@ -38,8 +38,9 @@ public:
     Scheduler(ExecutionContext& ec) : ec_{ec} {}
 
     template<typename OpType>
-    Scheduler& operator()(const OpType& op, ExecutionHW policy = ExecutionHW::CPU) {
+    Scheduler& operator()(const OpType& op, std::string opstr="", ExecutionHW policy = ExecutionHW::CPU) {
         OpList t_ops = op.canonicalize();
+        const_cast<OpType&>(op).opstr_ = opstr;
 
         for(auto& op : t_ops) { ops_.push_back(op); }
         return (*this);
@@ -187,6 +188,44 @@ public:
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
         EXPECTS(order.size() == ops_.size() - start_idx_);
         size_t lvl           = 0;
+        for(size_t i = 0; i < order.size(); i++) {
+            if(order[i].first != lvl) {
+                EXPECTS(order[i].first == lvl + 1);
+                auto bt1 = std::chrono::high_resolution_clock::now();
+                ec().pg().barrier();
+                auto bt2 = std::chrono::high_resolution_clock::now();
+                tbarrierTime += std::chrono::duration_cast<std::chrono::duration<double>>((bt2 - bt1)).count(); 
+                lvl += 1;
+            }
+            auto t1 = std::chrono::high_resolution_clock::now();
+            ops_[order[i].second]->execute(ec(), execute_on);
+            auto t2 = std::chrono::high_resolution_clock::now();
+            double mop_time = 
+                std::chrono::duration_cast<std::chrono::duration<double>>((t2 - t1)).count();  
+            if(ops_[order[i].second]->op_type() == OpType::mult) multOpTime += mop_time;
+            if(ops_[order[i].second]->op_type() == OpType::add) addOpTime += mop_time;       
+            if(ops_[order[i].second]->op_type() == OpType::set) setOpTime += mop_time;       
+            if(ops_[order[i].second]->op_type() == OpType::alloc) allocOpTime += mop_time;       
+            if(ops_[order[i].second]->op_type() == OpType::dealloc) deallocOpTime += mop_time;  
+            taddTime += multOpAddTime;
+            tgetTime += multOpGetTime;
+            twaitTime += multOpWaitTime; 
+            tgemmTime += multOpDgemmTime;
+            multOpGetTime = 0;
+            multOpWaitTime = 0;  
+            multOpDgemmTime = 0;
+            multOpAddTime = 0;    
+        }
+
+        auto bt1 = std::chrono::high_resolution_clock::now();
+        ec().pg().barrier();
+        auto bt2 = std::chrono::high_resolution_clock::now();
+        tbarrierTime += std::chrono::duration_cast<std::chrono::duration<double>>((bt2 - bt1)).count(); 
+        start_idx_ = ops_.size();
+#elif 1
+        auto order = levelize_and_order(ops_, start_idx_, ops_.size());
+        EXPECTS(order.size() == ops_.size() - start_idx_);
+        size_t lvl           = 0;
         AtomicCounter* ac = new AtomicCounterGA(ec().pg(), order.size());
         ac->allocate(0);
         for(size_t i = 0; i < order.size(); i++) {
@@ -196,7 +235,42 @@ public:
                 lvl += 1;
             }
             ec().set_ac(IndexedAC(ac, i));
+            auto t1 = std::chrono::high_resolution_clock::now();
             ops_[order[i].second]->execute(ec(), execute_on);
+            auto t2 = std::chrono::high_resolution_clock::now();
+            double mop_time = 
+                std::chrono::duration_cast<std::chrono::duration<double>>((t2 - t1)).count();  
+            if(ops_[order[i].second]->op_type() == OpType::mult) multOpTime += mop_time;
+            if(ops_[order[i].second]->op_type() == OpType::add) addOpTime += mop_time;       
+            if(ops_[order[i].second]->op_type() == OpType::set) setOpTime += mop_time;       
+            if(ops_[order[i].second]->op_type() == OpType::alloc) allocOpTime += mop_time;       
+            if(ops_[order[i].second]->op_type() == OpType::dealloc) deallocOpTime += mop_time;  
+            taddTime += multOpAddTime;
+            tgetTime += multOpGetTime;
+            twaitTime += multOpWaitTime;            
+            double globalmoptime,globalwaittime,globalgettime,globaladdtime,globalgemmtime;
+            double nranks = 1.0 * ec_.pg().size().value();
+            MPI_Reduce(&mop_time, &globalmoptime, 1, MPI_DOUBLE, MPI_SUM, 0,
+                        ec_.pg().comm()); 
+            MPI_Reduce(&multOpGetTime, &globalgettime, 1, MPI_DOUBLE, MPI_SUM, 0,
+                        ec_.pg().comm());     
+            MPI_Reduce(&multOpWaitTime, &globalwaittime, 1, MPI_DOUBLE, MPI_SUM, 0,
+                        ec_.pg().comm());   
+            MPI_Reduce(&multOpAddTime, &globaladdtime, 1, MPI_DOUBLE, MPI_SUM, 0,
+                        ec_.pg().comm());     
+            MPI_Reduce(&multOpDgemmTime, &globalgemmtime, 1, MPI_DOUBLE, MPI_SUM, 0,
+                        ec_.pg().comm());                                                               
+            if(ops_[order[i].second]->op_type() == OpType::mult && ec_.pg().rank() == 0) {
+                // std::cout << "Time for mult op  -> Get, Wait, Add, gemm Times (secs):";
+                std::cout << ++mult_counter << "," << globalmoptime/nranks << "," 
+                 << globalgettime/nranks << "," << globalwaittime/nranks << ","
+                 << globaladdtime/nranks << "," << globalgemmtime/nranks << std::endl;            
+            }
+            multOpGetTime = 0;
+            multOpWaitTime = 0;  
+            multOpDgemmTime = 0;
+            multOpAddTime = 0;          
+            start_idx_++;            
         }
         ec().pg().barrier();
         start_idx_ = ops_.size();

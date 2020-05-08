@@ -1,6 +1,6 @@
 
-#ifndef TAMM_TESTS_HF_TAMM_HPP_
-#define TAMM_TESTS_HF_TAMM_HPP_
+#ifndef TAMM_METHODS_HF_TAMM_HPP_
+#define TAMM_METHODS_HF_TAMM_HPP_
 
 // standard C++ headers
 #include <cassert>
@@ -14,10 +14,6 @@
 #include <tuple>
 #include <vector>
 
-// #define EIGEN_USE_BLAS
-// #define EIGEN_USE_LAPACKE
-// #define EIGEN_USE_MKL_ALL
-
 #include "hf_tamm_common.hpp"
 
 #include <filesystem>
@@ -25,8 +21,10 @@ namespace fs = std::filesystem;
 
 #define SCF_THROTTLE_RESOURCES 1
 
-std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace, bool> 
-    hartree_fock(ExecutionContext &exc, const string filename,std::vector<libint2::Atom> atoms, OptionsMap options_map) {
+std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, 
+    Tensor<double>, Tensor<double>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace, bool> 
+    hartree_fock(ExecutionContext &exc, const string filename,
+                 std::vector<libint2::Atom> atoms, OptionsMap options_map) {
 
     using libint2::Atom;
     using libint2::Engine;
@@ -40,16 +38,21 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
 
     SystemData sys_data{options_map, options_map.scf_options.scf_type};
 
-    SCFOptions scf_options = sys_data.options_map.scf_options;
+    SCFOptions  scf_options  = sys_data.options_map.scf_options;
 
-    std::string basis = scf_options.basis;
-    int maxiter = scf_options.maxiter;
-    double conve = scf_options.conve;
-    double convd = scf_options.convd;
-    bool debug = scf_options.debug;
-    auto restart = scf_options.restart;
-    bool is_spherical = (scf_options.sphcart == "spherical");
-    auto iter          = 0;
+    std::string basis        = scf_options.basis;
+    int         charge       = scf_options.charge;
+    int         multiplicity = scf_options.multiplicity;
+    int         maxiter      = scf_options.maxiter;
+    double      conve        = scf_options.conve;
+    double      convd        = scf_options.convd;
+    bool        debug        = scf_options.debug;
+    bool        ediis        = scf_options.ediis;
+    double      ediis_off    = scf_options.ediis_off;
+    auto        restart      = scf_options.restart;
+    bool        is_spherical = (scf_options.sphcart == "spherical");
+    bool        sad          = scf_options.sad;
+    auto        iter         = 0;
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
@@ -68,11 +71,12 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
 
     // auto shells = make_sto3g_basis(atoms);
     const size_t N = nbasis(shells);
-    auto rank = exc.pg().rank();
-    auto nnodes = GA_Cluster_nnodes();
+    auto rank      = exc.pg().rank();
+    auto nnodes    = GA_Cluster_nnodes();
 
-    sys_data.nbf = N;
+    sys_data.nbf      = N;
     sys_data.nbf_orig = N;
+    sys_data.ediis    = ediis;
 
     const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
     const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
@@ -95,7 +99,6 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
       MPI_Comm_create(gcomm,hfgroup,&hf_comm);
     #endif
 
-    
     if(rank == 0) {
       cout << std::endl << "Number of nodes, mpi ranks per node provided: " << nnodes << ", " << GA_Cluster_nprocs(0) << endl;
       #if SCF_THROTTLE_RESOURCES
@@ -106,19 +109,19 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
 
     auto [ndocc, enuc]  = compute_NRE(exc, atoms, sys_data.focc);
 
-    const auto nelectrons = sys_data.focc * ndocc;
+    const auto nelectrons = sys_data.focc * ndocc - charge;
     sys_data.nelectrons = nelectrons;
     EXPECTS ( (nelectrons + scf_options.multiplicity - 1) % 2 == 0 );  
 
-    sys_data.nelectrons_alpha = (nelectrons - scf_options.multiplicity + 1)/2; // this is ndocc
+    sys_data.nelectrons_alpha = (nelectrons + scf_options.multiplicity - 1)/2; 
     sys_data.nelectrons_beta = nelectrons - sys_data.nelectrons_alpha;
     
     if(rank==0) {
       std::cout << std::endl << "Number of basis functions = " << N << std::endl;
       std::cout << std::endl << "Total number of electrons = " << nelectrons << std::endl;      
-      std::cout <<              "--> alpha = " << sys_data.nelectrons_alpha << std::endl;
-      std::cout <<              "--> beta = "  << sys_data.nelectrons_beta << std::endl;
-      std::cout << std::endl << "Nuclear repulsion energy = " << std::setprecision(15) << enuc << std::endl << std::endl; 
+      std::cout <<              "  # of alpha electrons    = " << sys_data.nelectrons_alpha << std::endl;
+      std::cout <<              "  # of beta electons      = " << sys_data.nelectrons_beta << std::endl;
+      std::cout << std::endl << "Nuclear repulsion energy  = " << std::setprecision(15) << enuc << std::endl << std::endl; 
     }
 
     // compute OBS non-negligible shell-pair list
@@ -154,35 +157,36 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     std::unique_ptr<DFFockEngine> dffockengine(
         do_density_fitting ? new DFFockEngine(shells, dfbs) : nullptr);
 
-
     tamm::Tile tile_size = scf_options.AO_tilesize; //TODO
     IndexSpace AO{range(0, N)};
     std::tie(shell_tile_map, AO_tiles, AO_opttiles) = compute_AO_tiles(exc, sys_data, shells);
-    tAO = {AO, AO_opttiles};
+    tAO  = {AO, AO_opttiles};
     tAOt = {AO, AO_tiles};
-    std::tie(mu, nu, ku) = tAO.labels<3>("all");
+    std::tie(mu, nu, ku)    = tAO.labels<3>("all");
     std::tie(mup, nup, kup) = tAOt.labels<3>("all");
 
+    // if(rank==0) cout << endl << "Set AO indexspace" << endl;
+      
     auto hf_t2 = std::chrono::high_resolution_clock::now();
-
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
     if(rank == 0) std::cout << std::endl << "Time for initial setup: " << hf_time << " secs" << endl;
 
-    double ehf           = 0.0;
+    double ehf = 0.0; // initialize Hartree-Fock energy
 
     exc.pg().barrier();
 
     EigenTensors etensors;
 
-    std::string scf_files_prefix = getfilename(filename) +
-        "." + scf_options.basis;
-    // std::string scfstatusfile = scf_files_prefix + ".scfstatus";
-    const bool scf_conv = restart && scf_options.noscf; 
+    std::string scf_files_prefix_a = getfilename(filename) + "." + scf_options.basis + ".alpha";
+    std::string scf_files_prefix_b = getfilename(filename) + "." + scf_options.basis + ".beta";
 
+    const bool scf_conv = restart && scf_options.noscf; 
+    const int  max_hist = sys_data.options_map.scf_options.diis_hist; 
     const bool molden_exists = !scf_options.moldenfile.empty();
 
     if(molden_exists) {
+      //TODO: WIP, not working yet
       size_t nmo = N-scf_options.n_lindep;
       if(is_uhf) {
         nmo = 2*(N-scf_options.n_lindep);
@@ -212,29 +216,25 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     }
 
     #if SCF_THROTTLE_RESOURCES
-  if (rank < hf_nranks) {
-
+    if (rank < hf_nranks) {
       int hrank;
       EXPECTS(hf_comm != MPI_COMM_NULL);
       MPI_Comm_rank(hf_comm,&hrank);
       EXPECTS(rank==hrank);
-      // cout << "rank,hrank = " << rank << "," << hrank << endl;
 
       ProcGroup pg = ProcGroup::create_coll(hf_comm);
       auto mgr = MemoryManagerGA::create_coll(pg);
       Distribution_NW distribution;
       RuntimeEngine re;
       ExecutionContext ec{pg, &distribution, mgr, &re};
-
     #else 
       ExecutionContext& ec = exc;
     #endif
-
-    ProcGroup pg_l = ProcGroup::create_coll(MPI_COMM_SELF);
-    auto mgr_l = MemoryManagerLocal::create_coll(pg_l);
-    Distribution_NW distribution_l;
-    RuntimeEngine re_l;
-    ExecutionContext ec_l{pg_l, &distribution_l, mgr_l, &re_l};
+      ProcGroup pg_l = ProcGroup::create_coll(MPI_COMM_SELF);
+      auto mgr_l = MemoryManagerLocal::create_coll(pg_l);
+      Distribution_NW distribution_l;
+      RuntimeEngine re_l;
+      ExecutionContext ec_l{pg_l, &distribution_l, mgr_l, &re_l};
 
     #ifdef SCALAPACK
 
@@ -278,193 +278,232 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
       if(debug and blacs_grid) blacs_grid->printCoord( std::cout );
     #endif
 
+      TAMMTensors ttensors;
 
-    TAMMTensors ttensors;
+      /*** =========================== ***/
+      /*** compute 1-e integrals       ***/
+      /*** =========================== ***/
+      compute_hamiltonian<TensorType>(ec,atoms,shells,shell_tile_map,AO_tiles,ttensors,etensors);
 
-    /*** =========================== ***/
-    /*** compute 1-e integrals       ***/
-    /*** =========================== ***/
+      /*** =========================== ***/
+      /*** build initial-guess density ***/
+      /*** =========================== ***/
 
-    compute_hamiltonian<TensorType>(ec,atoms,shells,shell_tile_map,AO_tiles,ttensors,etensors);
+      etensors.F       = Matrix::Zero(N,N);
+      etensors.C       = Matrix::Zero(N,N);
+      etensors.D       = Matrix::Zero(N,N);
+      etensors.G       = Matrix::Zero(N,N);
+      etensors.X       = compute_orthogonalizer(ec, sys_data, etensors);
+      if(is_uhf) {
+        etensors.F_beta  = Matrix::Zero(N,N);
+        etensors.C_beta  = Matrix::Zero(N,N);
+        etensors.D_beta  = Matrix::Zero(N,N);
+        etensors.G_beta  = Matrix::Zero(N,N);
+        etensors.X_beta  = etensors.X;
+      }
 
-    //auto H_down = H; //TODO
+      sys_data.nbf = sys_data.nbf_orig - sys_data.n_lindep;
 
-    /*** =========================== ***/
-    /*** build initial-guess density ***/
-    /*** =========================== ***/
+      // pre-compute data for Schwarz bounds
+      if(rank==0) cout << "pre-compute data for Schwarz bounds" << endl;
+      auto SchwarzK = compute_schwarz_ints<>(shells);
 
-    etensors.X = compute_orthogonalizer(ec, sys_data, etensors);
-    sys_data.nbf = sys_data.nbf_orig - sys_data.n_lindep;
+      hf_t1 = std::chrono::high_resolution_clock::now();
 
-    // pre-compute data for Schwarz bounds
-    auto SchwarzK = compute_schwarz_ints<>(shells);
+      ttensors.ehf_tamm    = Tensor<TensorType>{};
+      ttensors.F1tmp       = {tAOt, tAOt}; //not allocated
 
-    //D = D_total 
-    //Matrix D_spin; //diff of alpha - beta
-    //UHF
-    if(is_uhf){
-      etensors.F_beta = Matrix::Zero(N,N);
-      etensors.D_beta = Matrix::Zero(N,N);
-    }
+      ttensors.ehf_tmp     = {tAO, tAO};
+      ttensors.F1          = {tAO, tAO};
+      ttensors.D_tamm      = {tAO, tAO};
+      ttensors.D_diff      = {tAO, tAO};
+      ttensors.D_last_tamm = {tAO, tAO};
+      ttensors.F1tmp1      = {tAO, tAO};
+      ttensors.FD_tamm     = {tAO, tAO}; 
+      ttensors.FDS_tamm    = {tAO, tAO};
 
-    hf_t1 = std::chrono::high_resolution_clock::now();
+      if(is_uhf) {
+        ttensors.ehf_beta_tmp     = {tAO, tAO};
+        ttensors.F1_beta          = {tAO, tAO};
+        ttensors.D_beta_tamm      = {tAO, tAO};
+        ttensors.D_last_beta_tamm = {tAO, tAO};    
+        ttensors.F1tmp1_beta      = {tAO, tAO};
+        ttensors.FD_beta_tamm     = {tAO, tAO}; 
+        ttensors.FDS_beta_tamm    = {tAO, tAO};    
+      }
+    
+      Tensor<TensorType>::allocate(&ec, ttensors.F1     , 
+                                        ttensors.D_tamm , ttensors.D_last_tamm, ttensors.D_diff  ,
+                                        ttensors.F1tmp1 , ttensors.ehf_tmp    , ttensors.ehf_tamm,
+                                        ttensors.FD_tamm, ttensors.FDS_tamm);
+      if(is_uhf) 
+        Tensor<TensorType>::allocate(&ec, ttensors.F1_beta     , 
+                                          ttensors.D_beta_tamm , ttensors.D_last_beta_tamm, 
+                                          ttensors.F1tmp1_beta , ttensors.ehf_beta_tmp    ,
+                                          ttensors.FD_beta_tamm, ttensors.FDS_beta_tamm);
 
-    if (restart) {
+      const auto do_schwarz_screen = SchwarzK.cols() != 0 && SchwarzK.rows() != 0;
+      // engine precision controls primitive truncation, assume worst-case scenario
+      // (all primitive combinations add up constructively)
+      const libint2::BasisSet& obs = shells;
+      auto max_nprim  = obs.max_nprim();
+      auto max_nprim4 = max_nprim * max_nprim * max_nprim * max_nprim;
+      auto shell2bf   = obs.shell2bf();
+      
+      Scheduler sch{ec};
+
+      if (restart) {
         scf_restart(ec, sys_data, filename, etensors);
-        etensors.X = etensors.C;
-    }
-    else   // SOAD as the guess density
-      if(!molden_exists)
-      compute_initial_guess<TensorType>(ec, sys_data, atoms, shells, basis, is_spherical, etensors);
+        if(is_rhf) 
+          etensors.X      = etensors.C;
+        if(is_uhf) {
+          etensors.X      = etensors.C;
+          etensors.X_beta = etensors.C_beta;
+        }
+      }
+      else {
+        if(sad) {
+          if(rank==0) cout << "SAD enabled" << endl;
 
-    if(molden_exists && is_rhf) {
-      //X = C; //doesnt work
-      etensors.C_occ = etensors.C.leftCols(sys_data.nelectrons_alpha);
-      etensors.D     = etensors.C_occ * etensors.C_occ.transpose();
-    }
+          compute_sad_guess<TensorType>(ec, sys_data, atoms, shells, basis, 
+                                       is_spherical, etensors, charge, multiplicity); 
+          compute_2bf<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
+                                         max_nprim4,shells, ttensors, etensors, do_density_fitting);
+          sch
+            (ttensors.F1()  = ttensors.H1())
+            (ttensors.F1() += ttensors.F1tmp1())
+            .execute();
+          tamm_to_eigen_tensor(ttensors.F1,etensors.F);
+          Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_guess_a(etensors.X.transpose() * etensors.F * etensors.X);
+          auto C_alpha = etensors.X * eig_solver_guess_a.eigenvectors();
+          auto C_occ_a = C_alpha.leftCols(sys_data.nelectrons_alpha);
+          if(is_rhf) 
+            etensors.D = 2.0 * C_occ_a * C_occ_a.transpose();
+          if(is_uhf) {
+            etensors.D = C_occ_a * C_occ_a.transpose();
+            sch
+              (ttensors.F1_beta()  = ttensors.H1())
+              (ttensors.F1_beta() += ttensors.F1tmp1_beta())
+              .execute();
+            tamm_to_eigen_tensor(ttensors.F1_beta,etensors.F_beta);
+            Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_guess_b(etensors.X.transpose() * etensors.F_beta * etensors.X);
+            auto C_beta  = etensors.X * eig_solver_guess_b.eigenvectors();
+            auto C_occ_b = C_beta.leftCols(sys_data.nelectrons_beta);
+            etensors.D_beta = C_occ_b * C_occ_b.transpose();
+          }
+        }
+        else
+          compute_initial_guess<TensorType>(ec, sys_data, atoms, shells, basis, 
+                                            is_spherical, etensors, charge, multiplicity);
 
-    // For now etensors.D_beta = etensors.D_spin = 0;
-    //if(is_uhf) etensors.D_beta = etensors.D;
+        // if(rank == 0) cout << std::setprecision(6) << "D_guess: " << endl << etensors.D << endl;
+        
+      }
+
+      hf_t2   = std::chrono::high_resolution_clock::now();
+      hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+      if(rank == 0) std::cout << "Total Time to compute initial guess: " << hf_time << " secs" << endl;
+
+      hf_t1 = std::chrono::high_resolution_clock::now();
+      /*** =========================== ***/
+      /*** main iterative loop         ***/
+      /*** =========================== ***/
+      double rmsd          = 1.0;
+      double ediff         = 0.0;
+      bool   is_conv       = true;
+      
+
+      hf_t2   = std::chrono::high_resolution_clock::now();
+      hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+      if(rank == 0 && debug) std::cout << std::endl << "Time to setup tensors for iterative loop: " << hf_time << " secs" << endl;
+
+      eigen_to_tamm_tensor(ttensors.D_tamm,etensors.D);
+
+      if(is_uhf) {
+        eigen_to_tamm_tensor(ttensors.D_beta_tamm,etensors.D_beta);
+      }
+
+      if(rank == 0 && scf_options.debug) {
+        if(is_rhf) 
+          cout << "debug #electrons       = " << (etensors.D*etensors.S).trace()      << endl;
+        if(is_uhf) {
+          cout << "debug #alpha electrons = " << (etensors.D*etensors.S).trace()      << endl;
+          cout << "debug #beta  electrons = " << (etensors.D_beta*etensors.S).trace() << endl;
+        }
+      }
     
-    // H.resize(0,0);
-    hf_t2 = std::chrono::high_resolution_clock::now();
-    hf_time =
-      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+      //DF basis
+      IndexSpace dfCocc{range(0,sys_data.nelectrons_alpha)}; 
+      tdfCocc = {dfCocc,tile_size};
+      std::tie(dCocc_til) = tdfCocc.labels<1>("all");
 
-    ec.pg().barrier();
-    if(rank == 0) std::cout << "Total Time to compute initial guess: " << hf_time << " secs" << endl;
-
-
-    hf_t1 = std::chrono::high_resolution_clock::now();
-    /*** =========================== ***/
-    /*** main iterative loop         ***/
-    /*** =========================== ***/
-
-    double rmsd          = 1.0;
-    double ediff         = 0.0;
-    auto is_conv         = true;
-
-    ttensors.ehf_tamm         = {};
-    ttensors.ehf_tmp          = {tAO, tAO};
+      if(do_density_fitting){
+        ndf = dfbs.nbf();
+        dfAO = IndexSpace{range(0, ndf)};
+        std::tie(df_shell_tile_map, dfAO_tiles, dfAO_opttiles) = compute_AO_tiles(ec,sys_data,dfbs);
+      
+        tdfAO=TiledIndexSpace{dfAO, dfAO_opttiles};
+        tdfAOt=TiledIndexSpace{dfAO, dfAO_tiles};
+        std::tie(d_mu, d_nu, d_ku) = tdfAO.labels<3>("all");
+        std::tie(d_mup, d_nup, d_kup) = tdfAOt.labels<3>("all");
     
-    ttensors.F1               = {tAO, tAO};
-    ttensors.F1tmp1           = {tAO, tAO};
-    ttensors.F1tmp            = {tAOt, tAOt}; //not allocated
-    
-    ttensors.D_tamm           = {tAO, tAO};
-    ttensors.D_diff           = {tAO, tAO};
-    ttensors.D_last_tamm      = {tAO, tAO};
-    ttensors.FD_tamm          = {tAO, tAO}; 
-    ttensors.FDS_tamm         = {tAO, tAO};
+        ttensors.xyK_tamm = Tensor<TensorType>{tAO, tAO, tdfAO}; //n,n,ndf
+        ttensors.C_occ_tamm = Tensor<TensorType>{tAO,tdfCocc}; //n,nocc
+        Tensor<TensorType>::allocate(&ec, ttensors.xyK_tamm, ttensors.C_occ_tamm);
+      }//df basis
 
-    if(is_uhf) {
-      ttensors.ehf_beta_tmp     = {tAO, tAO};
-      ttensors.F1_beta          = {tAO, tAO};
-      ttensors.F1tmp1_beta      = {tAO, tAO};
-      ttensors.D_beta_tamm      = {tAO, tAO};
-      ttensors.D_last_beta_tamm = {tAO, tAO};    
-      ttensors.FD_beta_tamm     = {tAO, tAO}; 
-      ttensors.FDS_beta_tamm    = {tAO, tAO};    
-    }
-    
-    Tensor<TensorType>::allocate(&ec, ttensors.F1, ttensors.F1tmp1, ttensors.ehf_tmp, ttensors.ehf_tamm);
-    Tensor<TensorType>::allocate(&ec, ttensors.D_tamm, ttensors.D_diff, ttensors.D_last_tamm);
-    Tensor<TensorType>::allocate(&ec, ttensors.FD_tamm, ttensors.FDS_tamm);
-    if(is_uhf) Tensor<TensorType>::allocate(&ec,ttensors.F1_beta,ttensors.F1tmp1_beta,ttensors.ehf_beta_tmp,
-               ttensors.D_beta_tamm,ttensors.D_last_beta_tamm,ttensors.FD_beta_tamm,ttensors.FDS_beta_tamm);
+      if(rank == 0) {
+          std::cout << std::endl << std::endl;
+          std::cout << " Hartree-Fock iterations" << endl;
+          std::cout << std::string(65, '-') << endl;
+          std::string  sph = " Iter     Energy            E-Diff        RMSD        Time(s)";
+          if(scf_conv) sph = " Iter     Energy            E-Diff        Time(s)";
+          std::cout << sph << endl;
+          std::cout << std::string(65, '-') << endl;
+      }
 
-    hf_t2 = std::chrono::high_resolution_clock::now();
-    hf_time =
-      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    //ec.pg().barrier();
-    if(rank == 0 && debug) std::cout << std::endl << "Time to setup tensors for iterative loop: " << hf_time << " secs" << endl;
+      std::cout << std::fixed << std::setprecision(2);
 
-    eigen_to_tamm_tensor(ttensors.D_tamm,etensors.D);
+      if(restart) {
+        
+        sch
+          (ttensors.F1tmp1() = 0)
+          .execute();
 
-    etensors.F = Matrix::Zero(N,N);
-    const libint2::BasisSet& obs = shells;
-    etensors.G = Matrix::Zero(N,N);
-    if(is_uhf) {
-      etensors.G_beta = Matrix::Zero(N,N);
-      //FIXME
-      etensors.D_beta = etensors.D;
-      eigen_to_tamm_tensor(ttensors.D_beta_tamm,etensors.D_beta);
-    }
+        if(is_uhf) {
+          sch
+            (ttensors.F1tmp1_beta() = 0)
+            .execute();
+        }
+        //F1 = H1 + F1tmp1
+        compute_2bf<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
+                                max_nprim4, shells, ttensors, etensors, do_density_fitting);          
+        // ehf = D * (H1+F1);
+        if(is_rhf) {
+          sch
+            (ttensors.ehf_tmp(mu,nu)  = 2.0 * ttensors.H1(mu,nu))
+            (ttensors.ehf_tmp(mu,nu) += 1.0 * ttensors.F1tmp1(mu,nu))
+            (ttensors.ehf_tamm()      = 1.0 * ttensors.D_tamm() * ttensors.ehf_tmp())
+            .execute();
+        }
+        if(is_uhf) {
+          sch
+            (ttensors.ehf_tmp(mu,nu)  = 2.0 * ttensors.H1(mu,nu))
+            (ttensors.ehf_tmp(mu,nu) += 1.0 * ttensors.F1tmp1(mu,nu))
+            (ttensors.ehf_tamm()      = 1.0 * ttensors.D_tamm() * ttensors.ehf_tmp())
+            (ttensors.ehf_tmp(mu,nu)  = 2.0 * ttensors.H1(mu,nu))
+            (ttensors.ehf_tmp(mu,nu) += 1.0 * ttensors.F1tmp1_beta(mu,nu))
+            (ttensors.ehf_tamm()     += 1.0 * ttensors.D_beta_tamm() * ttensors.ehf_tmp())
+            .execute();
+        }
 
-    if(rank == 0 && scf_options.debug) {
-      cout << "debug #alpha electrons = " << (etensors.D*etensors.S).trace() << endl;
-      if(is_uhf) cout << "debug #beta electrons = " << (etensors.D_beta*etensors.S).trace() << endl;
-    }
+        ehf = 0.5*get_scalar(ttensors.ehf_tamm) + enuc; 
+        if(rank==0) 
+          std::cout << std::setprecision(18) << "Total HF energy after restart: " << ehf << std::endl;
+      }   
 
-    const auto do_schwarz_screen = SchwarzK.cols() != 0 && SchwarzK.rows() != 0;
-    // auto fock_precision = precision;
-    // engine precision controls primitive truncation, assume worst-case scenario
-    // (all primitive combinations add up constructively)
-    auto max_nprim = obs.max_nprim();
-    auto max_nprim4 = max_nprim * max_nprim * max_nprim * max_nprim;
-    auto shell2bf = obs.shell2bf();
-    // const auto nshells = obs.size();
-
-    //DF basis
-    IndexSpace dfCocc{range(0,sys_data.nelectrons_alpha)}; 
-    tdfCocc = {dfCocc,tile_size};
-    std::tie(dCocc_til) = tdfCocc.labels<1>("all");
-
-    if(do_density_fitting){
-
-      ndf = dfbs.nbf();
-      dfAO = IndexSpace{range(0, ndf)};
-      std::tie(df_shell_tile_map, dfAO_tiles, dfAO_opttiles) = compute_AO_tiles(ec,sys_data,dfbs);
-      // if(rank==0 && debug) 
-      // cout << "Number of dfAO tiles = " << dfAO_tiles.size() << endl;
-
-      tdfAO=TiledIndexSpace{dfAO, dfAO_opttiles};
-      tdfAOt=TiledIndexSpace{dfAO, dfAO_tiles};
-      std::tie(d_mu, d_nu, d_ku) = tdfAO.labels<3>("all");
-      std::tie(d_mup, d_nup, d_kup) = tdfAOt.labels<3>("all");
-    }
-
-    if(do_density_fitting) {
-      ttensors.xyK_tamm = Tensor<TensorType>{tAO, tAO, tdfAO}; //n,n,ndf
-      ttensors.C_occ_tamm = Tensor<TensorType>{tAO,tdfCocc}; //n,nocc
-      Tensor<TensorType>::allocate(&ec, ttensors.xyK_tamm, ttensors.C_occ_tamm);
-      // Tensor<TensorType>::allocate(&ec_l,C_occ_tamm);
-    }
-    //df basis
-
-    if(rank == 0) {
-        std::cout << std::endl << std::endl;
-        std::cout << " Hartree-Fock iterations" << endl;
-        std::cout << std::string(65, '-') << endl;
-        std::string  sph = " Iter     Energy            E-Diff        RMSD        Time(s)";
-        if(scf_conv) sph = " Iter     Energy            E-Diff        Time(s)";
-        std::cout << sph << endl;
-        std::cout << std::string(65, '-') << endl;
-    }
-
-    std::cout << std::fixed << std::setprecision(2);
-
-    Scheduler sch{ec};
-
-    if(scf_options.restart) {
-      sch(ttensors.F1tmp1() = 0).execute();
-      //F1 = H1 + F1tmp1
-      compute_2bf<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
-                  max_nprim4,shells, ttensors, etensors, do_density_fitting);          
-      // ehf = D * (H1+F1);
-      sch
-      (ttensors.F1(mu, nu) = ttensors.H1(mu, nu))
-      (ttensors.F1(mu, nu) += ttensors.F1tmp1(mu, nu))    
-      (ttensors.ehf_tmp(mu,nu) = ttensors.H1(mu,nu))
-      (ttensors.ehf_tmp(mu,nu) += ttensors.F1(mu,nu))
-      (ttensors.ehf_tamm() = ttensors.D_tamm() * ttensors.ehf_tmp()).execute();
-
-      ehf = 0.5*get_scalar(ttensors.ehf_tamm) + enuc; 
-      if(rank==0) std::cout << std::setprecision(13) << "Total HF energy after restart: " << ehf << std::endl;
-    }   
-
-
-    do {
+      //SCF main loop
+      do {
         const auto loop_start = std::chrono::high_resolution_clock::now();
         ++iter;
 
@@ -472,29 +511,57 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
         double ehf_last = ehf;
 
         sch
-           (ttensors.F1tmp1() = 0)
-           (ttensors.D_last_tamm(mu,nu) = ttensors.D_tamm(mu,nu)).execute();
-
+          (ttensors.F1tmp1() = 0)
+          (ttensors.D_last_tamm(mu,nu) = ttensors.D_tamm(mu,nu))
+          .execute();
+        
         if(is_uhf) {
           sch
             (ttensors.F1tmp1_beta() = 0)
-            (ttensors.D_last_beta_tamm(mu,nu) = ttensors.D_beta_tamm(mu,nu)).execute();           
+            (ttensors.D_last_beta_tamm(mu,nu) = ttensors.D_beta_tamm(mu,nu))
+            .execute();
         }
+            
+        // auto D_tamm_nrm = norm(ttensors.D_tamm);
+        // if(rank==0) cout << std::setprecision(18) << "norm of D_tamm: " << D_tamm_nrm << endl;
 
         // build a new Fock matrix
         compute_2bf<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
-                    max_nprim4,shells, ttensors, etensors, do_density_fitting);            
+                                max_nprim4,shells, ttensors, etensors, do_density_fitting);
 
-        if(is_uhf) {
-            compute_2bf<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
-                        max_nprim4,shells, ttensors, etensors, do_density_fitting, true);
+        //E_Diis
+        if(ediis) {
+          Tensor<TensorType>  Dcopy{tAO,tAO};
+          Tensor<TensorType>  Fcopy{tAO, tAO};
+          Tensor<TensorType>  ehf_tamm_copy{};
+          Tensor<TensorType>::allocate(&ec,Dcopy,Fcopy,ehf_tamm_copy);
+          sch
+            (Dcopy()  = ttensors.D_tamm())
+            (Fcopy()  = ttensors.F1tmp1())
+            (Fcopy() += ttensors.H1())
+            (ehf_tamm_copy()  = 0.5 * Dcopy() * Fcopy())
+            (ehf_tamm_copy() += 0.5 * Dcopy() * ttensors.H1())
+            .execute();
+
+          auto H_nrm = norm(ttensors.H1);
+          auto F_nrm = norm(Fcopy);
+          auto D_nrm = norm(Dcopy);
+          if(rank==0 && debug) cout << "<ediis> norm of H,F,D: " << H_nrm << "," << F_nrm << "," << D_nrm << "," << get_scalar(ehf_tamm_copy) << endl;
+          ttensors.D_hist.push_back(Dcopy);
+          ttensors.fock_hist.push_back(Fcopy);
+          ttensors.ehf_tamm_hist.push_back(ehf_tamm_copy);
+          // if(rank==0) cout << "iter: " << iter << "," << (int)ttensors.D_hist.size() << "," << get_scalar(ehf_tamm_copy) << endl;
+          energy_diis(ec, tAO, iter, max_hist, ttensors.D_tamm, ttensors.F1, ttensors.ehf_tamm,
+                      ttensors.D_hist, ttensors.fock_hist, ttensors.ehf_tamm_hist);
         }
 
         std::tie(ehf,rmsd) = scf_iter_body<TensorType>(ec, 
-    #ifdef SCALAPACK
+        #ifdef SCALAPACK
                         blacs_grid.get(),
-    #endif 
-                        iter, sys_data, ttensors, etensors, scf_conv);
+        #endif 
+                        iter, sys_data, ttensors, etensors, ediis, scf_conv);
+
+        if(ediis && fabs(rmsd) < ediis_off) ediis = false;
 
         ehf += enuc;
         // compute difference with last iteration
@@ -505,84 +572,99 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
         std::chrono::duration_cast<std::chrono::duration<double>>((loop_stop - loop_start)).count();
 
         if(rank == 0) {
-            std::cout << std::setw(4) << iter << "  " << std::setw(10);
-            std::cout << std::fixed << std::setprecision(10) << ehf;
-            std::cout << std::scientific << std::setprecision(2);
-            std::cout << ' ' << std::scientific << std::setw(12)  << ediff;
-            if(!scf_conv) std::cout << ' ' << std::setw(12)  << rmsd << ' ';
-            std::cout << ' ' << std::setw(10) << std::fixed << std::setprecision(1) << loop_time << ' ' << endl;
+          std::cout << std::setw(4) << iter << "  " << std::setw(10);
+          if(debug) {
+            std::cout << std::fixed   << std::setprecision(18) << ehf;
+            std::cout << std::scientific << std::setprecision(18);
+          }
+          else {
+            std::cout << std::fixed   << std::setprecision(10) << ehf;
+            std::cout << std::scientific << std::setprecision(2);            
+          }
+          std::cout << ' ' << std::scientific << std::setw(12)  << ediff;
+          if(!scf_conv) std::cout << ' ' << std::setw(12)  << rmsd << ' ';
+          std::cout << ' ' << std::setw(10) << std::fixed << std::setprecision(1) << loop_time << ' ' << endl;
         }
 
-        if(rank==0 && scf_options.writem % iter == 0)
-          writeC(etensors.C,filename,scf_files_prefix);
+        // if(rank==0) cout << "D at the end of iteration: " << endl << std::setprecision(6) << etensors.D << endl;
+        if(rank==0 && scf_options.writem % iter == 0) {
+          writeC(etensors.C     , scf_files_prefix_a);
+          writeD(etensors.D     , scf_files_prefix_a);
+          if(is_uhf) {
+            writeC(etensors.C_beta, scf_files_prefix_b);
+            writeD(etensors.D_beta, scf_files_prefix_b);
+          }
+        }
 
         if(iter >= maxiter) {                
-            is_conv = false;
-            break;
+          is_conv = false;
+          break;
         }
 
         if(scf_conv) break;
 
-        if(debug) print_energies(ec, ttensors, debug);
+        if(debug) print_energies(ec, ttensors, sys_data, debug);
 
-    } while ( (fabs(ediff) > conve) || (fabs(rmsd) > convd) );
+      } while ( (fabs(ediff) > conve) || (fabs(rmsd) > convd) ); //SCF main loop
 
-    // ec.pg().barrier(); 
-    if(rank == 0) {
+      if(rank == 0) {
         std::cout.precision(13);
         if (is_conv)
-            cout << endl << "** Hartree-Fock energy = " << ehf << endl;
+          cout << endl << "** Hartree-Fock energy = " << ehf << endl;
         else {
-            cout << endl << std::string(50, '*') << endl;
-            cout << std::string(10, ' ') << 
-                    "ERROR: Hartree-Fock calculation does not converge!!!" << endl;
-            cout << std::string(50, '*') << endl;
+          cout << endl << std::string(50, '*') << endl;
+          cout << std::string(10, ' ') << 
+                  "ERROR: Hartree-Fock calculation does not converge!!!" << endl;
+          cout << std::string(50, '*') << endl;
         }        
-    }
+      }
 
-    for (auto x: ttensors.diis_hist) Tensor<TensorType>::deallocate(x);
-    for (auto x: ttensors.fock_hist) Tensor<TensorType>::deallocate(x);
+      for (auto x: ttensors.ehf_tamm_hist)  Tensor<TensorType>::deallocate(x);
+      
+      for (auto x: ttensors.diis_hist)      Tensor<TensorType>::deallocate(x);
+      for (auto x: ttensors.fock_hist)      Tensor<TensorType>::deallocate(x);
+      for (auto x: ttensors.D_hist)         Tensor<TensorType>::deallocate(x);
+      
+      if(is_uhf){
+        for (auto x: ttensors.diis_beta_hist)      Tensor<TensorType>::deallocate(x);
+        for (auto x: ttensors.fock_beta_hist)      Tensor<TensorType>::deallocate(x);
+        for (auto x: ttensors.D_beta_hist)         Tensor<TensorType>::deallocate(x);
+      }
 
-    if(is_uhf){
-      for (auto x: ttensors.diis_hist_beta) Tensor<TensorType>::deallocate(x);
-      for (auto x: ttensors.fock_hist_beta) Tensor<TensorType>::deallocate(x);
-    }
+      if(rank == 0) 
+        std::cout << std::endl << "Nuclear repulsion energy = " << std::setprecision(15) << enuc << endl;       
+      print_energies(ec, ttensors, sys_data);
+      
+      if(rank==0 && !scf_conv) {
+        cout << "writing orbitals and density to file... ";
+        writeC(etensors.C     ,scf_files_prefix_a);
+        writeD(etensors.D     ,scf_files_prefix_a);
+        if(is_uhf) {
+          writeC(etensors.C_beta,scf_files_prefix_b);
+          writeD(etensors.D_beta,scf_files_prefix_b);
+        }
+        cout << "done." << endl;
+      }
 
-    if(rank == 0) 
-      std::cout << std::endl << "Nuclear repulsion energy = " << std::setprecision(15) << enuc << endl;       
-    print_energies(ec, ttensors);
-
-    if(do_density_fitting) Tensor<TensorType>::deallocate(ttensors.xyK_tamm,ttensors.C_occ_tamm);
-    Tensor<TensorType>::deallocate(ttensors.S1, ttensors.D_tamm, ttensors.ehf_tmp, ttensors.ehf_tamm); 
-    Tensor<TensorType>::deallocate(ttensors.D_last_tamm, ttensors.D_diff, ttensors.FD_tamm, ttensors.FDS_tamm);
-    Tensor<TensorType>::deallocate(ttensors.H1, ttensors.T1, ttensors.V1, ttensors.F1tmp1);
-
-    if(is_uhf) Tensor<TensorType>::deallocate(ttensors.F1_beta,ttensors.F1tmp1_beta,ttensors.ehf_beta_tmp,
-            ttensors.D_beta_tamm,ttensors.D_last_beta_tamm,ttensors.FD_beta_tamm,ttensors.FDS_beta_tamm);
-
-
-    if(rank==0 && !scf_conv) {
-     cout << "writing orbitals to file... ";
-     writeC(etensors.C,filename,scf_files_prefix);
-     cout << "done." << endl;
-    }
-
-    if(!is_conv) {
-      ec.pg().barrier();
-      nwx_terminate("Please check SCF input parameters");
-    }
-    // else{
-    //     if(rank==0 && !scf_conv){
-    //       std::ofstream out(scfstatusfile, std::ios::out);
-    //       if(!out) cerr << "Error opening file " << scfstatusfile << endl;
-    //       out << 1 << std::endl;
-    //       out.close();
-    //     }    
-    // }
+      if(!is_conv) {
+        ec.pg().barrier();
+        nwx_terminate("Please check SCF input parameters");
+      }
 
       if(rank == 0) tamm_to_eigen_tensor(ttensors.F1,etensors.F);
 
-      Tensor<TensorType>::deallocate(ttensors.F1); //deallocate using ec
+      if(do_density_fitting) Tensor<TensorType>::deallocate(ttensors.xyK_tamm, ttensors.C_occ_tamm);
+
+      Tensor<TensorType>::deallocate(ttensors.H1     , ttensors.S1      , ttensors.T1         , ttensors.V1,
+                                     ttensors.F1tmp1 , ttensors.ehf_tmp , ttensors.ehf_tamm   , ttensors.F1,
+                                     ttensors.D_tamm , ttensors.D_diff  , ttensors.D_last_tamm,
+                                     ttensors.FD_tamm, ttensors.FDS_tamm);
+      
+      if(is_uhf) 
+        Tensor<TensorType>::deallocate(ttensors.F1_beta     , 
+                                       ttensors.D_beta_tamm , ttensors.D_last_beta_tamm,
+                                       ttensors.F1tmp1_beta , ttensors.ehf_beta_tmp    ,
+                                       ttensors.FD_beta_tamm, ttensors.FDS_beta_tamm   );
 
       #if SCF_THROTTLE_RESOURCES
       ec.flush_and_sync();
@@ -593,21 +675,16 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
       MemoryManagerLocal::destroy_coll(mgr_l);      
 
       #ifdef SCALAPACK
-
       // Free up created comms / groups
       MPI_Comm_free( &scalapack_comm );
       MPI_Group_free( &scalapack_group );
       MPI_Group_free( &world_group );
-
       #endif
     
     #if SCF_THROTTLE_RESOURCES
 
     } //end scaled down process group
 
-      // MPI_Group_free(&wgroup);
-      // MPI_Group_free(&hfgroup);
-      // MPI_Comm_free(&hf_comm);
     #endif
 
     //C,F1 is not allocated for ranks > hf_nranks 
@@ -619,13 +696,13 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     sys_data.n_vir_alpha = sys_data.nbf_orig - sys_data.n_occ_alpha - sys_data.n_lindep;
     sys_data.n_vir_beta  = sys_data.nbf_orig - sys_data.n_occ_beta - sys_data.n_lindep;
 
-    MPI_Bcast(&ehf,1,mpi_type<TensorType>(),0,exc.pg().comm());
-    MPI_Bcast(&sys_data.nbf        ,1,mpi_type<int>(),0,exc.pg().comm());    
-    MPI_Bcast(&sys_data.n_lindep   ,1,mpi_type<int>(),0,exc.pg().comm());
-    MPI_Bcast(&sys_data.n_occ_alpha,1,mpi_type<int>(),0,exc.pg().comm());
-    MPI_Bcast(&sys_data.n_vir_alpha,1,mpi_type<int>(),0,exc.pg().comm());
-    MPI_Bcast(&sys_data.n_occ_beta ,1,mpi_type<int>(),0,exc.pg().comm());
-    MPI_Bcast(&sys_data.n_vir_beta ,1,mpi_type<int>(),0,exc.pg().comm());
+    MPI_Bcast(&ehf                 ,1,mpi_type<TensorType>(),0,exc.pg().comm());
+    MPI_Bcast(&sys_data.nbf        ,1,mpi_type<int>()       ,0,exc.pg().comm());    
+    MPI_Bcast(&sys_data.n_lindep   ,1,mpi_type<int>()       ,0,exc.pg().comm());
+    MPI_Bcast(&sys_data.n_occ_alpha,1,mpi_type<int>()       ,0,exc.pg().comm());
+    MPI_Bcast(&sys_data.n_vir_alpha,1,mpi_type<int>()       ,0,exc.pg().comm());
+    MPI_Bcast(&sys_data.n_occ_beta ,1,mpi_type<int>()       ,0,exc.pg().comm());
+    MPI_Bcast(&sys_data.n_vir_beta ,1,mpi_type<int>()       ,0,exc.pg().comm());
 
     sys_data.update();
     if(rank==0 && debug) sys_data.print();
@@ -641,19 +718,30 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<do
     IndexSpace AO_ortho{range(0, (size_t)(sys_data.nbf_orig-sys_data.n_lindep))};
     TiledIndexSpace tAO_ortho{AO_ortho,ao_tile};
         
-    Tensor<TensorType> C_tamm{tAO,tAO_ortho};
-    Tensor<TensorType> F_tamm{tAO,tAO};
-    Tensor<TensorType>::allocate(&exc,C_tamm,F_tamm);
+    Tensor<TensorType> C_alpha_tamm{tAO,tAO_ortho};
+    Tensor<TensorType> C_beta_tamm{tAO,tAO_ortho};
+    Tensor<TensorType> F_alpha_tamm{tAO,tAO};
+    Tensor<TensorType> F_beta_tamm{tAO,tAO};
+
+    Tensor<TensorType>::allocate(&exc,C_alpha_tamm,F_alpha_tamm);
+    if(is_uhf)
+          Tensor<TensorType>::allocate(&exc,C_beta_tamm,F_beta_tamm);
+
     if (rank == 0) {
-      eigen_to_tamm_tensor(C_tamm,etensors.C);
-      eigen_to_tamm_tensor(F_tamm,etensors.F);
+      eigen_to_tamm_tensor(C_alpha_tamm,etensors.C);
+      eigen_to_tamm_tensor(F_alpha_tamm,etensors.F);
+      if(is_uhf) {
+        eigen_to_tamm_tensor(C_beta_tamm ,etensors.C_beta);
+        eigen_to_tamm_tensor(F_beta_tamm ,etensors.F_beta);
+      }
     }
 
     exc.pg().barrier();
 
-    return std::make_tuple(sys_data, ehf, shells, shell_tile_map, C_tamm, F_tamm, tAO, tAOt, scf_conv);
+    return std::make_tuple(sys_data, ehf, shells, shell_tile_map, 
+      C_alpha_tamm, F_alpha_tamm, C_beta_tamm, F_beta_tamm, tAO, tAOt, scf_conv);
 }
 
 
 
-#endif // TAMM_TESTS_HF_TAMM_HPP_
+#endif // TAMM_METHODS_HF_TAMM_HPP_

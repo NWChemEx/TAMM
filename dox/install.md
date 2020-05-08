@@ -53,6 +53,9 @@ auto-detect (only for x86_64 systems) the architecture.
 #OpenMP
 -DUSE_OPENMP=OFF (ON by default, also required to be ON when USE_CUDA=ON)
 
+#To enable DPCPP code path
+-DUSE_DPCPP=ON (OFF by default, requires -DUSE_OPENMP=OFF)
+
 #ScaLAPACK
 -DUSE_SCALAPACK=ON (OFF by default)
 

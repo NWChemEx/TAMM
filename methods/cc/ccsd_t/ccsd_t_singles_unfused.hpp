@@ -175,7 +175,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
       // }
 
     if( (p5b<=p6b) && (h2b<=h3b) && p4b!=0 ) { 
-      if((k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
+      if((!is_restricted) || (k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          +k_spin[h1b]+k_spin[h2b]+k_spin[h3b]!=12)) {
 
           //  cout << "spin1,2 = ";

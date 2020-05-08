@@ -487,6 +487,10 @@ public:
       return impl_->access_local_buf();
     }
 
+    int64_t size() const {
+      return impl_->size();
+    }
+
 private:
     std::shared_ptr<TensorImpl<T>>
       impl_; /**< Shared pointer to the implementation object */

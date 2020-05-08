@@ -70,20 +70,24 @@ MPI_Datatype mpi_type(){
 template<typename T>
 void print_tensor(const Tensor<T>& tensor) {
     auto lt = tensor();
+    std::cout << "tensor size = " << tensor.size() << std::endl;
     for(auto it : tensor.loop_nest()) {
         auto blockid   = internal::translate_blockid(it, lt);
+        if(!tensor.is_non_zero(blockid)) continue;
         TAMM_SIZE size = tensor.block_size(blockid);
         std::vector<T> buf(size);
         tensor.get(blockid, buf);
-        std::cout << "block" << blockid;
-
+        auto bdims = tensor.block_dims(blockid);
+        std::cout << "blockid:" << blockid << ", ";
+        std::cout << "bdims:" << bdims << ", size: " << size << std::endl;
+        
         for(TAMM_SIZE i = 0; i < size; i++) {
             if constexpr(tamm::internal::is_complex_v<T>) {
-                if(buf[i].real() > 0.0000000000001 ||
+                 if(buf[i].real() > 0.0000000000001 ||
                    buf[i].real() < -0.0000000000001)
                     std::cout << buf[i] << " ";
             } else {
-                if(buf[i] > 0.0000000000001 || buf[i] < -0.0000000000001)
+               if(buf[i] > 0.0000000000001 || buf[i] < -0.0000000000001)
                     std::cout << buf[i] << " ";
             }
         }

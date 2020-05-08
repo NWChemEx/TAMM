@@ -198,7 +198,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
 
 
     if( (p4b<=p5b) && (h2b<=h3b) && p4b!=0 ){ 
-      if((k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
+      if((!is_restricted) || (k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          +k_spin[h1b]+k_spin[h2b]+k_spin[h3b]!=12)) {
          if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          == k_spin[h1b]+k_spin[h2b]+k_spin[h3b]) {
@@ -590,7 +590,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
       h3b=a3(ia6,5);
     
       if( (p5b<=p6b) && (h1b<=h2b) && p4b!=0 ) { 
-      if((k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
+      if((!is_restricted) || (k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          +k_spin[h1b]+k_spin[h2b]+k_spin[h3b]!=12)) {
          if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          == k_spin[h1b]+k_spin[h2b]+k_spin[h3b]) {

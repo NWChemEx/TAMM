@@ -310,7 +310,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       hf_t1 = std::chrono::high_resolution_clock::now();
 
-      ttensors.ehf_tamm    = {};
+      ttensors.ehf_tamm    = Tensor<TensorType>{};
       ttensors.F1tmp       = {tAOt, tAOt}; //not allocated
 
       ttensors.ehf_tmp     = {tAO, tAO};

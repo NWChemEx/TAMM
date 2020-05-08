@@ -164,7 +164,7 @@ struct SystemData {
   int  focc;
   bool ediis;
 
-  enum class SCFType { uhf, rhf, rohf };
+  enum SCFType { uhf, rhf, rohf };
   SCFType scf_type; //1-rhf, 2-uhf, 3-rohf
   std::string scf_type_string; 
   std::string input_molecule;

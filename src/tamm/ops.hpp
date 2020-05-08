@@ -472,15 +472,19 @@ public:
             }
         };
 #if defined(SETOP_LOCALIZE_LHS)
-        const auto& ldist = lhs_.tensor().distribution();
-        Proc me = ec.pg().rank();
-        for (const auto& lblockid : loop_nest) {
-          const auto translated_lblockid =
-              internal::translate_blockid(lblockid, lhs_);
-          if (lhs_.tensor().is_non_zero(translated_lblockid) &&
-              std::get<0>(ldist.locate(translated_lblockid)) == me) {
-            lambda(lblockid);
+        if (ec.pg() == lhs_.tensor().execution_context()->pg()) {
+          const auto& ldist = lhs_.tensor().distribution();
+          Proc me = ec.pg().rank();
+          for (const auto& lblockid : loop_nest) {
+            const auto translated_lblockid =
+                internal::translate_blockid(lblockid, lhs_);
+            if (lhs_.tensor().is_non_zero(translated_lblockid) &&
+                std::get<0>(ldist.locate(translated_lblockid)) == me) {
+              lambda(lblockid);
+            }
           }
+        } else {
+          do_work(ec, loop_nest, lambda);
         }
 #else
         do_work(ec, loop_nest, lambda);
@@ -1256,25 +1260,28 @@ public:
 
         //@todo use a scheduler
 #if defined(ADDOP_LOCALIZE_LHS)
-	if (internal::empty_reduction_primary_labels(lhs_.labels(), rhs_.labels())) {
-            const auto& ldist = lhs_.tensor().distribution();
-            Proc me           = ec.pg().rank();
-            for(const auto& blockid : loop_nest) {
-                IndexVector lblockid, rblockid;
-                split_block_id(lblockid, rblockid, lhs_.labels().size(),
-                               rhs_.labels().size(), blockid);
-        
-                const auto translated_lblockid =
-                  internal::translate_blockid(lblockid, lhs_);
-                if(lhs_.tensor().is_non_zero(translated_lblockid)) {
-                    if(std::get<0>(ldist.locate(translated_lblockid)) == me) {
-                        lambda(blockid);
+    if (ec.pg() == lhs_.tensor().execution_context()->pg()) {
+        if (internal::empty_reduction_primary_labels(lhs_.labels(), rhs_.labels())) {
+                const auto& ldist = lhs_.tensor().distribution();
+                Proc me           = ec.pg().rank();
+                for(const auto& blockid : loop_nest) {
+                    IndexVector lblockid, rblockid;
+                    split_block_id(lblockid, rblockid, lhs_.labels().size(),
+                                rhs_.labels().size(), blockid);
+            
+                    const auto translated_lblockid =
+                    internal::translate_blockid(lblockid, lhs_);
+                    if(lhs_.tensor().is_non_zero(translated_lblockid)) {
+                        if(std::get<0>(ldist.locate(translated_lblockid)) == me) {
+                            lambda(blockid);
+                        }
                     }
                 }
+            } else {
+                do_work(ec, loop_nest, lambda);
             }
-        } else {
-            do_work(ec, loop_nest, lambda);
-          }
+    } 
+    else do_work(ec, loop_nest, lambda);
 #else
         do_work(ec, loop_nest, lambda);
 #endif
@@ -1662,6 +1669,10 @@ public:
 
         std::vector<AddBuf<T>*> add_bufs;
 
+        using TensorElType1 = typename LabeledTensorT1::element_type;
+        using TensorElType2 = typename LabeledTensorT2::element_type;
+        using TensorElType3 = typename LabeledTensorT3::element_type;
+
         // function to compute one block
         auto lambda = [=,&add_bufs,&loop_nest](const IndexVector itval) {
             auto ctensor = lhs_.tensor();
@@ -1777,9 +1788,6 @@ public:
                 !btensor.is_non_zero(translated_bblockid)) 
                 return;
 
-            using TensorElType1 = typename LabeledTensorT1::element_type;
-            using TensorElType2 = typename LabeledTensorT2::element_type;
-            using TensorElType3 = typename LabeledTensorT3::element_type;
 
 #if 0
             if constexpr(std::is_same_v<TensorElType1,TensorElType2> 
@@ -1982,7 +1990,11 @@ public:
             (rhs2_.tensor().is_dense() /* && !rhs2_.tensor().has_spin() */) &&
 	       !has_sparse_labels && !lhs_.labels().empty() ) { //&& num_lhs_tiles >= ec.pg().size() ) {
                 // std::cout << "Execute Buffer Accumulate" << std::endl;
-                execute_bufacc(ec, hw);
+                if constexpr(std::is_same_v<TensorElType1,TensorElType2> 
+                         && std::is_same_v<TensorElType1,TensorElType3>) {                
+                    execute_bufacc(ec, hw);
+                }
+                else do_work(ec, loop_nest, lambda);
             } else {
                 do_work(ec, loop_nest, lambda);
             }

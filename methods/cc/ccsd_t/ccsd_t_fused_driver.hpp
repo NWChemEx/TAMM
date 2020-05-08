@@ -166,14 +166,16 @@ std::tuple<double,double,double,double> ccsd_t_fused_driver_new(SystemData& sys_
     for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {      
       if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
           (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
-        if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
+        if ((!is_restricted) ||
+            (k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
             k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8) {   
           if (next == taskcount) {            
             // if (has_GPU==1) {
             //   initmemmodule();
             // }
             
-            double factor = 2.0;
+            double factor = 1.0;
+            if (is_restricted) factor = 2.0;
             if ((t_p4b == t_p5b) && (t_p5b == t_p6b)) {
               factor /= 6.0;
             } else if ((t_p4b == t_p5b) || (t_p5b == t_p6b)) {
@@ -188,7 +190,7 @@ std::tuple<double,double,double,double> ccsd_t_fused_driver_new(SystemData& sys_
 
             num_task++;
             // printf ("[%s] rank: %d >> calls the gpu code\n", __func__, rank);
-            ccsd_t_fully_fused_none_df_none_task(noab, nvab, rank, 
+            ccsd_t_fully_fused_none_df_none_task(is_restricted, noab, nvab, rank, 
                                                 k_spin,
                                                 k_range,
                                                 k_offset,
@@ -257,10 +259,12 @@ std::tuple<double,double,double,double> ccsd_t_fused_driver_new(SystemData& sys_
         for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {
           if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
               (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
-            if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
+            if ((!is_restricted) ||
+                (k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
                  k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8) 
             {
-              double factor = 2.0;
+              double factor = 1.0;
+              if (is_restricted) factor = 2.0;
 
               // 
               if ((t_p4b == t_p5b) && (t_p5b == t_p6b)) {
@@ -277,7 +281,7 @@ std::tuple<double,double,double,double> ccsd_t_fused_driver_new(SystemData& sys_
 
               // 
               num_task++;
-              ccsd_t_fully_fused_none_df_none_task(noab, nvab, rank, 
+              ccsd_t_fully_fused_none_df_none_task(is_restricted, noab, nvab, rank, 
                                                   k_spin,
                                                   k_range,
                                                   k_offset,
@@ -414,10 +418,12 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
       // 
       if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
           (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
-        if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
+        if ((!is_restricted) || 
+            (k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
             k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8) {
           //  
-          double factor = 2.0;
+          double factor = 1.0;
+          if (is_restricted) factor = 2.0;
           if ((t_p4b == t_p5b) && (t_p5b == t_p6b)) {
             factor /= 6.0;
           } else if ((t_p4b == t_p5b) || (t_p5b == t_p6b)) {
@@ -447,11 +453,12 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
       for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {
         if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
            (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
-         if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
+         if ((!is_restricted) || 
+             (k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
               k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8) 
           {
-            double factor = 2.0;
-
+            double factor = 1.0;
+            if (is_restricted) factor = 2.0;
             // 
             if ((t_p4b == t_p5b) && (t_p5b == t_p6b)) {
               factor /= 6.0;
@@ -481,7 +488,7 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
   // 
   //    
   // 
-  total_num_ops = (long double) ccsd_t_fully_fused_performance(list_tasks, 
+  total_num_ops = (long double) ccsd_t_fully_fused_performance(is_restricted,list_tasks, 
                                 rank, 1, 
                                 noab, nvab,
                                 k_spin,k_range,k_offset,

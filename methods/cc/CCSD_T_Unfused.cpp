@@ -4,7 +4,7 @@
 #include "ccsd_t/ccsd_t_unfused_driver.hpp"
 
 void ccsd_driver();
-std::string filename; //bad, but no choice
+std::string filename;
 bool use_nwc_gpu_kernels = true;
 double ccsdt_s1_t1_GetTime = 0;
 double ccsdt_s1_v2_GetTime = 0;
@@ -46,7 +46,7 @@ void ccsd_driver() {
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
+    Distribution_SimpleRoundRobin distribution;
     RuntimeEngine re;
     ExecutionContext ec{pg, &distribution, mgr, &re};
     auto rank = ec.pg().rank();
@@ -236,25 +236,21 @@ void ccsd_driver() {
     for(tamm::Index x=0;x<nvab/2;x++) k_spin.push_back(1);
     for(tamm::Index x=nvab/2;x<nvab;x++) k_spin.push_back(2);
 
-    if(rank==0) cout << endl << "Running CCSD(T) calculation" << endl;
-
     bool is_restricted = true;
     if(sys_data.options_map.scf_options.scf_type == "uhf") is_restricted = false;
 
     if(rank==0) {
+        if(is_restricted) cout << endl << "Running Closed Shell CCSD(T) calculation" << endl;
+        else cout << endl << "Running Open Shell CCSD(T) calculation" << endl;        
         if(use_nwc_gpu_kernels) cout << "running nwchem src-centric unfused kernels..." << endl;
         else cout << "running tensor-gen target-centric unfused kernels..." << endl;
 
     }
 
-    cc_t1 = std::chrono::high_resolution_clock::now();
 
-    auto [energy1,energy2] = ccsd_t_unfused_driver(ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
+    auto [energy1,energy2,ccsd_t_time,total_t_time] = ccsd_t_unfused_driver(ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
                 p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted,use_nwc_gpu_kernels);
 
-    cc_t2 = std::chrono::high_resolution_clock::now();
-    auto ccsd_t_time = 
-        std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
 
     double g_energy1,g_energy2;
     MPI_Reduce(&energy1, &g_energy1, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
@@ -282,7 +278,7 @@ void ccsd_driver() {
     auto print_profile_stats = [&](const std::string& timer_type, const double g_tval, const double tval_min, const double tval_max){
         const double tval = g_tval/nranks;
         std::cout.precision(3);
-        std::cout << "   -> " << timer_type << ": " << tval << "s (" << tval*100.0/ccsd_t_time << "%), (min,max) = (" << tval_min << "," << tval_max << ")" << std::endl;
+        std::cout << "   -> " << timer_type << ": " << tval << "s (" << tval*100.0/total_t_time << "%), (min,max) = (" << tval_min << "," << tval_max << ")" << std::endl;
     };
 
     auto comm_stats = [&](const std::string& timer_type, const double ctime){
@@ -297,10 +293,16 @@ void ccsd_driver() {
 
     // cout << rank << "," << ccsd_t_time << endl;
     // ec.pg().barrier();
-    if(rank == 0) std::cout << std::endl << "------CCSD(T) Performance------" << std::endl;
-    ccsd_t_time = comm_stats("Total CCSD(T) Time", ccsd_t_time);
-    // if(rank == 0) std::cout << std::scientific << "   -> Total Number of Operations: " << total_num_ops << std::endl;
-    // if(rank == 0) std::cout << std::fixed << "   -> GFLOPS: " << total_num_ops / (ccsd_t_time * 1e9) << std::endl;
+    if(rank == 0) {
+      std::cout << std::endl << "------CCSD(T) Performance------" << std::endl;
+      std::cout << "Total CCSD(T) Time: " << total_t_time << std::endl;
+    }
+    ccsd_t_time = comm_stats("CCSD(T) Avg. Work Time", ccsd_t_time);
+    if(rank == 0) {
+      //std::cout << std::scientific << "   -> Total Number of Operations: " << total_num_ops << std::endl;
+      //std::cout << std::fixed << "   -> GFLOPS: " << total_num_ops / (total_t_time * 1e9) << std::endl;
+      std::cout << std::fixed << "   -> Load imbalance: " << (1.0 - ccsd_t_time / total_t_time) << std::endl;
+    }
 
     comm_stats("S1-T1 GetTime", ccsdt_s1_t1_GetTime);
     comm_stats("S1-V2 GetTime", ccsdt_s1_v2_GetTime);

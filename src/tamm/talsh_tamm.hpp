@@ -471,7 +471,19 @@ class TALSH {
 
     talsh_task_t talsh_task;
     talshTaskClean(&talsh_task);
-    talshTensorAdd(aop_string.c_str(),
+    if constexpr(ti_internal::is_complex_v<T>){
+      talshTensorAdd(aop_string.c_str(),
+                    &ltens,
+                    &rtens,
+                    std::real(scale),
+                    std::imag(scale),
+                    dev_id, // DEV_DEFAULT,              //in: device id (flat or kind-specific)
+                    DEV_NVIDIA_GPU, // DEV_DEFAULT,            //in: device kind (if present, <dev_id> is kind-specific)
+                    COPY_MT,               //in: copy control (COPY_XX), defaults to COPY_MT
+                    &talsh_task);
+    }
+    else {    
+      talshTensorAdd(aop_string.c_str(),
                    &ltens,
                    &rtens,
                    scale, 0.0,
@@ -479,6 +491,7 @@ class TALSH {
                    DEV_NVIDIA_GPU, // DEV_DEFAULT,            //in: device kind (if present, <dev_id> is kind-specific)
                    COPY_MT,               //in: copy control (COPY_XX), defaults to COPY_MT
                    &talsh_task);
+    }
 #if 0 
     double total_time;
     int ierr;

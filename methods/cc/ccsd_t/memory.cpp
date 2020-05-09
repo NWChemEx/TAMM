@@ -13,20 +13,20 @@ static map<size_t,set<void*> > free_list_gpu, free_list_host;
 static map<void *,size_t> live_ptrs_gpu, live_ptrs_host;
 
 #ifdef USE_DPCPP
-static cl::sycl::device& get_current_device() noexcept
+static cl::sycl::device get_current_device() noexcept
 {
   auto sycl_device = get_current_queue().get_device();
   return sycl_device;
 }
 
-static cl::sycl::queue& get_current_queue() noexcept
+static cl::sycl::queue get_current_queue() noexcept
 {
   cl::sycl::gpu_selector device_selector;
   auto sycl_queue = cl::sycl::queue(device_selector);
   return sycl_queue;
 }
 
-static cl::sycl::context& get_current_context() noexcept
+static cl::sycl::context get_current_context() noexcept
 {
   auto sycl_context = get_current_queue().get_context();
   return sycl_context;

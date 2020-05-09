@@ -11,6 +11,16 @@
 #include <CL/sycl.hpp>
 #endif
 
+#ifdef USE_HIP
+using gpuStream_t = hipStream_t;
+using gpuEvent_t = hipEvent_t;
+#elif defined(USE_CUDA)
+using gpuStream_t = cudaStream_t;
+using gpuEvent_t = cudaEvent_t;
+#elif defined(USE_DPCPP)
+using gpuStream_t = cl::sycl::queue;
+#endif
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -59,9 +69,9 @@ void *getHostMem(size_t bytes);
 void freeHostMem(void *p);
 void freeGpuMem(void *p);
 #ifdef USE_DPCPP
-static cl::sycl::device& get_current_device() noexcept;
-static cl::sycl::queue& get_current_queue() noexcept;
-static cl::sycl::context& get_current_context() noexcept
+static cl::sycl::device get_current_device() noexcept;
+static cl::sycl::queue get_current_queue() noexcept;
+static cl::sycl::context get_current_context() noexcept
 #endif
 
 void finalizeMemModule();

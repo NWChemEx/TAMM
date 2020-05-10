@@ -21,6 +21,7 @@ if(USE_CUDA)
     set(CCSD_T_FUSED_SRCS ${CCSD_T_SRCS}  
             ${CCSD_T_SRCDIR}/ccsd_t_fused_driver.hpp
             ${CCSD_T_SRCDIR}/ccsd_t_all_fused.hpp
+            ${CCSD_T_SRCDIR}/ccsd_t_all_fused_sycl.cpp
             ${CCSD_T_SRCDIR}/ccsd_t_all_fused_gpu.cu)
     add_mpi_cuda_unit_test(CCSD_T_Unfused "${CCSD_T_UNFUSED_SRCS}" 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")
     add_mpi_cuda_unit_test(CCSD_T_Unfused_Fast "${CCSD_T_UNFUSED_SRCS}" 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.nwx")

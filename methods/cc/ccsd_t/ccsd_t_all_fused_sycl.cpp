@@ -2536,16 +2536,17 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     //  a warp: 32 -(1)-> 16 -(2)-> 8 -(3)-> 4 -(4)-> 2
     //
     // abb: can I use reduce(energy_1, 0, plus<>);
+    intel::sub_group sg = item_ct1.get_sub_group();
     for (int offset = 16; offset > 0; offset /= 2)
     {
         /*
           DPCT1023:0: The DPC++ sub-group does not support mask options for shuffle_down.
         */
-        energy_1 += item_ct1.get_sub_group().shuffle_down(energy_1, offset);
+        energy_1 += sg.shuffle_down(energy_1, offset);
         /*
           DPCT1023:1: The DPC++ sub-group does not support mask options for shuffle_down.
         */
-        energy_2 += item_ct1.get_sub_group().shuffle_down(energy_2, offset);
+        energy_2 += sg.shuffle_down(energy_2, offset);
     }
 
     if (item_ct1.get_local_id(2) == 0 && item_ct1.get_local_id(1) % 2 == 0)

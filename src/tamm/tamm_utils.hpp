@@ -70,20 +70,24 @@ MPI_Datatype mpi_type(){
 template<typename T>
 void print_tensor(const Tensor<T>& tensor) {
     auto lt = tensor();
+    std::cout << "tensor size = " << tensor.size() << std::endl;
     for(auto it : tensor.loop_nest()) {
         auto blockid   = internal::translate_blockid(it, lt);
+        if(!tensor.is_non_zero(blockid)) continue;
         TAMM_SIZE size = tensor.block_size(blockid);
         std::vector<T> buf(size);
         tensor.get(blockid, buf);
-        std::cout << "block" << blockid;
-
+        auto bdims = tensor.block_dims(blockid);
+        std::cout << "blockid:" << blockid << ", ";
+        std::cout << "bdims:" << bdims << ", size: " << size << std::endl;
+        
         for(TAMM_SIZE i = 0; i < size; i++) {
             if constexpr(tamm::internal::is_complex_v<T>) {
-                if(buf[i].real() > 0.0000000000001 ||
+                 if(buf[i].real() > 0.0000000000001 ||
                    buf[i].real() < -0.0000000000001)
                     std::cout << buf[i] << " ";
             } else {
-                if(buf[i] > 0.0000000000001 || buf[i] < -0.0000000000001)
+               if(buf[i] > 0.0000000000001 || buf[i] < -0.0000000000001)
                     std::cout << buf[i] << " ";
             }
         }
@@ -192,14 +196,14 @@ void update_tensor_general(LabeledTensor<T> labeled_tensor, Func lambda) {
  * @todo there is possible memory leak as distribution will not be unallocated
  * when Execution context is destructed
  */
-inline ExecutionContext make_execution_context() {
-    ProcGroup* pg = new ProcGroup {ProcGroup::create_coll(GA_MPI_Comm())};
-    auto* pMM             = MemoryManagerGA::create_coll(*pg);
-    Distribution_NW* dist = new Distribution_NW();
-    RuntimeEngine* re = new RuntimeEngine{};
-    ExecutionContext *ec = new ExecutionContext(*pg, dist, pMM, re);
-    return *ec;
-}
+// inline ExecutionContext make_execution_context() {
+//     ProcGroup* pg = new ProcGroup {ProcGroup::create_coll(GA_MPI_Comm())};
+//     auto* pMM             = MemoryManagerGA::create_coll(*pg);
+//     Distribution_NW* dist = new Distribution_NW();
+//     RuntimeEngine* re = new RuntimeEngine{};
+//     ExecutionContext *ec = new ExecutionContext(*pg, dist, pMM, re);
+//     return *ec;
+// }
 
 /**
  * @brief method for getting the sum of the values on the diagonal
@@ -341,7 +345,7 @@ void fill_sparse_tensor(LabeledTensor<TensorType> ltensor,
 }
 
 template<typename TensorType>
-std::tuple<int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType> tensor, MPI_Comm &subcomm) {
+std::tuple<int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType> tensor, MPI_Comm &subcomm,int nagg_hint=0) {
 
     int nranks = gec.pg().size().value();
 
@@ -350,11 +354,13 @@ std::tuple<int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType>
     const long double ne_mb = 131072 * 14.0;
     const int ndims = tensor.num_modes();
     for (auto i=0;i<ndims;i++) nelements *= tensor.tiled_index_spaces()[i].index_space().num_indices();
+    // nelements = tensor.size();
     int nagg = (nelements / (ne_mb * 1024) ) + 1;
     // const int nnodes = GA_Cluster_nnodes();
     const int ppn = GA_Cluster_nprocs(0);
-    const int avail_nodes = nranks/ppn + 1;
+    const int avail_nodes = std::min(nranks/ppn + 1,GA_Cluster_nnodes());
     if(nagg > avail_nodes) nagg = avail_nodes;
+    if(nagg_hint > 0) nagg = nagg_hint;
     
     int subranks = nagg * ppn;
     if(subranks > nranks) subranks = nranks;
@@ -432,24 +438,23 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor) {
  */
 template<typename TensorType>
 void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, 
-                    bool tammio=true) {
+                    bool tammio=true, bool profile=false, int nagg_hint=0) {
 
     ExecutionContext& gec = get_ec(tensor());
     auto io_t1 = std::chrono::high_resolution_clock::now();
 
     MPI_Comm io_comm;
     int rank = gec.pg().rank().value();
-    auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm);
+    auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm,nagg_hint);
     int ga_tens;
     if(!tammio) ga_tens = tamm_to_ga(gec,tensor);
     size_t ndims = tensor.num_modes();
+    const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
+    if(rank == 0 && profile) std::cout << "write to disk using: " << nppn << std::endl;
 
     if(io_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(io_comm)};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         MPI_File fh;
         MPI_Info info;
@@ -559,8 +564,9 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
 
         }
         ec.flush_and_sync();
-        MemoryManagerGA::destroy_coll(mgr);
+        //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&io_comm);
+        pg.destroy_coll();
         MPI_File_close(&fh);
     }
 
@@ -569,11 +575,9 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
 
     auto io_t2 = std::chrono::high_resolution_clock::now();
 
-    const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
-
     double io_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-    //if(rank == 0) std::cout << "Time for writing " << filename << " to disk (" << nppn << "): " << io_time << " secs" << std::endl;
+    if(rank == 0 && profile) std::cout << "Time for writing " << filename << " to disk (" << nppn << "): " << io_time << " secs" << std::endl;
 
 }
 
@@ -628,14 +632,18 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor, int ga_tens) {
  */
 template<typename TensorType>
 void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, 
-                    bool tammio=true,Tensor<TensorType> wtensor={}) {
+                    bool tammio=true, Tensor<TensorType> wtensor={}, 
+                    bool profile=false, int nagg_hint=0) {
 
     ExecutionContext& gec = get_ec(tensor());
     auto io_t1 = std::chrono::high_resolution_clock::now();
 
     MPI_Comm io_comm;
     int rank = gec.pg().rank().value();
-    auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm);
+    auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm,nagg_hint);
+
+    const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
+    if(rank == 0 && profile) std::cout << "read from disk using: " << nppn << std::endl;
 
     int ga_tens;
     
@@ -655,10 +663,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
         auto tensor_back = tensor;         
 
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(io_comm)};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         MPI_File fh;
         MPI_Info info;
@@ -774,8 +779,9 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
         }
 
         ec.flush_and_sync();
-        MemoryManagerGA::destroy_coll(mgr);
+        //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&io_comm);
+        pg.destroy_coll();
         MPI_File_close(&fh);
 
         tensor = tensor_back;
@@ -791,11 +797,9 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
 
     auto io_t2 = std::chrono::high_resolution_clock::now();
 
-    const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
-
     double io_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-    //if(rank == 0) std::cout << "Time for reading " << filename << " from disk (" << nppn << "): " << io_time << " secs" << std::endl;
+    if(rank == 0 && profile) std::cout << "Time for reading " << filename << " from disk (" << nppn << "): " << io_time << " secs" << std::endl;
 }
 
 /**
@@ -816,10 +820,7 @@ void apply_ewise_ip(LabeledTensor<TensorType> ltensor,
 
     if(sub_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         auto lambda = [&](const IndexVector& bid) {
             const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
@@ -831,8 +832,9 @@ void apply_ewise_ip(LabeledTensor<TensorType> ltensor,
         };
         block_for(ec, ltensor, lambda);
         ec.flush_and_sync();
-        MemoryManagerGA::destroy_coll(mgr);
+        //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&sub_comm);
+        pg.destroy_coll();
     }
     gec.pg().barrier();        
 }
@@ -1035,10 +1037,7 @@ TensorType sum(LabeledTensor<TensorType> ltensor) {
 
     if(sub_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         auto getnorm = [&](const IndexVector& bid) {
             const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
@@ -1051,8 +1050,9 @@ TensorType sum(LabeledTensor<TensorType> ltensor) {
         };
         block_for(ec, ltensor, getnorm);
         ec.flush_and_sync();
-        MemoryManagerGA::destroy_coll(mgr);
+        //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&sub_comm);
+        pg.destroy_coll();
     }
 
     gec.pg().barrier();   
@@ -1105,10 +1105,7 @@ TensorType norm(LabeledTensor<TensorType> ltensor) {
 
     if(sub_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         auto getnorm = [&](const IndexVector& bid) {
             const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
@@ -1117,14 +1114,15 @@ TensorType norm(LabeledTensor<TensorType> ltensor) {
             tensor.get(blockid, dbuf);
             if constexpr(std::is_same_v<TensorType, std::complex<double>>
                     || std::is_same_v<TensorType, std::complex<float>>)
-                for(auto val : dbuf) lsumsq += val * std::conj(val);         
+                for(TensorType val : dbuf) lsumsq += val * std::conj(val);         
             else
-                for(auto val : dbuf) lsumsq += val * val;
+                for(TensorType val : dbuf) lsumsq += val * val;
         };
         block_for(ec, ltensor, getnorm);
         ec.flush_and_sync();
-        MemoryManagerGA::destroy_coll(mgr);
+        //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&sub_comm);
+        pg.destroy_coll();
     }
 
     gec.pg().barrier();
@@ -1287,10 +1285,7 @@ void gf_peak(LabeledTensor<TensorType> ltensor, double threshold, double x_norm_
 
     if(sub_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
         auto nmodes               = tensor.num_modes();
 
         auto getnorm = [&](const IndexVector& bid) {
@@ -1305,8 +1300,9 @@ void gf_peak(LabeledTensor<TensorType> ltensor, double threshold, double x_norm_
         };
         block_for(ec, ltensor, getnorm);
         ec.flush_and_sync();
-        MemoryManagerGA::destroy_coll(mgr);
+        //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&sub_comm);
+        pg.destroy_coll();
     }
 
     gec.pg().barrier();

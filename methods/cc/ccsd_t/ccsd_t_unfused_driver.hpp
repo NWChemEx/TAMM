@@ -15,7 +15,7 @@ size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* h
 
 
 template<typename T>
-std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
+std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                    std::vector<int>& k_spin, 
                    const TiledIndexSpace& MO,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
@@ -26,11 +26,6 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
 
     auto rank = GA_Nodeid();
     bool nodezero = rank==0;
-
-    // if(icuda==0) {
-    //   if(nodezero)std::cout << "\nERROR: Please specify number of cuda devices to use in the input file!\n\n"; //TODO
-    //   return std::make_tuple(-999,-999);
-    // }
 
     Index noab=MO("occ").num_tiles();
     Index nvab=MO("virt").num_tiles();
@@ -57,8 +52,8 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
     cudaGetDeviceCount(&dev_count_check);
     if(dev_count_check < icuda){
       if(nodezero) cout << "ERROR: Please check whether you have " << icuda <<
-       " cuda devices per node. Terminating program...\n\n";
-      return std::make_tuple(-999,-999);
+      " cuda devices per node. Terminating program..." << endl << endl;
+      return std::make_tuple(-999,-999,0,0);
     }
     
     int cuda_device_number=0;
@@ -70,7 +65,7 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
       device_init(icuda, &cuda_device_number);
       // if(cuda_device_number==30) // QUIT
     }
-    if(nodezero) std::cout << "Using " << icuda << " gpu devices per node\n\n";
+    if(nodezero) std::cout << "Using " << icuda << " gpu devices per node" << endl << endl;
 
     //TODO replicate d_t1 L84-89 ccsd_t_gpu.F
 
@@ -83,6 +78,8 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
     int64_t taskcount = 0;
     int64_t next = ac->fetch_add(0, 1);
 
+    auto cc_t1 = std::chrono::high_resolution_clock::now();
+
   for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
     for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
       for (size_t t_p6b = t_p5b; t_p6b < noab + nvab; t_p6b++) {
@@ -92,7 +89,7 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
 
             if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
                 (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
-              if (//(!restricted) ||
+              if ((!is_restricted) ||
                   (k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
                    k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8) {
                 // if (std::bit_xor<int>(k_sym[t_p4b],
@@ -139,9 +136,9 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
 
                       double factor = 0.0;
 
-                      // if (restricted) 
+                      if (is_restricted) 
                         factor = 2.0;
-                      //  else factor = 1.0;
+                      else factor = 1.0;
 
                       // cout << "restricted = " << factor << endl;
 
@@ -201,7 +198,6 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                       energy2 += energy_l[1];
 
                       // cout << "e1,e2=" << energy1 << "," << energy2 << endl;
-                      // cout << "-----------------------------------------\n";
                       dev_release();
                       finalizememmodule();
                     }
@@ -221,12 +217,21 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
         }
       }
 
-    next = ac->fetch_add(0, 1); 
-    ec.pg().barrier();
-    ac->deallocate();
-    delete ac;
+      auto cc_t2 = std::chrono::high_resolution_clock::now();
+      auto ccsd_t_time =
+          std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
 
-  return std::make_tuple(energy1,energy2);
+      ec.pg().barrier();
+      cc_t2 = std::chrono::high_resolution_clock::now();
+      auto total_t_time =
+          std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
+
+      next = ac->fetch_add(0, 1);
+      ec.pg().barrier();
+      ac->deallocate();
+      delete ac;
+
+      return std::make_tuple(energy1, energy2, ccsd_t_time, total_t_time);
  
 }
 

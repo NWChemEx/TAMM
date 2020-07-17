@@ -155,12 +155,6 @@ public:
      */
     IndexLoopNest() { reset(); }
 
-    IndexLoopNest(const IndexLoopNest&) = default;
-    IndexLoopNest(IndexLoopNest&&)      = default;
-    ~IndexLoopNest()                    = default;
-    IndexLoopNest& operator=(const IndexLoopNest&) = default;
-    IndexLoopNest& operator=(IndexLoopNest&&) = default;
-
     IndexLoopNest(const std::vector<TiledIndexSpace>& iss,
                   const std::vector<std::vector<size_t>>& lb_indices,
                   const std::vector<std::vector<size_t>>& ub_indices,
@@ -228,128 +222,231 @@ public:
         reset();
     }
 
+    IndexLoopNest(const IndexLoopNest& iln)
+        : iss_{iln.iss_},
+          lb_indices_{iln.lb_indices_},
+          ub_indices_{iln.ub_indices_},
+          indep_indices_{iln.indep_indices_},
+          itbegin_{iln.itbegin_},
+          itend_{iln.itend_} {
+      itfixup();
+    }
+
+    ~IndexLoopNest() = default;
+    IndexLoopNest& operator=(IndexLoopNest other) {
+      swap(*this, other);
+      itfixup();
+      return *this;
+    }
+
+    IndexLoopNest(IndexLoopNest&& other) : IndexLoopNest{} {
+      swap(*this, other);
+      itfixup();
+    }
+
     class Iterator {
-    public:
-        Iterator()                = default;
-        Iterator(const Iterator&) = default;
-        Iterator(Iterator&&)      = default;
-        ~Iterator()               = default;
-        Iterator& operator=(const Iterator&) = default;
-        Iterator& operator=(Iterator&&) = default;
+     public:
+      Iterator() = default;
+      Iterator(const Iterator&) = default;
+      Iterator(Iterator&&) = default;
+      ~Iterator() = default;
+      Iterator& operator=(const Iterator&) = default;
+      Iterator& operator=(Iterator&&) = default;
 
-        Iterator(IndexLoopNest* loop_nest) : loop_nest_{loop_nest} {
-            bases_.resize(size());
-            itrs_.resize(size());
-            begins_.resize(size());
-            ends_.resize(size());
-            done_ = false;
-            reset_forward(0);
+      Iterator(IndexLoopNest* loop_nest) : loop_nest_{loop_nest} {
+        bases_.resize(size());
+        itrs_.resize(size());
+        begins_.resize(size());
+        ends_.resize(size());
+        done_ = false;
+        reset_forward(0);
+      }
+
+      bool operator==(const Iterator& rhs) const {
+        return (done_ && rhs.done_) ||
+               (loop_nest_ == rhs.loop_nest_ && done_ == rhs.done_ &&
+                itrs_ == rhs.itrs_);
+      }
+
+      bool operator!=(const Iterator& rhs) const { return !(*this == rhs); }
+
+      virtual IndexVector operator*() const {
+        EXPECTS(!done_);
+        EXPECTS(itrs_.size() == bases_.size());
+
+        IndexVector ret;
+        for (int i = 0; i < (int)itrs_.size(); i++) {
+          ret.push_back(*(bases_[i] + itrs_[i]));
         }
+        return ret;
+      }
 
-        bool operator==(const Iterator& rhs) const {
-            return loop_nest_ == rhs.loop_nest_ && done_ == rhs.done_ &&
-                   itrs_ == rhs.itrs_;
+      Iterator operator++() {
+        if (done_) {
+          return *this;
         }
+        int i = rollback(size() - 1);
+        if (i < 0) {
+          set_end();
+        } else {
+          itrs_[i]++;
+          reset_forward(i + 1);
+        }
+        return *this;
+      }
 
-        bool operator!=(const Iterator& rhs) const { return !(*this == rhs); }
+      Iterator operator++(int) {
+        if (done_) {
+          return *this;
+        }
+        Iterator ret{*this};
+        ++(*this);
+        return ret;
+      }
 
-        virtual IndexVector operator*() const {
-            EXPECTS(!done_);
-            EXPECTS(itrs_.size() == bases_.size());
+      void set_end() {
+        itrs_.clear();
+        done_ = true;
+      }
 
-            IndexVector ret;
-            for(int i = 0; i < (int)itrs_.size(); i++) {
-                ret.push_back(*(bases_[i] + itrs_[i]));
+      bool done() const { return done_; }
+
+     private:
+      int rollback(const size_t index) {
+        int i;
+        for (i = index; i >= 0 && itrs_[i] + 1 == ends_[i]; i--) {
+          // no-op
+        }
+        return i;
+      }
+
+      size_t size() const { return loop_nest_->size(); }
+
+      void reset_forward(const size_t index) {
+        int i = index;
+        while (i >= 0 && i < static_cast<int>(size())) {
+          std::vector<Index> indep_vals;
+          EXPECTS(i < static_cast<int>(loop_nest_->indep_indices_.size()));
+          for (const auto& id : loop_nest_->indep_indices_[i]) {
+            EXPECTS(id >= 0 && id < itrs_.size() && id < bases_.size());
+            EXPECTS(static_cast<int>(id) < i);
+            indep_vals.push_back(*(bases_[id] + itrs_[id]));
+          }
+          IndexIterator cbeg, cend;
+
+          cbeg = loop_nest_->iss_[i](indep_vals).begin();
+          cend = loop_nest_->iss_[i](indep_vals).end();
+
+          bases_[i] = cbeg;
+          begins_[i] = 0;
+          ends_[i] = std::distance(cbeg, cend);
+          for (const auto& id : loop_nest_->lb_indices_[i]) {
+            EXPECTS(static_cast<int>(id) < i);
+            begins_[i] = std::max(begins_[i], itrs_[id]);
+          }
+          for (const auto& id : loop_nest_->ub_indices_[i]) {
+            EXPECTS(static_cast<int>(id) < i);
+            ends_[i] = std::min(ends_[i], itrs_[id] + 1);
+          }
+          if (begins_[i] < ends_[i]) {
+            itrs_[i] = begins_[i];
+            i++;
+          } else {
+            i = rollback(i - 1);
+            if (i >= 0) {
+              itrs_[i]++;
+              i++;
             }
-            return ret;
+          }
         }
-
-        Iterator operator++() {
-            int i = rollback(size() - 1);
-            if(i < 0) {
-                set_end();
-            } else {
-                itrs_[i]++;
-                reset_forward(i + 1);
-            }
-            return *this;
+        if (i < 0) {
+          set_end();
         }
+      }
 
-        Iterator operator++(int) {
-            Iterator ret{*this};
-            ++(*this);
-            return ret;
-        }
-
-        void set_end() {
-            itrs_.clear();
-            done_ = true;
-        }
-
-    private:
-        int rollback(const size_t index) {
-            int i;
-            for(i = index; i >= 0 && itrs_[i] + 1 == ends_[i]; i--) {
-                // no-op
-            }
-            return i;
-        }
-
-        size_t size() const { return loop_nest_->size(); }
-
-        void reset_forward(const size_t index) {
-            int i = index;
-            while(i >= 0 && i < static_cast<int>(size())) {
-                std::vector<Index> indep_vals;
-                EXPECTS(i <
-                        static_cast<int>(loop_nest_->indep_indices_.size()));
-                for(const auto& id : loop_nest_->indep_indices_[i]) {
-                    EXPECTS(id >= 0 && id < itrs_.size() && id < bases_.size());
-                    EXPECTS(static_cast<int>(id) < i);
-                    indep_vals.push_back(*(bases_[id] + itrs_[id]));
-                }
-                IndexIterator cbeg, cend;
-
-                cbeg = loop_nest_->iss_[i](indep_vals).begin();
-                cend = loop_nest_->iss_[i](indep_vals).end();
-
-                bases_[i]  = cbeg;
-                begins_[i] = 0;
-                ends_[i]   = std::distance(cbeg, cend);
-                for(const auto& id : loop_nest_->lb_indices_[i]) {
-                    EXPECTS(static_cast<int>(id) < i);
-                    begins_[i] = std::max(begins_[i], itrs_[id]);
-                }
-                for(const auto& id : loop_nest_->ub_indices_[i]) {
-                    EXPECTS(static_cast<int>(id) < i);
-                    ends_[i] = std::min(ends_[i], itrs_[id] + 1);
-                }
-                if(begins_[i] < ends_[i]) {
-                    itrs_[i] = begins_[i];
-                    i++;
-                } else {
-                    i = rollback(i - 1);
-                    if(i >= 0) {
-                        itrs_[i]++;
-                        i++;
-                    }
-                }
-            }
-            if(i < 0) { set_end(); }
-        }
-
-        std::vector<IndexIterator> bases_;
-        IndexVector itrs_;
-        IndexVector begins_; // current begin
-        IndexVector ends_;   // current end
-        IndexLoopNest* loop_nest_;
-        bool done_;
-        friend class IndexLoopNest;
+      std::vector<IndexIterator> bases_;
+      IndexVector itrs_;
+      IndexVector begins_;  // current begin
+      IndexVector ends_;    // current end
+      IndexLoopNest* loop_nest_;
+      bool done_;
+      friend class IndexLoopNest;
+      friend class LabelLoopNest;
     };
 
     const Iterator& begin() const { return itbegin_; }
 
     const Iterator& end() const { return itend_; }
+
+    template <typename Func>
+    void iterate(Func&& func) const {
+      bool dense_case = is_dense_case();
+      size_t ndim = iss_.size();
+
+      if (is_dense_case() && ndim <= 4) {
+        IndexVector blockid(ndim);
+        size_t dims[ndim];
+        for (int i = 0; i < iss_.size(); i++) {
+          dims[i] = iss_[i].num_tiles();
+        }
+        if (ndim == 0) {
+          func(blockid);
+        } else if (ndim == 1) {
+          for (blockid[0] = 0; blockid[0] < dims[0]; ++blockid[0]) {
+            func(blockid);
+          }
+        } else if (ndim == 2) {
+          for (blockid[0] = 0; blockid[0] < dims[0]; ++blockid[0]) {
+            for (blockid[1] = 0; blockid[1] < dims[1]; ++blockid[1]) {
+              func(blockid);
+            }
+          }
+        } else if (ndim == 3) {
+          for (blockid[0] = 0; blockid[0] < dims[0]; ++blockid[0]) {
+            for (blockid[1] = 0; blockid[1] < dims[1]; ++blockid[1]) {
+              for (blockid[2] = 0; blockid[2] < dims[2]; ++blockid[2]) {
+                func(blockid);
+              }
+            }
+          }
+        } else if (ndim == 4) {
+          for (blockid[0] = 0; blockid[0] < dims[0]; ++blockid[0]) {
+            for (blockid[1] = 0; blockid[1] < dims[1]; ++blockid[1]) {
+              for (blockid[2] = 0; blockid[2] < dims[2]; ++blockid[2]) {
+                for (blockid[3] = 0; blockid[3] < dims[3]; ++blockid[3]) {
+                  func(blockid);
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // general case
+        for (auto it = begin(); it != end(); ++it) {
+          func(*it);
+        }
+      }
+    }
+
+    //check if a simple dense loop will suffice
+    bool is_dense_case() const {
+      for (const auto& is : iss_) {
+        if (is.is_dependent()) {
+          return false;
+        }
+      }
+      for (const auto& lb : lb_indices_) {
+        if (!lb.empty()) {
+          return false;
+        }
+      }
+      for (const auto& ub : ub_indices_) {
+        if (!ub.empty()) {
+          return false;
+        }
+      }
+      return true;
+    }
 
     bool is_valid() const {
         bool ret = true;
@@ -370,12 +467,32 @@ public:
         return ret;
     }
 
-    int size() const { return iss_.size(); }
+    size_t size() const { return iss_.size(); }
 
     void reset() {
-        itbegin_ = Iterator{this};
-        itend_   = Iterator{this};
-        itend_.set_end();
+      itbegin_ = Iterator{this};
+      itend_ = Iterator{this};
+      itend_.set_end();
+    }
+
+    friend void swap(IndexLoopNest& first, IndexLoopNest& second) {
+      using std::swap;
+      swap(first.iss_, second.iss_);
+      swap(first.lb_indices_, second.lb_indices_);
+      swap(first.ub_indices_, second.ub_indices_);
+      swap(first.indep_indices_, second.indep_indices_);
+      swap(first.itbegin_, second.itbegin_);
+      swap(first.itend_, second.itend_);
+    }
+
+    /**
+     * @brief Fix copy issue. @bug @todo itbegin_ and itend_ should always
+     * point to this loop nest. This breaks simple copy.
+     *
+     */
+    void itfixup() {
+      itbegin_.loop_nest_ = this;
+      itend_.loop_nest_ = this;
     }
 
     std::vector<TiledIndexSpace> iss_;
@@ -388,13 +505,7 @@ public:
 
 class LabelLoopNest {
 public:
-    LabelLoopNest(const LabelLoopNest&) = default;
-    LabelLoopNest(LabelLoopNest&&)      = default;
-    ~LabelLoopNest()                    = default;
-    LabelLoopNest& operator=(const LabelLoopNest&) = default;
-    LabelLoopNest& operator=(LabelLoopNest&&) = default;
-
-    LabelLoopNest(const IndexLabelVec& input_labels) :
+    LabelLoopNest(const IndexLabelVec& input_labels = {}) :
       input_labels_{input_labels} {
 #if 1
         const IndexLabelVec& unique_labels =
@@ -428,13 +539,37 @@ public:
         for(size_t i = 0; i < indep_indices.size(); i++) {
             for(const auto id : indep_indices[i]) { EXPECTS(id < i); }
         }
-
         index_loop_nest_ = IndexLoopNest{iss, {}, {}, indep_indices};
         reset();
     }
 
+    LabelLoopNest(const LabelLoopNest& lln)
+        : input_labels_{lln.input_labels_},
+          index_loop_nest_{lln.index_loop_nest_},
+          sorted_unique_labels_{lln.sorted_unique_labels_},
+          perm_map_input_to_sorted_labels_{
+              lln.perm_map_input_to_sorted_labels_},
+          perm_map_sorted_to_input_labels_{
+              lln.perm_map_sorted_to_input_labels_},
+          itbegin_{lln.itbegin_},
+          itend_{lln.itend_} {
+      itfixup();
+    }
+
+    LabelLoopNest(LabelLoopNest&& other) : LabelLoopNest{} {
+      swap(*this, other);
+      itfixup();
+    }
+
+    ~LabelLoopNest() = default;
+    LabelLoopNest& operator=(LabelLoopNest other) {
+      swap(*this, other);
+      itfixup();
+      return *this;
+    }
+
     const std::vector<TiledIndexLabel>& sorted_unique_labels() const {
-        return sorted_unique_labels_;
+      return sorted_unique_labels_;
     }
 
     class Iterator {
@@ -451,8 +586,8 @@ public:
           index_loop_itr_{&label_loop_nest.index_loop_nest_} {}
 
         bool operator==(const Iterator& rhs) const {
-            return label_loop_nest_ == rhs.label_loop_nest_ &&
-                   index_loop_itr_ == rhs.index_loop_itr_;
+            return (index_loop_itr_.done() && rhs.index_loop_itr_.done()) || (label_loop_nest_ == rhs.label_loop_nest_ &&
+                   index_loop_itr_ == rhs.index_loop_itr_);
         }
 
         bool operator!=(const Iterator& rhs) const { return !(*this == rhs); }
@@ -464,14 +599,20 @@ public:
         }
 
         Iterator operator++() {
+            if(index_loop_itr_.done()) {
+              return *this;
+            }
             ++index_loop_itr_;
             return *this;
         }
 
         Iterator operator++(int) {
-            Iterator ret{*this};
-            ++(*this);
-            return ret;
+          if (index_loop_itr_.done()) {
+            return *this;
+          }
+          Iterator ret{*this};
+          ++(*this);
+          return ret;
         }
 
         void set_end() { index_loop_itr_.set_end(); }
@@ -479,11 +620,18 @@ public:
     private:
         LabelLoopNest* label_loop_nest_;
         IndexLoopNest::Iterator index_loop_itr_;
+        friend class LabelLoopNest;
     }; // class LabelLoopNest::Iterator
 
     const Iterator& begin() const { return itbegin_; }
 
     const Iterator& end() const { return itend_; }
+
+    template <typename Func>
+    void iterate(Func&& func) const {
+      index_loop_nest_.iterate(func);
+    }
+
 
 private:
     std::vector<std::vector<size_t>> construct_dep_map(
@@ -518,6 +666,31 @@ private:
         itbegin_ = Iterator{*this};
         itend_   = Iterator{*this};
         itend_.set_end();
+    }
+
+    friend void swap(LabelLoopNest& first, LabelLoopNest& second) {
+      using std::swap;
+      swap(first.input_labels_, second.input_labels_);
+      swap(first.index_loop_nest_, second.index_loop_nest_);
+      swap(first.sorted_unique_labels_, second.sorted_unique_labels_);
+      swap(first.itbegin_, second.itbegin_);
+      swap(first.itend_, second.itend_);
+      swap(first.perm_map_input_to_sorted_labels_,
+           second.perm_map_input_to_sorted_labels_);
+      swap(first.perm_map_sorted_to_input_labels_,
+           second.perm_map_sorted_to_input_labels_);
+    }
+
+    /**
+     * @brief Fix copy issue. @bug @todo itbegin_ and itend_ should always
+     * point to this loop nest. This breaks simple copy.
+     *
+     */
+    void itfixup() {
+      itbegin_.label_loop_nest_ = this;
+      itbegin_.index_loop_itr_.loop_nest_ = &index_loop_nest_;
+      itend_.label_loop_nest_ = this;
+      itend_.index_loop_itr_.loop_nest_ = &index_loop_nest_;
     }
 
     IndexLabelVec input_labels_;

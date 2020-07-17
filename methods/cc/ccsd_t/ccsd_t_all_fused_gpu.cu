@@ -49,9 +49,8 @@
 #define NUM_ENERGIES            2
 #define FULL_MASK 				0xffffffff
 
-// from Ajay, noab = 10, nvab = 70
-#define MAX_NOAB								20
-#define MAX_NVAB 								80
+#define MAX_NOAB								30
+#define MAX_NVAB 								120
 
 // 64 KB = 65536 bytes = 16384 (int) = 8192 (size_t)
 // 9 * 9 * noab = 81 * noab 

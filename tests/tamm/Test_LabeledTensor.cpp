@@ -6,16 +6,6 @@
 
 using namespace tamm;
 
-template<typename T>
-std::ostream&
-operator << (std::ostream& os, const std::vector<T>& vec) {
-  os<<"[";
-  for(const auto& v: vec) {
-    os<<v<<",";
-  }
-  os<<"]"<<std::endl;
-  return os;
-}
 
 TEST_CASE("Zero-dimensional tensor") {
   bool failed = false;

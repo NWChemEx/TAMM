@@ -97,14 +97,14 @@ enum class ElementType {
     double_complex
 };
 
-enum class DistKind {
+enum class DistributionKind {
   invalid,
   nw,
   dense,
   simple_round_robin
 };
 
-enum class MemManageKind {
+enum class MemoryManagerKind {
   invalid,
   ga,
   local
@@ -172,7 +172,7 @@ enum class IndexPosition { upper, lower, neither };
 
 enum class SpinType { ao_spin, mo_spin };
 
-enum class ExecutionHW { CPU, GPU };
+enum class ExecutionHW { CPU, GPU, DEFAULT };
 
 using SpinMask = std::vector<SpinPosition>;
 

@@ -668,19 +668,20 @@ void block_multiply(bool &isgpuOp,
           else if constexpr(std::is_same_v<T3,float>)
             bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbufp,1,bbuf_comp_ptr,2);
 
-          tensor_handle th_a = gpu_mult.host_block(adims.size(),
+          th_a = gpu_mult.host_block(adims.size(),
               tal_adims, abufp);
-          tensor_handle th_b = gpu_mult.host_block(bdims.size(),
+          th_b = gpu_mult.host_block(bdims.size(),
               tal_bdims, bbuf_complex.data());
-          tensor_handle th_c = gpu_mult.host_block(cdims.size(),
+          if(copy_ctrl == COPY_TTT)
+          th_c = gpu_mult.host_block(cdims.size(),
               tal_cdims, cbuf);
 
           gpu_mult.mult_block(talsh_task,dev_id, th_c, th_a, th_b, talsh_op_string,
               alpha, copy_ctrl, is_assign);
 
-          talshTensorDestruct(&th_a);
-          talshTensorDestruct(&th_b);
-          talshTensorDestruct(&th_c);
+          // talshTensorDestruct(&th_a);
+          // talshTensorDestruct(&th_b);
+          // talshTensorDestruct(&th_c);
 
         } //is_complex<T1>
         else {
@@ -692,19 +693,20 @@ void block_multiply(bool &isgpuOp,
           else if constexpr(std::is_same_v<T1,float>)
             bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
 
-          tensor_handle th_a = gpu_mult.host_block(adims.size(),
+          th_a = gpu_mult.host_block(adims.size(),
               tal_adims, abufp);
-          tensor_handle th_b = gpu_mult.host_block(bdims.size(),
+          th_b = gpu_mult.host_block(bdims.size(),
               tal_bdims, bbuf_real.data());
-          tensor_handle th_c = gpu_mult.host_block(cdims.size(),
+          if(copy_ctrl == COPY_TTT)
+          th_c = gpu_mult.host_block(cdims.size(),
               tal_cdims, cbuf);
 
           gpu_mult.mult_block(talsh_task,dev_id, th_c, th_a, th_b, talsh_op_string,
               alpha, copy_ctrl, is_assign);
 
-          talshTensorDestruct(&th_a);
-          talshTensorDestruct(&th_b);
-          talshTensorDestruct(&th_c);
+          // talshTensorDestruct(&th_a);
+          // talshTensorDestruct(&th_b);
+          // talshTensorDestruct(&th_c);
 
         } //is_real<T1>
 
@@ -719,19 +721,20 @@ void block_multiply(bool &isgpuOp,
           else if constexpr(std::is_same_v<T2,float>)
             bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),abufp,1,abuf_comp_ptr,2);
 
-          tensor_handle th_a = gpu_mult.host_block(adims.size(),
+          th_a = gpu_mult.host_block(adims.size(),
               tal_adims, abuf_complex.data());
-          tensor_handle th_b = gpu_mult.host_block(bdims.size(),
+          th_b = gpu_mult.host_block(bdims.size(),
               tal_bdims, bbufp);
-          tensor_handle th_c = gpu_mult.host_block(cdims.size(),
+          if(copy_ctrl == COPY_TTT)
+          th_c = gpu_mult.host_block(cdims.size(),
               tal_cdims, cbuf);
 
           gpu_mult.mult_block(talsh_task,dev_id, th_c, th_a, th_b, talsh_op_string,
               alpha, copy_ctrl, is_assign);
 
-          talshTensorDestruct(&th_a);
-          talshTensorDestruct(&th_b);
-          talshTensorDestruct(&th_c);
+          // talshTensorDestruct(&th_a);
+          // talshTensorDestruct(&th_b);
+          // talshTensorDestruct(&th_c);
 
         }
         else{
@@ -743,19 +746,20 @@ void block_multiply(bool &isgpuOp,
           else if constexpr(std::is_same_v<T1,float>)
             bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
 
-          tensor_handle th_a = gpu_mult.host_block(adims.size(),
-              tal_adims, abuf_real.data());
-          tensor_handle th_b = gpu_mult.host_block(bdims.size(),
-              tal_bdims, bbufp);
-          tensor_handle th_c = gpu_mult.host_block(cdims.size(),
-              tal_cdims, cbuf);
+          th_a = gpu_mult.host_block(adims.size(), 
+              tal_adims, abuf_real.data()); 
+          th_b = gpu_mult.host_block(bdims.size(), 
+              tal_bdims, bbufp); 
+          if(copy_ctrl == COPY_TTT)
+          th_c = gpu_mult.host_block(cdims.size(), 
+              tal_cdims, cbuf); 
 
           gpu_mult.mult_block(talsh_task,dev_id, th_c, th_a, th_b, talsh_op_string,
               alpha, copy_ctrl, is_assign);
 
-          talshTensorDestruct(&th_a);
-          talshTensorDestruct(&th_b);
-          talshTensorDestruct(&th_c);
+          // talshTensorDestruct(&th_a);
+          // talshTensorDestruct(&th_b);
+          // talshTensorDestruct(&th_c);
 
         }
 
@@ -777,19 +781,20 @@ void block_multiply(bool &isgpuOp,
             bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbufp,1,bbuf_comp_ptr,2);
           }
 
-          tensor_handle th_a = gpu_mult.host_block(adims.size(),
-              tal_adims, abuf_complex.data());
-          tensor_handle th_b = gpu_mult.host_block(bdims.size(),
-              tal_bdims, bbuf_complex.data());
-          tensor_handle th_c = gpu_mult.host_block(cdims.size(),
-              tal_cdims, cbuf);
+          th_a = gpu_mult.host_block(adims.size(), 
+              tal_adims, abuf_complex.data()); 
+          th_b = gpu_mult.host_block(bdims.size(), 
+              tal_bdims, bbuf_complex.data()); 
+          if(copy_ctrl == COPY_TTT)
+          th_c = gpu_mult.host_block(cdims.size(), 
+              tal_cdims, cbuf); 
 
           gpu_mult.mult_block(talsh_task,dev_id, th_c, th_a, th_b, talsh_op_string,
               alpha, copy_ctrl, is_assign);
 
-          talshTensorDestruct(&th_a);
-          talshTensorDestruct(&th_b);
-          talshTensorDestruct(&th_c);
+          // talshTensorDestruct(&th_a);
+          // talshTensorDestruct(&th_b);
+          // talshTensorDestruct(&th_c);
 
       }
       else NOT_IMPLEMENTED();

@@ -97,6 +97,19 @@ enum class ElementType {
     double_complex
 };
 
+enum class DistributionKind {
+  invalid,
+  nw,
+  dense,
+  simple_round_robin
+};
+
+enum class MemoryManagerKind {
+  invalid,
+  ga,
+  local
+};
+
 template<typename T>
 constexpr ElementType tensor_element_type() {
     return ElementType::invalid;
@@ -159,7 +172,7 @@ enum class IndexPosition { upper, lower, neither };
 
 enum class SpinType { ao_spin, mo_spin };
 
-enum class ExecutionHW { CPU, GPU };
+enum class ExecutionHW { CPU, GPU, DEFAULT };
 
 using SpinMask = std::vector<SpinPosition>;
 

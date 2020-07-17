@@ -5,6 +5,9 @@
 #include "tamm/tamm.hpp"
 // using namespace tamm;
 
+extern double ccsdt_s1_t1_GetTime;
+extern double ccsdt_s1_v2_GetTime;
+extern double ccsd_t_data_per_rank;
 
 void initmemmodule();
 void dev_mem_s(size_t,size_t,size_t,size_t,size_t,size_t);
@@ -172,7 +175,7 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
       // }
 
     if( (p5b<=p6b) && (h2b<=h3b) && p4b!=0 ) { 
-      if((k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
+      if((!is_restricted) || (k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          +k_spin[h1b]+k_spin[h2b]+k_spin[h3b]!=12)) {
 
           //  cout << "spin1,2 = ";
@@ -198,7 +201,11 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
             std::vector<T> k_a_sort(dima);
             //TODO 
             IndexVector bids = {p4b-noab,h1b};
-            d_t1.get(bids,k_a);
+            {
+              TimerGuard tg_total{&ccsdt_s1_t1_GetTime};   
+              ccsd_t_data_per_rank += dima;         
+              d_t1.get(bids,k_a);
+            }
 
             const int ndim = 2;
             int perm[ndim]={1,0};
@@ -210,7 +217,11 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
             plan->execute();
 
             std::vector<T> k_b_sort(dimb);
-            d_v2.get({p5b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,p5b
+            {
+              TimerGuard tg_total{&ccsdt_s1_v2_GetTime};   
+              ccsd_t_data_per_rank += dimb;         
+              d_v2.get({p5b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,p5b
+            }
 
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
       && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))

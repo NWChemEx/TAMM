@@ -88,7 +88,7 @@ class AtomicCounterGA : public AtomicCounter {
   void allocate(int64_t init_val) {
     EXPECTS(allocated_ == false);
     int64_t size = num_counters_;
-    ga_pg_ = create_ga_process_group(pg_);
+    ga_pg_ = pg_.ga_pg();
     char name[] = "atomic-counter";
     ga_ = NGA_Create_config64(MT_C_LONGLONG, 1, &size, name, nullptr, ga_pg_);
     //EXPECTS(ga_ != 0);
@@ -117,7 +117,7 @@ class AtomicCounterGA : public AtomicCounter {
     //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     GA_Destroy(ga_);
     //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-    GA_Pgroup_destroy(ga_pg_);
+    //GA_Pgroup_destroy(ga_pg_);
     //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     allocated_ = false;
   }

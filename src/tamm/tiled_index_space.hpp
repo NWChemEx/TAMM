@@ -434,6 +434,13 @@ public:
     size_t max_num_tiles() const { return tiled_info_->max_num_tiles(); }
 
     /**
+     * @brief Get the maximum tile size of TiledIndexSpace
+     *
+     * @return maximum tile size in the TiledIndexSpace
+     */
+    size_t max_tile_size() const { return tiled_info_->max_tile_size(); }
+
+    /**
      * @brief Get the tile size for the index blocks
      *
      * @return Tile size
@@ -960,7 +967,8 @@ protected:
         IndexVector tile_offsets_; /**< Tile offsets */
         IndexVector ref_indices_;  /**< Reference indices to root */
         IndexVector simple_vec_;   /**< vector where at(i) = i*/
-        size_t max_num_tiles_; /**<Maximum number of tiles in this tiled space*/
+        size_t max_num_tiles_; /**< Maximum number of tiles in this tiled space */
+        size_t max_tile_size_; /**< Maximum tile size */
         TiledIndexSpaceVec dep_vec_; /**< vector of TiledIndexSpaces that are
                                         key for the dependency map */
         std::map<IndexVector, TiledIndexSpace>
@@ -984,17 +992,21 @@ protected:
           input_tile_size_{input_tile_size},
           input_tile_sizes_{input_tile_sizes} {
             if(input_tile_sizes.size() > 0) {
-                // construct indices with set of tile sizes
-                tile_offsets_ = construct_tiled_indices(is, input_tile_sizes);
-                // construct dependency according to tile sizes
-                for(const auto& kv : is.map_tiled_index_spaces()) {
-                    tiled_dep_map_.insert(
-                      std::pair<IndexVector, TiledIndexSpace>{
-                        kv.first,
-                        TiledIndexSpace{kv.second, input_tile_sizes}});
+              auto max_item = std::max_element(input_tile_sizes.begin(),
+                                               input_tile_sizes.end());
+
+              max_tile_size_ = *max_item;
+              // construct indices with set of tile sizes
+              tile_offsets_ = construct_tiled_indices(is, input_tile_sizes);
+              // construct dependency according to tile sizes
+              for (const auto &kv : is.map_tiled_index_spaces()) {
+                tiled_dep_map_.insert(std::pair<IndexVector, TiledIndexSpace>{
+                    kv.first, TiledIndexSpace{kv.second, input_tile_sizes}});
                 }
                 // in case of multiple tile sizes no named spacing carried.
             } else {
+                // set maximum tile size to single input tile size
+                max_tile_size_ = input_tile_size;
                 // construct indices with input tile size
                 tile_offsets_ = construct_tiled_indices(is, input_tile_size);
                 // construct dependency according to tile size
@@ -1040,6 +1052,14 @@ protected:
                   TiledIndexSpace{kv.second, dep_tile_sizes[kv.first]}});
             }
 
+            max_tile_size_ = 0;
+            for (const auto &[idx, tile_sizes] : dep_tile_sizes) {
+              auto it = std::max_element(tile_sizes.begin(), tile_sizes.end());
+              if (max_tile_size_ < *it) {
+                max_tile_size_ = *it;
+              }
+            }
+
             compute_max_num_tiles();
             validate();
         }
@@ -1064,6 +1084,18 @@ protected:
             for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
                 simple_vec_.push_back(i);
             }
+
+            if(input_tile_sizes_.size() > 0){ 
+                max_tile_size_ = 0;
+                for(const auto& idx : indices) {
+                    if(max_tile_size_ < input_tile_sizes_[idx]) {
+                        max_tile_size_ = input_tile_sizes_[idx];
+                    }
+                }
+            } else {
+                max_tile_size_ = root.max_tile_size_;
+            }
+
             compute_max_num_tiles();
             validate();
         }
@@ -1088,6 +1120,18 @@ protected:
             for(Index i = 0; i < tile_offsets_.size() - 1; i++) {
                 simple_vec_.push_back(i);
             }
+
+            if (input_tile_sizes_.size() > 0) {
+              max_tile_size_ = 0;
+              for (const auto &idx : indices) {
+                if (max_tile_size_ < input_tile_sizes_[idx]) {
+                  max_tile_size_ = input_tile_sizes_[idx];
+                }
+              }
+            } else {
+              max_tile_size_ = root.max_tile_size_;
+            }
+
             compute_max_num_tiles();
             validate();
         }
@@ -1126,6 +1170,13 @@ protected:
             for(const auto& iv : result) {
                 if(tiled_dep_map_.find(iv) == tiled_dep_map_.end()) {
                     tiled_dep_map_[iv] = empty_tis;
+                }
+            }
+
+            max_tile_size_ = 0;
+            for(const auto& [idx, tis] : dep_map) {
+                if(max_tile_size_ < tis.max_tile_size()) {
+                    max_tile_size_ = tis.max_tile_size();
                 }
             }
 
@@ -1303,6 +1354,16 @@ protected:
          * @returns the maximum number of tiles in the TiledIndexSpaceInfo
          */
         size_t max_num_tiles() const { return max_num_tiles_; }
+
+        /**
+         * @brief Gets the maximum tile size in TiledIndexSpaceInfo object. In 
+         * case of independent TiledIndexSpace returns the single tile size, or 
+         * the maximum of the tile size vector. If it is dependent TiledIndexSpace
+         * it will return the maximum tile size from the dependency relation
+         * 
+         * @returns the maximum tile size in the TiledIndexSpaceInfo
+         */
+        size_t max_tile_size() const { return max_tile_size_; }
 
         /**
          * @brief Helper method for computing the maximum number of tiles

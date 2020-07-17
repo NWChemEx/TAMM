@@ -163,9 +163,7 @@ TEST_CASE("Spin Tensor Construction") {
     }
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     failed = false;
     try {
@@ -436,11 +434,8 @@ TEST_CASE("Spin Tensor Construction") {
         Tensor<T> rho{AOs, AOs};
 
         ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-        auto* pMM = tamm::MemoryManagerLocal::create_coll(pg);
-        tamm::Distribution_NW dist;
-        tamm::ExecutionContext ec(pg, &dist, pMM);
+        tamm::ExecutionContext ec(pg, DistributionKind::nw, MemoryManagerKind::ga);
         tamm::Scheduler sch{ec};
-
         sch.allocate(rho)(rho() = 0)(rho(mu, nu) += C(mu, p) * C(nu, p))
           .execute();
 
@@ -530,9 +525,7 @@ TEST_CASE("Non trivial ScaLAPACK test") {
 
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     
     // Non trivial ScaLAPACK test
     try {
@@ -603,10 +596,7 @@ TEST_CASE("Hash Based Equality and Compatibility Check") {
 TEST_CASE("GitHub Issues") {
 
     tamm::ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    auto *pMM = tamm::MemoryManagerLocal::create_coll(pg);
-    tamm::Distribution_NW dist;
-    tamm::ExecutionContext ec(pg, &dist, pMM);
-
+    tamm::ExecutionContext ec(pg, DistributionKind::nw, MemoryManagerKind::ga);
     tamm::TiledIndexSpace X{tamm::IndexSpace{tamm::range(0, 4)}};
     tamm::TiledIndexSpace Y{tamm::IndexSpace{tamm::range(0, 3)}};
     auto [i,j] = X.labels<2>("all");

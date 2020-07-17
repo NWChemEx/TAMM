@@ -80,6 +80,11 @@ class MemoryManagerLocal : public MemoryManager {
     return ret;
   }
 
+  MemoryRegion* alloc_coll_balanced(ElementType eltype,
+                                    Size nelements) override {
+    return alloc_coll(eltype, nelements);
+  }
+
   /**
    * @copydoc MemoryManager::attach_coll
    */
@@ -93,7 +98,6 @@ class MemoryManagerLocal : public MemoryManager {
     ret->set_status(AllocationStatus::attached);
     return ret;
   }
-  
 
   /**
    * @copydoc MemoryManager::fence
@@ -106,7 +110,7 @@ class MemoryManagerLocal : public MemoryManager {
 
   protected:
   explicit MemoryManagerLocal(ProcGroup pg)
-      : MemoryManager{pg} {
+      : MemoryManager{pg, MemoryManagerKind::local} {
     //sequential. So process group size should be 1
     EXPECTS(pg.is_valid());
     EXPECTS(pg_.size() == 1);
@@ -277,6 +281,10 @@ public:
     }
     os<<std::endl<<std::endl;
   }
+
+private:
+
+ friend class ExecutionContext;
 }; // class MemoryManagerLocal
 
 }  // namespace tamm

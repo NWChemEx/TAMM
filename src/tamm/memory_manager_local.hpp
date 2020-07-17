@@ -110,7 +110,7 @@ class MemoryManagerLocal : public MemoryManager {
 
   protected:
   explicit MemoryManagerLocal(ProcGroup pg)
-      : MemoryManager{pg, MemManageKind::local} {
+      : MemoryManager{pg, MemoryManagerKind::local} {
     //sequential. So process group size should be 1
     EXPECTS(pg.is_valid());
     EXPECTS(pg_.size() == 1);

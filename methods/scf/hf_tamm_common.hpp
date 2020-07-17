@@ -201,6 +201,44 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
 
 }
 
+void scf_restart_test(const ExecutionContext& ec, const SystemData& sys_data, const std::string& filename, bool restart){
+    if(!restart) return;
+    const auto rank    = ec.pg().rank();
+    const bool is_uhf  = (sys_data.scf_type == sys_data.SCFType::uhf);
+
+    int        rstatus = 1;
+
+    std::string files_prefix = sys_data.options_map.options.output_file_prefix +
+       "." + sys_data.options_map.scf_options.basis;
+    std::string movecsfile_alpha  = files_prefix + ".alpha.movecs";
+    std::string densityfile_alpha = files_prefix + ".alpha.density";
+    std::string movecsfile_beta  = files_prefix + ".beta.movecs";       
+    std::string densityfile_beta = files_prefix + ".beta.density";   
+
+    if(rank==0) {
+        // C_a
+        std::ifstream movecs_a(movecsfile_alpha, std::ios::in | std::ios::binary);
+        if(!movecs_a.is_open()) rstatus = 0;
+        // D_a
+        std::ifstream density_a(densityfile_alpha, std::ios::in | std::ios::binary);
+        if(!density_a.is_open()) rstatus = 0;
+
+      if(is_uhf) {
+        // C_b
+        std::ifstream movecs_b(movecsfile_beta , std::ios::in | std::ios::binary);
+        if(!movecs_b.is_open()) rstatus = 0;
+        // D_b
+        std::ifstream density_b(densityfile_beta, std::ios::in | std::ios::binary);
+        if(!density_b.is_open()) rstatus = 0;
+      }
+    }
+    ec.pg().barrier();
+    MPI_Bcast(&rstatus        ,1,mpi_type<int>()       ,0,ec.pg().comm());
+    std::string fnf = movecsfile_alpha + "; " + densityfile_alpha;
+    if(is_uhf) fnf = fnf + "; " + movecsfile_alpha + "; " + densityfile_alpha;    
+    if(rstatus == 0) nwx_terminate("Error reading one or all of the files: [" + fnf + "]");
+}
+
 void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const std::string& filename, EigenTensors& etensors){
 
     const auto rank    = ec.pg().rank();
@@ -224,7 +262,7 @@ void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const s
       Dbuf_b.resize(N*N);
     }
 
-    std::string files_prefix = getfilename(filename) +
+    std::string files_prefix = sys_data.options_map.options.output_file_prefix +
        "." + sys_data.options_map.scf_options.basis;
     std::string movecsfile_alpha  = files_prefix + ".alpha.movecs";
     std::string densityfile_alpha = files_prefix + ".alpha.density";
@@ -235,18 +273,14 @@ void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const s
         // C_a
         std::ifstream movecs_a(movecsfile_alpha, std::ios::in | std::ios::binary);
         if(movecs_a.is_open()) rstatus = 1;
-        if(rstatus == 1){
-          movecs_a.read((char *) Cbufp_a, sizeof(TensorType)*N*Northo);
-        }
-        if(rstatus == 0) nwx_terminate("Error reading " + movecsfile_alpha);
+        EXPECTS(rstatus == 1);
+        movecs_a.read((char *) Cbufp_a, sizeof(TensorType)*N*Northo);
         // D_a
         rstatus = 0;
         std::ifstream density_a(densityfile_alpha, std::ios::in | std::ios::binary);
         if(density_a.is_open()) rstatus = 1;
-        if(rstatus == 1){
-          density_a.read((char *) Dbufp_a, sizeof(TensorType)*N*N);
-        }
-        if(rstatus == 0) nwx_terminate("Error reading " + densityfile_alpha);
+        EXPECTS(rstatus == 1);
+        density_a.read((char *) Dbufp_a, sizeof(TensorType)*N*N);
 
       if(is_uhf) {
         TensorType *Cbufp_b = &Cbuf_b[0];
@@ -258,23 +292,19 @@ void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const s
         rstatus = 0;
         std::ifstream movecs_b(movecsfile_beta , std::ios::in | std::ios::binary);
         if(movecs_b.is_open()) rstatus = 1;
-        if(rstatus == 1){
-          movecs_b.read((char *) Cbufp_b, sizeof(TensorType)*N*Northo);
-        }
-        if(rstatus == 0) nwx_terminate("Error reading " + movecsfile_beta);
+        EXPECTS(rstatus == 1);
+        movecs_b.read((char *) Cbufp_b, sizeof(TensorType)*N*Northo);
         // D_b
         rstatus = 0;
         std::ifstream density_b(densityfile_beta, std::ios::in | std::ios::binary);
         if(density_b.is_open()) rstatus = 1;
-        if(rstatus == 1){
-          density_b.read((char *) Dbufp_b, sizeof(TensorType)*N*N);
-        }
-        if(rstatus == 0) nwx_terminate("Error reading " + densityfile_beta);
+        EXPECTS(rstatus == 1);
+        density_b.read((char *) Dbufp_b, sizeof(TensorType)*N*N);
       }
       cout << "done" << endl;
     }
     ec.pg().barrier();
-    MPI_Bcast(&rstatus,1       ,mpi_type<int>()       ,0,ec.pg().comm());
+    // MPI_Bcast(&rstatus,1       ,mpi_type<int>()       ,0,ec.pg().comm());
     MPI_Bcast(Cbufp_a,N*Northo,mpi_type<TensorType>(),0,ec.pg().comm());
     MPI_Bcast(Dbufp_a,N*N     ,mpi_type<TensorType>(),0,ec.pg().comm());
     etensors.C      = Eigen::Map<Matrix>(Cbufp_a,N,Northo);

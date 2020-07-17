@@ -38,11 +38,10 @@ public:
     Scheduler(ExecutionContext& ec) : ec_{ec} {}
 
     template<typename OpType>
-    Scheduler& operator()(const OpType& op, std::string opstr="", ExecutionHW policy = ExecutionHW::CPU) {
+    Scheduler& operator()(const OpType& op, std::string opstr="", ExecutionHW exhw = ExecutionHW::DEFAULT) {
         OpList t_ops = op.canonicalize();
-        const_cast<OpType&>(op).opstr_ = opstr;
 
-        for(auto& op : t_ops) { ops_.push_back(op); }
+        for(auto& op : t_ops) { op->opstr_ = opstr; op->exhw_ = exhw, ops_.push_back(op); }
         return (*this);
     }
 
@@ -182,9 +181,9 @@ public:
         return order;
     }
 
-    void execute(ExecutionHW execute_on = ExecutionHW::CPU) {
+    void execute(ExecutionHW execute_on = ExecutionHW::CPU,bool profile = false) {
         if(start_idx_ == ops_.size()) return;
-#if 1
+#if 0
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
         EXPECTS(order.size() == ops_.size() - start_idx_);
         size_t lvl           = 0;
@@ -223,60 +222,178 @@ public:
         tbarrierTime += std::chrono::duration_cast<std::chrono::duration<double>>((bt2 - bt1)).count(); 
         start_idx_ = ops_.size();
 #elif 1
+       // MPI_Barrier(ec_.pg().comm());
+        auto misc_start = std::chrono::high_resolution_clock::now();
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
         EXPECTS(order.size() == ops_.size() - start_idx_);
         size_t lvl           = 0;
         AtomicCounter* ac = new AtomicCounterGA(ec().pg(), order.size());
         ac->allocate(0);
+        auto misc_end = std::chrono::high_resolution_clock::now();
+        double misc_time = std::chrono::duration_cast<std::chrono::duration<double>>((misc_end - misc_start)).count();
+        auto t1 = misc_end;
+
+        // double nranks = 1.0 * ec_.pg().size().value();
+        multOpGetTime = 0;
+        multOpDgemmTime = 0;
+        multOpAddTime = 0;  
+
+        std::vector<double> load_imbalance_times;
+        std::vector<double> op_times;
+        std::vector<double> multop_get_times;
+        std::vector<double> multop_dgemm_times;
+        std::vector<double> multop_add_times;
+        int nops = order.size();
+
+        assert(order.size()==0 || order[0].first == 0); //level 0 sanity check
         for(size_t i = 0; i < order.size(); i++) {
             if(order[i].first != lvl) {
                 assert(order[i].first == lvl + 1);
+                //auto t2 = std::chrono::high_resolution_clock::now();
                 ec().pg().barrier();
                 lvl += 1;
+                // auto t3 = std::chrono::high_resolution_clock::now();
+                // load_imbalance_times.push_back(std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t2)).count());
+                // level_times.push_back(std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t1)).count());
+                // multop_get_times.push_back(multOpGetTime);
+                // multop_dgemm_times.push_back(multOpDgemmTime);
+                // multop_add_times.push_back(multOpAddTime);
+                // multOpGetTime = 0;
+                // multOpDgemmTime = 0;
+                // multOpAddTime = 0;  
+                // t1 = t3;
             }
             ec().set_ac(IndexedAC(ac, i));
-            auto t1 = std::chrono::high_resolution_clock::now();
-            ops_[order[i].second]->execute(ec(), execute_on);
+            if (ops_[order[i].second]->exhw_ != ExecutionHW::DEFAULT) 
+                execute_on = ops_[order[i].second]->exhw_;            
             auto t2 = std::chrono::high_resolution_clock::now();
-            double mop_time = 
-                std::chrono::duration_cast<std::chrono::duration<double>>((t2 - t1)).count();  
-            if(ops_[order[i].second]->op_type() == OpType::mult) multOpTime += mop_time;
-            if(ops_[order[i].second]->op_type() == OpType::add) addOpTime += mop_time;       
-            if(ops_[order[i].second]->op_type() == OpType::set) setOpTime += mop_time;       
-            if(ops_[order[i].second]->op_type() == OpType::alloc) allocOpTime += mop_time;       
-            if(ops_[order[i].second]->op_type() == OpType::dealloc) deallocOpTime += mop_time;  
-            taddTime += multOpAddTime;
-            tgetTime += multOpGetTime;
-            twaitTime += multOpWaitTime;            
-            double globalmoptime,globalwaittime,globalgettime,globaladdtime,globalgemmtime;
-            double nranks = 1.0 * ec_.pg().size().value();
-            MPI_Reduce(&mop_time, &globalmoptime, 1, MPI_DOUBLE, MPI_SUM, 0,
-                        ec_.pg().comm()); 
-            MPI_Reduce(&multOpGetTime, &globalgettime, 1, MPI_DOUBLE, MPI_SUM, 0,
-                        ec_.pg().comm());     
-            MPI_Reduce(&multOpWaitTime, &globalwaittime, 1, MPI_DOUBLE, MPI_SUM, 0,
-                        ec_.pg().comm());   
-            MPI_Reduce(&multOpAddTime, &globaladdtime, 1, MPI_DOUBLE, MPI_SUM, 0,
-                        ec_.pg().comm());     
-            MPI_Reduce(&multOpDgemmTime, &globalgemmtime, 1, MPI_DOUBLE, MPI_SUM, 0,
-                        ec_.pg().comm());                                                               
-            if(ops_[order[i].second]->op_type() == OpType::mult && ec_.pg().rank() == 0) {
-                // std::cout << "Time for mult op  -> Get, Wait, Add, gemm Times (secs):";
-                std::cout << ++mult_counter << "," << globalmoptime/nranks << "," 
-                 << globalgettime/nranks << "," << globalwaittime/nranks << ","
-                 << globaladdtime/nranks << "," << globalgemmtime/nranks << std::endl;            
-            }
+            ops_[order[i].second]->execute(ec(), execute_on);
+            auto t3 = std::chrono::high_resolution_clock::now();
+            op_times.push_back(std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t2)).count());
+            multop_get_times.push_back(multOpGetTime);
+            multop_dgemm_times.push_back(multOpDgemmTime);
+            multop_add_times.push_back(multOpAddTime);   
             multOpGetTime = 0;
-            multOpWaitTime = 0;  
             multOpDgemmTime = 0;
-            multOpAddTime = 0;          
-            start_idx_++;            
+            multOpAddTime = 0;                          
         }
+        auto t2 = std::chrono::high_resolution_clock::now();
         ec().pg().barrier();
+        lvl += 1;
+        auto t3 = std::chrono::high_resolution_clock::now();
+        // load_imbalance_times.push_back(std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t2)).count());
+        // level_times.push_back(std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t1)).count());
+        // multop_get_times.push_back(multOpGetTime);
+        // multop_dgemm_times.push_back(multOpDgemmTime);
+        // multop_add_times.push_back(multOpAddTime);
+        // multOpGetTime = 0;
+        // multOpDgemmTime = 0;
+        // multOpAddTime = 0;  
         start_idx_ = ops_.size();
         ec().set_ac(IndexedAC(nullptr, 0));
+        misc_start = t3;
         ac->deallocate();
         delete ac;
+        misc_end = std::chrono::high_resolution_clock::now();
+        misc_time += std::chrono::duration_cast<std::chrono::duration<double>>((misc_end - misc_start)).count();
+
+        if(profile) {
+
+            assert(op_times.size() == order.size()); // all vectors are of the same size
+            
+            // std::vector<double> global_load_imbalance_times_min(nops);
+            std::vector<double> global_op_times_min(nops);
+            std::vector<double> global_multop_get_times_min(nops);
+            std::vector<double> global_multop_dgemm_times_min(nops);
+            std::vector<double> global_multop_add_times_min(nops);
+            
+            // std::vector<double> global_load_imbalance_times_max(nops);
+            std::vector<double> global_op_times_max(nops);
+            std::vector<double> global_multop_get_times_max(nops);
+            std::vector<double> global_multop_dgemm_times_max(nops);
+            std::vector<double> global_multop_add_times_max(nops);
+            
+            // std::vector<double> global_load_imbalance_times_sum(nops);
+            std::vector<double> global_op_times_sum(nops);
+            std::vector<double> global_multop_get_times_sum(nops);
+            std::vector<double> global_multop_dgemm_times_sum(nops);
+            std::vector<double> global_multop_add_times_sum(nops);
+
+            // MPI_Reduce(load_imbalance_times.data(), global_load_imbalance_times_min.data(), lvl, MPI_DOUBLE, MPI_MIN, 0,
+                        // ec_.pg().comm());     
+            MPI_Reduce(op_times.data(), global_op_times_min.data(), nops, MPI_DOUBLE, MPI_MIN, 0,
+                        ec_.pg().comm());     
+            MPI_Reduce(multop_get_times.data(), global_multop_get_times_min.data(), nops, MPI_DOUBLE, MPI_MIN, 0,
+                        ec_.pg().comm());     
+            MPI_Reduce(multop_dgemm_times.data(), global_multop_dgemm_times_min.data(), nops, MPI_DOUBLE, MPI_MIN, 0,
+                        ec_.pg().comm());     
+            MPI_Reduce(multop_add_times.data(), global_multop_add_times_min.data(), nops, MPI_DOUBLE, MPI_MIN, 0,
+                        ec_.pg().comm());     
+
+            // MPI_Reduce(load_imbalance_times.data(), global_load_imbalance_times_max.data(), lvl, MPI_DOUBLE, MPI_MAX, 0,
+            //             ec_.pg().comm());     
+            MPI_Reduce(op_times.data(), global_op_times_max.data(), nops, MPI_DOUBLE, MPI_MAX, 0,
+                        ec_.pg().comm());     
+            MPI_Reduce(multop_get_times.data(), global_multop_get_times_max.data(), nops, MPI_DOUBLE, MPI_MAX, 0,
+                        ec_.pg().comm());     
+            MPI_Reduce(multop_dgemm_times.data(), global_multop_dgemm_times_max.data(), nops, MPI_DOUBLE, MPI_MAX, 0,
+                        ec_.pg().comm());     
+            MPI_Reduce(multop_add_times.data(), global_multop_add_times_max.data(), nops, MPI_DOUBLE, MPI_MAX, 0,
+                        ec_.pg().comm());     
+
+            // MPI_Reduce(load_imbalance_times.data(), global_load_imbalance_times_sum.data(), lvl, MPI_DOUBLE, MPI_SUM, 0,
+            //             ec_.pg().comm());     
+            MPI_Reduce(op_times.data(), global_op_times_sum.data(), nops, MPI_DOUBLE, MPI_SUM, 0,
+                        ec_.pg().comm());     
+            MPI_Reduce(multop_get_times.data(), global_multop_get_times_sum.data(), nops, MPI_DOUBLE, MPI_SUM, 0,
+                        ec_.pg().comm());     
+            MPI_Reduce(multop_dgemm_times.data(), global_multop_dgemm_times_sum.data(), nops, MPI_DOUBLE, MPI_SUM, 0,
+                        ec_.pg().comm());     
+            MPI_Reduce(multop_add_times.data(), global_multop_add_times_sum.data(), nops, MPI_DOUBLE, MPI_SUM, 0,
+                        ec_.pg().comm());     
+
+        
+            int np = ec_.pg().size().value();
+            if(ec_.pg().rank() == 0) {
+                for(int i=0; i<order.size(); i++) {
+                    std::cout << i 
+                        << ";" << order[i].first
+                        << ";" << ops_[order[i].second]->opstr_
+                        // << "," << global_load_imbalance_times_min[i]
+                        // << "," << global_load_imbalance_times_max[i]
+                        // << "," << global_load_imbalance_times_sum[i]/np
+                        << ";" << global_op_times_min[i]
+                        << ";" << global_op_times_max[i]
+                        << ";" << global_op_times_sum[i]/np
+                        << ";" << global_multop_get_times_min[i]
+                        << ";" << global_multop_get_times_max[i]
+                        << ";" << global_multop_get_times_sum[i]/np
+                        << ";" << global_multop_dgemm_times_min[i]
+                        << ";" << global_multop_dgemm_times_max[i]
+                        << ";" << global_multop_dgemm_times_sum[i]/np
+                        << ";" << global_multop_add_times_min[i]
+                        << ";" << global_multop_add_times_max[i]
+                        << ";" << global_multop_add_times_sum[i]/np
+                        << std::endl;
+                }
+                std::cout << ";" << "SUM" << ";;;;" 
+                << (std::accumulate(global_op_times_sum.begin(), global_op_times_sum.end(),
+                        decltype(global_op_times_sum)::value_type(0))) / np
+                << ";;;"
+                <<  (std::accumulate(global_multop_get_times_sum.begin(), global_multop_get_times_sum.end(),
+                        decltype(global_multop_get_times_sum)::value_type(0))) / np                        
+                << ";;;"
+                <<  (std::accumulate(global_multop_dgemm_times_sum.begin(), global_multop_dgemm_times_sum.end(),
+                        decltype(global_multop_dgemm_times_sum)::value_type(0))) / np 
+                << ";;;"
+                <<  (std::accumulate(global_multop_add_times_sum.begin(), global_multop_add_times_sum.end(),
+                        decltype(global_multop_add_times_sum)::value_type(0))) / np 
+                << std::endl;
+            // << "," << globalgettime/nranks << "," 
+            // << globaladdtime/nranks << "," << globalgemmtime/nranks << std::endl;            
+            }
+        }
+
 #else
         auto groups = levelize(ops_, start_idx_, ops_.size());
         // std::cerr << "Groups: [ ";

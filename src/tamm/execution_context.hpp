@@ -7,6 +7,7 @@
 #include "tamm/memory_manager_local.hpp"
 #include "tamm/atomic_counter.hpp"
 //#include "tamm/distribution.hpp"
+#include "tamm/types.hpp"
 
 #include <algorithm>
 #include <iterator>
@@ -62,8 +63,8 @@ public:
     ExecutionContext(ExecutionContext&&) = default;
     ExecutionContext& operator=(ExecutionContext&&) = default;
 
-    // ExecutionContext(ProcGroup pg, DistKind::Kind default_distribution_kind,
-    //                  MemoryManager::Kind default_memory_manager_kind, RuntimeEngine* re =nullptr);
+    ExecutionContext(ProcGroup pg, DistributionKind default_distribution_kind,
+                     MemoryManagerKind default_memory_manager_kind, RuntimeEngine* re =nullptr);
 
     /** @todo use shared pointers for solving GitHub issue #43*/
     ExecutionContext(ProcGroup pg, Distribution* default_distribution,
@@ -71,7 +72,7 @@ public:
     // ExecutionContext(ProcGroup pg, Distribution* default_distribution,
     //                  MemoryManager* default_memory_manager, RuntimeEngine* re =nullptr) :
     //   pg_{pg},
-    //   distribution_kind_{DistKind::invalid},
+    //   distribution_kind_{DistributionKind::invalid},
     // //   default_distribution_{nullptr},
     // //   default_distribution_{default_distribution},
     //   default_memory_manager_{default_memory_manager},
@@ -212,7 +213,7 @@ public:
         return distribution_factory(distribution_kind_).release(); //@bug leak
     }
 
-    // DistKind::Kind distribution_kind() const { return distribution_kind_; }
+    // DistributionKind::Kind distribution_kind() const { return distribution_kind_; }
 
     /**
      * @brief Set the default Distribution for ExecutionContext
@@ -227,11 +228,11 @@ public:
     //     if(distribution) {
     //         distribution_kind_ = distribution->kind();
     //     } else {
-    //         distribution_kind_ = DistKind::invalid;
+    //         distribution_kind_ = DistributionKind::invalid;
     //     }
     // }
 
-    void set_distribution_kind(DistKind distribution_kind) {
+    void set_distribution_kind(DistributionKind distribution_kind) {
         distribution_kind_ = distribution_kind;
     }
 
@@ -257,7 +258,7 @@ public:
     //     default_memory_manager_ = memory_manager;
     // }
 
-    void set_memory_manager_kind(MemManageKind memory_manager_kind) {
+    void set_memory_manager_kind(MemoryManagerKind memory_manager_kind) {
         memory_manager_kind_ = memory_manager_kind;
     }
 
@@ -322,18 +323,18 @@ public:
     int gpu_devid() const { return dev_id_; }
 
 template<typename... Args>
-std::unique_ptr<Distribution> distribution_factory(DistKind dkind, Args&&... args)  const {
+std::unique_ptr<Distribution> distribution_factory(DistributionKind dkind, Args&&... args)  const {
   switch(dkind) {
-    case DistKind::invalid:
+    case DistributionKind::invalid:
       NOT_ALLOWED();
       return nullptr;
-    case DistKind::dense:
+    case DistributionKind::dense:
       return std::make_unique<Distribution_Dense>(std::forward<Args>(args)...);
       break;
-    case DistKind::nw:
+    case DistributionKind::nw:
       return std::make_unique<Distribution_NW>(std::forward<Args>(args)...);
       break;
-    case DistKind::simple_round_robin:
+    case DistributionKind::simple_round_robin:
       return std::make_unique<Distribution_SimpleRoundRobin>(std::forward<Args>(args)...);
       break;      
   }
@@ -342,17 +343,17 @@ std::unique_ptr<Distribution> distribution_factory(DistKind dkind, Args&&... arg
 }
 
 template<typename... Args>
-std::unique_ptr<MemoryManager> memory_manager_factory(MemManageKind memkind, Args&&... args)  const {
+std::unique_ptr<MemoryManager> memory_manager_factory(MemoryManagerKind memkind, Args&&... args)  const {
   switch(memkind) {
-    case MemManageKind::invalid:
+    case MemoryManagerKind::invalid:
       NOT_ALLOWED();
       return nullptr;
-    case MemManageKind::ga:
+    case MemoryManagerKind::ga:
       //auto defd = get_memory_manager(memkind);
       return std::unique_ptr<MemoryManager>(new MemoryManagerGA{pg_});
       //return std::unique_ptr<MemoryManager>(new MemoryManagerGA{std::forward<Args>(args)...});
       break;
-    case MemManageKind::local:
+    case MemoryManagerKind::local:
       return std::unique_ptr<MemoryManager>(new MemoryManagerLocal{pg_self_});
     //   return std::unique_ptr<MemoryManager>(new MemoryManagerLocal{std::forward<Args>(args)...});
       break;
@@ -364,10 +365,10 @@ std::unique_ptr<MemoryManager> memory_manager_factory(MemManageKind memkind, Arg
 private:
     ProcGroup pg_;
     ProcGroup pg_self_;
-    DistKind distribution_kind_;
+    DistributionKind distribution_kind_;
         // Distribution* default_distribution_;
     //std::unique_ptr<Distribution> default_distribution_;
-    MemManageKind memory_manager_kind_;
+    MemoryManagerKind memory_manager_kind_;
     //MemoryManager* default_memory_manager_;
     //MemoryManagerLocal* memory_manager_local_;
     IndexedAC ac_;

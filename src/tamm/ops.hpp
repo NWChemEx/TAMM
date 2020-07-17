@@ -22,7 +22,7 @@
 //#define DO_NB
 //#define DO_NB_GET
 #define ADDOP_LOCALIZE_LHS
-// #define SETOP_LOCALIZE_LHS
+#define SETOP_LOCALIZE_LHS
 //#define MULTOP_PARTIAL_PARALLELIZE_RHS
 
 namespace tamm {
@@ -328,6 +328,7 @@ public:
     virtual OpType op_type() const                          = 0;
     virtual ~Op() {}
     std::string opstr_;
+    ExecutionHW exhw_ = ExecutionHW::DEFAULT;
 };
 
 class OpList : public std::vector<std::shared_ptr<Op>> {
@@ -381,13 +382,13 @@ public:
     OpType op_type() const override { return OpType::set; }
     void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
         const auto& tensor = lhs_.tensor();
-        if (tensor.is_dense() && !internal::is_slicing(lhs_) &&
-            lhs_.tensor().distribution().kind() == DistKind::dense
+        /* if (tensor.is_dense() && !internal::is_slicing(lhs_) &&
+            lhs_.tensor().distribution().kind() == DistributionKind::dense
             // && !tensor.has_spin() && !tensor.has_spatial()
         ) {
           execute_optimized(ec, hw);
           return;
-        }
+        } */
 #if 0
 //previous implementation
         using TensorElType = typename LabeledTensorT::element_type;
@@ -510,7 +511,7 @@ public:
         // std::cout << "Execute Optimized" << std::endl;
         EXPECTS(!internal::is_slicing(lhs_)); // dense and no slicing in labels
         EXPECTS(lhs_.tensor().distribution().kind() ==
-                DistKind::dense); // tensor uses Distribution_Dense
+                DistributionKind::dense); // tensor uses Distribution_Dense
         // EXPECTS(
         //   lhs_.tensor().execution_context()->pg() ==
         //   pg); // tensor allocation proc grid same as op execution proc grid
@@ -1061,7 +1062,7 @@ public:
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
         const auto& tensor = lhs_.tensor();
-#if 0 && 5
+
         // if (tensor.is_dense() && !internal::is_slicing(lhs_) &&
         //     lhs_.tensor().distribution().kind() == Distribution::Kind::dense
 	//     // && internal::reduction_labels(lhs_.labels(), rhs_.labels()).empty()
@@ -1070,7 +1071,7 @@ public:
         //   execute_dense_optimized(ec, hw);
         //   return;
         // }
-#endif
+
     #if 1
         // std::cerr<<"DOING ADDOP\n";
 
@@ -1567,7 +1568,7 @@ struct AddBuf {
 
     std::vector<T> cbuf_;
     std::vector<T> abuf_;
-    std::vector<T> bbuf_;    
+    std::vector<T> bbuf_;
     IndexVector blockid_;
     bool isgpu_;
     Tensor<T> tensor_;
@@ -1655,6 +1656,10 @@ public:
         return std::shared_ptr<Op>(new MultOp{*this});
     }
 
+    using TensorElType1 = typename LabeledTensorT1::element_type;
+    using TensorElType2 = typename LabeledTensorT2::element_type;
+    using TensorElType3 = typename LabeledTensorT3::element_type;
+
     void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
         EXPECTS(!is_assign_);
         #if 1
@@ -1667,11 +1672,7 @@ public:
                           rhs2_.labels().end());
         LabelLoopNest loop_nest{all_labels};
 
-        std::vector<AddBuf<T>*> add_bufs;
-
-        using TensorElType1 = typename LabeledTensorT1::element_type;
-        using TensorElType2 = typename LabeledTensorT2::element_type;
-        using TensorElType3 = typename LabeledTensorT3::element_type;
+        std::vector<AddBuf<TensorElType1>*> add_bufs;
 
         // function to compute one block
         auto lambda = [=,&add_bufs,&loop_nest](const IndexVector itval) {
@@ -1819,7 +1820,6 @@ public:
             else
 #endif            
             {
-                
                 const int dev_id = ec.gpu_devid();
                 // determine set of all labels
 
@@ -1991,7 +1991,8 @@ public:
 	       !has_sparse_labels && !lhs_.labels().empty() ) { //&& num_lhs_tiles >= ec.pg().size() ) {
                 // std::cout << "Execute Buffer Accumulate" << std::endl;
                 if constexpr(std::is_same_v<TensorElType1,TensorElType2> 
-                         && std::is_same_v<TensorElType1,TensorElType3>) {                
+                            && std::is_same_v<TensorElType1,TensorElType3>
+                            && !internal::is_complex_v<TensorElType1>) {
                     execute_bufacc(ec, hw);
                 }
                 else do_work(ec, loop_nest, lambda);

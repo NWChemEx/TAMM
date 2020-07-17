@@ -47,10 +47,7 @@ int main(int argc, char *argv[]) {
 #endif
 
   ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-  MemoryManagerGA *mgr = MemoryManagerGA::create_coll(pg);
-  Distribution_NW distribution;
-  RuntimeEngine re;
-  ExecutionContext ec{pg, &distribution, mgr, &re};
+  ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   Scheduler sch{ec};
 

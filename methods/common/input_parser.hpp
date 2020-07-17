@@ -47,6 +47,7 @@ class Options {
       dfbasis = "";
       geom_units = "bohr";
       sphcart = "spherical";
+      output_file_prefix = "";
     }
 
     bool debug;
@@ -55,6 +56,7 @@ class Options {
     std::string dfbasis;
     std::string sphcart;
     std::string geom_units;
+    std::string output_file_prefix;
 
     void print() {
       std::cout << std::defaultfloat;
@@ -65,9 +67,11 @@ class Options {
       cout << sphcart;
       cout << endl;
       if(!dfbasis.empty()) 
-        cout << " dfbasis    = " << dfbasis << endl;
+        cout << " dfbasis    = " << dfbasis << endl;       
       cout << " geom_units = " << geom_units << endl;
       print_bool(" debug     ", debug);
+      if(!output_file_prefix.empty()) 
+        cout << " output_file_prefix    = " << output_file_prefix << endl;       
       cout << "}" << endl;
     }
 };
@@ -220,8 +224,10 @@ class CCSDOptions: public Options {
     gf_os          = false;
     gf_cs          = true;
     gf_restart     = false;
+    gf_itriples    = false;
     ccsd_maxiter   = 50;
     balance_tiles  = false;
+    profile_ccsd   = false;
     
     gf_p_oi_range        = 0; //1-number of occupied, 2-all MOs
     gf_ndiis             = 10;
@@ -257,7 +263,9 @@ class CCSDOptions: public Options {
   int    ndiis;
   int    eom_microiter;
   int    writet_iter;
-  bool   readt, writet, gf_restart, gf_ip, gf_ea, gf_os, gf_cs, balance_tiles;
+  bool   readt, writet, gf_restart, gf_ip, gf_ea, gf_os, gf_cs, 
+         gf_itriples, balance_tiles;
+  bool   profile_ccsd;
   double lshift;
   double threshold;
   double eom_threshold;
@@ -288,6 +296,8 @@ class CCSDOptions: public Options {
   int    gf_analyze_level;
   int    gf_analyze_num_omega;
   std::vector<double> gf_analyze_omega;
+  //Force processing of specified orbitals first
+  std::vector<size_t> gf_orbitals;
   
   void print() {
     std::cout << std::defaultfloat;
@@ -309,6 +319,7 @@ class CCSDOptions: public Options {
     print_bool(" readt               ", readt); 
     print_bool(" writet              ", writet);
     cout << " writet_iter          = " << writet_iter      << endl;
+    print_bool(" profile_ccsd        ", profile_ccsd);
     print_bool(" balance_tiles       ", balance_tiles); 
 
     if(eom_nroots > 0){
@@ -323,7 +334,8 @@ class CCSDOptions: public Options {
       print_bool(" gf_ea               ", gf_ea); 
       print_bool(" gf_os               ", gf_os); 
       print_bool(" gf_cs               ", gf_cs); 
-      print_bool(" gf_restart          ", gf_restart);       
+      print_bool(" gf_restart          ", gf_restart);     
+      print_bool(" gf_itriples         ", gf_itriples);       
       cout << " gf_ndiis             = " << gf_ndiis          << endl;
       cout << " gf_ngmres            = " << gf_ngmres         << endl;
       cout << " gf_maxiter           = " << gf_maxiter        << endl;
@@ -343,6 +355,11 @@ class CCSDOptions: public Options {
       cout << " gf_omega_max_ea_e    = " << gf_omega_max_ea_e << endl;
       cout << " gf_omega_delta       = " << gf_omega_delta    << endl; 
       cout << " gf_omega_delta_e     = " << gf_omega_delta_e  << endl; 
+      if(!gf_orbitals.empty()) {
+        cout << " gf_orbitals     = [";
+        for(auto x: gf_orbitals) cout << x << ",";
+        cout << "]" << endl;           
+      }
       if(gf_analyze_level > 0) {
         cout << " gf_analyze_level     = " << gf_analyze_level     << endl; 
         cout << " gf_analyze_num_omega = " << gf_analyze_num_omega << endl; 
@@ -574,6 +591,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
         options.debug = to_bool(read_option(line));        
       else if(is_in_line("dfbasis",line)) 
         options.dfbasis = read_option(line);  
+      else if(is_in_line("output_file_prefix",line)) 
+        options.output_file_prefix = read_option(line);          
       else if(is_in_line("geometry",line)){
         //geometry units
         std::istringstream iss(line);
@@ -725,7 +744,9 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("writet_iter",line))
             ccsd_options.writet_iter = std::stoi(read_option(line));            
           else if(is_in_line("balance_tiles",line))
-            ccsd_options.balance_tiles = to_bool(read_option(line));     
+            ccsd_options.balance_tiles = to_bool(read_option(line)); 
+          else if(is_in_line("profile_ccsd",line))
+            ccsd_options.profile_ccsd = to_bool(read_option(line));                 
           else if(is_in_line("force_tilesize",line)) 
             ccsd_options.force_tilesize = to_bool(read_option(line));                     
           else if(is_in_line("gf_ip",line))
@@ -738,6 +759,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             ccsd_options.gf_cs = to_bool(read_option(line)); 
           else if(is_in_line("gf_restart",line))
             ccsd_options.gf_restart = to_bool(read_option(line)); 
+          else if(is_in_line("gf_itriples",line))
+            ccsd_options.gf_itriples = to_bool(read_option(line));             
           else if(is_in_line("gf_p_oi_range",line)) {
             ccsd_options.gf_p_oi_range = std::stoi(read_option(line)); 
             if(ccsd_options.gf_p_oi_range != 1 && ccsd_options.gf_p_oi_range != 2)
@@ -793,6 +816,14 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
                                               std::istream_iterator<double>{}};
               ccsd_options.gf_analyze_omega = gf_analyze_omega;
           }          
+          else if(is_in_line("gf_orbitals",line)) {
+              std::istringstream iss(line);
+              std::string wignore;
+              iss >> wignore;
+              std::vector<size_t> gf_orbitals{std::istream_iterator<double>{iss},
+                                              std::istream_iterator<double>{}};
+              ccsd_options.gf_orbitals = gf_orbitals;
+          }                    
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line, "CCSD");
 

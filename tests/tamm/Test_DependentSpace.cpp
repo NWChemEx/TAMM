@@ -10,14 +10,6 @@
 
 using namespace tamm;
 
-template<typename T>
-std::ostream& operator << (std::ostream &os, std::vector<T>& vec){
-    os << "[";
-    for(auto &x: vec)
-        os << x << ",";
-    os << "]\n";
-    return os;
-}
 
 template<typename T>
 void print_tensor(Tensor<T> &t){
@@ -146,10 +138,7 @@ void test_setop_with_T(unsigned tilesize) {
     //0-4 dimensional setops
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg,DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10),
                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
@@ -238,10 +227,7 @@ void test_addop_with_T(unsigned tilesize) {
     //0-4 dimensional addops
     bool failed;
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10),
                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
@@ -520,10 +506,7 @@ template<typename T>
 void test_dependent_space_with_T(Index tilesize) {
     bool success = false;
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10)};
     TiledIndexSpace T_IS{IS, tilesize};

@@ -168,6 +168,7 @@ struct SystemData {
   SCFType scf_type; //1-rhf, 2-uhf, 3-rohf
   std::string scf_type_string; 
   std::string input_molecule;
+  std::string output_file_prefix;
 
   //output data
   double scf_energy;
@@ -382,12 +383,6 @@ std::vector<size_t> map_basis_function_to_shell(
         }
     }
     return result;
-}
-
-std::string getfilename(std::string filename){
-  size_t lastindex = filename.find_last_of(".");
-  auto fname = filename.substr(0,lastindex);
-  return fname.substr(fname.find_last_of("/")+1,fname.length());
 }
 
 void writeC(Matrix& C, std::string scf_files_prefix){

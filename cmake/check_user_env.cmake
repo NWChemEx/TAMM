@@ -78,7 +78,7 @@ if(USE_CUDA)
             set(NV_GPU_ARCH 35)
         endif()
     else()
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "8.3")
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "8.5")
           get_compiler_exec_name("${CMAKE_CXX_COMPILER}")
           message(FATAL_ERROR "${comp_exec_name} version provided (${CMAKE_CXX_COMPILER_VERSION}) \
     is not supported by CUDA version provided. Need ${comp_exec_name} = 8.x for building TAMM with GPU support.")

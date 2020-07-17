@@ -364,7 +364,6 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   energy1 = tmp_energy_l[0];
   energy2 = tmp_energy_l[1];
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   //
   //
   //  free shared device mem

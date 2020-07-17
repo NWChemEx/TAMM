@@ -113,12 +113,12 @@ class MemoryManager {
      * 
      * @return MemoryManagerType 
      */
-  MemManageKind kind() const {
+  MemoryManagerKind kind() const {
       return kind_;
     }
 
  protected:
-  explicit MemoryManager(ProcGroup pg, MemManageKind kind)
+  explicit MemoryManager(ProcGroup pg, MemoryManagerKind kind)
       : pg_{pg}, kind_{kind} {}
 
 
@@ -277,7 +277,7 @@ class MemoryManager {
  protected:
   ProcGroup pg_;
 
-  MemManageKind kind_; /**< MemoryManager kind */
+  MemoryManagerKind kind_; /**< MemoryManager kind */
 
   friend class MemoryRegion;
   friend class ExecutionContext;

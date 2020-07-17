@@ -454,10 +454,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
 
     if(io_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(io_comm)};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         MPI_File fh;
         MPI_Info info;
@@ -567,8 +564,9 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
 
         }
         ec.flush_and_sync();
-        MemoryManagerGA::destroy_coll(mgr);
+        //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&io_comm);
+        pg.destroy_coll();
         MPI_File_close(&fh);
     }
 
@@ -665,10 +663,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
         auto tensor_back = tensor;         
 
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(io_comm)};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         MPI_File fh;
         MPI_Info info;
@@ -784,8 +779,9 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
         }
 
         ec.flush_and_sync();
-        MemoryManagerGA::destroy_coll(mgr);
+        //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&io_comm);
+        pg.destroy_coll();
         MPI_File_close(&fh);
 
         tensor = tensor_back;
@@ -824,10 +820,7 @@ void apply_ewise_ip(LabeledTensor<TensorType> ltensor,
 
     if(sub_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         auto lambda = [&](const IndexVector& bid) {
             const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
@@ -839,8 +832,9 @@ void apply_ewise_ip(LabeledTensor<TensorType> ltensor,
         };
         block_for(ec, ltensor, lambda);
         ec.flush_and_sync();
-        MemoryManagerGA::destroy_coll(mgr);
+        //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&sub_comm);
+        pg.destroy_coll();
     }
     gec.pg().barrier();        
 }
@@ -1043,10 +1037,7 @@ TensorType sum(LabeledTensor<TensorType> ltensor) {
 
     if(sub_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         auto getnorm = [&](const IndexVector& bid) {
             const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
@@ -1059,8 +1050,9 @@ TensorType sum(LabeledTensor<TensorType> ltensor) {
         };
         block_for(ec, ltensor, getnorm);
         ec.flush_and_sync();
-        MemoryManagerGA::destroy_coll(mgr);
+        //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&sub_comm);
+        pg.destroy_coll();
     }
 
     gec.pg().barrier();   
@@ -1113,10 +1105,7 @@ TensorType norm(LabeledTensor<TensorType> ltensor) {
 
     if(sub_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         auto getnorm = [&](const IndexVector& bid) {
             const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
@@ -1131,8 +1120,9 @@ TensorType norm(LabeledTensor<TensorType> ltensor) {
         };
         block_for(ec, ltensor, getnorm);
         ec.flush_and_sync();
-        MemoryManagerGA::destroy_coll(mgr);
+        //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&sub_comm);
+        pg.destroy_coll();
     }
 
     gec.pg().barrier();
@@ -1295,10 +1285,7 @@ void gf_peak(LabeledTensor<TensorType> ltensor, double threshold, double x_norm_
 
     if(sub_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
-        auto mgr = MemoryManagerGA::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
         auto nmodes               = tensor.num_modes();
 
         auto getnorm = [&](const IndexVector& bid) {
@@ -1313,8 +1300,9 @@ void gf_peak(LabeledTensor<TensorType> ltensor, double threshold, double x_norm_
         };
         block_for(ec, ltensor, getnorm);
         ec.flush_and_sync();
-        MemoryManagerGA::destroy_coll(mgr);
+        //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&sub_comm);
+        pg.destroy_coll();
     }
 
     gec.pg().barrier();

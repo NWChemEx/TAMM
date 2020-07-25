@@ -1,5 +1,3 @@
-// #define CATCH_CONFIG_RUNNER
-
 #include "cd_ccsd_common_os_ann.hpp"
 
 #include <filesystem>

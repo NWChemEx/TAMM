@@ -36,10 +36,11 @@
 #endif
 #undef I 
 
-#include <utils/external/nlohmann/json.hpp>
+#include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
 #include <filesystem>
+namespace fs = std::filesystem;
 
 using namespace tamm;
 using std::cerr;
@@ -227,6 +228,12 @@ struct SystemData {
 
 };
 
+std::string getfilename(std::string filename){
+  size_t lastindex = filename.find_last_of(".");
+  auto fname = filename.substr(0,lastindex);
+  return fname.substr(fname.find_last_of("/")+1,fname.length());
+}
+
 void write_results(SystemData sys_data, const std::string module){
   auto options = sys_data.options_map;
   auto scf = options.scf_options;
@@ -385,6 +392,25 @@ std::vector<size_t> map_basis_function_to_shell(
     return result;
 }
 
+template<typename T>
+void readMD(std::vector<T>& mbuf, std::vector<T>& dbuf, std::string movecsfile, std::string densityfile) {
+
+  auto mfile_id = H5Fopen(movecsfile.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+  auto dfile_id = H5Fopen(densityfile.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+
+  auto mdataset_id = H5Dopen(mfile_id, "movecs",  H5P_DEFAULT);
+  auto ddataset_id = H5Dopen(dfile_id, "density", H5P_DEFAULT);
+
+   /* Read the datasets. */
+  H5Dread(mdataset_id, get_hdf5_dt<T>(), H5S_ALL, H5S_ALL, H5P_DEFAULT, mbuf.data());
+  H5Dread(ddataset_id, get_hdf5_dt<T>(), H5S_ALL, H5S_ALL, H5P_DEFAULT, dbuf.data());                    
+
+  H5Dclose(mdataset_id);
+  H5Dclose(ddataset_id);
+  H5Fclose(mfile_id);
+  H5Fclose(dfile_id);
+}
+
 void writeC(Matrix& C, std::string scf_files_prefix){
   std::string outputfile = scf_files_prefix + ".movecs";
   const auto N = C.rows();
@@ -392,14 +418,23 @@ void writeC(Matrix& C, std::string scf_files_prefix){
   std::vector<TensorType> Cbuf(N*Northo);
   TensorType *buf = Cbuf.data();
   Eigen::Map<Matrix>(buf,N,Northo) = C;  
-  std::ofstream out(outputfile, std::ios::out | std::ios::binary);
-  if(!out) {
-    cerr << "ERROR: Cannot open file " << outputfile << endl;
-    return;
-  }
 
-  out.write((char *)(buf), sizeof(TensorType) *N*Northo);
-  out.close();
+  // out.write((char *)(buf), sizeof(TensorType) *N*Northo);
+
+  /* Create a file. */
+  hid_t file_id = H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+  hsize_t tsize = N*Northo;
+  hid_t dataspace_id = H5Screate_simple(1, &tsize, NULL);
+
+  /* Create dataset. */
+  hid_t dataset_id = H5Dcreate(file_id, "movecs", get_hdf5_dt<TensorType>(), dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  /* Write the dataset. */
+  /* herr_t status = */ H5Dwrite(dataset_id, get_hdf5_dt<TensorType>(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);   
+
+  H5Dclose(dataset_id);
+  H5Sclose(dataspace_id);
+  H5Fclose(file_id);   
 }
 
 void writeD(Matrix& D, std::string scf_files_prefix){
@@ -408,14 +443,20 @@ void writeD(Matrix& D, std::string scf_files_prefix){
   std::vector<TensorType> Dbuf(N*N);
   TensorType *buf = Dbuf.data();
   Eigen::Map<Matrix>(buf,N,N) = D;  
-  std::ofstream out(outputfile, std::ios::out | std::ios::binary);
-  if(!out) {
-    cerr << "ERROR: Cannot open file " << outputfile << endl;
-    return;
-  }
 
-  out.write((char *)(buf), sizeof(TensorType) *N*N);
-  out.close();
+  // out.write((char *)(buf), sizeof(TensorType) *N*N);
+
+  hid_t file_id = H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+  hsize_t tsize = N*N;
+  hid_t dataspace_id = H5Screate_simple(1, &tsize, NULL);
+
+  hid_t dataset_id = H5Dcreate(file_id, "density", get_hdf5_dt<TensorType>(), dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  /* herr_t status = */ H5Dwrite(dataset_id, get_hdf5_dt<TensorType>(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);   
+
+  H5Dclose(dataset_id);
+  H5Sclose(dataspace_id);
+  H5Fclose(file_id);
 }
 
 template<typename T>

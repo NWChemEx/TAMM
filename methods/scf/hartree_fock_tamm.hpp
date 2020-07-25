@@ -89,6 +89,11 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
     // const bool is_rohf = (sys_data.scf_type == sys_data.SCFType::rohf);    
 
+    std::string out_fp = options_map.options.output_file_prefix+"."+scf_options.basis;
+    std::string files_dir = out_fp+"_files/scf";
+    std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
+    if(!fs::exists(files_dir)) fs::create_directories(files_dir);
+
     #if SCF_THROTTLE_RESOURCES
       auto [hf_nnodes,ppn,hf_nranks] = get_hf_nranks(N);
       if (scf_options.nnodes > hf_nnodes) {
@@ -185,8 +190,8 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     EigenTensors etensors;
 
-    std::string scf_files_prefix_a = options_map.options.output_file_prefix + "." + scf_options.basis + ".alpha";
-    std::string scf_files_prefix_b = options_map.options.output_file_prefix + "." + scf_options.basis + ".beta";
+    std::string scf_files_prefix_a = files_prefix + ".alpha";
+    std::string scf_files_prefix_b = files_prefix + ".beta";
 
     const bool scf_conv = restart && scf_options.noscf; 
     const int  max_hist = sys_data.options_map.scf_options.diis_hist; 
@@ -222,7 +227,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     }
 
-    scf_restart_test(exc, sys_data, filename, restart);
+    scf_restart_test(exc, sys_data, filename, restart, files_prefix);
     
     #if SCF_THROTTLE_RESOURCES
     if (rank < hf_nranks) {
@@ -355,7 +360,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       Scheduler sch{ec};
 
       if (restart) {
-        scf_restart(ec, sys_data, filename, etensors);
+        scf_restart(ec, sys_data, filename, etensors, files_prefix);
         if(is_rhf) 
           etensors.X      = etensors.C;
         if(is_uhf) {

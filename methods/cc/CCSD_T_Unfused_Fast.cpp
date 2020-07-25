@@ -1,5 +1,3 @@
-// #define CATCH_CONFIG_RUNNER
-
 #include "cd_ccsd_common.hpp"
 #include "ccsd_t/ccsd_t_unfused_driver.hpp"
 

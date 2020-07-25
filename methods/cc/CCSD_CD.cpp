@@ -1,5 +1,3 @@
-// #define CATCH_CONFIG_RUNNER
-
 #include "diis.hpp"
 #include "ccsd_util.hpp"
 

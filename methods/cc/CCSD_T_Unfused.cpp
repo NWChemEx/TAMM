@@ -1,5 +1,3 @@
-// #define CATCH_CONFIG_RUNNER
-
 #include "cd_ccsd_common.hpp"
 #include "ccsd_t/ccsd_t_unfused_driver.hpp"
 
@@ -175,7 +173,7 @@ void ccsd_driver() {
     auto nagg = 0; //sys_data.options_map.ccsd_options.gf_ndiis;
     if(!ccsd_t_restart) {
         d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, hw);
-        write_to_disk(d_v2,fullV2file,true,nagg);
+        write_to_disk(d_v2,fullV2file,true,true,nagg);
         Tensor<T>::deallocate(d_v2);
     }
 

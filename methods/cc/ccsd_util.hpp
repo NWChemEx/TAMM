@@ -19,12 +19,6 @@ using Tensor4D   = Eigen::Tensor<double, 4, Eigen::RowMajor>;
   //     }
   // };
 
-std::string getfilename(std::string filename){
-  size_t lastindex = filename.find_last_of(".");
-  auto fname = filename.substr(0,lastindex);
-  return fname.substr(fname.find_last_of("/")+1,fname.length());
-}
-
 template<typename TensorType>
 void update_r2(ExecutionContext& ec, 
               LabeledTensor<TensorType> ltensor) {

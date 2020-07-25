@@ -1,9 +1,9 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.15)
 project(tamm VERSION 0.0.0 LANGUAGES C CXX Fortran)
 include(${PROJECT_SOURCE_DIR}/cmake/check_user_env.cmake)
 set(NWX_PROJECTS tamm)
 
-set(tamm_DEPENDENCIES NWX_MPI MSGSL Eigen3 GlobalArrays LibInt2 CBLAS LAPACKE HPTT BLIS)
+set(tamm_DEPENDENCIES NWX_MPI MSGSL Eigen3 GlobalArrays LibInt2 CBLAS LAPACKE HPTT BLIS HDF5)
 if(USE_CUDA) 
    list(APPEND tamm_DEPENDENCIES TALSH)
 endif()

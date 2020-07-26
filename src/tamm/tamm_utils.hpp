@@ -492,12 +492,12 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
     if(rank == 0 && profile) std::cout << "write to disk using: " << nppn << std::endl;
 
     int64_t tensor_size;
-    // int ndim=1,itype;
-    // ga_tens = tensor.ga_handle();
-    // NGA_Inquire64(ga_tens,&itype,&ndim,&tensor_size);
+    int ndim=1,itype;
+    ga_tens = tensor.ga_handle();
+    NGA_Inquire64(ga_tens,&itype,&ndim,&tensor_size);
 
-    tensor_size = 1;
-    for(auto tis: tensor.tiled_index_spaces()) tensor_size = tensor_size * (tis.index_space().num_indices());
+    // tensor_size = 1;
+    // for(auto tis: tensor.tiled_index_spaces()) tensor_size = tensor_size * (tis.index_space().num_indices());
 
     hid_t hdf5_dt = get_hdf5_dt<TensorType>();
 
@@ -554,8 +554,12 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
 
                 file_offset = 0;
                 for(const IndexVector& pbid : loop_nest) {
-                    if(pbid==blockid) break;
-                    // if(!tensor.is_non_zero(pbid)) continue;
+                    bool is_zero = !tensor.is_non_zero(pbid);
+                    if(pbid==blockid) {
+                        if(is_zero) return; 
+                        break;
+                    }
+                    if(is_zero) continue;
                     file_offset += tensor.block_size(pbid);
                 }
 
@@ -590,8 +594,12 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
 
                     file_offset = 0;
                     for(const IndexVector& pbid : loop_nest) {
-                        if(pbid==blockid) break;
-                        // if(!tensor.is_non_zero(pbid)) continue;
+                        bool is_zero = !tensor.is_non_zero(pbid);
+                        if(pbid==blockid) {
+                            if(is_zero) return; 
+                            break;
+                        }
+                        if(is_zero) continue;
                         file_offset += tensor.block_size(pbid);
                     }
 
@@ -943,8 +951,12 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
 
                 file_offset = 0;
                 for(const IndexVector& pbid : loop_nest) {
-                    if(pbid==blockid) break;
-                    // if(!tensor.is_non_zero(pbid)) continue;
+                    bool is_zero = !tensor.is_non_zero(pbid);
+                    if(pbid==blockid) {
+                        if(is_zero) return; 
+                        break;
+                    }
+                    if(is_zero) continue;
                     file_offset += tensor.block_size(pbid);
                 }
 
@@ -984,8 +996,12 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
 
                     file_offset = 0;
                     for(const IndexVector& pbid : loop_nest) {
-                        if(pbid==blockid) break;
-                        // if(!tensor.is_non_zero(pbid)) continue;
+                        bool is_zero = !tensor.is_non_zero(pbid);
+                        if(pbid==blockid) {
+                            if(is_zero) return; 
+                            break;
+                        }
+                        if(is_zero) continue;
                         file_offset += tensor.block_size(pbid);
                     }
 

@@ -1,0 +1,3 @@
+struct TestBuildBPHash {
+    bool passed();
+};

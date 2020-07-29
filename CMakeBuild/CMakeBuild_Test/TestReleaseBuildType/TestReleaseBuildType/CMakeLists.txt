@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION ${CMAKE_VERSION})
+project(TestReleaseBuildType VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+include(TargetMacros)
+set(TestReleaseBuildTypeSRCS TestReleaseBuildType.cpp)
+set(TestReleaseBuildTypeHEADERS TestReleaseBuildType.hpp)
+nwchemex_add_library(TestReleaseBuildType TestReleaseBuildTypeSRCS TestReleaseBuildTypeHEADERS "" "")

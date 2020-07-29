@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION ${CMAKE_VERSION})
+project(TestBuildBPHash VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+include(TargetMacros)
+set(TestBuildBPHashSRCS TestBuildBPHash.cpp)
+set(TestBuildBPHashHEADERS TestBuildBPHash.hpp)
+nwchemex_add_library(TestBuildBPHash TestBuildBPHashSRCS TestBuildBPHashHEADERS "" "")

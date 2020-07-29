@@ -1,0 +1,3 @@
+struct TestDebugBuildType {
+    bool passed();
+};

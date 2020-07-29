@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION ${CMAKE_VERSION})
+project(TestBuildLibInt VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+include(TargetMacros)
+set(TestBuildLibIntSRCS TestBuildLibInt.cpp)
+set(TestBuildLibIntHEADERS TestBuildLibInt.hpp)
+nwchemex_add_library(TestBuildLibInt TestBuildLibIntSRCS TestBuildLibIntHEADERS "" "")

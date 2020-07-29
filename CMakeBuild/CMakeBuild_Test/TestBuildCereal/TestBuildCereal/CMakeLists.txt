@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION ${CMAKE_VERSION})
+project(TestBuildCereal VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+include(TargetMacros)
+set(TestBuildCerealSRCS TestBuildCereal.cpp)
+set(TestBuildCerealHEADERS TestBuildCereal.hpp)
+nwchemex_add_library(TestBuildCereal TestBuildCerealSRCS TestBuildCerealHEADERS "" "")

@@ -1,0 +1,3 @@
+struct TestBuildGA {
+    bool passed();
+};

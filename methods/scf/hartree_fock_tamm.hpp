@@ -22,7 +22,7 @@ namespace fs = std::filesystem;
 #define SCF_THROTTLE_RESOURCES 1
 
 std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, 
-    Tensor<double>, Tensor<double>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace, bool> 
+    Tensor<double>, Tensor<double>, Tensor<double>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace, bool> 
     hartree_fock(ExecutionContext &exc, const string filename,
                  std::vector<libint2::Atom> atoms, OptionsMap options_map) {
 
@@ -143,6 +143,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     const auto dfbasisname = scf_options.dfbasis;
     bool do_density_fitting = false;
     if(!dfbasisname.empty()) do_density_fitting = true;
+    Tensor<double> G_Zxy_tamm; //TODO recreate on world group
 
     if (do_density_fitting) {
       dfbs = BasisSet(dfbasisname, atoms);
@@ -164,6 +165,13 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
                   << endl;
       }
       #endif
+
+      ndf = dfbs.nbf();
+      dfAO = IndexSpace{range(0, ndf)};
+      std::tie(df_shell_tile_map, dfAO_tiles, dfAO_opttiles) = compute_AO_tiles(exc,sys_data,dfbs);
+    
+      tdfAO=TiledIndexSpace{dfAO, dfAO_opttiles};
+      tdfAOt=TiledIndexSpace{dfAO, dfAO_tiles};
       
     }
     std::unique_ptr<DFFockEngine> dffockengine(
@@ -445,18 +453,14 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       std::tie(dCocc_til) = tdfCocc.labels<1>("all");
 
       if(do_density_fitting){
-        ndf = dfbs.nbf();
-        dfAO = IndexSpace{range(0, ndf)};
-        std::tie(df_shell_tile_map, dfAO_tiles, dfAO_opttiles) = compute_AO_tiles(ec,sys_data,dfbs);
-      
-        tdfAO=TiledIndexSpace{dfAO, dfAO_opttiles};
-        tdfAOt=TiledIndexSpace{dfAO, dfAO_tiles};
         std::tie(d_mu, d_nu, d_ku) = tdfAO.labels<3>("all");
         std::tie(d_mup, d_nup, d_kup) = tdfAOt.labels<3>("all");
-    
+
+        ttensors.Zxy_tamm = Tensor<TensorType>{tdfAO, tAO, tAO}; //ndf,n,n
+        G_Zxy_tamm = ttensors.Zxy_tamm;
         ttensors.xyK_tamm = Tensor<TensorType>{tAO, tAO, tdfAO}; //n,n,ndf
         ttensors.C_occ_tamm = Tensor<TensorType>{tAO,tdfCocc}; //n,nocc
-        Tensor<TensorType>::allocate(&ec, ttensors.xyK_tamm, ttensors.C_occ_tamm);
+        Tensor<TensorType>::allocate(&ec, ttensors.xyK_tamm, ttensors.C_occ_tamm,ttensors.Zxy_tamm);
       }//df basis
 
       if(rank == 0) {
@@ -744,7 +748,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     exc.pg().barrier();
 
     return std::make_tuple(sys_data, ehf, shells, shell_tile_map, 
-      C_alpha_tamm, F_alpha_tamm, C_beta_tamm, F_beta_tamm, tAO, tAOt, scf_conv);
+      C_alpha_tamm, F_alpha_tamm, C_beta_tamm, F_beta_tamm, G_Zxy_tamm, tAO, tAOt, scf_conv);
 }
 
 #endif // TAMM_METHODS_HF_TAMM_HPP_

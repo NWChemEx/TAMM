@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION ${CMAKE_VERSION})
+project(TestBuildCBLAS VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+include(TargetMacros)
+set(TestBuildCBLASSRCS TestBuildCBLAS.cpp)
+set(TestBuildCBLASHEADERS TestBuildCBLAS.hpp)
+nwchemex_add_library(TestBuildCBLAS TestBuildCBLASSRCS TestBuildCBLASHEADERS "" "")

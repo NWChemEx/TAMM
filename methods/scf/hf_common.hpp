@@ -142,7 +142,8 @@ struct TAMMTensors {
 
     //DF
     Tensor<TensorType> xyK_tamm; //n,n,ndf
-    Tensor<TensorType> C_occ_tamm; //n,nocc     
+    Tensor<TensorType> C_occ_tamm; //n,nocc
+    Tensor<TensorType> Zxy_tamm; //ndf,n,n  
 };
 
 struct SystemData {

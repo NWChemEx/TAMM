@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION ${CMAKE_VERSION})
+project(TestBuildEigen3 VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+include(TargetMacros)
+set(TestBuildEigen3SRCS TestBuildEigen3.cpp)
+set(TestBuildEigen3HEADERS TestBuildEigen3.hpp)
+nwchemex_add_library(TestBuildEigen3 TestBuildEigen3SRCS TestBuildEigen3HEADERS "" "")

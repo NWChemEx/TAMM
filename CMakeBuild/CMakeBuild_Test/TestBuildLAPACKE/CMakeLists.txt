@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.6)
+project(TestBuildLAPACKE VERSION 1.0.0 LANGUAGES CXX)
+find_package(CMakeBuild)
+set(TestBuildLAPACKE_DEPENDENCIES LAPACKE)
+set(BUILD_LAPACKE TRUE)
+build_nwchemex_module(${CMAKE_CURRENT_LIST_DIR})

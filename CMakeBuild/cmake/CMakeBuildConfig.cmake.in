@@ -1,0 +1,69 @@
+################################################################################
+#                                                                              #
+# This file generated from CMakeBuildConfig.cmake.in. Do not edit.           #
+#                                                                              #
+################################################################################
+include(FindPackageHandleStandardArgs)
+
+#Get the install root by assuming we are in root/share/cmake/ProjectName
+#In theory all the macros are right here-ish too
+set(CMAKEBUILD_MODULE_PATH  "${CMAKE_CURRENT_LIST_DIR}")
+
+#Find assert module
+find_path(ASSERT_MODULE_PATH macros/AssertMacros.cmake
+          PATHS ${CMAKEBUILD_MODULE_PATH})
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(ASSERT_MODULE DEFAULT_MSG ASSERT_MODULE_PATH)
+include(${ASSERT_MODULE_PATH}/macros/AssertMacros.cmake)
+#For good measure make sure it's the one we think it is
+assert_strings_are_equal(ASSERT_MODULE_PATH CMAKEBUILD_MODULE_PATH)
+
+#Find the rest of the modules
+set(__modules @__MACRO_FILES@)
+foreach(__module_i ${__modules})
+   get_filename_component(__file_name ${__module_i} NAME_WE)
+   list(APPEND CMAKEBUILD_MODULES ${__file_name}_MODULE)
+   find_path(${__file_name}_MODULE macros/${__file_name}.cmake
+             PATHS ${CMAKEBUILD_MODULE_PATH})
+   assert_strings_are_equal(${__file_name}_MODULE CMAKEBUILD_MODULE_PATH)
+endforeach()
+
+#Find the FindXXX.cmake files
+set(__modules @__FIND_FILES@)
+foreach(__module_i ${__modules})
+   get_filename_component(__file_name ${__module_i} NAME_WE)
+   list(APPEND CMAKEBUILD_MODULES ${__file_name}_MODULE)
+   find_path(${__file_name}_MODULE find_external/${__file_name}.cmake
+             PATHS ${CMAKEBUILD_MODULE_PATH})
+   assert_strings_are_equal(${__file_name}_MODULE CMAKEBUILD_MODULE_PATH)
+endforeach()
+
+#Find the BuildXXX.cmake files
+set(__modules @__BUILD_FILES@)
+foreach(__module_i ${__modules})
+   get_filename_component(__file_name ${__module_i} NAME_WE)
+   list(APPEND CMAKEBUILD_MODULES ${__file_name}_MODULE)
+   find_path(${__file_name}_MODULE build_external/${__file_name}.cmake
+             PATHS ${CMAKEBUILD_MODULE_PATH})
+   assert_strings_are_equal(${__file_name}_MODULE CMAKEBUILD_MODULE_PATH)
+endforeach()
+
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKEBUILD_MODULE_PATH}/macros
+                              ${CMAKEBUILD_MODULE_PATH}/find_external
+                              ${CMAKEBUILD_MODULE_PATH}/build_external)
+
+#Find the testing infrastructure
+#If we installed NWX_Catch it is up 3 directories, so add that to search path
+#get_filename_component(__root_dir ${CMAKEBUILD_MODULE_PATH} DIRECTORY)
+#get_filename_component(__root_dir ${__root_dir} DIRECTORY)
+#get_filename_component(__root_dir ${__root_dir} DIRECTORY)
+list(APPEND CMAKE_PREFIX_PATH ${__root_dir})
+
+#find_package(NWX_Catch REQUIRED)
+
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(CMAKEBUILD DEFAULT_MSG
+                                  ${CMAKEBUILD_MODULES})
+#list(APPEND CMAKEBUILD_INCLUDE_DIRS ${NWX_CATCH_INCLUDE_DIRS})
+#list(APPEND CMAKEBUILD_LIBRARIES ${NWX_CATCH_LIBRARIES})
+set(CMakeBuild_FOUND ${CMAKEBUILD_FOUND})
+include(BuildNWChemExModule)

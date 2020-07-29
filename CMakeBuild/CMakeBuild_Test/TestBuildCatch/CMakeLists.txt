@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.6)
+project(TestBuildCatch VERSION 1.0.0 LANGUAGES CXX)
+find_package(CMakeBuild)
+set(TestBuildCatch_DEPENDENCIES NWX_Catch)
+set(BUILD_NWX_Catch TRUE)
+build_nwchemex_module(${CMAKE_CURRENT_LIST_DIR})

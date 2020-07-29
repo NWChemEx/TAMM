@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION ${CMAKE_VERSION})
+project(TestBuildLAPACKE VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+include(TargetMacros)
+set(TestBuildLAPACKESRCS TestBuildLAPACKE.cpp)
+set(TestBuildLAPACKEHEADERS TestBuildLAPACKE.hpp)
+nwchemex_add_library(TestBuildLAPACKE TestBuildLAPACKESRCS TestBuildLAPACKEHEADERS "" "")

@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.6)
+project(TestReleaseBuildType VERSION 1.0.0 LANGUAGES CXX)
+find_package(CMakeBuild)
+set(TestReleaseBuildType_DEPENDENCIES )
+set(CMAKE_BUILD_TYPE Release)
+build_nwchemex_module(${CMAKE_CURRENT_LIST_DIR})

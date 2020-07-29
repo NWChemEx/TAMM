@@ -23,8 +23,9 @@ CD {
 }
 
 CCSD {
-    threshold 1e-10
-    tilesize 30
+    //set cuda x where x = number of gpus per node
+    cuda 2
+    threshold 1e-6
     debug false
 }
 

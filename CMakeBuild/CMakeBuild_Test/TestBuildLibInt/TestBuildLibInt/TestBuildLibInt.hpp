@@ -1,0 +1,3 @@
+struct TestBuildLibInt {
+    bool passed();
+};

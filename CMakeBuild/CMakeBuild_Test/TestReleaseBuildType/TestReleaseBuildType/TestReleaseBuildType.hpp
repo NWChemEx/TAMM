@@ -1,0 +1,3 @@
+struct TestReleaseBuildType {
+    bool passed();
+};

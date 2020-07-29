@@ -1,0 +1,3 @@
+struct TestBuildCatch {
+    bool passed();
+};

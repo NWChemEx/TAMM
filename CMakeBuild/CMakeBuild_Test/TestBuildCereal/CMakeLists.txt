@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.6)
+project(TestBuildCereal VERSION 1.0.0 LANGUAGES CXX)
+find_package(CMakeBuild)
+set(TestBuildCereal_DEPENDENCIES cereal)
+build_nwchemex_module(${CMAKE_CURRENT_LIST_DIR})

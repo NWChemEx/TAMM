@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION ${CMAKE_VERSION})
+project(TestBuildPybind11 VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+include(TargetMacros)
+set(TestBuildPybind11SRCS TestBuildPybind11.cpp)
+set(TestBuildPybind11HEADERS TestBuildPybind11.hpp)
+nwchemex_add_library(TestBuildPybind11 TestBuildPybind11SRCS TestBuildPybind11HEADERS "" "")

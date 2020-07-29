@@ -95,7 +95,7 @@ SCF
     conve 1e-6
     convd 1e-5
     diis_hist 12
-    tilesize 30
+    //tilesize 30
     //debug true
     //restart true
 }
@@ -105,11 +105,16 @@ CD {
 }
 
 CCSD {
+    //set cuda x where x = number of gpus per node
     cuda 6
+    //readt true
+    writet true
+    writet_iter 2
+    //ccsd_maxiter 5
     threshold 1e-2
-    //ccsd_maxiter 1
-    //force_tilesize true
-    //tilesize 50
+    force_tilesize true
+    tilesize 60
+    ccsdt_tilesize 40
+    itilesize 1000
     debug false
-
 }

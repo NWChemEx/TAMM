@@ -6,9 +6,6 @@
 #include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
 
-#include CBLAS_HEADER
-// #include LAPACKE_HEADER
-
 using namespace tamm;
 using TensorType = double;
 using TAMM_GA_SIZE = int64_t;

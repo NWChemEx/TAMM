@@ -164,6 +164,13 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
                   << endl;
       }
       #endif
+
+      ndf = dfbs.nbf();
+      dfAO = IndexSpace{range(0, ndf)};
+      std::tie(df_shell_tile_map, dfAO_tiles, dfAO_opttiles) = compute_AO_tiles(exc,sys_data,dfbs);
+    
+      tdfAO=TiledIndexSpace{dfAO, dfAO_opttiles};
+      tdfAOt=TiledIndexSpace{dfAO, dfAO_tiles};
       
     }
     std::unique_ptr<DFFockEngine> dffockengine(
@@ -445,18 +452,13 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       std::tie(dCocc_til) = tdfCocc.labels<1>("all");
 
       if(do_density_fitting){
-        ndf = dfbs.nbf();
-        dfAO = IndexSpace{range(0, ndf)};
-        std::tie(df_shell_tile_map, dfAO_tiles, dfAO_opttiles) = compute_AO_tiles(ec,sys_data,dfbs);
-      
-        tdfAO=TiledIndexSpace{dfAO, dfAO_opttiles};
-        tdfAOt=TiledIndexSpace{dfAO, dfAO_tiles};
         std::tie(d_mu, d_nu, d_ku) = tdfAO.labels<3>("all");
         std::tie(d_mup, d_nup, d_kup) = tdfAOt.labels<3>("all");
-    
+
+        ttensors.Zxy_tamm = Tensor<TensorType>{tdfAO, tAO, tAO}; //ndf,n,n
         ttensors.xyK_tamm = Tensor<TensorType>{tAO, tAO, tdfAO}; //n,n,ndf
         ttensors.C_occ_tamm = Tensor<TensorType>{tAO,tdfCocc}; //n,nocc
-        Tensor<TensorType>::allocate(&ec, ttensors.xyK_tamm, ttensors.C_occ_tamm);
+        Tensor<TensorType>::allocate(&ec, ttensors.xyK_tamm, ttensors.C_occ_tamm,ttensors.Zxy_tamm);
       }//df basis
 
       if(rank == 0) {
@@ -660,7 +662,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       if(rank == 0) tamm_to_eigen_tensor(ttensors.F1,etensors.F);
 
-      if(do_density_fitting) Tensor<TensorType>::deallocate(ttensors.xyK_tamm, ttensors.C_occ_tamm);
+      if(do_density_fitting) Tensor<TensorType>::deallocate(ttensors.xyK_tamm, ttensors.C_occ_tamm, ttensors.Zxy_tamm);
 
       Tensor<TensorType>::deallocate(ttensors.H1     , ttensors.S1      , ttensors.T1         , ttensors.V1,
                                      ttensors.F1tmp1 , ttensors.ehf_tmp , ttensors.ehf_tamm   , ttensors.F1,

@@ -914,6 +914,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
       Tensor<TensorType>& F1tmp       = ttensors.F1tmp;
       Tensor<TensorType>& F1tmp1      = ttensors.F1tmp1;
       Tensor<TensorType>& F1tmp1_beta = ttensors.F1tmp1_beta;
+      Tensor<TensorType>& Zxy_tamm    = ttensors.Zxy_tamm;
       Tensor<TensorType>& xyK_tamm    = ttensors.xyK_tamm;
 
       double fock_precision = std::min(sys_data.options_map.scf_options.tol_int, 1e-3 * sys_data.options_map.scf_options.conve);
@@ -1126,8 +1127,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
             auto shell2bf_df = dfbs.shell2bf();
             const auto& results = engine.results();
 
-            Tensor<TensorType> Zxy_tamm{tdfAO, tAO, tAO}; //ndf,n,n
-            Tensor<TensorType>::allocate(&ec, Zxy_tamm);
+            // Tensor<TensorType>::allocate(&ec, Zxy_tamm);
 
             #if 1
               //TODO: Screening?
@@ -1322,7 +1322,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
           // Tensor3D xyK = Zxy.contract(K,aidx_00); 
             Scheduler{ec}
             (xyK_tamm(mu,nu,d_nu) = Zxy_tamm(d_mu,mu,nu) * K_tamm(d_mu,d_nu)).execute();
-            Tensor<TensorType>::deallocate(K_tamm,Zxy_tamm); //release memory
+            Tensor<TensorType>::deallocate(K_tamm); //release memory Zxy_tamm
 
           }  // if (!is_3c_init)
       

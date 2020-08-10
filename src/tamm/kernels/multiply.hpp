@@ -11,7 +11,15 @@
 #define BLIS_DISABLE_BLAS_DEFS
 #include "blis/blis.h"
 #endif
-#include CBLAS_HEADER
+
+#if defined(TAMM_BLA_MKL)
+  #include "mkl.h"
+#elif defined(TAMM_BLA_ESSL)
+  #include "essl.h"
+#elif defined(TAMM_BLA_REFERENCE)
+  #include "blis/cblas.h"  
+#endif
+
 #include <complex>
 #include <numeric>
 #include <vector>

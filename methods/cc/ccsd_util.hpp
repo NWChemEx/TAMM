@@ -465,7 +465,7 @@ std::tuple<SystemData, double,
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-    std::tie(sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, tAO, tAOt,scf_conv) = hartree_fock(ec, filename, atoms, options_map);
+    std::tie(sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, tAO, tAOt, scf_conv) = hartree_fock(ec, filename, atoms, options_map);
     sys_data.input_molecule = getfilename(filename);
     sys_data.output_file_prefix = options_map.options.output_file_prefix;
 

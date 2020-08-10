@@ -4,6 +4,7 @@
 #include <vector>
 #include <chrono>
 #include <random>
+#include <fstream>
 #include <type_traits>
 #include <hdf5.h>
 
@@ -69,9 +70,16 @@ MPI_Datatype mpi_type(){
  * @param [in] tensor input Tensor object
  */
 template<typename T>
-void print_tensor(const Tensor<T>& tensor) {
+void print_tensor(const Tensor<T>& tensor, std::string filename="") {
+    std::stringstream tstring;
     auto lt = tensor();
-    std::cout << "tensor size = " << tensor.size() << std::endl;
+
+    int ndims = tensor.num_modes();
+    std::vector<int64_t> dims;
+    for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
+
+    tstring << "tensor dims = " << dims << std::endl;
+    tstring << "actual tensor size = " << tensor.size() << std::endl;
     for(auto it : tensor.loop_nest()) {
         auto blockid   = internal::translate_blockid(it, lt);
         if(!tensor.is_non_zero(blockid)) continue;
@@ -79,32 +87,69 @@ void print_tensor(const Tensor<T>& tensor) {
         std::vector<T> buf(size);
         tensor.get(blockid, buf);
         auto bdims = tensor.block_dims(blockid);
-        std::cout << "blockid:" << blockid << ", ";
-        std::cout << "bdims:" << bdims << ", size: " << size << std::endl;
+        auto boffsets = tensor.block_offsets(blockid);
+        tstring << "blockid: " << blockid << ", ";
+        tstring << "block_offsets: " << boffsets << ", ";
+        tstring << "bdims: " << bdims << ", size: " << size << std::endl;
         
         for(TAMM_SIZE i = 0; i < size; i++) {
             if constexpr(tamm::internal::is_complex_v<T>) {
                  if(buf[i].real() > 0.0000000000001 ||
                    buf[i].real() < -0.0000000000001)
-                    std::cout << buf[i] << " ";
+                    tstring << buf[i] << " ";
             } else {
                if(buf[i] > 0.0000000000001 || buf[i] < -0.0000000000001)
-                    std::cout << buf[i] << " ";
+                    tstring << buf[i] << " ";
             }
         }
-        std::cout << std::endl;
+        tstring << std::endl;
     }
+
+    if(!filename.empty()){
+        std::ofstream tos(filename+".txt", std::ios::out);
+        if(!tos) std::cerr << "Error opening file " << filename << std::endl;
+        tos << tstring.str() << std::endl;
+        tos.close();
+    }
+    else std::cout << tstring.str();
 }
 
 template<typename T>
-void print_tensor_all(Tensor<T>& t) {
-    for(auto it : t.loop_nest()) {
-        TAMM_SIZE size = t.block_size(it);
+void print_tensor_all(const Tensor<T>& tensor, std::string filename="") {
+    std::stringstream tstring;
+    auto lt = tensor();
+
+    int ndims = tensor.num_modes();
+    std::vector<int64_t> dims;
+    for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
+
+    tstring << "tensor dims = " << dims << std::endl;
+    tstring << "actual tensor size = " << tensor.size() << std::endl;
+    for(auto it : tensor.loop_nest()) {
+        auto blockid   = internal::translate_blockid(it, lt);
+        if(!tensor.is_non_zero(blockid)) continue;
+        TAMM_SIZE size = tensor.block_size(blockid);
         std::vector<T> buf(size);
-        t.get(it, buf);
-        std::cout << "block" << it;
-        for(TAMM_SIZE i = 0; i < size; i++) std::cout << buf[i] << std::endl;
+        tensor.get(blockid, buf);
+        auto bdims = tensor.block_dims(blockid);
+        auto boffsets = tensor.block_offsets(blockid);
+        tstring << "blockid: " << blockid << ", ";
+        tstring << "block_offsets: " << boffsets << ", ";
+        tstring << "bdims: " << bdims << ", size: " << size << std::endl;
+        
+        for(TAMM_SIZE i = 0; i < size; i++) {
+            tstring << buf[i] << " ";
+        }
+        tstring << std::endl;
     }
+    
+    if(!filename.empty()){
+        std::ofstream tos(filename+".txt", std::ios::out);
+        if(!tos) std::cerr << "Error opening file " << filename << std::endl;
+        tos << tstring.str() << std::endl;
+        tos.close();
+    }
+    else std::cout << tstring.str();
 }
 
 /**
@@ -197,14 +242,14 @@ void update_tensor_general(LabeledTensor<T> labeled_tensor, Func lambda) {
  * @todo there is possible memory leak as distribution will not be unallocated
  * when Execution context is destructed
  */
-// inline ExecutionContext make_execution_context() {
-//     ProcGroup* pg = new ProcGroup {ProcGroup::create_coll(GA_MPI_Comm())};
-//     auto* pMM             = MemoryManagerGA::create_coll(*pg);
-//     Distribution_NW* dist = new Distribution_NW();
-//     RuntimeEngine* re = new RuntimeEngine{};
-//     ExecutionContext *ec = new ExecutionContext(*pg, dist, pMM, re);
-//     return *ec;
-// }
+/*inline ExecutionContext make_execution_context() {
+    ProcGroup* pg = new ProcGroup {ProcGroup::create_coll(GA_MPI_Comm())};
+    auto* pMM             = MemoryManagerGA::create_coll(*pg);
+    Distribution_NW* dist = new Distribution_NW();
+    RuntimeEngine* re = new RuntimeEngine{};
+    ExecutionContext *ec = new ExecutionContext(*pg, dist, pMM, re);
+    return *ec;
+} */
 
 /**
  * @brief method for getting the sum of the values on the diagonal
@@ -419,6 +464,46 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor) {
         for(size_t i=0;i<ndims;i++) lo[i]   = cd_ncast<size_t>(block_offset[i]);
         for(size_t i=0;i<ndims;i++) hi[i]   = cd_ncast<size_t>(block_offset[i] + block_dims[i]-1);
         for(size_t i=1;i<ndims;i++) ld[i-1] = cd_ncast<size_t>(block_dims[i]);
+
+        std::vector<TensorType> sbuf(dsize);
+        tensor.get(blockid, sbuf);
+        NGA_Put64(ga_tens,&lo[0],&hi[0],&sbuf[0],&ld[0]);
+    };
+
+    block_for(ec, tensor(), tamm_ga_lambda);
+
+    return ga_tens;
+}
+
+//For dense->dlpno
+template<typename TensorType>
+int tamm_to_ga2(ExecutionContext& ec, Tensor<TensorType>& tensor) {
+
+  int ndims = tensor.num_modes();
+  std::vector<int64_t> dims;
+  std::vector<int64_t> chnks(ndims,-1);
+
+  for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
+
+  auto ga_eltype = to_ga_eltype(tensor_element_type<TensorType>());
+  int ga_tens = NGA_Create64(ga_eltype,ndims,&dims[0],const_cast<char*>("iotemp"),&chnks[0]);
+  //GA_Zero(ga_tens);
+
+    //convert tamm tensor to GA
+    auto tamm_ga_lambda = [&](const IndexVector& bid){
+        const IndexVector blockid =
+        internal::translate_blockid(bid, tensor());
+
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        
+        std::vector<int64_t> lo(ndims),hi(ndims),ld(ndims-1);
+
+        for(size_t i=0;i<ndims-1;i++) lo[i]   = cd_ncast<size_t>(block_offset[i]);
+        for(size_t i=0;i<ndims-1;i++) hi[i]   = cd_ncast<size_t>(block_offset[i] + block_dims[i]-1);
+        for(size_t i=1;i<ndims-1;i++) ld[i-1] = cd_ncast<size_t>(block_dims[i]);
 
         std::vector<TensorType> sbuf(dsize);
         tensor.get(blockid, sbuf);
@@ -858,7 +943,38 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor, int ga_tens) {
     // NGA_Destroy(ga_tens);
 }
 
+//For dlpno->dense
+template<typename TensorType>
+void ga_to_tamm2(ExecutionContext& ec, Tensor<TensorType>& tensor, int ga_tens) {
+  
+    size_t ndims = tensor.num_modes();
 
+    //convert ga to tamm tensor
+    auto ga_tamm_lambda = [&](const IndexVector& bid){
+        const IndexVector blockid =
+        internal::translate_blockid(bid, tensor());
+
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+
+        std::vector<int64_t> lo(ndims),hi(ndims),ld(ndims-1);
+
+        for(size_t i=0;i<ndims-1;i++)  lo[i]   = cd_ncast<size_t>(block_offset[i]);
+        for(size_t i=0;i<ndims-1;i++)  hi[i]   = cd_ncast<size_t>(block_offset[i] + block_dims[i]-1);
+        for(size_t i=1;i<ndims-1;i++)  ld[i-1] = cd_ncast<size_t>(block_dims[i]);
+
+        std::vector<TensorType> sbuf(dsize);
+        NGA_Get64(ga_tens,&lo[0],&hi[0],&sbuf[0],&ld[0]);
+
+        tensor.put(blockid, sbuf);
+    };
+
+    block_for(ec, tensor(), ga_tamm_lambda);
+
+    // NGA_Destroy(ga_tens);
+}
 /**
  * @brief read tensor from disk using HDF5
  *
@@ -1255,6 +1371,32 @@ void read_from_disk_mpiio(Tensor<TensorType> tensor, const std::string& filename
     if(rank == 0 && profile) std::cout << "Time for reading " << filename << " from disk (" << nppn << "): " << io_time << " secs" << std::endl;
 }
 
+
+template<typename T>
+void dlpno_to_dense(Tensor<T> src, Tensor<T> dst){
+    //T1_dlpno(a_ii, ii) -> T1_dense(a, i)
+    //T2_dlpno(a_ij, b_ij, ij) -> T2_dense(a, b, i, j)
+    bool is_2D = src.num_modes() == 2;
+    ExecutionContext& ec = get_ec(src());
+    int ga_src = tamm_to_ga(ec,src);
+    if(is_2D) ga_to_tamm(ec, dst, ga_src);
+    else ga_to_tamm2(ec, dst, ga_src);
+    NGA_Destroy(ga_src);
+}
+
+template<typename T>
+void dense_to_dlpno(Tensor<T> src, Tensor<T> dst){
+    //T1_dense(a, i) -> T1_dlpno(a_ii, ii) 
+    //T2_dense(a, b, i, j) -> T2_dlpno(a_ij, b_ij, ij)
+    bool is_2D = src.num_modes() == 2;
+    ExecutionContext& ec = get_ec(src());
+    int ga_src;
+    if(is_2D) ga_src = tamm_to_ga(ec,src);
+    else ga_src = tamm_to_ga2(ec,src);
+    ga_to_tamm(ec, dst, ga_src);
+    NGA_Destroy(ga_src);
+}
+
 /**
  * @brief applies a function elementwise to a tensor
  *
@@ -1461,7 +1603,7 @@ Tensor<TensorType> sqrt(Tensor<TensorType> tensor) {
 }
 
 template<typename TensorType>
-Tensor<TensorType> random_ip(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
+void random_ip(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
     //std::random_device random_device;
     std::default_random_engine generator;
     std::uniform_real_distribution<TensorType> tensor_rand_dist(0.0,1.0);
@@ -1473,8 +1615,8 @@ Tensor<TensorType> random_ip(LabeledTensor<TensorType> ltensor, bool is_lt = tru
 }
 
 template<typename TensorType>
-Tensor<TensorType> random_ip(Tensor<TensorType> tensor) {
-   return random_ip(tensor(), false);
+void random_ip(Tensor<TensorType> tensor) {
+  random_ip(tensor(), false);
 }
 
 template<typename TensorType>

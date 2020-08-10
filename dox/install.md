@@ -103,15 +103,10 @@ make install
 
 ## Build using Intel MKL
 
-### Set `INTEL_ROOT` accordingly
+### Set `MKLROOT` accordingly
 
 ```
-export INTEL_ROOT=/opt/intel/compilers_and_libraries_2019.0.117
-
-export MKL_INC=$INTEL_ROOT/linux/mkl/include
-export MKL_LIBS=$INTEL_ROOT/linux/mkl/lib/intel64
-
-export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_intel_thread.a;$MKL_LIBS/libmkl_core.a;$INTEL_ROOT/linux/compiler/lib/intel64/libiomp5.a;-lpthread;-ldl"
+export MKLROOT=/opt/intel/compilers_and_libraries_2019.0.117/linux/mkl
 ```
 
 ### To enable CUDA build, add `-DUSE_CUDA=ON`
@@ -119,12 +114,7 @@ export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_i
 ```
 cd $TAMM_SRC/build 
 
-CC=gcc CXX=g++ FC=gfortran cmake \
--DCBLAS_INCLUDE_DIRS=$MKL_INC \
--DLAPACKE_INCLUDE_DIRS=$MKL_INC \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
--DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
--DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
+CC=gcc CXX=g++ FC=gfortran cmake -DBLAS_VENDOR=IntelMKL -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
 make -j3
 make install
@@ -133,9 +123,8 @@ make install
 ## Build instructions for Summit using ESSL
 
 ```
-module load gcc/8.1.1
+module load gcc/8.3.0
 module load cmake/3.17.3
-module load spectrum-mpi/10.3.0.1-20190611
 module load essl/6.1.0-2
 module load cuda/10.1.105
 module load netlib-lapack/3.8.0
@@ -144,8 +133,7 @@ module load netlib-lapack/3.8.0
 ```
 The following paths may need to be adjusted if the modules change:
 
-export ESSL_INC=/sw/summit/essl/6.1.0-2/essl/6.1/include
-export TAMM_BLASLIBS="/sw/summit/essl/6.1.0-2/essl/6.1/lib64/libesslsmp.so"
+export ESSLROOT=/sw/summit/essl/6.1.0-2/essl/6.1
 export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-8.1.1/netlib-lapack-3.8.0-moo2tlhxtaae4ij2vkhrkzcgu2pb3bmy/lib64"
 ```
 
@@ -155,14 +143,10 @@ export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/2
 cd $TAMM_SRC/build
 
 CC=gcc CXX=g++ FC=gfortran cmake \
--DCBLAS_INCLUDE_DIRS=$ESSL_INC \
--DLAPACKE_INCLUDE_DIRS=$ESSL_INC \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
--DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
--DLAPACKE_LIBRARIES=$TAMM_BLASLIBS \
--DTAMM_CXX_FLAGS="-mcpu=power9" \
--DTAMM_EXTRA_LIBS="$NETLIB_BLAS_LIBS/liblapack.a" \
--DBLIS_CONFIG=power9 ..
+-DTAMM_EXTRA_LIBS=$NETLIB_BLAS_LIBS/liblapack.a \
+-DBLIS_CONFIG=power9 \
+-DBLAS_VENDOR=IBMESSL ..
 
 make -j3
 make install
@@ -173,7 +157,7 @@ make install
 ```
 module unload PrgEnv-intel/6.0.5
 module load PrgEnv-gnu/6.0.5
-module swap gcc/8.2.0 
+module swap gcc/8.3.0 
 module swap craype/2.5.18
 module swap cray-mpich/7.7.6 
 module load cmake
@@ -182,11 +166,7 @@ module load cuda/10.1.168
 
 ```
 export CRAYPE_LINK_TYPE=dynamic
-export INTEL_ROOT=/opt/intel/compilers_and_libraries_2019.3.199
-
-export MKL_INC=$INTEL_ROOT/linux/mkl/include
-export MKL_LIBS=$INTEL_ROOT/linux/mkl/lib/intel64
-export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_gnu_thread.a;$MKL_LIBS/libmkl_core.a;-lgomp;-lpthread;-ldl"
+export MKLROOT=/opt/intel/compilers_and_libraries_2019.3.199/linux/mkl
 ```
 
 ### To enable CUDA build, add `-DUSE_CUDA=ON`
@@ -194,11 +174,7 @@ export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_i
 ```
 cd $TAMM_SRC/build
 
-CC=cc CXX=CC FC=ftn cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC \
--DLAPACKE_INCLUDE_DIRS=$MKL_INC \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
--DCBLAS_LIBRARIES=$TAMM_BLASLIBS \
--DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
+CC=cc CXX=CC FC=ftn cmake -DBLAS_VENDOR=IntelMKL -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
 make -j3
 make install
@@ -215,16 +191,13 @@ module load cmake
 
 ```
 export CRAYPE_LINK_TYPE=dynamic
-export INTEL_ROOT=/theta-archive/intel/compilers_and_libraries_2019.5.281
-export MKL_INC=$INTEL_ROOT/linux/mkl/include
-export MKL_LIBS=$INTEL_ROOT/linux/mkl/lib/intel64
-export TAMM_BLASLIBS="$MKL_LIBS/libmkl_intel_ilp64.a;$MKL_LIBS/libmkl_lapack95_ilp64.a;$MKL_LIBS/libmkl_blas95_ilp64.a;$MKL_LIBS/libmkl_intel_thread.a;$MKL_LIBS/libmkl_core.a;$INTEL_ROOT/linux/compiler/lib/intel64/libiomp5.a;-lpthread;-ldl"
+export MKLROOT=/theta-archive/intel/compilers_and_libraries_2019.5.281/linux/mkl
 ```
 
 ```
 cd $TAMM_SRC/build
 
-CC=cc CXX=CC FC=ftn cmake -DCBLAS_INCLUDE_DIRS=$MKL_INC -DLAPACKE_INCLUDE_DIRS=$MKL_INC -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH -DCBLAS_LIBRARIES=$TAMM_BLASLIBS -DLAPACKE_LIBRARIES=$TAMM_BLASLIBS ..
+CC=cc CXX=CC FC=ftn cmake -DBLAS_VENDOR=IntelMKL -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
 make -j3
 make install

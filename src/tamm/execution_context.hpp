@@ -15,7 +15,7 @@
 #include <memory>
 
 #if USE_TALSH
-#include "talshxx.hpp"
+#include "talsh/talshxx.hpp"
 #endif 
 
 namespace tamm {

@@ -628,6 +628,15 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
         /* create a file dataspace independently */
         auto file_dataspace = H5Dget_space (dataset);
 
+        /* Create and write additional metadata */
+        // std::vector<int> attr_dims{11,29,42};
+        // hsize_t attr_size = attr_dims.size();
+        // auto attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
+        // auto attr_dataset = H5Dcreate(file_identifier, "attr", H5T_NATIVE_INT, attr_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        // H5Dwrite(attr_dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, attr_dims.data());
+        // H5Dclose(attr_dataset);
+        // H5Sclose(attr_dataspace);
+
         hid_t xfer_plist;
         /* set up the collective transfer properties list */
         xfer_plist = H5Pcreate (H5P_DATASET_XFER);
@@ -1055,6 +1064,12 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
         auto dataset = H5Dopen(file_identifier, "tensor", H5P_DEFAULT);
         /* create a file dataspace independently */
         auto file_dataspace = H5Dget_space (dataset);
+
+        /* Read additional metadata */
+        // std::vector<int> attr_dims(3);
+        // auto attr_dataset = H5Dopen(file_identifier, "attr",  H5P_DEFAULT);
+        // H5Dread(attr_dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, attr_dims.data());
+        // H5Dclose(attr_dataset);
 
         hid_t xfer_plist;
         /* set up the collective transfer properties list */

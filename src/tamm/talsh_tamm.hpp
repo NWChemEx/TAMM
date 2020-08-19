@@ -6,7 +6,7 @@
 #include <list>
 #include <iostream>
 // #include "talsh.h"
-#include "talshxx.hpp"
+#include "talsh/talshxx.hpp"
 #include "cudamemset.hpp"
 
 namespace ti_internal {

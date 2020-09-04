@@ -41,8 +41,8 @@ if(DEFINED ARMCI_NETWORK)
     endif()
 endif()
 
-check_compiler_version(C Clang 7)
-check_compiler_version(CXX Clang 7)
+check_compiler_version(C Clang 8)
+check_compiler_version(CXX Clang 8)
 
 check_compiler_version(C GNU 8.1)
 check_compiler_version(CXX GNU 8.1)

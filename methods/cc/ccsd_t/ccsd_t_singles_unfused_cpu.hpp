@@ -11,17 +11,6 @@ extern double ccsd_t_data_per_rank;
 
 void initmemmodule();
 
-//TensorGen target-centric GPU kernels
-void jk_ccsd_t_s1_1(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void jk_ccsd_t_s1_2(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void jk_ccsd_t_s1_3(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void jk_ccsd_t_s1_4(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void jk_ccsd_t_s1_5(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void jk_ccsd_t_s1_6(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void jk_ccsd_t_s1_7(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void jk_ccsd_t_s1_8(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void jk_ccsd_t_s1_9(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-
 //target-centric CPU kernels
 void sd_t_s1_1_cpu(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void sd_t_s1_2_cpu(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
@@ -32,17 +21,6 @@ void sd_t_s1_6_cpu(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,dou
 void sd_t_s1_7_cpu(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void sd_t_s1_8_cpu(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void sd_t_s1_9_cpu(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-
-//NWChem source-centric GPU kernels
-void sd_t_s1_1_cuda(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void sd_t_s1_2_cuda(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void sd_t_s1_3_cuda(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void sd_t_s1_4_cuda(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void sd_t_s1_5_cuda(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void sd_t_s1_6_cuda(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void sd_t_s1_7_cuda(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void sd_t_s1_8_cuda(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
-void sd_t_s1_9_cuda(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 
 
 // template<typename T>

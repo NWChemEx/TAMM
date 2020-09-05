@@ -165,7 +165,7 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                       }
 
                       else {
-                        #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+                        #if defined(USE_CUDA) || defined(USE_HIP)
                         initmemmodule();
                         dev_mem_s(k_range[t_h1b],k_range[t_h2b],
                                   k_range[t_h3b],k_range[t_p4b],
@@ -174,6 +174,10 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                         dev_mem_d(k_range[t_h1b],k_range[t_h2b],
                                   k_range[t_h3b],k_range[t_p4b],
                                   k_range[t_p5b],k_range[t_p6b]);
+                                  
+                        #elif defined(USE_DPCPP)
+                          k_singles.resize(size,0);
+                          k_doubles.resize(size,0);
                         #endif
                       }
 

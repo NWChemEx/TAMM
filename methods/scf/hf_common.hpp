@@ -290,7 +290,7 @@ void write_results(SystemData sys_data, const std::string module){
     results["input"]["CCSD"]["threshold"] = ccsd.threshold;
     results["input"]["CCSD"]["tilesize"] = ccsd.tilesize;
     results["input"]["CCSD"]["itilesize"] = ccsd.itilesize;
-    results["input"]["CCSD"]["ncuda"] = ccsd.icuda;
+    results["input"]["CCSD"]["ncuda"] = ccsd.ngpu;
     results["input"]["CCSD"]["ndiis"] = ccsd.ndiis;
     results["input"]["CCSD"]["readt"] = str_bool(ccsd.readt);
     results["input"]["CCSD"]["writet"] = str_bool(ccsd.writet);

@@ -12,7 +12,7 @@
 #include "ccsd_t_common.hpp"
 
 int check_device(long);
-int device_init(long icuda,int *cuda_device_number );
+int device_init(long ngpu, int *cuda_device_number);
 #if defined(USE_CUDA) || defined(USE_HIP)
 void dev_release();
 void finalizememmodule();
@@ -63,6 +63,8 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
 
   //Check if node has number of devices specified in input file
   int dev_count_check;
+  bool use_dpcpp = false;
+
 #if defined(USE_CUDA)
   cudaGetDeviceCount(&dev_count_check);
   if(dev_count_check < iDevice){
@@ -79,6 +81,7 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
   }
 #elif defined(USE_DPCPP)
   {
+    use_dpcpp = true;
     cl::sycl::gpu_selector device_selector;
     cl::sycl::platform platform(device_selector);
     auto const& gpu_devices = platform.get_devices();
@@ -103,6 +106,8 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
       return std::make_tuple(-999,-999,0,0);
     }
   }
+#else
+  iDevice = 0;
 #endif
 
   int gpu_device_number=0;
@@ -165,8 +170,8 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                       }
 
                       else {
-                        #if defined(USE_CUDA) || defined(USE_HIP)
                         initmemmodule();
+                        #if defined(USE_CUDA) || defined(USE_HIP)
                         dev_mem_s(k_range[t_h1b],k_range[t_h2b],
                                   k_range[t_h3b],k_range[t_p4b],
                                   k_range[t_p5b],k_range[t_p6b]);
@@ -212,7 +217,7 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                         factor /= 2.0;
                       }
                       
-                      if(!has_GPU){
+                      if(!has_GPU || use_dpcpp){
                         size_t indx = 0;
                         for (size_t t_p4=0;t_p4 < k_range[t_p4b];t_p4++)
                         for (size_t t_p5=0;t_p5 < k_range[t_p5b];t_p5++)
@@ -236,6 +241,9 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                                           
                           indx++;
                         }
+                        #if defined(USE_DPCPP)
+                          finalizememmodule();
+                        #endif
                       }
                       else {
                       auto factor_l = factor;
@@ -258,9 +266,6 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                       // cout << "e1,e2=" << energy1 << "," << energy2 << endl;
                       dev_release();
                       finalizememmodule();
-                      #endif
-                      #if defined(USE_DPCPP)
-                        finalizememmodule();
                       #endif
                     }
 

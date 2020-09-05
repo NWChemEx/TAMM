@@ -6,7 +6,7 @@
 #include "ccsd_t_common.hpp"
 
 int check_device(long);
-int device_init(long iDevice,int *gpu_device_number );
+int device_init(long ngpu, int *gpu_device_number);
 void dev_release();
 void finalizememmodule();
 
@@ -98,6 +98,8 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
       return std::make_tuple(-999,-999,0,0);
     }
   }
+#else
+  iDevice = 0;
 #endif
 
   int gpu_device_number=0;

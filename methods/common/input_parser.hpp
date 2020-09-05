@@ -209,7 +209,7 @@ class CCSDOptions: public Options {
     tilesize       = 50;
     itilesize      = 1000;
     ccsdt_tilesize = 28;
-    icuda          = 0;
+    ngpu           = 0;
     ndiis          = 5;
     lshift         = 0;
     eom_nroots     = 0;
@@ -259,7 +259,7 @@ class CCSDOptions: public Options {
   int    itilesize;
   int    ccsdt_tilesize;
   bool   force_tilesize;
-  int    icuda;
+  int    ngpu;
   int    ndiis;
   int    eom_microiter;
   int    writet_iter;
@@ -303,9 +303,9 @@ class CCSDOptions: public Options {
     std::cout << std::defaultfloat;
     cout << endl << "CCSD Options" << endl;
     cout << "{" << endl;
-    if(icuda > 0) {
-      cout << " #cuda              = " << icuda          << endl;
-      cout << " ccsdt_tilesize     = " << ccsdt_tilesize << endl;
+    if(ngpu > 0) {
+      cout << " ngpu                 = " << ngpu          << endl;
+      cout << " ccsdt_tilesize       = " << ccsdt_tilesize << endl;
     }
     cout << " ndiis                = " << ndiis            << endl;
     cout << " threshold            = " << threshold        << endl;
@@ -733,8 +733,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             ccsd_options.ccsdt_tilesize = std::stoi(read_option(line));            
           else if(is_in_line("itilesize",line))
             ccsd_options.itilesize = std::stoi(read_option(line));            
-          else if(is_in_line("cuda",line))
-            ccsd_options.icuda = std::stoi(read_option(line));            
+          else if(is_in_line("ngpu",line))
+            ccsd_options.ngpu = std::stoi(read_option(line));            
           else if(is_in_line("debug",line))
             ccsd_options.debug = to_bool(read_option(line)); 
           else if(is_in_line("readt",line))

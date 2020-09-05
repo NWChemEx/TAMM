@@ -330,7 +330,7 @@ void ccsd_driver() {
     double ccsd_t_time = 0, total_t_time = 0;
     // cc_t1 = std::chrono::high_resolution_clock::now();
     std::tie(energy1,energy2,ccsd_t_time,total_t_time) = ccsd_t_fused_driver_new<T>(sys_data,ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
-                                    p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted,
+                                    p_evl_sorted,hf_energy+corr_energy,ccsd_options.ngpu,is_restricted,
                                     cache_s1t,cache_s1v,cache_d1t,
                                     cache_d1v,cache_d2t,cache_d2v,seq_h3b);
 
@@ -363,7 +363,7 @@ void ccsd_driver() {
     {
         // std::cout << "--------------------------------------------------------------------" << std::endl;
         ccsd_t_fused_driver_calculator_ops<T>(sys_data,ec,k_spin,MO1,
-                                    p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted,
+                                    p_evl_sorted,hf_energy+corr_energy,ccsd_options.ngpu,is_restricted,
                                     total_num_ops, 
                                     seq_h3b);
         // std::cout << "--------------------------------------------------------------------" << std::endl;

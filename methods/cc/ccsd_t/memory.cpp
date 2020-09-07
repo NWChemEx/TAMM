@@ -63,6 +63,8 @@ static void clearHostFreeList()
       hipFreeHost(*it2);
 #elif defined(USE_DPCPP)
       cl::sycl::free(*it2, get_current_context());
+#else
+  free(*it2);
 #endif // USE_CUDA
     }
   }
@@ -101,25 +103,30 @@ static void *moreDeviceMem(size_t bytes)
 static void *moreHostMem(size_t bytes)
 {
   void *ptr;
-#if defined(USE_CUDA)
-  CUDA_SAFE(cudaMallocHost(&ptr, bytes));
-#elif defined(USE_HIP)
-  HIP_SAFE(hipHostMalloc(&ptr, bytes));
-#elif defined(USE_DPCPP)
-  ptr = (void *)cl::sycl::malloc_host(bytes, get_current_context());
-#endif
+  #if defined(USE_CUDA)
+    CUDA_SAFE(cudaMallocHost(&ptr, bytes));
+  #elif defined(USE_HIP)
+    HIP_SAFE(hipHostMalloc(&ptr, bytes));
+  #elif defined(USE_DPCPP)
+    ptr = (void *)cl::sycl::malloc_host(bytes, get_current_context());
+  #else
+    ptr = (void *)malloc(bytes);
+  #endif
 
   if(ptr==nullptr) {     /*try one more time*/
     clearHostFreeList();
     clearGpuFreeList();
-#if defined(USE_CUDA)
-    CUDA_SAFE(cudaMallocHost(&ptr, bytes));
-#elif defined(USE_HIP)
-    HIP_SAFE(hipHostMalloc(&ptr, bytes));
-#elif defined(USE_DPCPP)
-    ptr = (void *)cl::sycl::malloc_host(bytes, get_current_context());
-#endif
+    #if defined(USE_CUDA)
+        CUDA_SAFE(cudaMallocHost(&ptr, bytes));
+    #elif defined(USE_HIP)
+        HIP_SAFE(hipHostMalloc(&ptr, bytes));
+    #elif defined(USE_DPCPP)
+        ptr = (void *)cl::sycl::malloc_host(bytes, get_current_context());
+    #else
+      ptr = (void *)malloc(bytes);
+    #endif
   }
+
   assert(ptr!=nullptr); /*We hopefully have a pointer*/
   return ptr;
 }
@@ -192,12 +199,14 @@ void *getHostMem(size_t bytes)
   //assert(is_init);
   void *ptr;
 #ifdef NO_OPT
-  #if defined(USE_CUDA)
+#if defined(USE_CUDA)
   CUDA_SAFE(cudaMallocHost((void **) &ptr, bytes));
 #elif defined(USE_HIP)
   HIP_SAFE(hipHostMalloc((void **) &ptr, bytes));
 #elif defiend(USE_DPCPP)
   ptr = (void *)cl::sycl::malloc_host(bytes, get_current_context());
+#else //cpu
+  ptr = (void *)malloc(bytes);
 #endif
 #else // NO_OPT
   if(free_list_host.find(bytes)!=free_list_host.end())
@@ -246,6 +255,8 @@ void freeHostMem(void *p)
   hipHostFree(p);
 #elif defined(USE_DPCPP)
   cl::sycl::free(p, get_current_context());
+#else
+  free(p);
 #endif
 
 #else

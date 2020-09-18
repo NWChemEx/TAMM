@@ -71,7 +71,7 @@ void freeGpuMem(void *p);
 #ifdef USE_DPCPP
 static cl::sycl::device get_current_device() noexcept;
 static cl::sycl::queue get_current_queue() noexcept;
-static cl::sycl::context get_current_context() noexcept
+static cl::sycl::context get_current_context() noexcept;
 #endif
 
 void finalizeMemModule();

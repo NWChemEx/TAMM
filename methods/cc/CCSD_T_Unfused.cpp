@@ -242,9 +242,9 @@ void ccsd_driver() {
 
     }
 
-
-    auto [energy1,energy2,ccsd_t_time,total_t_time] = ccsd_t_unfused_driver(ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
-                p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted,use_nwc_gpu_kernels);
+    double energy1,energy2,ccsd_t_time,total_t_time;
+    std::tie(energy1,energy2,ccsd_t_time,total_t_time) = ccsd_t_unfused_driver(ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
+                p_evl_sorted,hf_energy+corr_energy,ccsd_options.ngpu,is_restricted,use_nwc_gpu_kernels);
 
 
     double g_energy1,g_energy2;

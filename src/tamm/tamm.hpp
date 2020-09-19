@@ -25,4 +25,9 @@
 #include "tamm/lru_cache.hpp"
 #undef I
 
+namespace tamm {
+void initialize(int argc, char *argv[]);
+void finalize();
+}
+
 #endif // TAMM_TAMM_H_

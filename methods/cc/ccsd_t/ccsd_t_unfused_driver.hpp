@@ -2,77 +2,130 @@
 #ifndef CCSD_T_UNFUSED_HPP_
 #define CCSD_T_UNFUSED_HPP_
 
+#if defined(USE_CUDA) || defined(USE_HIP)
 #include "ccsd_t_singles_unfused.hpp"
 #include "ccsd_t_doubles_unfused.hpp"
+#else
+#include "ccsd_t_singles_unfused_cpu.hpp"
+#include "ccsd_t_doubles_unfused_cpu.hpp"
+#endif
 #include "ccsd_t_common.hpp"
 
 int check_device(long);
-int device_init(long icuda,int *cuda_device_number );
+int device_init(long ngpu, int *cuda_device_number);
+#if defined(USE_CUDA) || defined(USE_HIP)
 void dev_release();
 void finalizememmodule();
 void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,
 size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* host1, double* host2);
+#endif
 
+#if defined(USE_DPCPP)
+void finalizememmodule();
+#endif
 
 template<typename T>
-std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
+std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                    std::vector<int>& k_spin, 
                    const TiledIndexSpace& MO,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_v2,
                    std::vector<T>& k_evl_sorted,
-                   double hf_ccsd_energy, int icuda,
+                   double hf_ccsd_energy, int iDevice,
                    bool is_restricted, bool use_nwc_gpu_kernels) {
 
-    auto rank = GA_Nodeid();
-    bool nodezero = rank==0;
+  auto rank     = ec.pg().rank().value();
+  bool nodezero = rank==0;
 
-    // if(icuda==0) {
-    //   if(nodezero)std::cout << "\nERROR: Please specify number of cuda devices to use in the input file!\n\n"; //TODO
-    //   return std::make_tuple(-999,-999);
-    // }
+  Index noab=MO("occ").num_tiles();
+  Index nvab=MO("virt").num_tiles();
 
-    Index noab=MO("occ").num_tiles();
-    Index nvab=MO("virt").num_tiles();
+  Index noa=MO("occ_alpha").num_tiles();
+  Index nva=MO("virt_alpha").num_tiles();
 
-    auto mo_tiles = MO.input_tile_sizes();
-    std::vector<size_t> k_range;
-    std::vector<size_t> k_offset;
-    size_t sum = 0;
-    for (auto x: mo_tiles){
-      k_range.push_back(x);
-      k_offset.push_back(sum);
-      sum+=x;
-    } 
+  auto mo_tiles = MO.input_tile_sizes();
+  std::vector<size_t> k_range;
+  std::vector<size_t> k_offset;
+  size_t sum = 0;
+  for (auto x: mo_tiles){
+    k_range.push_back(x);
+    k_offset.push_back(sum);
+    sum+=x;
+  }
 
-    if(nodezero){
-      cout << "noab,nvab = " << noab << ", " << nvab << endl;
-      // cout << "k_spin = " << k_spin << endl;
-      // cout << "k_range = " << k_range << endl;
-      cout << "MO Tiles = " << mo_tiles << endl;
+  if(nodezero){
+    cout << "noa,nva = " << noa << ", " << nva << endl;
+    cout << "noab,nvab = " << noab << ", " << nvab << endl;
+    // cout << "k_spin = " << k_spin << endl;
+    // cout << "k_range = " << k_range << endl;
+    cout << "MO Tiles = " << mo_tiles << endl;
+  }
+
+  //Check if node has number of devices specified in input file
+  int dev_count_check;
+  bool use_dpcpp = false;
+
+#if defined(USE_CUDA)
+  cudaGetDeviceCount(&dev_count_check);
+  if(dev_count_check < iDevice){
+    if(nodezero) cout << "ERROR: Please check whether you have " << iDevice <<
+      " cuda devices per node. Terminating program..." << endl << endl;
+    return std::make_tuple(-999,-999,0,0);
+  }
+#elif defined(USE_HIP)
+  hipGetDeviceCount(&dev_count_check);
+  if(dev_count_check < iDevice){
+    if(nodezero) cout << "ERROR: Please check whether you have " << iDevice <<
+      " hip devices per node. Terminating program..." << endl << endl;
+    return std::make_tuple(-999,-999,0,0);
+  }
+#elif defined(USE_DPCPP)
+  {
+    use_dpcpp = true;
+    cl::sycl::gpu_selector device_selector;
+    cl::sycl::platform platform(device_selector);
+    auto const& gpu_devices = platform.get_devices();
+    for (auto &gpu_device : gpu_devices) {
+      const std::string deviceName = gpu_device.get_info<cl::sycl::info::device::name>();
+      if (gpu_device.is_gpu() && (deviceName.find("Intel") != std::string::npos))
+        dev_count_check++;
     }
-
-    //Check if node has number of devices specified in input file
-    int dev_count_check;
-    cudaGetDeviceCount(&dev_count_check);
-    if(dev_count_check < icuda){
-      if(nodezero) cout << "ERROR: Please check whether you have " << icuda <<
-       " cuda devices per node. Terminating program...\n\n";
-      return std::make_tuple(-999,-999);
+    if(dev_count_check < iDevice) {
+      if(nodezero) cout << "ERROR: Please check whether you have " << iDevice <<
+                     " SYCL devices per node. Terminating program..." << endl << endl;
+      return std::make_tuple(-999,-999,0,0);
     }
-    
-    int cuda_device_number=0;
-    //Check whether this process is associated with a GPU
-    auto has_GPU = check_device(icuda);
-    if(icuda==0) has_GPU=0;
-    // cout << "rank,has_gpu" << rank << "," << has_GPU << endl;
-    if(has_GPU == 1){
-      device_init(icuda, &cuda_device_number);
-      // if(cuda_device_number==30) // QUIT
+    else if (dev_count_check <= 0) {
+      if(nodezero) cout << "ERROR: NO SYCL devices found on node, " <<
+                     "Terminating program..." << endl << endl;
+      return std::make_tuple(-999,-999,0,0);
     }
-    if(nodezero) std::cout << "Using " << icuda << " gpu devices per node\n\n";
+    else if (dev_count_check > 1) {
+      if(nodezero) cout << "ERROR: TODO multi-device per node support for SYCL is not yet supported. "
+                        << " Terminating program..." << endl << endl;
+      return std::make_tuple(-999,-999,0,0);
+    }
+  }
+#else
+  iDevice = 0;
+#endif
 
-    //TODO replicate d_t1 L84-89 ccsd_t_gpu.F
+  int gpu_device_number=0;
+  //Check whether this process is associated with a GPU
+  auto has_GPU = check_device(iDevice);
+
+  // printf ("[%s] rank: %d, has_GPU: %d, iDevice: %d\n", __func__, rank, has_GPU, iDevice);
+
+  if(iDevice==0) has_GPU=0;
+  // cout << "rank,has_gpu" << rank << "," << has_GPU << endl;
+  if(has_GPU == 1){
+    device_init(iDevice, &gpu_device_number);
+    // if(gpu_device_number==30) // QUIT
+  }
+  if(nodezero) std::cout << "Using " << iDevice << " gpu devices per node" << endl << endl;
+  //std::cout << std::flush;
+
+  //TODO replicate d_t1 L84-89 ccsd_t_gpu.F
 
     double energy1 = 0.0;
     double energy2 = 0.0;
@@ -83,6 +136,8 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
     int64_t taskcount = 0;
     int64_t next = ac->fetch_add(0, 1);
 
+    auto cc_t1 = std::chrono::high_resolution_clock::now();
+
   for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
     for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
       for (size_t t_p6b = t_p5b; t_p6b < noab + nvab; t_p6b++) {
@@ -92,7 +147,7 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
 
             if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
                 (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
-              if (//(!restricted) ||
+              if ((!is_restricted) ||
                   (k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
                    k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8) {
                 // if (std::bit_xor<int>(k_sym[t_p4b],
@@ -116,7 +171,7 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
 
                       else {
                         initmemmodule();
-
+                        #if defined(USE_CUDA) || defined(USE_HIP)
                         dev_mem_s(k_range[t_h1b],k_range[t_h2b],
                                   k_range[t_h3b],k_range[t_p4b],
                                   k_range[t_p5b],k_range[t_p6b]);
@@ -124,6 +179,11 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                         dev_mem_d(k_range[t_h1b],k_range[t_h2b],
                                   k_range[t_h3b],k_range[t_p4b],
                                   k_range[t_p5b],k_range[t_p6b]);
+                                  
+                        #elif defined(USE_DPCPP)
+                          k_singles.resize(size,0);
+                          k_doubles.resize(size,0);
+                        #endif
                       }
 
                       //TODO:chk args, d_t1 should be local
@@ -139,9 +199,9 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
 
                       double factor = 0.0;
 
-                      // if (restricted) 
+                      if (is_restricted) 
                         factor = 2.0;
-                      //  else factor = 1.0;
+                      else factor = 1.0;
 
                       // cout << "restricted = " << factor << endl;
 
@@ -157,7 +217,7 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                         factor /= 2.0;
                       }
                       
-                      if(!has_GPU){
+                      if(!has_GPU || use_dpcpp){
                         size_t indx = 0;
                         for (size_t t_p4=0;t_p4 < k_range[t_p4b];t_p4++)
                         for (size_t t_p5=0;t_p5 < k_range[t_p5b];t_p5++)
@@ -181,10 +241,13 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                                           
                           indx++;
                         }
+                        #if defined(USE_DPCPP)
+                          finalizememmodule();
+                        #endif
                       }
                       else {
                       auto factor_l = factor;
-
+                      #if defined(USE_CUDA) || defined(USE_HIP) 
                       compute_energy(factor_l, &energy_l[0],
                                   &k_evl_sorted[k_offset[t_h1b]],
                                   &k_evl_sorted[k_offset[t_h2b]],
@@ -201,9 +264,9 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
                       energy2 += energy_l[1];
 
                       // cout << "e1,e2=" << energy1 << "," << energy2 << endl;
-                      // cout << "-----------------------------------------\n";
                       dev_release();
                       finalizememmodule();
+                      #endif
                     }
 
                       next = ac->fetch_add(0, 1); 
@@ -221,12 +284,21 @@ std::tuple<double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
         }
       }
 
-    next = ac->fetch_add(0, 1); 
-    ec.pg().barrier();
-    ac->deallocate();
-    delete ac;
+      auto cc_t2 = std::chrono::high_resolution_clock::now();
+      auto ccsd_t_time =
+          std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
 
-  return std::make_tuple(energy1,energy2);
+      ec.pg().barrier();
+      cc_t2 = std::chrono::high_resolution_clock::now();
+      auto total_t_time =
+          std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
+
+      next = ac->fetch_add(0, 1);
+      ec.pg().barrier();
+      ac->deallocate();
+      delete ac;
+
+      return std::make_tuple(energy1, energy2, ccsd_t_time, total_t_time);
  
 }
 

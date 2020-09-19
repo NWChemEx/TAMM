@@ -6,6 +6,8 @@
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
 #include "tamm/atomic_counter.hpp"
+//#include "tamm/distribution.hpp"
+#include "tamm/types.hpp"
 
 #include <algorithm>
 #include <iterator>
@@ -13,7 +15,7 @@
 #include <memory>
 
 #if USE_TALSH
-#include "talshxx.hpp"
+#include "talsh/talshxx.hpp"
 #include <cutensor.h>
 #endif 
 
@@ -35,6 +37,11 @@ class Scheduler;
 template<typename T>
 class Tensor;
 class RuntimeEngine;
+
+class Distribution_NW;
+class Distribution_Dense;
+class Distribution_SimpleRoundRobin;
+
 /**
  * @brief Wrapper class to hold information during execution.
  *
@@ -47,7 +54,9 @@ class RuntimeEngine;
 class RuntimeEngine;
 class ExecutionContext {
 public:
-    ExecutionContext() : ac_{IndexedAC{nullptr, 0}} { pg_self_ = ProcGroup{MPI_COMM_SELF}; };
+    ExecutionContext() : ac_{IndexedAC{nullptr, 0}} {
+        pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
+    };
 
     ExecutionContext(const ExecutionContext&) = default;
     ExecutionContext& operator=(const ExecutionContext&) = default;
@@ -55,35 +64,45 @@ public:
     ExecutionContext(ExecutionContext&&) = default;
     ExecutionContext& operator=(ExecutionContext&&) = default;
 
+    ExecutionContext(ProcGroup pg, DistributionKind default_distribution_kind,
+                     MemoryManagerKind default_memory_manager_kind, RuntimeEngine* re =nullptr);
+
     /** @todo use shared pointers for solving GitHub issue #43*/
     ExecutionContext(ProcGroup pg, Distribution* default_distribution,
-                     MemoryManager* default_memory_manager, RuntimeEngine* re =nullptr) :
-      pg_{pg},
-      default_distribution_{default_distribution},
-      default_memory_manager_{default_memory_manager},
-      ac_{IndexedAC{nullptr, 0}} {
-        if (re == nullptr) {
-	      re_.reset(runtime_ptr());
-	    } else {
-	      re_.reset(re, [](auto){});
-	    }
-	    pg_self_ = ProcGroup{MPI_COMM_SELF};
-        ngpu_ = 0;
-        has_gpu_ = false;
-        ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
-        //nnodes_ = {GA_Cluster_nnodes()};
-        nnodes_ = pg.size().value() / ranks_pn_;
+                     MemoryManager* default_memory_manager, RuntimeEngine* re =nullptr);
+    // ExecutionContext(ProcGroup pg, Distribution* default_distribution,
+    //                  MemoryManager* default_memory_manager, RuntimeEngine* re =nullptr) :
+    //   pg_{pg},
+    //   distribution_kind_{DistributionKind::invalid},
+    // //   default_distribution_{nullptr},
+    // //   default_distribution_{default_distribution},
+    //   default_memory_manager_{default_memory_manager},
+    //   ac_{IndexedAC{nullptr, 0}} {
+    //     if (re == nullptr) {
+	//       re_.reset(runtime_ptr());
+	//     } else {
+	//       re_.reset(re, [](auto){});
+	//     }
+    //      if(default_distribution != nullptr) {
+    //        distribution_kind_ = default_distribution->kind();
+    //     // //   default_distribution_.reset(default_distribution->clone(nullptr, Proc{1}));
+    //     }
+	//     pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
+    //     ngpu_ = 0;
+    //     has_gpu_ = false;
+    //     ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
+    //     //nnodes_ = {GA_Cluster_nnodes()};
+    //     nnodes_ = pg.size().value() / ranks_pn_;
 
-    #ifdef USE_TALSH
-        int errc = talshDeviceCount(DEV_NVIDIA_GPU, &ngpu_);
-        assert(!errc);
-        dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
-        if (ngpu_ == 1) dev_id_=0;
-        if( (pg.rank().value() % ranks_pn_) < ngpu_ ) has_gpu_ = true;
-    #endif
-        // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
-    }
-
+    // #ifdef USE_TALSH
+    //     int errc = talshDeviceCount(DEV_NVIDIA_GPU, &ngpu_);
+    //     assert(!errc);
+    //     dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
+    //     if (ngpu_ == 1) dev_id_=0;
+    //     if( (pg.rank().value() % ranks_pn_) < ngpu_ ) has_gpu_ = true;
+    // #endif
+    //     // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
+    // }
     cutensorHandle_t* ct_handle;
     RuntimeEngine* runtime_ptr();
 
@@ -91,7 +110,7 @@ public:
         // MemoryManagerLocal::destroy_coll(memory_manager_local_);
     }
 
-    void allocate() {
+    void allocate(const Distribution& distribution) {
         // no-op
     }
 
@@ -102,14 +121,28 @@ public:
      * @param tensor First tensor in the list
      * @param tensor_list Remaining tensors in the list
      */
+    // template<typename T, typename... Args>
+    // void allocate(const Distribution& distribution, Tensor<T>& tensor, Args&... tensor_list) {
+    //     tensor.alloc(&distribution, default_memory_manager_);
+    //     allocate(distribution, tensor_list...);
+    // }
+
     template<typename T, typename... Args>
-    void allocate(Tensor<T>& tensor, Args&... tensor_list) {
-        tensor.alloc(default_distribution_, default_memory_manager_);
-        allocate(tensor_list...);
+    void allocate(const Distribution& distribution, Tensor<T>& tensor, Args&... tensor_list) {
+        tensor.alloc(&distribution, memory_manager_factory(memory_manager_kind_));
+        allocate(distribution, tensor_list...);
     }
 
-    void allocate_local() {
-        // no-op
+    template <typename T, typename... Args>
+    void allocate(Tensor<T>& tensor, Args&... tensor_list) {
+      std::unique_ptr<Distribution> distribution{
+          distribution_factory(distribution_kind_)};
+     allocate(*distribution.get(), tensor_list...);
+    }
+
+    void allocate_local(const Distribution& distribution,
+                        const MemoryManagerLocal& memory_manager_local) {
+      // no-op
     }
 
     /**
@@ -120,14 +153,25 @@ public:
      * @param tensor First tensor in the list
      * @param tensor_list Remaining tensors in the list
      */
-    template<typename T, typename... Args>
+    template <typename T, typename... Args>
+    void allocate_local(const Distribution& distribution,
+                        const MemoryManagerLocal& memory_manager_local,
+                        Tensor<T>& tensor, Args&... tensor_list) {
+      tensor.alloc(distribution, memory_manager_local);
+      allocate_local(tensor_list...);
+    }
+
+    template <typename T, typename... Args>
     void allocate_local(Tensor<T>& tensor, Args&... tensor_list) {
-        tensor.alloc(default_distribution_, memory_manager_local_);
-        allocate(tensor_list...);
+      std::unique_ptr<Distribution> distribution{
+          distribution_factory(distribution_kind_)};
+      MemoryManagerLocal memory_manager_local{pg_self_};
+      allocate_local(*distribution.get(), memory_manager_local,
+                     tensor_list...);
     }
 
     void deallocate() {
-        // no-op
+      // no-op
     }
 
     /**
@@ -160,7 +204,18 @@ public:
      * Get the default distribution
      * @return Default distribution
      */
-    Distribution* distribution() const { return default_distribution_; }
+    template<typename... Args>
+     Distribution* distribution(Args&&... args) const { 
+         // return default_distribution_.get(); 
+         return distribution_factory(distribution_kind_, std::forward<Args>(args)... ).release(); //@bug leak
+    }
+    
+    Distribution* get_default_distribution() {
+        // return default_distribution_.get();
+        return distribution_factory(distribution_kind_).release(); //@bug leak
+    }
+
+    // DistributionKind::Kind distribution_kind() const { return distribution_kind_; }
 
     /**
      * @brief Set the default Distribution for ExecutionContext
@@ -169,15 +224,30 @@ public:
      *
      * @param [in] distribution pointer to Distribution object
      */
-    void set_distribution(Distribution* distribution) {
-        default_distribution_ = distribution;
+    void set_distribution(Distribution* distribution);
+    // void set_distribution(Distribution* distribution) {
+    //     //default_distribution_.reset(distribution->clone(nullptr, Proc{1}));
+    //     if(distribution) {
+    //         distribution_kind_ = distribution->kind();
+    //     } else {
+    //         distribution_kind_ = DistributionKind::invalid;
+    //     }
+    // }
+
+    void set_distribution_kind(DistributionKind distribution_kind) {
+        distribution_kind_ = distribution_kind;
     }
 
     /**
      * Get the default memory manager
      * @return Default memory manager
      */
-    MemoryManager* memory_manager() const { return default_memory_manager_; }
+    //MemoryManager* memory_manager() const { return default_memory_manager_; }
+    template<typename... Args>
+     MemoryManager* memory_manager(Args&&... args) const {
+         return memory_manager_factory(memory_manager_kind_, std::forward<Args>(args)... ).release();
+     }
+
 
     /**
      * @brief Set the default memory manager for ExecutionContext
@@ -186,8 +256,12 @@ public:
      *
      * @param [in] memory_manager pointer to MemoryManager object
      */
-    void set_memory_manager(MemoryManager* memory_manager) {
-        default_memory_manager_ = memory_manager;
+    // void set_memory_manager(MemoryManager* memory_manager) {
+    //     default_memory_manager_ = memory_manager;
+    // }
+
+    void set_memory_manager_kind(MemoryManagerKind memory_manager_kind) {
+        memory_manager_kind_ = memory_manager_kind;
     }
 
     RuntimeEngine* re() const { return re_.get(); }
@@ -250,12 +324,55 @@ public:
 
     int gpu_devid() const { return dev_id_; }
 
+template<typename... Args>
+std::unique_ptr<Distribution> distribution_factory(DistributionKind dkind, Args&&... args)  const {
+  switch(dkind) {
+    case DistributionKind::invalid:
+      NOT_ALLOWED();
+      return nullptr;
+    case DistributionKind::dense:
+      return std::make_unique<Distribution_Dense>(std::forward<Args>(args)...);
+      break;
+    case DistributionKind::nw:
+      return std::make_unique<Distribution_NW>(std::forward<Args>(args)...);
+      break;
+    case DistributionKind::simple_round_robin:
+      return std::make_unique<Distribution_SimpleRoundRobin>(std::forward<Args>(args)...);
+      break;      
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+template<typename... Args>
+std::unique_ptr<MemoryManager> memory_manager_factory(MemoryManagerKind memkind, Args&&... args)  const {
+  switch(memkind) {
+    case MemoryManagerKind::invalid:
+      NOT_ALLOWED();
+      return nullptr;
+    case MemoryManagerKind::ga:
+      //auto defd = get_memory_manager(memkind);
+      return std::unique_ptr<MemoryManager>(new MemoryManagerGA{pg_});
+      //return std::unique_ptr<MemoryManager>(new MemoryManagerGA{std::forward<Args>(args)...});
+      break;
+    case MemoryManagerKind::local:
+      return std::unique_ptr<MemoryManager>(new MemoryManagerLocal{pg_self_});
+    //   return std::unique_ptr<MemoryManager>(new MemoryManagerLocal{std::forward<Args>(args)...});
+      break;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
 private:
     ProcGroup pg_;
     ProcGroup pg_self_;
-    Distribution* default_distribution_;
-    MemoryManager* default_memory_manager_;
-    MemoryManagerLocal* memory_manager_local_;
+    DistributionKind distribution_kind_;
+        // Distribution* default_distribution_;
+    //std::unique_ptr<Distribution> default_distribution_;
+    MemoryManagerKind memory_manager_kind_;
+    //MemoryManager* default_memory_manager_;
+    //MemoryManagerLocal* memory_manager_local_;
     IndexedAC ac_;
     std::shared_ptr<RuntimeEngine> re_;
     int ngpu_;

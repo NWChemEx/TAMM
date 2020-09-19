@@ -1,11 +1,17 @@
-// #define CATCH_CONFIG_RUNNER
-
 #include "cd_ccsd_common.hpp"
 #include "ccsd_t/ccsd_t_unfused_driver.hpp"
 
 void ccsd_driver();
-std::string filename; //bad, but no choice
-bool use_nwc_gpu_kernels = false;
+std::string filename;
+bool use_nwc_gpu_kernels = true;
+double ccsdt_s1_t1_GetTime = 0;
+double ccsdt_s1_v2_GetTime = 0;
+double ccsdt_d1_t2_GetTime = 0;
+double ccsdt_d1_v2_GetTime = 0;
+double ccsdt_d2_t2_GetTime = 0;
+double ccsdt_d2_v2_GetTime = 0;
+double genTime = 0;
+double ccsd_t_data_per_rank = 0; //in GB
 
 int main( int argc, char* argv[] )
 {
@@ -21,15 +27,11 @@ int main( int argc, char* argv[] )
         return 1;
     }
 
-    MPI_Init(&argc,&argv);
-    GA_Initialize();
-    MA_init(MT_DBL, 8000000, 20000000);
+    tamm::initialize(argc, argv);
 
     ccsd_driver();
 
-    GA_Terminate();
-    MPI_Finalize();
-
+    tamm::finalize();
 
     return 0;
 }
@@ -41,13 +43,10 @@ void ccsd_driver() {
     using T = double;
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext ec{pg, &distribution, mgr, &re};
+    ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     auto rank = ec.pg().rank();
 
-    auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis,scf_conv]  
+    auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, AO_opt, AO_tis,scf_conv]  
                     = hartree_fock_driver<T>(ec,filename);
 
     //force writet on
@@ -61,7 +60,7 @@ void ccsd_driver() {
     
     auto [MO,total_orbitals] = setupMOIS(sys_data);
 
-    std::string out_fp = getfilename(filename)+"."+ccsd_options.basis;
+    std::string out_fp = sys_data.output_file_prefix+"."+ccsd_options.basis;
     std::string files_dir = out_fp+"_files";
     std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
     std::string f1file = files_prefix+".f1_mo";
@@ -75,12 +74,12 @@ void ccsd_driver() {
         ( (fs::exists(t1file) && fs::exists(t2file)     
         && fs::exists(f1file) && fs::exists(v2file)) );
 
+    TiledIndexSpace N = MO("all");
+
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
-                        (sys_data, ec, MO, AO_opt, C_AO, F_AO, shells, shell_tile_map,
+                        (sys_data, ec, MO, AO_opt, C_AO, F_AO, C_beta_AO, F_beta_AO, shells, shell_tile_map,
                                 ccsd_restart, cholfile);
-
-    TiledIndexSpace N = MO("all");
 
     auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
             = setupTensors(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
@@ -171,9 +170,10 @@ void ccsd_driver() {
         && fs::exists(f1file) && fs::exists(fullV2file)) );
 
     Tensor<T> d_v2;
+    auto nagg = 0; //sys_data.options_map.ccsd_options.gf_ndiis;
     if(!ccsd_t_restart) {
         d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, hw);
-        write_to_disk(d_v2,fullV2file);
+        write_to_disk(d_v2,fullV2file,true,true,nagg);
         Tensor<T>::deallocate(d_v2);
     }
 
@@ -218,12 +218,10 @@ void ccsd_driver() {
     read_from_disk(t_d_f1,f1file,false,wd_f1);
     read_from_disk(t_d_t1,t1file,false,wd_t1);
     read_from_disk(t_d_t2,t2file,false,wd_t2);
-    read_from_disk(t_d_v2,fullV2file,false,wd_v2); 
+    read_from_disk(t_d_v2,fullV2file,false,wd_v2,true,nagg); 
 
     ec.pg().barrier();
     p_evl_sorted = tamm::diagonal(t_d_f1);
-
-    cc_t1 = std::chrono::high_resolution_clock::now();
 
     Index noab=MO1("occ").num_tiles();
     Index nvab=MO1("virt").num_tiles();
@@ -233,13 +231,21 @@ void ccsd_driver() {
     for(tamm::Index x=0;x<nvab/2;x++) k_spin.push_back(1);
     for(tamm::Index x=nvab/2;x<nvab;x++) k_spin.push_back(2);
 
-    if(rank==0) cout << endl << "Running CCSD(T) calculation" << endl;
-
     bool is_restricted = true;
     if(sys_data.options_map.scf_options.scf_type == "uhf") is_restricted = false;
 
-    auto [energy1,energy2] = ccsd_t_unfused_driver(ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
-                p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted,use_nwc_gpu_kernels);
+    if(rank==0) {
+        if(is_restricted) cout << endl << "Running Closed Shell CCSD(T) calculation" << endl;
+        else cout << endl << "Running Open Shell CCSD(T) calculation" << endl;        
+        if(use_nwc_gpu_kernels) cout << "running nwchem src-centric unfused kernels..." << endl;
+        else cout << "running tensor-gen target-centric unfused kernels..." << endl;
+
+    }
+
+    double energy1,energy2,ccsd_t_time,total_t_time;
+    std::tie(energy1,energy2,ccsd_t_time,total_t_time) = ccsd_t_unfused_driver(ec,k_spin,MO1,t_d_t1,t_d_t2,t_d_v2,
+                p_evl_sorted,hf_energy+corr_energy,ccsd_options.ngpu,is_restricted,use_nwc_gpu_kernels);
+
 
     double g_energy1,g_energy2;
     MPI_Reduce(&energy1, &g_energy1, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
@@ -251,25 +257,64 @@ void ccsd_driver() {
 
         std::cout.precision(15);
         cout << "CCSD[T] correction energy / hartree  = " << energy1 << endl;
-        cout << "CCSD[T] correlation energy / hartree = " << corr_energy+energy1 << endl;
-        cout << "CCSD[T] total energy / hartree       = " << hf_energy+corr_energy+energy1 << endl;
+        cout << "CCSD[T] correlation energy / hartree = " << corr_energy + energy1 << endl;
+        cout << "CCSD[T] total energy / hartree       = " << hf_energy + corr_energy + energy1 << endl;
 
         cout << "CCSD(T) correction energy / hartree  = " << energy2 << endl;
-        cout << "CCSD(T) correlation energy / hartree = " << corr_energy+energy2 << endl;
-        cout << "CCSD(T) total energy / hartree       = " << hf_energy+corr_energy+energy2 << endl;
-    
+        cout << "CCSD(T) correlation energy / hartree = " << corr_energy + energy2 << endl;
+        cout << "CCSD(T) total energy / hartree       = " << hf_energy + corr_energy + energy2 << endl;
+        
     }
+
+    ec.pg().barrier();
+
+    auto nranks = ec.pg().size().value();
+
+    auto print_profile_stats = [&](const std::string& timer_type, const double g_tval, const double tval_min, const double tval_max){
+        const double tval = g_tval/nranks;
+        std::cout.precision(3);
+        std::cout << "   -> " << timer_type << ": " << tval << "s (" << tval*100.0/total_t_time << "%), (min,max) = (" << tval_min << "," << tval_max << ")" << std::endl;
+    };
+
+    auto comm_stats = [&](const std::string& timer_type, const double ctime){
+        double g_getTime,g_min_getTime,g_max_getTime;
+        MPI_Reduce(&ctime, &g_getTime,     1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+        MPI_Reduce(&ctime, &g_min_getTime, 1, MPI_DOUBLE, MPI_MIN, 0, ec.pg().comm());
+        MPI_Reduce(&ctime, &g_max_getTime, 1, MPI_DOUBLE, MPI_MAX, 0, ec.pg().comm());
+        if(rank == 0) 
+        print_profile_stats(timer_type, g_getTime, g_min_getTime, g_max_getTime);  
+        return g_getTime/nranks;        
+    };
+
+    // cout << rank << "," << ccsd_t_time << endl;
+    // ec.pg().barrier();
+    if(rank == 0) {
+      std::cout << std::endl << "------CCSD(T) Performance------" << std::endl;
+      std::cout << "Total CCSD(T) Time: " << total_t_time << std::endl;
+    }
+    ccsd_t_time = comm_stats("CCSD(T) Avg. Work Time", ccsd_t_time);
+    if(rank == 0) {
+      //std::cout << std::scientific << "   -> Total Number of Operations: " << total_num_ops << std::endl;
+      //std::cout << std::fixed << "   -> GFLOPS: " << total_num_ops / (total_t_time * 1e9) << std::endl;
+      std::cout << std::fixed << "   -> Load imbalance: " << (1.0 - ccsd_t_time / total_t_time) << std::endl;
+    }
+
+    comm_stats("S1-T1 GetTime", ccsdt_s1_t1_GetTime);
+    comm_stats("S1-V2 GetTime", ccsdt_s1_v2_GetTime);
+    comm_stats("D1-T2 GetTime", ccsdt_d1_t2_GetTime);
+    comm_stats("D1-V2 GetTime", ccsdt_d1_v2_GetTime);
+    comm_stats("D2-T2 GetTime", ccsdt_d2_t2_GetTime);
+    comm_stats("D2-V2 GetTime", ccsdt_d2_v2_GetTime);
+
+    double g_ccsd_t_data_per_rank;
+    ccsd_t_data_per_rank = (ccsd_t_data_per_rank * 8.0) / (1024*1024.0*1024); //GB
+    MPI_Reduce(&ccsd_t_data_per_rank, &g_ccsd_t_data_per_rank, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+    if(rank == 0) 
+        std::cout << "   -> Data Transfer (GB): " << g_ccsd_t_data_per_rank/nranks << std::endl;
 
     free_tensors(t_d_t1, t_d_t2, t_d_f1, t_d_v2);
 
     ec.flush_and_sync();
-    MemoryManagerGA::destroy_coll(mgr);
     // delete ec;
-
-    cc_t2 = std::chrono::high_resolution_clock::now();
-    auto ccsd_t_time = 
-        std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-    if(rank == 0 && energy1!=-999) std::cout << std::endl << "Time taken for CCSD(T): " << ccsd_t_time << " secs" << std::endl;
-
 
 }

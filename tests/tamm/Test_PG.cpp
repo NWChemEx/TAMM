@@ -1,7 +1,3 @@
-// #define CATCH_CONFIG_MAIN
-#define CATCH_CONFIG_RUNNER
-#include <catch/catch.hpp>
-
 #include "ga-mpi.h"
 #include "ga.h"
 #include "macdecls.h"
@@ -14,17 +10,14 @@ using std::endl;
 using T = double;
 
 // TEST_CASE("/* Testing process groups */") 
-void test_pg(int dim) {
+void test_pg(int dim, int nproc) {
 
-    ProcGroup gpg{GA_MPI_Comm()};
-    auto gmgr = MemoryManagerGA::create_coll(gpg);
-    Distribution_NW gdistribution;
-    RuntimeEngine gre;
-    ExecutionContext gec{gpg, &gdistribution, gmgr, &gre};
+    ProcGroup gpg = ProcGroup::create_coll(GA_MPI_Comm());
+    ExecutionContext gec{gpg, DistributionKind::dense, MemoryManagerKind::ga};
 
     auto rank = gec.pg().rank();
 
-    auto subranks=30;
+    auto subranks=nproc;
     int ranks[subranks];
     for (int i = 0; i < subranks; i++) ranks[i] = i;
 
@@ -43,11 +36,9 @@ void test_pg(int dim) {
             MPI_Comm_rank(subcomm,&hrank);
             EXPECTS(rank==hrank);
 
-            ProcGroup pg{subcomm};
-            auto mgr = MemoryManagerGA::create_coll(pg);
-            Distribution_NW distribution;
-            RuntimeEngine re;
-            ExecutionContext ec{pg, &distribution, mgr, &re};
+            ProcGroup pg = ProcGroup::create_coll(subcomm);
+            ExecutionContext ec{pg, DistributionKind::dense,
+                                MemoryManagerKind::ga};
 
             TiledIndexSpace tis1{IndexSpace{range(dim)}, 40};
 
@@ -60,7 +51,6 @@ void test_pg(int dim) {
             Scheduler{ec}.allocate(A, B, C)(A() = 21.0)(B() = 2.0)(C() = 0.0).deallocate(A,B,C).execute();
 
             ec.flush_and_sync();
-            MemoryManagerGA::destroy_coll(mgr);
         }
         // MPI_Group_free(&world_group);
         // MPI_Group_free(&subgroup);
@@ -74,8 +64,6 @@ void test_pg(int dim) {
     T0.allocate(&gec);
     Tensor<T>::deallocate(T0);
     gec.flush_and_sync();
-    MemoryManagerGA::destroy_coll(gmgr);
-    
 }
 
 // TEST_CASE("/* Test case for replicated C */") {
@@ -132,11 +120,8 @@ void test_pg(int dim) {
 // TEST_CASE("/* Test case for replicated A/B */")
 void test_replicate_AB(int dim) {
 
-    ProcGroup gpg{GA_MPI_Comm()};
-    auto gmgr = MemoryManagerGA::create_coll(gpg);
-    Distribution_NW gdistribution;
-    RuntimeEngine gre;
-    ExecutionContext gec{gpg, &gdistribution, gmgr, &gre};
+    ProcGroup gpg = ProcGroup::create_coll(GA_MPI_Comm());
+    ExecutionContext gec{gpg, DistributionKind::dense, MemoryManagerKind::ga};
 
     TiledIndexSpace tis1{IndexSpace{range(dim)}, 40};
 
@@ -153,11 +138,8 @@ void test_replicate_AB(int dim) {
 
     { // B is replicated
 
-        ProcGroup pg{MPI_COMM_SELF};
-        auto mgr = MemoryManagerLocal::create_coll(pg);
-        Distribution_NW distribution;
-        RuntimeEngine re;
-        ExecutionContext ec{pg, &distribution, mgr, &re};
+        ProcGroup pg = ProcGroup::create_coll(MPI_COMM_SELF);
+        ExecutionContext ec{pg, DistributionKind::dense, MemoryManagerKind::ga};
 
         Scheduler{ec}.allocate(B).execute();
         
@@ -167,7 +149,6 @@ void test_replicate_AB(int dim) {
         Scheduler{ec}.deallocate(B).execute();
 
         ec.flush_and_sync();
-        MemoryManagerLocal::destroy_coll(mgr);
     }
 
     gec.pg().barrier();
@@ -175,26 +156,21 @@ void test_replicate_AB(int dim) {
     gsch.deallocate(A, C).execute();
 
     gec.flush_and_sync();
-    MemoryManagerGA::destroy_coll(gmgr);
     
 }
 
 
 int main(int argc, char* argv[]) {
-    MPI_Init(&argc, &argv);
-    GA_Initialize();
-    MA_init(MT_DBL, 8000000, 20000000);
-
-    int mpi_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    
+    tamm::initialize(argc,argv);
 
     auto dim = 20;
+    int nproc = 20;
     if(argc == 2) dim = std::atoi(argv[1]);
-    test_pg(dim);
-    test_replicate_AB(dim);
+    if(argc == 3) nproc = std::atoi(argv[2]);
+    test_pg(dim,nproc);
+    //test_replicate_AB(dim);
     
-    GA_Terminate();
-    MPI_Finalize();
-
+    tamm::finalize();
     return 0;
 }

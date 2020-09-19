@@ -1,18 +1,11 @@
-#define CATCH_CONFIG_MAIN
-#include <catch/catch.hpp>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include "doctest/doctest.h"
 
 #include <iostream>
 #include <tamm/tamm.hpp>
 
 using namespace tamm;
 
-template<typename T>
-std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
-    os << "[";
-    for(const auto& v : vec) { os << v << ","; }
-    os << "]" << std::endl;
-    return os;
-}
 
 void print_dependency(const TiledIndexSpace& tis) {
     auto dep_map = tis.tiled_dep_map();

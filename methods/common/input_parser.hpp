@@ -1,6 +1,6 @@
 
-#ifndef TAMM_TESTS_INPUT_PARSER_HPP_
-#define TAMM_TESTS_INPUT_PARSER_HPP_
+#ifndef TAMM_METHODS_INPUT_PARSER_HPP_
+#define TAMM_METHODS_INPUT_PARSER_HPP_
 
 #include <cctype>
 #include <string>
@@ -47,6 +47,7 @@ class Options {
       dfbasis = "";
       geom_units = "bohr";
       sphcart = "spherical";
+      output_file_prefix = "";
     }
 
     bool debug;
@@ -55,6 +56,7 @@ class Options {
     std::string dfbasis;
     std::string sphcart;
     std::string geom_units;
+    std::string output_file_prefix;
 
     void print() {
       std::cout << std::defaultfloat;
@@ -65,9 +67,11 @@ class Options {
       cout << sphcart;
       cout << endl;
       if(!dfbasis.empty()) 
-        cout << " dfbasis    = " << dfbasis << endl;
+        cout << " dfbasis    = " << dfbasis << endl;       
       cout << " geom_units = " << geom_units << endl;
       print_bool(" debug     ", debug);
+      if(!output_file_prefix.empty()) 
+        cout << " output_file_prefix    = " << output_file_prefix << endl;       
       cout << "}" << endl;
     }
 };
@@ -80,17 +84,18 @@ class SCFOptions: public Options {
     {
       charge         = 0;
       multiplicity   = 1;
-      tol_int        = 1e-8;
-      tol_lindep     = 1e-6;
-      conve          = 1e-6;
-      convd          = 1e-5;
+      lshift         = 0;
+      tol_int        = 1e-12;
+      tol_lindep     = 1e-5;
+      conve          = 1e-8;
+      convd          = 1e-6;
       diis_hist      = 10;
       AO_tilesize    = 30;
       restart        = false;
       noscf          = false;
-      scalapack_nb   = 1;
-      scalapack_np_row   = 0;
-      scalapack_np_col   = 0;
+      ediis          = false;
+      ediis_off      = 1e-5;
+      sad            = false;
       force_tilesize = false;
       riscf          = 0; //0 for JK, 1 for J, 2 for K
       riscf_str      = "JK";
@@ -100,10 +105,14 @@ class SCFOptions: public Options {
       alpha          = 0.7;
       nnodes         = 1;
       writem         = diis_hist;
+      scalapack_nb   = 1;
+      scalapack_np_row   = 0;
+      scalapack_np_col   = 0;      
     }
 
   int    charge;
   int    multiplicity;
+  double lshift;     //level shift factor, +ve value b/w 0 and 1
   double tol_int;    //tolerance for integral engine
   double tol_lindep; //tolerance for linear dependencies
   double conve;      //energy convergence
@@ -112,12 +121,15 @@ class SCFOptions: public Options {
   int    AO_tilesize; 
   bool   restart;    //Read movecs from disk
   bool   noscf;      //only recompute energy from movecs
+  bool   ediis;
+  double ediis_off;
+  bool   sad;
   bool   force_tilesize;
   int    scalapack_nb;
-  int    scalapack_np_row;
-  int    scalapack_np_col;
   int    riscf;
   int    nnodes;
+  int    scalapack_np_row;
+  int    scalapack_np_col;  
   std::string riscf_str;
   std::string moldenfile;
   //ignored when moldenfile not provided
@@ -132,6 +144,7 @@ class SCFOptions: public Options {
       cout << "{" << endl;
       cout << " charge       = " << charge       << endl;
       cout << " multiplicity = " << multiplicity << endl;
+      cout << " level shift  = " << lshift       << endl;
       cout << " tol_int      = " << tol_int      << endl;
       cout << " tol_lindep   = " << tol_lindep   << endl;
       cout << " conve        = " << conve        << endl;
@@ -154,6 +167,9 @@ class SCFOptions: public Options {
       print_bool(" restart     ", restart);
       print_bool(" debug       ", debug); 
       if(restart) print_bool(" noscf       ", noscf);
+      print_bool(" ediis       ", ediis);
+      cout << " ediis_off    = " << ediis_off   << endl;  
+      print_bool(" sad         ", sad); 
       cout << "}" << endl;
     }
 };
@@ -189,15 +205,15 @@ class CCSDOptions: public Options {
   CCSDOptions() = default;
   CCSDOptions(Options o): Options(o)
   {
-    threshold      = 1e-10;
+    threshold      = 1e-6;
     tilesize       = 50;
     itilesize      = 1000;
     ccsdt_tilesize = 28;
-    icuda          = 0;
+    ngpu           = 0;
     ndiis          = 5;
     lshift         = 0;
     eom_nroots     = 0;
-    eom_threshold  = 1e-10;
+    eom_threshold  = 1e-6;
     eom_microiter  = o.maxiter;
     writet         = false;
     writet_iter    = ndiis;
@@ -208,8 +224,10 @@ class CCSDOptions: public Options {
     gf_os          = false;
     gf_cs          = true;
     gf_restart     = false;
+    gf_itriples    = false;
     ccsd_maxiter   = 50;
     balance_tiles  = false;
+    profile_ccsd   = false;
     
     gf_p_oi_range        = 0; //1-number of occupied, 2-all MOs
     gf_ndiis             = 10;
@@ -241,11 +259,13 @@ class CCSDOptions: public Options {
   int    itilesize;
   int    ccsdt_tilesize;
   bool   force_tilesize;
-  int    icuda;
+  int    ngpu;
   int    ndiis;
   int    eom_microiter;
   int    writet_iter;
-  bool   readt, writet, gf_restart, gf_ip, gf_ea, gf_os, gf_cs, balance_tiles;
+  bool   readt, writet, gf_restart, gf_ip, gf_ea, gf_os, gf_cs, 
+         gf_itriples, balance_tiles;
+  bool   profile_ccsd;
   double lshift;
   double threshold;
   double eom_threshold;
@@ -276,14 +296,16 @@ class CCSDOptions: public Options {
   int    gf_analyze_level;
   int    gf_analyze_num_omega;
   std::vector<double> gf_analyze_omega;
+  //Force processing of specified orbitals first
+  std::vector<size_t> gf_orbitals;
   
   void print() {
     std::cout << std::defaultfloat;
     cout << endl << "CCSD Options" << endl;
     cout << "{" << endl;
-    if(icuda > 0) {
-      cout << " #cuda              = " << icuda          << endl;
-      cout << " ccsdt_tilesize     = " << ccsdt_tilesize << endl;
+    if(ngpu > 0) {
+      cout << " ngpu                 = " << ngpu          << endl;
+      cout << " ccsdt_tilesize       = " << ccsdt_tilesize << endl;
     }
     cout << " ndiis                = " << ndiis            << endl;
     cout << " threshold            = " << threshold        << endl;
@@ -291,12 +313,13 @@ class CCSDOptions: public Options {
     cout << " ccsd_maxiter         = " << ccsd_maxiter     << endl;
     cout << " itilesize            = " << itilesize        << endl;
     if(lshift != 0) 
-      cout << " lshift               = " << lshift           << endl;
+      cout << " lshift               = " << lshift           << endl;    
     if(gf_nprocs_poi > 0) 
       cout << " gf_nprocs_poi        = " << gf_nprocs_poi  << endl;
     print_bool(" readt               ", readt); 
     print_bool(" writet              ", writet);
     cout << " writet_iter          = " << writet_iter      << endl;
+    print_bool(" profile_ccsd        ", profile_ccsd);
     print_bool(" balance_tiles       ", balance_tiles); 
 
     if(eom_nroots > 0){
@@ -311,7 +334,8 @@ class CCSDOptions: public Options {
       print_bool(" gf_ea               ", gf_ea); 
       print_bool(" gf_os               ", gf_os); 
       print_bool(" gf_cs               ", gf_cs); 
-      print_bool(" gf_restart          ", gf_restart);       
+      print_bool(" gf_restart          ", gf_restart);     
+      print_bool(" gf_itriples         ", gf_itriples);       
       cout << " gf_ndiis             = " << gf_ndiis          << endl;
       cout << " gf_ngmres            = " << gf_ngmres         << endl;
       cout << " gf_maxiter           = " << gf_maxiter        << endl;
@@ -331,6 +355,11 @@ class CCSDOptions: public Options {
       cout << " gf_omega_max_ea_e    = " << gf_omega_max_ea_e << endl;
       cout << " gf_omega_delta       = " << gf_omega_delta    << endl; 
       cout << " gf_omega_delta_e     = " << gf_omega_delta_e  << endl; 
+      if(!gf_orbitals.empty()) {
+        cout << " gf_orbitals     = [";
+        for(auto x: gf_orbitals) cout << x << ",";
+        cout << "]" << endl;           
+      }
       if(gf_analyze_level > 0) {
         cout << " gf_analyze_level     = " << gf_analyze_level     << endl; 
         cout << " gf_analyze_num_omega = " << gf_analyze_num_omega << endl; 
@@ -562,6 +591,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
         options.debug = to_bool(read_option(line));        
       else if(is_in_line("dfbasis",line)) 
         options.dfbasis = read_option(line);  
+      else if(is_in_line("output_file_prefix",line)) 
+        options.output_file_prefix = read_option(line);          
       else if(is_in_line("geometry",line)){
         //geometry units
         std::istringstream iss(line);
@@ -598,6 +629,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             scf_options.charge = std::stod(read_option(line));   
           else if(is_in_line("multiplicity",line)) 
             scf_options.multiplicity = std::stod(read_option(line));   
+          else if(is_in_line("lshift",line)) 
+            scf_options.lshift = std::stod(read_option(line));              
           else if(is_in_line("tol_int",line)) 
             scf_options.tol_int = std::stod(read_option(line));   
           else if(is_in_line("tol_lindep",line)) 
@@ -626,7 +659,13 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("restart",line))
             scf_options.restart = to_bool(read_option(line));  
           else if(is_in_line("noscf",line))
-            scf_options.noscf = to_bool(read_option(line));                    
+            scf_options.noscf = to_bool(read_option(line));     
+          else if(is_in_line("ediis",line))
+            scf_options.ediis = to_bool(read_option(line));
+          else if(is_in_line("ediis_off",line))
+            scf_options.ediis_off = std::stod(read_option(line));  
+          else if(is_in_line("sad",line))
+            scf_options.sad = to_bool(read_option(line));                  
           else if(is_in_line("debug",line))
             scf_options.debug = to_bool(read_option(line)); 
           else if(is_in_line("moldenfile",line))
@@ -640,7 +679,7 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("scalapack_np_row",line)) 
             scf_options.scalapack_np_row = std::stoi(read_option(line));                                                             
           else if(is_in_line("scalapack_np_col",line)) 
-            scf_options.scalapack_np_col = std::stoi(read_option(line));                                                             
+            scf_options.scalapack_np_col = std::stoi(read_option(line));               
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line,"SCF");
           
@@ -681,9 +720,9 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("eom_microiter",line)) 
             ccsd_options.eom_microiter = std::stoi(read_option(line));  
           else if(is_in_line("ccsd_maxiter",line)) 
-            ccsd_options.ccsd_maxiter = std::stoi(read_option(line));    
+            ccsd_options.ccsd_maxiter = std::stoi(read_option(line)); 
           else if(is_in_line("lshift",line)) 
-            ccsd_options.lshift = std::stod(read_option(line)); 
+            ccsd_options.lshift = std::stod(read_option(line));                                      
           else if(is_in_line("eom_threshold",line)) 
             ccsd_options.eom_threshold = std::stod(read_option(line));              
           else if(is_in_line("threshold",line)) 
@@ -694,8 +733,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             ccsd_options.ccsdt_tilesize = std::stoi(read_option(line));            
           else if(is_in_line("itilesize",line))
             ccsd_options.itilesize = std::stoi(read_option(line));            
-          else if(is_in_line("cuda",line))
-            ccsd_options.icuda = std::stoi(read_option(line));            
+          else if(is_in_line("ngpu",line))
+            ccsd_options.ngpu = std::stoi(read_option(line));            
           else if(is_in_line("debug",line))
             ccsd_options.debug = to_bool(read_option(line)); 
           else if(is_in_line("readt",line))
@@ -705,7 +744,9 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
           else if(is_in_line("writet_iter",line))
             ccsd_options.writet_iter = std::stoi(read_option(line));            
           else if(is_in_line("balance_tiles",line))
-            ccsd_options.balance_tiles = to_bool(read_option(line));     
+            ccsd_options.balance_tiles = to_bool(read_option(line)); 
+          else if(is_in_line("profile_ccsd",line))
+            ccsd_options.profile_ccsd = to_bool(read_option(line));                 
           else if(is_in_line("force_tilesize",line)) 
             ccsd_options.force_tilesize = to_bool(read_option(line));                     
           else if(is_in_line("gf_ip",line))
@@ -718,6 +759,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
             ccsd_options.gf_cs = to_bool(read_option(line)); 
           else if(is_in_line("gf_restart",line))
             ccsd_options.gf_restart = to_bool(read_option(line)); 
+          else if(is_in_line("gf_itriples",line))
+            ccsd_options.gf_itriples = to_bool(read_option(line));             
           else if(is_in_line("gf_p_oi_range",line)) {
             ccsd_options.gf_p_oi_range = std::stoi(read_option(line)); 
             if(ccsd_options.gf_p_oi_range != 1 && ccsd_options.gf_p_oi_range != 2)
@@ -773,6 +816,14 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istre
                                               std::istream_iterator<double>{}};
               ccsd_options.gf_analyze_omega = gf_analyze_omega;
           }          
+          else if(is_in_line("gf_orbitals",line)) {
+              std::istringstream iss(line);
+              std::string wignore;
+              iss >> wignore;
+              std::vector<size_t> gf_orbitals{std::istream_iterator<double>{iss},
+                                              std::istream_iterator<double>{}};
+              ccsd_options.gf_orbitals = gf_orbitals;
+          }                    
           else if(is_in_line("}",line)) section_start = false;
           else unknown_option(line, "CCSD");
 
@@ -835,4 +886,4 @@ inline std::tuple<std::vector<Atom>, OptionsMap>
 }
 
 
-#endif // TAMM_TESTS_INPUT_PARSER_HPP_
+#endif // TAMM_METHODS_INPUT_PARSER_HPP_

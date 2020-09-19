@@ -3,6 +3,11 @@
 #define CCSD_T_DOUBLES_UNFUSED_HPP_
 
 // using namespace tamm;
+extern double ccsdt_d1_t2_GetTime;
+extern double ccsdt_d1_v2_GetTime;
+extern double ccsdt_d2_t2_GetTime;
+extern double ccsdt_d2_v2_GetTime;
+extern double ccsd_t_data_per_rank;
 
 //TensorGen target-centric GPU kernels
 void jk_ccsd_t_d1_1(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
@@ -193,7 +198,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
 
 
     if( (p4b<=p5b) && (h2b<=h3b) && p4b!=0 ){ 
-      if((k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
+      if((!is_restricted) || (k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          +k_spin[h1b]+k_spin[h2b]+k_spin[h3b]!=12)) {
          if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          == k_spin[h1b]+k_spin[h2b]+k_spin[h3b]) {
@@ -224,8 +229,11 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
 
                   //TODO
                   if(h7b<h1b) {
-
-                    d_t2.get({p4b-noab,p5b-noab,h7b,h1b},k_a); //h1b,h7b,p5b-noab,p4b-noab
+                    {
+                      TimerGuard tg_total{&ccsdt_d1_t2_GetTime};
+                      ccsd_t_data_per_rank += dima;
+                      d_t2.get({p4b-noab,p5b-noab,h7b,h1b},k_a); //h1b,h7b,p5b-noab,p4b-noab
+                    }
                     int perm[4]={3,1,0,2}; //3,1,0,2
                     int size[4]={(int)k_range[p4b],(int)k_range[p5b],(int)k_range[h7b],(int)k_range[h1b]};
                     // int size[4]={k_range[h7b],k_range[p4b],k_range[p5b],k_range[h1b]}; //1,3,2,0
@@ -237,8 +245,11 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     plan->execute();
                   }
                   if(h1b<=h7b){
-
-                    d_t2.get({p4b-noab,p5b-noab,h1b,h7b},k_a); //h7b,h1b,p5b-noab,p4b-noab
+                    {
+                      TimerGuard tg_total{&ccsdt_d1_t2_GetTime};
+                      ccsd_t_data_per_rank += dima;
+                      d_t2.get({p4b-noab,p5b-noab,h1b,h7b},k_a); //h7b,h1b,p5b-noab,p4b-noab
+                    }
                     int perm[4]={2,1,0,3}; //2,1,0,3
                     // int size[4]={k_range[p4b],k_range[p5b],k_range[h1b],k_range[h7b]};
                     int size[4]={(int)k_range[p4b],(int)k_range[p5b],(int)k_range[h1b],(int)k_range[h7b]};
@@ -260,7 +271,11 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
     
     std::vector<T> k_b_sort(dimb);
     if(h7b <= p6b) {
-      d_v2.get({h7b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,h7b
+      {
+        TimerGuard tg_total{&ccsdt_d1_v2_GetTime};
+        ccsd_t_data_per_rank += dimb;
+        d_v2.get({h7b,p6b,h2b,h3b},k_b_sort); //h3b,h2b,p6b,h7b
+      }
 
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b)) 
@@ -575,7 +590,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
       h3b=a3(ia6,5);
     
       if( (p5b<=p6b) && (h1b<=h2b) && p4b!=0 ) { 
-      if((k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
+      if((!is_restricted) || (k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          +k_spin[h1b]+k_spin[h2b]+k_spin[h3b]!=12)) {
          if(k_spin[p4b]+k_spin[p5b]+k_spin[p6b]
          == k_spin[h1b]+k_spin[h2b]+k_spin[h3b]) {
@@ -599,8 +614,11 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                   std::vector<T> k_a_sort(dima);
 
                   if(p7b<p4b) {
-
-                    d_t2.get({p7b-noab,p4b-noab,h1b,h2b},k_a); //h2b,h1b,p4b-noab,p7b-noab
+                    {
+                      TimerGuard tg_total{&ccsdt_d2_t2_GetTime};
+                      ccsd_t_data_per_rank += dima;
+                      d_t2.get({p7b-noab,p4b-noab,h1b,h2b},k_a); //h2b,h1b,p4b-noab,p7b-noab
+                    }
                     // for (auto x=0;x<dima;x++) k_a_sort[x] = -1 * k_a[x];
                     int perm[4]={3,2,1,0};
                     int size[4]={(int)k_range[p7b],(int)k_range[p4b],(int)k_range[h1b],(int)k_range[h2b]};
@@ -611,8 +629,11 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     plan->execute();
                   }
                   if(p4b<=p7b) {
-
-                    d_t2.get({p4b-noab,p7b-noab,h1b,h2b},k_a); //h2b,h1b,p7b-noab,p4b-noab
+                    {
+                      TimerGuard tg_total{&ccsdt_d2_t2_GetTime};
+                      ccsd_t_data_per_rank += dima;
+                      d_t2.get({p4b-noab,p7b-noab,h1b,h2b},k_a); //h2b,h1b,p7b-noab,p4b-noab
+                    }
                     int perm[4]={3,2,0,1}; //0,1,3,2
                     int size[4]={(int)k_range[p4b],(int)k_range[p7b],(int)k_range[h1b],(int)k_range[h2b]};
                     
@@ -624,7 +645,11 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
 
     std::vector<T> k_b_sort(dimb);
     if(h3b <= p7b) {
-      d_v2.get({p5b,p6b,h3b,p7b},k_b_sort); //p7b,h3b,p6b,p5b
+      {
+        TimerGuard tg_total{&ccsdt_d2_v2_GetTime};
+        ccsd_t_data_per_rank += dimb;      
+        d_v2.get({p5b,p6b,h3b,p7b},k_b_sort); //p7b,h3b,p6b,p5b
+      }
 
 
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)

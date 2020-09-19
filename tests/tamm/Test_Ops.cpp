@@ -1,6 +1,5 @@
-//#define CATCH_CONFIG_MAIN
-#define CATCH_CONFIG_RUNNER
-#include "catch/catch.hpp"
+#define DOCTEST_CONFIG_IMPLEMENT
+#include "doctest/doctest.h"
 #include "ga-mpi.h"
 #include "ga.h"
 #include "macdecls.h"
@@ -26,13 +25,6 @@ using namespace tamm;
 using complex_single = std::complex<float>;
 using complex_double = std::complex<double>;
 
-template<typename T>
-std::ostream& operator<<(std::ostream& os, std::vector<T>& vec) {
-    os << "[";
-    for(auto& x : vec) os << x << ",";
-    os << "]\n";
-    return os;
-}
 
 template<typename T>
 void print_tensor(Tensor<T>& t) {
@@ -78,11 +70,7 @@ void test_ops(const TiledIndexSpace& MO) {
     Tensor<T> d_t2{V, V, O, O};
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
-
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     Tensor<T> T1{N, N, N};
     Tensor<T>::allocate(ec, T1);
 
@@ -120,26 +108,14 @@ void test_ops(const TiledIndexSpace& MO) {
 }
 
 int main(int argc, char* argv[]) {
-    MPI_Init(&argc, &argv);
-    GA_Initialize();
-    MA_init(MT_DBL, 8000000, 20000000);
 
-    int mpi_rank;
-    MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
+    tamm::initialize(argc, argv);
 
-    #ifdef USE_TALSH
-    TALSH talsh_instance;
-    talsh_instance.initialize(mpi_rank);
-    #endif
+    doctest::Context context(argc, argv);
 
-    int res = Catch::Session().run(argc, argv);
-    
-    #ifdef USE_TALSH
-    talsh_instance.shutdown();
-    #endif  
+    int res = context.run();
 
-    GA_Terminate();
-    MPI_Finalize();
+    tamm::finalize();
 
     return res;
 }
@@ -155,10 +131,7 @@ int main(int argc, char* argv[]) {
 
 TEST_CASE("Tensor Allocation and Deallocation") {
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext *ec = new ExecutionContext{pg,&distribution,mgr,&re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     {
         Tensor<double> tensor{};
@@ -167,17 +140,14 @@ TEST_CASE("Tensor Allocation and Deallocation") {
 
     ec->flush_and_sync();
 
-    MemoryManagerGA::destroy_coll(mgr);
+    //MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
 
 #if 1
 TEST_CASE("Zero-dimensional ops") {
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
     IndexSpace IS{range(0, 10)};
@@ -288,17 +258,14 @@ TEST_CASE("Zero-dimensional ops") {
         Tensor<T>::deallocate(T1);
     }
 
-    MemoryManagerGA::destroy_coll(mgr);
+    //MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
 #endif
 
 TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
     IndexSpace IS{range(0, 10)};
@@ -414,7 +381,7 @@ TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
 
     ec->flush_and_sync();
 
-    MemoryManagerGA::destroy_coll(mgr);
+    //MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
 
@@ -553,10 +520,7 @@ void test_setop_with_T(unsigned tilesize) {
     // 0-4 dimensional setops
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10),
                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
@@ -643,7 +607,7 @@ void test_setop_with_T(unsigned tilesize) {
            T1(l2, l2, l2, l1), T1(l2, l2, l2, l2)}));
     }
 
-    MemoryManagerGA::destroy_coll(mgr);
+    //MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
 
@@ -654,10 +618,7 @@ void test_mapop_with_T(unsigned tilesize) {
     // 0-4 dimensional setops
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10),
                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
@@ -744,7 +705,7 @@ void test_mapop_with_T(unsigned tilesize) {
            T1(l2, l2, l2, l1), T1(l2, l2, l2, l2)}));
     }
 
-    MemoryManagerGA::destroy_coll(mgr);
+    //MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
 
@@ -754,10 +715,7 @@ void test_addop_with_T(unsigned tilesize) {
     // 0-4 dimensional addops
     bool failed;
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10),
                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
@@ -1272,7 +1230,7 @@ void test_addop_with_T(unsigned tilesize) {
     }
     REQUIRE(!failed);
 
-    MemoryManagerGA::destroy_coll(mgr);
+    //MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
 
@@ -1286,15 +1244,15 @@ TEST_CASE("setop with float") {
     test_setop_with_T<float>(3);
 }
 
-TEST_CASE("setop with single complex") {
-    test_setop_with_T<complex_single>(1);
-    test_setop_with_T<complex_single>(3);
-}
+// TEST_CASE("setop with single complex") {
+//     test_setop_with_T<complex_single>(1);
+//     test_setop_with_T<complex_single>(3);
+// }
 
-TEST_CASE("setop with double complex") {
-    test_setop_with_T<complex_double>(1);
-    test_setop_with_T<complex_double>(3);
-}
+// TEST_CASE("setop with double complex") {
+//     test_setop_with_T<complex_double>(1);
+//     test_setop_with_T<complex_double>(3);
+// }
 
 TEST_CASE("mapop with double") {
     test_mapop_with_T<double>(1);
@@ -1306,15 +1264,15 @@ TEST_CASE("mapop with float") {
     test_mapop_with_T<float>(3);
 }
 
-TEST_CASE("mapop with single complex") {
-    test_mapop_with_T<complex_single>(1);
-    test_mapop_with_T<complex_single>(3);
-}
+// TEST_CASE("mapop with single complex") {
+//     test_mapop_with_T<complex_single>(1);
+//     test_mapop_with_T<complex_single>(3);
+// }
 
-TEST_CASE("mapop with double complex") {
-    test_mapop_with_T<complex_double>(1);
-    test_mapop_with_T<complex_double>(3);
-}
+// TEST_CASE("mapop with double complex") {
+//     test_mapop_with_T<complex_double>(1);
+//     test_mapop_with_T<complex_double>(3);
+// }
 
 TEST_CASE("addop with double") {
     test_addop_with_T<double>(1);
@@ -1331,19 +1289,16 @@ TEST_CASE("addop with float") {
 //     test_addop_with_T<complex_single>(3);
 // }
 
-TEST_CASE("addop with double complex") {
-    test_addop_with_T<complex_double>(1);
-    test_addop_with_T<complex_double>(3);
-}
+// TEST_CASE("addop with double complex") {
+//     test_addop_with_T<complex_double>(1);
+//     test_addop_with_T<complex_double>(3);
+// }
 
 #if 1
 TEST_CASE("Two-dimensional ops") {
     bool failed;
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
     IndexSpace IS{range(0, 10),
@@ -1417,17 +1372,14 @@ TEST_CASE("Two-dimensional ops") {
         failed = true;
     }
     REQUIRE(!failed);
-    MemoryManagerGA::destroy_coll(mgr);
+    //MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
 
 TEST_CASE("Two-dimensional ops with flush and sync") {
     bool failed;
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
     IndexSpace IS{range(0, 10),
@@ -1501,17 +1453,14 @@ TEST_CASE("Two-dimensional ops with flush and sync") {
     
     ec->flush_and_sync();
     
-    MemoryManagerGA::destroy_coll(mgr);
+    //MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
 
 TEST_CASE("One-dimensional ops") {
     bool failed;
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
     IndexSpace IS{range(0, 10),
@@ -1587,7 +1536,7 @@ TEST_CASE("One-dimensional ops") {
         failed = true;
     }
     REQUIRE(!failed);
-    MemoryManagerGA::destroy_coll(mgr);
+    //MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
 #endif
@@ -1595,10 +1544,7 @@ TEST_CASE("One-dimensional ops") {
 TEST_CASE("Three-dimensional mult ops part I") {
     bool failed;
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec  = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T               = double;
     const size_t tilesize = 1;
 
@@ -1679,17 +1625,14 @@ TEST_CASE("Three-dimensional mult ops part I") {
     }
     REQUIRE(!failed);
 #endif
-    MemoryManagerGA::destroy_coll(mgr);
+    //MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
 
 TEST_CASE("Four-dimensional mult ops part I") {
     bool failed;
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec  = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T               = double;
     const size_t tilesize = 1;
 
@@ -1769,7 +1712,7 @@ TEST_CASE("Four-dimensional mult ops part I") {
     }
     REQUIRE(!failed);
 #endif
-    MemoryManagerGA::destroy_coll(mgr);
+    //MemoryManagerGA::destroy_coll(mgr);
     delete ec;
 }
 
@@ -1777,10 +1720,7 @@ TEST_CASE("Four-dimensional mult ops part I") {
 TEST_CASE("Two-dimensional ops part I") {
     bool failed;
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
     IndexSpace IS{range(0, 10),
@@ -2055,10 +1995,7 @@ TEST_CASE("Two-dimensional ops part I") {
 TEST_CASE("MultOp with RHS reduction") {
     bool failed;
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
     IndexSpace IS{range(0, 4),

@@ -330,7 +330,7 @@ void block_multiply(bool &isgpuOp,
       dev_queue.wait_and_throw();
 #endif
     }
-    #ifdef USE_BLIS
+    #ifdef USE_BLIS1
     else {
       //TODO: actually check if one of T2, T3 is real, T1 is complex
       if constexpr(std::is_same_v<T1,T2>){
@@ -588,6 +588,7 @@ void block_multiply(bool &isgpuOp,
     auto [ct_alabel,ct_blabel,ct_clabel] = internal::talsh_mult_op_string(
                                 clabels, alabels, blabels);
 
+    std::string talsh_op_string = "";
     auto aid_size = adims.size();
     auto bid_size = bdims.size();
     auto cid_size = cdims.size();
@@ -846,16 +847,6 @@ void block_multiply(bool &isgpuOp,
   if ( C_d ) cudaFree( C_d );
   if ( work ) cudaFree( work );
 
-          //  th_a = gpu_mult.host_block(adims.size(), 
-          //     tal_adims, abufp); 
-          //  th_b = gpu_mult.host_block(bdims.size(), 
-          //     tal_bdims, bbufp); 
-          // if(copy_ctrl == COPY_TTT)
-          //   th_c = gpu_mult.host_block(cdims.size(), 
-          //      tal_cdims, cbuf); 
-
-          // gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string, 
-          //     alpha, copy_ctrl, is_assign); 
       // std::cout << "not hadamard\n";
       // std::cout << talsh_op_string << std::endl;
       // std::cout << aid_size << ":" << bid_size << ":" << cid_size << std::endl;
@@ -868,27 +859,23 @@ void block_multiply(bool &isgpuOp,
       // double *cdata = host_pinned_memory(cbatch_ld*sizeof(double));
 
       // TALSH gpu_mult{ngpu};
-      T2* abufp = const_cast<T2*>(abuf);
-      T3* bbufp = const_cast<T3*>(bbuf);
+        // th_a = gpu_mult.host_block(adims.size(),
+        //     tal_adims, abufp);
+        //  th_b = gpu_mult.host_block(bdims.size(),
+        //     tal_bdims, bbufp);
+        // if(copy_ctrl == COPY_TTT)
+        //   th_c = gpu_mult.host_block(cdims.size(),
+        //      tal_cdims, cbuf);
 
-      if constexpr(std::is_same_v<T1,T2> && std::is_same_v<T1,T3>){
-           th_a = gpu_mult.host_block(adims.size(),
-              tal_adims, abufp);
-           th_b = gpu_mult.host_block(bdims.size(),
-              tal_bdims, bbufp);
-          if(copy_ctrl == COPY_TTT)
-            th_c = gpu_mult.host_block(cdims.size(),
-               tal_cdims, cbuf);
-
-          gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string,
-              alpha, copy_ctrl, is_assign);
+        // gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string,
+        //     alpha, copy_ctrl, is_assign);
 
           // talshTensorDestruct(&th_a);
           // talshTensorDestruct(&th_b);
           // talshTensorDestruct(&th_c);
 
       }
-      #ifdef USE_BLIS
+      #ifdef USE_BLIS1
     else {
       //TODO: actually check if one of T2, T3 is real, T1 is complex
       if constexpr(std::is_same_v<T1,T2>){

@@ -43,6 +43,7 @@ using tensor_handle = talsh_tens_t;
 #ifdef USE_DPCPP
 #include <CL/sycl.hpp>
 #include "mkl_blas_sycl.hpp"
+using namespace oneapi;
 #endif
 
 namespace tamm {
@@ -835,3 +836,4 @@ void block_multiply(bool &isgpuOp,
 } // namespace tamm
 
 #endif // TAMM_MULTIPLY_HPP_
+

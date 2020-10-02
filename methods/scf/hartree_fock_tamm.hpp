@@ -59,19 +59,26 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     // initializes the Libint integrals library ... now ready to compute
     libint2::initialize(false);
     libint2::Shell::do_enforce_unit_normalization(false);
+    auto rank      = exc.pg().rank();
 
     /*** =========================== ***/
     /*** create basis set            ***/
     /*** =========================== ***/
 
-    // LIBINT_INSTALL_DIR/share/libint/2.4.0-beta.1/basis
+    std::string basis_set_file = std::string(DATADIR) + "/basis/" + basis + ".g94";
+    
+    int basis_file_exists = 0;
+    if(rank == 0) basis_file_exists = std::filesystem::exists(basis_set_file);
+
+    MPI_Bcast(&basis_file_exists        ,1,mpi_type<int>()       ,0,exc.pg().comm());  
+    if (!basis_file_exists) nwx_terminate("basis set file " + basis_set_file + " does not exist");
+
     libint2::BasisSet shells(std::string(basis), atoms);
     if(is_spherical) shells.set_pure(true);
     else shells.set_pure(false);  // use cartesian gaussians
 
     // auto shells = make_sto3g_basis(atoms);
     const size_t N = nbasis(shells);
-    auto rank      = exc.pg().rank();
     auto nnodes    = GA_Cluster_nnodes();
 
     sys_data.nbf      = N;
@@ -81,6 +88,11 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
     const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
     // const bool is_rohf = (sys_data.scf_type == sys_data.SCFType::rohf);    
+
+    std::string out_fp = options_map.options.output_file_prefix+"."+scf_options.basis;
+    std::string files_dir = out_fp+"_files/scf";
+    std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
+    if(!fs::exists(files_dir)) fs::create_directories(files_dir);
 
     #if SCF_THROTTLE_RESOURCES
       auto [hf_nnodes,ppn,hf_nranks] = get_hf_nranks(N);
@@ -152,6 +164,13 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
                   << endl;
       }
       #endif
+
+      ndf = dfbs.nbf();
+      dfAO = IndexSpace{range(0, ndf)};
+      std::tie(df_shell_tile_map, dfAO_tiles, dfAO_opttiles) = compute_AO_tiles(exc,sys_data,dfbs);
+    
+      tdfAO=TiledIndexSpace{dfAO, dfAO_opttiles};
+      tdfAOt=TiledIndexSpace{dfAO, dfAO_tiles};
       
     }
     std::unique_ptr<DFFockEngine> dffockengine(
@@ -178,8 +197,8 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     EigenTensors etensors;
 
-    std::string scf_files_prefix_a = getfilename(filename) + "." + scf_options.basis + ".alpha";
-    std::string scf_files_prefix_b = getfilename(filename) + "." + scf_options.basis + ".beta";
+    std::string scf_files_prefix_a = files_prefix + ".alpha";
+    std::string scf_files_prefix_b = files_prefix + ".beta";
 
     const bool scf_conv = restart && scf_options.noscf; 
     const int  max_hist = sys_data.options_map.scf_options.diis_hist; 
@@ -215,6 +234,8 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     }
 
+    scf_restart_test(exc, sys_data, filename, restart, files_prefix);
+    
     #if SCF_THROTTLE_RESOURCES
     if (rank < hf_nranks) {
       int hrank;
@@ -223,19 +244,12 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       EXPECTS(rank==hrank);
 
       ProcGroup pg = ProcGroup::create_coll(hf_comm);
-      auto mgr = MemoryManagerGA::create_coll(pg);
-      Distribution_NW distribution;
-      RuntimeEngine re;
-      ExecutionContext ec{pg, &distribution, mgr, &re};
+      ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     #else 
       ExecutionContext& ec = exc;
     #endif
       ProcGroup pg_l = ProcGroup::create_coll(MPI_COMM_SELF);
-      auto mgr_l = MemoryManagerLocal::create_coll(pg_l);
-      Distribution_NW distribution_l;
-      RuntimeEngine re_l;
-      ExecutionContext ec_l{pg_l, &distribution_l, mgr_l, &re_l};
-
+      ExecutionContext ec_l{pg_l, DistributionKind::nw, MemoryManagerKind::local};
     #ifdef SCALAPACK
 
       auto blacs_setup_st = std::chrono::high_resolution_clock::now();
@@ -353,7 +367,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       Scheduler sch{ec};
 
       if (restart) {
-        scf_restart(ec, sys_data, filename, etensors);
+        scf_restart(ec, sys_data, filename, etensors, files_prefix);
         if(is_rhf) 
           etensors.X      = etensors.C;
         if(is_uhf) {
@@ -438,18 +452,13 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       std::tie(dCocc_til) = tdfCocc.labels<1>("all");
 
       if(do_density_fitting){
-        ndf = dfbs.nbf();
-        dfAO = IndexSpace{range(0, ndf)};
-        std::tie(df_shell_tile_map, dfAO_tiles, dfAO_opttiles) = compute_AO_tiles(ec,sys_data,dfbs);
-      
-        tdfAO=TiledIndexSpace{dfAO, dfAO_opttiles};
-        tdfAOt=TiledIndexSpace{dfAO, dfAO_tiles};
         std::tie(d_mu, d_nu, d_ku) = tdfAO.labels<3>("all");
         std::tie(d_mup, d_nup, d_kup) = tdfAOt.labels<3>("all");
-    
+
+        ttensors.Zxy_tamm = Tensor<TensorType>{tdfAO, tAO, tAO}; //ndf,n,n
         ttensors.xyK_tamm = Tensor<TensorType>{tAO, tAO, tdfAO}; //n,n,ndf
         ttensors.C_occ_tamm = Tensor<TensorType>{tAO,tdfCocc}; //n,nocc
-        Tensor<TensorType>::allocate(&ec, ttensors.xyK_tamm, ttensors.C_occ_tamm);
+        Tensor<TensorType>::allocate(&ec, ttensors.xyK_tamm, ttensors.C_occ_tamm,ttensors.Zxy_tamm);
       }//df basis
 
       if(rank == 0) {
@@ -653,7 +662,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       if(rank == 0) tamm_to_eigen_tensor(ttensors.F1,etensors.F);
 
-      if(do_density_fitting) Tensor<TensorType>::deallocate(ttensors.xyK_tamm, ttensors.C_occ_tamm);
+      if(do_density_fitting) Tensor<TensorType>::deallocate(ttensors.xyK_tamm, ttensors.C_occ_tamm, ttensors.Zxy_tamm);
 
       Tensor<TensorType>::deallocate(ttensors.H1     , ttensors.S1      , ttensors.T1         , ttensors.V1,
                                      ttensors.F1tmp1 , ttensors.ehf_tmp , ttensors.ehf_tamm   , ttensors.F1,
@@ -668,11 +677,9 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       #if SCF_THROTTLE_RESOURCES
       ec.flush_and_sync();
-      MemoryManagerGA::destroy_coll(mgr);
       #endif
 
       ec_l.flush_and_sync();
-      MemoryManagerLocal::destroy_coll(mgr_l);      
 
       #ifdef SCALAPACK
       // Free up created comms / groups
@@ -706,7 +713,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     sys_data.update();
     if(rank==0 && debug) sys_data.print();
-    sys_data.input_molecule = getfilename(filename);
+    // sys_data.input_molecule = getfilename(filename);
     sys_data.scf_iterations = iter; //not broadcasted, but fine since only rank 0 writes to json
     sys_data.scf_energy = ehf;
     if(rank==0) write_results(sys_data,"SCF");
@@ -741,7 +748,5 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     return std::make_tuple(sys_data, ehf, shells, shell_tile_map, 
       C_alpha_tamm, F_alpha_tamm, C_beta_tamm, F_beta_tamm, tAO, tAOt, scf_conv);
 }
-
-
 
 #endif // TAMM_METHODS_HF_TAMM_HPP_

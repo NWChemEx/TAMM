@@ -3,10 +3,10 @@ Prerequisites
 -------------
 - Git
 - autotools
-- cmake >= 3.13
+- cmake >= 3.17
 - MPI Library
 - C++17 compiler
-- CUDA >= 10.1 (only if building with GPU support)
+- CUDA >= 10.2 (only if building with GPU support)
 
 **Please see [CMake Build Notes](CMake_Build_Notes.md) for more details on installing Prerequisites**
 

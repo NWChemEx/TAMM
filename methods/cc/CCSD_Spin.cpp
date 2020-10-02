@@ -1,5 +1,3 @@
-// #define CATCH_CONFIG_RUNNER
-
 #include "ccsd_common.hpp"
 
 #include <filesystem>
@@ -22,14 +20,11 @@ int main( int argc, char* argv[] )
         return 1;
     }
 
-    MPI_Init(&argc,&argv);
-    GA_Initialize();
-    MA_init(MT_DBL, 8000000, 20000000);
-    
+    tamm::initialize(argc, argv);
+
     ccsd_driver();
 
-    GA_Terminate();
-    MPI_Finalize();
+    tamm::finalize();
 
     return 0;
 }
@@ -41,14 +36,11 @@ void ccsd_driver() {
     using T = double;
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext ec{pg, &distribution, mgr, &re};
+    ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     auto rank = ec.pg().rank();
 
-    auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, AO_opt, AO_tis,scf_conv]  
-                    = hartree_fock_driver<T>(ec,filename);
+    auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO,
+        F_beta_AO, AO_opt, AO_tis, scf_conv] = hartree_fock_driver<T>(ec, filename);
 
     CCSDOptions ccsd_options = sys_data.options_map.ccsd_options;
     bool debug = ccsd_options.debug;
@@ -58,7 +50,7 @@ void ccsd_driver() {
     
     auto [MO,total_orbitals] = setupMOIS(sys_data);
 
-    std::string out_fp = getfilename(filename)+"."+ccsd_options.basis;
+    std::string out_fp = sys_data.output_file_prefix+"."+ccsd_options.basis;
     std::string files_dir = out_fp+"_files";
     std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
     std::string f1file = files_prefix+".f1_mo";
@@ -74,7 +66,7 @@ void ccsd_driver() {
 
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
-                        (sys_data, ec, MO, AO_opt, C_AO, F_AO, shells, shell_tile_map,
+                        (sys_data, ec, MO, AO_opt, C_AO, F_AO, C_beta_AO, F_beta_AO, shells, shell_tile_map,
                                 ccsd_restart, cholfile);
 
     TiledIndexSpace N = MO("all");
@@ -162,7 +154,6 @@ void ccsd_driver() {
     free_tensors(d_t1, d_t2, d_f1, d_v2);
 
     ec.flush_and_sync();
-    MemoryManagerGA::destroy_coll(mgr);
     // delete ec;
 
 }

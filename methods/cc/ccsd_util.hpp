@@ -119,14 +119,16 @@ std::pair<double,double> rest(ExecutionContext& ec,
                               Tensor<T>& d_t1,
                               Tensor<T>& d_t2,
                               Tensor<T>& de,
+                              Tensor<T>& d_r1_residual,
+                              Tensor<T>& d_r2_residual,                              
                               std::vector<T>& p_evl_sorted, T zshiftl, 
                               const TAMM_SIZE& noa,
                               const TAMM_SIZE& nob, bool transpose=false) {
 
     T residual, energy;
     Scheduler sch{ec};
-    Tensor<T> d_r1_residual{}, d_r2_residual{};
-    Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
+    // Tensor<T> d_r1_residual{}, d_r2_residual{};
+    // Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
     sch
       (d_r1_residual() = d_r1()  * d_r1())
       (d_r2_residual() = d_r2()  * d_r2())
@@ -152,7 +154,7 @@ std::pair<double,double> rest(ExecutionContext& ec,
       l1();
       l2();
 
-      Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
+      // Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
       
     return {residual, energy};
 }
@@ -165,14 +167,16 @@ std::pair<double,double> rest_cs(ExecutionContext& ec,
                               Tensor<T>& d_t1,
                               Tensor<T>& d_t2,
                               Tensor<T>& de,
+                              Tensor<T>& d_r1_residual,
+                              Tensor<T>& d_r2_residual,
                               std::vector<T>& p_evl_sorted, T zshiftl, 
                               const TAMM_SIZE& noa,
                               const TAMM_SIZE& nva, bool transpose=false) {
 
     T residual, energy;
     Scheduler sch{ec};
-    Tensor<T> d_r1_residual{}, d_r2_residual{};
-    Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
+    // Tensor<T> d_r1_residual{}, d_r2_residual{};
+    // Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
     sch
       (d_r1_residual() = d_r1()  * d_r1())
       (d_r2_residual() = d_r2()  * d_r2())
@@ -198,7 +202,7 @@ std::pair<double,double> rest_cs(ExecutionContext& ec,
       l1();
       l2();
 
-      Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
+      // Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
       
     return {residual, energy};
 }
@@ -213,9 +217,10 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(SystemData sys_data, bool triple
 
     Tile tce_tile = sys_data.options_map.ccsd_options.tilesize;
     if(!triples) {
-      if ((tce_tile < static_cast<Tile>(sys_data.nbf/10) || tce_tile < 50) && !sys_data.options_map.ccsd_options.force_tilesize) {
+      if ((tce_tile < static_cast<Tile>(sys_data.nbf/10) || tce_tile < 50 || tce_tile > 100) && !sys_data.options_map.ccsd_options.force_tilesize) {
         tce_tile = static_cast<Tile>(sys_data.nbf/10);
         if(tce_tile < 50) tce_tile = 50; //50 is the default tilesize for CCSD.
+        if(tce_tile > 100) tce_tile = 100; //100 is the max tilesize for CCSD.
         if(GA_Nodeid()==0) std::cout << std::endl << "Resetting CCSD tilesize to: " << tce_tile << std::endl;
       }
     }
@@ -453,11 +458,17 @@ std::tuple<SystemData, double,
     std::vector<Atom> atoms;
     OptionsMap options_map;
     std::tie(atoms, options_map) = read_input_nwx(is);
+    if(options_map.options.output_file_prefix.empty()) 
+      options_map.options.output_file_prefix = getfilename(filename);
+    
     SystemData sys_data{options_map, options_map.scf_options.scf_type};
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-    std::tie(sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, tAO, tAOt,scf_conv) = hartree_fock(ec, filename, atoms, options_map);
+    std::tie(sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, tAO, tAOt, scf_conv) = hartree_fock(ec, filename, atoms, options_map);
+    sys_data.input_molecule = getfilename(filename);
+    sys_data.output_file_prefix = options_map.options.output_file_prefix;
+
     auto hf_t2 = std::chrono::high_resolution_clock::now();
 
     double hf_time =

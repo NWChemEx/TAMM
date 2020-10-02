@@ -138,7 +138,6 @@ class MemoryManagerGA : public MemoryManager {
       pmr->ga_ = NGA_Create_irreg64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()), &block, map_start);
            }
            memTime4+=memTime9;
-           if(pg_.rank().value()==2) std::cout << "create_irreg time: " << memTime9 << std::endl;
            memTime9=0;
       
     }
@@ -185,7 +184,6 @@ class MemoryManagerGA : public MemoryManager {
     NGA_Allocate(pmr->ga_);
         }
     memTime4+=memTime9;
-    // if(pg_.rank().value()==2) std::cout << "nga_allocate time: " << memTime9 << std::endl;
     memTime9=0;
 
     pmr->map_[0] = 0;
@@ -227,7 +225,7 @@ class MemoryManagerGA : public MemoryManager {
 
   protected:
   explicit MemoryManagerGA(ProcGroup pg)
-      : MemoryManager{pg, MemManageKind::ga} {
+      : MemoryManager{pg, MemoryManagerKind::ga} {
     EXPECTS(pg.is_valid());
     pg_ = pg;
     ga_pg_ = pg.ga_pg();

@@ -290,7 +290,8 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
     Matrix& C_b       = etensors.C_beta;
     Matrix& D_a       = etensors.D;
     Matrix& D_b       = etensors.D_beta;
-    
+    Matrix& C_occ_a   = etensors.C_occ;
+
     // compute guess in minimal basis
     Matrix D_minbs_a;
     Matrix D_minbs_b;
@@ -610,11 +611,11 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
 
     // compute density
     if(is_rhf) {
-      auto C_occ_a = C_a.leftCols(sys_data.nelectrons_alpha); 
+      C_occ_a = C_a.leftCols(sys_data.nelectrons_alpha); 
       D_a = 2.0 * C_occ_a * C_occ_a.transpose();
     }
     if(is_uhf) {
-      auto C_occ_a = C_a.leftCols(sys_data.nelectrons_alpha); 
+      C_occ_a = C_a.leftCols(sys_data.nelectrons_alpha); 
       auto C_occ_b = C_b.leftCols(sys_data.nelectrons_beta);
       D_a = C_occ_a * C_occ_a.transpose();
       D_b = C_occ_b * C_occ_b.transpose();

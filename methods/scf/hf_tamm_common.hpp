@@ -195,20 +195,45 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
 
     // tamm::scale_ip(ttensors.H1(),2.0);
 
-
     t2e_hf_helper<TensorType,2>(ec, ttensors.H1, etensors.H, "H1-H");
     t2e_hf_helper<TensorType,2>(ec, ttensors.S1, etensors.S, "S1-S");
 
 }
 
-void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const std::string& filename, EigenTensors& etensors){
+void scf_restart_test(const ExecutionContext& ec, const SystemData& sys_data, const std::string& filename, 
+                      bool restart, std::string files_prefix) {
+    if(!restart) return;
+    const auto rank    = ec.pg().rank();
+    const bool is_uhf  = (sys_data.scf_type == sys_data.SCFType::uhf);
+
+    int        rstatus = 1;
+
+    std::string movecsfile_alpha  = files_prefix + ".alpha.movecs";
+    std::string densityfile_alpha = files_prefix + ".alpha.density";
+    std::string movecsfile_beta  = files_prefix + ".beta.movecs";       
+    std::string densityfile_beta = files_prefix + ".beta.density";   
+    bool status = false;
+
+    if(rank==0) {
+      status = fs::exists(movecsfile_alpha) && fs::exists(densityfile_alpha);
+      if(is_uhf) 
+        status = status && fs::exists(movecsfile_beta) && fs::exists(densityfile_beta);
+    }
+    rstatus = status;
+    ec.pg().barrier();
+    MPI_Bcast(&rstatus        ,1,mpi_type<int>()       ,0,ec.pg().comm());
+    std::string fnf = movecsfile_alpha + "; " + densityfile_alpha;
+    if(is_uhf) fnf = fnf + "; " + movecsfile_beta + "; " + densityfile_beta;    
+    if(rstatus == 0) nwx_terminate("Error reading one or all of the files: [" + fnf + "]");
+}
+
+void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const std::string& filename, 
+                EigenTensors& etensors, std::string files_prefix) {
 
     const auto rank    = ec.pg().rank();
     const auto N       = sys_data.nbf_orig;
     const auto Northo  = N - sys_data.n_lindep;
     const bool is_uhf  = (sys_data.scf_type == sys_data.SCFType::uhf);
-
-    int        rstatus = 0;
 
     EXPECTS(Northo == sys_data.nbf);
 
@@ -216,69 +241,37 @@ void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const s
     std::vector<TensorType> Cbuf_b;
     std::vector<TensorType> Dbuf_a(N*N);
     std::vector<TensorType> Dbuf_b;
-    TensorType *Cbufp_a = &Cbuf_a[0];
-    TensorType *Dbufp_a = &Dbuf_a[0];
 
     if(is_uhf) {
       Cbuf_b.resize(N*Northo);
       Dbuf_b.resize(N*N);
     }
 
-    std::string files_prefix = getfilename(filename) +
-       "." + sys_data.options_map.scf_options.basis;
     std::string movecsfile_alpha  = files_prefix + ".alpha.movecs";
     std::string densityfile_alpha = files_prefix + ".alpha.density";
 
 
     if(rank==0) {
-      cout << "Reading movecs and density from file... ";
-        // C_a
-        std::ifstream movecs_a(movecsfile_alpha, std::ios::in | std::ios::binary);
-        if(movecs_a.is_open()) rstatus = 1;
-        if(rstatus == 1){
-          movecs_a.read((char *) Cbufp_a, sizeof(TensorType)*N*Northo);
-        }
-        if(rstatus == 0) nwx_terminate("Error reading " + movecsfile_alpha);
-        // D_a
-        rstatus = 0;
-        std::ifstream density_a(densityfile_alpha, std::ios::in | std::ios::binary);
-        if(density_a.is_open()) rstatus = 1;
-        if(rstatus == 1){
-          density_a.read((char *) Dbufp_a, sizeof(TensorType)*N*N);
-        }
-        if(rstatus == 0) nwx_terminate("Error reading " + densityfile_alpha);
+      cout << "Reading movecs and density files ... ";
+      readMD(Cbuf_a,Dbuf_a,movecsfile_alpha,densityfile_alpha);
 
       if(is_uhf) {
-        TensorType *Cbufp_b = &Cbuf_b[0];
-        TensorType *Dbufp_b = &Dbuf_b[0];
-
         std::string movecsfile_beta  = files_prefix + ".beta.movecs";       
-        std::string densityfile_beta = files_prefix + ".beta.density";                
-        // C_b
-        rstatus = 0;
-        std::ifstream movecs_b(movecsfile_beta , std::ios::in | std::ios::binary);
-        if(movecs_b.is_open()) rstatus = 1;
-        if(rstatus == 1){
-          movecs_b.read((char *) Cbufp_b, sizeof(TensorType)*N*Northo);
-        }
-        if(rstatus == 0) nwx_terminate("Error reading " + movecsfile_beta);
-        // D_b
-        rstatus = 0;
-        std::ifstream density_b(densityfile_beta, std::ios::in | std::ios::binary);
-        if(density_b.is_open()) rstatus = 1;
-        if(rstatus == 1){
-          density_b.read((char *) Dbufp_b, sizeof(TensorType)*N*N);
-        }
-        if(rstatus == 0) nwx_terminate("Error reading " + densityfile_beta);
+        std::string densityfile_beta = files_prefix + ".beta.density"; 
+        readMD(Cbuf_b,Dbuf_b,movecsfile_beta,densityfile_beta);               
       }
       cout << "done" << endl;
     }
     ec.pg().barrier();
-    MPI_Bcast(&rstatus,1       ,mpi_type<int>()       ,0,ec.pg().comm());
+    // MPI_Bcast(&rstatus,1       ,mpi_type<int>()       ,0,ec.pg().comm());
+
+    TensorType *Cbufp_a = &Cbuf_a[0];
+    TensorType *Dbufp_a = &Dbuf_a[0];    
     MPI_Bcast(Cbufp_a,N*Northo,mpi_type<TensorType>(),0,ec.pg().comm());
     MPI_Bcast(Dbufp_a,N*N     ,mpi_type<TensorType>(),0,ec.pg().comm());
     etensors.C      = Eigen::Map<Matrix>(Cbufp_a,N,Northo);
     etensors.D      = Eigen::Map<Matrix>(Dbufp_a,N,N);
+
     if(is_uhf) {
       TensorType *Cbufp_b = &Cbuf_b[0];
       TensorType *Dbufp_b = &Dbuf_b[0];      
@@ -921,6 +914,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
       Tensor<TensorType>& F1tmp       = ttensors.F1tmp;
       Tensor<TensorType>& F1tmp1      = ttensors.F1tmp1;
       Tensor<TensorType>& F1tmp1_beta = ttensors.F1tmp1_beta;
+      Tensor<TensorType>& Zxy_tamm    = ttensors.Zxy_tamm;
       Tensor<TensorType>& xyK_tamm    = ttensors.xyK_tamm;
 
       double fock_precision = std::min(sys_data.options_map.scf_options.tol_int, 1e-3 * sys_data.options_map.scf_options.conve);
@@ -1133,8 +1127,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
             auto shell2bf_df = dfbs.shell2bf();
             const auto& results = engine.results();
 
-            Tensor<TensorType> Zxy_tamm{tdfAO, tAO, tAO}; //ndf,n,n
-            Tensor<TensorType>::allocate(&ec, Zxy_tamm);
+            // Tensor<TensorType>::allocate(&ec, Zxy_tamm);
 
             #if 1
               //TODO: Screening?
@@ -1329,7 +1322,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
           // Tensor3D xyK = Zxy.contract(K,aidx_00); 
             Scheduler{ec}
             (xyK_tamm(mu,nu,d_nu) = Zxy_tamm(d_mu,mu,nu) * K_tamm(d_mu,d_nu)).execute();
-            Tensor<TensorType>::deallocate(K_tamm,Zxy_tamm); //release memory
+            Tensor<TensorType>::deallocate(K_tamm); //release memory Zxy_tamm
 
           }  // if (!is_3c_init)
       

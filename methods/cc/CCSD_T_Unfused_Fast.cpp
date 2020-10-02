@@ -1,5 +1,3 @@
-// #define CATCH_CONFIG_RUNNER
-
 #include "cd_ccsd_common.hpp"
 #include "ccsd_t/ccsd_t_unfused_driver.hpp"
 
@@ -45,10 +43,7 @@ void ccsd_driver() {
     using T = double;
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_SimpleRoundRobin distribution;
-    RuntimeEngine re;
-    ExecutionContext ec{pg, &distribution, mgr, &re};
+    ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     auto rank = ec.pg().rank();
 
     auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, AO_opt, AO_tis,scf_conv]  
@@ -65,7 +60,7 @@ void ccsd_driver() {
     
     auto [MO,total_orbitals] = setupMOIS(sys_data,true);
 
-    std::string out_fp = getfilename(filename)+"."+ccsd_options.basis;
+    std::string out_fp = sys_data.output_file_prefix+"."+ccsd_options.basis;
     std::string files_dir = out_fp+"_files";
     std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
     std::string f1file = files_prefix+".f1_mo";
@@ -329,7 +324,7 @@ void ccsd_driver() {
 
 
     std::tie(energy1,energy2,ccsd_t_time,total_t_time) = ccsd_t_unfused_driver(ec,k_spin,MO,d_t1,d_t2,d_v2,
-                p_evl_sorted,hf_energy+corr_energy,ccsd_options.icuda,is_restricted,use_nwc_gpu_kernels);
+                p_evl_sorted,hf_energy+corr_energy,ccsd_options.ngpu,is_restricted,use_nwc_gpu_kernels);
 
         
     double g_energy1,g_energy2;
@@ -400,7 +395,6 @@ void ccsd_driver() {
     free_tensors(d_t1, d_t2, d_f1, d_v2);
 
     ec.flush_and_sync();
-    MemoryManagerGA::destroy_coll(mgr);
     // delete ec;
 
 }

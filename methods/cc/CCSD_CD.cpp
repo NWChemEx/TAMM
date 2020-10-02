@@ -1,5 +1,3 @@
-// #define CATCH_CONFIG_RUNNER
-
 #include "diis.hpp"
 #include "ccsd_util.hpp"
 
@@ -353,10 +351,7 @@ void ccsd_driver() {
     using T = double;
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    auto mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext ec{pg, &distribution, mgr, &re};
+    ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     auto rank = ec.pg().rank();
 
     //TODO: read from input file, assume no freezing for now
@@ -450,7 +445,5 @@ void ccsd_driver() {
 //   for (auto x = 0; x < chol_count; x++) Tensor<T>::deallocate(chol_vecs[x]);
 
   ec.flush_and_sync();
-  MemoryManagerGA::destroy_coll(mgr);
 //   delete ec;
-
 }

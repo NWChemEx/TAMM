@@ -1,5 +1,4 @@
-#define CATCH_CONFIG_MAIN
-#include <catch/catch.hpp>
+
 #include <tamm/tamm.hpp>
 
 using tamm::ExecutionContext;

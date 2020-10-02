@@ -37,6 +37,8 @@ int device_init(long iDevice,int *gpu_device_number) {
   cudaGetDeviceCount(&dev_count_check);
 #elif defined(USE_HIP)
   hipGetDeviceCount(&dev_count_check);
+#elif defined(USE_DPCPP)
+  dev_count_check = iDevice; //TODO: query ngpus
 #endif
 
   //

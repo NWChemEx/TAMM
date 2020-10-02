@@ -1,5 +1,3 @@
-// #define CATCH_CONFIG_RUNNER
-
 #include "ccsd_util.hpp"
 
 using namespace tamm;

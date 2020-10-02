@@ -39,26 +39,12 @@ int main(int argc, char *argv[]) {
 
   tamm::initialize(argc, argv);
 
-  int mpi_rank;
-  MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
-#ifdef USE_TALSH
-  TALSH talsh_instance;
-  talsh_instance.initialize(mpi_rank);
-#endif
-
   ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-  MemoryManagerGA *mgr = MemoryManagerGA::create_coll(pg);
-  Distribution_NW distribution;
-  RuntimeEngine re;
-  ExecutionContext ec{pg, &distribution, mgr, &re};
+  ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   Scheduler sch{ec};
 
   dlpno_T1_T2_allocate<double>(sch, 10, 2);
-
-#ifdef USE_TALSH
-  talsh_instance.shutdown();
-#endif
 
   tamm::finalize();
 

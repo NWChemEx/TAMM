@@ -5,7 +5,7 @@
 #include "tamm/types.hpp"
 #include "tamm/utils.hpp"
 
-#include "hptt.h"
+#include "hptt/hptt.h"
 
 #include <algorithm>
 #include <functional>

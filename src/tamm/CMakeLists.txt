@@ -54,5 +54,5 @@ set(tamm_DEFINITIONS )
 set(tamm_LFLAGS )
 
 nwchemex_add_library(tamm tamm_SRCS tamm_INCLUDES tamm_DEFINTIONS tamm_LFLAGS)
-
+target_include_directories(tamm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../utils/external)
 

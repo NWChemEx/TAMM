@@ -13,6 +13,7 @@
 
 namespace tamm {
 
+#if 1
 class ProcGroup {
  public:
   /**
@@ -284,7 +285,7 @@ class ProcGroup {
   }
 };  // class ProcGroup
 
-#if 0
+#else
 /**
  * @brief Wrapper to MPI communicator and related operations.
  */

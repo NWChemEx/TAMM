@@ -1,5 +1,5 @@
-#define CATCH_CONFIG_RUNNER
-#include "catch/catch.hpp"
+#define DOCTEST_CONFIG_IMPLEMENT
+#include "doctest/doctest.h"
 #include "ga.h"
 #include "mpi.h"
 #include "macdecls.h"
@@ -10,14 +10,6 @@
 
 using namespace tamm;
 
-template<typename T>
-std::ostream& operator << (std::ostream &os, std::vector<T>& vec){
-    os << "[";
-    for(auto &x: vec)
-        os << x << ",";
-    os << "]\n";
-    return os;
-}
 
 template<typename T>
 void print_tensor(Tensor<T> &t){
@@ -146,10 +138,7 @@ void test_setop_with_T(unsigned tilesize) {
     //0-4 dimensional setops
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg,DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10),
                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
@@ -227,8 +216,8 @@ void test_setop_with_T(unsigned tilesize) {
         REQUIRE(test_setop(ec, T1, T1(l1, l2, l2, l1), {T1(l1, l1, l1, l1), T1(l1, l1, l1, l2), T1(l1, l1, l2, l1), T1(l1, l1, l2, l2), T1(l1, l2, l1, l1), T1(l1, l2, l1, l2), T1(l1, l2, l2, l2), T1(l2, l1, l1, l1), T1(l2, l1, l1, l2), T1(l2, l1, l2, l1), T1(l2, l2, l1, l1), T1(l2, l2, l1, l2), T1(l2, l2, l2, l1), T1(l2, l2, l2, l2)}));
    }
 
-    MemoryManagerGA::destroy_coll(mgr);
-    delete ec;
+    // MemoryManagerGA::destroy_coll(mgr);
+    // delete ec;
 
 }
 
@@ -238,10 +227,7 @@ void test_addop_with_T(unsigned tilesize) {
     //0-4 dimensional addops
     bool failed;
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10),
                   {{"nr1", {range(0, 5)}}, {"nr2", {range(5, 10)}}}};
@@ -511,8 +497,8 @@ void test_addop_with_T(unsigned tilesize) {
     }
     REQUIRE(!failed);
  
-    MemoryManagerGA::destroy_coll(mgr);
-    delete ec;
+    // MemoryManagerGA::destroy_coll(mgr);
+    // delete ec;
 }
 
 
@@ -520,10 +506,7 @@ template<typename T>
 void test_dependent_space_with_T(Index tilesize) {
     bool success = false;
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    RuntimeEngine re;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr, &re};
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10)};
     TiledIndexSpace T_IS{IS, tilesize};
@@ -988,9 +971,6 @@ void test_dependent_space_with_T(Index tilesize) {
 
     ///////////////////////////////////////////////////////////////
 
-    MemoryManagerGA::destroy_coll(mgr);
-    delete ec;
-
 }
 
 
@@ -1004,18 +984,15 @@ TEST_CASE("Tensor ops for float") {
     test_dependent_space_with_T<float>(3);
 }
 
-int main(int argc, char* argv[])
-{
-    MPI_Init(&argc,&argv);
-    GA_Initialize();
-    MA_init(MT_DBL, 8000000, 20000000);
-    
-    int mpi_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+int main(int argc, char* argv[]) {
 
-    int res = Catch::Session().run(argc, argv);
-    GA_Terminate();
-    MPI_Finalize();
+    tamm::initialize(argc, argv);
+
+    doctest::Context context(argc, argv);
+
+    int res = context.run();
+
+    tamm::finalize();
 
     return res;
 }

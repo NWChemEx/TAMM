@@ -1,5 +1,3 @@
-// #define CATCH_CONFIG_RUNNER
-
 #include "cd_ccsd_common_NK.hpp"
 
 #include <filesystem>

@@ -12,6 +12,7 @@ include(TargetMacros)
 #add_mpi_unit_test(Test_PG 2 "")
 add_mpi_unit_test(Test_Mult_Ops 2 "10 2" )
 add_mpi_unit_test(Test_DLPNO_Ops 2 "10 2" )
+add_mpi_unit_test(Test_IO 2 "10 10" )
 
 
 # add_mpi_unit_test(Test_QR 2 "")

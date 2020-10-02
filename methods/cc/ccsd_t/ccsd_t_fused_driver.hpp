@@ -2,12 +2,19 @@
 #ifndef CCSD_T_FUSED_HPP_
 #define CCSD_T_FUSED_HPP_
 
-#include "ccsd_t_all_fused.hpp"
+#if defined(USE_CUDA) || defined(USE_HIP)
+  #include "ccsd_t_all_fused.hpp"
+#else
+  #include "ccsd_t_all_fused_cpu.hpp"
+#endif
 #include "ccsd_t_common.hpp"
 
 int check_device(long);
-int device_init(long iDevice,int *gpu_device_number );
+int device_init(long ngpu, int *cuda_device_number);
+#if defined(USE_CUDA) || defined(USE_HIP)
 void dev_release();
+#endif
+
 void finalizememmodule();
 
 //
@@ -58,6 +65,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
 
   //Check if node has number of devices specified in input file
   int dev_count_check;
+
 #if defined(USE_CUDA)
   cudaGetDeviceCount(&dev_count_check);
   if(dev_count_check < iDevice){
@@ -98,6 +106,8 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
       return std::make_tuple(-999,-999,0,0);
     }
   }
+#else
+  iDevice = 0;
 #endif
 
   int gpu_device_number=0;
@@ -151,7 +161,6 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   size_t size_T_d2_t2 = max_d2_kernels_pertask * (max_pdim * max_pdim) * (max_hdim * max_hdim);
   size_t size_T_d2_v2 = max_d2_kernels_pertask * (max_pdim * max_pdim * max_pdim) * (max_hdim);
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DCPP)
   T* df_host_pinned_s1_t1 = (T*)getHostMem(sizeof(double) * size_T_s1_t1);
   T* df_host_pinned_s1_v2 = (T*)getHostMem(sizeof(double) * size_T_s1_v2);
   T* df_host_pinned_d1_t2 = (T*)getHostMem(sizeof(double) * size_T_d1_t2);
@@ -169,7 +178,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   int* df_simple_d2_size = (int*)getHostMem(sizeof(int) * (7 * nvab));
   int* df_simple_d2_exec = (int*)getHostMem(sizeof(int) * (9 * nvab));
 
-  //
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   double* df_dev_s1_t1_all = (double*)getGpuMem(sizeof(double) * size_T_s1_t1);
   double* df_dev_s1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_s1_v2);
   double* df_dev_d1_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_t2);
@@ -181,8 +190,9 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   size_t max_num_blocks = sys_data.options_map.ccsd_options.ccsdt_tilesize;
   max_num_blocks = std::ceil((max_num_blocks+4-1)/4.0);
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DCPP)
   double* df_host_energies = (double*)getHostMem(sizeof(double) * std::pow(max_num_blocks, 6) * 2);
+
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   double* df_dev_energies = (double*)getGpuMem(sizeof(double) * std::pow(max_num_blocks, 6) * 2);
 #endif
 
@@ -225,6 +235,8 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
             }
 
             num_task++;
+
+            #if defined(USE_CUDA) || defined(USE_HIP)
             // printf ("[%s] rank: %d >> calls the gpu code\n", __func__, rank);
             ccsd_t_fully_fused_none_df_none_task(is_restricted, noab, nvab, rank, 
                                                 k_spin,
@@ -259,6 +271,43 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                 cache_s1t, cache_s1v,
                                                 cache_d1t, cache_d1v,
                                                 cache_d2t, cache_d2v);
+            #else
+            total_fused_ccsd_t_cpu<T>(is_restricted, noab, nvab, rank, 
+                                                k_spin,
+                                                k_range,
+                                                k_offset,
+                                                d_t1, d_t2, d_v2,
+                                                k_evl_sorted,
+                                                // 
+                                                df_host_pinned_s1_t1, df_host_pinned_s1_v2, 
+                                                df_host_pinned_d1_t2, df_host_pinned_d1_v2, 
+                                                df_host_pinned_d2_t2, df_host_pinned_d2_v2,
+                                                df_host_energies, 
+                                                // 
+                                                df_simple_s1_size, df_simple_d1_size, df_simple_d2_size, 
+                                                df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec, 
+                                                // 
+                                                #if defined(USE_DPCPP)
+                                                df_dev_s1_t1_all, df_dev_s1_v2_all, 
+                                                df_dev_d1_t2_all, df_dev_d1_v2_all, 
+                                                df_dev_d2_t2_all, df_dev_d2_v2_all, 
+                                                df_dev_energies,
+                                                #endif
+                                                // 
+                                                t_h1b, t_h2b, t_h3b,
+                                                t_p4b, t_p5b, t_p6b,
+                                                factor, taskcount, 
+                                                max_d1_kernels_pertask, max_d2_kernels_pertask,
+                                                //  
+                                                size_T_s1_t1, size_T_s1_v2, 
+                                                size_T_d1_t2, size_T_d1_v2, 
+                                                size_T_d2_t2, size_T_d2_v2, 
+                                                // 
+                                                tmp_energy_l, 
+                                                cache_s1t, cache_s1v,
+                                                cache_d1t, cache_d1v,
+                                                cache_d2t, cache_d2v);
+            #endif
 
             next = ac->fetch_add(0, 1);
           }
@@ -317,6 +366,8 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
 
               //
               num_task++;
+
+              #if defined(USE_CUDA) || defined(USE_HIP)
               ccsd_t_fully_fused_none_df_none_task(is_restricted, noab, nvab, rank, 
                                                   k_spin,
                                                   k_range,
@@ -350,6 +401,44 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                   cache_s1t, cache_s1v,
                                                   cache_d1t, cache_d1v,
                                                   cache_d2t, cache_d2v);
+            #else
+            total_fused_ccsd_t_cpu<T>(is_restricted, noab, nvab, rank, 
+                                                k_spin,
+                                                k_range,
+                                                k_offset,
+                                                d_t1, d_t2, d_v2,
+                                                k_evl_sorted,
+                                                // 
+                                                df_host_pinned_s1_t1, df_host_pinned_s1_v2, 
+                                                df_host_pinned_d1_t2, df_host_pinned_d1_v2, 
+                                                df_host_pinned_d2_t2, df_host_pinned_d2_v2,
+                                                df_host_energies, 
+                                                // 
+                                                df_simple_s1_size, df_simple_d1_size, df_simple_d2_size, 
+                                                df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec, 
+                                                // 
+                                                #if defined(USE_DPCPP)
+                                                df_dev_s1_t1_all, df_dev_s1_v2_all, 
+                                                df_dev_d1_t2_all, df_dev_d1_v2_all, 
+                                                df_dev_d2_t2_all, df_dev_d2_v2_all, 
+                                                df_dev_energies,
+                                                #endif
+                                                // 
+                                                t_h1b, t_h2b, t_h3b,
+                                                t_p4b, t_p5b, t_p6b,
+                                                factor, taskcount, 
+                                                max_d1_kernels_pertask, max_d2_kernels_pertask,
+                                                //  
+                                                size_T_s1_t1, size_T_s1_v2, 
+                                                size_T_d1_t2, size_T_d1_v2, 
+                                                size_T_d2_t2, size_T_d2_v2, 
+                                                // 
+                                                tmp_energy_l, 
+                                                cache_s1t, cache_s1v,
+                                                cache_d1t, cache_d1v,
+                                                cache_d2t, cache_d2v);
+            #endif
+
             }
           }
         }//h3b
@@ -364,15 +453,16 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   energy1 = tmp_energy_l[0];
   energy2 = tmp_energy_l[1];
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   //
   //
   //  free shared device mem
   //
+  #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   freeGpuMem(df_dev_s1_t1_all); freeGpuMem(df_dev_s1_v2_all);
   freeGpuMem(df_dev_d1_t2_all); freeGpuMem(df_dev_d1_v2_all);
   freeGpuMem(df_dev_d2_t2_all); freeGpuMem(df_dev_d2_v2_all);
   freeGpuMem(df_dev_energies);
+  #endif
 
   // 
   //  free shared host mem.

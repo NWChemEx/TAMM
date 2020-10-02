@@ -16,6 +16,9 @@
 
 #include "hf_tamm_common.hpp"
 
+#include "gauxc/xc_integrator.hpp"
+#include "gauxc/xc_integrator/impl.hpp"
+
 #include <filesystem>
 namespace fs = std::filesystem;
 

@@ -3,7 +3,7 @@ project(tamm VERSION 0.0.0 LANGUAGES C CXX Fortran)
 include(${PROJECT_SOURCE_DIR}/cmake/check_user_env.cmake)
 set(NWX_PROJECTS tamm)
 
-set(tamm_DEPENDENCIES NWX_MPI MSGSL Eigen3 LibInt2 HPTT HDF5) # GlobalArrays BLAS LAPACK
+set(tamm_DEPENDENCIES GauXC NWX_MPI MSGSL Eigen3 LibInt2 HPTT HDF5) # GlobalArrays BLAS LAPACK
 
 if(DEFINED BLAS_VENDOR)
     if(NOT ${BLAS_VENDOR} STREQUAL "ReferenceBLAS")
@@ -16,6 +16,8 @@ if(USE_CUDA)
 endif()
 
 list(APPEND tamm_DEPENDENCIES GlobalArrays BLAS LAPACK)
+
+# list(APPEND tamm_DEPENDENCIES GauXC)
 
 if(USE_SCALAPACK)
     list(APPEND tamm_DEPENDENCIES ScaLAPACK CXXBLACS)

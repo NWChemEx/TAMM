@@ -63,6 +63,8 @@ static void clearHostFreeList()
       hipFreeHost(*it2);
 #elif defined(USE_DPCPP)
       cl::sycl::free(*it2, get_current_context());
+#else
+      free(*it2);
 #endif // USE_CUDA
     }
   }
@@ -71,32 +73,63 @@ static void clearHostFreeList()
 
 static size_t num_resurrections=0;// num_morecore=0;
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-typedef (*mallocfn_t)(void **ptr, size_t bytes);
-static void *morecore(mallocfn_t fn, size_t bytes)
+static void *moreDeviceMem(size_t bytes)
 {
   void *ptr;
 #if defined(USE_CUDA)
-  CUDA_SAFE(fn((void **)&ptr, bytes));
+  CUDA_SAFE(cudaMalloc(&ptr, bytes));
 #elif defined(USE_HIP)
-  HIP_SAFE(fn((void **)&ptr, bytes));
+  HIP_SAFE(hipMalloc(&ptr, bytes));
+#elif defined(USE_DPCPP)
+  ptr = (void *)cl::sycl::malloc_device(bytes, get_current_device(), get_current_context());
 #endif
 
   // num_morecore += 1;
-  if(ptr==nullptr) {
-    /*try one more time*/
+  if(ptr==nullptr) {     /*try one more time*/
     clearHostFreeList();
     clearGpuFreeList();
 #if defined(USE_CUDA)
-    CUDA_SAFE(fn((void **)&ptr, bytes));
+    CUDA_SAFE(cudaMalloc(&ptr, bytes));
 #elif defined(USE_HIP)
-    HIP_SAFE(fn((void **)&ptr, bytes));
+    HIP_SAFE(hipMalloc(&ptr, bytes));
+#elif defined(USE_DPCPP)
+    ptr = (void *)cl::sycl::malloc_device(bytes, get_current_device(), get_current_context());
 #endif
   }
   assert(ptr!=nullptr); /*We hopefully have a pointer*/
   return ptr;
 }
-#endif
+
+static void *moreHostMem(size_t bytes)
+{
+  void *ptr;
+  #if defined(USE_CUDA)
+    CUDA_SAFE(cudaMallocHost(&ptr, bytes));
+  #elif defined(USE_HIP)
+    HIP_SAFE(hipHostMalloc(&ptr, bytes));
+  #elif defined(USE_DPCPP)
+    ptr = (void *)cl::sycl::malloc_host(bytes, get_current_context());
+  #else
+    ptr = (void *)malloc(bytes);
+  #endif
+
+  if(ptr==nullptr) {     /*try one more time*/
+    clearHostFreeList();
+    clearGpuFreeList();
+    #if defined(USE_CUDA)
+        CUDA_SAFE(cudaMallocHost(&ptr, bytes));
+    #elif defined(USE_HIP)
+        HIP_SAFE(hipHostMalloc(&ptr, bytes));
+    #elif defined(USE_DPCPP)
+        ptr = (void *)cl::sycl::malloc_host(bytes, get_current_context());
+    #else
+      ptr = (void *)malloc(bytes);
+    #endif
+  }
+
+  assert(ptr!=nullptr); /*We hopefully have a pointer*/
+  return ptr;
+}
 
 static inline void *resurrect_from_free_list(map<size_t,set<void *> > &free_map,
                                              size_t bytes,
@@ -155,20 +188,7 @@ void *getGpuMem(size_t bytes)
     }
   }
 
-#if defined(USE_CUDA)
-  ptr = morecore(cudaMalloc, bytes);
-#elif defined(USE_HIP)
-  ptr = morecore(hipMalloc, bytes);
-#elif defined(USE_DPCPP)
-  ptr = cl::sycl::malloc_device(bytes, get_current_device(), get_current_context());
-  if(ptr==nullptr) { /*try one more time*/
-    clearHostFreeList();
-    clearGpuFreeList();
-    ptr = cl::sycl::malloc_device(bytes, get_current_device(), get_current_context());
-  }
-  assert(ptr!=nullptr); /*We hopefully have a pointer*/
-#endif
-
+  ptr = moreDeviceMem(bytes);
   live_ptrs_gpu[ptr] = bytes;
 #endif // NO_OPT
   return ptr;
@@ -179,12 +199,14 @@ void *getHostMem(size_t bytes)
   //assert(is_init);
   void *ptr;
 #ifdef NO_OPT
-  #if defined(USE_CUDA)
+#if defined(USE_CUDA)
   CUDA_SAFE(cudaMallocHost((void **) &ptr, bytes));
 #elif defined(USE_HIP)
   HIP_SAFE(hipHostMalloc((void **) &ptr, bytes));
 #elif defiend(USE_DPCPP)
   ptr = (void *)cl::sycl::malloc_host(bytes, get_current_context());
+#else //cpu
+  ptr = (void *)malloc(bytes);
 #endif
 #else // NO_OPT
   if(free_list_host.find(bytes)!=free_list_host.end())
@@ -216,20 +238,7 @@ void *getHostMem(size_t bytes)
   }
   /* cutilSafeCall(cudaMallocHost((void **) &ptr, bytes)); */
 
-#if defined(USE_CUDA)
-  ptr = morecore(cudaMallocHost, bytes);
-#elif defined(USE_HIP)
-  ptr = morecore(hipHostMalloc, bytes);
-#elif defined(USE_DPCPP)
-  ptr = cl::sycl::malloc_host(bytes, get_current_context());
-  if(ptr==nullptr) { /*try one more time*/
-    clearHostFreeList();
-    clearGpuFreeList();
-    ptr = cl::sycl::malloc_host(bytes, get_current_context());
-  }
-  assert(ptr!=nullptr); /*We hopefully have a pointer*/
-#endif
-
+  ptr = moreHostMem(bytes);
   live_ptrs_host[ptr] = bytes;
 #endif // NO_OPT
   return ptr;
@@ -246,6 +255,8 @@ void freeHostMem(void *p)
   hipHostFree(p);
 #elif defined(USE_DPCPP)
   cl::sycl::free(p, get_current_context());
+#else
+  free(p);
 #endif
 
 #else

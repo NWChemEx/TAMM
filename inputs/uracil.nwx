@@ -23,3 +23,11 @@ SCF
     tilesize 30
     restart false
 }
+
+
+CCSD
+{
+  tilesize 40
+  //  ccsd_maxiter 1
+   balance_tiles true
+}

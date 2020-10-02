@@ -5,16 +5,6 @@
 
 using namespace tamm;
 
-// std::ostream& operator << (std::ostream& os, const std::vector<Index>& vec) {
-//     os<<"[";
-//     for(const auto& v : vec) {
-//         os<<v<<"; ";
-//     }
-//     os<<"]";
-//     return os;
-// }
-
-
 template<typename T>
 void test_2_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
     TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
@@ -91,7 +81,8 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
 
   const auto timer_start = std::chrono::high_resolution_clock::now();
 
-  sch(C(j, i, k, l) += A(i, j, m, o) * B(m, o, k, l)).execute();
+  sch.exact_copy(A(i, j, m, o), B(m, o, k, l))
+  (C(j, i, k, l) += A(i, j, m, o) * B(m, o, k, l)).execute();
 
   const auto timer_end = std::chrono::high_resolution_clock::now();
 
@@ -192,10 +183,7 @@ int main(int argc, char* argv[]) {
 #endif
 
   ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-  MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
-  Distribution_NW distribution;
-  RuntimeEngine re;
-  ExecutionContext ec{pg, &distribution, mgr, &re};
+  ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   Scheduler sch{ec};
 
@@ -231,6 +219,13 @@ int main(int argc, char* argv[]) {
 
   {
     using T = double;
+    Tensor<std::complex<T>> A1{i,j,a,b,k};
+    std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";    
+    sch.allocate(A1).execute();
+    std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+    sch.deallocate(A1).execute();
+    std::cout << "5d test works \n";
+
     Tensor<T> A{i, j, a, b};
 
     sch.allocate(A).execute();

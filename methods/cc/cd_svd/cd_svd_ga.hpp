@@ -6,9 +6,6 @@
 #include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
 
-#include CBLAS_HEADER
-// #include LAPACKE_HEADER
-
 using namespace tamm;
 using TensorType = double;
 using TAMM_GA_SIZE = int64_t;
@@ -104,95 +101,98 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
 
   Matrix CTiled(nao, N);
 
-  if(rank == 0){
+  if(rank == 0) {
     cout << std::endl << "-----------------------------------------------------" << endl;
     cout << "Begin Cholesky Decomposition ... " << endl;
     cout << std::endl << "#AOs, #electrons = " << nao << " , " << n_occ_alpha+n_occ_beta << endl;
-  }
 
-  Matrix C_alpha;
-  Matrix C_beta;
-  C_alpha.setZero(nao,northo);
-  tamm_to_eigen_tensor(C_alpha_AO,C_alpha);
-  // replicate horizontally
-  Matrix C_2N(nao, N);
-  if(is_rhf) C_2N << C_alpha, C_alpha;
-  if(is_uhf) {
-    C_beta.setZero(nao,northo);
-    tamm_to_eigen_tensor(C_beta_AO, C_beta);
-    C_2N << C_alpha, C_beta;
-    C_beta.resize(0,0);
-  }
-  C_alpha.resize(0,0);
-      
-  if(rank == 0) {
+    Matrix C_alpha;
+    Matrix C_beta;
+    C_alpha.setZero(nao,northo);
+    tamm_to_eigen_tensor(C_alpha_AO,C_alpha);
+    // replicate horizontally
+    Matrix C_2N(nao, N);
+    if(is_rhf) C_2N << C_alpha, C_alpha;
+    if(is_uhf) {
+      C_beta.setZero(nao,northo);
+      tamm_to_eigen_tensor(C_beta_AO, C_beta);
+      C_2N << C_alpha, C_beta;
+      C_beta.resize(0,0);
+    }
+    C_alpha.resize(0,0);
+        
     cout << "n_occ_alpha, n_vir_alpha, n_occ_beta, n_vir_beta = " 
          << n_occ_alpha << "," << n_vir_alpha << "," << n_occ_beta << "," << n_vir_beta << endl;
+
+    Matrix C_noa = C_2N.block(0, 0,                       nao, n_occ_alpha_eff);
+    Matrix C_nva = C_2N.block(0, n_occ_alpha_eff,         nao, n_vir_alpha_eff);
+    Matrix C_nob = C_2N.block(0, northo,                  nao, n_occ_beta_eff);
+    Matrix C_nvb = C_2N.block(0, northo + n_occ_beta_eff, nao, n_vir_beta_eff);
+
+    C_2N.resize(0,0);
+    CTiled << C_noa, C_nob, C_nva, C_nvb;
+
+    Matrix F1_a;
+    Matrix F1_b;
+    F1_a.setZero(nao,nao);
+    tamm_to_eigen_tensor(F_alpha_AO,F1_a);
+
+    if(is_uhf) {
+      F1_b.setZero(nao,nao);
+      tamm_to_eigen_tensor(F_beta_AO, F1_b);
+    }
+
+    Matrix F_oa;
+    Matrix F_va;
+    Matrix F_ob;
+    Matrix F_vb;
+    // F_oa.setZero(n_occ_alpha_eff,n_occ_alpha_eff);
+    // F_va.setZero(n_vir_alpha_eff,n_vir_alpha_eff);
+    // F_ob.setZero(n_occ_beta_eff, n_occ_beta_eff);
+    // F_vb.setZero(n_vir_beta_eff, n_vir_beta_eff);
+
+    F_oa = C_noa.transpose() * (F1_a * C_noa);
+    F_va = C_nva.transpose() * (F1_a * C_nva);
+
+    if(is_rhf) {
+      F_ob = F_oa;
+      F_vb = F_va;
+    }
+    if(is_uhf) {
+      F_ob = C_nob.transpose() * (F1_b * C_nob);
+      F_vb = C_nvb.transpose() * (F1_b * C_nvb);
+    }
+
+    F1_a.resize(0,0);
+    F1_b.resize(0,0);
+
+    Matrix F;
+    F.setZero(N,N);
+
+    TAMM_GA_SIZE k = 0;
+    for (TAMM_GA_SIZE i=0;i<n_occ_alpha_eff;i++){
+      F(i,i) = F_oa(k,k);
+      k++;
+    }
+    k = 0;
+    for (TAMM_GA_SIZE i=n_occ_alpha_eff;i<n_occ_eff;i++){
+      F(i,i) = F_ob(k,k);
+      k++;
+    }
+    k = 0;
+    for (TAMM_GA_SIZE i=n_occ_eff;i<n_occ_eff+n_vir_alpha_eff;i++){
+      F(i,i) = F_va(k,k);
+      k++;
+    }
+    k = 0;
+    for (TAMM_GA_SIZE i=n_occ_eff+n_vir_alpha_eff;i<N;i++){
+      F(i,i) = F_vb(k,k);
+      k++;
+    }
+
+    eigen_to_tamm_tensor(F_MO,F);
+
   }
-
-  Matrix C_noa = C_2N.block(0, 0,                       nao, n_occ_alpha_eff);
-  Matrix C_nva = C_2N.block(0, n_occ_alpha_eff,         nao, n_vir_alpha_eff);
-  Matrix C_nob = C_2N.block(0, northo,                  nao, n_occ_beta_eff);
-  Matrix C_nvb = C_2N.block(0, northo + n_occ_beta_eff, nao, n_vir_beta_eff);
-
-  CTiled << C_noa, C_nob, C_nva, C_nvb;
-
-  Matrix F1_a;
-  Matrix F1_b;
-  F1_a.setZero(nao,nao);
-  tamm_to_eigen_tensor(F_alpha_AO,F1_a);
-
-  if(is_uhf) {
-    F1_b.setZero(nao,nao);
-    tamm_to_eigen_tensor(F_beta_AO, F1_b);
-  }
-
-  Matrix F_oa;
-  Matrix F_va;
-  Matrix F_ob;
-  Matrix F_vb;
-  F_oa.setZero(n_occ_alpha_eff,n_occ_alpha_eff);
-  F_va.setZero(n_vir_alpha_eff,n_vir_alpha_eff);
-  F_ob.setZero(n_occ_beta_eff, n_occ_beta_eff);
-  F_vb.setZero(n_vir_beta_eff, n_vir_beta_eff);
-
-  F_oa = C_noa.transpose() * (F1_a * C_noa);
-  F_va = C_nva.transpose() * (F1_a * C_nva);
-
-  if(is_rhf) {
-    F_ob = F_oa;
-    F_vb = F_va;
-  }
-  if(is_uhf) {
-    F_ob = C_nob.transpose() * (F1_b * C_nob);
-    F_vb = C_nvb.transpose() * (F1_b * C_nvb);
-  }
-
-  Matrix F;
-  F.setZero(N,N);
-
-  TAMM_GA_SIZE k = 0;
-  for (TAMM_GA_SIZE i=0;i<n_occ_alpha_eff;i++){
-    F(i,i) = F_oa(k,k);
-    k++;
-  }
-  k = 0;
-  for (TAMM_GA_SIZE i=n_occ_alpha_eff;i<n_occ_eff;i++){
-    F(i,i) = F_ob(k,k);
-    k++;
-  }
-  k = 0;
-  for (TAMM_GA_SIZE i=n_occ_eff;i<n_occ_eff+n_vir_alpha_eff;i++){
-    F(i,i) = F_va(k,k);
-    k++;
-  }
-  k = 0;
-  for (TAMM_GA_SIZE i=n_occ_eff+n_vir_alpha_eff;i<N;i++){
-    F(i,i) = F_vb(k,k);
-    k++;
-  }
-
-  eigen_to_tamm_tensor(F_MO,F);
 
   std::vector<TensorType> CTiledBuf(nao*N);
   TensorType *k_movecs_sorted = &CTiledBuf[0];

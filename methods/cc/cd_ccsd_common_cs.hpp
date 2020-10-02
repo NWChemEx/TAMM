@@ -49,7 +49,7 @@ void ccsd_e(/* ExecutionContext &ec, */
        (de()  =  2.0 * _a01() * _a01())
        (de() += -1.0 * _a02_aa(h1_oa, h2_oa, cind) * _a02_aa(h2_oa, h1_oa, cind))
        (de() +=  1.0 * _a03_aa(h1_oa, p1_va, cind) * chol3d_aa_ov(h1_oa, p1_va, cind))
-       .execute();
+       ;
 
 }
 
@@ -97,7 +97,7 @@ template<typename T>
 void ccsd_t2(/* ExecutionContext& ec, */
              Scheduler& sch,
              const TiledIndexSpace& MO,const TiledIndexSpace& CI, 
-             Tensor<T>& i0, const Tensor<T>& t1_aa, Tensor<T>& t2_abab) { 
+             Tensor<T>& i0_abab, const Tensor<T>& t1_aa, Tensor<T>& t2_abab) { 
 
     auto [cind] = CI.labels<1>("all");
     auto [p3, p4] = MO.labels<2>("virt");
@@ -141,24 +141,21 @@ void ccsd_t2(/* ExecutionContext& ec, */
         .exact_copy(_a021_bb(p1_vb, p2_vb, cind), _a021_aa(p1_vb, p2_vb, cind))
         .exact_copy(_a020_bbbb(p1_vb, h1_ob, p2_vb, h2_ob), _a020_aaaa(p1_vb, h1_ob, p2_vb, h2_ob))
         
-        (i0(p1_va, p2_vb, h2_oa, h1_ob)          =  1.0  * _a020_bbbb(p2_vb, h2_ob, p1_vb, h1_ob) * t2_abab(p1_va, p1_vb, h2_oa, h2_ob))
-        (i0(p2_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020_baab(p1_vb, h1_oa, p1_va, h1_ob) * t2_aaaa(p2_va, p1_va, h2_oa, h1_oa))
-        (i0(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020_baba(p1_vb, h1_oa, p2_vb, h2_oa) * t2_abab(p1_va, p2_vb, h1_oa, h1_ob))
-        .exact_copy(i0_temp(p1_vb,p1_va,h2_ob,h1_oa),i0(p1_vb,p1_va,h2_ob,h1_oa))
-        (i0(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * i0_temp(p1_vb, p1_va, h1_ob, h2_oa))
-        (i0(p1_va, p1_vb, h1_oa, h2_ob)         +=  1.0  * _a017_aa(p1_va, h1_oa, cind) * _a017_bb(p1_vb, h2_ob, cind))
-        //
-        // TODO: use GPU for this term
+        (i0_abab(p1_va, p2_vb, h2_oa, h1_ob)          =  1.0  * _a020_bbbb(p2_vb, h2_ob, p1_vb, h1_ob) * t2_abab(p1_va, p1_vb, h2_oa, h2_ob))
+        (i0_abab(p2_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020_baab(p1_vb, h1_oa, p1_va, h1_ob) * t2_aaaa(p2_va, p1_va, h2_oa, h1_oa))
+        (i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020_baba(p1_vb, h1_oa, p2_vb, h2_oa) * t2_abab(p1_va, p2_vb, h1_oa, h1_ob))
+        .exact_copy(i0_temp(p1_vb,p1_va,h2_ob,h1_oa),i0_abab(p1_vb,p1_va,h2_ob,h1_oa))
+        (i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * i0_temp(p1_vb, p1_va, h1_ob, h2_oa))
+        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  1.0  * _a017_aa(p1_va, h1_oa, cind) * _a017_bb(p1_vb, h2_ob, cind))
         (_a022_abab(p1_va,p2_vb,p2_va,p1_vb)     =  1.0  * _a021_aa(p1_va,p2_va,cind) * _a021_bb(p2_vb,p1_vb,cind))
-        //
-        (i0(p1_va, p2_vb, h1_oa, h2_ob)         +=  4.0  * _a022_abab(p1_va, p2_vb, p2_va, p1_vb) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob))
+        (i0_abab(p1_va, p2_vb, h1_oa, h2_ob)         +=  4.0  * _a022_abab(p1_va, p2_vb, p2_va, p1_vb) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob))
         (_a019_abab(h2_oa, h1_ob, h1_oa, h2_ob) +=  0.25 * _a004_abab(p1_va, p2_vb, h2_oa, h1_ob) * t2_abab(p1_va,p2_vb,h1_oa,h2_ob)) 
-        (i0(p1_va, p1_vb, h1_oa, h2_ob)         +=  4.0  * _a019_abab(h2_oa, h1_ob, h1_oa, h2_ob) * t2_abab(p1_va, p1_vb, h2_oa, h1_ob))
-        (i0(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p1_va, p2_vb, h1_oa, h2_ob) * _a001_bb(p1_vb, p2_vb))
-        (i0(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p2_va, p1_vb, h1_oa, h2_ob) * _a001_aa(p1_va, p2_va))
-        (i0(p1_va, p1_vb, h2_oa, h1_ob)         += -1.0  * t2_abab(p1_va, p1_vb, h1_oa, h1_ob) * _a006_aa(h1_oa, h2_oa))
-        (i0(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p1_va, p1_vb, h1_oa, h1_ob) * _a006_bb(h1_ob, h2_ob))
-        .execute();
+        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  4.0  * _a019_abab(h2_oa, h1_ob, h1_oa, h2_ob) * t2_abab(p1_va, p1_vb, h2_oa, h1_ob))
+        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p1_va, p2_vb, h1_oa, h2_ob) * _a001_bb(p1_vb, p2_vb))
+        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p2_va, p1_vb, h1_oa, h2_ob) * _a001_aa(p1_va, p2_va))
+        (i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         += -1.0  * t2_abab(p1_va, p1_vb, h1_oa, h1_ob) * _a006_aa(h1_oa, h2_oa))
+        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p1_va, p1_vb, h1_oa, h1_ob) * _a006_bb(h1_ob, h2_ob))
+        ;
 
 }
 
@@ -177,7 +174,8 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
     double thresh      = sys_data.options_map.ccsd_options.threshold;
     bool   writet      = sys_data.options_map.ccsd_options.writet;
     int    writet_iter = sys_data.options_map.ccsd_options.writet_iter;
-    double zshiftl     = sys_data.options_map.ccsd_options.lshift;                
+    double zshiftl     = sys_data.options_map.ccsd_options.lshift;
+    bool   profile     = sys_data.options_map.ccsd_options.profile_ccsd;
     double residual    = 0.0;
     double energy      = 0.0;
     int    niter       = 0;
@@ -323,6 +321,8 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
             sch.execute();
         #endif
 
+        Tensor<T> d_r1_residual{}, d_r2_residual{};
+        Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
 
         for(int titer = 0; titer < maxiter; titer += ndiis) {
         for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
@@ -331,27 +331,24 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
             niter   = iter;
             int off = iter - titer;
             
-            Tensor<T> d_r1_residual{};
-            Tensor<T> d_r2_residual{};
-
-            Tensor<T>::allocate(&ec, d_r1_residual, d_r2_residual);
-
-            sch(d_e() = 0)(d_r1_residual() = 0)(d_r2_residual() = 0)
-                ((d_t1s[off])() = t1_aa())((d_t2s[off])() = t2_abab());
-                // .execute();
+            sch
+               ((d_t1s[off])()  = t1_aa())
+               ((d_t2s[off])()  = t2_abab())
+               .execute();
 
             ccsd_e(/* ec,  */sch, MO, CI, d_e, t1_aa, t2_abab);
             ccsd_t1(/* ec,  */sch, MO, CI, r1_aa, t1_aa, t2_abab);
             ccsd_t2(/* ec,  */sch, MO, CI, r2_abab, t1_aa, t2_abab);
 
             #ifdef USE_TALSH
-              sch.execute(ExecutionHW::GPU);
+              sch.execute(ExecutionHW::GPU, profile);
             #else
               sch.execute();
             #endif
 
             std::tie(residual, energy) = rest_cs(ec, MO, r1_aa, r2_abab, t1_aa, t2_abab,
-                                            d_e, p_evl_sorted, zshiftl, n_occ_alpha, n_vir_alpha);
+                                            d_e, d_r1_residual, d_r2_residual, p_evl_sorted,
+                                            zshiftl, n_occ_alpha, n_vir_alpha);
 
             update_r2(ec, r2_abab());
 
@@ -363,7 +360,6 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
             auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
             iteration_print(ec.pg(), iter, residual, energy, iter_time);
-            Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
 
             if(writet && ( ((iter+1)%writet_iter == 0) || (residual < thresh) ) ) {
                 write_to_disk(t1_aa,t1file);
@@ -390,22 +386,22 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
         diis<T>(ec, rs, ts, next_t);
 
     }
-        { //deallocate all intermediates 
-        
-        sch.deallocate(_a02, _a01_aa,_a03_aa_vo,_a04_aa,_a05_aa,_a05_bb);
-        sch.deallocate(_a007,_a001_aa,_a001_bb,_a017_aa,_a017_bb,
-            _a006_aa,_a006_bb,_a009_aa,_a009_bb,_a021_aa,_a021_bb,_a008_aa,
-            _a019_abab,_a020_aaaa,_a020_baba,
-            _a020_baab,_a020_bbbb,_a022_abab 
-            ); //t2
-        }
+
+    //deallocate all intermediates 
+    sch.deallocate(_a02, _a01_aa,_a03_aa_vo,_a04_aa,_a05_aa,_a05_bb);
+    sch.deallocate(_a007,_a001_aa,_a001_bb,_a017_aa,_a017_bb,
+        _a006_aa,_a006_bb,_a009_aa,_a009_bb,_a021_aa,_a021_bb,_a008_aa,
+        _a019_abab,_a020_aaaa,_a020_baba,
+        _a020_baab,_a020_bbbb,_a022_abab 
+        ); //t2
+    sch.deallocate(d_r1_residual, d_r2_residual);
 
     } //no restart
     else {
-            ccsd_e(/* ec,  */sch, MO, CI, d_e, t1_aa, t2_abab);
-            sch.execute();
-            energy = get_scalar(d_e);
-            residual = 0.0;
+        ccsd_e(/* ec,  */sch, MO, CI, d_e, t1_aa, t2_abab);
+        sch.execute();
+        energy = get_scalar(d_e);
+        residual = 0.0;
     }
 
     sys_data.ccsd_iterations   = niter+1;
@@ -414,15 +410,14 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
 
     if(ec.pg().rank() == 0) write_results(sys_data,"CCSD");
 
-  sch.deallocate(i0_temp,t2_aaaa_temp,_a01,_a02_aa,_a03_aa);
-  sch.deallocate(d_e,_a004_aaaa,_a004_abab);
-  
-  sch.deallocate(t2_aaaa, 
-                f1_aa_oo, f1_aa_ov, f1_aa_vv, f1_bb_oo, f1_bb_ov, f1_bb_vv,
-                chol3d_aa_oo, chol3d_aa_ov, chol3d_aa_vv,
-                chol3d_bb_oo, chol3d_bb_ov, chol3d_bb_vv).execute();
+    sch.deallocate(i0_temp,t2_aaaa_temp,_a01,_a02_aa,_a03_aa);
+    sch.deallocate(d_e,_a004_aaaa,_a004_abab);
+    
+    sch.deallocate(t2_aaaa, 
+                    f1_aa_oo, f1_aa_ov, f1_aa_vv, f1_bb_oo, f1_bb_ov, f1_bb_vv,
+                    chol3d_aa_oo, chol3d_aa_ov, chol3d_aa_vv,
+                    chol3d_bb_oo, chol3d_bb_ov, chol3d_bb_vv).execute();
 
-  return std::make_tuple(residual,energy);
-
+    return std::make_tuple(residual,energy);
 
 }

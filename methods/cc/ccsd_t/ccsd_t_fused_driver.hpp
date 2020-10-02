@@ -482,7 +482,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   freeHostMem(df_simple_d1_size);
   freeHostMem(df_simple_d2_exec);
   freeHostMem(df_simple_d2_size);
-#endif
+
   // 
   finalizememmodule();
 

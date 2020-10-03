@@ -2,7 +2,7 @@
 #ifndef CCSD_T_FUSED_HPP_
 #define CCSD_T_FUSED_HPP_
 
-#if defined(USE_CUDA) || defined(USE_HIP)
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   #include "ccsd_t_all_fused.hpp"
 #else
   #include "ccsd_t_all_fused_cpu.hpp"
@@ -209,17 +209,17 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
     for (size_t t_p6b = t_p5b; t_p6b < noab + nvab; t_p6b++) {
     for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) { //
     for (size_t t_h2b = t_h1b; t_h2b < noab; t_h2b++) {
-    for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {      
+    for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {
       if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
           (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
         if ((!is_restricted) ||
             (k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
-            k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8) {   
-          if (next == taskcount) {            
+            k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8) {
+          if (next == taskcount) {
             // if (has_GPU==1) {
             //   initmemmodule();
             // }
-            
+
             double factor = 1.0;
             if (is_restricted) factor = 2.0;
             if ((t_p4b == t_p5b) && (t_p5b == t_p6b)) {
@@ -236,74 +236,74 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
 
             num_task++;
 
-            #if defined(USE_CUDA) || defined(USE_HIP)
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
             // printf ("[%s] rank: %d >> calls the gpu code\n", __func__, rank);
-            ccsd_t_fully_fused_none_df_none_task(is_restricted, noab, nvab, rank, 
+            ccsd_t_fully_fused_none_df_none_task(is_restricted, noab, nvab, rank,
                                                 k_spin,
                                                 k_range,
                                                 k_offset,
                                                 d_t1, d_t2, d_v2,
                                                 k_evl_sorted,
-                                                // 
-                                                df_host_pinned_s1_t1, df_host_pinned_s1_v2, 
-                                                df_host_pinned_d1_t2, df_host_pinned_d1_v2, 
+                                                //
+                                                df_host_pinned_s1_t1, df_host_pinned_s1_v2,
+                                                df_host_pinned_d1_t2, df_host_pinned_d1_v2,
                                                 df_host_pinned_d2_t2, df_host_pinned_d2_v2,
-                                                df_host_energies, 
-                                                // 
-                                                df_simple_s1_size, df_simple_d1_size, df_simple_d2_size, 
-                                                df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec, 
-                                                // 
-                                                df_dev_s1_t1_all, df_dev_s1_v2_all, 
-                                                df_dev_d1_t2_all, df_dev_d1_v2_all, 
-                                                df_dev_d2_t2_all, df_dev_d2_v2_all, 
+                                                df_host_energies,
+                                                //
+                                                df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
+                                                df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
+                                                //
+                                                df_dev_s1_t1_all, df_dev_s1_v2_all,
+                                                df_dev_d1_t2_all, df_dev_d1_v2_all,
+                                                df_dev_d2_t2_all, df_dev_d2_v2_all,
                                                 df_dev_energies,
-                                                // 
+                                                //
                                                 t_h1b, t_h2b, t_h3b,
                                                 t_p4b, t_p5b, t_p6b,
-                                                factor, taskcount, 
+                                                factor, taskcount,
                                                 max_d1_kernels_pertask, max_d2_kernels_pertask,
-                                                //  
-                                                size_T_s1_t1, size_T_s1_v2, 
-                                                size_T_d1_t2, size_T_d1_v2, 
-                                                size_T_d2_t2, size_T_d2_v2, 
-                                                // 
-                                                tmp_energy_l, 
+                                                //
+                                                size_T_s1_t1, size_T_s1_v2,
+                                                size_T_d1_t2, size_T_d1_v2,
+                                                size_T_d2_t2, size_T_d2_v2,
+                                                //
+                                                tmp_energy_l,
                                                 cache_s1t, cache_s1v,
                                                 cache_d1t, cache_d1v,
                                                 cache_d2t, cache_d2v);
             #else
-            total_fused_ccsd_t_cpu<T>(is_restricted, noab, nvab, rank, 
+            total_fused_ccsd_t_cpu<T>(is_restricted, noab, nvab, rank,
                                                 k_spin,
                                                 k_range,
                                                 k_offset,
                                                 d_t1, d_t2, d_v2,
                                                 k_evl_sorted,
-                                                // 
-                                                df_host_pinned_s1_t1, df_host_pinned_s1_v2, 
-                                                df_host_pinned_d1_t2, df_host_pinned_d1_v2, 
+                                                //
+                                                df_host_pinned_s1_t1, df_host_pinned_s1_v2,
+                                                df_host_pinned_d1_t2, df_host_pinned_d1_v2,
                                                 df_host_pinned_d2_t2, df_host_pinned_d2_v2,
-                                                df_host_energies, 
-                                                // 
-                                                df_simple_s1_size, df_simple_d1_size, df_simple_d2_size, 
-                                                df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec, 
-                                                // 
+                                                df_host_energies,
+                                                //
+                                                df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
+                                                df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
+                                                //
                                                 #if defined(USE_DPCPP)
-                                                df_dev_s1_t1_all, df_dev_s1_v2_all, 
-                                                df_dev_d1_t2_all, df_dev_d1_v2_all, 
-                                                df_dev_d2_t2_all, df_dev_d2_v2_all, 
+                                                df_dev_s1_t1_all, df_dev_s1_v2_all,
+                                                df_dev_d1_t2_all, df_dev_d1_v2_all,
+                                                df_dev_d2_t2_all, df_dev_d2_v2_all,
                                                 df_dev_energies,
                                                 #endif
-                                                // 
+                                                //
                                                 t_h1b, t_h2b, t_h3b,
                                                 t_p4b, t_p5b, t_p6b,
-                                                factor, taskcount, 
+                                                factor, taskcount,
                                                 max_d1_kernels_pertask, max_d2_kernels_pertask,
-                                                //  
-                                                size_T_s1_t1, size_T_s1_v2, 
-                                                size_T_d1_t2, size_T_d1_v2, 
-                                                size_T_d2_t2, size_T_d2_v2, 
-                                                // 
-                                                tmp_energy_l, 
+                                                //
+                                                size_T_s1_t1, size_T_s1_v2,
+                                                size_T_d1_t2, size_T_d1_v2,
+                                                size_T_d2_t2, size_T_d2_v2,
+                                                //
+                                                tmp_energy_l,
                                                 cache_s1t, cache_s1v,
                                                 cache_d1t, cache_d1v,
                                                 cache_d2t, cache_d2v);
@@ -323,12 +323,12 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
       std::cout << "14256-seq3 loop variant" << std::endl;
       std::cout << "tile142563,kernel,memcpy,data,total" << std::endl;
     }
-    for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) { //    
+    for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) { //
     for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
-    for (size_t t_h2b = t_h1b; t_h2b < noab; t_h2b++) {    
+    for (size_t t_h2b = t_h1b; t_h2b < noab; t_h2b++) {
     for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
     for (size_t t_p6b = t_p5b; t_p6b < noab + nvab; t_p6b++) {
-    #endif  
+    #endif
 
     #if 0
     for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
@@ -346,7 +346,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
               (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
             if ((!is_restricted) ||
                 (k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
-                 k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8) 
+                 k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8)
             {
               double factor = 1.0;
               if (is_restricted) factor = 2.0;
@@ -368,72 +368,72 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
               num_task++;
 
               #if defined(USE_CUDA) || defined(USE_HIP)
-              ccsd_t_fully_fused_none_df_none_task(is_restricted, noab, nvab, rank, 
+              ccsd_t_fully_fused_none_df_none_task(is_restricted, noab, nvab, rank,
                                                   k_spin,
                                                   k_range,
                                                   k_offset,
                                                   d_t1, d_t2, d_v2,
                                                   k_evl_sorted,
-                                                  // 
-                                                  df_host_pinned_s1_t1, df_host_pinned_s1_v2, 
-                                                  df_host_pinned_d1_t2, df_host_pinned_d1_v2, 
-                                                  df_host_pinned_d2_t2, df_host_pinned_d2_v2, 
+                                                  //
+                                                  df_host_pinned_s1_t1, df_host_pinned_s1_v2,
+                                                  df_host_pinned_d1_t2, df_host_pinned_d1_v2,
+                                                  df_host_pinned_d2_t2, df_host_pinned_d2_v2,
                                                   df_host_energies,
-                                                  // 
-                                                  df_simple_s1_size, df_simple_d1_size, df_simple_d2_size, 
-                                                  df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec, 
-                                                  // 
-                                                  df_dev_s1_t1_all, df_dev_s1_v2_all, 
-                                                  df_dev_d1_t2_all, df_dev_d1_v2_all, 
-                                                  df_dev_d2_t2_all, df_dev_d2_v2_all, 
+                                                  //
+                                                  df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
+                                                  df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
+                                                  //
+                                                  df_dev_s1_t1_all, df_dev_s1_v2_all,
+                                                  df_dev_d1_t2_all, df_dev_d1_v2_all,
+                                                  df_dev_d2_t2_all, df_dev_d2_v2_all,
                                                   df_dev_energies,
-                                                  // 
+                                                  //
                                                   t_h1b, t_h2b, t_h3b,
                                                   t_p4b, t_p5b, t_p6b,
                                                   factor, taskcount,
                                                   max_d1_kernels_pertask, max_d2_kernels_pertask,
-                                                  //  
-                                                  size_T_s1_t1, size_T_s1_v2, 
-                                                  size_T_d1_t2, size_T_d1_v2, 
-                                                  size_T_d2_t2, size_T_d2_v2, 
-                                                  // 
-                                                  tmp_energy_l, 
+                                                  //
+                                                  size_T_s1_t1, size_T_s1_v2,
+                                                  size_T_d1_t2, size_T_d1_v2,
+                                                  size_T_d2_t2, size_T_d2_v2,
+                                                  //
+                                                  tmp_energy_l,
                                                   cache_s1t, cache_s1v,
                                                   cache_d1t, cache_d1v,
                                                   cache_d2t, cache_d2v);
             #else
-            total_fused_ccsd_t_cpu<T>(is_restricted, noab, nvab, rank, 
+            total_fused_ccsd_t_cpu<T>(is_restricted, noab, nvab, rank,
                                                 k_spin,
                                                 k_range,
                                                 k_offset,
                                                 d_t1, d_t2, d_v2,
                                                 k_evl_sorted,
-                                                // 
-                                                df_host_pinned_s1_t1, df_host_pinned_s1_v2, 
-                                                df_host_pinned_d1_t2, df_host_pinned_d1_v2, 
+                                                //
+                                                df_host_pinned_s1_t1, df_host_pinned_s1_v2,
+                                                df_host_pinned_d1_t2, df_host_pinned_d1_v2,
                                                 df_host_pinned_d2_t2, df_host_pinned_d2_v2,
-                                                df_host_energies, 
-                                                // 
-                                                df_simple_s1_size, df_simple_d1_size, df_simple_d2_size, 
-                                                df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec, 
-                                                // 
+                                                df_host_energies,
+                                                //
+                                                df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
+                                                df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
+                                                //
                                                 #if defined(USE_DPCPP)
-                                                df_dev_s1_t1_all, df_dev_s1_v2_all, 
-                                                df_dev_d1_t2_all, df_dev_d1_v2_all, 
-                                                df_dev_d2_t2_all, df_dev_d2_v2_all, 
+                                                df_dev_s1_t1_all, df_dev_s1_v2_all,
+                                                df_dev_d1_t2_all, df_dev_d1_v2_all,
+                                                df_dev_d2_t2_all, df_dev_d2_v2_all,
                                                 df_dev_energies,
                                                 #endif
-                                                // 
+                                                //
                                                 t_h1b, t_h2b, t_h3b,
                                                 t_p4b, t_p5b, t_p6b,
-                                                factor, taskcount, 
+                                                factor, taskcount,
                                                 max_d1_kernels_pertask, max_d2_kernels_pertask,
-                                                //  
-                                                size_T_s1_t1, size_T_s1_v2, 
-                                                size_T_d1_t2, size_T_d1_v2, 
-                                                size_T_d2_t2, size_T_d2_v2, 
-                                                // 
-                                                tmp_energy_l, 
+                                                //
+                                                size_T_s1_t1, size_T_s1_v2,
+                                                size_T_d1_t2, size_T_d1_v2,
+                                                size_T_d2_t2, size_T_d2_v2,
+                                                //
+                                                tmp_energy_l,
                                                 cache_s1t, cache_s1v,
                                                 cache_d1t, cache_d1v,
                                                 cache_d2t, cache_d2v);
@@ -464,9 +464,9 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   freeGpuMem(df_dev_energies);
   #endif
 
-  // 
+  //
   //  free shared host mem.
-  // 
+  //
   freeHostMem(df_host_pinned_s1_t1);
   freeHostMem(df_host_pinned_s1_v2);
   freeHostMem(df_host_pinned_d1_t2);
@@ -475,7 +475,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   freeHostMem(df_host_pinned_d2_v2);
   freeHostMem(df_host_energies);
 
-  // 
+  //
   freeHostMem(df_simple_s1_exec);
   freeHostMem(df_simple_s1_size);
   freeHostMem(df_simple_d1_exec);
@@ -483,11 +483,11 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   freeHostMem(df_simple_d2_exec);
   freeHostMem(df_simple_d2_size);
 
-  // 
+  //
   finalizememmodule();
 
   auto cc_t2 = std::chrono::high_resolution_clock::now();
-  auto ccsd_t_time = 
+  auto ccsd_t_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
 
   ec.pg().barrier ();
@@ -528,13 +528,13 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
     k_range.push_back(x);
     k_offset.push_back(sum);
     sum+=x;
-  } 
+  }
 
-  // 
-  //  "list of tasks": size (t_h1b, t_h2b, t_h3b, t_p4b, t_p5b, t_p6b), factor, 
-  // 
+  //
+  //  "list of tasks": size (t_h1b, t_h2b, t_h3b, t_p4b, t_p5b, t_p6b), factor,
+  //
   std::vector<std::tuple<size_t, size_t, size_t, size_t, size_t, size_t, T>> list_tasks;
-  if(!seq_h3b) 
+  if(!seq_h3b)
   {
     for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
     for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
@@ -542,13 +542,13 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
     for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) { //
     for (size_t t_h2b = t_h1b; t_h2b < noab; t_h2b++) {
     for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {
-      // 
+      //
       if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
           (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
-        if ((!is_restricted) || 
+        if ((!is_restricted) ||
             (k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
             k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8) {
-          //  
+          //
           double factor = 1.0;
           if (is_restricted) factor = 2.0;
           if ((t_p4b == t_p5b) && (t_p5b == t_p6b)) {
@@ -576,17 +576,17 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
     for (size_t t_p6b = t_p5b; t_p6b < noab + nvab; t_p6b++) {
     for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) {
     for (size_t t_h2b = t_h1b; t_h2b < noab; t_h2b++) {
-      // 
+      //
       for (size_t t_h3b = t_h2b; t_h3b < noab; t_h3b++) {
         if ((k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b]) ==
            (k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b])) {
-         if ((!is_restricted) || 
+         if ((!is_restricted) ||
              (k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
-              k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8) 
+              k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8)
           {
             double factor = 1.0;
             if (is_restricted) factor = 2.0;
-            // 
+            //
             if ((t_p4b == t_p5b) && (t_p5b == t_p6b)) {
               factor /= 6.0;
             } else if ((t_p4b == t_p5b) || (t_p5b == t_p6b)) {
@@ -598,25 +598,25 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
             } else if ((t_h1b == t_h2b) || (t_h2b == t_h3b)) {
               factor /= 2.0;
             }
-            
-            // 
+
+            //
             list_tasks.push_back(std::make_tuple(t_h1b, t_h2b, t_h3b, t_p4b, t_p5b, t_p6b, factor));
           }
         }
       }//h3b
     }}}}} // nested for loops
-  } //end seq h3b 
+  } //end seq h3b
 
-  // 
-  // 
-  // 
+  //
+  //
+  //
   // printf ("[%s] rank: %d >> # of tasks: %lu\n", __func__, rank, list_tasks.size());
 
-  // 
-  //    
-  // 
-  total_num_ops = (long double) ccsd_t_fully_fused_performance(is_restricted,list_tasks, 
-                                rank, 1, 
+  //
+  //
+  //
+  total_num_ops = (long double) ccsd_t_fully_fused_performance(is_restricted,list_tasks,
+                                rank, 1,
                                 noab, nvab,
                                 k_spin,k_range,k_offset,
                                 k_evl_sorted);

@@ -15,69 +15,69 @@
 // OLD
 // void total_fused_ccsd_t_cpu(size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, //handled
 //                             size_t base_size_p4b, size_t base_size_p5b, size_t base_size_p6b, //handled
-//                             // 
-//                             double* host_d1_t2_all, double* host_d1_v2_all, // T* df_host_pinned_s1_t1, T* df_host_pinned_s1_v2, 
+//                             //
+//                             double* host_d1_t2_all, double* host_d1_v2_all, // T* df_host_pinned_s1_t1, T* df_host_pinned_s1_v2,
 //                             double* host_d2_t2_all, double* host_d2_v2_all, // T* df_host_pinned_d1_t2, T* df_host_pinned_d1_v2,
 //                             double* host_s1_t2_all, double* host_s1_v2_all, // T* df_host_pinned_d2_t2, T* df_host_pinned_d2_v2,
-//                             // 
+//                             //
 //                             size_t size_d1_t2_all, size_t size_d1_v2_all,   // size_T_s1_t1, size_T_s1_v2, //handled
 //                             size_t size_d2_t2_all, size_t size_d2_v2_all,   // size_T_d1_t2, size_T_d1_v2,//handled
 //                             size_t size_s1_t2_all, size_t size_s1_v2_all,   // size_T_d2_t2, size_T_d2_v2,//handled
-//                             // 
+//                             //
 //                             int* list_d1_sizes, //df_simple_d1_size
 //                             int* list_d2_sizes, //df_simple_d2_size
 //                             int* list_s1_sizes, //df_simple_s1_size
-//                             // 
+//                             //
 //                             std::vector<int> vec_d1_flags,  //df_simple_d1_exec
 //                             std::vector<int> vec_d2_flags,  //df_simple_d2_exec
 //                             std::vector<int> vec_s1_flags,  //df_simple_s1_exec
-//                             // 
+//                             //
 //                             size_t size_noab, size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2, //max_dim_d1_t2,max_dim_d1_v2
 //                             size_t size_nvab, size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2, //max_dim_d2_t2,max_dim_d2_v2
 //                                               size_t size_max_dim_s1_t2, size_t size_max_dim_s1_v2, //max_dim_s1_t1,max_dim_s1_v2
-//                             // 
-//                             double factor, 
+//                             //
+//                             double factor,
 //                             double* host_evl_sorted_h1, double* host_evl_sorted_h2, double* host_evl_sorted_h3,  //handled
 //                             double* host_evl_sorted_p4, double* host_evl_sorted_p5, double* host_evl_sorted_p6, //handled
 //                             double* final_energy_4, double* final_energy_5)
 
 
 template<typename T>
-void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nvab, int64_t rank, 
+void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nvab, int64_t rank,
                             std::vector<int>& k_spin,
                             std::vector<size_t>& k_range,
                             std::vector<size_t>& k_offset,
-                            Tensor<T>& d_t1, Tensor<T>& d_t2, Tensor<T>& d_v2, 
+                            Tensor<T>& d_t1, Tensor<T>& d_t2, Tensor<T>& d_v2,
                             std::vector<T>& k_evl_sorted,
-                            // 
-                            T* df_host_pinned_s1_t1, T* df_host_pinned_s1_v2, 
+                            //
+                            T* df_host_pinned_s1_t1, T* df_host_pinned_s1_v2,
                             T* df_host_pinned_d1_t2, T* df_host_pinned_d1_v2,
                             T* df_host_pinned_d2_t2, T* df_host_pinned_d2_v2,
-                            T* host_energies, 
-                            // 
-                            int* df_simple_s1_size, int* df_simple_d1_size, int* df_simple_d2_size, 
-                            int* df_simple_s1_exec, int* df_simple_d1_exec, int* df_simple_d2_exec, 
-                            // 
+                            T* host_energies,
+                            //
+                            int* df_simple_s1_size, int* df_simple_d1_size, int* df_simple_d2_size,
+                            int* df_simple_s1_exec, int* df_simple_d1_exec, int* df_simple_d2_exec,
+                            //
                             #if defined(USE_DPCPP)
-                            T* df_dev_s1_t1_all, T* df_dev_s1_v2_all, 
-                            T* df_dev_d1_t2_all, T* df_dev_d1_v2_all, 
-                            T* df_dev_d2_t2_all, T* df_dev_d2_v2_all, 
-                            T* dev_energies, 
+                            T* df_dev_s1_t1_all, T* df_dev_s1_v2_all,
+                            T* df_dev_d1_t2_all, T* df_dev_d1_v2_all,
+                            T* df_dev_d2_t2_all, T* df_dev_d2_v2_all,
+                            T* dev_energies,
                             #endif
-                            // 
+                            //
                             size_t t_h1b, size_t t_h2b, size_t t_h3b,
                             size_t t_p4b, size_t t_p5b, size_t t_p6b,
                             double factor, size_t taskid,
                             size_t max_d1_kernels_pertask, size_t max_d2_kernels_pertask,
-                            //  
-                            size_t size_T_s1_t1, size_t size_T_s1_v2, 
-                            size_t size_T_d1_t2, size_t size_T_d1_v2, 
-                            size_t size_T_d2_t2, size_t size_T_d2_v2, 
-                            // 
-                            std::vector<double>& energy_l, 
+                            //
+                            size_t size_T_s1_t1, size_t size_T_s1_v2,
+                            size_t size_T_d1_t2, size_t size_T_d1_v2,
+                            size_t size_T_d2_t2, size_t size_T_d2_v2,
+                            //
+                            std::vector<double>& energy_l,
                             LRUCache<Index,std::vector<T>>& cache_s1t, LRUCache<Index,std::vector<T>>& cache_s1v,
                             LRUCache<Index,std::vector<T>>& cache_d1t, LRUCache<Index,std::vector<T>>& cache_d1v,
-                            LRUCache<Index,std::vector<T>>& cache_d2t, LRUCache<Index,std::vector<T>>& cache_d2v) 
+                            LRUCache<Index,std::vector<T>>& cache_d2t, LRUCache<Index,std::vector<T>>& cache_d2v)
 
 {
     size_t base_size_h1b = k_range[t_h1b];
@@ -98,7 +98,7 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
     const size_t max_dim_d1_t2 = size_T_d1_t2 / max_d1_kernels_pertask;
     const size_t max_dim_d1_v2 = size_T_d1_v2 / max_d1_kernels_pertask;
     const size_t max_dim_d2_t2 = size_T_d2_t2 / max_d2_kernels_pertask;
-    const size_t max_dim_d2_v2 = size_T_d2_v2 / max_d2_kernels_pertask;    
+    const size_t max_dim_d2_v2 = size_T_d2_v2 / max_d2_kernels_pertask;
 
     int   df_num_s1_enabled;   int   df_num_d1_enabled;   int  df_num_d2_enabled;
 
@@ -115,9 +115,9 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
 
 
     #if defined(USE_DPCPP)
-    // 
+    //
     //  Device-Level
-    // 
+    //
     double* dev_evl_sorted_h1b = (double*)getGpuMem(sizeof(double) * base_size_h1b);
     double* dev_evl_sorted_h2b = (double*)getGpuMem(sizeof(double) * base_size_h2b);
     double* dev_evl_sorted_h3b = (double*)getGpuMem(sizeof(double) * base_size_h3b);
@@ -126,74 +126,74 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
     double* dev_evl_sorted_p6b = (double*)getGpuMem(sizeof(double) * base_size_p6b);
     #endif
 
-    // 
+    //
     ccsd_t_data_s1_new(is_restricted,noab,nvab,k_spin,
                     d_t1,d_t2,d_v2,
                     k_evl_sorted,k_range,
                     t_h1b,t_h2b,t_h3b,
                     t_p4b,t_p5b,t_p6b,
-                    // 
-                    size_T_s1_t1,         size_T_s1_v2, 
-                    df_simple_s1_size,    df_simple_s1_exec, 
-                    df_host_pinned_s1_t1, df_host_pinned_s1_v2, 
-                    &df_num_s1_enabled, 
-                    // 
+                    //
+                    size_T_s1_t1,         size_T_s1_v2,
+                    df_simple_s1_size,    df_simple_s1_exec,
+                    df_host_pinned_s1_t1, df_host_pinned_s1_v2,
+                    &df_num_s1_enabled,
+                    //
                     cache_s1t,cache_s1v);
 
-    // 
+    //
     ccsd_t_data_d1_new(is_restricted,noab,nvab,k_spin,
                     d_t1,d_t2,d_v2,
                     k_evl_sorted,k_range,
                     t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b,
                     max_d1_kernels_pertask,
-                    // 
-                    size_T_d1_t2,         size_T_d1_v2, 
-                    df_host_pinned_d1_t2, df_host_pinned_d1_v2, 
-                    df_simple_d1_size,    df_simple_d1_exec, 
-                    &df_num_d1_enabled, 
-                    // 
+                    //
+                    size_T_d1_t2,         size_T_d1_v2,
+                    df_host_pinned_d1_t2, df_host_pinned_d1_v2,
+                    df_simple_d1_size,    df_simple_d1_exec,
+                    &df_num_d1_enabled,
+                    //
                     cache_d1t,cache_d1v);
 
-    // 
+    //
     ccsd_t_data_d2_new(is_restricted,noab,nvab,k_spin,
                     d_t1,d_t2,d_v2,
                     k_evl_sorted,k_range,
                     t_h1b,t_h2b,t_h3b,t_p4b,t_p5b,t_p6b,
                     max_d2_kernels_pertask,
-                    // 
-                    size_T_d2_t2,           size_T_d2_v2, 
-                    df_host_pinned_d2_t2,   df_host_pinned_d2_v2, 
-                    df_simple_d2_size,      df_simple_d2_exec, 
-                    &df_num_d2_enabled, 
-                    // 
+                    //
+                    size_T_d2_t2,           size_T_d2_v2,
+                    df_host_pinned_d2_t2,   df_host_pinned_d2_v2,
+                    df_simple_d2_size,      df_simple_d2_exec,
+                    &df_num_d2_enabled,
+                    //
                     cache_d2t, cache_d2v);
 
     #if defined(USE_DPCPP)
         // this is not pinned memory.
         //FIXME:
-        // stream.cl::sycl::memcpy(dev_evl_sorted_h1b, host_evl_sorted_h1b, sizeof(double) * base_size_h1b);
-        // stream.cl::sycl::memcpy(dev_evl_sorted_h2b, host_evl_sorted_h2b, sizeof(double) * base_size_h2b);
-        // stream.cl::sycl::memcpy(dev_evl_sorted_h3b, host_evl_sorted_h3b, sizeof(double) * base_size_h3b);
-        // stream.cl::sycl::memcpy(dev_evl_sorted_p4b, host_evl_sorted_p4b, sizeof(double) * base_size_p4b);
-        // stream.cl::sycl::memcpy(dev_evl_sorted_p5b, host_evl_sorted_p5b, sizeof(double) * base_size_p5b);
-        // stream.cl::sycl::memcpy(dev_evl_sorted_p6b, host_evl_sorted_p6b, sizeof(double) * base_size_p6b);
+        // stream.memcpy(dev_evl_sorted_h1b, host_evl_sorted_h1b, sizeof(double) * base_size_h1b);
+        // stream.memcpy(dev_evl_sorted_h2b, host_evl_sorted_h2b, sizeof(double) * base_size_h2b);
+        // stream.memcpy(dev_evl_sorted_h3b, host_evl_sorted_h3b, sizeof(double) * base_size_h3b);
+        // stream.memcpy(dev_evl_sorted_p4b, host_evl_sorted_p4b, sizeof(double) * base_size_p4b);
+        // stream.memcpy(dev_evl_sorted_p5b, host_evl_sorted_p5b, sizeof(double) * base_size_p5b);
+        // stream.memcpy(dev_evl_sorted_p6b, host_evl_sorted_p6b, sizeof(double) * base_size_p6b);
 
         // //  new tensors
-        // stream.cl::sycl::memcpy(df_dev_s1_t1_all, df_host_pinned_s1_t1, sizeof(double) * (max_dim_s1_t1 * df_num_s1_enabled));
-        // stream.cl::sycl::memcpy(df_dev_s1_v2_all, df_host_pinned_s1_v2, sizeof(double) * (max_dim_s1_v2 * df_num_s1_enabled));
-        // stream.cl::sycl::memcpy(df_dev_d1_t2_all, df_host_pinned_d1_t2, sizeof(double) * (max_dim_d1_t2 * df_num_d1_enabled));
-        // stream.cl::sycl::memcpy(df_dev_d1_v2_all, df_host_pinned_d1_v2, sizeof(double) * (max_dim_d1_v2 * df_num_d1_enabled));
-        // stream.cl::sycl::memcpy(df_dev_d2_t2_all, df_host_pinned_d2_t2, sizeof(double) * (max_dim_d2_t2 * df_num_d2_enabled));
-        // stream.cl::sycl::memcpy(df_dev_d2_v2_all, df_host_pinned_d2_v2, sizeof(double) * (max_dim_d2_v2 * df_num_d2_enabled));
+        // stream.memcpy(df_dev_s1_t1_all, df_host_pinned_s1_t1, sizeof(double) * (max_dim_s1_t1 * df_num_s1_enabled));
+        // stream.memcpy(df_dev_s1_v2_all, df_host_pinned_s1_v2, sizeof(double) * (max_dim_s1_v2 * df_num_s1_enabled));
+        // stream.memcpy(df_dev_d1_t2_all, df_host_pinned_d1_t2, sizeof(double) * (max_dim_d1_t2 * df_num_d1_enabled));
+        // stream.memcpy(df_dev_d1_v2_all, df_host_pinned_d1_v2, sizeof(double) * (max_dim_d1_v2 * df_num_d1_enabled));
+        // stream.memcpy(df_dev_d2_t2_all, df_host_pinned_d2_t2, sizeof(double) * (max_dim_d2_t2 * df_num_d2_enabled));
+        // stream.memcpy(df_dev_d2_v2_all, df_host_pinned_d2_v2, sizeof(double) * (max_dim_d2_v2 * df_num_d2_enabled));
     #endif
 
-    size_t num_blocks = CEIL(base_size_h3b, 4) * CEIL(base_size_h2b, 4) * CEIL(base_size_h1b, 4) * 
+    size_t num_blocks = CEIL(base_size_h3b, 4) * CEIL(base_size_h2b, 4) * CEIL(base_size_h1b, 4) *
                         CEIL(base_size_p6b, 4) * CEIL(base_size_p5b, 4) * CEIL(base_size_p4b, 4);
-  
-    // 
+
+    //
     size_t size_tensor_t3 = base_size_h3b * base_size_h2b * base_size_h1b * base_size_p6b * base_size_p5b * base_size_p4b;
 
-    // 
+    //
     double* host_t3_d = (double*)malloc(sizeof(double) * size_tensor_t3);
     double* host_t3_s = (double*)malloc(sizeof(double) * size_tensor_t3);
 
@@ -203,7 +203,7 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
         host_t3_s[i] = 0.000;
     }
 
-    // 
+    //
     //for (size_t idx_ia6 = 0; idx_ia6 < 9; idx_ia6++){
         // d1
         for (size_t idx_noab = 0; idx_noab < noab; idx_noab++)
@@ -245,7 +245,7 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
             double* host_d1_t2_9 = df_host_pinned_d1_t2 + max_dim_d1_t2 * flag_d1_9;
             double* host_d1_v2_9 = df_host_pinned_d1_v2 + max_dim_d1_v2 * flag_d1_9;
 
-            #pragma omp parallel for collapse(6) 
+            #pragma omp parallel for collapse(6)
             for (int t3_h3 = 0; t3_h3 < d1_base_size_h3b; t3_h3++)
             for (int t3_h2 = 0; t3_h2 < d1_base_size_h2b; t3_h2++)
             for (int t3_h1 = 0; t3_h1 < d1_base_size_h1b; t3_h1++)
@@ -254,71 +254,71 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
             for (int t3_p4 = 0; t3_p4 < d1_base_size_p4b; t3_p4++)
             {
                 int t3_idx = t3_h3 + (t3_h2 + (t3_h1 + (t3_p6 + (t3_p5 + (t3_p4) * d1_base_size_p5b) * d1_base_size_p6b) * d1_base_size_h1b) * d1_base_size_h2b) * d1_base_size_h3b;
-                
+
                 for (int t3_h7 = 0; t3_h7 < d1_base_size_h7b; t3_h7++)
-                {   
+                {
                     // sd1_1:  t3[h3,h2,h1,p6,p5,p4] -= t2[h7,p4,p5,h1] * v2[h3,h2,p6,h7]
                     if (flag_d1_1 >= 0)
                     {
-                        host_t3_d[t3_idx] -= host_d1_t2_1[t3_h7 + (t3_p4 + (t3_p5 + (t3_h1) * d1_base_size_p5b) * d1_base_size_p4b) * d1_base_size_h7b] * 
-                                             host_d1_v2_1[t3_h3 + (t3_h2 + (t3_p6 + (t3_h7) * d1_base_size_p6b) * d1_base_size_h2b) * d1_base_size_h3b];                            
+                        host_t3_d[t3_idx] -= host_d1_t2_1[t3_h7 + (t3_p4 + (t3_p5 + (t3_h1) * d1_base_size_p5b) * d1_base_size_p4b) * d1_base_size_h7b] *
+                                             host_d1_v2_1[t3_h3 + (t3_h2 + (t3_p6 + (t3_h7) * d1_base_size_p6b) * d1_base_size_h2b) * d1_base_size_h3b];
                     }
-                
+
                     // sd1_2:  t3[h3,h2,h1,p6,p5,p4] += t2[h7,p4,p5,h2] * v2[h3,h1,p6,h7]
                     if (flag_d1_2 >= 0)
                     {
-                        host_t3_d[t3_idx] += host_d1_t2_2[t3_h7 + (t3_p4 + (t3_p5 + (t3_h2) * d1_base_size_p5b) * d1_base_size_p4b) * d1_base_size_h7b] * 
+                        host_t3_d[t3_idx] += host_d1_t2_2[t3_h7 + (t3_p4 + (t3_p5 + (t3_h2) * d1_base_size_p5b) * d1_base_size_p4b) * d1_base_size_h7b] *
                                              host_d1_v2_2[t3_h3 + (t3_h1 + (t3_p6 + (t3_h7) * d1_base_size_p6b) * d1_base_size_h1b) * d1_base_size_h3b];
                     }
 
                     // sd1_3:  t3[h3,h2,h1,p6,p5,p4] -= t2[h7,p4,p5,h3] * v2[h2,h1,p6,h7]
                     if (flag_d1_3 >= 0)
                     {
-                        host_t3_d[t3_idx] -= host_d1_t2_3[t3_h7 + (t3_p4 + (t3_p5 + (t3_h3) * d1_base_size_p5b) * d1_base_size_p4b) * d1_base_size_h7b] * 
+                        host_t3_d[t3_idx] -= host_d1_t2_3[t3_h7 + (t3_p4 + (t3_p5 + (t3_h3) * d1_base_size_p5b) * d1_base_size_p4b) * d1_base_size_h7b] *
                                              host_d1_v2_3[t3_h2 + (t3_h1 + (t3_p6 + (t3_h7) * d1_base_size_p6b) * d1_base_size_h1b) * d1_base_size_h2b];
                     }
 
                     // sd1_4:  t3[h3,h2,h1,p6,p5,p4] -= t2[h7,p5,p6,h1] * v2[h3,h2,p4,h7]
                     if (flag_d1_4 >= 0)
                     {
-                        host_t3_d[t3_idx] -= host_d1_t2_4[t3_h7 + (t3_p5 + (t3_p6 + (t3_h1) * d1_base_size_p6b) * d1_base_size_p5b) * d1_base_size_h7b] * 
+                        host_t3_d[t3_idx] -= host_d1_t2_4[t3_h7 + (t3_p5 + (t3_p6 + (t3_h1) * d1_base_size_p6b) * d1_base_size_p5b) * d1_base_size_h7b] *
                                              host_d1_v2_4[t3_h3 + (t3_h2 + (t3_p4 + (t3_h7) * d1_base_size_p4b) * d1_base_size_h2b) * d1_base_size_h3b];
                     }
 
                     // sd1_5:  t3[h3,h2,h1,p6,p5,p4] += t2[h7,p5,p6,h2] * v2[h3,h1,p4,h7]
                     if (flag_d1_5 >= 0)
                     {
-                        host_t3_d[t3_idx] += host_d1_t2_5[t3_h7 + (t3_p5 + (t3_p6 + (t3_h2) * d1_base_size_p6b) * d1_base_size_p5b) * d1_base_size_h7b] * 
+                        host_t3_d[t3_idx] += host_d1_t2_5[t3_h7 + (t3_p5 + (t3_p6 + (t3_h2) * d1_base_size_p6b) * d1_base_size_p5b) * d1_base_size_h7b] *
                                              host_d1_v2_5[t3_h3 + (t3_h1 + (t3_p4 + (t3_h7) * d1_base_size_p4b) * d1_base_size_h1b) * d1_base_size_h3b];
                     }
 
                     // sd1_6:  t3[h3,h2,h1,p6,p5,p4] -= t2[h7,p5,p6,h3] * v2[h2,h1,p4,h7]
                     if (flag_d1_6 >= 0)
                     {
-                        host_t3_d[t3_idx] -= host_d1_t2_6[t3_h7 + (t3_p5 + (t3_p6 + (t3_h3) * d1_base_size_p6b) * d1_base_size_p5b) * d1_base_size_h7b] * 
+                        host_t3_d[t3_idx] -= host_d1_t2_6[t3_h7 + (t3_p5 + (t3_p6 + (t3_h3) * d1_base_size_p6b) * d1_base_size_p5b) * d1_base_size_h7b] *
                                              host_d1_v2_6[t3_h2 + (t3_h1 + (t3_p4 + (t3_h7) * d1_base_size_p4b) * d1_base_size_h1b) * d1_base_size_h2b];
                     }
 
-                    // sd1_7:  t3[h3,h2,h1,p6,p5,p4] += t2[h7,p4,p6,h1] * v2[h3,h2,p5,h7] 
+                    // sd1_7:  t3[h3,h2,h1,p6,p5,p4] += t2[h7,p4,p6,h1] * v2[h3,h2,p5,h7]
                     if (flag_d1_7 >= 0)
                     {
-                        host_t3_d[t3_idx] += host_d1_t2_7[t3_h7 + (t3_p4 + (t3_p6 + (t3_h1) * d1_base_size_p6b) * d1_base_size_p4b) * d1_base_size_h7b] * 
+                        host_t3_d[t3_idx] += host_d1_t2_7[t3_h7 + (t3_p4 + (t3_p6 + (t3_h1) * d1_base_size_p6b) * d1_base_size_p4b) * d1_base_size_h7b] *
                                              host_d1_v2_7[t3_h3 + (t3_h2 + (t3_p5 + (t3_h7) * d1_base_size_p5b) * d1_base_size_h2b) * d1_base_size_h3b];
                     }
 
                     // sd1_8:  t3[h3,h2,h1,p6,p5,p4] -= t2[h7,p4,p6,h2] * v2[h3,h1,p5,h7]
                     if (flag_d1_8 >= 0)
                     {
-                        host_t3_d[t3_idx] -= host_d1_t2_8[t3_h7 + (t3_p4 + (t3_p6 + (t3_h2) * d1_base_size_p6b) * d1_base_size_p4b) * d1_base_size_h7b] * 
+                        host_t3_d[t3_idx] -= host_d1_t2_8[t3_h7 + (t3_p4 + (t3_p6 + (t3_h2) * d1_base_size_p6b) * d1_base_size_p4b) * d1_base_size_h7b] *
                                              host_d1_v2_8[t3_h3 + (t3_h1 + (t3_p5 + (t3_h7) * d1_base_size_p5b) * d1_base_size_h1b) * d1_base_size_h3b];
                     }
 
                     // sd1_9:  t3[h3,h2,h1,p6,p5,p4] += t2[h7,p4,p6,h3] * v2[h2,h1,p5,h7]
                     if (flag_d1_9 >= 0)
                     {
-                        host_t3_d[t3_idx] += host_d1_t2_9[t3_h7 + (t3_p4 + (t3_p6 + (t3_h3) * d1_base_size_p6b) * d1_base_size_p4b) * d1_base_size_h7b] * 
+                        host_t3_d[t3_idx] += host_d1_t2_9[t3_h7 + (t3_p4 + (t3_p6 + (t3_h3) * d1_base_size_p6b) * d1_base_size_p4b) * d1_base_size_h7b] *
                                              host_d1_v2_9[t3_h2 + (t3_h1 + (t3_p5 + (t3_h7) * d1_base_size_p5b) * d1_base_size_h1b) * d1_base_size_h2b];
-                    }   
+                    }
                 }
             }
         }
@@ -375,66 +375,66 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
 
                 for (int t3_p7 = 0; t3_p7 < d2_base_size_p7b; t3_p7++)
                 {
-                    // sd2_1:  t3[h3,h2,h1,p6,p5,p4] −= t2[p7,p4,h1,h2] * v2[p7,h3,p6,p5]	
+                    // sd2_1:  t3[h3,h2,h1,p6,p5,p4] −= t2[p7,p4,h1,h2] * v2[p7,h3,p6,p5]
                     if (flag_d2_1 >= 0)
                     {
-                        host_t3_d[t3_idx] -= host_d2_t2_1[t3_p7 + (t3_p4 + (t3_h1 + (t3_h2) * d2_base_size_h1b) * d2_base_size_p4b) * d2_base_size_p7b] * 
+                        host_t3_d[t3_idx] -= host_d2_t2_1[t3_p7 + (t3_p4 + (t3_h1 + (t3_h2) * d2_base_size_h1b) * d2_base_size_p4b) * d2_base_size_p7b] *
                                              host_d2_v2_1[t3_p7 + (t3_h3 + (t3_p6 + (t3_p5) * d2_base_size_p6b) * d2_base_size_h3b) * d2_base_size_p7b];
                     }
 
-                    // sd2_2:  t3[h3,h2,h1,p6,p5,p4] −= t2[p7,p4,h2,h3] * v2[p7,h1,p6,p5] 
+                    // sd2_2:  t3[h3,h2,h1,p6,p5,p4] −= t2[p7,p4,h2,h3] * v2[p7,h1,p6,p5]
                     if (flag_d2_2 >= 0)
                     {
-                        host_t3_d[t3_idx] -= host_d2_t2_2[t3_p7 + (t3_p4 + (t3_h2 + (t3_h3) * d2_base_size_h2b) * d2_base_size_p4b) * d2_base_size_p7b] * 
+                        host_t3_d[t3_idx] -= host_d2_t2_2[t3_p7 + (t3_p4 + (t3_h2 + (t3_h3) * d2_base_size_h2b) * d2_base_size_p4b) * d2_base_size_p7b] *
                                              host_d2_v2_2[t3_p7 + (t3_h1 + (t3_p6 + (t3_p5) * d2_base_size_p6b) * d2_base_size_h1b) * d2_base_size_p7b];
                     }
-                
-                    // sd2_3:  t3[h3,h2,h1,p6,p5,p4] += t2[p7,p4,h1,h3] * v2[p7,h2,p6,p5] 
+
+                    // sd2_3:  t3[h3,h2,h1,p6,p5,p4] += t2[p7,p4,h1,h3] * v2[p7,h2,p6,p5]
                     if (flag_d2_3 >= 0)
-                    {   
-                        host_t3_d[t3_idx] += host_d2_t2_3[t3_p7 + (t3_p4 + (t3_h1 + (t3_h3) * d2_base_size_h1b) * d2_base_size_p4b) * d2_base_size_p7b] * 
+                    {
+                        host_t3_d[t3_idx] += host_d2_t2_3[t3_p7 + (t3_p4 + (t3_h1 + (t3_h3) * d2_base_size_h1b) * d2_base_size_p4b) * d2_base_size_p7b] *
                                              host_d2_v2_3[t3_p7 + (t3_h2 + (t3_p6 + (t3_p5) * d2_base_size_p6b) * d2_base_size_h2b) * d2_base_size_p7b];
                     }
-                
-                    // sd2_4:  t3[h3,h2,h1,p6,p5,p4] += t2[p7,p5,h1,h2] * v2[p7,h3,p6,p4]                         
+
+                    // sd2_4:  t3[h3,h2,h1,p6,p5,p4] += t2[p7,p5,h1,h2] * v2[p7,h3,p6,p4]
                     if (flag_d2_4 >= 0)
                     {
-                        host_t3_d[t3_idx] += host_d2_t2_4[t3_p7 + (t3_p5 + (t3_h1 + (t3_h2) * d2_base_size_h1b) * d2_base_size_p5b) * d2_base_size_p7b] * 
+                        host_t3_d[t3_idx] += host_d2_t2_4[t3_p7 + (t3_p5 + (t3_h1 + (t3_h2) * d2_base_size_h1b) * d2_base_size_p5b) * d2_base_size_p7b] *
                                              host_d2_v2_4[t3_p7 + (t3_h3 + (t3_p6 + (t3_p4) * d2_base_size_p6b) * d2_base_size_h3b) * d2_base_size_p7b];
                     }
-                
-                    // sd2_5:  t3[h3,h2,h1,p6,p5,p4] += t2[p7,p5,h2,h3] * v2[p7,h1,p6,p4]     
+
+                    // sd2_5:  t3[h3,h2,h1,p6,p5,p4] += t2[p7,p5,h2,h3] * v2[p7,h1,p6,p4]
                     if (flag_d2_5 >= 0)
                     {
-                        host_t3_d[t3_idx] += host_d2_t2_5[t3_p7 + (t3_p5 + (t3_h2 + (t3_h3) * d2_base_size_h2b) * d2_base_size_p5b) * d2_base_size_p7b] * 
+                        host_t3_d[t3_idx] += host_d2_t2_5[t3_p7 + (t3_p5 + (t3_h2 + (t3_h3) * d2_base_size_h2b) * d2_base_size_p5b) * d2_base_size_p7b] *
                                              host_d2_v2_5[t3_p7 + (t3_h1 + (t3_p6 + (t3_p4) * d2_base_size_p6b) * d2_base_size_h1b) * d2_base_size_p7b];
                     }
-                
-                    // sd2_6:  t3[h3,h2,h1,p6,p5,p4] −= t2[p7,p5,h1,h3] * v2[p7,h2,p6,p4] 
+
+                    // sd2_6:  t3[h3,h2,h1,p6,p5,p4] −= t2[p7,p5,h1,h3] * v2[p7,h2,p6,p4]
                     if (flag_d2_6 >= 0)
                     {
-                        host_t3_d[t3_idx] -= host_d2_t2_6[t3_p7 + (t3_p5 + (t3_h1 + (t3_h3) * d2_base_size_h1b) * d2_base_size_p5b) * d2_base_size_p7b] * 
+                        host_t3_d[t3_idx] -= host_d2_t2_6[t3_p7 + (t3_p5 + (t3_h1 + (t3_h3) * d2_base_size_h1b) * d2_base_size_p5b) * d2_base_size_p7b] *
                                              host_d2_v2_6[t3_p7 + (t3_h2 + (t3_p6 + (t3_p4) * d2_base_size_p6b) * d2_base_size_h2b) * d2_base_size_p7b];
                     }
-                
+
                     // sd2_7:  t3[h3,h2,h1,p6,p5,p4] −= t2[p7,p6,h1,h2] * v2[p7,h3,p5,p4]
-                    if (flag_d2_7 >= 0) 
-                    {   
-                        host_t3_d[t3_idx] -= host_d2_t2_7[t3_p7 + (t3_p6 + (t3_h1 + (t3_h2) * d2_base_size_h1b) * d2_base_size_p6b) * d2_base_size_p7b] * 
+                    if (flag_d2_7 >= 0)
+                    {
+                        host_t3_d[t3_idx] -= host_d2_t2_7[t3_p7 + (t3_p6 + (t3_h1 + (t3_h2) * d2_base_size_h1b) * d2_base_size_p6b) * d2_base_size_p7b] *
                                              host_d2_v2_7[t3_p7 + (t3_h3 + (t3_p5 + (t3_p4) * d2_base_size_p5b) * d2_base_size_h3b) * d2_base_size_p7b];
                     }
-                
+
                     // sd2_8:  t3[h3,h2,h1,p6,p5,p4] −= t2[p7,p6,h2,h3] * v2[p7,h1,p5,p4]
                     if (flag_d2_8 >= 0)
                     {
-                        host_t3_d[t3_idx] -= host_d2_t2_8[t3_p7 + (t3_p6 + (t3_h2 + (t3_h3) * d2_base_size_h2b) * d2_base_size_p6b) * d2_base_size_p7b] * 
+                        host_t3_d[t3_idx] -= host_d2_t2_8[t3_p7 + (t3_p6 + (t3_h2 + (t3_h3) * d2_base_size_h2b) * d2_base_size_p6b) * d2_base_size_p7b] *
                                              host_d2_v2_8[t3_p7 + (t3_h1 + (t3_p5 + (t3_p4) * d2_base_size_p5b) * d2_base_size_h1b) * d2_base_size_p7b];
                     }
-                
+
                     // sd2_9:  t3[h3,h2,h1,p6,p5,p4] += t2[p7,p6,h1,h3] * v2[p7,h2,p5,p4]
                     if (flag_d2_9 >= 0)
                     {
-                        host_t3_d[t3_idx] += host_d2_t2_9[t3_p7 + (t3_p6 + (t3_h1 + (t3_h3) * d2_base_size_h1b) * d2_base_size_p6b) * d2_base_size_p7b] * 
+                        host_t3_d[t3_idx] += host_d2_t2_9[t3_p7 + (t3_p6 + (t3_h1 + (t3_h3) * d2_base_size_h1b) * d2_base_size_p6b) * d2_base_size_p7b] *
                                              host_d2_v2_9[t3_p7 + (t3_h2 + (t3_p5 + (t3_p4) * d2_base_size_p5b) * d2_base_size_h2b) * d2_base_size_p7b];
                     }
                 }
@@ -464,8 +464,8 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
             double* host_s1_t2;
             double* host_s1_v2;
 
-            // 
-            #pragma omp parallel for collapse(6) 
+            //
+            #pragma omp parallel for collapse(6)
             for (int t3_h3 = 0; t3_h3 < s1_base_size_h3b; t3_h3++)
             for (int t3_h2 = 0; t3_h2 < s1_base_size_h2b; t3_h2++)
             for (int t3_h1 = 0; t3_h1 < s1_base_size_h1b; t3_h1++)
@@ -474,14 +474,14 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
             for (int t3_p4 = 0; t3_p4 < s1_base_size_p4b; t3_p4++)
             {
                 int t3_idx = t3_h3 + (t3_h2 + (t3_h1 + (t3_p6 + (t3_p5 + (t3_p4) * s1_base_size_p5b) * s1_base_size_p6b) * s1_base_size_h1b) * s1_base_size_h2b) * s1_base_size_h3b;
-            
+
                 //  s1_1: t3[h3,h2,h1,p6,p5,p4] += t1[p4,h1] * v2[h3,h2,p6,p5]
                 host_s1_t2 = df_host_pinned_s1_t1 + max_dim_s1_t1 * flag_s1_1;
 				host_s1_v2 = df_host_pinned_s1_v2 + max_dim_s1_v2 * flag_s1_1;
 
                 if (flag_s1_1 >= 0)
                 {
-                    host_t3_s[t3_idx] += host_s1_t2[t3_p4 + (t3_h1) * s1_base_size_p4b] * 
+                    host_t3_s[t3_idx] += host_s1_t2[t3_p4 + (t3_h1) * s1_base_size_p4b] *
                                          host_s1_v2[t3_h3 + (t3_h2 + (t3_p6 + (t3_p5) * s1_base_size_p6b) * s1_base_size_h2b) * s1_base_size_h3b];
 
                 }
@@ -492,7 +492,7 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
 
                 if (flag_s1_2 >= 0)
                 {
-                    host_t3_s[t3_idx] -= host_s1_t2[t3_p4 + (t3_h2) * s1_base_size_p4b] * 
+                    host_t3_s[t3_idx] -= host_s1_t2[t3_p4 + (t3_h2) * s1_base_size_p4b] *
                                          host_s1_v2[t3_h3 + (t3_h1 + (t3_p6 + (t3_p5) * s1_base_size_p6b) * s1_base_size_h1b) * s1_base_size_h3b];
                 }
 
@@ -501,18 +501,18 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
 				host_s1_v2 = df_host_pinned_s1_v2 + max_dim_s1_v2 * flag_s1_3;
 
                 if (flag_s1_3 >= 0)
-                {   
-                    host_t3_s[t3_idx] += host_s1_t2[t3_p4 + (t3_h3) * s1_base_size_p4b] * 
+                {
+                    host_t3_s[t3_idx] += host_s1_t2[t3_p4 + (t3_h3) * s1_base_size_p4b] *
                                          host_s1_v2[t3_h2 + (t3_h1 + (t3_p6 + (t3_p5) * s1_base_size_p6b) * s1_base_size_h1b) * s1_base_size_h2b];
                 }
 
-                // s1_4:   t3[h3,h2,h1,p6,p5,p4] -= t1[p5,h1] * v2[h3,h2,p6,p4] 
+                // s1_4:   t3[h3,h2,h1,p6,p5,p4] -= t1[p5,h1] * v2[h3,h2,p6,p4]
                 host_s1_t2 = df_host_pinned_s1_t1 + max_dim_s1_t1 * flag_s1_4;
 				host_s1_v2 = df_host_pinned_s1_v2 + max_dim_s1_v2 * flag_s1_4;
 
                 if (flag_s1_4 >= 0)
                 {
-                    host_t3_s[t3_idx] -= host_s1_t2[t3_p5 + (t3_h1) * s1_base_size_p5b] * 
+                    host_t3_s[t3_idx] -= host_s1_t2[t3_p5 + (t3_h1) * s1_base_size_p5b] *
                                          host_s1_v2[t3_h3 + (t3_h2 + (t3_p6 + (t3_p4) * s1_base_size_p6b) * s1_base_size_h2b) * s1_base_size_h3b];
                 }
 
@@ -522,7 +522,7 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
 
                 if (flag_s1_5 >= 0)
                 {
-                    host_t3_s[t3_idx] += host_s1_t2[t3_p5 + (t3_h2) * s1_base_size_p5b] * 
+                    host_t3_s[t3_idx] += host_s1_t2[t3_p5 + (t3_h2) * s1_base_size_p5b] *
                                          host_s1_v2[t3_h3 + (t3_h1 + (t3_p6 + (t3_p4) * s1_base_size_p6b) * s1_base_size_h1b) * s1_base_size_h3b];
                 }
 
@@ -532,7 +532,7 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
 
                 if (flag_s1_6 >= 0)
                 {
-                    host_t3_s[t3_idx] -= host_s1_t2[t3_p5 + (t3_h3) * s1_base_size_p5b] * 
+                    host_t3_s[t3_idx] -= host_s1_t2[t3_p5 + (t3_h3) * s1_base_size_p5b] *
                                          host_s1_v2[t3_h2 + (t3_h1 + (t3_p6 + (t3_p4) * s1_base_size_p6b) * s1_base_size_h1b) * s1_base_size_h2b];
                 }
 
@@ -541,8 +541,8 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
 				host_s1_v2 = df_host_pinned_s1_v2 + max_dim_s1_v2 * flag_s1_7;
 
                 if (flag_s1_7 >= 0)
-                {   
-                    host_t3_s[t3_idx] += host_s1_t2[t3_p6 + (t3_h1) * s1_base_size_p6b] * 
+                {
+                    host_t3_s[t3_idx] += host_s1_t2[t3_p6 + (t3_h1) * s1_base_size_p6b] *
                                          host_s1_v2[t3_h3 + (t3_h2 + (t3_p5 + (t3_p4) * s1_base_size_p5b) * s1_base_size_h2b) * s1_base_size_h3b];
                 }
 
@@ -552,7 +552,7 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
 
                 if (flag_s1_8 >= 0)
                 {
-                    host_t3_s[t3_idx] -= host_s1_t2[t3_p6 + (t3_h2) * s1_base_size_p6b] * 
+                    host_t3_s[t3_idx] -= host_s1_t2[t3_p6 + (t3_h2) * s1_base_size_p6b] *
                                          host_s1_v2[t3_h3 + (t3_h1 + (t3_p5 + (t3_p4) * s1_base_size_p5b) * s1_base_size_h1b) * s1_base_size_h3b];
                 }
 
@@ -562,21 +562,21 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
 
                 if (flag_s1_9 >= 0)
                 {
-                    host_t3_s[t3_idx] += host_s1_t2[t3_p6 + (t3_h3) * s1_base_size_p6b] * 
+                    host_t3_s[t3_idx] += host_s1_t2[t3_p6 + (t3_h3) * s1_base_size_p6b] *
                                          host_s1_v2[t3_h2 + (t3_h1 + (t3_p5 + (t3_p4) * s1_base_size_p5b) * s1_base_size_h1b) * s1_base_size_h2b];
                 }
             }
         }
     //} //idx_ia6
 
-    // 
+    //
     //  to calculate energies--- E(4) and E(5)
-    // 
+    //
     double final_energy_1 = 0.0;
     double final_energy_2 = 0.0;
 
     #if defined(USE_DPCPP)
-        //FIXME: stream.cl::sycl::memcpy(host_energies, dev_energies, num_blocks * 2 * sizeof(double));
+        stream.memcpy(host_energies, dev_energies, num_blocks * 2 * sizeof(double));
         stream.wait_and_throw();
 
         for (size_t i = 0; i < num_blocks; i++)
@@ -585,7 +585,7 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
             final_energy_2 += host_energies[i + num_blocks];
         }
 
-        // 
+        //
         energy_l[0] += final_energy_1 * factor;
         energy_l[1] += final_energy_2 * factor;
 
@@ -608,13 +608,13 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
         for (int idx_h2 = 0; idx_h2 < size_idx_h2; idx_h2++)
         for (int idx_h3 = 0; idx_h3 < size_idx_h3; idx_h3++)
         {
-            // 
+            //
             int idx_t3 = idx_h3 + (idx_h2 + (idx_h1 + (idx_p6 + (idx_p5 + (idx_p4) * size_idx_p5) * size_idx_p6) * size_idx_h1) * size_idx_h2) * size_idx_h3;
 
-            // 
-            double inner_factor = (host_evl_sorted_h3b[idx_h3] + host_evl_sorted_h2b[idx_h2] + host_evl_sorted_h1b[idx_h1] - 
+            //
+            double inner_factor = (host_evl_sorted_h3b[idx_h3] + host_evl_sorted_h2b[idx_h2] + host_evl_sorted_h1b[idx_h1] -
                                 host_evl_sorted_p6b[idx_p6] - host_evl_sorted_p5b[idx_p5] - host_evl_sorted_p4b[idx_p4]);
-            // 
+            //
             final_energy_1 += factor * host_t3_d[idx_t3] * (host_t3_d[idx_t3])                       / inner_factor;
             final_energy_2 += factor * host_t3_d[idx_t3] * (host_t3_d[idx_t3] + host_t3_s[idx_t3])   / inner_factor;
         }

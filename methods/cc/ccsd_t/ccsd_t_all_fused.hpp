@@ -343,20 +343,20 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
     hipMemcpyHtoDAsync(df_dev_d2_v2_all, df_host_pinned_d2_v2, sizeof(double) * (max_dim_d2_v2 * df_num_d2_enabled), stream);
 #elif defined(USE_DPCPP)
     // this is not pinned memory.
-    stream.cl::sycl::memcpy(dev_evl_sorted_h1b, host_evl_sorted_h1b, sizeof(double) * base_size_h1b);
-    stream.cl::sycl::memcpy(dev_evl_sorted_h2b, host_evl_sorted_h2b, sizeof(double) * base_size_h2b);
-    stream.cl::sycl::memcpy(dev_evl_sorted_h3b, host_evl_sorted_h3b, sizeof(double) * base_size_h3b);
-    stream.cl::sycl::memcpy(dev_evl_sorted_p4b, host_evl_sorted_p4b, sizeof(double) * base_size_p4b);
-    stream.cl::sycl::memcpy(dev_evl_sorted_p5b, host_evl_sorted_p5b, sizeof(double) * base_size_p5b);
-    stream.cl::sycl::memcpy(dev_evl_sorted_p6b, host_evl_sorted_p6b, sizeof(double) * base_size_p6b);
+    stream.memcpy(dev_evl_sorted_h1b, host_evl_sorted_h1b, sizeof(double) * base_size_h1b);
+    stream.memcpy(dev_evl_sorted_h2b, host_evl_sorted_h2b, sizeof(double) * base_size_h2b);
+    stream.memcpy(dev_evl_sorted_h3b, host_evl_sorted_h3b, sizeof(double) * base_size_h3b);
+    stream.memcpy(dev_evl_sorted_p4b, host_evl_sorted_p4b, sizeof(double) * base_size_p4b);
+    stream.memcpy(dev_evl_sorted_p5b, host_evl_sorted_p5b, sizeof(double) * base_size_p5b);
+    stream.memcpy(dev_evl_sorted_p6b, host_evl_sorted_p6b, sizeof(double) * base_size_p6b);
 
     //  new tensors
-    stream.cl::sycl::memcpy(df_dev_s1_t1_all, df_host_pinned_s1_t1, sizeof(double) * (max_dim_s1_t1 * df_num_s1_enabled));
-    stream.cl::sycl::memcpy(df_dev_s1_v2_all, df_host_pinned_s1_v2, sizeof(double) * (max_dim_s1_v2 * df_num_s1_enabled));
-    stream.cl::sycl::memcpy(df_dev_d1_t2_all, df_host_pinned_d1_t2, sizeof(double) * (max_dim_d1_t2 * df_num_d1_enabled));
-    stream.cl::sycl::memcpy(df_dev_d1_v2_all, df_host_pinned_d1_v2, sizeof(double) * (max_dim_d1_v2 * df_num_d1_enabled));
-    stream.cl::sycl::memcpy(df_dev_d2_t2_all, df_host_pinned_d2_t2, sizeof(double) * (max_dim_d2_t2 * df_num_d2_enabled));
-    stream.cl::sycl::memcpy(df_dev_d2_v2_all, df_host_pinned_d2_v2, sizeof(double) * (max_dim_d2_v2 * df_num_d2_enabled));
+    stream.memcpy(df_dev_s1_t1_all, df_host_pinned_s1_t1, sizeof(double) * (max_dim_s1_t1 * df_num_s1_enabled));
+    stream.memcpy(df_dev_s1_v2_all, df_host_pinned_s1_v2, sizeof(double) * (max_dim_s1_v2 * df_num_s1_enabled));
+    stream.memcpy(df_dev_d1_t2_all, df_host_pinned_d1_t2, sizeof(double) * (max_dim_d1_t2 * df_num_d1_enabled));
+    stream.memcpy(df_dev_d1_v2_all, df_host_pinned_d1_v2, sizeof(double) * (max_dim_d1_v2 * df_num_d1_enabled));
+    stream.memcpy(df_dev_d2_t2_all, df_host_pinned_d2_t2, sizeof(double) * (max_dim_d2_t2 * df_num_d2_enabled));
+    stream.memcpy(df_dev_d2_v2_all, df_host_pinned_d2_v2, sizeof(double) * (max_dim_d2_v2 * df_num_d2_enabled));
 #endif
 
   //
@@ -470,7 +470,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
     hipMemcpyHtoDAsync(host_energies, dev_energies, num_blocks * 2 * sizeof(double), stream);
     hipDeviceSynchronize(void);
 #elif defined(USE_DPCPP)
-    stream.cl::sycl::memcpy(host_energies, dev_energies, num_blocks * 2 * sizeof(double));
+    stream.memcpy(host_energies, dev_energies, num_blocks * 2 * sizeof(double));
     stream.wait_and_throw();
 #endif
 

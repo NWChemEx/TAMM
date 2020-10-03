@@ -367,7 +367,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
               //
               num_task++;
 
-              #if defined(USE_CUDA) || defined(USE_HIP)
+              #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
               ccsd_t_fully_fused_none_df_none_task(is_restricted, noab, nvab, rank,
                                                   k_spin,
                                                   k_range,

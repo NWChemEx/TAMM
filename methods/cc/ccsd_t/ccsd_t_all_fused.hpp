@@ -13,58 +13,58 @@ void dev_mem_d(size_t,size_t,size_t,size_t,size_t,size_t);
 #define CEIL(a, b)  (((a) + (b) - 1) / (b))
 
 
-void fully_fused_ccsd_t_gpu(gpuStream_t* stream_id, size_t num_blocks, 
-	size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, 
+void fully_fused_ccsd_t_gpu(gpuStream_t* stream_id, size_t num_blocks,
+	size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b,
 	size_t base_size_p4b, size_t base_size_p5b, size_t base_size_p6b,
-	// 
+	//
 	double* df_dev_d1_t2_all, double* df_dev_d1_v2_all,
 	double* df_dev_d2_t2_all, double* df_dev_d2_v2_all,
 	double* df_dev_s1_t1_all, double* df_dev_s1_v2_all,
-	// 
+	//
 	size_t size_d1_t2_all, size_t size_d1_v2_all,
 	size_t size_d2_t2_all, size_t size_d2_v2_all,
 	size_t size_s1_t1_all, size_t size_s1_v2_all,
-	// 
+	//
 	int* host_d1_size, int* host_d1_exec, 	// used
-	int* host_d2_size, int* host_d2_exec, 
-	int* host_s1_size, int* host_s1_exec, 
-	// 
+	int* host_d2_size, int* host_d2_exec,
+	int* host_s1_size, int* host_s1_exec,
+	//
 	size_t size_noab, size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2,
 	size_t size_nvab, size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2,
-										size_t size_max_dim_s1_t1, size_t size_max_dim_s1_v2, 
-	// 
-	double factor, 
-	// 
-	double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b, 
+										size_t size_max_dim_s1_t1, size_t size_max_dim_s1_v2,
+	//
+	double factor,
+	//
+	double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b,
 	double* dev_evl_sorted_p4b, double* dev_evl_sorted_p5b, double* dev_evl_sorted_p6b,
 	double* partial_energies);
 
-void total_fused_ccsd_t_gpu(gpuStream_t* stream_id, int gpu_id, 
-            size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, 
+void total_fused_ccsd_t_gpu(gpuStream_t* stream_id, int gpu_id,
+            size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b,
 						size_t base_size_p4b, size_t base_size_p5b, size_t base_size_p6b,
-						// 
+						//
 						double* host_d1_t2_all, double* host_d1_v2_all,
 						double* host_d2_t2_all, double* host_d2_v2_all,
 						double* host_s1_t2_all, double* host_s1_v2_all,
-						// 
+						//
 						size_t size_d1_t2_all, size_t size_d1_v2_all,
 						size_t size_d2_t2_all, size_t size_d2_v2_all,
 						size_t size_s1_t2_all, size_t size_s1_v2_all,
-						// 
-						int* list_d1_sizes, 
-						int* list_d2_sizes, 
-						int* list_s1_sizes, 
-						// 
+						//
+						int* list_d1_sizes,
+						int* list_d2_sizes,
+						int* list_s1_sizes,
+						//
 						std::vector<int> vec_d1_flags,
 						std::vector<int> vec_d2_flags,
-						std::vector<int> vec_s1_flags, 
-						// 
+						std::vector<int> vec_s1_flags,
+						//
 						size_t size_noab, size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2,
 						size_t size_nvab, size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2,
-                                          size_t size_max_dim_s1_t2, size_t size_max_dim_s1_v2, 
-						// 
-						double factor, 
-						double* host_evl_sortedh1, double* host_evl_sortedh2, double* host_evl_sortedh3, 
+                                          size_t size_max_dim_s1_t2, size_t size_max_dim_s1_v2,
+						//
+						double factor,
+						double* host_evl_sortedh1, double* host_evl_sortedh2, double* host_evl_sortedh3,
 						double* host_evl_sortedp4, double* host_evl_sortedp5, double* host_evl_sortedp6,
 						double* final_energy_4, double* final_energy_5);
 
@@ -124,7 +124,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
   cudaEventCreate(&start_init);             cudaEventCreate(&stop_init);
   cudaEventCreate(&start_fused_kernel);     cudaEventCreate(&stop_fused_kernel);
   cudaEventCreate(&start_pre_processing);   cudaEventCreate(&stop_pre_processing);
-  cudaEventCreate(&start_post_processing);  cudaEventCreate(&stop_post_processing); 
+  cudaEventCreate(&start_post_processing);  cudaEventCreate(&stop_post_processing);
   cudaEventCreate(&start_collecting_data);  cudaEventCreate(&stop_collecting_data);
 
   //
@@ -134,7 +134,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
   float time_ms_post_processing   = 0.0;
   float time_ms_collecting_data   = 0.0;
 
-  // 
+  //
   cudaEventRecord(start_init);
 #endif
 #endif //OPT_ALL_TIMING
@@ -160,12 +160,12 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
   const size_t max_dim_d2_t2 = size_T_d2_t2 / max_d2_kernels_pertask;
   const size_t max_dim_d2_v2 = size_T_d2_v2 / max_d2_kernels_pertask;
 
-  // 
+  //
   //  >> for pinned host memory (should support redundant calls)
-  // 
-  // 
+  //
+  //
   //  pinned host memory for s1 (t1, v2), d1 (t2, v2), and d2 (t2, v2)
-  // 
+  //
 #if 0
   T* df_host_pinned_s1_t1;
   T* df_host_pinned_s1_v2;
@@ -174,16 +174,16 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
   T* df_host_pinned_d2_t2;
   T* df_host_pinned_d2_v2;
 
-  // 
+  //
   int*  df_simple_s1_size;   int*  df_simple_d1_size;   int* df_simple_d2_size;
   int*  df_simple_s1_exec;   int*  df_simple_d1_exec;   int* df_simple_d2_exec;
 #endif
     int   df_num_s1_enabled;   int   df_num_d1_enabled;   int  df_num_d2_enabled;
 
-    // 
+    //
     //  Host-Level
     //  to allocate host (pinned) memory for double-buffering (does not depend on a task)
-    // 
+    //
 #if 0
     df_host_pinned_s1_t1 = (T*)getHostMem(sizeof(double) * size_T_s1_t1);
     df_host_pinned_s1_v2 = (T*)getHostMem(sizeof(double) * size_T_s1_v2);
@@ -192,7 +192,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
     df_host_pinned_d2_t2 = (T*)getHostMem(sizeof(double) * size_T_d2_t2);
     df_host_pinned_d2_v2 = (T*)getHostMem(sizeof(double) * size_T_d2_v2);
 
-    // 
+    //
     df_simple_s1_size = (int*)getHostMem(sizeof(int) * (6));
     df_simple_s1_exec = (int*)getHostMem(sizeof(int) * (9));
 
@@ -203,12 +203,12 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
     df_simple_d2_exec = (int*)getHostMem(sizeof(int) * (9 * nvab));
 #endif
 
-  // 
+  //
   //  variables based on a current task
-  // 
-  // 
+  //
+  //
   //  Device-Level
-  // 
+  //
 #if 0
     double* df_dev_s1_t1_all = (double*)getGpuMem(sizeof(double) * size_T_s1_t1);
     double* df_dev_s1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_s1_v2);
@@ -218,7 +218,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
     double* df_dev_d2_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_v2);
 #endif
 
-  // 
+  //
   size_t base_size_h1b = k_range[t_h1b];
   size_t base_size_h2b = k_range[t_h2b];
   size_t base_size_h3b = k_range[t_h3b];
@@ -226,9 +226,9 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
   size_t base_size_p5b = k_range[t_p5b];
   size_t base_size_p6b = k_range[t_p6b];
 
-  // 
+  //
   //  Host-Level
-  // 
+  //
   double* host_evl_sorted_h1b = &k_evl_sorted[k_offset[t_h1b]];
   double* host_evl_sorted_h2b = &k_evl_sorted[k_offset[t_h2b]];
   double* host_evl_sorted_h3b = &k_evl_sorted[k_offset[t_h3b]];
@@ -237,9 +237,9 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
   double* host_evl_sorted_p6b = &k_evl_sorted[k_offset[t_p6b]];
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  // 
+  //
   //  Device-Level
-  // 
+  //
   double* dev_evl_sorted_h1b = (double*)getGpuMem(sizeof(double) * base_size_h1b);
   double* dev_evl_sorted_h2b = (double*)getGpuMem(sizeof(double) * base_size_h2b);
   double* dev_evl_sorted_h3b = (double*)getGpuMem(sizeof(double) * base_size_h3b);
@@ -248,7 +248,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
   double* dev_evl_sorted_p6b = (double*)getGpuMem(sizeof(double) * base_size_p6b);
 #endif
 
-  // 
+  //
 
 #ifdef OPT_ALL_TIMING
     cudaEventRecord(stop_init);
@@ -359,7 +359,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
     stream.cl::sycl::memcpy(df_dev_d2_v2_all, df_host_pinned_d2_v2, sizeof(double) * (max_dim_d2_v2 * df_num_d2_enabled));
 #endif
 
-  // 
+  //
 #ifdef OPT_ALL_TIMING
     cudaEventRecord(stop_pre_processing);
     cudaEventSynchronize(stop_pre_processing);
@@ -404,38 +404,38 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
 #endif
 #endif //OPT_KERNEL_TIMING
 
-  // 
-  // 
-  // 
+  //
+  //
+  //
   // printf ("kernel-launch for base task based on %u\n", df_base_id);
-  fully_fused_ccsd_t_gpu(&stream, num_blocks, 
+  fully_fused_ccsd_t_gpu(&stream, num_blocks,
                         k_range[t_h1b],k_range[t_h2b],
                         k_range[t_h3b],k_range[t_p4b],
                         k_range[t_p5b],k_range[t_p6b],
-                        // 
-                        df_dev_d1_t2_all, df_dev_d1_v2_all, 
-                        df_dev_d2_t2_all, df_dev_d2_v2_all, 
-                        df_dev_s1_t1_all, df_dev_s1_v2_all, 
-                        // 
+                        //
+                        df_dev_d1_t2_all, df_dev_d1_v2_all,
+                        df_dev_d2_t2_all, df_dev_d2_v2_all,
+                        df_dev_s1_t1_all, df_dev_s1_v2_all,
+                        //
                         size_T_d1_t2, size_T_d1_v2,
                         size_T_d2_t2, size_T_d2_v2,
                         size_T_s1_t1, size_T_s1_v2,
-                        // 
+                        //
                         //  for constant memory
-                        // 
-                        df_simple_d1_size, df_simple_d1_exec, 
-                        df_simple_d2_size, df_simple_d2_exec, 
-                        df_simple_s1_size, df_simple_s1_exec, 
-                        // 
-                        noab, max_dim_d1_t2, max_dim_d1_v2, 
-                        nvab, max_dim_d2_t2, max_dim_d2_v2, 
-                              max_dim_s1_t1, max_dim_s1_v2, 
-                        // 
-                        factor, 
-                        // 
-                        dev_evl_sorted_h1b, dev_evl_sorted_h2b, dev_evl_sorted_h3b, 
-                        dev_evl_sorted_p4b, dev_evl_sorted_p5b, dev_evl_sorted_p6b, 
-                        // 
+                        //
+                        df_simple_d1_size, df_simple_d1_exec,
+                        df_simple_d2_size, df_simple_d2_exec,
+                        df_simple_s1_size, df_simple_s1_exec,
+                        //
+                        noab, max_dim_d1_t2, max_dim_d1_v2,
+                        nvab, max_dim_d2_t2, max_dim_d2_v2,
+                              max_dim_s1_t1, max_dim_s1_v2,
+                        //
+                        factor,
+                        //
+                        dev_evl_sorted_h1b, dev_evl_sorted_h2b, dev_evl_sorted_h3b,
+                        dev_evl_sorted_p4b, dev_evl_sorted_p5b, dev_evl_sorted_p6b,
+                        //
                         dev_energies);
 
   //
@@ -459,9 +459,9 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
     cudaEventRecord(start_post_processing);
 #endif
 
-  // 
-  // 
-  // 
+  //
+  //
+  //
   // printf ("post-processing for base task based on %u\n", df_base_id);
 #if defined(USE_CUDA)
     cudaMemcpyAsync(host_energies, dev_energies, num_blocks * 2 * sizeof(double), cudaMemcpyDeviceToHost, stream);
@@ -474,7 +474,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
     stream.wait_and_throw();
 #endif
 
-  // 
+  //
   double final_energy_1 = 0.0;
   double final_energy_2 = 0.0;
   for (size_t i = 0; i < num_blocks; i++)
@@ -483,15 +483,15 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
     final_energy_2 += host_energies[i + num_blocks];
   }
 
-  // 
+  //
   energy_l[0] += final_energy_1 * factor;
   energy_l[1] += final_energy_2 * factor;
-  
+
   // printf ("[%s] %+.15f, %+.15f\n", __func__, final_energy_1 * factor, final_energy_2 * factor);
 
-  // 
+  //
   //  free device and host mem. for a task.
-  // 
+  //
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
     freeGpuMem(dev_evl_sorted_h1b); freeGpuMem(dev_evl_sorted_h2b); freeGpuMem(dev_evl_sorted_h3b);
     freeGpuMem(dev_evl_sorted_p4b); freeGpuMem(dev_evl_sorted_p5b); freeGpuMem(dev_evl_sorted_p6b);

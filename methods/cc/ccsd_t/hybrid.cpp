@@ -38,7 +38,10 @@ int device_init(long iDevice,int *gpu_device_number) {
 #elif defined(USE_HIP)
   hipGetDeviceCount(&dev_count_check);
 #elif defined(USE_DPCPP)
-  dev_count_check = iDevice; //TODO: query ngpus
+  cl::sycl::gpu_selector device_selector;
+  cl::sycl::platform platform(device_selector);
+  auto const& gpu_devices = platform.get_devices();
+  dev_count_check = gpu_devices.size();
 #endif
 
   //

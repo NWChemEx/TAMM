@@ -31,7 +31,7 @@ void fully_fused_ccsd_t_gpu(gpuStream_t* stream_id, size_t num_blocks,
 	//
 	size_t size_noab, size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2,
 	size_t size_nvab, size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2,
-										size_t size_max_dim_s1_t1, size_t size_max_dim_s1_v2,
+	size_t size_max_dim_s1_t1, size_t size_max_dim_s1_v2,
 	//
 	double factor,
 	//

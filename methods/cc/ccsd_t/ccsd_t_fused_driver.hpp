@@ -287,12 +287,12 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                 df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
                                                 df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
                                                 //
-                                                #if defined(USE_DPCPP)
-                                                df_dev_s1_t1_all, df_dev_s1_v2_all,
-                                                df_dev_d1_t2_all, df_dev_d1_v2_all,
-                                                df_dev_d2_t2_all, df_dev_d2_v2_all,
-                                                df_dev_energies,
-                                                #endif
+                                                // #if defined(USE_DPCPP)
+                                                // df_dev_s1_t1_all, df_dev_s1_v2_all,
+                                                // df_dev_d1_t2_all, df_dev_d1_v2_all,
+                                                // df_dev_d2_t2_all, df_dev_d2_v2_all,
+                                                // df_dev_energies,
+                                                // #endif
                                                 //
                                                 t_h1b, t_h2b, t_h3b,
                                                 t_p4b, t_p5b, t_p6b,
@@ -417,12 +417,12 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                 df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
                                                 df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
                                                 //
-                                                #if defined(USE_DPCPP)
-                                                df_dev_s1_t1_all, df_dev_s1_v2_all,
-                                                df_dev_d1_t2_all, df_dev_d1_v2_all,
-                                                df_dev_d2_t2_all, df_dev_d2_v2_all,
-                                                df_dev_energies,
-                                                #endif
+                                                // #if defined(USE_DPCPP)
+                                                // df_dev_s1_t1_all, df_dev_s1_v2_all,
+                                                // df_dev_d1_t2_all, df_dev_d1_v2_all,
+                                                // df_dev_d2_t2_all, df_dev_d2_v2_all,
+                                                // df_dev_energies,
+                                                // #endif
                                                 //
                                                 t_h1b, t_h2b, t_h3b,
                                                 t_p4b, t_p5b, t_p6b,

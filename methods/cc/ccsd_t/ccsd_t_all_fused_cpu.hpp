@@ -58,13 +58,6 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
                             int* df_simple_s1_size, int* df_simple_d1_size, int* df_simple_d2_size,
                             int* df_simple_s1_exec, int* df_simple_d1_exec, int* df_simple_d2_exec,
                             //
-                            #if defined(USE_DPCPP)
-                            T* df_dev_s1_t1_all, T* df_dev_s1_v2_all,
-                            T* df_dev_d1_t2_all, T* df_dev_d1_v2_all,
-                            T* df_dev_d2_t2_all, T* df_dev_d2_v2_all,
-                            T* dev_energies,
-                            #endif
-                            //
                             size_t t_h1b, size_t t_h2b, size_t t_h3b,
                             size_t t_p4b, size_t t_p5b, size_t t_p6b,
                             double factor, size_t taskid,
@@ -87,12 +80,6 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
     size_t base_size_p5b = k_range[t_p5b];
     size_t base_size_p6b = k_range[t_p6b];
 
-    // create and assign streams
-    #if defined(USE_DPCPP)
-        gpuStream_t stream;
-        //FIXME: stream = get_current_queue();
-    #endif
-
     const size_t max_dim_s1_t1 = size_T_s1_t1 / 9;
     const size_t max_dim_s1_v2 = size_T_s1_v2 / 9;
     const size_t max_dim_d1_t2 = size_T_d1_t2 / max_d1_kernels_pertask;
@@ -113,18 +100,6 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
     std::fill(df_simple_d1_exec, df_simple_d1_exec + (9 * noab), -1);
     std::fill(df_simple_d2_exec, df_simple_d2_exec + (9 * nvab), -1);
 
-
-    #if defined(USE_DPCPP)
-    //
-    //  Device-Level
-    //
-    double* dev_evl_sorted_h1b = (double*)getGpuMem(sizeof(double) * base_size_h1b);
-    double* dev_evl_sorted_h2b = (double*)getGpuMem(sizeof(double) * base_size_h2b);
-    double* dev_evl_sorted_h3b = (double*)getGpuMem(sizeof(double) * base_size_h3b);
-    double* dev_evl_sorted_p4b = (double*)getGpuMem(sizeof(double) * base_size_p4b);
-    double* dev_evl_sorted_p5b = (double*)getGpuMem(sizeof(double) * base_size_p5b);
-    double* dev_evl_sorted_p6b = (double*)getGpuMem(sizeof(double) * base_size_p6b);
-    #endif
 
     //
     ccsd_t_data_s1_new(is_restricted,noab,nvab,k_spin,
@@ -168,27 +143,6 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
                     //
                     cache_d2t, cache_d2v);
 
-    #if defined(USE_DPCPP)
-        // this is not pinned memory.
-        //FIXME:
-        // stream.memcpy(dev_evl_sorted_h1b, host_evl_sorted_h1b, sizeof(double) * base_size_h1b);
-        // stream.memcpy(dev_evl_sorted_h2b, host_evl_sorted_h2b, sizeof(double) * base_size_h2b);
-        // stream.memcpy(dev_evl_sorted_h3b, host_evl_sorted_h3b, sizeof(double) * base_size_h3b);
-        // stream.memcpy(dev_evl_sorted_p4b, host_evl_sorted_p4b, sizeof(double) * base_size_p4b);
-        // stream.memcpy(dev_evl_sorted_p5b, host_evl_sorted_p5b, sizeof(double) * base_size_p5b);
-        // stream.memcpy(dev_evl_sorted_p6b, host_evl_sorted_p6b, sizeof(double) * base_size_p6b);
-
-        // //  new tensors
-        // stream.memcpy(df_dev_s1_t1_all, df_host_pinned_s1_t1, sizeof(double) * (max_dim_s1_t1 * df_num_s1_enabled));
-        // stream.memcpy(df_dev_s1_v2_all, df_host_pinned_s1_v2, sizeof(double) * (max_dim_s1_v2 * df_num_s1_enabled));
-        // stream.memcpy(df_dev_d1_t2_all, df_host_pinned_d1_t2, sizeof(double) * (max_dim_d1_t2 * df_num_d1_enabled));
-        // stream.memcpy(df_dev_d1_v2_all, df_host_pinned_d1_v2, sizeof(double) * (max_dim_d1_v2 * df_num_d1_enabled));
-        // stream.memcpy(df_dev_d2_t2_all, df_host_pinned_d2_t2, sizeof(double) * (max_dim_d2_t2 * df_num_d2_enabled));
-        // stream.memcpy(df_dev_d2_v2_all, df_host_pinned_d2_v2, sizeof(double) * (max_dim_d2_v2 * df_num_d2_enabled));
-    #endif
-
-    size_t num_blocks = CEIL(base_size_h3b, 4) * CEIL(base_size_h2b, 4) * CEIL(base_size_h1b, 4) *
-                        CEIL(base_size_p6b, 4) * CEIL(base_size_p5b, 4) * CEIL(base_size_p4b, 4);
 
     //
     size_t size_tensor_t3 = base_size_h3b * base_size_h2b * base_size_h1b * base_size_p6b * base_size_p5b * base_size_p4b;
@@ -575,53 +529,35 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
     double final_energy_1 = 0.0;
     double final_energy_2 = 0.0;
 
-    #if defined(USE_DPCPP)
-        stream.memcpy(host_energies, dev_energies, num_blocks * 2 * sizeof(double));
-        stream.wait_and_throw();
+    int size_idx_h1 = (int)base_size_h1b;
+    int size_idx_h2 = (int)base_size_h2b;
+    int size_idx_h3 = (int)base_size_h3b;
+    int size_idx_p4 = (int)base_size_p4b;
+    int size_idx_p5 = (int)base_size_p5b;
+    int size_idx_p6 = (int)base_size_p6b;
 
-        for (size_t i = 0; i < num_blocks; i++)
-        {
-            final_energy_1 += host_energies[i];
-            final_energy_2 += host_energies[i + num_blocks];
-        }
+    //
+    for (int idx_p4 = 0; idx_p4 < size_idx_p4; idx_p4++)
+    for (int idx_p5 = 0; idx_p5 < size_idx_p5; idx_p5++)
+    for (int idx_p6 = 0; idx_p6 < size_idx_p6; idx_p6++)
+    for (int idx_h1 = 0; idx_h1 < size_idx_h1; idx_h1++)
+    for (int idx_h2 = 0; idx_h2 < size_idx_h2; idx_h2++)
+    for (int idx_h3 = 0; idx_h3 < size_idx_h3; idx_h3++)
+    {
+        //
+        int idx_t3 = idx_h3 + (idx_h2 + (idx_h1 + (idx_p6 + (idx_p5 + (idx_p4) * size_idx_p5) * size_idx_p6) * size_idx_h1) * size_idx_h2) * size_idx_h3;
 
         //
-        energy_l[0] += final_energy_1 * factor;
-        energy_l[1] += final_energy_2 * factor;
-
-        freeGpuMem(dev_evl_sorted_h1b); freeGpuMem(dev_evl_sorted_h2b); freeGpuMem(dev_evl_sorted_h3b);
-        freeGpuMem(dev_evl_sorted_p4b); freeGpuMem(dev_evl_sorted_p5b); freeGpuMem(dev_evl_sorted_p6b);
-
-    #else
-        int size_idx_h1 = (int)base_size_h1b;
-        int size_idx_h2 = (int)base_size_h2b;
-        int size_idx_h3 = (int)base_size_h3b;
-        int size_idx_p4 = (int)base_size_p4b;
-        int size_idx_p5 = (int)base_size_p5b;
-        int size_idx_p6 = (int)base_size_p6b;
-
+        double inner_factor = (host_evl_sorted_h3b[idx_h3] + host_evl_sorted_h2b[idx_h2] + host_evl_sorted_h1b[idx_h1] -
+                            host_evl_sorted_p6b[idx_p6] - host_evl_sorted_p5b[idx_p5] - host_evl_sorted_p4b[idx_p4]);
         //
-        for (int idx_p4 = 0; idx_p4 < size_idx_p4; idx_p4++)
-        for (int idx_p5 = 0; idx_p5 < size_idx_p5; idx_p5++)
-        for (int idx_p6 = 0; idx_p6 < size_idx_p6; idx_p6++)
-        for (int idx_h1 = 0; idx_h1 < size_idx_h1; idx_h1++)
-        for (int idx_h2 = 0; idx_h2 < size_idx_h2; idx_h2++)
-        for (int idx_h3 = 0; idx_h3 < size_idx_h3; idx_h3++)
-        {
-            //
-            int idx_t3 = idx_h3 + (idx_h2 + (idx_h1 + (idx_p6 + (idx_p5 + (idx_p4) * size_idx_p5) * size_idx_p6) * size_idx_h1) * size_idx_h2) * size_idx_h3;
+        final_energy_1 += factor * host_t3_d[idx_t3] * (host_t3_d[idx_t3])                       / inner_factor;
+        final_energy_2 += factor * host_t3_d[idx_t3] * (host_t3_d[idx_t3] + host_t3_s[idx_t3])   / inner_factor;
+    }
 
-            //
-            double inner_factor = (host_evl_sorted_h3b[idx_h3] + host_evl_sorted_h2b[idx_h2] + host_evl_sorted_h1b[idx_h1] -
-                                host_evl_sorted_p6b[idx_p6] - host_evl_sorted_p5b[idx_p5] - host_evl_sorted_p4b[idx_p4]);
-            //
-            final_energy_1 += factor * host_t3_d[idx_t3] * (host_t3_d[idx_t3])                       / inner_factor;
-            final_energy_2 += factor * host_t3_d[idx_t3] * (host_t3_d[idx_t3] + host_t3_s[idx_t3])   / inner_factor;
-        }
+    energy_l[0] += final_energy_1;
 
-        energy_l[0] += final_energy_1;
-        energy_l[1] += final_energy_2;
-    #endif
+    energy_l[1] += final_energy_2;
 
     //printf ("E(4): %.14f, E(5): %.14f\n", host_energy_4, host_energy_5);
     // printf ("========================================================================================\n");

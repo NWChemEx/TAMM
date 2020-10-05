@@ -25,7 +25,7 @@ if(USE_CUDA)
 
     set(CCSD_T_FUSED_SRCS ${CCSD_T_SRCS}
             ${CCSD_T_SRCDIR}/ccsd_t_all_fused.hpp
-            ${CCSD_T_SRCDIR}/ccsd_t_all_fused_sycl.cpp
+            ${CCSD_T_SRCDIR}/ccsd_t_all_fused_sycl.hpp
             ${CCSD_T_SRCDIR}/ccsd_t_all_fused_gpu.cu)
 
 else()

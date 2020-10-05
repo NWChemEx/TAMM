@@ -13,23 +13,12 @@ static map<size_t,set<void*> > free_list_gpu, free_list_host;
 static map<void *,size_t> live_ptrs_gpu, live_ptrs_host;
 
 #ifdef USE_DPCPP
-static cl::sycl::device get_current_device() noexcept
+cl::sycl::queue get_current_queue() noexcept
 {
-  auto sycl_device = get_current_queue().get_device();
-  return sycl_device;
-}
-
-static cl::sycl::queue get_current_queue() noexcept
-{
-  cl::sycl::gpu_selector device_selector;
-  auto sycl_queue = cl::sycl::queue(device_selector);
-  return sycl_queue;
-}
-
-static cl::sycl::context get_current_context() noexcept
-{
-  auto sycl_context = get_current_queue().get_context();
-  return sycl_context;
+    static cl::sycl::gpu_selector device_selector;
+    static auto sycl_queue = cl::sycl::queue(device_selector,
+                                             cl::sycl::property_list{cl::sycl::property::queue::in_order{}});
+    return sycl_queue;
 }
 #endif // USE_DPCPP (only)
 
@@ -44,7 +33,7 @@ static void clearGpuFreeList()
 #elif defined(USE_HIP)
       hipFree(*it2);
 #elif defined(USE_DPCPP)
-      cl::sycl::free(*it2, get_current_context());
+      cl::sycl::free(*it2, get_current_queue());
 #endif
     }
   }
@@ -62,7 +51,7 @@ static void clearHostFreeList()
 #elif defined(USE_HIP)
       hipFreeHost(*it2);
 #elif defined(USE_DPCPP)
-      cl::sycl::free(*it2, get_current_context());
+      cl::sycl::free(*it2, get_current_queue());
 #else
       free(*it2);
 #endif // USE_CUDA
@@ -81,7 +70,7 @@ static void *moreDeviceMem(size_t bytes)
 #elif defined(USE_HIP)
   HIP_SAFE(hipMalloc(&ptr, bytes));
 #elif defined(USE_DPCPP)
-  ptr = (void *)cl::sycl::malloc_device(bytes, get_current_device(), get_current_context());
+  ptr = cl::sycl::malloc_device(bytes, get_current_queue());
 #endif
 
   // num_morecore += 1;
@@ -93,7 +82,7 @@ static void *moreDeviceMem(size_t bytes)
 #elif defined(USE_HIP)
     HIP_SAFE(hipMalloc(&ptr, bytes));
 #elif defined(USE_DPCPP)
-    ptr = (void *)cl::sycl::malloc_device(bytes, get_current_device(), get_current_context());
+    ptr = cl::sycl::malloc_device(bytes, get_current_queue());
 #endif
   }
   assert(ptr!=nullptr); /*We hopefully have a pointer*/
@@ -108,7 +97,7 @@ static void *moreHostMem(size_t bytes)
   #elif defined(USE_HIP)
     HIP_SAFE(hipHostMalloc(&ptr, bytes));
   #elif defined(USE_DPCPP)
-    ptr = (void *)cl::sycl::malloc_host(bytes, get_current_context());
+    ptr = cl::sycl::malloc_host(bytes, get_current_queue());
   #else
     ptr = (void *)malloc(bytes);
   #endif
@@ -121,7 +110,7 @@ static void *moreHostMem(size_t bytes)
     #elif defined(USE_HIP)
         HIP_SAFE(hipHostMalloc(&ptr, bytes));
     #elif defined(USE_DPCPP)
-        ptr = (void *)cl::sycl::malloc_host(bytes, get_current_context());
+        ptr = cl::sycl::malloc_host(bytes, get_current_queue());
     #else
       ptr = (void *)malloc(bytes);
     #endif
@@ -164,7 +153,7 @@ void *getGpuMem(size_t bytes)
 #elif defined(USE_HIP)
   HIP_SAFE(hipMalloc((void **) &ptr, bytes));
 #elif defiend(USE_DPCPP)
-  ptr = (void *)cl::sycl::malloc_device(bytes, get_current_device(), get_current_context());
+  ptr = cl::sycl::malloc_device(bytes, get_current_queue());
 #endif
 #else
   if(free_list_gpu.find(bytes)!=free_list_gpu.end())
@@ -204,7 +193,7 @@ void *getHostMem(size_t bytes)
 #elif defined(USE_HIP)
   HIP_SAFE(hipHostMalloc((void **) &ptr, bytes));
 #elif defiend(USE_DPCPP)
-  ptr = (void *)cl::sycl::malloc_host(bytes, get_current_context());
+  ptr = cl::sycl::malloc_host(bytes, get_current_queue());
 #else //cpu
   ptr = (void *)malloc(bytes);
 #endif
@@ -254,7 +243,7 @@ void freeHostMem(void *p)
 #elif defined(USE_HIP)
   hipHostFree(p);
 #elif defined(USE_DPCPP)
-  cl::sycl::free(p, get_current_context());
+  cl::sycl::free(p, get_current_queue());
 #else
   free(p);
 #endif
@@ -277,7 +266,7 @@ void freeGpuMem(void *p)
 #elif defined(USE_HIP)
   hipFree(p);
 #elif defined(USE_DPCPP)
-  cl::sycl::free(p, get_current_context());
+  cl::sycl::free(p, get_current_queue());
 #endif //NO_OPT
 
 #else

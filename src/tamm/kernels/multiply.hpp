@@ -497,7 +497,7 @@ void block_multiply(bool &isgpuOp,
           }
 #ifdef USE_DPCPP
           // device-->host copy
-          dev_queue.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1))
+          dev_queue.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
           dev_queue.wait_and_throw();
 #endif
         }

@@ -133,8 +133,6 @@ void block_multiply(bool &isgpuOp,
 #ifdef USE_DPCPP
     cl::sycl::gpu_selector dev_selector;
     cl::sycl::queue dev_queue(dev_selector);
-    cl::sycl::device syclDev = dev_queue.get_device();
-    cl::sycl::context syclContxt = dev_queue.get_context();
 #endif
 
     const Size asize = std::accumulate(adims.begin(), adims.end(), Size{1},
@@ -281,14 +279,14 @@ void block_multiply(bool &isgpuOp,
     assign<T3>(binter_buf.data(), binter_dims, binter_labels, T3{1}, bbuf, bdims,
            blabels, true);
 #ifdef USE_DPCPP
-    T2* ainter_buf_dev = (T2*)cl::sycl::malloc_device(ainter_buf.size()*sizeof(T2), syclDev, syclContxt);
-    T3* binter_buf_dev = (T3*)cl::sycl::malloc_device(binter_buf.size()*sizeof(T3), syclDev, syclContxt);
-    T1* cinter_buf_dev = (T1*)cl::sycl::malloc_device(cinter_buf.size()*sizeof(T1), syclDev, syclContxt);
+    T2* ainter_buf_dev = cl::sycl::malloc_device<T2>(ainter_buf.size(), dev_queue);
+    T3* binter_buf_dev = cl::sycl::malloc_device<T3>(binter_buf.size(), dev_queue);
+    T1* cinter_buf_dev = cl::sycl::malloc_device<T1>(cinter_buf.size(), dev_queue);
 
     // host-->device copy
-    cl::sycl::event evt_ainter_h2d = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(ainter_buf_dev, ainter_buf.data(), ainter_buf.size()*sizeof(T2)); });
-    cl::sycl::event evt_binter_h2d = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(binter_buf_dev, binter_buf.data(), binter_buf.size()*sizeof(T3)); });
-    cl::sycl::event evt_cinter_h2d = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(cinter_buf_dev, cinter_buf.data(), cinter_buf.size()*sizeof(T1)); });
+    dev_queue.memcpy(ainter_buf_dev, ainter_buf.data(), ainter_buf.size()*sizeof(T2));
+    dev_queue.memcpy(binter_buf_dev, binter_buf.data(), binter_buf.size()*sizeof(T3));
+    dev_queue.memcpy(cinter_buf_dev, cinter_buf.data(), cinter_buf.size()*sizeof(T1));
     dev_queue.wait_and_throw();
 #endif
 
@@ -319,7 +317,7 @@ void block_multiply(bool &isgpuOp,
       }
 #ifdef USE_DPCPP
       // device-->host copy
-      cl::sycl::event evt_cinter_d2h = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1)); });
+      dev_queue.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
       dev_queue.wait_and_throw();
 #endif
     }
@@ -337,9 +335,9 @@ void block_multiply(bool &isgpuOp,
           else if constexpr(std::is_same_v<T3,float>)
             bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
 #ifdef USE_DPCPP
-          T1* bbuf_complex_dev = (T1*)cl::sycl::malloc_device(bbuf_complex.size()*sizeof(T1), syclDev, syclContxt);
+          T1* bbuf_complex_dev = cl::sycl::malloc_device<T1>(bbuf_complex.size(), dev_queue);
           // host-->device copy
-          cl::sycl::event evt_bbuf_complex_h2d = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(bbuf_complex_dev, bbuf_complex.data(), bbuf_complex.size()*sizeof(T1)); });
+          dev_queue.memcpy(bbuf_complex_dev, bbuf_complex.data(), bbuf_complex.size()*sizeof(T1));
           dev_queue.wait_and_throw();
 #endif
 
@@ -367,7 +365,7 @@ void block_multiply(bool &isgpuOp,
           }
 #ifdef USE_DPCPP
           // device-->host copy
-          cl::sycl::event evt_cinter_d2h = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1)); });
+          dev_queue.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
           dev_queue.wait_and_throw();
 #endif
         } //is_complex<T1>
@@ -380,9 +378,9 @@ void block_multiply(bool &isgpuOp,
           else if constexpr(std::is_same_v<T1,float>)
             bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
 #ifdef USE_DPCPP
-          T1* bbuf_real_dev = (T1*)cl::sycl::malloc_device(bbuf_real.size()*sizeof(T1), syclDev, syclContxt);
+          T1* bbuf_real_dev = cl::sycl::malloc_device<T1>(bbuf_real.size(), dev_queue);
           // host-->device copy
-          cl::sycl::event evt_bbuf_real_h2d = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(bbuf_real_dev, bbuf_real.data(), bbuf_real.size()*sizeof(T1)); });
+          dev_queue.memcpy(bbuf_real_dev, bbuf_real.data(), bbuf_real.size()*sizeof(T1));
           dev_queue.wait_and_throw();
 #endif
 
@@ -410,7 +408,7 @@ void block_multiply(bool &isgpuOp,
           }
 #ifdef USE_DPCPP
           // device-->host copy
-          cl::sycl::event evt_cinter_d2h = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1)); });
+          dev_queue.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
           dev_queue.wait_and_throw();
 #endif
         } //is_real<T1>
@@ -426,9 +424,9 @@ void block_multiply(bool &isgpuOp,
           else if constexpr(std::is_same_v<T2,float>)
             bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
 #ifdef USE_DPCPP
-          T1* abuf_complex_dev = (T1*)cl::sycl::malloc_device(abuf_complex.size()*sizeof(T1), syclDev, syclContxt);
+          T1* abuf_complex_dev = cl::sycl::malloc_device<T1>(abuf_complex.size(), dev_queue);
           // host-->device copy
-          cl::sycl::event evt_abuf_complex_h2d = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(abuf_complex_dev, abuf_complex.data(), abuf_complex.size()*sizeof(T1)); });
+          dev_queue.memcpy(abuf_complex_dev, abuf_complex.data(), abuf_complex.size()*sizeof(T1));
           dev_queue.wait_and_throw();
 #endif
 
@@ -456,7 +454,7 @@ void block_multiply(bool &isgpuOp,
           }
 #ifdef USE_DPCPP
           // device-->host copy
-          cl::sycl::event evt_cinter_d2h = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1)); });
+          dev_queue.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
           dev_queue.wait_and_throw();
 #endif
         }
@@ -469,9 +467,9 @@ void block_multiply(bool &isgpuOp,
           else if constexpr(std::is_same_v<T1,float>)
             bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
 #ifdef USE_DPCPP
-          T1* abuf_real_dev = (T1*)cl::sycl::malloc_device(abuf_real.size()*sizeof(T1), syclDev, syclContxt);
+          T1* abuf_real_dev = cl::sycl::malloc_device<T1>(abuf_real.size(), dev_queue);
           // host-->device copy
-          cl::sycl::event evt_abuf_real_h2d = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(abuf_real_dev, abuf_real.data(), abuf_real.size()*sizeof(T1)); });
+          dev_queue.memcpy(abuf_real_dev, abuf_real.data(), abuf_real.size()*sizeof(T1));
           dev_queue.wait_and_throw();
 #endif
 
@@ -499,7 +497,7 @@ void block_multiply(bool &isgpuOp,
           }
 #ifdef USE_DPCPP
           // device-->host copy
-          cl::sycl::event evt_cinter_d2h = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1)); });
+          dev_queue.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1))
           dev_queue.wait_and_throw();
 #endif
         }
@@ -522,11 +520,11 @@ void block_multiply(bool &isgpuOp,
             bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
           }
 #ifdef USE_DPCPP
-        T1* abuf_complex_dev = (T1*)cl::sycl::malloc_device(abuf_complex.size()*sizeof(T1), syclDev, syclContxt);
-        T2* bbuf_complex_dev = (T2*)cl::sycl::malloc_device(bbuf_complex.size()*sizeof(T2), syclDev, syclContxt);
+        T1* abuf_complex_dev = cl::sycl::malloc_device<T1>(abuf_complex.size(), dev_queue);
+        T2* bbuf_complex_dev = cl::sycl::malloc_device<T2>(bbuf_complex.size(), dev_queue);
         // host-->device copy
-        cl::sycl::event evt_abuf_complex_h2d = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(abuf_complex_dev, abuf_complex.data(), abuf_complex.size()*sizeof(T1)); });
-        cl::sycl::event evt_bbuf_complex_h2d = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(bbuf_complex_dev, bbuf_complex.data(), bbuf_complex.size()*sizeof(T2)); });
+        dev_queue.memcpy(abuf_complex_dev, abuf_complex.data(), abuf_complex.size()*sizeof(T1));
+        dev_queue.memcpy(bbuf_complex_dev, bbuf_complex.data(), bbuf_complex.size()*sizeof(T2));
         dev_queue.wait_and_throw();
 #endif
 
@@ -554,7 +552,7 @@ void block_multiply(bool &isgpuOp,
           }
 #ifdef USE_DPCPP
           // device-->host copy
-          cl::sycl::event evt_cinter_d2h = dev_queue.submit([&](cl::sycl::handler &cgh) {cgh.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1)); });
+          dev_queue.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
           dev_queue.wait_and_throw();
 #endif
       }
@@ -565,9 +563,9 @@ void block_multiply(bool &isgpuOp,
     // C[0]="<<cinter_buf[0]<<"\n";
 
 #ifdef USE_DPCPP
-    cl::sycl::free(ainter_buf_dev, syclContxt);
-    cl::sycl::free(binter_buf_dev, syclContxt);
-    cl::sycl::free(cinter_buf_dev, syclContxt);
+    cl::sycl::free(ainter_buf_dev, dev_queue);
+    cl::sycl::free(binter_buf_dev, dev_queue);
+    cl::sycl::free(cinter_buf_dev, dev_queue);
 #endif
 
     assign<T1>(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,

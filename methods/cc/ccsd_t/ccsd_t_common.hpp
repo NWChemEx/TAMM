@@ -84,9 +84,6 @@ void freeGpuMem(void *p
 		 ,
 		 cl::sycl::queue& syclQueue,
 #endif);
-// #ifdef USE_DPCPP
-// cl::sycl::queue get_current_queue() noexcept;
-// #endif
 
 void finalizeMemModule();
 

@@ -357,7 +357,6 @@ public:
             internal::update_labels(lbls);
             lhs_.set_labels(lbls);
         }
-
         if(lhs.has_str_lbl()){
             fillin_labels();
         }

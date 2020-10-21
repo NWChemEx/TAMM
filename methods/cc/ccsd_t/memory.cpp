@@ -13,16 +13,18 @@ static map<size_t,set<void*> > free_list_gpu, free_list_host;
 static map<void *,size_t> live_ptrs_gpu, live_ptrs_host;
 
 #ifdef USE_DPCPP
-cl::sycl::queue get_current_queue() noexcept
-{
-    static cl::sycl::gpu_selector device_selector;
-    static auto sycl_queue = cl::sycl::queue(device_selector,
-                                             cl::sycl::property_list{cl::sycl::property::queue::in_order{}});
-    return sycl_queue;
-}
+// cl::sycl::queue get_current_queue() noexcept
+// {
+//     static cl::sycl::gpu_selector device_selector;
+//     static auto sycl_queue = cl::sycl::queue(device_selector,
+//                                              cl::sycl::property_list{cl::sycl::property::queue::in_order{}});
+//     return sycl_queue;
+// }
 #endif // USE_DPCPP (only)
 
-static void clearGpuFreeList()
+static void clearGpuFreeList(#ifdef USE_DPCPP
+			     cl::sycl::queue& syclQueue,
+			     #endif)
 {
   for(map<size_t,set<void*> >::iterator it=free_list_gpu.begin(); it!=free_list_gpu.end(); ++it)
   {
@@ -33,14 +35,16 @@ static void clearGpuFreeList()
 #elif defined(USE_HIP)
       hipFree(*it2);
 #elif defined(USE_DPCPP)
-      cl::sycl::free(*it2, get_current_queue());
+      cl::sycl::free(*it2, syclQueue);
 #endif
     }
   }
   free_list_gpu.clear();
 }
 
-static void clearHostFreeList()
+static void clearHostFreeList(#ifdef USE_DPCPP
+			     cl::sycl::queue& syclQueue,
+			     #endif)
 {
   for(map<size_t,set<void*> >::iterator it=free_list_host.begin(); it!=free_list_host.end(); ++it)
   {
@@ -51,7 +55,7 @@ static void clearHostFreeList()
 #elif defined(USE_HIP)
       hipFreeHost(*it2);
 #elif defined(USE_DPCPP)
-      cl::sycl::free(*it2, get_current_queue());
+      cl::sycl::free(*it2, syclQueue);
 #else
       free(*it2);
 #endif // USE_CUDA
@@ -62,7 +66,11 @@ static void clearHostFreeList()
 
 static size_t num_resurrections=0;// num_morecore=0;
 
-static void *moreDeviceMem(size_t bytes)
+static void *moreDeviceMem(size_t bytes
+#ifdef USE_DPCPP
+			   ,
+			   cl::sycl::queue& syclQueue,
+#endif)
 {
   void *ptr;
 #if defined(USE_CUDA)
@@ -70,7 +78,7 @@ static void *moreDeviceMem(size_t bytes)
 #elif defined(USE_HIP)
   HIP_SAFE(hipMalloc(&ptr, bytes));
 #elif defined(USE_DPCPP)
-  ptr = cl::sycl::malloc_device(bytes, get_current_queue());
+  ptr = cl::sycl::malloc_device(bytes, syclQueue);
 #endif
 
   // num_morecore += 1;
@@ -82,14 +90,18 @@ static void *moreDeviceMem(size_t bytes)
 #elif defined(USE_HIP)
     HIP_SAFE(hipMalloc(&ptr, bytes));
 #elif defined(USE_DPCPP)
-    ptr = cl::sycl::malloc_device(bytes, get_current_queue());
+    ptr = cl::sycl::malloc_device(bytes, syclQueue);
 #endif
   }
   assert(ptr!=nullptr); /*We hopefully have a pointer*/
   return ptr;
 }
 
-static void *moreHostMem(size_t bytes)
+static void *moreHostMem(size_t bytes
+#ifdef USE_DPCPP
+			 ,
+			 cl::sycl::queue& syclQueue,
+#endif)
 {
   void *ptr;
   #if defined(USE_CUDA)
@@ -97,7 +109,7 @@ static void *moreHostMem(size_t bytes)
   #elif defined(USE_HIP)
     HIP_SAFE(hipHostMalloc(&ptr, bytes));
   #elif defined(USE_DPCPP)
-    ptr = cl::sycl::malloc_host(bytes, get_current_queue());
+    ptr = cl::sycl::malloc_host(bytes, syclQueue);
   #else
     ptr = (void *)malloc(bytes);
   #endif
@@ -110,7 +122,7 @@ static void *moreHostMem(size_t bytes)
     #elif defined(USE_HIP)
         HIP_SAFE(hipHostMalloc(&ptr, bytes));
     #elif defined(USE_DPCPP)
-        ptr = cl::sycl::malloc_host(bytes, get_current_queue());
+        ptr = cl::sycl::malloc_host(bytes, syclQueue);
     #else
       ptr = (void *)malloc(bytes);
     #endif
@@ -143,7 +155,11 @@ void initmemmodule()
 }
 
 
-void *getGpuMem(size_t bytes)
+void *getGpuMem(size_t bytes
+#ifdef USE_DPCPP
+      ,
+      cl::sycl::queue& syclQueue,
+#endif)
 {
   //assert(is_init);
   void *ptr=nullptr;
@@ -153,7 +169,7 @@ void *getGpuMem(size_t bytes)
 #elif defined(USE_HIP)
   HIP_SAFE(hipMalloc((void **) &ptr, bytes));
 #elif defiend(USE_DPCPP)
-  ptr = cl::sycl::malloc_device(bytes, get_current_queue());
+  ptr = cl::sycl::malloc_device(bytes, syclQueue);
 #endif
 #else
   if(free_list_gpu.find(bytes)!=free_list_gpu.end())
@@ -183,7 +199,11 @@ void *getGpuMem(size_t bytes)
   return ptr;
 }
 
-void *getHostMem(size_t bytes)
+void *getHostMem(size_t bytes
+#ifdef USE_DPCPP
+		 ,
+		 cl::sycl::queue& syclQueue,
+#endif)
 {
   //assert(is_init);
   void *ptr;
@@ -193,7 +213,7 @@ void *getHostMem(size_t bytes)
 #elif defined(USE_HIP)
   HIP_SAFE(hipHostMalloc((void **) &ptr, bytes));
 #elif defiend(USE_DPCPP)
-  ptr = cl::sycl::malloc_host(bytes, get_current_queue());
+  ptr = cl::sycl::malloc_host(bytes, syclQueue);
 #else //cpu
   ptr = (void *)malloc(bytes);
 #endif
@@ -233,7 +253,11 @@ void *getHostMem(size_t bytes)
   return ptr;
 }
 
-void freeHostMem(void *p)
+void freeHostMem(void *p,
+#ifdef USE_DPCPP
+		 ,
+		 cl::sycl::queue& syclQueue,
+#endif)
 {
   size_t bytes;
   //assert(is_init);
@@ -243,7 +267,7 @@ void freeHostMem(void *p)
 #elif defined(USE_HIP)
   hipHostFree(p);
 #elif defined(USE_DPCPP)
-  cl::sycl::free(p, get_current_queue());
+  cl::sycl::free(p, syclQueue);
 #else
   free(p);
 #endif
@@ -256,7 +280,11 @@ void freeHostMem(void *p)
 #endif //NO_OPT
 }
 
-void freeGpuMem(void *p)
+void freeGpuMem(void *p
+#ifdef USE_DPCPP
+		,
+		cl::sycl::queue& syclQueue,
+#endif)
 {
   size_t bytes;
   //assert(is_init);
@@ -266,7 +294,7 @@ void freeGpuMem(void *p)
 #elif defined(USE_HIP)
   hipFree(p);
 #elif defined(USE_DPCPP)
-  cl::sycl::free(p, get_current_queue());
+  cl::sycl::free(p, syclQueue);
 #endif //NO_OPT
 
 #else
@@ -277,7 +305,9 @@ void freeGpuMem(void *p)
 #endif
 }
 
-void finalizememmodule()
+void finalizememmodule(#ifdef USE_DPCPP
+		       cl::sycl::queue& syclQueue,
+                       #endif)
 {
   //assert(is_init);
   //is_init = 0;
@@ -287,8 +317,13 @@ void finalizememmodule()
   assert(live_ptrs_host.size()==0);
 
   /*release all freed pointers*/
-  clearGpuFreeList();
-  clearHostFreeList();
+  clearGpuFreeList(#ifdef USE_DPCPP
+		       syclQueue,
+                   #endif)
+);
+  clearHostFreeList(#ifdef USE_DPCPP
+		       syclQueue,
+                   #endif);
   //printf("num. resurrections=%d \t num. morecore=%d\n", num_resurrections, num_morecore);
   // }
 }

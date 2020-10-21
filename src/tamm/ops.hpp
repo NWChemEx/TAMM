@@ -352,12 +352,12 @@ public:
       alpha_{alpha},
       is_assign_{is_assign} {
         if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
-            
+
             auto lbls = lhs.labels();
             internal::update_labels(lbls);
             lhs_.set_labels(lbls);
-        } 
-        
+        }
+
         if(lhs.has_str_lbl()){
             fillin_labels();
         }
@@ -402,7 +402,7 @@ public:
               internal::translate_blockid(blockid, lhs_);
 
             const size_t size = tensor.block_size(translated_blockid);
-            
+
             std::vector<TensorElType> buf(size, static_cast<TensorElType>(alpha()));
 
             if(is_assign_) {
@@ -420,10 +420,10 @@ public:
             auto tensor = lhs_.tensor();
             EXPECTS(blockid.size() == lhs_.labels().size());
             EXPECTS(blockid.size() == tensor.num_modes());
-#if 1      
+#if 1
             auto [extracted_llabels, lblockid] = internal::extract_blockid_and_label(
                 loop_nest.sorted_unique_labels(), blockid, lhs_.labels());
-            
+
             EXPECTS(lhs_.labels().size() == extracted_llabels.size());
 
             for(int i = 0; i < extracted_llabels.size(); i++) {
@@ -453,7 +453,7 @@ public:
             }
 
             if(!tensor.is_non_zero(translated_blockid)) { return; }
-#else            
+#else
             const auto translated_blockid = internal::translate_blockid(blockid, lhs_);
 #endif
             if(is_assign_) {
@@ -629,7 +629,7 @@ protected:
         update_fillin_map(str_to_labels, lhs_.str_map(), lhs_.str_labels(), 0);
         fillin_tensor_label_from_map(lhs_, str_to_labels);
     }
-    
+
     /**
      * @brief Check if the parameters form a valid operation. The parameters
      * form a valid operation if:
@@ -906,7 +906,7 @@ public:
     }
 
     std::vector<TensorBase*> reads() const {
-        std::vector<TensorBase*> res; 
+        std::vector<TensorBase*> res;
         for(const auto& lt : rhs_) {
             res.push_back(lt.base_ptr());
         }
@@ -938,7 +938,7 @@ protected:
 
     void validate() {
         for(auto& rhs : rhs_) {
-            EXPECTS_STR((lhs_.tensor().base_ptr()!= rhs.tensor().base_ptr()), 
+            EXPECTS_STR((lhs_.tensor().base_ptr()!= rhs.tensor().base_ptr()),
                       "Self assignment is not supported in tensor operations!");
         }
 
@@ -976,7 +976,7 @@ protected:
     LabeledTensorT lhs_;
     Func func_;
     std::array<LabeledTensorT, N> rhs_;
-    bool do_translate_; 
+    bool do_translate_;
     public:
     std::string opstr_;
 };
@@ -1092,7 +1092,7 @@ public:
             std::tie(extracted_llabels, lblockid) =
               internal::extract_blockid_and_label(
                 loop_nest.sorted_unique_labels(), lblockid, lhs_.labels());
-            
+
             std::tie(extracted_rlabels, rblockid) =
               internal::extract_blockid_and_label(
                 loop_nest.sorted_unique_labels(), rblockid, rhs_.labels());
@@ -1128,14 +1128,14 @@ public:
             // std::tie(translated_lblockid, tlb_valid) =
             //   internal::translate_blockid_if_possible(
             //     lblockid, extracted_llabels, lhs_.tensor()().labels());
-    
+
             // std::tie(translated_rblockid, trb_valid) =
             //   internal::translate_blockid_if_possible(
             //     rblockid, extracted_rlabels, rhs_.tensor()().labels());
 
             IndexVector translated_blockid;
-            bool lbl_valid; 
-            
+            bool lbl_valid;
+
             IndexVector full_blk_id{lblockid};
             full_blk_id.insert(full_blk_id.end(), rblockid.begin(), rblockid.end());
 
@@ -1235,12 +1235,12 @@ public:
                     if constexpr(std::is_same_v<TensorElType1,double>)
                         bli_dcopyv(BLIS_NO_CONJUGATE,r_size,rbuf_ptr+1,2,&rbuf[0],1);
                     else if constexpr(std::is_same_v<TensorElType1,float>)
-                        bli_scopyv(BLIS_NO_CONJUGATE,r_size,rbuf_ptr+1,2,&rbuf[0],1);                    
+                        bli_scopyv(BLIS_NO_CONJUGATE,r_size,rbuf_ptr+1,2,&rbuf[0],1);
                 }
 
             }
             else rtensor.get(translated_rblockid, rbuf);
-            
+
             const auto& ldims = lhs_.tensor().block_dims(translated_lblockid);
             const auto& rdims = rhs_.tensor().block_dims(translated_rblockid);
 
@@ -1269,7 +1269,7 @@ public:
                     IndexVector lblockid, rblockid;
                     split_block_id(lblockid, rblockid, lhs_.labels().size(),
                                 rhs_.labels().size(), blockid);
-            
+
                     const auto translated_lblockid =
                     internal::translate_blockid(lblockid, lhs_);
                     if(lhs_.tensor().is_non_zero(translated_lblockid)) {
@@ -1281,13 +1281,13 @@ public:
             } else {
                 do_work(ec, loop_nest, lambda);
             }
-    } 
+    }
     else do_work(ec, loop_nest, lambda);
 #else
         do_work(ec, loop_nest, lambda);
 #endif
     #endif
-        
+
     }
 
 #if 0 && 5
@@ -1399,7 +1399,7 @@ public:
     }
 
     std::vector<TensorBase*> reads() const {
-        std::vector<TensorBase*> res; 
+        std::vector<TensorBase*> res;
         res.push_back(rhs_.base_ptr());
 
         return res;
@@ -1454,7 +1454,7 @@ protected:
      * @pre lta.validate() has been invoked
      */
     void validate() {
-        EXPECTS_STR((lhs_.tensor().base_ptr()!= rhs_.tensor().base_ptr()), 
+        EXPECTS_STR((lhs_.tensor().base_ptr()!= rhs_.tensor().base_ptr()),
                       "Self assignment is not supported in tensor operations!");
 
         IndexLabelVec ilv{lhs_.labels()};
@@ -1515,7 +1515,7 @@ protected:
 template<typename T>
 struct AddBuf {
     //AddBuf() = default;
-    AddBuf(bool isgpu, talsh_task_t* tt, tensor_handle* tc, tensor_handle* ta, tensor_handle* tb, Tensor<T> tensor, 
+    AddBuf(bool isgpu, talsh_task_t* tt, tensor_handle* tc, tensor_handle* ta, tensor_handle* tb, Tensor<T> tensor,
         std::vector<T>&& cbuf, const IndexVector& blockid)
     : tensor_{tensor}, blockid_{blockid}, cbuf_{cbuf}, tt_{tt}, tc_{tc}, ta_{ta}, tb_{tb}, isgpu_{isgpu} {
         // tensor.nb_add(blockid, buf_, &nbhdl_);
@@ -1550,7 +1550,7 @@ struct AddBuf {
 template<typename T>
 struct AddBuf {
     //AddBuf() = default;
-    AddBuf(bool isgpu, Tensor<T> tensor, 
+    AddBuf(bool isgpu, Tensor<T> tensor,
         std::vector<T>&& cbuf, const IndexVector& blockid)
     : tensor_{tensor}, blockid_{blockid}, cbuf_{cbuf}, isgpu_{isgpu} {
     }
@@ -1681,7 +1681,7 @@ public:
             auto btensor = rhs2_.tensor();
             // compute blockids from the loop indices. itval is the loop index
 
-#if 1      
+#if 1
             auto it = itval.begin();
             IndexVector citval{it, it + lhs_.labels().size()};
             it += lhs_.labels().size();
@@ -1694,10 +1694,10 @@ public:
 
             auto [extracted_alabels, ablockid] = internal::extract_blockid_and_label(
                 loop_nest.sorted_unique_labels(), aitval, rhs1_.labels());
-            
+
             auto [extracted_blabels, bblockid] = internal::extract_blockid_and_label(
                 loop_nest.sorted_unique_labels(), bitval, rhs2_.labels());
-            
+
             EXPECTS(lhs_.labels().size() == extracted_clabels.size());
             EXPECTS(rhs1_.labels().size() == extracted_alabels.size());
             EXPECTS(rhs2_.labels().size() == extracted_blabels.size());
@@ -1753,7 +1753,7 @@ public:
             IndexLabelVec tensor_lbls{tc_lbls};
             tensor_lbls.insert(tensor_lbls.end(), ta_lbls.begin(), ta_lbls.end());
             tensor_lbls.insert(tensor_lbls.end(), tb_lbls.begin(), tb_lbls.end());
-            
+
             IndexVector translated_blockid;
             bool tb_valid;
 
@@ -1767,7 +1767,7 @@ public:
             IndexVector translated_ablockid{id_it, id_it + rhs1_.labels().size()};
             id_it += rhs1_.labels().size();
             IndexVector translated_bblockid{id_it, id_it + rhs2_.labels().size()};
-            
+
             for(const auto id : translated_cblockid) {
                 if (id == -1) return;
             }
@@ -1777,21 +1777,21 @@ public:
             for(const auto id : translated_bblockid) {
                 if (id == -1) return;
             }
-        
+
 #else
             const auto translated_cblockid = internal::translate_blockid(cblockid, lhs_);
             const auto translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
             const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
 
 #endif
-            if( !ctensor.is_non_zero(translated_cblockid) || 
+            if( !ctensor.is_non_zero(translated_cblockid) ||
                 !atensor.is_non_zero(translated_ablockid) ||
-                !btensor.is_non_zero(translated_bblockid)) 
+                !btensor.is_non_zero(translated_bblockid))
                 return;
 
 
 #if 0
-            if constexpr(std::is_same_v<TensorElType1,TensorElType2> 
+            if constexpr(std::is_same_v<TensorElType1,TensorElType2>
                          && std::is_same_v<TensorElType1,TensorElType3>) {
                 ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc){
                         BlockBuffer cbuf = rc.get_buf_tmp(ctensor, translated_cblockid);
@@ -1813,12 +1813,12 @@ public:
                         cbuf.release_add();
 
                         }, TempAccess{IndexedTensor{ctensor, translated_cblockid}},
-                        AccumPermission{IndexedTensor{ctensor, translated_cblockid}}, 
-                        ReadAccess{IndexedTensor{atensor, translated_ablockid}}, 
-                        ReadAccess{IndexedTensor{btensor, translated_bblockid}}); 
+                        AccumPermission{IndexedTensor{ctensor, translated_cblockid}},
+                        ReadAccess{IndexedTensor{atensor, translated_ablockid}},
+                        ReadAccess{IndexedTensor{btensor, translated_bblockid}});
             }
             else
-#endif            
+#endif
             {
                 const int dev_id = ec.gpu_devid();
                 // determine set of all labels
@@ -1846,11 +1846,11 @@ public:
                 if(!b_nbhandle.getCompletionStatus()) b_nbhandle.waitForCompletion();
             }
 #else
-                { 
+                {
                     TimerGuard tg_get{&multOpGetTime};
                     atensor.get(translated_ablockid, abuf);
                 }
-                { 
+                {
                     TimerGuard tg_get{&multOpGetTime};
                     btensor.get(translated_bblockid, bbuf);
                 }
@@ -1871,28 +1871,31 @@ public:
 
                 tensor_handle *th_a = new tensor_handle();
                 tensor_handle *th_b = new tensor_handle();
-                tensor_handle *th_c = new tensor_handle(); 
+                tensor_handle *th_c = new tensor_handle();
                 talshTaskClean(talsh_task);
                 #endif
                 bool isgpu = false;
 
                 #ifdef USE_TALSH
-                AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b, 
+                AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b,
                     ctensor, std::move(cbuf),translated_cblockid};
                 #else
-                AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, 
-                    ctensor, std::move(cbuf),translated_cblockid};                        
+                AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu,
+                    ctensor, std::move(cbuf),translated_cblockid};
                 #endif
                 add_bufs.push_back(ab);
 
                 {
-                    TimerGuard tg_dgemm{&multOpDgemmTime};                    
+                    TimerGuard tg_dgemm{&multOpDgemmTime};
                     kernels::block_multiply<T,TensorElType1,TensorElType2,TensorElType3>
-                                        (ab->isgpu_, 
+                                        (ab->isgpu_,
                                         #ifdef USE_TALSH
                                         *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, COPY_TTT,
                                         #endif
-                                        dev_id, alpha_, 
+                                        #ifdef USE_DPCPP
+                                        ec.get_syclQue(),
+                                        #endif
+                                        dev_id, alpha_,
                                         abuf.data(), adims_sz,
                                         rhs1_int_labels_, bbuf.data(), bdims_sz,
                                         rhs2_int_labels_, cscale, (ab->cbuf_).data(),
@@ -1903,14 +1906,14 @@ public:
                     #ifdef USE_TALSH
                        if(hw == ExecutionHW::GPU && ab->isgpu_){
                        {
-                        TimerGuard tg_dgemm{&multOpDgemmTime}; 
+                        TimerGuard tg_dgemm{&multOpDgemmTime};
                         gpu_mult->wait_and_destruct(ab->tt_);
                        }
                         talshTensorDestruct(ab->ta_);
                         talshTensorDestruct(ab->tb_);
-                        talshTensorDestruct(ab->tc_);  
+                        talshTensorDestruct(ab->tc_);
                        }
-                        delete gpu_mult;                         
+                        delete gpu_mult;
                     #endif
                     {
                     TimerGuard tg_get{&multOpAddTime};
@@ -1918,12 +1921,12 @@ public:
                     ctensor.add(translated_cblockid, ab->cbuf_);
                     }
                     delete ab;
-                    add_bufs.clear();                                       
-                #endif       
+                    add_bufs.clear();
+                #endif
 
 
                 // add the computed update to the tensor
-                // { 
+                // {
                 //     TimerGuard tg_add{&multOpAddTime};
                 //     //ctensor.add(translated_cblockid, cbuf);
                 //     const int k = 20;
@@ -1942,8 +1945,8 @@ public:
                 //                     assert(errc == TALSH_SUCCESS);
                 //                     talshTensorDestruct(ab->ta_);
                 //                     talshTensorDestruct(ab->tb_);
-                //                     talshTensorDestruct(ab->tc_);  
-                //                 }                             
+                //                     talshTensorDestruct(ab->tc_);
+                //                 }
                 //             }
                 //             #endif
                 //         }
@@ -1960,7 +1963,7 @@ public:
 
             };
             //@todo use a scheduler
-            //@todo make parallel  
+            //@todo make parallel
             // do_work(ec, loop_nest, lambda);
 
             bool has_sparse_labels = false;
@@ -1990,7 +1993,7 @@ public:
             (rhs2_.tensor().is_dense() /* && !rhs2_.tensor().has_spin() */) &&
 	       !has_sparse_labels && !lhs_.labels().empty() ) { //&& num_lhs_tiles >= ec.pg().size() ) {
                 // std::cout << "Execute Buffer Accumulate" << std::endl;
-                if constexpr(std::is_same_v<TensorElType1,TensorElType2> 
+                if constexpr(std::is_same_v<TensorElType1,TensorElType2>
                             && std::is_same_v<TensorElType1,TensorElType3>
                             && !internal::is_complex_v<TensorElType1>) {
                     execute_bufacc(ec, hw);
@@ -2001,7 +2004,7 @@ public:
             }
 
             #ifdef DO_NB
-                { 
+                {
                     TimerGuard tg_add{&multOpAddTime};
                     for(auto& ab: add_bufs) {
                             #ifdef USE_TALSH
@@ -2017,15 +2020,15 @@ public:
                                     assert(errc == TALSH_SUCCESS);
                                     talshTensorDestruct(ab->ta_);
                                     talshTensorDestruct(ab->tb_);
-                                    talshTensorDestruct(ab->tc_);  
-                                }                             
+                                    talshTensorDestruct(ab->tc_);
+                                }
                             }
                             #endif
                     }
                      for(auto& ab: add_bufs) {
                             (ab->tensor_).nb_add(ab->blockid_, ab->cbuf_, &(ab->nbhdl_));
                             ab->wait();
-                            delete ab;                            
+                            delete ab;
                     }
                     add_bufs.clear();
                 }
@@ -2050,7 +2053,7 @@ public:
         IndexLabelVec all_rhs_labels{rhs1_.labels()};
         all_rhs_labels.insert(all_rhs_labels.end(), rhs2_.labels().begin(),
                               rhs2_.labels().end());
-        
+
         LabelLoopNest lhs_loop_nest{lhs_.labels()};
 
         //compute the reduction labels
@@ -2135,7 +2138,7 @@ public:
             auto btensor = rhs2_.tensor();
             // compute blockids from the loop indices. itval is the loop index
 
-#if 0      
+#if 0
             auto it = itval.begin();
             IndexVector citval{it, it + lhs_.labels().size()};
             it += lhs_.labels().size();
@@ -2148,10 +2151,10 @@ public:
 
             auto [extracted_alabels, ablockid] = internal::extract_blockid_and_label(
                 loop_nest.sorted_unique_labels(), aitval, rhs1_.labels());
-            
+
             auto [extracted_blabels, bblockid] = internal::extract_blockid_and_label(
                 loop_nest.sorted_unique_labels(), bitval, rhs2_.labels());
-            
+
             EXPECTS(lhs_.labels().size() == extracted_clabels.size());
             EXPECTS(rhs1_.labels().size() == extracted_alabels.size());
             EXPECTS(rhs2_.labels().size() == extracted_blabels.size());
@@ -2207,7 +2210,7 @@ public:
             IndexLabelVec tensor_lbls{tc_lbls};
             tensor_lbls.insert(tensor_lbls.end(), ta_lbls.begin(), ta_lbls.end());
             tensor_lbls.insert(tensor_lbls.end(), tb_lbls.begin(), tb_lbls.end());
-            
+
             IndexVector translated_blockid;
             bool tb_valid;
 
@@ -2221,7 +2224,7 @@ public:
             IndexVector translated_ablockid{id_it, id_it + rhs1_.labels().size()};
             id_it += rhs1_.labels().size();
             IndexVector translated_bblockid{id_it, id_it + rhs2_.labels().size()};
-            
+
             for(const auto id : translated_cblockid) {
                 if (id == -1) return;
             }
@@ -2231,7 +2234,7 @@ public:
             for(const auto id : translated_bblockid) {
                 if (id == -1) return;
             }
-        
+
 #else
             IndexVector c_block_id{itval};
             // print the c_block_id
@@ -2246,9 +2249,9 @@ public:
             //const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
 
 #endif
-            /* if( !ctensor.is_non_zero(translated_cblockid) || 
+            /* if( !ctensor.is_non_zero(translated_cblockid) ||
                 !atensor.is_non_zero(translated_ablockid) ||
-                !btensor.is_non_zero(translated_bblockid)) 
+                !btensor.is_non_zero(translated_bblockid))
                 return; */
 
             using TensorElType1 = typename LabeledTensorT1::element_type;
@@ -2266,22 +2269,22 @@ public:
             bool isgpu = false;
             const int dev_id = ec.gpu_devid();
 
-            #ifdef USE_TALSH    
+            #ifdef USE_TALSH
                 TALSH *gpu_mult = new TALSH{ec.num_gpu()};
 
-                // AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b, 
+                // AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b,
                 //     ctensor, std::move(cbuf),translated_cblockid};
                 talsh_task_t* tt1 = new talsh_task_t();
                 talsh_task_t* tt2;
-                
+
                 tensor_handle *th_a = new tensor_handle();
                 tensor_handle *th_b = new tensor_handle();
                 tensor_handle *th_c = new tensor_handle();
                 tensor_handle *th_a2;
-                tensor_handle *th_b2;  
-                tensor_handle *th_c2;                 
+                tensor_handle *th_b2;
+                tensor_handle *th_c2;
                 AddBuf<TensorElType1> *ab1;
-                AddBuf<TensorElType1> *ab2;   
+                AddBuf<TensorElType1> *ab2;
 
                 if(hw == ExecutionHW::GPU) {
                     int tal_cdims[cdims_sz.size()];
@@ -2296,32 +2299,32 @@ public:
                     talshTaskClean(tt2);
 
                     th_a2 = new tensor_handle();
-                    th_b2 = new tensor_handle();            
-                    th_c2 = new tensor_handle(); 
+                    th_b2 = new tensor_handle();
+                    th_c2 = new tensor_handle();
 
-                    *th_c = gpu_mult->gpu_block(cdims_sz.size(), tal_cdims, dev_id);                         
-                    *th_c2 = gpu_mult->gpu_block(cdims_sz.size(), tal_cdims, dev_id);                         
-            
-                    ab1 = new AddBuf<TensorElType1>{isgpu, tt1, th_c, th_a, th_b, 
+                    *th_c = gpu_mult->gpu_block(cdims_sz.size(), tal_cdims, dev_id);
+                    *th_c2 = gpu_mult->gpu_block(cdims_sz.size(), tal_cdims, dev_id);
+
+                    ab1 = new AddBuf<TensorElType1>{isgpu, tt1, th_c, th_a, th_b,
                                         ctensor, {}, translated_cblockid};
-                    ab2 = new AddBuf<TensorElType1>{isgpu, tt2, th_c2, th_a2, th_b2, 
-                                        ctensor, {}, translated_cblockid};       
+                    ab2 = new AddBuf<TensorElType1>{isgpu, tt2, th_c2, th_a2, th_b2,
+                                        ctensor, {}, translated_cblockid};
                 }
                 else {
-                    AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, 
+                    AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu,
                                             tt1, th_c, th_a, th_b,
-                                            ctensor, {}, translated_cblockid};        
-                    add_bufs.push_back(ab);   
-                }              
+                                            ctensor, {}, translated_cblockid};
+                    add_bufs.push_back(ab);
+                }
             #else
-                AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, 
-                    ctensor, {}, translated_cblockid};        
-                add_bufs.push_back(ab);                
+                AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu,
+                    ctensor, {}, translated_cblockid};
+                add_bufs.push_back(ab);
             #endif
 
-                           
+
 #if 0
-            if constexpr(std::is_same_v<TensorElType1,TensorElType2> 
+            if constexpr(std::is_same_v<TensorElType1,TensorElType2>
                          && std::is_same_v<TensorElType1,TensorElType3>) {
                 ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc){
                         BlockBuffer cbuf = rc.get_buf_tmp(ctensor, translated_cblockid);
@@ -2343,12 +2346,12 @@ public:
                         cbuf.release_add();
 
                         }, TempAccess{IndexedTensor{ctensor, translated_cblockid}},
-                        AccumPermission{IndexedTensor{ctensor, translated_cblockid}}, 
-                        ReadAccess{IndexedTensor{atensor, translated_ablockid}}, 
-                        ReadAccess{IndexedTensor{btensor, translated_bblockid}}); 
+                        AccumPermission{IndexedTensor{ctensor, translated_cblockid}},
+                        ReadAccess{IndexedTensor{atensor, translated_ablockid}},
+                        ReadAccess{IndexedTensor{btensor, translated_bblockid}});
             }
             else
-#endif            
+#endif
             {
                 //LabelLoopNest inner_loop{reduction_lbls};
                 LabelLoopNest inner_loop{reduction_labels};
@@ -2428,11 +2431,11 @@ public:
                     if(!b_nbhandle.getCompletionStatus()) b_nbhandle.waitForCompletion();
                 }
 #else
-                { 
+                {
                     TimerGuard tg_get{&multOpGetTime};
                     atensor.get(translated_ablockid, abuf);
                 }
-                { 
+                {
                     TimerGuard tg_get{&multOpGetTime};
                     btensor.get(translated_bblockid, bbuf);
                 }
@@ -2448,7 +2451,7 @@ public:
                     for(const auto v : bdims) { bdims_sz.push_back(v); }
 
                     // A*B
-                    
+
                     {
                     AddBuf<TensorElType1>* abptr = nullptr;
                     #ifdef USE_TALSH
@@ -2471,51 +2474,54 @@ public:
                         abptr = add_bufs[0];
                         // if(slc>0){
                         //     delete abptr->abuf_;
-                        //     delete abptr->bbuf_;                        
+                        //     delete abptr->bbuf_;
                         // }
                     #endif
                     abptr->abuf_ = std::move(abuf);
                     abptr->bbuf_ = std::move(bbuf);
 
-                    TimerGuard tg_dgemm{&multOpDgemmTime};                    
+                    TimerGuard tg_dgemm{&multOpDgemmTime};
                     kernels::block_multiply<T,TensorElType1,TensorElType2,TensorElType3>
-                                        (abptr->isgpu_, 
+                                        (abptr->isgpu_,
                                         #ifdef USE_TALSH
                                         *gpu_mult, *(abptr->tt_), *(abptr->tc_), *(abptr->ta_), *(abptr->tb_), COPY_MTT,
                                         #endif
-                                        dev_id, alpha_, 
+                                        #ifdef USE_DPCPP
+                                        ec.get_syclQue(),
+                                        #endif
+                                        dev_id, alpha_,
                                         (abptr->abuf_).data(), adims_sz,
                                         rhs1_int_labels_, (abptr->bbuf_).data(), bdims_sz,
                                         rhs2_int_labels_, cscale, cbuf.data(),
                                         cdims_sz, lhs_int_labels_, hw, ec.has_gpu(), false);
 
-                
+
                     }
             slc++;
             } // end of reduction loop
 
             {
-                TimerGuard tg_dgemm{&multOpDgemmTime};   
-                #ifdef USE_TALSH                   
+                TimerGuard tg_dgemm{&multOpDgemmTime};
+                #ifdef USE_TALSH
                 if(hw == ExecutionHW::GPU){
                     if(ab1->isgpu_){
                         gpu_mult->wait_and_destruct(ab1->tt_);
                         gpu_mult->free_block(*(ab1->ta_));
-                        gpu_mult->free_block(*(ab1->tb_));   
-                    }                     
+                        gpu_mult->free_block(*(ab1->tb_));
+                    }
                     if(slc>1 && ab2->isgpu_) {
                         gpu_mult->wait_and_destruct(ab2->tt_);
                         gpu_mult->free_block(*(ab2->ta_));
-                        gpu_mult->free_block(*(ab2->tb_));    
-                    }                    
-                } 
+                        gpu_mult->free_block(*(ab2->tb_));
+                    }
+                }
                 #endif
             }
 
 
             // add the computed update to the tensor
             {
-                #ifdef USE_TALSH                
+                #ifdef USE_TALSH
                  if(hw == ExecutionHW::GPU){
                      //if(ab1->isgpu_ && ab2->isgpu_){
                      std::string aop_string = internal::talsh_add_op_string(lhs_int_labels_,lhs_int_labels_);
@@ -2547,18 +2553,18 @@ public:
                 #ifdef USE_TALSH
                 if(hw == ExecutionHW::GPU){
                     gpu_mult->free_block(*th_c);
-                    gpu_mult->free_block(*th_c2);    
+                    gpu_mult->free_block(*th_c2);
                     delete ab1;
-                    delete ab2;    
-                }      
-                    delete gpu_mult;                         
+                    delete ab2;
+                }
+                    delete gpu_mult;
                 #endif
                 for(auto& ab: add_bufs)
                     delete ab;
-                add_bufs.clear();                                       
+                add_bufs.clear();
             #endif
 
-                    
+
         } //multoptime
 
         };
@@ -2628,7 +2634,7 @@ public:
     }
 
     std::vector<TensorBase*> reads() const {
-        std::vector<TensorBase*> res; 
+        std::vector<TensorBase*> res;
         res.push_back(rhs1_.base_ptr());
         res.push_back(rhs2_.base_ptr());
 
@@ -2697,7 +2703,7 @@ protected:
      */
     void validate() {
         EXPECTS_STR((lhs_.tensor().base_ptr()!= rhs1_.tensor().base_ptr() &&
-                       lhs_.tensor().base_ptr()!= rhs2_.tensor().base_ptr()), 
+                       lhs_.tensor().base_ptr()!= rhs2_.tensor().base_ptr()),
                      "Self assignment is not supported in tensor operations!");
 
         IndexLabelVec ilv{lhs_.labels()};
@@ -2820,13 +2826,12 @@ public:
         return false;
     }
     std::string opstr_;
-    
+
 protected:
     TensorType tensor_;
-    
+
 }; // class AllocOp
 
 } // namespace tamm
 
 #endif // TAMM_OPS_HPP_
-

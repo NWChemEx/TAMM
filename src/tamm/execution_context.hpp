@@ -16,7 +16,11 @@
 
 #if USE_TALSH
 #include "talsh/talshxx.hpp"
-#endif 
+#endif
+
+#if defined(USE_DPCPP)
+#include <CL/sycl.hpp>
+#endif
 
 namespace tamm {
 
@@ -203,11 +207,11 @@ public:
      * @return Default distribution
      */
     template<typename... Args>
-     Distribution* distribution(Args&&... args) const { 
-         // return default_distribution_.get(); 
+     Distribution* distribution(Args&&... args) const {
+         // return default_distribution_.get();
          return distribution_factory(distribution_kind_, std::forward<Args>(args)... ).release(); //@bug leak
     }
-    
+
     Distribution* get_default_distribution() {
         // return default_distribution_.get();
         return distribution_factory(distribution_kind_).release(); //@bug leak
@@ -322,6 +326,12 @@ public:
 
     int gpu_devid() const { return dev_id_; }
 
+#if defined(USE_DPCPP)
+    std::vector<cl::sycl::queue*> get_syclQue() {
+        return vec_syclQue;
+    }
+#endif
+
 template<typename... Args>
 std::unique_ptr<Distribution> distribution_factory(DistributionKind dkind, Args&&... args)  const {
   switch(dkind) {
@@ -336,7 +346,7 @@ std::unique_ptr<Distribution> distribution_factory(DistributionKind dkind, Args&
       break;
     case DistributionKind::simple_round_robin:
       return std::make_unique<Distribution_SimpleRoundRobin>(std::forward<Args>(args)...);
-      break;      
+      break;
   }
   UNREACHABLE();
   return nullptr;
@@ -378,6 +388,9 @@ private:
     int ranks_pn_;
     bool has_gpu_;
     int dev_id_=-1;
+#if defined(USE_DPCPP)
+    std::vector<cl::sycl::queue*> vec_syclQue;
+#endif
 
     std::vector<MemoryRegion*> mem_regs_to_dealloc_;
     std::vector<MemoryRegion*> unregistered_mem_regs_;

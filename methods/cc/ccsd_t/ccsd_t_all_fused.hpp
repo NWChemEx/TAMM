@@ -2,6 +2,9 @@
 #define CCSD_T_ALL_FUSED_HPP_
 
 #include "fused_common.hpp"
+#if defined(USE_DPCPP)
+  #include "ccsd_t_all_fused_sycl.hpp"
+#endif
 
 void initmemmodule();
 void dev_mem_s(size_t,size_t,size_t,size_t,size_t,size_t);
@@ -72,7 +75,11 @@ void total_fused_ccsd_t_gpu(gpuStream_t* stream_id, int gpu_id,
 // #define OPT_KERNEL_TIMING
 
 template<typename T>
-void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, const Index nvab, int64_t rank,
+void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
+#if defined(USE_DPCPP)
+					  cl::sycl::queue* syclQue,
+#endif
+					  const Index noab, const Index nvab, int64_t rank,
                                           std::vector<int>& k_spin,
                                           std::vector<size_t>& k_range,
                                           std::vector<size_t>& k_offset,
@@ -142,13 +149,15 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, const Index noab, 
 // create and assign streams
 #if defined(USE_CUDA)|| defined(USE_HIP) || defined(USE_DPCPP)
     gpuStream_t stream;
+    // abb: At this point, is the appropriate device is set to active (aka cudaSetDevice)
+    //      before creating streams and other mem. management.
 #endif
 #if defined(USE_CUDA)
     cudaStreamCreate(&stream);
 #elif defined(USE_HIP)
     hipCreateStream(&stream);
 #elif defined(USE_DPCPP)
-    stream = get_current_queue();
+    stream = *syclQue; // abb: does this need std::move(*syclQue) ?
 #endif
 
 

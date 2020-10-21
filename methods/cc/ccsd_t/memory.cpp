@@ -12,16 +12,6 @@ using namespace std;
 static map<size_t,set<void*> > free_list_gpu, free_list_host;
 static map<void *,size_t> live_ptrs_gpu, live_ptrs_host;
 
-#ifdef USE_DPCPP
-// cl::sycl::queue get_current_queue() noexcept
-// {
-//     static cl::sycl::gpu_selector device_selector;
-//     static auto sycl_queue = cl::sycl::queue(device_selector,
-//                                              cl::sycl::property_list{cl::sycl::property::queue::in_order{}});
-//     return sycl_queue;
-// }
-#endif // USE_DPCPP (only)
-
 static void clearGpuFreeList(#ifdef USE_DPCPP
 			     cl::sycl::queue& syclQueue,
 			     #endif)
@@ -319,8 +309,7 @@ void finalizememmodule(#ifdef USE_DPCPP
   /*release all freed pointers*/
   clearGpuFreeList(#ifdef USE_DPCPP
 		       syclQueue,
-                   #endif)
-);
+                   #endif);
   clearHostFreeList(#ifdef USE_DPCPP
 		       syclQueue,
                    #endif);

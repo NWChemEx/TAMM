@@ -245,16 +245,20 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
   double* host_evl_sorted_p5b = &k_evl_sorted[k_offset[t_p5b]];
   double* host_evl_sorted_p6b = &k_evl_sorted[k_offset[t_p6b]];
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  //
-  //  Device-Level
-  //
+#if defined(USE_CUDA) || defined(USE_HIP)
   double* dev_evl_sorted_h1b = (double*)getGpuMem(sizeof(double) * base_size_h1b);
   double* dev_evl_sorted_h2b = (double*)getGpuMem(sizeof(double) * base_size_h2b);
   double* dev_evl_sorted_h3b = (double*)getGpuMem(sizeof(double) * base_size_h3b);
   double* dev_evl_sorted_p4b = (double*)getGpuMem(sizeof(double) * base_size_p4b);
   double* dev_evl_sorted_p5b = (double*)getGpuMem(sizeof(double) * base_size_p5b);
   double* dev_evl_sorted_p6b = (double*)getGpuMem(sizeof(double) * base_size_p6b);
+#elif defined(USE_DPCPP)
+  double* dev_evl_sorted_h1b = (double*)getGpuMem(stream, sizeof(double) * base_size_h1b);
+  double* dev_evl_sorted_h2b = (double*)getGpuMem(stream, sizeof(double) * base_size_h2b);
+  double* dev_evl_sorted_h3b = (double*)getGpuMem(stream, sizeof(double) * base_size_h3b);
+  double* dev_evl_sorted_p4b = (double*)getGpuMem(stream, sizeof(double) * base_size_p4b);
+  double* dev_evl_sorted_p5b = (double*)getGpuMem(stream, sizeof(double) * base_size_p5b);
+  double* dev_evl_sorted_p6b = (double*)getGpuMem(stream, sizeof(double) * base_size_p6b);
 #endif
 
   //
@@ -501,9 +505,16 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
   //
   //  free device and host mem. for a task.
   //
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#if defined(USE_CUDA) || defined(USE_HIP)
     freeGpuMem(dev_evl_sorted_h1b); freeGpuMem(dev_evl_sorted_h2b); freeGpuMem(dev_evl_sorted_h3b);
     freeGpuMem(dev_evl_sorted_p4b); freeGpuMem(dev_evl_sorted_p5b); freeGpuMem(dev_evl_sorted_p6b);
+#elif defined(USE_DPCPP)
+    freeGpuMem(stream, dev_evl_sorted_h1b);
+    freeGpuMem(stream, dev_evl_sorted_h2b);
+    freeGpuMem(stream, dev_evl_sorted_h3b);
+    freeGpuMem(stream, dev_evl_sorted_p4b);
+    freeGpuMem(stream, dev_evl_sorted_p5b);
+    freeGpuMem(stream, dev_evl_sorted_p6b);
 #endif
 
 #if 0

@@ -12,8 +12,8 @@
 #include "ccsd_t_common.hpp"
 
 int check_device(long);
-int device_init(long ngpu, int *cuda_device_number);
 #if defined(USE_CUDA) || defined(USE_HIP)
+int device_init(long ngpu, int *cuda_device_number);
 void dev_release();
 void finalizememmodule();
 void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,
@@ -21,7 +21,14 @@ size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* h
 #endif
 
 #if defined(USE_DPCPP)
-void finalizememmodule();
+void finalizememmodule(
+#if defined(USE_DPCPP)
+		       cl::sycl::queue& syclQueue
+#endif
+		       );
+int device_init(const std::vector<cl::sycl::queue*> iDevice_syclQueue,
+		cl::sycl::queue *syclQue,
+		long ngpu, int *cuda_device_number);
 #endif
 
 template<typename T>
@@ -62,7 +69,7 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
   }
 
   //Check if node has number of devices specified in input file
-  int dev_count_check;
+  int dev_count_check = 0;
   bool use_dpcpp = false;
 
 #if defined(USE_CUDA)
@@ -119,7 +126,9 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
   if(iDevice==0) has_GPU=0;
   // cout << "rank,has_gpu" << rank << "," << has_GPU << endl;
   if(has_GPU == 1){
+#if defined(USE_CUDA) || defined(USE_HIP)
     device_init(iDevice, &gpu_device_number);
+#endif
     // if(gpu_device_number==30) // QUIT
   }
   if(nodezero) std::cout << "Using " << iDevice << " gpu devices per node" << endl << endl;
@@ -241,9 +250,10 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                                           
                           indx++;
                         }
-                        #if defined(USE_DPCPP)
-                          finalizememmodule();
-                        #endif
+
+#if defined(USE_CUDA) || defined(USE_HIP) 
+			finalizememmodule();
+#endif
                       }
                       else {
                       auto factor_l = factor;
@@ -265,7 +275,9 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
 
                       // cout << "e1,e2=" << energy1 << "," << energy2 << endl;
                       dev_release();
+#if defined(USE_CUDA) || defined(USE_HIP) 
                       finalizememmodule();
+#endif
                       #endif
                     }
 

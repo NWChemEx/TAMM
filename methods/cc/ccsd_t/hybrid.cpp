@@ -30,10 +30,11 @@ int check_device(long iDevice) {
   return 0;
 }
 
-int device_init(#if defined(USE_DPCPP)
-                std::vector<cl::sycl::queue*>& iDevice_syclQueue,
+int device_init(
+#if defined(USE_DPCPP)
+		const std::vector<cl::sycl::queue*> iDevice_syclQueue,
 		cl::sycl::queue *syclQue,
-                #endif
+#endif
                 long iDevice,int *gpu_device_number) {
 
   /* Set device_id */

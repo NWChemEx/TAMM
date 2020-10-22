@@ -327,7 +327,7 @@ public:
     int gpu_devid() const { return dev_id_; }
 
 #if defined(USE_DPCPP)
-    std::vector<cl::sycl::queue*> get_syclQue() {
+    std::vector<cl::sycl::queue*> get_syclQue() const {
         return vec_syclQue;
     }
 #endif

@@ -30,6 +30,8 @@
 #define FUSION_SIZE_REG_2_X 	FUSION_SIZE_SLICE_2_P5
 #define FUSION_SIZE_REG_2_Y 	FUSION_SIZE_SLICE_2_P6
 
+#define CEIL(a, b)      	(((a) + (b) - 1) / (b))
+
 #define NUM_IA6_LOOPS           9
 #define NUM_D1_EQUATIONS        9
 #define NUM_D2_EQUATIONS        9
@@ -220,12 +222,12 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         base_size_p6b = const_df_d1_size[6 + (iter_noab) * NUM_D1_INDEX];
 
         //
-        num_blks_h1b = cl::sycl::ceil(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
-        num_blks_h2b = cl::sycl::ceil(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
-        num_blks_h3b = cl::sycl::ceil(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
-        num_blks_p4b = cl::sycl::ceil(base_size_p4b, FUSION_SIZE_SLICE_1_P4);
-        num_blks_p5b = cl::sycl::ceil(base_size_p5b, FUSION_SIZE_SLICE_1_P5);
-        num_blks_p6b = cl::sycl::ceil(base_size_p6b, FUSION_SIZE_SLICE_1_P6);
+        num_blks_h1b = CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
+        num_blks_h2b = CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
+        num_blks_h3b = CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
+        num_blks_p4b = CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4);
+        num_blks_p5b = CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5);
+        num_blks_p6b = CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6);
 
         // 	(2) blk_idx_h/p*b
         blk_idx_p4b =
@@ -509,12 +511,12 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         base_size_p7b = const_df_d2_size[6 + (iter_nvab) * NUM_D2_INDEX];
 
         //
-        num_blks_h1b = cl::sycl::ceil(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
-        num_blks_h2b = cl::sycl::ceil(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
-        num_blks_h3b = cl::sycl::ceil(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
-        num_blks_p4b = cl::sycl::ceil(base_size_p4b, FUSION_SIZE_SLICE_1_P4);
-        num_blks_p5b = cl::sycl::ceil(base_size_p5b, FUSION_SIZE_SLICE_1_P5);
-        num_blks_p6b = cl::sycl::ceil(base_size_p6b, FUSION_SIZE_SLICE_1_P6);
+        num_blks_h1b = CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
+        num_blks_h2b = CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
+        num_blks_h3b = CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
+        num_blks_p4b = CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4);
+        num_blks_p5b = CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5);
+        num_blks_p6b = CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6);
 
         // 	(2) blk_idx_h/p*b
         blk_idx_p4b =
@@ -997,12 +999,12 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         base_size_p6b = const_df_d1_size[6 + (iter_noab) * NUM_D1_INDEX];
 
         //
-        num_blks_h1b = cl::sycl::ceil(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
-        num_blks_h2b = cl::sycl::ceil(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
-        num_blks_h3b = cl::sycl::ceil(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
-        num_blks_p4b = cl::sycl::ceil(base_size_p4b, FUSION_SIZE_SLICE_1_P4);
-        num_blks_p5b = cl::sycl::ceil(base_size_p5b, FUSION_SIZE_SLICE_1_P5);
-        num_blks_p6b = cl::sycl::ceil(base_size_p6b, FUSION_SIZE_SLICE_1_P6);
+        num_blks_h1b = CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
+        num_blks_h2b = CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
+        num_blks_h3b = CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
+        num_blks_p4b = CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4);
+        num_blks_p5b = CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5);
+        num_blks_p6b = CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6);
 
         // 	(2) blk_idx_h/p*b
         blk_idx_p4b =
@@ -1496,12 +1498,12 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         base_size_p7b = const_df_d2_size[6 + (iter_nvab) * NUM_D2_INDEX];
 
         //
-        num_blks_h1b = cl::sycl::ceil(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
-        num_blks_h2b = cl::sycl::ceil(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
-        num_blks_h3b = cl::sycl::ceil(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
-        num_blks_p4b = cl::sycl::ceil(base_size_p4b, FUSION_SIZE_SLICE_1_P4);
-        num_blks_p5b = cl::sycl::ceil(base_size_p5b, FUSION_SIZE_SLICE_1_P5);
-        num_blks_p6b = cl::sycl::ceil(base_size_p6b, FUSION_SIZE_SLICE_1_P6);
+        num_blks_h1b = CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
+        num_blks_h2b = CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
+        num_blks_h3b = CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
+        num_blks_p4b = CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4);
+        num_blks_p5b = CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5);
+        num_blks_p6b = CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6);
 
         // 	(2) blk_idx_h/p*b
         blk_idx_p4b =
@@ -1993,12 +1995,12 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         base_size_p5b = const_df_s1_size[4];
         base_size_p6b = const_df_s1_size[5];
 
-        num_blks_h1b = cl::sycl::ceil(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
-        num_blks_h2b = cl::sycl::ceil(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
-        num_blks_h3b = cl::sycl::ceil(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
-        num_blks_p4b = cl::sycl::ceil(base_size_p4b, FUSION_SIZE_SLICE_1_P4);
-        num_blks_p5b = cl::sycl::ceil(base_size_p5b, FUSION_SIZE_SLICE_1_P5);
-        num_blks_p6b = cl::sycl::ceil(base_size_p6b, FUSION_SIZE_SLICE_1_P6);
+        num_blks_h1b = CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1);
+        num_blks_h2b = CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2);
+        num_blks_h3b = CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3);
+        num_blks_p4b = CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4);
+        num_blks_p5b = CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5);
+        num_blks_p6b = CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6);
 
         // 	(2) blk_idx_h/p*b
         blk_idx_p4b =
@@ -2539,7 +2541,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     // energy_1 = intel::reduce(item_ct.get_sub_group(), energy_1, intel::plus<>);
     // energy_2 = intel::reduce(item_ct.get_sub_group(), energy_2, intel::plus<>);
 
-    intel::sub_group sg = item_ct.get_sub_group();
+    cl::sycl::ONEAPI::sub_group sg = item_ct.get_sub_group();
     for (int offset = 16; offset > 0; offset /= 2)
     {
         energy_1 += sg.shuffle_down(energy_1, offset);
@@ -2616,12 +2618,12 @@ void fully_fused_ccsd_t_gpu(cl::sycl::queue *stream_id, size_t num_blocks,
     // jk_ccsd_t_fully_fused_kernel_associative
     stream_id->submit([&](cl::sycl::handler &cgh)
     {
-        auto const_df_s1_size_acc = const_df_s1_size.get_access<cl::sycl::access::mode::read, cl::sycl::access::target::const_buffer>(cgh);
-        auto const_df_s1_exec_acc = const_df_s1_exec.get_access<cl::sycl::access::mode::read, cl::sycl::access::target::const_buffer>(cgh);
-        auto const_df_d1_size_acc = const_df_d1_size.get_access<cl::sycl::access::mode::read, cl::sycl::access::target::const_buffer>(cgh);
-        auto const_df_d1_exec_acc = const_df_d1_exec.get_access<cl::sycl::access::mode::read, cl::sycl::access::target::const_buffer>(cgh);
-        auto const_df_d2_size_acc = const_df_d2_size.get_access<cl::sycl::access::mode::read, cl::sycl::access::target::const_buffer>(cgh);
-        auto const_df_d2_exec_acc = const_df_d2_exec.get_access<cl::sycl::access::mode::read, cl::sycl::access::target::const_buffer>(cgh);
+        auto const_df_s1_size_acc = const_df_s1_size.get_access<cl::sycl::access::mode::read, cl::sycl::access::target::constant_buffer>(cgh);
+        auto const_df_s1_exec_acc = const_df_s1_exec.get_access<cl::sycl::access::mode::read, cl::sycl::access::target::constant_buffer>(cgh);
+        auto const_df_d1_size_acc = const_df_d1_size.get_access<cl::sycl::access::mode::read, cl::sycl::access::target::constant_buffer>(cgh);
+        auto const_df_d1_exec_acc = const_df_d1_exec.get_access<cl::sycl::access::mode::read, cl::sycl::access::target::constant_buffer>(cgh);
+        auto const_df_d2_size_acc = const_df_d2_size.get_access<cl::sycl::access::mode::read, cl::sycl::access::target::constant_buffer>(cgh);
+        auto const_df_d2_exec_acc = const_df_d2_exec.get_access<cl::sycl::access::mode::read, cl::sycl::access::target::constant_buffer>(cgh);
 
         // allocate local/shared memory
         cl::sycl::range<2> sm_a_range(16, 65 /*64 + 1*/);
@@ -2651,12 +2653,12 @@ void fully_fused_ccsd_t_gpu(cl::sycl::queue *stream_id, size_t num_blocks,
                                                  dev_evl_sorted_p5b,
                                                  dev_evl_sorted_p6b,
                                                  partial_energies,
-                                                 cl::sycl::ceil(base_size_h3b, FUSION_SIZE_SLICE_1_H3),
-                                                 cl::sycl::ceil(base_size_h2b, FUSION_SIZE_SLICE_1_H2),
-                                                 cl::sycl::ceil(base_size_h1b, FUSION_SIZE_SLICE_1_H1),
-                                                 cl::sycl::ceil(base_size_p6b, FUSION_SIZE_SLICE_1_P6),
-                                                 cl::sycl::ceil(base_size_p5b, FUSION_SIZE_SLICE_1_P5),
-                                                 cl::sycl::ceil(base_size_p4b, FUSION_SIZE_SLICE_1_P4),
+                                                 CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3),
+                                                 CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2),
+                                                 CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1),
+                                                 CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6),
+                                                 CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5),
+                                                 CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4),
                                                  (cl::sycl::cl_int)base_size_h1b,
                                                  (cl::sycl::cl_int)base_size_h2b,
                                                  (cl::sycl::cl_int)base_size_h3b,

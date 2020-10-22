@@ -1820,6 +1820,9 @@ public:
 #endif
             {
                 const int dev_id = ec.gpu_devid();
+#ifdef USE_DPCPP
+		cl::sycl::queue* syclQueue = ec.get_syclQue()[dev_id];
+#endif
                 // determine set of all labels
 
                 // compute block size and allocate buffers
@@ -1892,7 +1895,7 @@ public:
                                         *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, COPY_TTT,
                                         #endif
                                         #ifdef USE_DPCPP
-                                        ec.get_syclQue(),
+                  	                syclQueue,
                                         #endif
                                         dev_id, alpha_,
                                         abuf.data(), adims_sz,
@@ -2267,6 +2270,10 @@ public:
 
             bool isgpu = false;
             const int dev_id = ec.gpu_devid();
+#ifdef USE_DPCPP
+            cl::sycl::queue* syclQueue = ec.get_syclQue()[dev_id];
+#endif
+
 
             #ifdef USE_TALSH
                 TALSH *gpu_mult = new TALSH{ec.num_gpu()};
@@ -2486,7 +2493,7 @@ public:
                                         *gpu_mult, *(abptr->tt_), *(abptr->tc_), *(abptr->ta_), *(abptr->tb_), COPY_MTT,
                                         #endif
                                         #ifdef USE_DPCPP
-                                        ec.get_syclQue(),
+                                        syclQueue,
                                         #endif
                                         dev_id, alpha_,
                                         (abptr->abuf_).data(), adims_sz,

@@ -64,27 +64,17 @@ typedef long Integer;
 
 void initMemModule();
 
-void *getGpuMem(size_t bytes
-#ifdef USE_DPCPP
-		,
-		cl::sycl::queue& syclQueue,
-#endif);
-void *getHostMem(size_t bytes
-#ifdef USE_DPCPP
-		 ,
-		 cl::sycl::queue& syclQueue,
-#endif);
-void freeHostMem(void *p
-#ifdef USE_DPCPP
-		 ,
-		 cl::sycl::queue& syclQueue,
-#endif);
-void freeGpuMem(void *p
-#ifdef USE_DPCPP
-		 ,
-		 cl::sycl::queue& syclQueue,
-#endif);
-
+#if defined(USE_DPCPP)
+void *getGpuMem(cl::sycl::queue& syclQueue, size_t bytes);
+void *getHostMem(cl::sycl::queue& syclQueue, size_t bytes);
+void freeHostMem(cl::sycl::queue& syclQueue, void *p);
+void freeGpuMem(cl::sycl::queue& syclQueue, void *p);
+#else
+void *getGpuMem(size_t bytes);
+void *getHostMem(size_t bytes);
+void freeHostMem(void *p);
+void freeGpuMem(void *p);
+#endif
 void finalizeMemModule();
 
 #endif /*CCSD_T_COMMON_HPP_*/

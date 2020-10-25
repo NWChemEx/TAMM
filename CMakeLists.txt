@@ -5,17 +5,17 @@ set(NWX_PROJECTS tamm)
 
 set(tamm_DEPENDENCIES NWX_MPI MSGSL Eigen3 LibInt2 HPTT HDF5) # GlobalArrays BLAS LAPACK
 
+if(USE_CUDA) 
+   list(APPEND tamm_DEPENDENCIES TALSH)
+endif()
+
 if(DEFINED BLAS_VENDOR)
     if(NOT ${BLAS_VENDOR} STREQUAL "ReferenceBLAS")
         list(APPEND tamm_DEPENDENCIES BLIS)
     endif()
 endif()
 
-if(USE_CUDA) 
-   list(APPEND tamm_DEPENDENCIES TALSH)
-endif()
-
-list(APPEND tamm_DEPENDENCIES GlobalArrays BLAS LAPACK)
+list(APPEND tamm_DEPENDENCIES GlobalArrays)
 
 if(USE_SCALAPACK)
     list(APPEND tamm_DEPENDENCIES ScaLAPACK CXXBLACS)

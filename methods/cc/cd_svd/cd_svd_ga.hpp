@@ -563,8 +563,8 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
             k_ij[i*nbf+j] = 0;
 
         //TODO
-        LAPACKE_dsyevd(LAPACK_ROW_MAJOR,'V','L',(TAMM_LAPACK_INT)nbf,
-          &k_ij[0],(TAMM_LAPACK_INT)nbf, &k_eval_r[0]);
+        LAPACKE_dsyevd(LAPACK_ROW_MAJOR,'V','L',(BLA_LAPACK_INT)nbf,
+          &k_ij[0],(BLA_LAPACK_INT)nbf, &k_eval_r[0]);
 
         auto m = 0;
         for(auto i=0;i<nbf;i++){

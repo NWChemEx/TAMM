@@ -6,18 +6,13 @@
 #include "tamm/kernels/assign.hpp"
 
 #include <algorithm>
+
+#include "ga/ga_linalg.h"
+
 #ifdef USE_BLIS
 // disable BLAS prototypes within BLIS.
 #define BLIS_DISABLE_BLAS_DEFS
 #include "blis/blis.h"
-#endif
-
-#if defined(TAMM_BLA_MKL)
-  #include "mkl.h"
-#elif defined(TAMM_BLA_ESSL)
-  #include "essl.h"
-#elif defined(TAMM_BLA_REFERENCE)
-  #include "blis/cblas.h"
 #endif
 
 #include <complex>

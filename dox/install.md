@@ -47,12 +47,6 @@ auto-detect (only for x86_64 systems) the architecture.
 -DUSE_CUTENSOR=ON -DCUTENSOR_INSTALL_PREFIX=/path/to/cutensor_install_prefix  
 ```
 
-### GlobalArrays options. 
-``` 
-We only recommend building with MPI-PR (default) or OPENIB
- -DARMCI_NETWORK=OPENIB
-````
-
 ### To enable DPCPP code path
 ``` 
 -DUSE_DPCPP=ON (OFF by default, requires -DUSE_OPENMP=OFF) 
@@ -60,7 +54,7 @@ We only recommend building with MPI-PR (default) or OPENIB
 
 ### CMake options for developers (optional)
 ```
--DUSE_GA_DEV=ON #Build GA's latest development code.
+-DUSE_GA_PROFILER=ON #Enable GA's profiling feature (GCC Only).
 
 -DUSE_OPENMP=OFF (ON by default, also required to be ON when USE_CUDA=ON)
 ```
@@ -81,6 +75,8 @@ mkdir build && cd build
 * **[Build using reference BLAS from NETLIB](install.md#build-using-reference-blas-from-netlib)**
 
 * **[Build using Intel MKL](install.md#build-using-intel-mkl)**
+
+* **[Build instructions using Intel One API](install.md#build-using-intel-oneapi)**
 
 * **[Build instructions for Summit using ESSL](install.md#build-instructions-for-summit-using-essl)**
 
@@ -115,6 +111,30 @@ export MKLROOT=/opt/intel/compilers_and_libraries_2019.0.117/linux/mkl
 cd $TAMM_SRC/build 
 
 CC=gcc CXX=g++ FC=gfortran cmake -DBLAS_VENDOR=IntelMKL -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
+
+make -j3
+make install
+```
+
+## Build using Intel OneAPI
+
+### Set `MKLROOT` and `DPCPP_ROOT` accordingly
+
+```
+export MKLROOT=/opt/oneapi/mkl/latest
+export DPCPP_ROOT=/opt/oneapi/compiler/latest/linux
+export CPATH=$DPCPP_ROOT/include/sycl:$CPATH
+```
+
+### Also need to set root dir for a GCC installation (need gcc >= v8.3)
+```
+export GCCROOT=/opt/gcc8.3
+```
+
+```
+cd $TAMM_SRC/build 
+
+CC=icx CXX=dpcpp FC=ifx cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH -DUSE_OPENMP=OFF -DBLAS_VENDOR=IntelMKL -DUSE_DPCPP=ON -DGCCROOT=$GCCROOT 
 
 make -j3
 make install

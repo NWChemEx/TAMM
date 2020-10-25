@@ -11,8 +11,8 @@
 namespace linalg {
 
 // #ifdef LINALG_ILP64
-  using nwx_blas_int   = TAMM_LAPACK_INT;
-  using nwx_lapack_int = TAMM_LAPACK_INT;
+  using nwx_blas_int   = BLA_LAPACK_INT;
+  using nwx_lapack_int = BLA_LAPACK_INT;
 // #elif defined(MKL_INT)
 //   using nwx_blas_int   = MKL_INT;
 //   using nwx_lapack_int = MKL_INT;

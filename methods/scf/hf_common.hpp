@@ -28,9 +28,9 @@
   // CXXBLACS BLACS/ScaLAPACK wrapper
   // #include LAPACKE_HEADER
   // #define CXXBLACS_HAS_LAPACK
-  #define CB_INT TAMM_LAPACK_INT
-  #define CXXBLACS_LAPACK_Complex16 TAMM_LAPACK_COMPLEX16
-  #define CXXBLACS_LAPACK_Complex8 TAMM_LAPACK_COMPLEX8
+  #define CB_INT BLA_LAPACK_INT
+  #define CXXBLACS_LAPACK_Complex16 BLA_LAPACK_COMPLEX16
+  #define CXXBLACS_LAPACK_Complex8 BLA_LAPACK_COMPLEX8
   #include <cxxblacs.hpp>
 //std::unique_ptr<CXXBLACS::BlacsGrid> blacs_grid;
 #endif

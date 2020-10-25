@@ -13,7 +13,7 @@ Prerequisites
 Supported Compilers
 --------------------
 - GCC versions >= 8.3
-- LLVM Clang >= 7 (Tested on Linux Only): Please see [Clang Compiler Support](CMake_Build_Notes.md#clang-compiler-support)
+- LLVM Clang >= 8 (Tested on Linux Only): Please see [Clang Compiler Support](CMake_Build_Notes.md#clang-compiler-support)
 
 
 Supported Configurations

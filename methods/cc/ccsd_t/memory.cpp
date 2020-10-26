@@ -170,7 +170,7 @@ void *getGpuMem(
   CUDA_SAFE(cudaMalloc((void **) &ptr, bytes));
 #elif defined(USE_HIP)
   HIP_SAFE(hipMalloc((void **) &ptr, bytes));
-#elif defiend(USE_DPCPP)
+#elif defined(USE_DPCPP)
   ptr = cl::sycl::malloc_device(bytes, syclQueue);
 #endif
 #else
@@ -218,7 +218,7 @@ void *getHostMem(
   CUDA_SAFE(cudaMallocHost((void **) &ptr, bytes));
 #elif defined(USE_HIP)
   HIP_SAFE(hipHostMalloc((void **) &ptr, bytes));
-#elif defiend(USE_DPCPP)
+#elif defined(USE_DPCPP)
   ptr = cl::sycl::malloc_host(bytes, syclQueue);
 #else //cpu
   ptr = (void *)malloc(bytes);

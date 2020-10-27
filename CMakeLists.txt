@@ -15,7 +15,11 @@ if(DEFINED BLAS_VENDOR)
     endif()
 endif()
 
-list(APPEND tamm_DEPENDENCIES GlobalArrays)
+if(USE_GA_AT)
+    list(APPEND tamm_DEPENDENCIES GlobalArrays BLAS LAPACK)
+else()
+    list(APPEND tamm_DEPENDENCIES GlobalArrays)
+endif()
 
 if(USE_SCALAPACK)
     list(APPEND tamm_DEPENDENCIES ScaLAPACK CXXBLACS)

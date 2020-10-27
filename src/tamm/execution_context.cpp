@@ -16,7 +16,7 @@ auto sycl_asynchandler = [] (cl::sycl::exception_list exceptions) {
             std::rethrow_exception(e);
         } catch (cl::sycl::exception const& ex) {
             std::cout << "Caught asynchronous SYCL exception:" << std::endl
-            << ex.what() << std::endl;
+            << ex.what() << ", OpenCL code: " << ex.get_cl_code() << std::endl;
         }
     }
 };
@@ -54,12 +54,16 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   cl::sycl::gpu_selector device_selector;
   cl::sycl::platform platform(device_selector);
   auto const& gpu_devices = platform.get_devices();
-  ngpu_ = gpu_devices.size();
+  for (int i = 0; i < gpu_devices.size(); i++) {
+    if (gpu_devices[i].is_gpu())
+      ngpu_++;
+  }
 
   dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
   if (ngpu_ == 1) dev_id_ = 0;
   if ((pg.rank().value() % ranks_pn_) < ngpu_) has_gpu_ = true;
-  for (int i = 0; i < ngpu_; i++) {
+  for (int i = 0; i < gpu_devices.size(); i++) {
+    if( gpu_devices[i].is_gpu() )
       vec_syclQue.push_back( new sycl::queue( gpu_devices[i],
                                               sycl_asynchandler,
                                               sycl::property_list{sycl::property::queue::in_order{}} ) );

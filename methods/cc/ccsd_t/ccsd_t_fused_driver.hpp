@@ -17,7 +17,7 @@ void dev_release();
 
 #if defined(USE_DPCPP)
 int device_init(const std::vector<cl::sycl::queue*> iDevice_syclQueue,
-		cl::sycl::queue *syclQue,
+		cl::sycl::queue **syclQue,
 		long ngpu, int *cuda_device_number);
 #endif
 
@@ -100,7 +100,10 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
     cl::sycl::gpu_selector device_selector;
     cl::sycl::platform platform(device_selector);
     auto const& gpu_devices = platform.get_devices();
-    dev_count_check = gpu_devices.size();
+    for (int i = 0; i < gpu_devices.size(); i++) {
+            if (gpu_devices[i].is_gpu())
+	      dev_count_check++;
+    }
 
     if(dev_count_check < nDevices) {
       if(nodezero) cout << "ERROR: Please check whether you have " << nDevices <<
@@ -134,9 +137,14 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
       device_init(
 #if defined(USE_DPCPP)
                   ec.get_syclQue(),
-		  syclQue,
+		  &syclQue,
 #endif
                   nDevices, &gpu_device_number);
+
+#if defined(USE_DPCPP)
+      if(syclQue == nullptr)
+	cout << "ERROR: Obtained a invalid SYCL queue. Terminating program..." << endl << endl;
+#endif
     // if(gpu_device_number==30) // QUIT
   }
   if(nodezero) std::cout << "Using " << nDevices << " gpu devices per node" << endl << endl;

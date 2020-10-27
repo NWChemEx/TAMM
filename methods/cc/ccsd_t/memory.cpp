@@ -66,7 +66,7 @@ static void *moreDeviceMem(
 #endif
 			   size_t bytes)
 {
-  void *ptr;
+  void *ptr=nullptr;
 #if defined(USE_CUDA)
   CUDA_SAFE(cudaMalloc(&ptr, bytes));
 #elif defined(USE_HIP)
@@ -101,7 +101,7 @@ static void *moreHostMem(
 #endif
 			 size_t bytes)
 {
-  void *ptr;
+  void *ptr=nullptr;
   #if defined(USE_CUDA)
     CUDA_SAFE(cudaMallocHost(&ptr, bytes));
   #elif defined(USE_HIP)
@@ -138,7 +138,7 @@ static inline void *resurrect_from_free_list(map<size_t,set<void *> > &free_map,
                                              size_t bytes,
                                              map<void*,size_t>& liveset)
 {
-  void *ptr;
+  void *ptr=nullptr;
   num_resurrections +=1 ;
   assert(free_map.find(bytes) != free_map.end());
   /* assert(free_map.find(bytes)->second.size() > 0); */
@@ -212,7 +212,7 @@ void *getHostMem(
 		 size_t bytes)
 {
   //assert(is_init);
-  void *ptr;
+  void *ptr=nullptr;
 #ifdef NO_OPT
 #if defined(USE_CUDA)
   CUDA_SAFE(cudaMallocHost((void **) &ptr, bytes));

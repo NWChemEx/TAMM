@@ -93,8 +93,7 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
     cl::sycl::platform platform(device_selector);
     auto const& gpu_devices = platform.get_devices();
     for (auto &gpu_device : gpu_devices) {
-      const std::string deviceName = gpu_device.get_info<cl::sycl::info::device::name>();
-      if (gpu_device.is_gpu() && (deviceName.find("Intel") != std::string::npos))
+      if (gpu_device.is_gpu())
         dev_count_check++;
     }
     if(dev_count_check < iDevice) {

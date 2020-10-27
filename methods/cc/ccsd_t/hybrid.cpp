@@ -33,7 +33,7 @@ int check_device(long iDevice) {
 int device_init(
 #if defined(USE_DPCPP)
 		const std::vector<cl::sycl::queue*> iDevice_syclQueue,
-		cl::sycl::queue *syclQue,
+		cl::sycl::queue **syclQue,
 #endif
                 long iDevice,int *gpu_device_number) {
 
@@ -69,7 +69,7 @@ int device_init(
     // hipSetDevice(device_id);
     hipSetDevice(actual_device_id);
 #elif defined(USE_DPCPP)
-    syclQue = iDevice_syclQueue[actual_device_id];
+    *syclQue = iDevice_syclQueue[actual_device_id];
 #endif
   }
   return 1;

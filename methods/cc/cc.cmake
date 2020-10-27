@@ -25,9 +25,12 @@ if(USE_CUDA)
 
     set(CCSD_T_FUSED_SRCS ${CCSD_T_SRCS}
             ${CCSD_T_SRCDIR}/ccsd_t_all_fused.hpp
-            ${CCSD_T_SRCDIR}/ccsd_t_all_fused_sycl.hpp
             ${CCSD_T_SRCDIR}/ccsd_t_all_fused_gpu.cu)
 
+elseif(USE_DPCPP)
+    set(CCSD_T_FUSED_SRCS ${CCSD_T_SRCS}
+            ${CCSD_T_SRCDIR}/ccsd_t_all_fused.hpp
+            ${CCSD_T_SRCDIR}/ccsd_t_all_fused_sycl.hpp)
 else()
     set(CCSD_T_UNFUSED_SRCS ${CCSD_T_SRCS})
     set(CCSD_T_FUSED_SRCS ${CCSD_T_SRCS}

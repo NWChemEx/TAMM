@@ -10,15 +10,13 @@
 
 int check_device(long);
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-int device_init(long ngpu, int *cuda_device_number);
-void dev_release();
-#endif
-
 #if defined(USE_DPCPP)
 int device_init(const std::vector<cl::sycl::queue*> iDevice_syclQueue,
 		cl::sycl::queue **syclQue,
 		long ngpu, int *cuda_device_number);
+#else
+int device_init(long ngpu, int *cuda_device_number);
+void dev_release();
 #endif
 
 void finalizememmodule(
@@ -187,32 +185,8 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   size_t size_T_d2_v2 = max_d2_kernels_pertask * (max_pdim * max_pdim * max_pdim) * (max_hdim);
 
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-  T* df_host_pinned_s1_t1 = (T*)getHostMem(sizeof(double) * size_T_s1_t1);
-  T* df_host_pinned_s1_v2 = (T*)getHostMem(sizeof(double) * size_T_s1_v2);
-  T* df_host_pinned_d1_t2 = (T*)getHostMem(sizeof(double) * size_T_d1_t2);
-  T* df_host_pinned_d1_v2 = (T*)getHostMem(sizeof(double) * size_T_d1_v2);
-  T* df_host_pinned_d2_t2 = (T*)getHostMem(sizeof(double) * size_T_d2_t2);
-  T* df_host_pinned_d2_v2 = (T*)getHostMem(sizeof(double) * size_T_d2_v2);
 
-  //
-  int* df_simple_s1_size = (int*)getHostMem(sizeof(int) * (6));
-  int* df_simple_s1_exec = (int*)getHostMem(sizeof(int) * (9));
-
-  int* df_simple_d1_size = (int*)getHostMem(sizeof(int) * (7 * noab));
-  int* df_simple_d1_exec = (int*)getHostMem(sizeof(int) * (9 * noab));
-
-  int* df_simple_d2_size = (int*)getHostMem(sizeof(int) * (7 * nvab));
-  int* df_simple_d2_exec = (int*)getHostMem(sizeof(int) * (9 * nvab));
-
-  double* df_dev_s1_t1_all = (double*)getGpuMem(sizeof(double) * size_T_s1_t1);
-  double* df_dev_s1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_s1_v2);
-  double* df_dev_d1_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_t2);
-  double* df_dev_d1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_v2);
-  double* df_dev_d2_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_t2);
-  double* df_dev_d2_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_v2);
-
-#elif defined(USE_DPCPP)
+#if defined(USE_DPCPP)
 
   T* df_host_pinned_s1_t1 = (T*)getHostMem(*syclQue, sizeof(double) * size_T_s1_t1);
   T* df_host_pinned_s1_v2 = (T*)getHostMem(*syclQue, sizeof(double) * size_T_s1_v2);
@@ -237,17 +211,44 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   double* df_dev_d1_v2_all = (double*)getGpuMem(*syclQue, sizeof(double) * size_T_d1_v2);
   double* df_dev_d2_t2_all = (double*)getGpuMem(*syclQue, sizeof(double) * size_T_d2_t2);
   double* df_dev_d2_v2_all = (double*)getGpuMem(*syclQue, sizeof(double) * size_T_d2_v2);
+#else
+  T* df_host_pinned_s1_t1 = (T*)getHostMem(sizeof(double) * size_T_s1_t1);
+  T* df_host_pinned_s1_v2 = (T*)getHostMem(sizeof(double) * size_T_s1_v2);
+  T* df_host_pinned_d1_t2 = (T*)getHostMem(sizeof(double) * size_T_d1_t2);
+  T* df_host_pinned_d1_v2 = (T*)getHostMem(sizeof(double) * size_T_d1_v2);
+  T* df_host_pinned_d2_t2 = (T*)getHostMem(sizeof(double) * size_T_d2_t2);
+  T* df_host_pinned_d2_v2 = (T*)getHostMem(sizeof(double) * size_T_d2_v2);
+
+  //
+  int* df_simple_s1_size = (int*)getHostMem(sizeof(int) * (6));
+  int* df_simple_s1_exec = (int*)getHostMem(sizeof(int) * (9));
+
+  int* df_simple_d1_size = (int*)getHostMem(sizeof(int) * (7 * noab));
+  int* df_simple_d1_exec = (int*)getHostMem(sizeof(int) * (9 * noab));
+
+  int* df_simple_d2_size = (int*)getHostMem(sizeof(int) * (7 * nvab));
+  int* df_simple_d2_exec = (int*)getHostMem(sizeof(int) * (9 * nvab));
+  #if defined(USE_CUDA) || defined(USE_HIP)
+  double* df_dev_s1_t1_all = (double*)getGpuMem(sizeof(double) * size_T_s1_t1);
+  double* df_dev_s1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_s1_v2);
+  double* df_dev_d1_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_t2);
+  double* df_dev_d1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_v2);
+  double* df_dev_d2_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_t2);
+  double* df_dev_d2_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_v2);
+  #endif
 #endif
   //
   size_t max_num_blocks = sys_data.options_map.ccsd_options.ccsdt_tilesize;
   max_num_blocks = std::ceil((max_num_blocks+4-1)/4.0);
 
-#if defined(USE_CUDA) || defined(USE_HIP)
-  double* df_host_energies = (double*)getHostMem(sizeof(double) * std::pow(max_num_blocks, 6) * 2);
-  double* df_dev_energies = (double*)getGpuMem(sizeof(double) * std::pow(max_num_blocks, 6) * 2);
-#elif defined(USE_DPCPP)
+#if defined(USE_DPCPP)
   double* df_host_energies = (double*)getHostMem(*syclQue, sizeof(double) * std::pow(max_num_blocks, 6) * 2);
   double* df_dev_energies = (double*)getGpuMem(*syclQue, sizeof(double) * std::pow(max_num_blocks, 6) * 2);
+  #else
+  double* df_host_energies = (double*)getHostMem(sizeof(double) * std::pow(max_num_blocks, 6) * 2);
+  #if defined(USE_CUDA) || defined(USE_HIP)
+  double* df_dev_energies = (double*)getGpuMem(sizeof(double) * std::pow(max_num_blocks, 6) * 2);
+  #endif
 #endif
 
   //

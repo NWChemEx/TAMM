@@ -7,7 +7,19 @@
 
 #include <algorithm>
 
-#include "ga/ga_linalg.h"
+#if defined(USE_GA_AT)
+
+#if defined(BLA_VENDOR_MKL)
+  #include "mkl.h"
+#elif defined(BLA_VENDOR_ESSL)
+  #include "essl.h"
+#elif defined(BLA_VENDOR_REFERENCE)
+  #include "blis/cblas.h"
+#endif
+
+#else
+  #include "ga/ga_linalg.h"
+#endif
 
 #ifdef USE_BLIS
 // disable BLAS prototypes within BLIS.

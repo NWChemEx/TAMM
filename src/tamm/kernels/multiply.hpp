@@ -8,7 +8,7 @@
 #include <algorithm>
 
 #if defined(USE_GA_AT)
-
+#define BLA_VENDOR_MKL
 #if defined(BLA_VENDOR_MKL)
   #include "mkl.h"
 #elif defined(BLA_VENDOR_ESSL)

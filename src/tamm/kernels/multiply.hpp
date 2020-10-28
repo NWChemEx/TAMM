@@ -52,7 +52,7 @@ using tensor_handle = talsh_tens_t;
 
 #ifdef USE_DPCPP
 #include <CL/sycl.hpp>
-#include <oneapi/mkl.hpp>
+#include "oneapi/mkl.hpp"
 using namespace cl::sycl::ONEAPI;
 #endif
 

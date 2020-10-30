@@ -8,18 +8,7 @@
 #include <algorithm>
 
 #if defined(USE_GA_AT)
-#define BLA_VENDOR_MKL
-#define BLA_LAPACK_INT MKL_INT
-#define BLA_LAPACK_COMPLEX8 MKL_Complex8
-#define BLA_LAPACK_COMPLEX16 MKL_Complex16
-#if defined(BLA_VENDOR_MKL)
-  #include "mkl.h"
-#elif defined(BLA_VENDOR_ESSL)
-  #include "essl.h"
-#elif defined(BLA_VENDOR_REFERENCE)
-  #include "blis/cblas.h"
-#endif
-
+  #include "ga_linalg.h"
 #else
   #include "ga/ga_linalg.h"
 #endif

@@ -506,32 +506,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   //
   //  free shared device mem
   //
-  #if defined(USE_CUDA) || defined(USE_HIP)
-  freeGpuMem(df_dev_s1_t1_all); freeGpuMem(df_dev_s1_v2_all);
-  freeGpuMem(df_dev_d1_t2_all); freeGpuMem(df_dev_d1_v2_all);
-  freeGpuMem(df_dev_d2_t2_all); freeGpuMem(df_dev_d2_v2_all);
-  freeGpuMem(df_dev_energies);
-
-  //
-  //  free shared host mem.
-  //
-  freeHostMem(df_host_pinned_s1_t1);
-  freeHostMem(df_host_pinned_s1_v2);
-  freeHostMem(df_host_pinned_d1_t2);
-  freeHostMem(df_host_pinned_d1_v2);
-  freeHostMem(df_host_pinned_d2_t2);
-  freeHostMem(df_host_pinned_d2_v2);
-  freeHostMem(df_host_energies);
-
-  //
-  freeHostMem(df_simple_s1_exec);
-  freeHostMem(df_simple_s1_size);
-  freeHostMem(df_simple_d1_exec);
-  freeHostMem(df_simple_d1_size);
-  freeHostMem(df_simple_d2_exec);
-  freeHostMem(df_simple_d2_size);
-
-  #elif defined(USE_DPCPP)
+  #if defined(USE_DPCPP)
   freeGpuMem(*syclQue, df_dev_s1_t1_all); freeGpuMem(*syclQue, df_dev_s1_v2_all);
   freeGpuMem(*syclQue, df_dev_d1_t2_all); freeGpuMem(*syclQue, df_dev_d1_v2_all);
   freeGpuMem(*syclQue, df_dev_d2_t2_all); freeGpuMem(*syclQue, df_dev_d2_v2_all);
@@ -555,6 +530,34 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   freeHostMem(*syclQue, df_simple_d1_size);
   freeHostMem(*syclQue, df_simple_d2_exec);
   freeHostMem(*syclQue, df_simple_d2_size);
+
+  #else
+  //
+  //  free shared host mem.
+  //
+  freeHostMem(df_host_pinned_s1_t1);
+  freeHostMem(df_host_pinned_s1_v2);
+  freeHostMem(df_host_pinned_d1_t2);
+  freeHostMem(df_host_pinned_d1_v2);
+  freeHostMem(df_host_pinned_d2_t2);
+  freeHostMem(df_host_pinned_d2_v2);
+
+  //
+  freeHostMem(df_simple_s1_exec);
+  freeHostMem(df_simple_s1_size);
+  freeHostMem(df_simple_d1_exec);
+  freeHostMem(df_simple_d1_size);
+  freeHostMem(df_simple_d2_exec);
+  freeHostMem(df_simple_d2_size);
+
+  freeHostMem(df_host_energies);
+
+  #if defined(USE_CUDA) || defined(USE_HIP)
+  freeGpuMem(df_dev_s1_t1_all); freeGpuMem(df_dev_s1_v2_all);
+  freeGpuMem(df_dev_d1_t2_all); freeGpuMem(df_dev_d1_v2_all);
+  freeGpuMem(df_dev_d2_t2_all); freeGpuMem(df_dev_d2_v2_all);
+  freeGpuMem(df_dev_energies);
+  #endif
 
   #endif
 

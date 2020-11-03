@@ -330,6 +330,9 @@ std::tuple<double,double> ccsd_spin_driver(SystemData sys_data, ExecutionContext
     Tensor<T>::allocate(&ec, d_e);
     Scheduler sch{ec};
 
+    Tensor<T> d_r1_residual{}, d_r2_residual{};
+    Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
+    
     if(!ccsd_restart) {
         sch
         (d_r1() = 0)
@@ -341,10 +344,6 @@ std::tuple<double,double> ccsd_spin_driver(SystemData sys_data, ExecutionContext
         const auto timer_start = std::chrono::high_resolution_clock::now();
         
         int off = iter - titer;
-        Tensor<T> d_r1_residual{};
-        Tensor<T> d_r2_residual{};
-
-        Tensor<T>::allocate(&ec, d_r1_residual, d_r2_residual);
 
         sch(d_e() = 0)
         (d_r1_residual() = 0)
@@ -364,7 +363,8 @@ std::tuple<double,double> ccsd_spin_driver(SystemData sys_data, ExecutionContext
         #endif
 
         std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
-                        d_e, p_evl_sorted, zshiftl, n_occ_alpha, n_occ_beta);
+                        d_e, d_r1_residual, d_r2_residual, p_evl_sorted, zshiftl,
+                        n_occ_alpha, n_occ_beta);
 
         update_r2(ec, d_r2());
 
@@ -374,7 +374,7 @@ std::tuple<double,double> ccsd_spin_driver(SystemData sys_data, ExecutionContext
         auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
         iteration_print(ec.pg(), iter, residual, energy, iter_time);
-        Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
+        
 
         if(residual < thresh) { break; }
       }
@@ -407,7 +407,7 @@ std::tuple<double,double> ccsd_spin_driver(SystemData sys_data, ExecutionContext
             residual = 0.0;
     }
 
-  return std::make_tuple(residual,energy);
-
+    Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
+    return std::make_tuple(residual,energy);
   
 }

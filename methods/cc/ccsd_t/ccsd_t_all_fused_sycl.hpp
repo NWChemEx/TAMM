@@ -2537,16 +2537,8 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     //  to partially reduce the energies--- E(4) and E(5)
     //  a warp: 32 -(1)-> 16 -(2)-> 8 -(3)-> 4 -(4)-> 2
     //
-    // abb: can I use reduce(energy_1, 0, cl::sycl::plus<>);
-    // energy_1 = intel::reduce(item_ct.get_sub_group(), energy_1, intel::plus<>);
-    // energy_2 = intel::reduce(item_ct.get_sub_group(), energy_2, intel::plus<>);
-
-    cl::sycl::ONEAPI::sub_group sg = item_ct.get_sub_group();
-    for (int offset = 16; offset > 0; offset /= 2)
-    {
-        energy_1 += sg.shuffle_down(energy_1, offset);
-        energy_2 += sg.shuffle_down(energy_2, offset);
-    }
+    energy_1 = cl::sycl::ONEAPI::reduce(item_ct.get_group(), energy_1, cl::sycl::ONEAPI::plus<>());
+    energy_2 = cl::sycl::ONEAPI::reduce(item_ct.get_group(), energy_2, cl::sycl::ONEAPI::plus<>());
 
     if (item_ct.get_local_id(1) == 0 && item_ct.get_local_id(0) % 2 == 0)
     {

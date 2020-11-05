@@ -155,7 +155,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
 #if defined(USE_CUDA)
     cudaStreamCreate(&stream);
 #elif defined(USE_HIP)
-    hipCreateStream(&stream);
+    hipStreamCreate(&stream);
 #elif defined(USE_DPCPP)
     stream = *syclQue; // abb: does this need std::move(*syclQue) ?
 #endif
@@ -481,7 +481,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
     cudaDeviceSynchronize();
 #elif defined(USE_HIP)
     hipMemcpyHtoDAsync(host_energies, dev_energies, num_blocks * 2 * sizeof(double), stream);
-    hipDeviceSynchronize(void);
+    hipStreamSynchronize(stream);
 #elif defined(USE_DPCPP)
     stream.memcpy(host_energies, dev_energies, num_blocks * 2 * sizeof(double));
     stream.wait_and_throw();

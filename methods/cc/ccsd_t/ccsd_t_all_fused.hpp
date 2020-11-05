@@ -6,6 +6,11 @@
   #include "ccsd_t_all_fused_sycl.hpp"
 #endif
 
+#if defined(USE_HIP)
+  #include "ccsd_t_all_fused_hip.hpp"
+#endif
+
+
 void initmemmodule();
 void dev_mem_s(size_t,size_t,size_t,size_t,size_t,size_t);
 void dev_mem_d(size_t,size_t,size_t,size_t,size_t,size_t);
@@ -149,8 +154,6 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
 // create and assign streams
 #if defined(USE_CUDA)|| defined(USE_HIP) || defined(USE_DPCPP)
     gpuStream_t stream;
-    // abb: At this point, is the appropriate device is set to active (aka cudaSetDevice)
-    //      before creating streams and other mem. management.
 #endif
 #if defined(USE_CUDA)
     cudaStreamCreate(&stream);

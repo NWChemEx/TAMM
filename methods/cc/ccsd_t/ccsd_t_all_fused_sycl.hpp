@@ -87,18 +87,22 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                           localAcc sm_a,
                                           localAcc sm_b)
 {
+    size_t threadIdx_x = item_ct.get_local_id(1);
+    size_t threadIdx_y = item_ct.get_local_id(0);
+    size_t blockIdx_x = item_ct.get_group(1);
+
     int internal_upperbound = 0;
     int internal_offset;
 
     // should support for non-full tiles
-    int idx_h3 = item_ct.get_local_id(1) % FUSION_SIZE_SLICE_1_H3;
-    int idx_h2 = item_ct.get_local_id(1) / FUSION_SIZE_SLICE_1_H3;
-    int idx_p6 = item_ct.get_local_id(0) % FUSION_SIZE_SLICE_1_P6;
-    int idx_h1 = item_ct.get_local_id(0) / FUSION_SIZE_SLICE_1_P6;
+    int idx_h3 = threadIdx_x % FUSION_SIZE_SLICE_1_H3;
+    int idx_h2 = threadIdx_x / FUSION_SIZE_SLICE_1_H3;
+    int idx_p6 = threadIdx_y % FUSION_SIZE_SLICE_1_P6;
+    int idx_h1 = threadIdx_y / FUSION_SIZE_SLICE_1_P6;
 
-    int blk_idx_p4b = item_ct.get_group(1) /
+    int blk_idx_p4b = blockIdx_x /
         (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b * num_blks_p5b);
-    int tmp_blkIdx = item_ct.get_group(1) %
+    int tmp_blkIdx = blockIdx_x %
         (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b * num_blks_p5b);
     int blk_idx_p5b = (tmp_blkIdx) / (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b);
     tmp_blkIdx      = (tmp_blkIdx) % (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b);
@@ -107,7 +111,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     int blk_idx_h1b = (tmp_blkIdx) / (num_blks_h3b * num_blks_h2b);
     tmp_blkIdx      = (tmp_blkIdx) % (num_blks_h3b * num_blks_h2b);
     int blk_idx_h2b = (tmp_blkIdx) / (num_blks_h3b);
-    int blk_idx_h3b = item_ct.get_group(1) % (num_blks_h3b);
+    int blk_idx_h3b = blockIdx_x % (num_blks_h3b);
 
     int str_blk_idx_h3 = blk_idx_h3b * FUSION_SIZE_SLICE_1_H3;
     int str_blk_idx_h2 = blk_idx_h2b * FUSION_SIZE_SLICE_1_H2;
@@ -231,10 +235,10 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
         // 	(2) blk_idx_h/p*b
         blk_idx_p4b =
-            item_ct.get_group(1) / (num_blks_h3b * num_blks_h2b * num_blks_h1b *
+            blockIdx_x / (num_blks_h3b * num_blks_h2b * num_blks_h1b *
                                      num_blks_p6b * num_blks_p5b);
         tmp_blkIdx =
-            item_ct.get_group(1) % (num_blks_h3b * num_blks_h2b * num_blks_h1b *
+            blockIdx_x % (num_blks_h3b * num_blks_h2b * num_blks_h1b *
                                      num_blks_p6b * num_blks_p5b);
         blk_idx_p5b     = (tmp_blkIdx) / (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b);
         tmp_blkIdx  	= (tmp_blkIdx) % (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b);
@@ -243,7 +247,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         blk_idx_h1b     = (tmp_blkIdx) / (num_blks_h3b * num_blks_h2b);
         tmp_blkIdx 		= (tmp_blkIdx) % (num_blks_h3b * num_blks_h2b);
         blk_idx_h2b 	= (tmp_blkIdx) / (num_blks_h3b);
-        blk_idx_h3b = item_ct.get_group(1) % (num_blks_h3b);
+        blk_idx_h3b = blockIdx_x % (num_blks_h3b);
 
         // 	(3) str_blk_idx_h/p*
         str_blk_idx_h3 	= blk_idx_h3b * FUSION_SIZE_SLICE_1_H3;
@@ -303,28 +307,28 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_p4 && idx_h1 < rng_h1 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_2_Y] =
+                        sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
                             tmp_dev_d1_t2[(str_blk_idx_p4 + idx_p6 +
                                            (str_blk_idx_p5 + ll +
                                             (str_blk_idx_h1 + idx_h1) * base_size_p5b) *
                                            base_size_p4b) *
                                           base_size_h7b +
-                                          (item_ct.get_local_id(1) + l)];
+                                          (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h3 && idx_h2 < rng_h2 &&
-                    item_ct.get_local_id(0) < FUSION_SIZE_INT_UNIT - internal_upperbound) {
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound) {
                     for (int ll = 0; ll < rng_p6; ll++)
                     {
-                        sm_b[item_ct.get_local_id(0)][item_ct.get_local_id(1) + ll * FUSION_SIZE_TB_2_X] =
+                        sm_b[threadIdx_y][threadIdx_x + ll * FUSION_SIZE_TB_2_X] =
                             tmp_dev_d1_v2[str_blk_idx_h3 + idx_h3 +
                                           (str_blk_idx_h2 + idx_h2 +
                                            (str_blk_idx_p6 + ll +
-                                            (item_ct.get_local_id(0) + l) * base_size_p6b) *
+                                            (threadIdx_y + l) * base_size_p6b) *
                                            base_size_h2b) *
                                           base_size_h3b];
                     }
@@ -372,29 +376,29 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_p4 && idx_h1 < rng_h2 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound) {
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound) {
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_2_Y] =
+                        sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
                             tmp_dev_d1_t2[(str_blk_idx_p4 + idx_p6 +
                                            (str_blk_idx_p5 + ll +
                                             (str_blk_idx_h2 + idx_h1) * base_size_p5b) *
                                            base_size_p4b) *
                                           base_size_h7b +
-                                          (item_ct.get_local_id(1) + l)];
+                                          (threadIdx_x + l)];
                     }
                 }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h3 && idx_h2 < rng_h1 &&
-                    item_ct.get_local_id(0) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p6; ll++)
                     {
-                        sm_b[item_ct.get_local_id(0)][item_ct.get_local_id(1) + ll * FUSION_SIZE_TB_2_X] =
+                        sm_b[threadIdx_y][threadIdx_x + ll * FUSION_SIZE_TB_2_X] =
                             tmp_dev_d1_v2[str_blk_idx_h3 + idx_h3 +
                                           (str_blk_idx_h1 + idx_h2 +
                                            (str_blk_idx_p6 + ll +
-                                            (item_ct.get_local_id(0) + l) * base_size_p6b) *
+                                            (threadIdx_y + l) * base_size_p6b) *
                                            base_size_h1b) *
                                           base_size_h3b];
                     }
@@ -441,28 +445,28 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_p4 && idx_h1 < rng_h3 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_2_Y] =
+                        sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
                             tmp_dev_d1_t2[(str_blk_idx_p4 + idx_p6 +
                                            (str_blk_idx_p5 + ll +
                                             (str_blk_idx_h3 + idx_h1) * base_size_p5b) *
                                            base_size_p4b) *
                                           base_size_h7b +
-                                          (item_ct.get_local_id(1) + l)];
+                                          (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h2 && idx_h2 < rng_h1 &&
-                    item_ct.get_local_id(0) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p6; ll++)
                     {
-                        sm_b[item_ct.get_local_id(0)][item_ct.get_local_id(1) + ll * FUSION_SIZE_TB_2_X] =
+                        sm_b[threadIdx_y][threadIdx_x + ll * FUSION_SIZE_TB_2_X] =
                             tmp_dev_d1_v2[(str_blk_idx_h2 + idx_h3 +
                                            (str_blk_idx_h1 + idx_h2 +
                                             (str_blk_idx_p6 + ll +
-                                             (item_ct.get_local_id(0) + l) * base_size_p6b) *
+                                             (threadIdx_y + l) * base_size_p6b) *
                                             base_size_h1b) *
                                            base_size_h2b)];
                     }
@@ -520,10 +524,10 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
         // 	(2) blk_idx_h/p*b
         blk_idx_p4b =
-            item_ct.get_group(1) / (num_blks_h3b * num_blks_h2b * num_blks_h1b *
+            blockIdx_x / (num_blks_h3b * num_blks_h2b * num_blks_h1b *
                                      num_blks_p6b * num_blks_p5b);
         tmp_blkIdx =
-            item_ct.get_group(1) % (num_blks_h3b * num_blks_h2b * num_blks_h1b *
+            blockIdx_x % (num_blks_h3b * num_blks_h2b * num_blks_h1b *
                                      num_blks_p6b * num_blks_p5b);
         blk_idx_p5b     = (tmp_blkIdx) / (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b);
         tmp_blkIdx  	= (tmp_blkIdx) % (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b);
@@ -532,7 +536,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         blk_idx_h1b     = (tmp_blkIdx) / (num_blks_h3b * num_blks_h2b);
         tmp_blkIdx 		= (tmp_blkIdx) % (num_blks_h3b * num_blks_h2b);
         blk_idx_h2b 	= (tmp_blkIdx) / (num_blks_h3b);
-        blk_idx_h3b = item_ct.get_group(1) % (num_blks_h3b);
+        blk_idx_h3b = blockIdx_x % (num_blks_h3b);
 
         // 	(3) str_blk_idx_h/p*
         str_blk_idx_h3 	= blk_idx_h3b * FUSION_SIZE_SLICE_1_H3;
@@ -592,30 +596,30 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_h1 && idx_h1 < rng_h2 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p6; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_2_Y] =
+                        sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
                             tmp_dev_d2_t2_7[(blk_idx_p6b * FUSION_SIZE_SLICE_2_P6 + ll +
                                              (str_blk_idx_h1 + idx_p6 +
                                               (str_blk_idx_h2 + idx_h1) * base_size_h1b) *
                                              base_size_p6b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_p6 < rng_h3 && idx_h1 < rng_p4 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_b[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_2_Y] =
+                        sm_b[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
                             tmp_dev_d2_v2_7[(str_blk_idx_h3 + idx_p6 +
                                              (str_blk_idx_p5 + ll +
                                               (str_blk_idx_p4 + idx_h1) * base_size_p5b) *
                                              base_size_h3b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
                 item_ct.barrier();
 
@@ -661,30 +665,30 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_h2 && idx_h1 < rng_h3 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p6; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_2_Y] =
+                        sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
                             tmp_dev_d2_t2_8[(str_blk_idx_p6 + ll +
                                              (str_blk_idx_h2 + idx_p6 +
                                               (str_blk_idx_h3 + idx_h1) * base_size_h2b) *
                                              base_size_p6b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_p6 < rng_h1 && idx_h1 < rng_p4 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_b[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_2_Y] =
+                        sm_b[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
                             tmp_dev_d2_v2_8[(str_blk_idx_h1 + idx_p6 +
                                              (str_blk_idx_p5 + ll +
                                               (str_blk_idx_p4 + idx_h1) * base_size_p5b) *
                                              base_size_h1b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
                 item_ct.barrier();
 
@@ -730,30 +734,30 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_h1 && idx_h1 < rng_h3 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p6; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_2_Y] =
+                        sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
                             tmp_dev_d2_t2_9[(str_blk_idx_p6 + ll +
                                              (str_blk_idx_h1 + idx_p6 +
                                               (str_blk_idx_h3 + idx_h1) * base_size_h1b) *
                                              base_size_p6b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_p6 < rng_h2 && idx_h1 < rng_p4 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_b[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_2_Y] =
+                        sm_b[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
                             tmp_dev_d2_v2_9[(str_blk_idx_h2 + idx_p6 +
                                              (str_blk_idx_p5 + ll +
                                               (str_blk_idx_p4 + idx_h1) * base_size_p5b) *
                                              base_size_h2b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
                 item_ct.barrier();
 
@@ -785,192 +789,192 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     //  Register Transpose (top - bottom)
     //
     {
-        if (item_ct.get_local_id(0) < 4) // 0, 1, 2, 3
+        if (threadIdx_y < 4) // 0, 1, 2, 3
         {
             // sm_a[16][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
-            sm_a[0 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1)] = reg_tile[0][0];
-            sm_a[1 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1)] = reg_tile[1][0];
-            sm_a[2 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1)] = reg_tile[2][0];
-            sm_a[3 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1)] = reg_tile[3][0];
+            sm_a[0 + threadIdx_y * 4][threadIdx_x] = reg_tile[0][0];
+            sm_a[1 + threadIdx_y * 4][threadIdx_x] = reg_tile[1][0];
+            sm_a[2 + threadIdx_y * 4][threadIdx_x] = reg_tile[2][0];
+            sm_a[3 + threadIdx_y * 4][threadIdx_x] = reg_tile[3][0];
 
-            sm_a[0 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1) + 16] = reg_tile[0][1];
-            sm_a[1 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1) + 16] = reg_tile[1][1];
-            sm_a[2 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1) + 16] = reg_tile[2][1];
-            sm_a[3 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1) + 16] = reg_tile[3][1];
+            sm_a[0 + threadIdx_y * 4][threadIdx_x + 16] = reg_tile[0][1];
+            sm_a[1 + threadIdx_y * 4][threadIdx_x + 16] = reg_tile[1][1];
+            sm_a[2 + threadIdx_y * 4][threadIdx_x + 16] = reg_tile[2][1];
+            sm_a[3 + threadIdx_y * 4][threadIdx_x + 16] = reg_tile[3][1];
 
-            sm_a[0 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1) + 32] = reg_tile[0][2];
-            sm_a[1 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1) + 32] = reg_tile[1][2];
-            sm_a[2 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1) + 32] = reg_tile[2][2];
-            sm_a[3 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1) + 32] = reg_tile[3][2];
+            sm_a[0 + threadIdx_y * 4][threadIdx_x + 32] = reg_tile[0][2];
+            sm_a[1 + threadIdx_y * 4][threadIdx_x + 32] = reg_tile[1][2];
+            sm_a[2 + threadIdx_y * 4][threadIdx_x + 32] = reg_tile[2][2];
+            sm_a[3 + threadIdx_y * 4][threadIdx_x + 32] = reg_tile[3][2];
 
-            sm_a[0 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1) + 48] = reg_tile[0][3];
-            sm_a[1 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1) + 48] = reg_tile[1][3];
-            sm_a[2 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1) + 48] = reg_tile[2][3];
-            sm_a[3 + item_ct.get_local_id(0) * 4][item_ct.get_local_id(1) + 48] = reg_tile[3][3];
+            sm_a[0 + threadIdx_y * 4][threadIdx_x + 48] = reg_tile[0][3];
+            sm_a[1 + threadIdx_y * 4][threadIdx_x + 48] = reg_tile[1][3];
+            sm_a[2 + threadIdx_y * 4][threadIdx_x + 48] = reg_tile[2][3];
+            sm_a[3 + threadIdx_y * 4][threadIdx_x + 48] = reg_tile[3][3];
         }
 
-        if (item_ct.get_local_id(0) >= 4 && item_ct.get_local_id(0) < 8) // 4, 5, 6, 7
+        if (threadIdx_y >= 4 && threadIdx_y < 8) // 4, 5, 6, 7
         {
-            sm_b[0 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1)] = reg_tile[0][0];
-            sm_b[1 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1)] = reg_tile[1][0];
-            sm_b[2 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1)] = reg_tile[2][0];
-            sm_b[3 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1)] = reg_tile[3][0];
+            sm_b[0 + (threadIdx_y - 4) * 4][threadIdx_x] = reg_tile[0][0];
+            sm_b[1 + (threadIdx_y - 4) * 4][threadIdx_x] = reg_tile[1][0];
+            sm_b[2 + (threadIdx_y - 4) * 4][threadIdx_x] = reg_tile[2][0];
+            sm_b[3 + (threadIdx_y - 4) * 4][threadIdx_x] = reg_tile[3][0];
 
-            sm_b[0 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1) + 16] = reg_tile[0][1];
-            sm_b[1 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1) + 16] = reg_tile[1][1];
-            sm_b[2 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1) + 16] = reg_tile[2][1];
-            sm_b[3 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1) + 16] = reg_tile[3][1];
+            sm_b[0 + (threadIdx_y - 4) * 4][threadIdx_x + 16] = reg_tile[0][1];
+            sm_b[1 + (threadIdx_y - 4) * 4][threadIdx_x + 16] = reg_tile[1][1];
+            sm_b[2 + (threadIdx_y - 4) * 4][threadIdx_x + 16] = reg_tile[2][1];
+            sm_b[3 + (threadIdx_y - 4) * 4][threadIdx_x + 16] = reg_tile[3][1];
 
-            sm_b[0 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1) + 32] = reg_tile[0][2];
-            sm_b[1 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1) + 32] = reg_tile[1][2];
-            sm_b[2 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1) + 32] = reg_tile[2][2];
-            sm_b[3 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1) + 32] = reg_tile[3][2];
+            sm_b[0 + (threadIdx_y - 4) * 4][threadIdx_x + 32] = reg_tile[0][2];
+            sm_b[1 + (threadIdx_y - 4) * 4][threadIdx_x + 32] = reg_tile[1][2];
+            sm_b[2 + (threadIdx_y - 4) * 4][threadIdx_x + 32] = reg_tile[2][2];
+            sm_b[3 + (threadIdx_y - 4) * 4][threadIdx_x + 32] = reg_tile[3][2];
 
-            sm_b[0 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1) + 48] = reg_tile[0][3];
-            sm_b[1 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1) + 48] = reg_tile[1][3];
-            sm_b[2 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1) + 48] = reg_tile[2][3];
-            sm_b[3 + (item_ct.get_local_id(0) - 4) * 4][item_ct.get_local_id(1) + 48] = reg_tile[3][3];
-        }
-        item_ct.barrier();
-
-        if (item_ct.get_local_id(0) < 4) // 0, 1, 2, 3
-        {
-            reg_tile[0][0] = sm_a[item_ct.get_local_id(0) + 0][(item_ct.get_local_id(1))];
-            reg_tile[1][0] = sm_a[item_ct.get_local_id(0) + 4][(item_ct.get_local_id(1))];
-            reg_tile[2][0] = sm_a[item_ct.get_local_id(0) + 8][(item_ct.get_local_id(1))];
-            reg_tile[3][0] = sm_a[item_ct.get_local_id(0) + 12][(item_ct.get_local_id(1))];
-
-            reg_tile[0][1] = sm_a[item_ct.get_local_id(0) + 0][(item_ct.get_local_id(1)) + 16];
-            reg_tile[1][1] = sm_a[item_ct.get_local_id(0) + 4][(item_ct.get_local_id(1)) + 16];
-            reg_tile[2][1] = sm_a[item_ct.get_local_id(0) + 8][(item_ct.get_local_id(1)) + 16];
-            reg_tile[3][1] = sm_a[item_ct.get_local_id(0) + 12][(item_ct.get_local_id(1)) + 16];
-
-            reg_tile[0][2] = sm_a[item_ct.get_local_id(0) + 0][(item_ct.get_local_id(1)) + 32];
-            reg_tile[1][2] = sm_a[item_ct.get_local_id(0) + 4][(item_ct.get_local_id(1)) + 32];
-            reg_tile[2][2] = sm_a[item_ct.get_local_id(0) + 8][(item_ct.get_local_id(1)) + 32];
-            reg_tile[3][2] = sm_a[item_ct.get_local_id(0) + 12][(item_ct.get_local_id(1)) + 32];
-
-            reg_tile[0][3] = sm_a[item_ct.get_local_id(0) + 0][(item_ct.get_local_id(1)) + 48];
-            reg_tile[1][3] = sm_a[item_ct.get_local_id(0) + 4][(item_ct.get_local_id(1)) + 48];
-            reg_tile[2][3] = sm_a[item_ct.get_local_id(0) + 8][(item_ct.get_local_id(1)) + 48];
-            reg_tile[3][3] = sm_a[item_ct.get_local_id(0) + 12][(item_ct.get_local_id(1)) + 48];
-        }
-
-        if (item_ct.get_local_id(0) >= 4 && item_ct.get_local_id(0) < 8) // 4, 5, 6, 7
-        {
-            reg_tile[0][0] = sm_b[(item_ct.get_local_id(0) - 4) + 0][(item_ct.get_local_id(1))];
-            reg_tile[1][0] = sm_b[(item_ct.get_local_id(0) - 4) + 4][(item_ct.get_local_id(1))];
-            reg_tile[2][0] = sm_b[(item_ct.get_local_id(0) - 4) + 8][(item_ct.get_local_id(1))];
-            reg_tile[3][0] = sm_b[(item_ct.get_local_id(0) - 4) + 12][(item_ct.get_local_id(1))];
-
-            reg_tile[0][1] = sm_b[(item_ct.get_local_id(0) - 4) + 0][(item_ct.get_local_id(1)) + 16];
-            reg_tile[1][1] = sm_b[(item_ct.get_local_id(0) - 4) + 4][(item_ct.get_local_id(1)) + 16];
-            reg_tile[2][1] = sm_b[(item_ct.get_local_id(0) - 4) + 8][(item_ct.get_local_id(1)) + 16];
-            reg_tile[3][1] = sm_b[(item_ct.get_local_id(0) - 4) + 12][(item_ct.get_local_id(1)) + 16];
-
-            reg_tile[0][2] = sm_b[(item_ct.get_local_id(0) - 4) + 0][(item_ct.get_local_id(1)) + 32];
-            reg_tile[1][2] = sm_b[(item_ct.get_local_id(0) - 4) + 4][(item_ct.get_local_id(1)) + 32];
-            reg_tile[2][2] = sm_b[(item_ct.get_local_id(0) - 4) + 8][(item_ct.get_local_id(1)) + 32];
-            reg_tile[3][2] = sm_b[(item_ct.get_local_id(0) - 4) + 12][(item_ct.get_local_id(1)) + 32];
-
-            reg_tile[0][3] = sm_b[(item_ct.get_local_id(0) - 4) + 0][(item_ct.get_local_id(1)) + 48];
-            reg_tile[1][3] = sm_b[(item_ct.get_local_id(0) - 4) + 4][(item_ct.get_local_id(1)) + 48];
-            reg_tile[2][3] = sm_b[(item_ct.get_local_id(0) - 4) + 8][(item_ct.get_local_id(1)) + 48];
-            reg_tile[3][3] = sm_b[(item_ct.get_local_id(0) - 4) + 12][(item_ct.get_local_id(1)) + 48];
+            sm_b[0 + (threadIdx_y - 4) * 4][threadIdx_x + 48] = reg_tile[0][3];
+            sm_b[1 + (threadIdx_y - 4) * 4][threadIdx_x + 48] = reg_tile[1][3];
+            sm_b[2 + (threadIdx_y - 4) * 4][threadIdx_x + 48] = reg_tile[2][3];
+            sm_b[3 + (threadIdx_y - 4) * 4][threadIdx_x + 48] = reg_tile[3][3];
         }
         item_ct.barrier();
 
-        if (item_ct.get_local_id(0) >= 8 && item_ct.get_local_id(0) < 12) // 8, 9, 10, 11
+        if (threadIdx_y < 4) // 0, 1, 2, 3
         {
-            sm_a[0 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1)] = reg_tile[0][0];
-            sm_a[1 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1)] = reg_tile[1][0];
-            sm_a[2 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1)] = reg_tile[2][0];
-            sm_a[3 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1)] = reg_tile[3][0];
+            reg_tile[0][0] = sm_a[threadIdx_y + 0][(threadIdx_x)];
+            reg_tile[1][0] = sm_a[threadIdx_y + 4][(threadIdx_x)];
+            reg_tile[2][0] = sm_a[threadIdx_y + 8][(threadIdx_x)];
+            reg_tile[3][0] = sm_a[threadIdx_y + 12][(threadIdx_x)];
 
-            sm_a[0 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1) + 16] = reg_tile[0][1];
-            sm_a[1 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1) + 16] = reg_tile[1][1];
-            sm_a[2 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1) + 16] = reg_tile[2][1];
-            sm_a[3 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1) + 16] = reg_tile[3][1];
+            reg_tile[0][1] = sm_a[threadIdx_y + 0][(threadIdx_x) + 16];
+            reg_tile[1][1] = sm_a[threadIdx_y + 4][(threadIdx_x) + 16];
+            reg_tile[2][1] = sm_a[threadIdx_y + 8][(threadIdx_x) + 16];
+            reg_tile[3][1] = sm_a[threadIdx_y + 12][(threadIdx_x) + 16];
 
-            sm_a[0 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1) + 32] = reg_tile[0][2];
-            sm_a[1 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1) + 32] = reg_tile[1][2];
-            sm_a[2 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1) + 32] = reg_tile[2][2];
-            sm_a[3 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1) + 32] = reg_tile[3][2];
+            reg_tile[0][2] = sm_a[threadIdx_y + 0][(threadIdx_x) + 32];
+            reg_tile[1][2] = sm_a[threadIdx_y + 4][(threadIdx_x) + 32];
+            reg_tile[2][2] = sm_a[threadIdx_y + 8][(threadIdx_x) + 32];
+            reg_tile[3][2] = sm_a[threadIdx_y + 12][(threadIdx_x) + 32];
 
-            sm_a[0 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1) + 48] = reg_tile[0][3];
-            sm_a[1 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1) + 48] = reg_tile[1][3];
-            sm_a[2 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1) + 48] = reg_tile[2][3];
-            sm_a[3 + (item_ct.get_local_id(0) - 8) * 4][item_ct.get_local_id(1) + 48] = reg_tile[3][3];
+            reg_tile[0][3] = sm_a[threadIdx_y + 0][(threadIdx_x) + 48];
+            reg_tile[1][3] = sm_a[threadIdx_y + 4][(threadIdx_x) + 48];
+            reg_tile[2][3] = sm_a[threadIdx_y + 8][(threadIdx_x) + 48];
+            reg_tile[3][3] = sm_a[threadIdx_y + 12][(threadIdx_x) + 48];
         }
 
-        if (item_ct.get_local_id(0) >= 12) // 12, 13, 14, 15
+        if (threadIdx_y >= 4 && threadIdx_y < 8) // 4, 5, 6, 7
         {
-            sm_b[0 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1)] = reg_tile[0][0];
-            sm_b[1 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1)] = reg_tile[1][0];
-            sm_b[2 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1)] = reg_tile[2][0];
-            sm_b[3 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1)] = reg_tile[3][0];
+            reg_tile[0][0] = sm_b[(threadIdx_y - 4) + 0][(threadIdx_x)];
+            reg_tile[1][0] = sm_b[(threadIdx_y - 4) + 4][(threadIdx_x)];
+            reg_tile[2][0] = sm_b[(threadIdx_y - 4) + 8][(threadIdx_x)];
+            reg_tile[3][0] = sm_b[(threadIdx_y - 4) + 12][(threadIdx_x)];
 
-            sm_b[0 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1) + 16] = reg_tile[0][1];
-            sm_b[1 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1) + 16] = reg_tile[1][1];
-            sm_b[2 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1) + 16] = reg_tile[2][1];
-            sm_b[3 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1) + 16] = reg_tile[3][1];
+            reg_tile[0][1] = sm_b[(threadIdx_y - 4) + 0][(threadIdx_x) + 16];
+            reg_tile[1][1] = sm_b[(threadIdx_y - 4) + 4][(threadIdx_x) + 16];
+            reg_tile[2][1] = sm_b[(threadIdx_y - 4) + 8][(threadIdx_x) + 16];
+            reg_tile[3][1] = sm_b[(threadIdx_y - 4) + 12][(threadIdx_x) + 16];
 
-            sm_b[0 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1) + 32] = reg_tile[0][2];
-            sm_b[1 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1) + 32] = reg_tile[1][2];
-            sm_b[2 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1) + 32] = reg_tile[2][2];
-            sm_b[3 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1) + 32] = reg_tile[3][2];
+            reg_tile[0][2] = sm_b[(threadIdx_y - 4) + 0][(threadIdx_x) + 32];
+            reg_tile[1][2] = sm_b[(threadIdx_y - 4) + 4][(threadIdx_x) + 32];
+            reg_tile[2][2] = sm_b[(threadIdx_y - 4) + 8][(threadIdx_x) + 32];
+            reg_tile[3][2] = sm_b[(threadIdx_y - 4) + 12][(threadIdx_x) + 32];
 
-            sm_b[0 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1) + 48] = reg_tile[0][3];
-            sm_b[1 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1) + 48] = reg_tile[1][3];
-            sm_b[2 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1) + 48] = reg_tile[2][3];
-            sm_b[3 + (item_ct.get_local_id(0) - 12) * 4][item_ct.get_local_id(1) + 48] = reg_tile[3][3];
+            reg_tile[0][3] = sm_b[(threadIdx_y - 4) + 0][(threadIdx_x) + 48];
+            reg_tile[1][3] = sm_b[(threadIdx_y - 4) + 4][(threadIdx_x) + 48];
+            reg_tile[2][3] = sm_b[(threadIdx_y - 4) + 8][(threadIdx_x) + 48];
+            reg_tile[3][3] = sm_b[(threadIdx_y - 4) + 12][(threadIdx_x) + 48];
         }
         item_ct.barrier();
 
-        if (item_ct.get_local_id(0) >= 8 && item_ct.get_local_id(0) < 12) // 8, 9, 10, 11
+        if (threadIdx_y >= 8 && threadIdx_y < 12) // 8, 9, 10, 11
         {
-            reg_tile[0][0] = sm_a[(item_ct.get_local_id(0) - 8) + 0][(item_ct.get_local_id(1))];
-            reg_tile[1][0] = sm_a[(item_ct.get_local_id(0) - 8) + 4][(item_ct.get_local_id(1))];
-            reg_tile[2][0] = sm_a[(item_ct.get_local_id(0) - 8) + 8][(item_ct.get_local_id(1))];
-            reg_tile[3][0] = sm_a[(item_ct.get_local_id(0) - 8) + 12][(item_ct.get_local_id(1))];
+            sm_a[0 + (threadIdx_y - 8) * 4][threadIdx_x] = reg_tile[0][0];
+            sm_a[1 + (threadIdx_y - 8) * 4][threadIdx_x] = reg_tile[1][0];
+            sm_a[2 + (threadIdx_y - 8) * 4][threadIdx_x] = reg_tile[2][0];
+            sm_a[3 + (threadIdx_y - 8) * 4][threadIdx_x] = reg_tile[3][0];
 
-            reg_tile[0][1] = sm_a[(item_ct.get_local_id(0) - 8) + 0][(item_ct.get_local_id(1)) + 16];
-            reg_tile[1][1] = sm_a[(item_ct.get_local_id(0) - 8) + 4][(item_ct.get_local_id(1)) + 16];
-            reg_tile[2][1] = sm_a[(item_ct.get_local_id(0) - 8) + 8][(item_ct.get_local_id(1)) + 16];
-            reg_tile[3][1] = sm_a[(item_ct.get_local_id(0) - 8) + 12][(item_ct.get_local_id(1)) + 16];
+            sm_a[0 + (threadIdx_y - 8) * 4][threadIdx_x + 16] = reg_tile[0][1];
+            sm_a[1 + (threadIdx_y - 8) * 4][threadIdx_x + 16] = reg_tile[1][1];
+            sm_a[2 + (threadIdx_y - 8) * 4][threadIdx_x + 16] = reg_tile[2][1];
+            sm_a[3 + (threadIdx_y - 8) * 4][threadIdx_x + 16] = reg_tile[3][1];
 
-            reg_tile[0][2] = sm_a[(item_ct.get_local_id(0) - 8) + 0][(item_ct.get_local_id(1)) + 32];
-            reg_tile[1][2] = sm_a[(item_ct.get_local_id(0) - 8) + 4][(item_ct.get_local_id(1)) + 32];
-            reg_tile[2][2] = sm_a[(item_ct.get_local_id(0) - 8) + 8][(item_ct.get_local_id(1)) + 32];
-            reg_tile[3][2] = sm_a[(item_ct.get_local_id(0) - 8) + 12][(item_ct.get_local_id(1)) + 32];
+            sm_a[0 + (threadIdx_y - 8) * 4][threadIdx_x + 32] = reg_tile[0][2];
+            sm_a[1 + (threadIdx_y - 8) * 4][threadIdx_x + 32] = reg_tile[1][2];
+            sm_a[2 + (threadIdx_y - 8) * 4][threadIdx_x + 32] = reg_tile[2][2];
+            sm_a[3 + (threadIdx_y - 8) * 4][threadIdx_x + 32] = reg_tile[3][2];
 
-            reg_tile[0][3] = sm_a[(item_ct.get_local_id(0) - 8) + 0][(item_ct.get_local_id(1)) + 48];
-            reg_tile[1][3] = sm_a[(item_ct.get_local_id(0) - 8) + 4][(item_ct.get_local_id(1)) + 48];
-            reg_tile[2][3] = sm_a[(item_ct.get_local_id(0) - 8) + 8][(item_ct.get_local_id(1)) + 48];
-            reg_tile[3][3] = sm_a[(item_ct.get_local_id(0) - 8) + 12][(item_ct.get_local_id(1)) + 48];
+            sm_a[0 + (threadIdx_y - 8) * 4][threadIdx_x + 48] = reg_tile[0][3];
+            sm_a[1 + (threadIdx_y - 8) * 4][threadIdx_x + 48] = reg_tile[1][3];
+            sm_a[2 + (threadIdx_y - 8) * 4][threadIdx_x + 48] = reg_tile[2][3];
+            sm_a[3 + (threadIdx_y - 8) * 4][threadIdx_x + 48] = reg_tile[3][3];
         }
 
-        if (item_ct.get_local_id(0) >= 12) // 12, 13, 14, 15
+        if (threadIdx_y >= 12) // 12, 13, 14, 15
         {
-            reg_tile[0][0] = sm_b[(item_ct.get_local_id(0) - 12) + 0][(item_ct.get_local_id(1))];
-            reg_tile[1][0] = sm_b[(item_ct.get_local_id(0) - 12) + 4][(item_ct.get_local_id(1))];
-            reg_tile[2][0] = sm_b[(item_ct.get_local_id(0) - 12) + 8][(item_ct.get_local_id(1))];
-            reg_tile[3][0] = sm_b[(item_ct.get_local_id(0) - 12) + 12][(item_ct.get_local_id(1))];
+            sm_b[0 + (threadIdx_y - 12) * 4][threadIdx_x] = reg_tile[0][0];
+            sm_b[1 + (threadIdx_y - 12) * 4][threadIdx_x] = reg_tile[1][0];
+            sm_b[2 + (threadIdx_y - 12) * 4][threadIdx_x] = reg_tile[2][0];
+            sm_b[3 + (threadIdx_y - 12) * 4][threadIdx_x] = reg_tile[3][0];
 
-            reg_tile[0][1] = sm_b[(item_ct.get_local_id(0) - 12) + 0][(item_ct.get_local_id(1)) + 16];
-            reg_tile[1][1] = sm_b[(item_ct.get_local_id(0) - 12) + 4][(item_ct.get_local_id(1)) + 16];
-            reg_tile[2][1] = sm_b[(item_ct.get_local_id(0) - 12) + 8][(item_ct.get_local_id(1)) + 16];
-            reg_tile[3][1] = sm_b[(item_ct.get_local_id(0) - 12) + 12][(item_ct.get_local_id(1)) + 16];
+            sm_b[0 + (threadIdx_y - 12) * 4][threadIdx_x + 16] = reg_tile[0][1];
+            sm_b[1 + (threadIdx_y - 12) * 4][threadIdx_x + 16] = reg_tile[1][1];
+            sm_b[2 + (threadIdx_y - 12) * 4][threadIdx_x + 16] = reg_tile[2][1];
+            sm_b[3 + (threadIdx_y - 12) * 4][threadIdx_x + 16] = reg_tile[3][1];
 
-            reg_tile[0][2] = sm_b[(item_ct.get_local_id(0) - 12) + 0][(item_ct.get_local_id(1)) + 32];
-            reg_tile[1][2] = sm_b[(item_ct.get_local_id(0) - 12) + 4][(item_ct.get_local_id(1)) + 32];
-            reg_tile[2][2] = sm_b[(item_ct.get_local_id(0) - 12) + 8][(item_ct.get_local_id(1)) + 32];
-            reg_tile[3][2] = sm_b[(item_ct.get_local_id(0) - 12) + 12][(item_ct.get_local_id(1)) + 32];
+            sm_b[0 + (threadIdx_y - 12) * 4][threadIdx_x + 32] = reg_tile[0][2];
+            sm_b[1 + (threadIdx_y - 12) * 4][threadIdx_x + 32] = reg_tile[1][2];
+            sm_b[2 + (threadIdx_y - 12) * 4][threadIdx_x + 32] = reg_tile[2][2];
+            sm_b[3 + (threadIdx_y - 12) * 4][threadIdx_x + 32] = reg_tile[3][2];
 
-            reg_tile[0][3] = sm_b[(item_ct.get_local_id(0) - 12) + 0][(item_ct.get_local_id(1)) + 48];
-            reg_tile[1][3] = sm_b[(item_ct.get_local_id(0) - 12) + 4][(item_ct.get_local_id(1)) + 48];
-            reg_tile[2][3] = sm_b[(item_ct.get_local_id(0) - 12) + 8][(item_ct.get_local_id(1)) + 48];
-            reg_tile[3][3] = sm_b[(item_ct.get_local_id(0) - 12) + 12][(item_ct.get_local_id(1)) + 48];
+            sm_b[0 + (threadIdx_y - 12) * 4][threadIdx_x + 48] = reg_tile[0][3];
+            sm_b[1 + (threadIdx_y - 12) * 4][threadIdx_x + 48] = reg_tile[1][3];
+            sm_b[2 + (threadIdx_y - 12) * 4][threadIdx_x + 48] = reg_tile[2][3];
+            sm_b[3 + (threadIdx_y - 12) * 4][threadIdx_x + 48] = reg_tile[3][3];
+        }
+        item_ct.barrier();
+
+        if (threadIdx_y >= 8 && threadIdx_y < 12) // 8, 9, 10, 11
+        {
+            reg_tile[0][0] = sm_a[(threadIdx_y - 8) + 0][(threadIdx_x)];
+            reg_tile[1][0] = sm_a[(threadIdx_y - 8) + 4][(threadIdx_x)];
+            reg_tile[2][0] = sm_a[(threadIdx_y - 8) + 8][(threadIdx_x)];
+            reg_tile[3][0] = sm_a[(threadIdx_y - 8) + 12][(threadIdx_x)];
+
+            reg_tile[0][1] = sm_a[(threadIdx_y - 8) + 0][(threadIdx_x) + 16];
+            reg_tile[1][1] = sm_a[(threadIdx_y - 8) + 4][(threadIdx_x) + 16];
+            reg_tile[2][1] = sm_a[(threadIdx_y - 8) + 8][(threadIdx_x) + 16];
+            reg_tile[3][1] = sm_a[(threadIdx_y - 8) + 12][(threadIdx_x) + 16];
+
+            reg_tile[0][2] = sm_a[(threadIdx_y - 8) + 0][(threadIdx_x) + 32];
+            reg_tile[1][2] = sm_a[(threadIdx_y - 8) + 4][(threadIdx_x) + 32];
+            reg_tile[2][2] = sm_a[(threadIdx_y - 8) + 8][(threadIdx_x) + 32];
+            reg_tile[3][2] = sm_a[(threadIdx_y - 8) + 12][(threadIdx_x) + 32];
+
+            reg_tile[0][3] = sm_a[(threadIdx_y - 8) + 0][(threadIdx_x) + 48];
+            reg_tile[1][3] = sm_a[(threadIdx_y - 8) + 4][(threadIdx_x) + 48];
+            reg_tile[2][3] = sm_a[(threadIdx_y - 8) + 8][(threadIdx_x) + 48];
+            reg_tile[3][3] = sm_a[(threadIdx_y - 8) + 12][(threadIdx_x) + 48];
+        }
+
+        if (threadIdx_y >= 12) // 12, 13, 14, 15
+        {
+            reg_tile[0][0] = sm_b[(threadIdx_y - 12) + 0][(threadIdx_x)];
+            reg_tile[1][0] = sm_b[(threadIdx_y - 12) + 4][(threadIdx_x)];
+            reg_tile[2][0] = sm_b[(threadIdx_y - 12) + 8][(threadIdx_x)];
+            reg_tile[3][0] = sm_b[(threadIdx_y - 12) + 12][(threadIdx_x)];
+
+            reg_tile[0][1] = sm_b[(threadIdx_y - 12) + 0][(threadIdx_x) + 16];
+            reg_tile[1][1] = sm_b[(threadIdx_y - 12) + 4][(threadIdx_x) + 16];
+            reg_tile[2][1] = sm_b[(threadIdx_y - 12) + 8][(threadIdx_x) + 16];
+            reg_tile[3][1] = sm_b[(threadIdx_y - 12) + 12][(threadIdx_x) + 16];
+
+            reg_tile[0][2] = sm_b[(threadIdx_y - 12) + 0][(threadIdx_x) + 32];
+            reg_tile[1][2] = sm_b[(threadIdx_y - 12) + 4][(threadIdx_x) + 32];
+            reg_tile[2][2] = sm_b[(threadIdx_y - 12) + 8][(threadIdx_x) + 32];
+            reg_tile[3][2] = sm_b[(threadIdx_y - 12) + 12][(threadIdx_x) + 32];
+
+            reg_tile[0][3] = sm_b[(threadIdx_y - 12) + 0][(threadIdx_x) + 48];
+            reg_tile[1][3] = sm_b[(threadIdx_y - 12) + 4][(threadIdx_x) + 48];
+            reg_tile[2][3] = sm_b[(threadIdx_y - 12) + 8][(threadIdx_x) + 48];
+            reg_tile[3][3] = sm_b[(threadIdx_y - 12) + 12][(threadIdx_x) + 48];
         }
         item_ct.barrier();
     }   // 	End of Register Transpose
@@ -1008,10 +1012,10 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
         // 	(2) blk_idx_h/p*b
         blk_idx_p4b =
-            item_ct.get_group(1) / (num_blks_h3b * num_blks_h2b * num_blks_h1b *
+            blockIdx_x / (num_blks_h3b * num_blks_h2b * num_blks_h1b *
                                      num_blks_p6b * num_blks_p5b);
         tmp_blkIdx =
-            item_ct.get_group(1) % (num_blks_h3b * num_blks_h2b * num_blks_h1b *
+            blockIdx_x % (num_blks_h3b * num_blks_h2b * num_blks_h1b *
                                      num_blks_p6b * num_blks_p5b);
         blk_idx_p5b = (tmp_blkIdx) / (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b);
         tmp_blkIdx  = (tmp_blkIdx) % (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b);
@@ -1020,7 +1024,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         blk_idx_h1b = (tmp_blkIdx) / (num_blks_h3b * num_blks_h2b);
         tmp_blkIdx  = (tmp_blkIdx) % (num_blks_h3b * num_blks_h2b);
         blk_idx_h2b = (tmp_blkIdx) / (num_blks_h3b);
-        blk_idx_h3b = item_ct.get_group(1) % (num_blks_h3b);
+        blk_idx_h3b = blockIdx_x % (num_blks_h3b);
 
         // 	(3) str_blk_idx_h/p*
         str_blk_idx_h3 = blk_idx_h3b * FUSION_SIZE_SLICE_1_H3;
@@ -1079,28 +1083,28 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_p6 && idx_h1 < rng_h1 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d1_t2_4[(str_blk_idx_p5 + ll +
                                              (str_blk_idx_p6 + idx_p6 +
                                               (str_blk_idx_h1 + idx_h1) * base_size_p6b) *
                                              base_size_p5b) *
                                             base_size_h7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h3 && idx_h2 < rng_h2 &&
-                    item_ct.get_local_id(0) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p4; ll++)
                     {
-                        sm_b[item_ct.get_local_id(0)][item_ct.get_local_id(1) + ll * FUSION_SIZE_TB_1_X] =
+                        sm_b[threadIdx_y][threadIdx_x + ll * FUSION_SIZE_TB_1_X] =
                             tmp_dev_d1_v2_4[(str_blk_idx_h3 + idx_h3 +
                                              (str_blk_idx_h2 + idx_h2 +
                                               (str_blk_idx_p4 + ll +
-                                               (item_ct.get_local_id(0) + l) * base_size_p4b) *
+                                               (threadIdx_y + l) * base_size_p4b) *
                                               base_size_h2b) *
                                              base_size_h3b)];
                     }
@@ -1148,28 +1152,28 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of Internal Indices: 1
                 if (idx_p6 < rng_p6 && idx_h1 < rng_h2 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d1_t2_5[(str_blk_idx_p5 + ll +
                                              (str_blk_idx_p6 + idx_p6 +
                                               (str_blk_idx_h2 + idx_h1) * base_size_p6b) *
                                              base_size_p5b) *
                                             base_size_h7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h3 && idx_h2 < rng_h1 &&
-                    item_ct.get_local_id(0) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p4; ll++)
                     {
-                        sm_b[item_ct.get_local_id(0)][item_ct.get_local_id(1) + ll * FUSION_SIZE_TB_1_X] =
+                        sm_b[threadIdx_y][threadIdx_x + ll * FUSION_SIZE_TB_1_X] =
                             tmp_dev_d1_v2_5[(str_blk_idx_h3 + idx_h3 +
                                              (str_blk_idx_h1 + idx_h2 +
                                               (str_blk_idx_p4 + ll +
-                                               (item_ct.get_local_id(0) + l) * base_size_p4b) *
+                                               (threadIdx_y + l) * base_size_p4b) *
                                               base_size_h1b) *
                                              base_size_h3b)];
                     }
@@ -1217,28 +1221,28 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of Internal Indices: 1 //63, 21
                 if (idx_p6 < rng_p6 && idx_h1 < rng_h3 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d1_t2_6[(str_blk_idx_p5 + ll +
                                              (str_blk_idx_p6 + idx_p6 +
                                               (str_blk_idx_h3 + idx_h1) * base_size_p6b) *
                                              base_size_p5b) *
                                             base_size_h7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h2 && idx_h2 < rng_h1 &&
-                    item_ct.get_local_id(0) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p4; ll++)
                     {
-                        sm_b[item_ct.get_local_id(0)][item_ct.get_local_id(1) + ll * FUSION_SIZE_TB_1_X] =
+                        sm_b[threadIdx_y][threadIdx_x + ll * FUSION_SIZE_TB_1_X] =
                             tmp_dev_d1_v2_6[(str_blk_idx_h2 + idx_h3 +
                                              (str_blk_idx_h1 + idx_h2 +
                                               (str_blk_idx_p4 + ll +
-                                               (item_ct.get_local_id(0) + l) * base_size_p4b) *
+                                               (threadIdx_y + l) * base_size_p4b) *
                                               base_size_h1b) *
                                              base_size_h2b)];
                     }
@@ -1285,28 +1289,28 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of Internal Indices: 1
                 if (idx_p6 < rng_p6 && idx_h1 < rng_h1 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p4; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)][item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d1_t2_7[(str_blk_idx_p4 + ll +
                                              (str_blk_idx_p6 + idx_p6 +
                                               (str_blk_idx_h1 + idx_h1) * base_size_p6b) *
                                              base_size_p4b) *
                                             base_size_h7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h3 && idx_h2 < rng_h2 &&
-                    item_ct.get_local_id(0) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_b[item_ct.get_local_id(0)][item_ct.get_local_id(1) + ll * FUSION_SIZE_TB_1_X] =
+                        sm_b[threadIdx_y][threadIdx_x + ll * FUSION_SIZE_TB_1_X] =
                             tmp_dev_d1_v2_7[(str_blk_idx_h3 + idx_h3 +
                                              (str_blk_idx_h2 + idx_h2 +
                                               (str_blk_idx_p5 + ll +
-                                               (item_ct.get_local_id(0) + l) * base_size_p5b) *
+                                               (threadIdx_y + l) * base_size_p5b) *
                                               base_size_h2b) *
                                              base_size_h3b)];
                     }
@@ -1353,30 +1357,30 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of Internal Indices: 1
                 if (idx_p6 < rng_p6 && idx_h1 < rng_h2 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p4; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_a[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d1_t2_8[(str_blk_idx_p4 + ll +
                                              (str_blk_idx_p6 + idx_p6 +
                                               (str_blk_idx_h2 + idx_h1) * base_size_p6b) *
                                              base_size_p4b) *
                                             base_size_h7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h3 && idx_h2 < rng_h1 &&
-                    item_ct.get_local_id(0) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_b[item_ct.get_local_id(0)][item_ct.get_local_id(1) +
+                        sm_b[threadIdx_y][threadIdx_x +
                                                        ll * FUSION_SIZE_TB_1_X] =
                             tmp_dev_d1_v2_8[(str_blk_idx_h3 + idx_h3 +
                                              (str_blk_idx_h1 + idx_h2 +
                                               (str_blk_idx_p5 + ll +
-                                               (item_ct.get_local_id(0) + l) * base_size_p5b) *
+                                               (threadIdx_y + l) * base_size_p5b) *
                                               base_size_h1b) *
                                              base_size_h3b)];
                     }
@@ -1423,30 +1427,30 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of Internal Indices: 1
                 if (idx_p6 < rng_p6 && idx_h1 < rng_h3 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p4; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_a[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d1_t2_9[(str_blk_idx_p4 + ll +
                                              (str_blk_idx_p6 + idx_p6 +
                                               (str_blk_idx_h3 + idx_h1) * base_size_p6b) *
                                              base_size_p4b) *
                                             base_size_h7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h2 && idx_h2 < rng_h1 &&
-                    item_ct.get_local_id(0) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_b[item_ct.get_local_id(0)][item_ct.get_local_id(1) +
+                        sm_b[threadIdx_y][threadIdx_x +
                                                        ll * FUSION_SIZE_TB_1_X] =
                             tmp_dev_d1_v2_9[(str_blk_idx_h2 + idx_h3 +
                                              (str_blk_idx_h1 + idx_h2 +
                                               (str_blk_idx_p5 + ll +
-                                               (item_ct.get_local_id(0) + l) * base_size_p5b) *
+                                               (threadIdx_y + l) * base_size_p5b) *
                                               base_size_h1b) *
                                              base_size_h2b)];
                     }
@@ -1507,10 +1511,10 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
         // 	(2) blk_idx_h/p*b
         blk_idx_p4b =
-            item_ct.get_group(1) / (num_blks_h3b * num_blks_h2b * num_blks_h1b *
+            blockIdx_x / (num_blks_h3b * num_blks_h2b * num_blks_h1b *
                                      num_blks_p6b * num_blks_p5b);
         tmp_blkIdx =
-            item_ct.get_group(1) % (num_blks_h3b * num_blks_h2b * num_blks_h1b *
+            blockIdx_x % (num_blks_h3b * num_blks_h2b * num_blks_h1b *
                                      num_blks_p6b * num_blks_p5b);
         blk_idx_p5b     = (tmp_blkIdx) / (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b);
         tmp_blkIdx  	= (tmp_blkIdx) % (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b);
@@ -1519,7 +1523,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         blk_idx_h1b     = (tmp_blkIdx) / (num_blks_h3b * num_blks_h2b);
         tmp_blkIdx 		= (tmp_blkIdx) % (num_blks_h3b * num_blks_h2b);
         blk_idx_h2b 	= (tmp_blkIdx) / (num_blks_h3b);
-        blk_idx_h3b = item_ct.get_group(1) % (num_blks_h3b);
+        blk_idx_h3b = blockIdx_x % (num_blks_h3b);
 
         // 	(3) str_blk_idx_h/p*
         str_blk_idx_h3 	= blk_idx_h3b * FUSION_SIZE_SLICE_1_H3;
@@ -1579,32 +1583,32 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_h1 && idx_h1 < rng_h2 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p4; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_a[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d2_t2_1[(str_blk_idx_p4 + ll +
                                              (str_blk_idx_h1 + idx_p6 +
                                               (str_blk_idx_h2 + idx_h1) * base_size_h1b) *
                                              base_size_p4b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_p6 < rng_h3 && idx_h1 < rng_p6 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_b[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_b[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d2_v2_1[(str_blk_idx_h3 + idx_p6 +
                                              (str_blk_idx_p6 + idx_h1 +
                                               (str_blk_idx_p5 + ll) * base_size_p6b) *
                                              base_size_h3b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
                 item_ct.barrier();
 
@@ -1649,32 +1653,32 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_h2 && idx_h1 < rng_h3 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p4; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_a[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d2_t2_2[(str_blk_idx_p4 + ll +
                                              (str_blk_idx_h2 + idx_p6 +
                                               (str_blk_idx_h3 + idx_h1) * base_size_h2b) *
                                              base_size_p4b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_p6 < rng_h1 && idx_h1 < rng_p6 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_b[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_b[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d2_v2_2[(str_blk_idx_h1 + idx_p6 +
                                              (str_blk_idx_p6 + idx_h1 +
                                               (str_blk_idx_p5 + ll) * base_size_p6b) *
                                              base_size_h1b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
                 item_ct.barrier();
 
@@ -1719,32 +1723,32 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_h1 && idx_h1 < rng_h3 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p4; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_a[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d2_t2_3[(str_blk_idx_p4 + ll +
                                              (str_blk_idx_h1 + idx_p6 +
                                               (str_blk_idx_h3 + idx_h1) * base_size_h1b) *
                                              base_size_p4b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_p6 < rng_h2 && idx_h1 < rng_p6 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_b[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_b[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d2_v2_3[(str_blk_idx_h2 + idx_p6 +
                                              (str_blk_idx_p6 + idx_h1 +
                                               (str_blk_idx_p5 + ll) * base_size_p6b) *
                                              base_size_h2b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
                 item_ct.barrier();
 
@@ -1789,32 +1793,32 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_h1 && idx_h1 < rng_h2 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_a[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d2_t2_4[(str_blk_idx_p5 + ll +
                                              (str_blk_idx_h1 + idx_p6 +
                                               (str_blk_idx_h2 + idx_h1) * base_size_h1b) *
                                              base_size_p5b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_p6 < rng_h3 && idx_h1 < rng_p6 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p4; ll++)
                     {
-                        sm_b[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_b[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d2_v2_4[(str_blk_idx_h3 + idx_p6 +
                                              (str_blk_idx_p6 + idx_h1 +
                                               (str_blk_idx_p4 + ll) * base_size_p6b) *
                                              base_size_h3b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
                 item_ct.barrier();
 
@@ -1859,32 +1863,32 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_h2 && idx_h1 < rng_h3 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_a[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d2_t2_5[(str_blk_idx_p5 + ll +
                                              (str_blk_idx_h2 + idx_p6 +
                                               (str_blk_idx_h3 + idx_h1) * base_size_h2b) *
                                              base_size_p5b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_p6 < rng_h1 && idx_h1 < rng_p6 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p4; ll++)
                     {
-                        sm_b[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_b[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d2_v2_5[(str_blk_idx_h1 + idx_p6 +
                                              (str_blk_idx_p6 + idx_h1 +
                                               (str_blk_idx_p4 + ll) * base_size_p6b) *
                                              base_size_h1b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
                 item_ct.barrier();
 
@@ -1929,32 +1933,32 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_h1 && idx_h1 < rng_h3 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
-                        sm_a[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_a[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d2_t2_6[(blk_idx_p5b * FUSION_SIZE_SLICE_1_P6 + ll +
                                              (str_blk_idx_h1 + idx_p6 +
                                               (str_blk_idx_h3 + idx_h1) * base_size_h1b) *
                                              base_size_p5b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
 
                 // Load Input Tensor to Shared Memory
                 if (idx_p6 < rng_h2 && idx_h1 < rng_p6 &&
-                    item_ct.get_local_id(1) < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p4; ll++)
                     {
-                        sm_b[item_ct.get_local_id(1)]
-                            [item_ct.get_local_id(0) + ll * FUSION_SIZE_TB_1_Y] =
+                        sm_b[threadIdx_x]
+                            [threadIdx_y + ll * FUSION_SIZE_TB_1_Y] =
                             tmp_dev_d2_v2_6[(str_blk_idx_h2 + idx_p6 +
                                              (str_blk_idx_p6 + idx_h1 +
                                               (str_blk_idx_p4 + ll) * base_size_p6b) *
                                              base_size_h2b) *
                                             base_size_p7b +
-                                            (item_ct.get_local_id(1) + l)];
+                                            (threadIdx_x + l)];
                     }
                 item_ct.barrier();
 
@@ -2004,10 +2008,10 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
         // 	(2) blk_idx_h/p*b
         blk_idx_p4b =
-            item_ct.get_group(1) / (num_blks_h3b * num_blks_h2b * num_blks_h1b *
+            blockIdx_x / (num_blks_h3b * num_blks_h2b * num_blks_h1b *
                                      num_blks_p6b * num_blks_p5b);
         tmp_blkIdx =
-            item_ct.get_group(1) % (num_blks_h3b * num_blks_h2b * num_blks_h1b *
+            blockIdx_x % (num_blks_h3b * num_blks_h2b * num_blks_h1b *
                                      num_blks_p6b * num_blks_p5b);
         blk_idx_p5b     = (tmp_blkIdx) / (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b);
         tmp_blkIdx  	= (tmp_blkIdx) % (num_blks_h3b * num_blks_h2b * num_blks_h1b * num_blks_p6b);
@@ -2016,7 +2020,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         blk_idx_h1b     = (tmp_blkIdx) / (num_blks_h3b * num_blks_h2b);
         tmp_blkIdx 		= (tmp_blkIdx) % (num_blks_h3b * num_blks_h2b);
         blk_idx_h2b 	= (tmp_blkIdx) / (num_blks_h3b);
-        blk_idx_h3b = item_ct.get_group(1) % (num_blks_h3b);
+        blk_idx_h3b = blockIdx_x % (num_blks_h3b);
 
         // 	(3) str_blk_idx_h/p*
         str_blk_idx_h3 	= blk_idx_h3b * FUSION_SIZE_SLICE_1_H3;
@@ -2540,17 +2544,17 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     energy_1 = cl::sycl::ONEAPI::reduce(item_ct.get_group(), energy_1, cl::sycl::ONEAPI::plus<>());
     energy_2 = cl::sycl::ONEAPI::reduce(item_ct.get_group(), energy_2, cl::sycl::ONEAPI::plus<>());
 
-    if (item_ct.get_local_id(1) == 0 && item_ct.get_local_id(0) % 2 == 0)
+    if (threadIdx_x == 0 && threadIdx_y % 2 == 0)
     {
-        sm_a[0][item_ct.get_local_id(0) / 2] = energy_1;
-        sm_b[0][item_ct.get_local_id(0) / 2] = energy_2;
+        sm_a[0][threadIdx_y / 2] = energy_1;
+        sm_b[0][threadIdx_y / 2] = energy_2;
     }
     item_ct.barrier();
 
     //
     double final_energy_1 = 0.0;
     double final_energy_2 = 0.0;
-    if (item_ct.get_local_id(1) == 0 && item_ct.get_local_id(0) == 0)
+    if (threadIdx_x == 0 && threadIdx_y == 0)
     {
         for (int i = 0; i < 8; i++)
         {
@@ -2558,8 +2562,8 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             final_energy_2 += sm_b[0][i];
         }
 
-        reduced_energy[item_ct.get_group(1)] = final_energy_1;
-        reduced_energy[item_ct.get_group(1) + item_ct.get_group_range(1)] =
+        reduced_energy[blockIdx_x] = final_energy_1;
+        reduced_energy[blockIdx_x + item_ct.get_group_range(1)] =
             final_energy_2;
     }
 }

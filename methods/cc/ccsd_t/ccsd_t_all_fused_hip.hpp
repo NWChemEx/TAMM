@@ -2265,32 +2265,58 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     //  to partially reduce the energies--- E(4) and E(5)
     //  a warp: 32 -(1)-> 16 -(2)-> 8 -(3)-> 4 -(4)-> 2 
     // 
-    for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
-      energy_1 += __shfl_down(energy_1, offset, WARP_SIZE);
-      energy_2 += __shfl_down(energy_2, offset, WARP_SIZE);
-    }
+#if 0
+	for (int offset = 16; offset > 0; offset /= 2)
+	{
+		energy_1 += __shfl_down_sync(FULL_MASK, energy_1, offset);
+		energy_2 += __shfl_down_sync(FULL_MASK, energy_2, offset);
+	}
 
-    if (threadIdx.x == 0 && threadIdx.y % 2 == 0)
-    {
-	sm_a[0][threadIdx.y / 2] = energy_1;
-	sm_b[0][threadIdx.y / 2] = energy_2;
-    }
-    __syncthreads();
+	if (threadIdx.x == 0 && threadIdx.y % 2 == 0)
+	{
+		sm_a[0][threadIdx.y / 2] = energy_1;
+		sm_b[0][threadIdx.y / 2] = energy_2;
+	}
+	__syncthreads();
 
-    // 
-    double final_energy_1 = 0.0;
-    double final_energy_2 = 0.0;
-    if (threadIdx.x == 0 && threadIdx.y == 0)
-    {
-	for (int i = 0; i < 8; i++)
-        {
-	    final_energy_1 += sm_a[0][i];
-	    final_energy_2 += sm_b[0][i];
-        }
+	// 
+	double final_energy_1 = 0.0;
+	double final_energy_2 = 0.0;
+	if (threadIdx.x == 0 && threadIdx.y == 0)
+	{
+		for (int i = 0; i < 8; i++)
+		{
+			final_energy_1 += sm_a[0][i];
+			final_energy_2 += sm_b[0][i];
+		}
 
-	reduced_energy[blockIdx.x]              = final_energy_1;
-	reduced_energy[blockIdx.x + gridDim.x]  = final_energy_2;
-    }
+		reduced_energy[blockIdx.x]              = final_energy_1;
+		reduced_energy[blockIdx.x + gridDim.x]  = final_energy_2;
+	}
+#else
+	// sm_a[16][64]
+	// sm_b[16][64]
+	sm_a[threadIdx.y][threadIdx.x] = energy_1;
+	sm_b[threadIdx.y][threadIdx.x] = energy_2;
+	__syncthreads();
+
+	double final_energy_1 = 0.0;
+	double final_energy_2 = 0.0;
+	if (threadIdx.x == 0 && threadIdx.y == 0)
+	{
+		//if (blockIdx.x == 0) printf ("[%s] called\n", __func__);
+
+		for (int i = 0; i < 16; i++)
+		for (int j = 0; j < 16; j++)
+		{
+			final_energy_1 += sm_a[j][i];
+			final_energy_2 += sm_b[j][i];
+		}
+
+		reduced_energy[blockIdx.x]              = final_energy_1;
+		reduced_energy[blockIdx.x + gridDim.x]  = final_energy_2;
+	}
+#endif
 }
 
 

@@ -40,7 +40,7 @@
 #define NUM_D2_INDEX            7
 #define NUM_S1_INDEX            6
 #define NUM_ENERGIES            2
-#
+
 // from Ajay, noab = 10, nvab = 70
 #define MAX_NOAB		30
 #define MAX_NVAB 		120
@@ -81,9 +81,9 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                           int base_size_h1b, int base_size_h2b, int base_size_h3b,
                                           int base_size_p4b, int base_size_p5b, int base_size_p6b,
                                           cl::sycl::nd_item<2>& item_ct,
-                                          constAcc const_df_s1_size, constAcc const_df_s1_exec,
-                                          constAcc const_df_d1_size, constAcc const_df_d1_exec,
-                                          constAcc const_df_d2_size, constAcc const_df_d2_exec,
+                                          int* const_df_s1_size, int* const_df_s1_exec,
+                                          int* const_df_d1_size, int* const_df_d1_exec,
+                                          int* const_df_d2_size, int* const_df_d2_exec,
                                           localAcc sm_a,
                                           localAcc sm_b)
 {
@@ -208,7 +208,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     double energy_1 = 0.0;
     double energy_2 = 0.0;
 
-//#pragma unroll 1
+#pragma unroll 1
     for (int iter_noab = 0; iter_noab < size_noab; iter_noab++)
     {
         //
@@ -297,7 +297,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
             //
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_h7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -366,7 +366,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d1_v2 = df_dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_2;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_h7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -435,7 +435,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d1_v2 = df_dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_3;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_h7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -497,7 +497,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     }
 
     //  d2-top: sd2_7, 8 and 9
-//#pragma unroll 1
+#pragma unroll 1
     for (int iter_nvab = 0; iter_nvab < size_nvab; iter_nvab++)
     {
         //
@@ -586,7 +586,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
             //	sd2_7
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_p7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -654,7 +654,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d2_v2_8 = df_dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_8;//const_list_d2_flags_offset[local_offset];
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_p7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -723,7 +723,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d2_v2_9 = df_dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_9;//const_list_d2_flags_offset[local_offset];
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_p7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -983,7 +983,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     // 	based on "noab"
     //  d1-bottom: sd1_4, 5 , 6 , 7 , 8 and 9.
     //
-//#pragma unroll 1
+#pragma unroll 1
     for (int iter_noab = 0; iter_noab < size_noab; iter_noab++)
     {
         // 	flags
@@ -1073,7 +1073,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d1_v2_4 = df_dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_4;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_h7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -1141,7 +1141,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d1_v2_5 = df_dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_5;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_h7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -1210,7 +1210,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d1_v2_6 = df_dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_6;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_h7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -1279,7 +1279,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d1_v2_7 = df_dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_7;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_h7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -1347,7 +1347,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d1_v2_8 = df_dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_8;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_h7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -1417,7 +1417,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d1_v2_9 = df_dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_9;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_h7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -1481,7 +1481,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     }
 
     //  d2-bottom: sd2_1, 2, 3, 4, 5 and 6.
-//#pragma unroll 1
+#pragma unroll 1
     for (int iter_nvab = 0; iter_nvab < size_nvab; iter_nvab++)
     {
         //
@@ -1572,7 +1572,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d2_v2_1 = df_dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_1;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_p7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -1643,7 +1643,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d2_v2_2 = df_dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_2;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_p7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -1713,7 +1713,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d2_v2_3 = df_dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_3;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_p7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -1783,7 +1783,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d2_v2_4 = df_dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_4;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_p7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -1853,7 +1853,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d2_v2_5 = df_dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_5;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_p7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -1923,7 +1923,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d2_v2_6 = df_dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_6;
 
             internal_upperbound = 0;
-//#pragma unroll 1
+#pragma unroll 1
             for (int l = 0; l < base_size_p7b; l+= FUSION_SIZE_INT_UNIT)
             {
                 // Part: Generalized Contraction Index (p7b)
@@ -2662,9 +2662,9 @@ void fully_fused_ccsd_t_gpu(cl::sycl::queue *stream_id, size_t num_blocks,
                                                  (cl::sycl::cl_int)base_size_p5b,
                                                  (cl::sycl::cl_int)base_size_p6b,
                                                  item_ct,
-                                                 const_df_s1_size_acc, const_df_s1_exec_acc,
-                                                 const_df_d1_size_acc, const_df_d1_exec_acc,
-                                                 const_df_d2_size_acc, const_df_d2_exec_acc,
+                                                 const_df_s1_size_acc.get_pointer(), const_df_s1_exec_acc.get_pointer(),
+                                                 const_df_d1_size_acc.get_pointer(), const_df_d1_exec_acc.get_pointer(),
+                                                 const_df_d2_size_acc.get_pointer(), const_df_d2_exec_acc.get_pointer(),
                                                  sm_a_acc, sm_b_acc);
         });
     });

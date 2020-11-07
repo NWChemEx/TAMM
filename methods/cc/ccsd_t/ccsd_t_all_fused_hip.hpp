@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <vector>
 
+// WARPSIZE (AMD)
+#define WARP_SIZE 64
+
 // created by tc_gen_definition()
 #define FUSION_SIZE_SLICE_1_H3  4
 #define FUSION_SIZE_SLICE_1_H2  4
@@ -2262,12 +2265,10 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     //  to partially reduce the energies--- E(4) and E(5)
     //  a warp: 32 -(1)-> 16 -(2)-> 8 -(3)-> 4 -(4)-> 2 
     // 
-    // for (int offset = 16; offset > 0; offset /= 2) {
-    // 	energy_1 += __shfl_down_sync(FULL_MASK, energy_1, offset);
-    // 	energy_2 += __shfl_down_sync(FULL_MASK, energy_2, offset);
-    // }
-    energy_1 = 0.0;
-    energy_2 = 0.0;
+    for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
+      energy_1 += __shfl_down(energy_1, offset, WARP_SIZE);
+      energy_2 += __shfl_down(energy_2, offset, WARP_SIZE);
+    }
 
     if (threadIdx.x == 0 && threadIdx.y % 2 == 0)
     {

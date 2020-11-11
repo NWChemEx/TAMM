@@ -27,7 +27,7 @@ std::tuple<int,int,int> get_hf_nranks(const size_t N){
     auto nnodes = GA_Cluster_nnodes();
     auto ppn = GA_Cluster_nprocs(0);
 
-    int hf_guessranks = std::ceil(0.15*N);
+    int hf_guessranks = std::ceil(0.5*N);
     int hf_nnodes = hf_guessranks/ppn;
     if(hf_guessranks%ppn>0 || hf_nnodes==0) hf_nnodes++;
     if(hf_nnodes > nnodes) hf_nnodes = nnodes;

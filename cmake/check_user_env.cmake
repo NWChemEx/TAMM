@@ -33,7 +33,7 @@ macro(check_compiler_version lang_arg comp_type comp_version)
     endif()
 endmacro()
 
-set(ARMCI_NETWORK_TAMM OPENIB MPI-PR MPI-TS)
+set(ARMCI_NETWORK_TAMM OPENIB MPI-PR MPI-TS MPI_2SIDED)
 if(DEFINED ARMCI_NETWORK)
     list(FIND ARMCI_NETWORK_TAMM ${ARMCI_NETWORK} _index)
     if(${_index} EQUAL -1)

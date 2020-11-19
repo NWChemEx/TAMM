@@ -123,7 +123,6 @@ make install
 ```
 export MKLROOT=/opt/oneapi/mkl/latest
 export DPCPP_ROOT=/opt/oneapi/compiler/latest/linux
-export CPATH=$DPCPP_ROOT/include/sycl:$CPATH
 ```
 
 ### Also need to set root dir for a GCC installation (need gcc >= v8.3)

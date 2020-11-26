@@ -5,6 +5,7 @@
 using namespace tamm;
 
 std::string filename;
+using T = double;
 
 int main( int argc, char* argv[] )
 {
@@ -26,19 +27,39 @@ int main( int argc, char* argv[] )
 
     ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
-    
-    // read geometry from a .nwx file 
+    auto rank = ec.pg().rank();
+
+    // read geometry from a json file 
+    json jinput;
+    check_json(filename);
     auto is = std::ifstream(filename);
     std::vector<libint2::Atom> atoms;
     OptionsMap options_map;
-    std::tie(atoms, options_map) = read_input_nwx(is);
+    std::tie(atoms, options_map, jinput) = parse_input(is);
 
     if(options_map.options.output_file_prefix.empty()) 
       options_map.options.output_file_prefix = getfilename(filename);
-    
+
+    // if(rank == 0) {
+    //   std::ofstream res_file(getfilename(filename)+".json");
+    //   res_file << std::setw(2) << jinput << std::endl;
+    // }
+
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-    hartree_fock(ec, filename, atoms, options_map);
+    auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, AO_opt, AO_tis,scf_conv]  
+                    = hartree_fock(ec, filename, atoms, options_map);
+
+    Tensor<T>::deallocate(C_AO,F_AO);
+    if(sys_data.scf_type == sys_data.SCFType::uhf) Tensor<T>::deallocate(C_beta_AO,F_beta_AO);
+
+    if(rank == 0) {
+      sys_data.output_file_prefix = options_map.options.output_file_prefix;
+      sys_data.input_molecule = sys_data.output_file_prefix;
+      sys_data.results["input"]["molecule"]["name"] = sys_data.output_file_prefix;
+      write_json_data(sys_data,"SCF");
+    }
+
 
     auto hf_t2 = std::chrono::high_resolution_clock::now();
 
@@ -47,7 +68,7 @@ int main( int argc, char* argv[] )
 
     ec.flush_and_sync();
 
-    if(GA_Nodeid() == 0)
+    if(rank == 0)
     std::cout << std::endl << "Total Time taken for Hartree-Fock: " << hf_time << " secs" << std::endl;
     
     tamm::finalize();

@@ -373,7 +373,7 @@ std::tuple<double,double> ccsd_spin_driver(SystemData sys_data, ExecutionContext
         const auto timer_end = std::chrono::high_resolution_clock::now();
         auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-        iteration_print(ec.pg(), iter, residual, energy, iter_time);
+        iteration_print(sys_data, ec.pg(), iter, residual, energy, iter_time);
         
 
         if(residual < thresh) { break; }

@@ -224,7 +224,7 @@ void scf_restart_test(const ExecutionContext& ec, const SystemData& sys_data, co
     MPI_Bcast(&rstatus        ,1,mpi_type<int>()       ,0,ec.pg().comm());
     std::string fnf = movecsfile_alpha + "; " + densityfile_alpha;
     if(is_uhf) fnf = fnf + "; " + movecsfile_beta + "; " + densityfile_beta;    
-    if(rstatus == 0) nwx_terminate("Error reading one or all of the files: [" + fnf + "]");
+    if(rstatus == 0) tamm_terminate("Error reading one or all of the files: [" + fnf + "]");
 }
 
 void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const std::string& filename, 

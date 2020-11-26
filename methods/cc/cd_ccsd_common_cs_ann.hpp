@@ -406,7 +406,7 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
             #ifdef USE_TALSH
               sch.execute(ExecutionHW::GPU, profile);
             #else
-              sch.execute();
+              sch.execute(ExecutionHW::CPU, profile);
             #endif
 
             std::tie(residual, energy) = rest_cs(ec, MO, r1_aa, r2_abab, t1_aa, t2_abab,
@@ -422,7 +422,7 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
             const auto timer_end = std::chrono::high_resolution_clock::now();
             auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-            iteration_print(ec.pg(), iter, residual, energy, iter_time);
+            iteration_print(sys_data, ec.pg(), iter, residual, energy, iter_time);
 
             if(writet && ( ((iter+1)%writet_iter == 0) || (residual < thresh) ) ) {
                 write_to_disk(t1_aa,t1file);
@@ -450,6 +450,18 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
 
     }
 
+    if(profile) {
+        std::string profile_csv = out_fp + "_profile.csv";
+        std::ofstream pds(profile_csv, std::ios::out);
+        if(!pds) std::cerr << "Error opening file " << profile_csv << std::endl;
+        std::string header = "ID;Level;OP;total_op_time_min;total_op_time_max;total_op_time_avg;";
+        header += "get_time_min;get_time_max;get_time_avg;gemm_time_min;";
+        header += "gemm_time_max;gemm_time_avg;acc_time_min;acc_time_max;acc_time_avg";
+        pds << header << std::endl;
+        pds << ec.get_profile_data().str() << std::endl;
+        pds.close();
+    }
+
     //deallocate all intermediates 
     sch.deallocate(_a02, _a01_aa,_a03_aa_vo,_a04_aa,_a05_aa,_a05_bb);
     sch.deallocate(_a007,_a001_aa,_a001_bb,_a017_aa,_a017_bb,
@@ -467,11 +479,15 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
         residual = 0.0;
     }
 
-    sys_data.ccsd_iterations   = niter+1;
     sys_data.ccsd_corr_energy  = energy;
-    sys_data.ccsd_total_energy = sys_data.scf_energy+energy;
 
-    if(ec.pg().rank() == 0) write_results(sys_data,"CCSD");
+    if(ec.pg().rank() == 0) {
+        sys_data.results["output"]["CCSD"]["n_iterations"] =   niter+1;
+        sys_data.results["output"]["CCSD"]["final_energy"]["correlation"] =  energy;
+        sys_data.results["output"]["CCSD"]["final_energy"]["total"] =  sys_data.scf_energy+energy;
+
+        write_json_data(sys_data,"CCSD");
+    }
 
     sch.deallocate(i0_temp,t2_aaaa_temp,_a01,_a02_aa,_a03_aa);
     sch.deallocate(d_e,_a004_aaaa,_a004_abab);

@@ -41,7 +41,6 @@
 #define NUM_S1_INDEX            6
 #define NUM_ENERGIES            2
 
-// from Ajay, noab = 10, nvab = 70
 #define MAX_NOAB		30
 #define MAX_NVAB 		120
 

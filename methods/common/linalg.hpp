@@ -11,14 +11,14 @@
 namespace linalg {
 
 // #ifdef LINALG_ILP64
-  using nwx_blas_int   = BLA_LAPACK_INT;
-  using nwx_lapack_int = BLA_LAPACK_INT;
+  using tamm_blas_int   = BLA_LAPACK_INT;
+  using tamm_lapack_int = BLA_LAPACK_INT;
 // #elif defined(MKL_INT)
-//   using nwx_blas_int   = MKL_INT;
-//   using nwx_lapack_int = MKL_INT;
+//   using tamm_blas_int   = MKL_INT;
+//   using tamm_lapack_int = MKL_INT;
 // #else
-//   using nwx_blas_int   = int32_t;
-//   using nwx_lapack_int = int32_t;
+//   using tamm_blas_int   = int32_t;
+//   using tamm_lapack_int = int32_t;
 // #endif
 
   namespace detail {
@@ -62,7 +62,7 @@ namespace linalg {
   }
 };
 
-//#define NWX_USE_MKL
+//#define BLA_VENDOR_MKL
 #ifndef INTEL_MKL_VERSION
 
 #define LINALG_NAME(NAME) NAME##_
@@ -73,105 +73,105 @@ extern "C" {
       
 
 //   // TODO: handle implicit return for e.g. ESSL
-//   double dnrm2_( const linalg::nwx_blas_int*, const double*, 
-//                  const linalg::nwx_blas_int* );
+//   double dnrm2_( const linalg::tamm_blas_int*, const double*, 
+//                  const linalg::tamm_blas_int* );
 
 //   // TODO: handle implicit return for e.g. ESSL
-//   double ddot_( const linalg::nwx_blas_int*, 
-//                 const double*, const linalg::nwx_blas_int*,
-//                 const double*, const linalg::nwx_blas_int* );
+//   double ddot_( const linalg::tamm_blas_int*, 
+//                 const double*, const linalg::tamm_blas_int*,
+//                 const double*, const linalg::tamm_blas_int* );
                  
-  void dcopy_( const linalg::nwx_blas_int*,
-               const double*, const linalg::nwx_blas_int*,
-               double*, const linalg::nwx_blas_int* );
+  void dcopy_( const linalg::tamm_blas_int*,
+               const double*, const linalg::tamm_blas_int*,
+               double*, const linalg::tamm_blas_int* );
           
 
-//   void daxpy_( const linalg::nwx_blas_int*, const double*, 
-//                const double*, const linalg::nwx_blas_int*, double*, 
-//                const linalg::nwx_blas_int* );
+//   void daxpy_( const linalg::tamm_blas_int*, const double*, 
+//                const double*, const linalg::tamm_blas_int*, double*, 
+//                const linalg::tamm_blas_int* );
 
-  void dscal_( const linalg::nwx_blas_int*, const double*, double*, 
-               const linalg::nwx_blas_int* );
+  void dscal_( const linalg::tamm_blas_int*, const double*, double*, 
+               const linalg::tamm_blas_int* );
 
-//   void dswap_( const linalg::nwx_blas_int*, double*, 
-//                const linalg::nwx_blas_int*, double*, 
-//                const linalg::nwx_blas_int* );
+//   void dswap_( const linalg::tamm_blas_int*, double*, 
+//                const linalg::tamm_blas_int*, double*, 
+//                const linalg::tamm_blas_int* );
 
 #if !defined(INTEL_MKL_VERSION) //&& !defined(BLIS_H)
-  void dgemm_( char*, char*, const linalg::nwx_blas_int*, 
-               const linalg::nwx_blas_int*, const linalg::nwx_blas_int*,  
+  void dgemm_( char*, char*, const linalg::tamm_blas_int*, 
+               const linalg::tamm_blas_int*, const linalg::tamm_blas_int*,  
                const double*, const double*, 
-               const linalg::nwx_blas_int*, const double*, 
-               const linalg::nwx_blas_int*, const double*, double *, 
-               const linalg::nwx_blas_int* );
+               const linalg::tamm_blas_int*, const double*, 
+               const linalg::tamm_blas_int*, const double*, double *, 
+               const linalg::tamm_blas_int* );
 #endif
 
-//   void dsyr2k_( char*, char*, const linalg::nwx_blas_int*,
-//                 const linalg::nwx_blas_int*, const double*, 
-//                 const double*, const linalg::nwx_blas_int*,
-//                 const double*, const linalg::nwx_blas_int*,
-//                 const double*, double*, const linalg::nwx_blas_int* );
+//   void dsyr2k_( char*, char*, const linalg::tamm_blas_int*,
+//                 const linalg::tamm_blas_int*, const double*, 
+//                 const double*, const linalg::tamm_blas_int*,
+//                 const double*, const linalg::tamm_blas_int*,
+//                 const double*, double*, const linalg::tamm_blas_int* );
 
 //   void dtrsm_( char*, char*, char*, char*,
-//                const linalg::nwx_blas_int*, const linalg::nwx_blas_int*, 
+//                const linalg::tamm_blas_int*, const linalg::tamm_blas_int*, 
 //                const double*, const double*, 
-//                const linalg::nwx_blas_int*, double*, 
-//                const linalg::nwx_blas_int* );
+//                const linalg::tamm_blas_int*, double*, 
+//                const linalg::tamm_blas_int* );
 
 
 
 //   // LAPACK Prototypes
-//   void dpotrf_( char*,const linalg::nwx_lapack_int*, double*, 
-//                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int* );
+//   void dpotrf_( char*,const linalg::tamm_lapack_int*, double*, 
+//                 const linalg::tamm_lapack_int*, linalg::tamm_lapack_int* );
 
-//   void dgetrf_( const linalg::nwx_lapack_int*, 
-//                 const linalg::nwx_lapack_int*, double*, 
-//                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int *,
-//                 linalg::nwx_lapack_int* );
+//   void dgetrf_( const linalg::tamm_lapack_int*, 
+//                 const linalg::tamm_lapack_int*, double*, 
+//                 const linalg::tamm_lapack_int*, linalg::tamm_lapack_int *,
+//                 linalg::tamm_lapack_int* );
 
-//   void dgetrs_( char*, const linalg::nwx_lapack_int*, 
-//                 const linalg::nwx_lapack_int*, const double*, 
-//                 const linalg::nwx_lapack_int*, 
-//                 const linalg::nwx_lapack_int*, double*, 
-//                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int* );
+//   void dgetrs_( char*, const linalg::tamm_lapack_int*, 
+//                 const linalg::tamm_lapack_int*, const double*, 
+//                 const linalg::tamm_lapack_int*, 
+//                 const linalg::tamm_lapack_int*, double*, 
+//                 const linalg::tamm_lapack_int*, linalg::tamm_lapack_int* );
 
-//   void dsytrf_( char*, const linalg::nwx_lapack_int*, double*, 
-//                 const linalg::nwx_lapack_int *,
-//                 linalg::nwx_lapack_int*, double*, 
-//                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int *);
+//   void dsytrf_( char*, const linalg::tamm_lapack_int*, double*, 
+//                 const linalg::tamm_lapack_int *,
+//                 linalg::tamm_lapack_int*, double*, 
+//                 const linalg::tamm_lapack_int*, linalg::tamm_lapack_int *);
 
-//   void dsytrs_( char*, const linalg::nwx_lapack_int*, 
-//                 const linalg::nwx_lapack_int*, const double*, 
-//                 const linalg::nwx_lapack_int*, 
-//                 const linalg::nwx_lapack_int*, double*, 
-//                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int* );
+//   void dsytrs_( char*, const linalg::tamm_lapack_int*, 
+//                 const linalg::tamm_lapack_int*, const double*, 
+//                 const linalg::tamm_lapack_int*, 
+//                 const linalg::tamm_lapack_int*, double*, 
+//                 const linalg::tamm_lapack_int*, linalg::tamm_lapack_int* );
 
 //  #if __essl
   void dsyevd_( char*, char*, 
-                const linalg::nwx_lapack_int*, double*,
-                const linalg::nwx_lapack_int*, double*, double*, 
-                const linalg::nwx_lapack_int*, linalg::nwx_lapack_int*,
-                const linalg::nwx_lapack_int*, linalg::nwx_lapack_int* );
+                const linalg::tamm_lapack_int*, double*,
+                const linalg::tamm_lapack_int*, double*, double*, 
+                const linalg::tamm_lapack_int*, linalg::tamm_lapack_int*,
+                const linalg::tamm_lapack_int*, linalg::tamm_lapack_int* );
 
-  void dspsvx_( const char*, const char*, const linalg::nwx_lapack_int*, const linalg::nwx_lapack_int*,
-    const double*, double*, linalg::nwx_lapack_int*, const double*, const linalg::nwx_lapack_int*,
-    double*, const linalg::nwx_lapack_int*, double*, double*, double*, double*, 
-    linalg::nwx_lapack_int*, linalg::nwx_lapack_int* ); 
+  void dspsvx_( const char*, const char*, const linalg::tamm_lapack_int*, const linalg::tamm_lapack_int*,
+    const double*, double*, linalg::tamm_lapack_int*, const double*, const linalg::tamm_lapack_int*,
+    double*, const linalg::tamm_lapack_int*, double*, double*, double*, double*, 
+    linalg::tamm_lapack_int*, linalg::tamm_lapack_int* ); 
 //  #endif
 
-//   void dsygvd_( const linalg::nwx_lapack_int*, char*, 
-//                 char*, const linalg::nwx_lapack_int*, double*,
-//                 const linalg::nwx_lapack_int*, double*,
-//                 const linalg::nwx_lapack_int*, double*, double*,
-//                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int*,
-//                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int* );
+//   void dsygvd_( const linalg::tamm_lapack_int*, char*, 
+//                 char*, const linalg::tamm_lapack_int*, double*,
+//                 const linalg::tamm_lapack_int*, double*,
+//                 const linalg::tamm_lapack_int*, double*, double*,
+//                 const linalg::tamm_lapack_int*, linalg::tamm_lapack_int*,
+//                 const linalg::tamm_lapack_int*, linalg::tamm_lapack_int* );
 
-//   void ssygvd_( const linalg::nwx_lapack_int*, char*, 
-//                 char*, const linalg::nwx_lapack_int*, float*,
-//                 const linalg::nwx_lapack_int*, float*,
-//                 const linalg::nwx_lapack_int*, float*, float*,
-//                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int*,
-//                 const linalg::nwx_lapack_int*, linalg::nwx_lapack_int* );
+//   void ssygvd_( const linalg::tamm_lapack_int*, char*, 
+//                 char*, const linalg::tamm_lapack_int*, float*,
+//                 const linalg::tamm_lapack_int*, float*,
+//                 const linalg::tamm_lapack_int*, float*, float*,
+//                 const linalg::tamm_lapack_int*, linalg::tamm_lapack_int*,
+//                 const linalg::tamm_lapack_int*, linalg::tamm_lapack_int* );
 };
 #else
 
@@ -199,8 +199,8 @@ namespace blas {
   detail::enable_if_linalg_supported_t<F,F>
   nrm2( const int64_t N, const F* X, const int64_t INCX ) {
 
-    nwx_blas_int _N    = N;
-    nwx_blas_int _INCX = INCX;
+    tamm_blas_int _N    = N;
+    tamm_blas_int _INCX = INCX;
 
     if constexpr (std::is_same_v<F,double>)
       return LINALG_NAME(dnrm2)(&_N, X, &_INCX);
@@ -214,9 +214,9 @@ namespace blas {
   dot( const int64_t N, const F* X, const int64_t INCX,
          const F* Y, const int64_t INCY ) {
 
-    nwx_blas_int _N    = N;
-    nwx_blas_int _INCX = INCX;
-    nwx_blas_int _INCY = INCY;
+    tamm_blas_int _N    = N;
+    tamm_blas_int _INCX = INCX;
+    tamm_blas_int _INCY = INCY;
   
     if constexpr (std::is_same_v<F,double>)
       return LINALG_NAME(ddot)(&_N, X, &_INCX, Y, &_INCY);
@@ -238,9 +238,9 @@ namespace blas {
   copy( const int64_t N, const F* X, const int64_t INCX,
              F* Y, const int64_t INCY ) {
 
-    nwx_blas_int _N    = N;
-    nwx_blas_int _INCX = INCX;
-    nwx_blas_int _INCY = INCY;
+    tamm_blas_int _N    = N;
+    tamm_blas_int _INCX = INCX;
+    tamm_blas_int _INCY = INCY;
   
     if constexpr (std::is_same_v<F,double>)
       LINALG_NAME(dcopy)(&_N, X, &_INCX, Y, &_INCY);
@@ -261,9 +261,9 @@ namespace blas {
   axpy( const int64_t N, const F ALPHA, const F* X, 
              const int64_t INCX, F* Y, const int64_t INCY ) {
 
-    nwx_blas_int _N    = N;
-    nwx_blas_int _INCX = INCX;
-    nwx_blas_int _INCY = INCY;
+    tamm_blas_int _N    = N;
+    tamm_blas_int _INCX = INCX;
+    tamm_blas_int _INCY = INCY;
 
     if constexpr (std::is_same_v<F,double>)
       LINALG_NAME(daxpy)( &_N, &ALPHA, X, &_INCX, Y, &_INCY );
@@ -277,8 +277,8 @@ namespace blas {
   scal( const int64_t N, const F ALPHA, F* X, 
              const int64_t INCX ) {
 
-    nwx_blas_int _N    = N;
-    nwx_blas_int _INCX = INCX;
+    tamm_blas_int _N    = N;
+    tamm_blas_int _INCX = INCX;
 
     if constexpr (std::is_same_v<F,double>)
       LINALG_NAME(dscal)(&_N, &ALPHA, X, &_INCX);
@@ -291,9 +291,9 @@ namespace blas {
   swap( const int64_t N, F* X, const int64_t INCX, F* Y, 
              const int64_t INCY ) {
 
-    nwx_blas_int _N    = N;
-    nwx_blas_int _INCX = INCX;
-    nwx_blas_int _INCY = INCY;
+    tamm_blas_int _N    = N;
+    tamm_blas_int _INCX = INCX;
+    tamm_blas_int _INCY = INCY;
 
     if constexpr (std::is_same_v<F,double>)
       LINALG_NAME(dswap)( &_N, X, &_INCX, Y, &_INCY );
@@ -311,12 +311,12 @@ namespace blas {
     const F* B, const int64_t LDB,
     const F BETA, F* C, const int64_t LDC) {
 
-    nwx_blas_int _M   = M;
-    nwx_blas_int _N   = N;
-    nwx_blas_int _K   = K;
-    nwx_blas_int _LDA = LDA;
-    nwx_blas_int _LDB = LDB;
-    nwx_blas_int _LDC = LDC;
+    tamm_blas_int _M   = M;
+    tamm_blas_int _N   = N;
+    tamm_blas_int _K   = K;
+    tamm_blas_int _LDA = LDA;
+    tamm_blas_int _LDB = LDB;
+    tamm_blas_int _LDC = LDC;
 
     if constexpr (std::is_same_v<F,double>)
       LINALG_NAME(dgemm)(&TRANSA, &TRANSB, &_M, &_N, &_K, 
@@ -333,11 +333,11 @@ namespace blas {
               const int64_t LDA, const F* B, const int64_t LDB,
               const F BETA, F* C, const int64_t LDC ) {
 
-    nwx_blas_int _N   = N;
-    nwx_blas_int _K   = K;
-    nwx_blas_int _LDA = LDA;
-    nwx_blas_int _LDB = LDB;
-    nwx_blas_int _LDC = LDC;
+    tamm_blas_int _N   = N;
+    tamm_blas_int _K   = K;
+    tamm_blas_int _LDA = LDA;
+    tamm_blas_int _LDB = LDB;
+    tamm_blas_int _LDC = LDC;
   
     if constexpr (std::is_same_v<F,double>)
       LINALG_NAME(dsyr2k)( &UPLO, &TRANS, &_N, &_K, &ALPHA, A, &_LDA, B,
@@ -354,10 +354,10 @@ namespace blas {
              const F ALPHA, const F* A, const int64_t LDA,
              F* B, const int64_t LDB ) {
 
-    nwx_blas_int _M   = M;
-    nwx_blas_int _N   = N;
-    nwx_blas_int _LDA = LDA;
-    nwx_blas_int _LDB = LDB;
+    tamm_blas_int _M   = M;
+    tamm_blas_int _N   = N;
+    tamm_blas_int _LDA = LDA;
+    tamm_blas_int _LDB = LDB;
 
     if constexpr (std::is_same_v<F,double>)
       LINALG_NAME(dtrsm)(&SIDE, &UPLO, &TRANSA, &DIAG, &_M, &_N, &ALPHA, 
@@ -374,10 +374,10 @@ namespace lapack {
   cholesky( char UPLO, const int64_t N, F *A, 
                     const int64_t LDA) {
 
-    nwx_lapack_int _N   = N;
-    nwx_lapack_int _LDA = LDA;
+    tamm_lapack_int _N   = N;
+    tamm_lapack_int _LDA = LDA;
   
-    nwx_lapack_int INFO;
+    tamm_lapack_int INFO;
     if constexpr (std::is_same_v<F,double>)
       LINALG_NAME(dpotrf)( &UPLO, &_N, A, &_LDA, &INFO );
 
@@ -391,13 +391,13 @@ namespace lapack {
   lu( const int64_t M, const int64_t N, F* A, 
               const int64_t LDA, int64_t *iPIV ) {
 
-    nwx_lapack_int _N   = N;
-    nwx_lapack_int _M   = M;
-    nwx_lapack_int _LDA = LDA;
+    tamm_lapack_int _N   = N;
+    tamm_lapack_int _M   = M;
+    tamm_lapack_int _LDA = LDA;
   
-    std::vector< nwx_lapack_int > _iPIV(N);
+    std::vector< tamm_lapack_int > _iPIV(N);
 
-    nwx_lapack_int INFO;
+    tamm_lapack_int INFO;
     if constexpr (std::is_same_v<F,double>)
       LINALG_NAME(dgetrf)(&_M, &_N, A, &_LDA, _iPIV.data(), &INFO );
 
@@ -415,15 +415,15 @@ namespace lapack {
                     const int64_t LDA, const int64_t* iPIV, 
                     F* B, const int64_t LDB ) {
 
-    nwx_lapack_int _N     = N;
-    nwx_lapack_int _NRHS  = NRHS;
-    nwx_lapack_int _LDA   = LDA;
-    nwx_lapack_int _LDB   = LDB;
+    tamm_lapack_int _N     = N;
+    tamm_lapack_int _NRHS  = NRHS;
+    tamm_lapack_int _LDA   = LDA;
+    tamm_lapack_int _LDB   = LDB;
 
-    std::vector< nwx_lapack_int > _iPIV(N);
+    std::vector< tamm_lapack_int > _iPIV(N);
     std::copy_n( iPIV, N, _iPIV.data() );
 
-    nwx_lapack_int INFO;
+    tamm_lapack_int INFO;
     if constexpr (std::is_same_v<F,double>)
       LINALG_NAME(dgetrs)( &TRANS, &_N, &_NRHS, A, &_LDA, _iPIV.data(), 
                            B, &_LDB, &INFO );
@@ -441,13 +441,13 @@ namespace lapack {
 
     std::vector< F > WORK(3);
 
-    nwx_lapack_int _N     = N;
-    nwx_lapack_int _LDA   = LDA;
+    tamm_lapack_int _N     = N;
+    tamm_lapack_int _LDA   = LDA;
   
-    std::vector< nwx_lapack_int > _iPIV(N);
+    std::vector< tamm_lapack_int > _iPIV(N);
 
-    nwx_lapack_int INFO;
-    nwx_lapack_int LWORK = -1;
+    tamm_lapack_int INFO;
+    tamm_lapack_int LWORK = -1;
 
     auto call_sytrf = [&]() {
       if constexpr (std::is_same_v<F,double>)
@@ -458,7 +458,7 @@ namespace lapack {
     call_sytrf();
 
     if( INFO == 0 ) {
-      LWORK = nwx_lapack_int(WORK[0]);
+      LWORK = tamm_lapack_int(WORK[0]);
       WORK.resize( LWORK );
       call_sytrf();
     }
@@ -478,15 +478,15 @@ namespace lapack {
                       const int64_t LDA, const int64_t* iPIV, 
                       F* B, const int64_t LDB ) {
 
-    nwx_lapack_int _N     = N;
-    nwx_lapack_int _NRHS  = NRHS;
-    nwx_lapack_int _LDA   = LDA;
-    nwx_lapack_int _LDB   = LDB;
+    tamm_lapack_int _N     = N;
+    tamm_lapack_int _NRHS  = NRHS;
+    tamm_lapack_int _LDA   = LDA;
+    tamm_lapack_int _LDB   = LDB;
 
-    std::vector< nwx_lapack_int > _iPIV(N);
+    std::vector< tamm_lapack_int > _iPIV(N);
     std::copy_n( iPIV, N, _iPIV.data() );
 
-    nwx_lapack_int INFO;
+    tamm_lapack_int INFO;
     if constexpr (std::is_same_v<F,double>)
       LINALG_NAME(dsytrs)( &UPLO, &_N, &_NRHS, A, &_LDA, _iPIV.data(), 
                            B, &_LDB, &INFO );
@@ -503,15 +503,15 @@ namespace lapack {
                  const int64_t N, F* A, const int64_t LDA, 
                  typename detail::real_type<F>::value_type *W ) {
 
-    nwx_lapack_int _N     = N;
-    nwx_lapack_int _LDA   = LDA;
+    tamm_lapack_int _N     = N;
+    tamm_lapack_int _LDA   = LDA;
 
-    nwx_lapack_int LWORK  = -1;
-    nwx_lapack_int LIWORK = -1;
+    tamm_lapack_int LWORK  = -1;
+    tamm_lapack_int LIWORK = -1;
     std::vector<F> WORK(3);
-    std::vector<nwx_lapack_int>    IWORK(3);
+    std::vector<tamm_lapack_int>    IWORK(3);
 
-    nwx_lapack_int INFO;
+    tamm_lapack_int INFO;
     
     auto call_syevd = [&]() {
       if constexpr (std::is_same_v<F,double>)
@@ -522,7 +522,7 @@ namespace lapack {
     call_syevd();
 
     if( INFO == 0 ) {
-      LWORK = nwx_lapack_int( WORK[0] );
+      LWORK = tamm_lapack_int( WORK[0] );
       LIWORK = IWORK[0];
 
       WORK.resize( LWORK );
@@ -542,17 +542,17 @@ namespace lapack {
                  const int64_t LDA, F* B, const int64_t LDB,
                  typename detail::real_type<F>::value_type *W ) {
 
-    nwx_lapack_int _ITYPE = ITYPE;
-    nwx_lapack_int _N     = N;
-    nwx_lapack_int _LDA   = LDA;
-    nwx_lapack_int _LDB   = LDB;
+    tamm_lapack_int _ITYPE = ITYPE;
+    tamm_lapack_int _N     = N;
+    tamm_lapack_int _LDA   = LDA;
+    tamm_lapack_int _LDB   = LDB;
 
-    nwx_lapack_int LWORK  = -1;
-    nwx_lapack_int LIWORK = -1;
+    tamm_lapack_int LWORK  = -1;
+    tamm_lapack_int LIWORK = -1;
     std::vector<F> WORK(3);
-    std::vector<nwx_lapack_int>    IWORK(3);
+    std::vector<tamm_lapack_int>    IWORK(3);
 
-    nwx_lapack_int INFO;
+    tamm_lapack_int INFO;
     
     auto call_sygvd = [&]() {
       if constexpr (std::is_same_v<F,double>)
@@ -568,7 +568,7 @@ namespace lapack {
     call_sygvd();
 
     if( INFO == 0 ) {
-      LWORK = nwx_lapack_int( WORK[0] );
+      LWORK = tamm_lapack_int( WORK[0] );
       LIWORK = IWORK[0];
 
       WORK.resize( LWORK );
@@ -605,25 +605,25 @@ constexpr inline bool is_complex_v = is_complex<T>::value;
     T* X, int64_t LDX, real_t<T>& RCOND, real_t<T>* FERR, 
     real_t<T>* BERR ) {
 
-    linalg::nwx_lapack_int _N    = N;
-    linalg::nwx_lapack_int _NRHS = NRHS;
-    linalg::nwx_lapack_int _LDB  = LDB;
-    linalg::nwx_lapack_int _LDX  = LDX;
-    std::vector<linalg::nwx_lapack_int> _IPIV( N );
+    linalg::tamm_lapack_int _N    = N;
+    linalg::tamm_lapack_int _NRHS = NRHS;
+    linalg::tamm_lapack_int _LDB  = LDB;
+    linalg::tamm_lapack_int _LDX  = LDX;
+    std::vector<linalg::tamm_lapack_int> _IPIV( N );
     if( FACT == 'F' )
       std::copy( IPIV, IPIV + N, _IPIV.begin() );
     using real_type = real_t<T>;
     
-    linalg::nwx_lapack_int LWORK  = is_complex_v<T> ? 2*N : 3*N;
-    linalg::nwx_lapack_int LRWORK = is_complex_v<T> ? N   : 0;
-    linalg::nwx_lapack_int LIWORK = is_complex_v<T> ? 0   : N;
-    LWORK  = std::max( (linalg::nwx_lapack_int)1, LWORK );
-    LRWORK = std::max( (linalg::nwx_lapack_int)1, LRWORK );
-    LIWORK = std::max( (linalg::nwx_lapack_int)1, LIWORK );
+    linalg::tamm_lapack_int LWORK  = is_complex_v<T> ? 2*N : 3*N;
+    linalg::tamm_lapack_int LRWORK = is_complex_v<T> ? N   : 0;
+    linalg::tamm_lapack_int LIWORK = is_complex_v<T> ? 0   : N;
+    LWORK  = std::max( (linalg::tamm_lapack_int)1, LWORK );
+    LRWORK = std::max( (linalg::tamm_lapack_int)1, LRWORK );
+    LIWORK = std::max( (linalg::tamm_lapack_int)1, LIWORK );
     std::vector<T>          WORK(LWORK);
-    std::vector<linalg::nwx_lapack_int> IWORK(LIWORK);
+    std::vector<linalg::tamm_lapack_int> IWORK(LIWORK);
     std::vector<real_type>  RWORK(LRWORK);
-    linalg::nwx_lapack_int INFO;
+    linalg::tamm_lapack_int INFO;
     if constexpr ( std::is_same_v< T, double >)
       dspsvx_( &FACT, &UPLO, &_N, &_NRHS, AP, AFP, _IPIV.data(), B, &_LDB,
         X, &_LDX, &RCOND, FERR, BERR, WORK.data(), IWORK.data(), &INFO );

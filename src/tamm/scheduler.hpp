@@ -181,7 +181,7 @@ public:
         return order;
     }
 
-    void execute(ExecutionHW execute_on = ExecutionHW::CPU,bool profile = false) {
+    void execute(ExecutionHW execute_on = ExecutionHW::CPU, bool profile = false) {
         if(start_idx_ == ops_.size()) return;
 #if 0
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
@@ -354,9 +354,10 @@ public:
 
         
             int np = ec_.pg().size().value();
+            auto& pdata = ec_.get_profile_data();
             if(ec_.pg().rank() == 0) {
                 for(int i=0; i<order.size(); i++) {
-                    std::cout << i 
+                    pdata << i
                         << ";" << order[i].first
                         << ";" << ops_[order[i].second]->opstr_
                         // << "," << global_load_imbalance_times_min[i]
@@ -376,7 +377,7 @@ public:
                         << ";" << global_multop_add_times_sum[i]/np
                         << std::endl;
                 }
-                std::cout << ";" << "SUM" << ";;;;" 
+                pdata << ";" << "SUM" << ";;;;"
                 << (std::accumulate(global_op_times_sum.begin(), global_op_times_sum.end(),
                         decltype(global_op_times_sum)::value_type(0))) / np
                 << ";;;"

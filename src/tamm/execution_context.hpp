@@ -326,6 +326,8 @@ public:
 
     int gpu_devid() const { return dev_id_; }
 
+    std::stringstream& get_profile_data() { return profile_data_; }
+
 #if defined(USE_DPCPP)
     std::vector<cl::sycl::queue*> get_syclQue() const {
         return vec_syclQue;
@@ -392,6 +394,7 @@ private:
     std::vector<cl::sycl::queue*> vec_syclQue;
 #endif
 
+    std::stringstream profile_data_;
     std::vector<MemoryRegion*> mem_regs_to_dealloc_;
     std::vector<MemoryRegion*> unregistered_mem_regs_;
 

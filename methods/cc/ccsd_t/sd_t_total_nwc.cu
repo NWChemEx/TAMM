@@ -318,7 +318,7 @@ __global__ void sd_t_d1_1_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d1_1_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) {
-  sd_t_d1_1_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+  sd_t_d1_1_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 }
 /*----------------------------------------------------------------------*
  *triplesx[h3,h1,h2,p5,p4] += t2sub[h7,p4,p5,h1] * v2sub[h3,h2,h7]
@@ -607,7 +607,7 @@ __global__ void sd_t_d1_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d1_2_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) {
-  sd_t_d1_2_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+  sd_t_d1_2_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 }
 /*----------------------------------------------------------------------*
  *triplesx[h1,h3,p5,p4] -= t2sub[h7,p4,p5,h1] * v2sub[h3,h7]
@@ -883,7 +883,7 @@ __global__ void sd_t_d1_3_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d1_3_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) {
-  sd_t_d1_3_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+  sd_t_d1_3_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 }
 /*----------------------------------------------------------------------*
  *triplesx[h3,h1,p5,p4,p6] -= t2sub[h7,p4,p5,h1] * v2sub[h3,p6,h7]
@@ -1168,7 +1168,7 @@ __global__ void sd_t_d1_4_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d1_4_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) {
-  sd_t_d1_4_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+  sd_t_d1_4_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 }
 /*----------------------------------------------------------------------*
  *triplesx[h3,h1,h2,p5,p4,p6] += t2sub[h7,p4,p5,h1] * v2sub[h3,h2,p6,h7]
@@ -1462,7 +1462,7 @@ __global__ void sd_t_d1_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d1_5_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) {
-  sd_t_d1_5_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+  sd_t_d1_5_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 }
 /*----------------------------------------------------------------------*
  *triplesx[h1,h3,p5,p4,p6] -= t2sub[h7,p4,p5,h1] * v2sub[h3,p6,h7]
@@ -1747,7 +1747,7 @@ __global__ void sd_t_d1_6_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d1_6_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) {
-  sd_t_d1_6_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+  sd_t_d1_6_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 }
 /*----------------------------------------------------------------------*
  *triplesx[h3,h1,p5,p6,p4] += t2sub[h7,p4,p5,h1] * v2sub[h3,p6,h7]
@@ -2032,7 +2032,7 @@ __global__ void sd_t_d1_7_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d1_7_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) {
-  sd_t_d1_7_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+  sd_t_d1_7_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 }
 /*----------------------------------------------------------------------*
  *triplesx[h3,h1,h2,p5,p6,p4] -= t2sub[h7,p4,p5,h1] * v2sub[h3,h2,p6,h7]
@@ -2326,7 +2326,7 @@ __global__ void sd_t_d1_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t h7d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d1_8_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) {
-  sd_t_d1_8_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+  sd_t_d1_8_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 }
 /*----------------------------------------------------------------------*
  *triplesx[h1,h3,p5,p6,p4] += t2sub[h7,p4,p5,h1] * v2sub[h3,p6,h7]
@@ -2611,7 +2611,7 @@ __global__ void sd_t_d1_9_kernel(size_t h1d,size_t h3d,size_t h7d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d1_9_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* h7d, Integer* p4d, Integer* p5d, Integer* p6d, double *triplesx, double *t2sub, double *v2sub) {
-  sd_t_d1_9_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*h7d,(int)*p4d,(int)*p5d,(int)*p6d,triplesx,t2sub,v2sub);
+  sd_t_d1_9_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*h7d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,triplesx,t2sub,v2sub);
 }
 
 /*----------------------------------------------------------------------*
@@ -2899,7 +2899,7 @@ __global__ void sd_t_d2_1_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d2_1_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) {
-  sd_t_d2_1_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+  sd_t_d2_1_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h2,h1,h3,p4] -= t2[p7,p4,h1,h2] * v2[p7,h3]
@@ -3177,7 +3177,7 @@ __global__ void sd_t_d2_2_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d2_2_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) {
-  sd_t_d2_2_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+  sd_t_d2_2_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h2,h3,h1,p6,p4] += t2[p7,p4,h1,h2] * v2[p7,h3,p6]
@@ -3464,7 +3464,7 @@ __global__ void sd_t_d2_3_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d2_3_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) {
-  sd_t_d2_3_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+  sd_t_d2_3_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h3,h2,h1,p6,p4,p5] += t2[p7,p4,h1,h2] * v2[p7,h3,p6,p5]
@@ -3760,7 +3760,7 @@ __global__ void sd_t_d2_4_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d2_4_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) {
-  sd_t_d2_4_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+  sd_t_d2_4_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h2,h1,h3,p4,p5] += t2[p7,p4,h1,h2] * v2[p7,h3,p5]
@@ -4047,7 +4047,7 @@ __global__ void sd_t_d2_5_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d2_5_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) {
-  sd_t_d2_5_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+  sd_t_d2_5_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h2,h3,h1,p6,p4,p5] -= t2[p7,p4,h1,h2] * v2[p7,h3,p6,p5]
@@ -4343,7 +4343,7 @@ __global__ void sd_t_d2_6_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d2_6_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) {
-  sd_t_d2_6_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+  sd_t_d2_6_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h3,h2,h1,p4,p6,p5] -= t2[p7,p4,h1,h2] * v2[p7,h3,p6,p5]
@@ -4639,7 +4639,7 @@ __global__ void sd_t_d2_7_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d2_7_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) {
-  sd_t_d2_7_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+  sd_t_d2_7_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h2,h1,h3,p4,p6,p5] -= t2[p7,p4,h1,h2] * v2[p7,h3,p6,p5]
@@ -4935,7 +4935,7 @@ __global__ void sd_t_d2_8_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 #undef T2
 #undef Tcomm
   void sd_t_d2_8_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) {
-  sd_t_d2_8_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+  sd_t_d2_8_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h2,h3,h1,p4,p6,p5] += t2[p7,p4,h1,h2] * v2[p7,h3,p6,p5]
@@ -5230,7 +5230,7 @@ __global__ void sd_t_d2_9_kernel(size_t h1d,size_t h2d,size_t h3d,size_t p4d,siz
 }
 
   void sd_t_d2_9_cuda_(Integer *h1d, Integer* h2d, Integer* h3d, Integer* p4d, Integer* p5d, Integer* p6d, Integer* p7d, double *t3, double *t2, double *v2) {
-  sd_t_d2_9_cuda((int)*h1d,(int)*h2d,(int)*h3d,(int)*p4d,(int)*p5d,(int)*p6d,(int)*p7d,t3,t2,v2);
+  sd_t_d2_9_cuda((size_t)*h1d,(size_t)*h2d,(size_t)*h3d,(size_t)*p4d,(size_t)*p5d,(size_t)*p6d,(size_t)*p7d,t3,t2,v2);
 }
 
 
@@ -5549,7 +5549,7 @@ sd_t_s1_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
            void 
 sd_t_s1_1_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double *t3, double *t2, double *v2)
 {
-	sd_t_s1_1_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d,  t3, t2, v2);
+	sd_t_s1_1_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d,  t3, t2, v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h3,h1,h2,p6,p5,p4] -= t2[p4,h1] * v2[h3,h2,p6,p5]
@@ -5675,7 +5675,7 @@ sd_t_s1_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
            void 
 sd_t_s1_2_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double *t3, double *t2, double *v2)
 {
-	sd_t_s1_2_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d,  t3, t2, v2);
+	sd_t_s1_2_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d,  t3, t2, v2);
 }
            void 
 sd_t_s1_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_t p6d,  double *t3, double *t2, double *v2)
@@ -5766,7 +5766,7 @@ sd_t_s1_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
            void 
 sd_t_s1_3_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d,  double *t3, double *t2, double *v2)
 {
-	sd_t_s1_3_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d, t3, t2, v2);
+	sd_t_s1_3_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d, t3, t2, v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h3,h2,h1,p6,p4,p5] -= t2[p4,h1] * v2[h3,h2,p6,p5]
@@ -5899,7 +5899,7 @@ sd_t_s1_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
            void 
 sd_t_s1_4_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double *t3, double *t2, double *v2)
 {
-	sd_t_s1_4_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d,  t3, t2, v2);
+	sd_t_s1_4_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d,  t3, t2, v2);
 }
 
 /*----------------------------------------------------------------------*
@@ -6033,7 +6033,7 @@ sd_t_s1_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
            void 
 sd_t_s1_5_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d,  double *t3, double *t2, double *v2)
 {
-	sd_t_s1_5_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d,  t3, t2, v2);
+	sd_t_s1_5_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d,  t3, t2, v2);
 }
 
 /*----------------------------------------------------------------------*
@@ -6165,7 +6165,7 @@ sd_t_s1_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
            void 
 sd_t_s1_6_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double *t3, double *t2, double *v2)
 {
-	sd_t_s1_6_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d, t3, t2, v2);
+	sd_t_s1_6_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d, t3, t2, v2);
 }
 
 
@@ -6303,7 +6303,7 @@ sd_t_s1_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
            void 
 sd_t_s1_7_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double *t3, double *t2, double *v2)
 {
-	sd_t_s1_7_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d, t3, t2, v2);
+	sd_t_s1_7_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d, t3, t2, v2);
 }
 #define T1 16
 #define T2 16
@@ -6431,7 +6431,7 @@ sd_t_s1_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
            void 
 sd_t_s1_8_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d, double *t3, double *t2, double *v2)
 {
-	sd_t_s1_8_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d, t3, t2, v2);
+	sd_t_s1_8_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d, t3, t2, v2);
 }
 /*----------------------------------------------------------------------*
  *t3[h1,h3,h2,p4,p6,p5] -= t2[p4,h1] * v2[h3,h2,p6,p5]
@@ -6524,5 +6524,5 @@ sd_t_s1_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
            void 
 sd_t_s1_9_cuda_(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d,  double *t3, double *t2, double *v2)
 {
-	sd_t_s1_9_cuda((int) *h1d, (int) *h2d, (int) *h3d, (int) *p4d, (int) *p5d, (int) *p6d,  t3, t2, v2);
+	sd_t_s1_9_cuda((size_t) *h1d, (size_t) *h2d, (size_t) *h3d, (size_t) *p4d, (size_t) *p5d, (size_t) *p6d,  t3, t2, v2);
 }

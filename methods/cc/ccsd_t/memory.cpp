@@ -47,7 +47,7 @@ static void clearHostFreeList(
 #if defined(USE_CUDA)
       cudaFreeHost(*it2);
 #elif defined(USE_HIP)
-      hipFreeHost(*it2);
+      hipHostFree(*it2);
 #elif defined(USE_DPCPP)
       cl::sycl::free(*it2, syclQueue);
 #else

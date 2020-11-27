@@ -71,7 +71,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     if(rank == 0) basis_file_exists = std::filesystem::exists(basis_set_file);
 
     MPI_Bcast(&basis_file_exists        ,1,mpi_type<int>()       ,0,exc.pg().comm());  
-    if (!basis_file_exists) nwx_terminate("basis set file " + basis_set_file + " does not exist");
+    if (!basis_file_exists) tamm_terminate("basis set file " + basis_set_file + " does not exist");
 
     libint2::BasisSet shells(std::string(basis), atoms);
     if(is_spherical) shells.set_pure(true);
@@ -230,7 +230,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       MPI_Bcast(Cbufp,N*nmo,mpi_type<TensorType>(),0,exc.pg().comm());
       etensors.C = Eigen::Map<Matrix>(Cbufp,N,nmo);
       
-      if(!molden_file_valid) nwx_terminate("ERROR: Cannot open moldenfile provided: " + scf_options.moldenfile);
+      if(!molden_file_valid) tamm_terminate("ERROR: Cannot open moldenfile provided: " + scf_options.moldenfile);
 
     }
 
@@ -593,6 +593,10 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           std::cout << ' ' << std::scientific << std::setw(12)  << ediff;
           if(!scf_conv) std::cout << ' ' << std::setw(12)  << rmsd << ' ';
           std::cout << ' ' << std::setw(10) << std::fixed << std::setprecision(1) << loop_time << ' ' << endl;
+
+          sys_data.results["output"]["SCF"]["iter"][std::to_string(iter)]["data"] = { {"energy", ehf}, {"e_diff", ediff}, {"rmsd", rmsd} };
+          sys_data.results["output"]["SCF"]["iter"][std::to_string(iter)]["profile"] = { {"total_time", loop_time} };
+
         }
 
         // if(rank==0) cout << "D at the end of iteration: " << endl << std::setprecision(6) << etensors.D << endl;
@@ -657,7 +661,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       if(!is_conv) {
         ec.pg().barrier();
-        nwx_terminate("Please check SCF input parameters");
+        tamm_terminate("Please check SCF input parameters");
       }
 
       if(rank == 0) tamm_to_eigen_tensor(ttensors.F1,etensors.F);
@@ -714,9 +718,12 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     sys_data.update();
     if(rank==0 && debug) sys_data.print();
     // sys_data.input_molecule = getfilename(filename);
-    sys_data.scf_iterations = iter; //not broadcasted, but fine since only rank 0 writes to json
     sys_data.scf_energy = ehf;
-    if(rank==0) write_results(sys_data,"SCF");
+    // iter not broadcasted, but fine since only rank 0 writes to json
+    if(rank == 0) {
+      sys_data.results["output"]["SCF"]["final_energy"] = ehf;
+      sys_data.results["output"]["SCF"]["n_iterations"] = iter;
+    }
 
     tamm::Tile ao_tile = scf_options.AO_tilesize;
     if(tile_size < N*0.05 && !scf_options.force_tilesize)

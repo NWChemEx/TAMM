@@ -82,7 +82,7 @@ std::string ccsd_test( int argc, char* argv[] )
     return filename;
 }
 
-void iteration_print(const ProcGroup& pg, int iter, double residual, double energy, double time) {
+void iteration_print(SystemData& sys_data, const ProcGroup& pg, int iter, double residual, double energy, double time) {
   if(pg.rank() == 0) {
     std::cout.width(6); std::cout << std::right << iter+1 << "  ";
     std::cout << std::setprecision(13) << residual << "  ";
@@ -91,6 +91,9 @@ void iteration_print(const ProcGroup& pg, int iter, double residual, double ener
     std::cout << std::string(4, ' ') << "0.0";
     std::cout << std::string(5, ' ') << time;
     std::cout << std::string(5, ' ') << "0.0" << std::endl;
+
+    sys_data.results["output"]["CCSD"]["iter"][std::to_string(iter+1)]["data"] = { {"residual", residual}, {"correlation", energy} };
+    sys_data.results["output"]["CCSD"]["iter"][std::to_string(iter+1)]["profile"] = { {"total_time", time} };
   }
 }
 
@@ -453,11 +456,13 @@ std::tuple<SystemData, double,
     std::vector<size_t> shell_tile_map;
     bool scf_conv;
 
-    // read geometry from a .nwx file 
+    // read geometry from a json file
+    json jinput;
+    check_json(filename);
     auto is = std::ifstream(filename);
     std::vector<Atom> atoms;
     OptionsMap options_map;
-    std::tie(atoms, options_map) = read_input_nwx(is);
+    std::tie(atoms, options_map, jinput) = parse_input(is);
     if(options_map.options.output_file_prefix.empty()) 
       options_map.options.output_file_prefix = getfilename(filename);
     
@@ -546,7 +551,7 @@ void ccsd_stats(ExecutionContext& ec, double hf_energy,double residual,double en
     }
     if(!ccsd_conv){
       ec.pg().barrier();
-      nwx_terminate("ERROR: CCSD calculation does not converge!");
+      tamm_terminate("ERROR: CCSD calculation does not converge!");
     }
 
 }
@@ -759,7 +764,7 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_g
       int rstatus = 0;
       if(in.is_open()) rstatus = 1;
       if(rstatus == 1) in >> chol_count; 
-      else nwx_terminate("Error reading " + cholfile);
+      else tamm_terminate("Error reading " + cholfile);
 
       if(rank==0) cout << "Number of cholesky vectors to be read = " << chol_count << endl;
 
@@ -785,6 +790,8 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_g
     TiledIndexSpace CI{chol_is,static_cast<tamm::Tile>(itile_size)}; 
 
     sys_data.num_chol_vectors = chol_count;
+    sys_data.results["output"]["CD"]["n_cholesky_vectors"] = chol_count;
+
     if(rank == 0) sys_data.print();
 
     return std::make_tuple(cholVpr, d_f1, chol_count, max_cvecs, CI);

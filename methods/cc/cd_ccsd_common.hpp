@@ -480,7 +480,7 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
             const auto timer_end = std::chrono::high_resolution_clock::now();
             auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-            iteration_print(ec.pg(), iter, residual, energy, iter_time);
+            iteration_print(sys_data, ec.pg(), iter, residual, energy, iter_time);
 
             if(writet && ( ((iter+1)%writet_iter == 0) || (residual < thresh) ) ) {
                 write_to_disk(d_t1,t1file);
@@ -545,11 +545,14 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
       residual = 0.0;
     }
 
-    sys_data.ccsd_iterations   = niter+1;
     sys_data.ccsd_corr_energy  = energy;
-    sys_data.ccsd_total_energy = sys_data.scf_energy+energy;
 
-    if(ec.pg().rank() == 0) write_results(sys_data,"CCSD")  ;
+    if(ec.pg().rank() == 0) {
+      sys_data.results["output"]["CCSD"]["n_iterations"] =   niter+1;
+      sys_data.results["output"]["CCSD"]["final_energy"]["correlation"] =  energy;
+      sys_data.results["output"]["CCSD"]["final_energy"]["total"] =  sys_data.scf_energy+energy;
+      write_json_data(sys_data,"CCSD");
+    }
 
     sch.deallocate(d_e,_a01,_a02_aa,_a02_bb,_a03_aa,_a03_bb,
                    _a004_aaaa,_a004_abab,_a004_bbbb,

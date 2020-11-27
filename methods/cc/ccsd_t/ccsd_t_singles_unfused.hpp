@@ -13,7 +13,8 @@ void initmemmodule();
 void dev_mem_s(size_t,size_t,size_t,size_t,size_t,size_t);
 void dev_mem_d(size_t,size_t,size_t,size_t,size_t,size_t);
 
-//TensorGen target-centric GPU kernels
+#if defined(USE_CUDA)
+//TensorGen target-centric CUDA kernels
 void jk_ccsd_t_s1_1(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void jk_ccsd_t_s1_2(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void jk_ccsd_t_s1_3(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
@@ -23,6 +24,7 @@ void jk_ccsd_t_s1_6(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,do
 void jk_ccsd_t_s1_7(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void jk_ccsd_t_s1_8(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void jk_ccsd_t_s1_9(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
+#endif
 
 //target-centric CPU kernels
 void sd_t_s1_1_cpu(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
@@ -234,12 +236,13 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
                 k_range[h3b],k_range[p4b],
                 k_range[p5b],k_range[p6b],
                 &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-
+        #if defined(USE_CUDA)
         else
           jk_ccsd_t_s1_1(k_range[t_h3b],k_range[t_h2b],
                     k_range[t_h1b],k_range[t_p6b],
                     k_range[t_p5b],k_range[t_p4b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
+        #endif
         }
         else 
           sd_t_s1_1_cpu(k_range[t_h1b],k_range[t_h2b],
@@ -258,12 +261,13 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
                     k_range[h3b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-
+          #if defined(USE_CUDA)
           else
             jk_ccsd_t_s1_2(k_range[t_h3b],k_range[t_h2b],
                     k_range[t_h1b],k_range[t_p6b],
                     k_range[t_p5b],k_range[t_p4b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
+          #endif
         }
         else
           sd_t_s1_2_cpu(k_range[t_h1b],k_range[t_h2b],
@@ -282,12 +286,13 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
                     k_range[h3b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-
+          #if defined(USE_CUDA)
           else
             jk_ccsd_t_s1_3(k_range[t_h3b],k_range[t_h2b],
                     k_range[t_h1b],k_range[t_p6b],
                     k_range[t_p5b],k_range[t_p4b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
+          #endif
         }
       else
         sd_t_s1_3_cpu(k_range[t_h1b],k_range[t_h2b],
@@ -306,12 +311,13 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
                 k_range[h3b],k_range[p4b],
                 k_range[p5b],k_range[p6b],
                 &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-
+          #if defined(USE_CUDA)
           else
             jk_ccsd_t_s1_4(k_range[t_h3b],k_range[t_h2b],
                     k_range[t_h1b],k_range[t_p6b],
                     k_range[t_p5b],k_range[t_p4b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
+          #endif
         }
         else
           sd_t_s1_4_cpu(k_range[t_h1b],k_range[t_h2b],
@@ -329,12 +335,14 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
             sd_t_s1_5_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
-                    &a_c[0],&k_a_sort[0],&k_b_sort[0]);          
+                    &a_c[0],&k_a_sort[0],&k_b_sort[0]);   
+          #if defined(USE_CUDA)       
           else
             jk_ccsd_t_s1_5(k_range[t_h3b],k_range[t_h2b],
                     k_range[t_h1b],k_range[t_p6b],
                     k_range[t_p5b],k_range[t_p4b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
+          #endif
         }
         else
           sd_t_s1_5_cpu(k_range[t_h1b],k_range[t_h2b],
@@ -352,12 +360,14 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
             sd_t_s1_6_cuda(k_range[h1b],k_range[h2b],
                         k_range[h3b],k_range[p4b],
                         k_range[p5b],k_range[p6b],
-                        &a_c[0],&k_a_sort[0],&k_b_sort[0]);          
+                        &a_c[0],&k_a_sort[0],&k_b_sort[0]);   
+          #if defined(USE_CUDA)       
           else
             jk_ccsd_t_s1_6(k_range[t_h3b],k_range[t_h2b],
                         k_range[t_h1b],k_range[t_p6b],
                         k_range[t_p5b],k_range[t_p4b],
                         &a_c[0],&k_a_sort[0],&k_b_sort[0]);
+          #endif
         }
         else
           sd_t_s1_6_cpu(k_range[t_h1b],k_range[t_h2b],
@@ -375,12 +385,14 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
             sd_t_s1_7_cuda(k_range[h1b],k_range[h2b],
                       k_range[h3b],k_range[p4b],
                       k_range[p5b],k_range[p6b],
-                      &a_c[0],&k_a_sort[0],&k_b_sort[0]);          
+                      &a_c[0],&k_a_sort[0],&k_b_sort[0]);  
+          #if defined(USE_CUDA)        
           else
             jk_ccsd_t_s1_7(k_range[t_h3b],k_range[t_h2b],
                     k_range[t_h1b],k_range[t_p6b],
                     k_range[t_p5b],k_range[t_p4b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
+          #endif
         }
         else
           sd_t_s1_7_cpu(k_range[t_h1b],k_range[t_h2b],
@@ -398,12 +410,14 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
             sd_t_s1_8_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
-                    &a_c[0],&k_a_sort[0],&k_b_sort[0]);          
+                    &a_c[0],&k_a_sort[0],&k_b_sort[0]); 
+          #if defined(USE_CUDA)         
           else
             jk_ccsd_t_s1_8(k_range[t_h3b],k_range[t_h2b],
                     k_range[t_h1b],k_range[t_p6b],
                     k_range[t_p5b],k_range[t_p4b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
+          #endif
         }
         else
           sd_t_s1_8_cpu(k_range[t_h1b],k_range[t_h2b],
@@ -421,12 +435,14 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
             sd_t_s1_9_cuda(k_range[h1b],k_range[h2b],
                     k_range[h3b],k_range[p4b],
                     k_range[p5b],k_range[p6b],
-                    &a_c[0],&k_a_sort[0],&k_b_sort[0]);          
+                    &a_c[0],&k_a_sort[0],&k_b_sort[0]);   
+          #if defined(USE_CUDA)       
           else
             jk_ccsd_t_s1_9(k_range[t_h3b],k_range[t_h2b],
                     k_range[t_h1b],k_range[t_p6b],
                     k_range[t_p5b],k_range[t_p4b],
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
+          #endif
         }
         else
           sd_t_s1_9_cpu(k_range[t_h1b],k_range[t_h2b],

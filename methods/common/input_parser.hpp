@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
-#include <unordered_map>
+#include <regex>
 
 
 // Libint Gaussian integrals library
@@ -16,6 +16,9 @@
 
 #include "ga.h"
 #include "ga-mpi.h"
+
+#include <nlohmann/json.hpp>
+using json = nlohmann::ordered_json;
 
 using std::cerr;
 using std::cout;
@@ -29,8 +32,6 @@ inline bool strequal_case( const std::string &a, const std::string &b ) {
       return std::tolower(a) == std::tolower(b);
     });
 }
-
-// const int nwx_max_section_options = 20;
 
 void print_bool(std::string str, bool val){
   if(val) cout << str << " = true" << endl;
@@ -137,7 +138,7 @@ class SCFOptions: public Options {
   int writem; 
   double alpha; //density mixing parameter
   std::string scf_type;
-  
+
     void print() {
       std::cout << std::defaultfloat;
       cout << endl << "SCF Options" << endl;
@@ -206,29 +207,36 @@ class CCSDOptions: public Options {
   CCSDOptions(Options o): Options(o)
   {
     threshold      = 1e-6;
+    force_tilesize = false;
     tilesize       = 50;
     itilesize      = 1000;
-    ccsdt_tilesize = 28;
-    ngpu           = 0;
     ndiis          = 5;
     lshift         = 0;
+    ccsd_maxiter   = 50;
+    balance_tiles  = false;
+    profile_ccsd   = false;
+
+    writet         = false;
+    writet_iter    = ndiis;
+    readt          = false;
+
+    skip_dlpno     = false;
+    dlpno_dfbasis  = "";
+
+    ngpu           = 0;
+    ccsdt_tilesize = 28;
+
     eom_nroots     = 0;
     eom_threshold  = 1e-6;
     eom_microiter  = o.maxiter;
-    writet         = false;
-    writet_iter    = ndiis;
-    force_tilesize = false;
-    readt          = false;
+
     gf_ip          = true;
     gf_ea          = false;
     gf_os          = false;
     gf_cs          = true;
     gf_restart     = false;
     gf_itriples    = false;
-    ccsd_maxiter   = 50;
-    balance_tiles  = false;
-    profile_ccsd   = false;
-    
+
     gf_p_oi_range        = 0; //1-number of occupied, 2-all MOs
     gf_ndiis             = 10;
     gf_ngmres            = 10;
@@ -254,22 +262,32 @@ class CCSDOptions: public Options {
     gf_analyze_num_omega = 0;
   }
 
-  int    eom_nroots;
   int    tilesize;
   int    itilesize;
-  int    ccsdt_tilesize;
   bool   force_tilesize;
-  int    ngpu;
   int    ndiis;
-  int    eom_microiter;
   int    writet_iter;
   bool   readt, writet, gf_restart, gf_ip, gf_ea, gf_os, gf_cs, 
          gf_itriples, balance_tiles;
   bool   profile_ccsd;
   double lshift;
   double threshold;
-  double eom_threshold;
+
   int    ccsd_maxiter;
+  std::string ext_data_path;
+
+  //CCSD(T)
+  int    ngpu;
+  int    ccsdt_tilesize;
+
+  //DLPNO
+  bool   skip_dlpno;
+  std::string dlpno_dfbasis;
+
+  //EOM
+  int    eom_nroots;
+  int    eom_microiter;
+  double eom_threshold;
 
   //GF
   int    gf_p_oi_range;
@@ -298,7 +316,7 @@ class CCSDOptions: public Options {
   std::vector<double> gf_analyze_omega;
   //Force processing of specified orbitals first
   std::vector<size_t> gf_orbitals;
-  
+
   void print() {
     std::cout << std::defaultfloat;
     cout << endl << "CCSD Options" << endl;
@@ -320,7 +338,13 @@ class CCSDOptions: public Options {
     print_bool(" writet              ", writet);
     cout << " writet_iter          = " << writet_iter      << endl;
     print_bool(" profile_ccsd        ", profile_ccsd);
-    print_bool(" balance_tiles       ", balance_tiles); 
+    print_bool(" balance_tiles       ", balance_tiles);
+    
+    if(!dlpno_dfbasis.empty()) cout << " dlpno_dfbasis        = " << dlpno_dfbasis << endl; 
+
+    if(!ext_data_path.empty()) {
+      cout << " ext_data_path   = " << ext_data_path << endl;    
+    }
 
     if(eom_nroots > 0){
       cout << " eom_nroots           = " << eom_nroots        << endl;
@@ -356,7 +380,7 @@ class CCSDOptions: public Options {
       cout << " gf_omega_delta       = " << gf_omega_delta    << endl; 
       cout << " gf_omega_delta_e     = " << gf_omega_delta_e  << endl; 
       if(!gf_orbitals.empty()) {
-        cout << " gf_orbitals     = [";
+        cout << " gf_orbitals        = [";
         for(auto x: gf_orbitals) cout << x << ",";
         cout << "]" << endl;           
       }
@@ -386,8 +410,7 @@ class OptionsMap
     CCSDOptions ccsd_options;
 };
 
-
-void nwx_terminate(std::string msg) {
+void tamm_terminate(std::string msg) {
     if(GA_Nodeid()==0) std::cout << msg << " ... terminating program." << endl << endl;
     GA_Terminate();
     MPI_Finalize();
@@ -397,132 +420,164 @@ void nwx_terminate(std::string msg) {
 void to_upper(std::string& str) { std::transform(str.begin(), str.end(), str.begin(), ::toupper); }
 void to_lower(std::string& str) { std::transform(str.begin(), str.end(), str.begin(), ::tolower); }
 
-string read_option(string line){
-  std::istringstream oss(line);
-  std::vector<std::string> option_string{
-    std::istream_iterator<std::string>{oss},
-    std::istream_iterator<std::string>{}};
-  // assert(option_string.size() == 2);
-  
-  return option_string[1];
-}
-
-bool is_comment(const std::string line) {
-  auto found = false;
-  if(line.find("//") != std::string::npos){
-    // found = true;
-    auto fpos = line.find_first_not_of(' ');
-    auto str = line.substr(fpos,2);
-    if (str == "//") found = true;
-  }
-  return found;
-}
-
-bool is_in_line(const std::string str, const std::string line){
-  auto found = true;
-  std::string str_u = str, str_l = str;
-  to_upper(str_u); to_lower(str_l);
-
-  if (is_comment(line)) found = false;
-  else {
-    std::istringstream oss(line);
-    std::vector<std::string> option_string{
-    std::istream_iterator<std::string>{oss},
-    std::istream_iterator<std::string>{}};
-    for (auto &x: option_string) 
-      x.erase(std::remove(x.begin(),x.end(),' '),x.end());
-    
-    if (std::find(option_string.begin(),option_string.end(), str_u) == option_string.end()
-     && std::find(option_string.begin(),option_string.end(), str_l) == option_string.end() )
-     found = false;
-  }
-
-  return found;
-}
-
-bool to_bool(const std::string str) { 
-  if (is_in_line("false",str)) return false;
-  return true;
-}
-
-bool is_empty(std::string line){
-  if(line.find_first_not_of(' ') == std::string::npos 
-    || line.empty() || is_comment(line)) return true;
-  return false;
-}
-
-void skip_empty_lines(std::istream& is) {
-    std::string line;
-    auto curpos = is.tellg();
-    std::getline(is, line);
-    
-    if(is_empty(line)) {
-      curpos = is.tellg();
-      auto trackpos = curpos;
-      while (is_empty(line)) {
-        curpos = trackpos;
-        std::getline(is, line);
-        trackpos = is.tellg();
-      }
-    }
-    is.clear();//cannot seek to curpos if eof is reached
-    is.seekg(curpos,std::ios_base::beg);
-    // std::getline(is, line);
-}
-
-
-void check_start(std::string line, std::string section) {
-    auto spos = line.find("{");
-    std::string rest = line.substr(spos+1,line.length());
-    if(!is_empty(rest)) {
-      nwx_terminate("ERROR in " + section + " section: " \
-      + "cannot have any option in the same line as \"{\" ");
-    }
-}
-
-void check_section_start(std::istream& is, std::string line, std::string section) {
-    skip_empty_lines(is);
-    //Check opening curly brace
-    if(!is_in_line("{",line)) {
-        std::getline(is, line);
-        if(!is_in_line("{",line))
-          nwx_terminate("missing { in " + section + " section");
-        else check_start(line,section);
-    }
-    else check_start(line,section);
-}
-
-void unknown_option(const std::string line, const std::string section){
-  if(!is_comment(line)) {
-    std::cout << "ERROR: unknown " + section + " option: " << line << endl;
-    nwx_terminate("Remove/comment above line from the input file.\
- This can also happen when missing \"}\" to close the " + section + " section.");
+template<typename T>
+void parse_option(T& val, json j, string key, bool optional=true)
+{
+  if (j.contains(key)) val = j[key].get<T>();
+  else if(!optional) {
+    tamm_terminate("ERROR: " + key + " not specified. Please specify the " + key + " option!");
   }
 }
 
 
-std::vector<Atom> read_atoms(std::istream& is) {
-    
-    // first line = # of atoms
-    skip_empty_lines(is);
-    size_t natom;
-    is >> natom;
-    // read off the rest of first line and discard
-    std::string rest_of_line;
-    std::getline(is, rest_of_line);
-    if(rest_of_line.length()>0)
-      cerr << "Ignoring unsupported option: " << rest_of_line << endl;
+std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput) {
 
-    skip_empty_lines(is);
+    Options options;
+    parse_option<string>(options.basis             , jinput["basis"]   , "basisset",false);
+    parse_option<string>(options.sphcart           , jinput["basis"]   , "sphcart");
+    parse_option<int>   (options.maxiter           , jinput["common"]  , "maxiter");
+    parse_option<bool>  (options.debug             , jinput["common"]  , "debug");
+    parse_option<string>(options.dfbasis           , jinput["basis"]   , "df_basisset");
+    parse_option<string>(options.geom_units        , jinput["geometry"], "units");
+    parse_option<string>(options.output_file_prefix, jinput["common"]  , "output_file_prefix");
+
+    SCFOptions  scf_options(options);
+    CDOptions   cd_options(options);
+    CCSDOptions ccsd_options(options);
+
+    //SCF
+    json jscf = jinput["SCF"];
+    parse_option<int>   (scf_options.charge          , jscf, "charge");
+    parse_option<int>   (scf_options.multiplicity    , jscf, "multiplicity");   
+    parse_option<double>(scf_options.lshift          , jscf, "lshift");
+    parse_option<double>(scf_options.tol_int         , jscf, "tol_int");   
+    parse_option<double>(scf_options.tol_lindep      , jscf, "tol_lindep");
+    parse_option<double>(scf_options.conve           , jscf, "conve");
+    parse_option<double>(scf_options.convd           , jscf, "convd");            
+    parse_option<int>   (scf_options.diis_hist       , jscf, "diis_hist");   
+    parse_option<bool>  (scf_options.force_tilesize  , jscf, "force_tilesize"); 
+    parse_option<int>   (scf_options.AO_tilesize     , jscf, "tilesize");
+    parse_option<double>(scf_options.alpha           , jscf, "alpha");
+    parse_option<int>   (scf_options.writem          , jscf, "writem");    
+    parse_option<int>   (scf_options.nnodes          , jscf, "nnodes");                                     
+    parse_option<bool>  (scf_options.restart         , jscf, "restart"); 
+    parse_option<bool>  (scf_options.noscf           , jscf, "noscf");     
+    parse_option<bool>  (scf_options.ediis           , jscf, "ediis");
+    parse_option<double>(scf_options.ediis_off       , jscf, "ediis_off");
+    parse_option<bool>  (scf_options.sad             , jscf, "sad");       
+    parse_option<bool>  (scf_options.debug           , jscf, "debug");
+    parse_option<string>(scf_options.moldenfile      , jscf, "moldenfile"); 
+    parse_option<string>(scf_options.scf_type        , jscf, "scf_type");
+    parse_option<int>   (scf_options.n_lindep        , jscf, "n_lindep"); 
+    parse_option<int>   (scf_options.scalapack_nb    , jscf, "scalapack_nb");
+    parse_option<int>   (scf_options.scalapack_np_row, jscf, "scalapack_np_row");                                                             
+    parse_option<int>   (scf_options.scalapack_np_col, jscf, "scalapack_np_col");
+    
+    std::string riscf_str;
+    parse_option<string>(riscf_str, jscf, "riscf");
+    if(riscf_str == "J")         scf_options.riscf = 1;
+    else if(riscf_str == "K")    scf_options.riscf = 2;    
+
+    //CD
+    json jcd = jinput["CD"];
+    parse_option<bool>  (cd_options.debug           , jcd, "debug");    
+    parse_option<double>(cd_options.diagtol         , jcd, "diagtol");
+    parse_option<int>   (cd_options.max_cvecs_factor, jcd, "max_cvecs");    
+
+    //CC
+    json jcc = jinput["CC"];
+    parse_option<int>   (ccsd_options.ndiis         , jcc, "ndiis");  
+    parse_option<int>   (ccsd_options.ccsd_maxiter  , jcc, "ccsd_maxiter");
+    parse_option<double>(ccsd_options.lshift        , jcc, "lshift"); 
+    parse_option<double>(ccsd_options.threshold     , jcc, "threshold"); 
+    parse_option<int>   (ccsd_options.tilesize      , jcc, "tilesize"); 
+    parse_option<int>   (ccsd_options.itilesize     , jcc, "itilesize");
+    parse_option<bool>  (ccsd_options.debug         , jcc, "debug");
+    parse_option<bool>  (ccsd_options.readt         , jcc, "readt"); 
+    parse_option<bool>  (ccsd_options.writet        , jcc, "writet");
+    parse_option<int>   (ccsd_options.writet_iter   , jcc, "writet_iter");           
+    parse_option<bool>  (ccsd_options.balance_tiles , jcc, "balance_tiles");
+    parse_option<bool>  (ccsd_options.profile_ccsd  , jcc, "profile_ccsd");                
+    parse_option<bool>  (ccsd_options.force_tilesize, jcc, "force_tilesize");     
+    parse_option<string>(ccsd_options.ext_data_path , jcc, "ext_data_path");    
+
+    json jdlpno = jcc["DLPNO"];
+    parse_option<bool>  (ccsd_options.skip_dlpno   , jdlpno, "skip_dlpno");
+    parse_option<string>(ccsd_options.dlpno_dfbasis, jdlpno, "df_basisset");
+
+    json jccsd_t = jcc["CCSD(T)"];
+    parse_option<int>(ccsd_options.ngpu          , jccsd_t, "ngpu"); 
+    parse_option<int>(ccsd_options.ccsdt_tilesize, jccsd_t, "ccsdt_tilesize");    
+
+    json jeomccsd = jcc["EOMCCSD"];
+    parse_option<int>   (ccsd_options.eom_nroots   , jeomccsd, "eom_nroots");   
+    parse_option<int>   (ccsd_options.eom_microiter, jeomccsd, "eom_microiter");                                              
+    parse_option<double>(ccsd_options.eom_threshold, jeomccsd, "eom_threshold");                 
+    
+    json jgfcc = jcc["GFCCSD"];
+    parse_option<bool>(ccsd_options.gf_ip      , jgfcc, "gf_ip"); 
+    parse_option<bool>(ccsd_options.gf_ea      , jgfcc, "gf_ea"); 
+    parse_option<bool>(ccsd_options.gf_os      , jgfcc, "gf_os"); 
+    parse_option<bool>(ccsd_options.gf_cs      , jgfcc, "gf_cs"); 
+    parse_option<bool>(ccsd_options.gf_restart , jgfcc, "gf_restart"); 
+    parse_option<bool>(ccsd_options.gf_itriples, jgfcc, "gf_itriples");
+
+    parse_option<int>   (ccsd_options.gf_ndiis            , jgfcc, "gf_ndiis");
+    parse_option<int>   (ccsd_options.gf_ngmres           , jgfcc, "gf_ngmres");
+    parse_option<int>   (ccsd_options.gf_maxiter          , jgfcc, "gf_maxiter");
+    parse_option<int>   (ccsd_options.gf_nprocs_poi       , jgfcc, "gf_nprocs_poi");
+    parse_option<double>(ccsd_options.gf_damping_factor   , jgfcc, "gf_damping_factor");
+    parse_option<double>(ccsd_options.gf_eta              , jgfcc, "gf_eta");
+    parse_option<double>(ccsd_options.gf_threshold        , jgfcc, "gf_threshold");
+    parse_option<double>(ccsd_options.gf_omega_min_ip     , jgfcc, "gf_omega_min_ip"); 
+    parse_option<double>(ccsd_options.gf_omega_max_ip     , jgfcc, "gf_omega_max_ip");  
+    parse_option<double>(ccsd_options.gf_omega_min_ip_e   , jgfcc, "gf_omega_min_ip_e");  
+    parse_option<double>(ccsd_options.gf_omega_max_ip_e   , jgfcc, "gf_omega_max_ip_e");  
+    parse_option<double>(ccsd_options.gf_omega_min_ea     , jgfcc, "gf_omega_min_ea");
+    parse_option<double>(ccsd_options.gf_omega_max_ea     , jgfcc, "gf_omega_max_ea"); 
+    parse_option<double>(ccsd_options.gf_omega_min_ea_e   , jgfcc, "gf_omega_min_ea_e");  
+    parse_option<double>(ccsd_options.gf_omega_max_ea_e   , jgfcc, "gf_omega_max_ea_e");  
+    parse_option<double>(ccsd_options.gf_omega_delta      , jgfcc, "gf_omega_delta");
+    parse_option<double>(ccsd_options.gf_omega_delta_e    , jgfcc, "gf_omega_delta_e");
+    parse_option<int>   (ccsd_options.gf_extrapolate_level, jgfcc, "gf_extrapolate_level"); 
+    parse_option<int>   (ccsd_options.gf_analyze_level    , jgfcc, "gf_analyze_level");  
+    parse_option<int>   (ccsd_options.gf_analyze_num_omega, jgfcc, "gf_analyze_num_omega");
+    parse_option<int>   (ccsd_options.gf_p_oi_range       , jgfcc, "gf_p_oi_range"); 
+
+    parse_option<std::vector<size_t>>(ccsd_options.gf_orbitals     , jgfcc, "gf_orbitals");
+    parse_option<std::vector<double>>(ccsd_options.gf_analyze_omega, jgfcc, "gf_analyze_omega");
+    
+    if(ccsd_options.gf_p_oi_range!=0){
+      if(ccsd_options.gf_p_oi_range != 1 && ccsd_options.gf_p_oi_range != 2)
+      tamm_terminate ("gf_p_oi_range can only be one of 1 or 2");
+    }
+
+    // options.print();
+    // scf_options.print();
+    // ccsd_options.print();
+
+    return std::make_tuple(options, scf_options, cd_options, ccsd_options);
+
+}
+
+inline std::tuple<std::vector<Atom>, OptionsMap, json>
+   parse_input(std::istream& is) {
+
+    const double angstrom_to_bohr =
+      1.889725989; // 1 / bohr_to_angstrom; //1.889726125
+    
+    json jinput;
+    is >> jinput;
+
+    std::vector<string> geometry;
+    parse_option<std::vector<string>>(geometry, jinput["geometry"], "coordinates", false);
+    size_t natom = geometry.size();
 
     // rest of lines are atoms
     std::vector<Atom> atoms(natom);
     for(size_t i = 0; i < natom; i++) {
-        // read line
-        std::string line;
-        std::getline(is, line);
+        std::string line = geometry[i];
         std::istringstream iss(line);
-        // then parse ... this handles "extended" XYZ formats
         std::string element_symbol;
         double x, y, z;
         iss >> element_symbol >> x >> y >> z;
@@ -547,305 +602,9 @@ std::vector<Atom> read_atoms(std::istream& is) {
         atoms[i].x = x;
         atoms[i].y = y;
         atoms[i].z = z;
-
     }
 
-    return atoms;
-}
-
-std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> read_nwx_file(std::istream& is) {
-      //Can have blank/comment lines after atom list
-    skip_empty_lines(is);
-
-    std::string line;
-    bool section_start = true;
-
-    //Parsing common options
-    Options options;
-    std::getline(is, line);
-    //1st non-empty line after atom list should be common section
-    if(!is_in_line("COMMON", line)) 
-      nwx_terminate("COMMON section missing/incorrectly placed in input file");
-    
-    check_section_start(is, line, "COMMON");
-
-    while(section_start){
-      skip_empty_lines(is);
-      std::getline(is, line);
-
-      if(is_in_line("basis",line)) {
-        std::istringstream iss(line);
-        std::vector<std::string> basis_line{std::istream_iterator<std::string>{iss},
-                                            std::istream_iterator<std::string>{}};
-        assert(basis_line.size() == 2 || basis_line.size()==3);
-        options.basis = basis_line[1];
-        if(basis_line.size()==3){
-          options.sphcart = basis_line[2];
-          if(!strequal_case(options.sphcart, "cartesian") && !strequal_case(options.sphcart, "spherical"))
-            nwx_terminate("unknown sphcart value for basis specified");      
-        }
-      }
-      else if(is_in_line("maxiter",line))
-        options.maxiter = std::stoi(read_option(line));
-      else if(is_in_line("debug",line))
-        options.debug = to_bool(read_option(line));        
-      else if(is_in_line("dfbasis",line)) 
-        options.dfbasis = read_option(line);  
-      else if(is_in_line("output_file_prefix",line)) 
-        options.output_file_prefix = read_option(line);          
-      else if(is_in_line("geometry",line)){
-        //geometry units
-        std::istringstream iss(line);
-        std::vector<std::string> geom_units{std::istream_iterator<std::string>{iss},
-                                            std::istream_iterator<std::string>{}};
-        assert(geom_units.size() == 3);
-        auto gunit = geom_units[2];
-        if(!strequal_case(gunit,"bohr") && !strequal_case(gunit,"angstrom"))
-          nwx_terminate("unknown geometry units specified");
-        options.geom_units = gunit;
-      }
-      else if(is_in_line("}",line)) section_start = false;
-      else unknown_option(line,"");
-    }
- 
-    SCFOptions scf_options(options);
-    CDOptions cd_options(options);
-    CCSDOptions ccsd_options(options);
-
-    skip_empty_lines(is);
-
-    while(!is.eof()) {
-      std::getline(is, line);
-
-      if(is_in_line("SCF",line)){
-        section_start = true;
-        check_section_start(is, line, "SCF");
-
-        while(section_start){
-          skip_empty_lines(is);
-          std::getline(is, line);
-
-          if(is_in_line("charge",line)) 
-            scf_options.charge = std::stod(read_option(line));   
-          else if(is_in_line("multiplicity",line)) 
-            scf_options.multiplicity = std::stod(read_option(line));   
-          else if(is_in_line("lshift",line)) 
-            scf_options.lshift = std::stod(read_option(line));              
-          else if(is_in_line("tol_int",line)) 
-            scf_options.tol_int = std::stod(read_option(line));   
-          else if(is_in_line("tol_lindep",line)) 
-            scf_options.tol_lindep = std::stod(read_option(line));
-          else if(is_in_line("conve",line)) 
-            scf_options.conve = std::stod(read_option(line));
-          else if(is_in_line("convd",line)) 
-            scf_options.convd = std::stod(read_option(line));            
-          else if(is_in_line("diis_hist",line)) 
-            scf_options.diis_hist = std::stoi(read_option(line));    
-          else if(is_in_line("force_tilesize",line)) 
-            scf_options.force_tilesize = to_bool(read_option(line));  
-          else if(is_in_line("tilesize",line)) 
-            scf_options.AO_tilesize = std::stod(read_option(line)); 
-          else if(is_in_line("alpha",line)) 
-            scf_options.alpha = std::stod(read_option(line));  
-          else if(is_in_line("writem",line)) 
-            scf_options.writem = std::stoi(read_option(line));    
-          else if(is_in_line("nnodes",line)) 
-            scf_options.nnodes = std::stoi(read_option(line));                                      
-          else if(is_in_line("riscf",line)) {
-            std::string riscf_str = read_option(line);
-            if(riscf_str == "J") scf_options.riscf = 1;
-            else if(riscf_str == "K") scf_options.riscf = 2;
-          }
-          else if(is_in_line("restart",line))
-            scf_options.restart = to_bool(read_option(line));  
-          else if(is_in_line("noscf",line))
-            scf_options.noscf = to_bool(read_option(line));     
-          else if(is_in_line("ediis",line))
-            scf_options.ediis = to_bool(read_option(line));
-          else if(is_in_line("ediis_off",line))
-            scf_options.ediis_off = std::stod(read_option(line));  
-          else if(is_in_line("sad",line))
-            scf_options.sad = to_bool(read_option(line));                  
-          else if(is_in_line("debug",line))
-            scf_options.debug = to_bool(read_option(line)); 
-          else if(is_in_line("moldenfile",line))
-            scf_options.moldenfile = read_option(line); 
-          else if(is_in_line("scf_type",line))
-            scf_options.scf_type = read_option(line); 
-          else if(is_in_line("n_lindep",line))
-            scf_options.n_lindep = std::stoi(read_option(line)); 
-          else if(is_in_line("scalapack_nb",line)) 
-            scf_options.scalapack_nb = std::stoi(read_option(line));   
-          else if(is_in_line("scalapack_np_row",line)) 
-            scf_options.scalapack_np_row = std::stoi(read_option(line));                                                             
-          else if(is_in_line("scalapack_np_col",line)) 
-            scf_options.scalapack_np_col = std::stoi(read_option(line));               
-          else if(is_in_line("}",line)) section_start = false;
-          else unknown_option(line,"SCF");
-          
-        }
-      }
-
-      else if(is_in_line("CD", line)) {
-        section_start = true;
-        check_section_start(is, line, "CD");
-
-        while(section_start){
-          skip_empty_lines(is);
-          std::getline(is, line);
-
-          if(is_in_line("max_cvecs",line)) 
-            cd_options.max_cvecs_factor = std::stoi(read_option(line));    
-          else if(is_in_line("diagtol",line)) 
-            cd_options.diagtol = std::stod(read_option(line));  
-          else if(is_in_line("debug",line))
-            cd_options.debug = to_bool(read_option(line));                               
-          else if(is_in_line("}",line)) section_start = false;
-          else unknown_option(line, "CD");
-        }
-      }
-
-      else if (is_in_line("CCSD", line)) {
-        section_start = true;
-        check_section_start(is, line, "CCSD");
-
-        while(section_start){
-          skip_empty_lines(is);
-          std::getline(is, line);
-
-          if(is_in_line("ndiis",line)) 
-            ccsd_options.ndiis = std::stoi(read_option(line));  
-          else if(is_in_line("eom_nroots",line)) 
-            ccsd_options.eom_nroots = std::stoi(read_option(line));  
-          else if(is_in_line("eom_microiter",line)) 
-            ccsd_options.eom_microiter = std::stoi(read_option(line));  
-          else if(is_in_line("ccsd_maxiter",line)) 
-            ccsd_options.ccsd_maxiter = std::stoi(read_option(line)); 
-          else if(is_in_line("lshift",line)) 
-            ccsd_options.lshift = std::stod(read_option(line));                                      
-          else if(is_in_line("eom_threshold",line)) 
-            ccsd_options.eom_threshold = std::stod(read_option(line));              
-          else if(is_in_line("threshold",line)) 
-            ccsd_options.threshold = std::stod(read_option(line));  
-          else if(is_in_line("tilesize",line))
-            ccsd_options.tilesize = std::stoi(read_option(line));
-          else if(is_in_line("ccsdt_tilesize",line))
-            ccsd_options.ccsdt_tilesize = std::stoi(read_option(line));            
-          else if(is_in_line("itilesize",line))
-            ccsd_options.itilesize = std::stoi(read_option(line));            
-          else if(is_in_line("ngpu",line))
-            ccsd_options.ngpu = std::stoi(read_option(line));            
-          else if(is_in_line("debug",line))
-            ccsd_options.debug = to_bool(read_option(line)); 
-          else if(is_in_line("readt",line))
-            ccsd_options.readt = to_bool(read_option(line)); 
-          else if(is_in_line("writet",line))
-            ccsd_options.writet = to_bool(read_option(line));
-          else if(is_in_line("writet_iter",line))
-            ccsd_options.writet_iter = std::stoi(read_option(line));            
-          else if(is_in_line("balance_tiles",line))
-            ccsd_options.balance_tiles = to_bool(read_option(line)); 
-          else if(is_in_line("profile_ccsd",line))
-            ccsd_options.profile_ccsd = to_bool(read_option(line));                 
-          else if(is_in_line("force_tilesize",line)) 
-            ccsd_options.force_tilesize = to_bool(read_option(line));                     
-          else if(is_in_line("gf_ip",line))
-            ccsd_options.gf_ip = to_bool(read_option(line)); 
-          else if(is_in_line("gf_ea",line))
-            ccsd_options.gf_ea = to_bool(read_option(line)); 
-          else if(is_in_line("gf_os",line))
-            ccsd_options.gf_os = to_bool(read_option(line)); 
-          else if(is_in_line("gf_cs",line))
-            ccsd_options.gf_cs = to_bool(read_option(line)); 
-          else if(is_in_line("gf_restart",line))
-            ccsd_options.gf_restart = to_bool(read_option(line)); 
-          else if(is_in_line("gf_itriples",line))
-            ccsd_options.gf_itriples = to_bool(read_option(line));             
-          else if(is_in_line("gf_p_oi_range",line)) {
-            ccsd_options.gf_p_oi_range = std::stoi(read_option(line)); 
-            if(ccsd_options.gf_p_oi_range != 1 && ccsd_options.gf_p_oi_range != 2)
-              nwx_terminate ("gf_p_oi_range can only be one of 1 or 2");
-          }
-          else if(is_in_line("gf_ndiis",line)) 
-            ccsd_options.gf_ndiis = std::stoi(read_option(line)); 
-          else if(is_in_line("gf_ngmres",line)) 
-            ccsd_options.gf_ngmres = std::stoi(read_option(line)); 
-          else if(is_in_line("gf_maxiter",line)) 
-            ccsd_options.gf_maxiter = std::stoi(read_option(line));
-          else if(is_in_line("gf_nprocs_poi",line)) 
-            ccsd_options.gf_nprocs_poi = std::stoi(read_option(line));                         
-          // else if(is_in_line("gf_level_shift",line)) 
-          //   ccsd_options.gf_level_shift = std::stod(read_option(line));  
-          else if(is_in_line("gf_damping_factor",line)) 
-            ccsd_options.gf_damping_factor = std::stod(read_option(line));              
-          else if(is_in_line("gf_eta",line)) 
-            ccsd_options.gf_eta = std::stod(read_option(line));                     
-          else if(is_in_line("gf_threshold",line)) 
-            ccsd_options.gf_threshold = std::stod(read_option(line));  
-          else if(is_in_line("gf_omega_min_ip",line)) 
-            ccsd_options.gf_omega_min_ip = std::stod(read_option(line));  
-          else if(is_in_line("gf_omega_max_ip",line)) 
-            ccsd_options.gf_omega_max_ip = std::stod(read_option(line));  
-          else if(is_in_line("gf_omega_min_ip_e",line)) 
-            ccsd_options.gf_omega_min_ip_e = std::stod(read_option(line));  
-          else if(is_in_line("gf_omega_max_ip_e",line)) 
-            ccsd_options.gf_omega_max_ip_e = std::stod(read_option(line));  
-          else if(is_in_line("gf_omega_min_ea",line)) 
-            ccsd_options.gf_omega_min_ea = std::stod(read_option(line));  
-          else if(is_in_line("gf_omega_max_ea",line)) 
-            ccsd_options.gf_omega_max_ea = std::stod(read_option(line));  
-          else if(is_in_line("gf_omega_min_ea_e",line)) 
-            ccsd_options.gf_omega_min_ea_e = std::stod(read_option(line));  
-          else if(is_in_line("gf_omega_max_ea_e",line)) 
-            ccsd_options.gf_omega_max_ea_e = std::stod(read_option(line));  
-          else if(is_in_line("gf_omega_delta",line)) 
-            ccsd_options.gf_omega_delta = std::stod(read_option(line));  
-          else if(is_in_line("gf_omega_delta_e",line)) 
-            ccsd_options.gf_omega_delta_e = std::stod(read_option(line));              
-          else if(is_in_line("gf_extrapolate_level",line)) 
-            ccsd_options.gf_extrapolate_level = std::stoi(read_option(line)); 
-          else if(is_in_line("gf_analyze_level",line)) 
-            ccsd_options.gf_analyze_level = std::stoi(read_option(line));  
-          else if(is_in_line("gf_analyze_num_omega",line)) 
-            ccsd_options.gf_analyze_num_omega = std::stoi(read_option(line));              
-          else if(is_in_line("gf_analyze_omega",line)) {
-              std::istringstream iss(line);
-              std::string wignore;
-              iss >> wignore;
-              std::vector<double> gf_analyze_omega{std::istream_iterator<double>{iss},
-                                              std::istream_iterator<double>{}};
-              ccsd_options.gf_analyze_omega = gf_analyze_omega;
-          }          
-          else if(is_in_line("gf_orbitals",line)) {
-              std::istringstream iss(line);
-              std::string wignore;
-              iss >> wignore;
-              std::vector<size_t> gf_orbitals{std::istream_iterator<double>{iss},
-                                              std::istream_iterator<double>{}};
-              ccsd_options.gf_orbitals = gf_orbitals;
-          }                    
-          else if(is_in_line("}",line)) section_start = false;
-          else unknown_option(line, "CCSD");
-
-        }
-      }
-      //else ignore 
-    }
-
-    return std::make_tuple(options, scf_options, cd_options, ccsd_options);
-
-}
-
-
-inline std::tuple<std::vector<Atom>, OptionsMap>
-   read_input_nwx(std::istream& is) {
-
-    const double angstrom_to_bohr =
-      1.889725989; // 1 / bohr_to_angstrom; //1.889726125
-    
-    auto atoms = read_atoms(is);
-
-    auto [options, scf_options, cd_options, ccsd_options] = read_nwx_file(is);
+    auto [options, scf_options, cd_options, ccsd_options] = parse_json(jinput);    
 
     //Done parsing input file
     {
@@ -882,7 +641,7 @@ inline std::tuple<std::vector<Atom>, OptionsMap>
 
     options_map.ccsd_options = ccsd_options;
 
-    return std::make_tuple(atoms, options_map);
+    return std::make_tuple(atoms, options_map, jinput);
 }
 
 

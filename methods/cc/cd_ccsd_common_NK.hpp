@@ -680,7 +680,7 @@ std::tuple<double,double> cd_ccsd_driver_NK(ExecutionContext& ec, const TiledInd
             const auto timer_end = std::chrono::high_resolution_clock::now();
             auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-            iteration_print(ec.pg(), titer, residual, energy, iter_time);
+            iteration_print(sys_data, ec.pg(), titer, residual, energy, iter_time);
            
             if(residual < thresh || titer >= maxiter) { break; }
 

@@ -1,0 +1,41 @@
+{
+  "geometry": {
+    "coordinates": [
+      "H    0.000000000000000   1.579252144093028   2.174611055780858",
+      "O    0.000000000000000   0.000000000000000   0.000000000000000",
+      "H    0.000000000000000   1.579252144093028  -2.174611055780858"
+    ],
+    "units": "bohr"
+  },
+  "basis": {
+    "basisset": "cc-pvdz",
+    "sphcart": "spherical"
+  },
+  "common": {
+    "maxiter": 50
+  },
+  "SCF": {
+    "tol_int": 1e-20,
+    "tol_lindep": 1e-06,
+    "conve": 1e-12,
+    "convd": 1e-11,
+    "diis_hist": 10,
+    "sad": false,
+    "writem": 10,
+    "force_tilesize": false,
+    "tilesize": 30
+  },
+  "CD": {
+    "diagtol": 1e-08,
+    "max_cvecs": 8
+  },
+  "CC": {
+    "threshold": 1e-10,
+    "tilesize": 50,
+    "itilesize": 1000,
+    "CCSD(T)": {
+      "ccsdt_tilesize": 28
+    },
+    "profile_ccsd": false
+  }
+}

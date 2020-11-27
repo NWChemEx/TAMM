@@ -237,7 +237,7 @@ Running the code
 ### General run:
 ```
 export OMP_NUM_THREADS=1
-export TAMM_INPUT=$TAMM_SRC/inputs/ozone.nwx
+export TAMM_INPUT=$TAMM_SRC/inputs/ozone.json
 
 mpirun -n 2 $TAMM_EXE $TAMM_INPUT
 ```
@@ -255,6 +255,6 @@ export PAMI_IBV_DEVICE_NAME_1="mlx5_3:1,mlx5_0:1"
 export GA_PROGRESS_RANKS_DISTRIBUTION_PACKED=1
 export GA_NUM_PROGRESS_RANKS_PER_NODE=6
 
-export TAMM_INPUT=$TAMM_SRC/inputs/ubiquitin_dgrtl.nwx
+export TAMM_INPUT=$TAMM_SRC/inputs/ubiquitin_dgrtl.json
 
 jsrun -a12 -c12 -g6 -r1 -dpacked $TAMM_EXE $TAMM_INPUT

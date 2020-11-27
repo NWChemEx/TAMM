@@ -5,8 +5,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #elif defined(USE_HIP)
-#include <hip.h>
-#include <hip_runtime.h>
+#include <hip/hip_runtime.h>
 #elif defined(USE_DPCPP)
 #include <CL/sycl.hpp>
 #endif

@@ -1,0 +1,17 @@
+{
+  "geometry": {
+    "coordinates": [
+      "n 0 0   -1.034",
+      "n 0 0    1.034"
+    ],
+    "units": "bohr"
+  },
+  "basis": {
+    "basisset": "sto-3g",
+    "sphcart": "spherical"
+  },
+  "SCF": {
+    "tilesize": 30,
+    "restart": false
+  }
+}

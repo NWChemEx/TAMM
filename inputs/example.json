@@ -1,0 +1,90 @@
+{
+
+    "geometry" : {
+        "coordinates" : [
+         "H 0.000000000000000 1.579252144093028  2.174611055780858",
+         "O 0.000000000000000 0.000000000000000  0.000000000000000",
+         "H 0.000000000000000 1.579252144093028 -2.174611055780858"
+        ],
+        "units": "bohr"
+    },
+    
+    "basis": {
+        "basisset": "cc-pvdz",
+        "df_basisset": "cc-pv5z-ri",
+        "sphcart": "spherical"
+    },
+
+    "common": {
+        "maxiter": 50,
+        "debug": false,
+        "output_file_prefix": ""
+    },
+    
+    "SCF": {
+        "charge": 0,
+        "multiplicity": 1,
+        "lshift": 0,
+        "tol_int": 1e-12,
+        "tol_lindep": 1e-5,
+        "conve": 1e-8,
+        "convd": 1e-7,
+        "diis_hist": 10,
+        "force_tilesize": false,
+        "tilesize": 30,
+        "alpha": 0.7,
+        "nnodes": 1,
+        "writem": 10,
+        "riscf": "JK",
+        "restart": true,
+        "noscf": true,
+        "ediis": false,
+        "ediis_off": 1e-5,
+        "sad": false,
+        "scf_type": "rhf",
+        "debug": false,
+        "scalapack_nb": 1,
+        "scalapack_np_row": 0,
+        "scalapack_np_col": 0,
+        "n_lindep": 0,
+        "moldenfile": ""
+    },
+    
+    "CD": {
+        "diagtol": 1e-6,
+        "max_cvecs": 12,
+        "debug": false
+    },
+    
+    "CC": {
+        "threshold": 1e-6,
+        "force_tilesize": false,
+        "tilesize": 50,
+        "itilesize": 1000,
+        "lshift": 0,
+        "ndiis": 5,
+        "ccsd_maxiter": 50,
+
+        "readt": false,
+        "writet": false,
+        "writet_iter": 5,
+
+        "debug": false,
+        "profile_ccsd": false,
+        "balance_tiles": false,
+
+        "ext_data_path": "",
+    
+        "CCSD(T)": {
+          "ngpu": 0,
+          "ccsdt_tilesize": 28
+        },
+    
+        "DLPNO": {
+            "skip_dlpno": false,
+            "df_basisset": ""
+        }
+    }
+    
+}
+    

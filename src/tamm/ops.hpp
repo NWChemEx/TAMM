@@ -415,7 +415,7 @@ public:
 #if 1
         LabelLoopNest loop_nest{lhs_.labels()};
 
-        auto lambda = [=,&loop_nest](const IndexVector& blockid) {
+        auto lambda = [=,&loop_nest,&ec](const IndexVector& blockid) {
             auto tensor = lhs_.tensor();
             EXPECTS(blockid.size() == lhs_.labels().size());
             EXPECTS(blockid.size() == tensor.num_modes());
@@ -1080,7 +1080,7 @@ public:
 
         LabelLoopNest loop_nest{merged_labels};
 
-        auto lambda = [=,&loop_nest](const IndexVector& blockid) {
+        auto lambda = [=,&loop_nest,&ec](const IndexVector& blockid) {
             auto ltensor = lhs_.tensor();
             auto rtensor = rhs_.tensor();
             IndexVector lblockid, rblockid;
@@ -1303,7 +1303,7 @@ public:
       // compute reduction_labels
       std::vector<LT_eltype>* lbuf;
       std::vector<RT_eltype> rbuf(rtensor.distribution().max_block_size());
-      auto lambda = [&]] (const IndexVector& lblockid) {
+      auto lambda = [&] (const IndexVector& lblockid) {
         IndexVector translated_lblockid;
         // get translated lblockid
         EXPECTS(ltensor.non_zero(translated_lblockid));
@@ -1674,7 +1674,7 @@ public:
         std::vector<AddBuf<TensorElType1>*> add_bufs;
 
         // function to compute one block
-        auto lambda = [=,&add_bufs,&loop_nest](const IndexVector itval) {
+        auto lambda = [=,&add_bufs,&loop_nest,&ec](const IndexVector itval) {
             auto ctensor = lhs_.tensor();
             auto atensor = rhs1_.tensor();
             auto btensor = rhs2_.tensor();

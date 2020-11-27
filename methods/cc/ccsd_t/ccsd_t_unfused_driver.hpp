@@ -3,6 +3,9 @@
 #define CCSD_T_UNFUSED_HPP_
 
 #if defined(USE_CUDA) || defined(USE_HIP)
+#if defined(USE_HIP)
+#include "sd_t_total_nwc.hip.hpp"
+#endif
 #include "ccsd_t_singles_unfused.hpp"
 #include "ccsd_t_doubles_unfused.hpp"
 #else

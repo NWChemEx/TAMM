@@ -27,7 +27,7 @@ std::tuple<int,int,int> get_hf_nranks(const size_t N){
     auto nnodes = GA_Cluster_nnodes();
     auto ppn = GA_Cluster_nprocs(0);
 
-    int hf_guessranks = std::ceil(0.15*N);
+    int hf_guessranks = std::ceil(0.5*N);
     int hf_nnodes = hf_guessranks/ppn;
     if(hf_guessranks%ppn>0 || hf_nnodes==0) hf_nnodes++;
     if(hf_nnodes > nnodes) hf_nnodes = nnodes;
@@ -224,7 +224,7 @@ void scf_restart_test(const ExecutionContext& ec, const SystemData& sys_data, co
     MPI_Bcast(&rstatus        ,1,mpi_type<int>()       ,0,ec.pg().comm());
     std::string fnf = movecsfile_alpha + "; " + densityfile_alpha;
     if(is_uhf) fnf = fnf + "; " + movecsfile_beta + "; " + densityfile_beta;    
-    if(rstatus == 0) nwx_terminate("Error reading one or all of the files: [" + fnf + "]");
+    if(rstatus == 0) tamm_terminate("Error reading one or all of the files: [" + fnf + "]");
 }
 
 void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const std::string& filename, 

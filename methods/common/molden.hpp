@@ -5,6 +5,73 @@
 #include <iostream>
 #include "input_parser.hpp"
 
+string read_option(string line){
+  std::istringstream oss(line);
+  std::vector<std::string> option_string{
+    std::istream_iterator<std::string>{oss},
+    std::istream_iterator<std::string>{}};
+  // assert(option_string.size() == 2);
+  
+  return option_string[1];
+}
+
+bool is_comment(const std::string line) {
+  auto found = false;
+  if(line.find("//") != std::string::npos){
+    // found = true;
+    auto fpos = line.find_first_not_of(' ');
+    auto str = line.substr(fpos,2);
+    if (str == "//") found = true;
+  }
+  return found;
+}
+
+bool is_in_line(const std::string str, const std::string line){
+  auto found = true;
+  std::string str_u = str, str_l = str;
+  to_upper(str_u); to_lower(str_l);
+
+  if (is_comment(line)) found = false;
+  else {
+    std::istringstream oss(line);
+    std::vector<std::string> option_string{
+    std::istream_iterator<std::string>{oss},
+    std::istream_iterator<std::string>{}};
+    for (auto &x: option_string) 
+      x.erase(std::remove(x.begin(),x.end(),' '),x.end());
+    
+    if (std::find(option_string.begin(),option_string.end(), str_u) == option_string.end()
+     && std::find(option_string.begin(),option_string.end(), str_l) == option_string.end() )
+     found = false;
+  }
+
+  return found;
+}
+
+// bool is_empty(std::string line){
+//   if(line.find_first_not_of(' ') == std::string::npos 
+//     || line.empty() || is_comment(line)) return true;
+//   return false;
+// }
+
+// void skip_empty_lines(std::istream& is) {
+//     std::string line;
+//     auto curpos = is.tellg();
+//     std::getline(is, line);
+    
+//     if(is_empty(line)) {
+//       curpos = is.tellg();
+//       auto trackpos = curpos;
+//       while (is_empty(line)) {
+//         curpos = trackpos;
+//         std::getline(is, line);
+//         trackpos = is.tellg();
+//       }
+//     }
+//     is.clear();//cannot seek to curpos if eof is reached
+//     is.seekg(curpos,std::ios_base::beg);
+//     // std::getline(is, line);
+// }
 
 template<typename T>
 std::tuple<int,int,int,int> read_mo(SCFOptions scf_options, std::istream& is, std::vector<T>& evl_sorted, 
@@ -79,7 +146,7 @@ std::tuple<int,int,int,int> read_mo(SCFOptions scf_options, std::istream& is, st
   const size_t spd_count = sp_count+d_count;
   const size_t spdf_count = spd_count+f_count;
   const size_t spdfg_count = spdf_count+g_count;
-  //if(spdfg_count*natoms != N) nwx_terminate("Moldenfile read error");
+  //if(spdfg_count*natoms != N) tamm_terminate("Moldenfile read error");
   const T sqrt_3 = std::sqrt(static_cast<T>(3.0));
   const T sqrt_5 = std::sqrt(static_cast<T>(5.0));
   const T sqrt_7 = std::sqrt(static_cast<T>(7.0));

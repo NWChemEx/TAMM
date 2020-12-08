@@ -112,6 +112,25 @@ inline void gemm_wrapper<std::complex<double>>(
     cblas_zgemm(Order, TransA, TransB, M, N, K, (const double*)&alpha, (const double*)A,
                 lda, (const double*)B, ldb, (const double*)&beta, (double*)C, ldc);
 }
+
+template<typename T>
+void copyv_wrapper(const std::bool conj = false, const int size,
+                   const T * input,  const int input_stride,
+                   const T * output, const int output_stride)
+{
+  conj_t bconj = (conj ? BLIS_CONJUGATE : BLIS_NO_CONJUGATE);
+  dim_t  bdim{size};
+  inc_t  bistride{input_stride};
+  inc_t  bostride{output_stride};
+  if constexpr(std::is_same_v<T3,double>) {
+    bli_dcopyv(bconj,size,input,bistride,output,bostride);
+  } else if constexpr(std::is_same_v<T3,float>) {
+    bli_scopyv(bconj,size,input,bistride,output,bostride);
+  } else {
+    // add error detection here
+  }
+}
+
 } // namespace internal
 
 namespace kernels {
@@ -328,10 +347,9 @@ void block_multiply(bool &isgpuOp,
           //copy B to complex buffer
           std::vector<T1> bbuf_complex(bsize.value());
           T3* bbuf_comp_ptr = reinterpret_cast<T3*>(&bbuf_complex[0]);
-          if constexpr(std::is_same_v<T3,double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
-          else if constexpr(std::is_same_v<T3,float>)
-            bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
+
+          copyv_wrapper(bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
+
 #ifdef USE_DPCPP
           T1* bbuf_complex_dev = cl::sycl::malloc_device<T1>(bbuf_complex.size(), *dev_queue);
           // host-->device copy
@@ -371,10 +389,9 @@ void block_multiply(bool &isgpuOp,
           //T1,T2 (C,A) are real, T3 (B) is complex
           std::vector<T1> bbuf_real(bsize.value());
           T1* bbuf_comp_ptr = reinterpret_cast<T1*>(&binter_buf[0]);
-          if constexpr(std::is_same_v<T1,double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
-          else if constexpr(std::is_same_v<T1,float>)
-            bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
+
+          copyv_wrapper(bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
+
 #ifdef USE_DPCPP
           T1* bbuf_real_dev = cl::sycl::malloc_device<T1>(bbuf_real.size(), *dev_queue);
           // host-->device copy
@@ -417,10 +434,9 @@ void block_multiply(bool &isgpuOp,
         if constexpr(internal::is_complex_v<T1>){
           std::vector<T1> abuf_complex(asize.value());
           T2* abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
-          if constexpr(std::is_same_v<T2,double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
-          else if constexpr(std::is_same_v<T2,float>)
-            bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
+
+          copyv_wrapper(asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
+
 #ifdef USE_DPCPP
           T1* abuf_complex_dev = cl::sycl::malloc_device<T1>(abuf_complex.size(), *dev_queue);
           // host-->device copy
@@ -460,10 +476,9 @@ void block_multiply(bool &isgpuOp,
           //T1,T3 (C,B) are real, T2 (A) is complex
           std::vector<T1> abuf_real(asize.value());
           T1* abuf_comp_ptr = reinterpret_cast<T1*>(&ainter_buf[0]);
-          if constexpr(std::is_same_v<T1,double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
-          else if constexpr(std::is_same_v<T1,float>)
-            bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
+
+          copyv_wrapper(asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
+
 #ifdef USE_DPCPP
           T1* abuf_real_dev = cl::sycl::malloc_device<T1>(abuf_real.size(), *dev_queue);
           // host-->device copy
@@ -509,14 +524,9 @@ void block_multiply(bool &isgpuOp,
         std::vector<T1> bbuf_complex(bsize.value());
           T2* bbuf_comp_ptr = reinterpret_cast<T2*>(&bbuf_complex[0]);
 
-          if constexpr(std::is_same_v<T2,double>) {
-            bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
-            bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
-          }
-          else if constexpr(std::is_same_v<T2,float>) {
-            bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
-            bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
-          }
+        copyv_wrapper(asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
+        copyv_wrapper(bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
+
 #ifdef USE_DPCPP
         T1* abuf_complex_dev = cl::sycl::malloc_device<T1>(abuf_complex.size(), *dev_queue);
         T2* bbuf_complex_dev = cl::sycl::malloc_device<T2>(bbuf_complex.size(), *dev_queue);
@@ -668,10 +678,8 @@ void block_multiply(bool &isgpuOp,
           //copy B to complex buffer
           std::vector<T1> bbuf_complex(bsize.value());
           T3* bbuf_comp_ptr = reinterpret_cast<T3*>(&bbuf_complex[0]);
-          if constexpr(std::is_same_v<T3,double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),bbufp,1,bbuf_comp_ptr,2);
-          else if constexpr(std::is_same_v<T3,float>)
-            bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbufp,1,bbuf_comp_ptr,2);
+
+          copyv_wrapper(bsize.value(),bbufp,1,bbuf_comp_ptr,2);
 
           th_a = gpu_mult.host_block(adims.size(),
               tal_adims, abufp);
@@ -693,10 +701,8 @@ void block_multiply(bool &isgpuOp,
           //T1,T2 (C,A) are real, T3 (B) is complex
           std::vector<T1> bbuf_real(bsize.value());
           T1* bbuf_comp_ptr = reinterpret_cast<T1*>(bbufp);
-          if constexpr(std::is_same_v<T1,double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
-          else if constexpr(std::is_same_v<T1,float>)
-            bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
+
+          copyv_wrapper(bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
 
           th_a = gpu_mult.host_block(adims.size(),
               tal_adims, abufp);
@@ -721,10 +727,8 @@ void block_multiply(bool &isgpuOp,
         if constexpr(internal::is_complex_v<T1>){
           std::vector<T1> abuf_complex(asize.value());
           T2* abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
-          if constexpr(std::is_same_v<T2,double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),abufp,1,abuf_comp_ptr,2);
-          else if constexpr(std::is_same_v<T2,float>)
-            bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),abufp,1,abuf_comp_ptr,2);
+
+          copyv_wrapper(asize.value(),abufp,1,abuf_comp_ptr,2);
 
           th_a = gpu_mult.host_block(adims.size(),
               tal_adims, abuf_complex.data());
@@ -746,10 +750,8 @@ void block_multiply(bool &isgpuOp,
           //T1,T3 (C,B) are real, T2 (A) is complex
           std::vector<T1> abuf_real(asize.value());
           T1* abuf_comp_ptr = reinterpret_cast<T1*>(abufp);
-          if constexpr(std::is_same_v<T1,double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
-          else if constexpr(std::is_same_v<T1,float>)
-            bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
+
+          copyv_wrapper(asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
 
           th_a = gpu_mult.host_block(adims.size(),
               tal_adims, abuf_real.data());
@@ -777,14 +779,8 @@ void block_multiply(bool &isgpuOp,
         std::vector<T1> bbuf_complex(bsize.value());
           T2* bbuf_comp_ptr = reinterpret_cast<T2*>(&bbuf_complex[0]);
 
-          if constexpr(std::is_same_v<T2,double>) {
-            bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),abufp,1,abuf_comp_ptr,2);
-            bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),bbufp,1,bbuf_comp_ptr,2);
-          }
-          else if constexpr(std::is_same_v<T2,float>) {
-            bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),abufp,1,abuf_comp_ptr,2);
-            bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbufp,1,bbuf_comp_ptr,2);
-          }
+          copyv_wrapper(asize.value(),abufp,1,abuf_comp_ptr,2);
+          copyv_wrapper(bsize.value(),bbufp,1,bbuf_comp_ptr,2);
 
           th_a = gpu_mult.host_block(adims.size(),
               tal_adims, abuf_complex.data());

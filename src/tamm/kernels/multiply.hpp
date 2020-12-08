@@ -114,17 +114,18 @@ inline void gemm_wrapper<std::complex<double>>(
 }
 
 template<typename T>
-void copyv_wrapper(const std::bool conj = false, const int size,
+void copyv_wrapper(const int size,
                    const T * input,  const int input_stride,
-                   const T * output, const int output_stride)
+                   const T * output, const int output_stride,
+                   const bool conj = false)
 {
   conj_t bconj = (conj ? BLIS_CONJUGATE : BLIS_NO_CONJUGATE);
   dim_t  bdim{size};
   inc_t  bistride{input_stride};
   inc_t  bostride{output_stride};
-  if constexpr(std::is_same_v<T3,double>) {
+  if constexpr(std::is_same_v<T,double>) {
     bli_dcopyv(bconj,size,input,bistride,output,bostride);
-  } else if constexpr(std::is_same_v<T3,float>) {
+  } else if constexpr(std::is_same_v<T,float>) {
     bli_scopyv(bconj,size,input,bistride,output,bostride);
   } else {
     // add error detection here

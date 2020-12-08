@@ -133,7 +133,8 @@ export GCCROOT=/opt/gcc8.3
 ```
 cd $TAMM_SRC/build 
 
-CC=icx CXX=dpcpp FC=ifx cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH -DUSE_OPENMP=OFF -DBLAS_VENDOR=IntelMKL -DUSE_DPCPP=ON -DGCCROOT=$GCCROOT 
+CC=icx CXX=dpcpp FC=ifx cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH -DUSE_OPENMP=OFF -DBLAS_VENDOR=IntelMKL -DUSE_DPCPP=ON -DGCCROOT=$GCCROOT \
+-DTAMM_CXX_FLAGS="-fno-sycl-early-optimizations -fsycl -fsycl-targets=spir64_gen-unknown-linux-sycldevice -Xsycl-target-backend '-device skl'"
 
 make -j3
 make install

@@ -36,7 +36,7 @@ int device_init(const std::vector<cl::sycl::queue*> iDevice_syclQueue,
 
 template<typename T>
 std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& ec,
-                   std::vector<int>& k_spin, 
+                   std::vector<int>& k_spin,
                    const TiledIndexSpace& MO,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_v2,
@@ -96,8 +96,16 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
     cl::sycl::platform platform(device_selector);
     auto const& gpu_devices = platform.get_devices();
     for (auto &gpu_device : gpu_devices) {
-      if (gpu_device.is_gpu())
-        dev_count_check++;
+	if (gpu_device.is_gpu()) {
+#ifdef TAMM_INTEL_ATS
+            auto SubDevicesDomainNuma = gpu_device.create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(cl::sycl::info::partition_affinity_domain::numa);
+            for (const auto &tile : SubDevicesDomainNuma) {
+                dev_count_check++;
+            }
+#else
+            dev_count_check++;
+#endif
+	}
     }
     if(dev_count_check < iDevice) {
       if(nodezero) cout << "ERROR: Please check whether you have " << iDevice <<
@@ -109,11 +117,11 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                      "Terminating program..." << endl << endl;
       return std::make_tuple(-999,-999,0,0);
     }
-    else if (dev_count_check > 1) {
-      if(nodezero) cout << "ERROR: TODO multi-device per node support for SYCL is not yet supported. "
-                        << " Terminating program..." << endl << endl;
-      return std::make_tuple(-999,-999,0,0);
-    }
+    // else if (dev_count_check > 1) {
+    //   if(nodezero) cout << "ERROR: TODO multi-device per node support for SYCL is not yet supported. "
+    //                     << " Terminating program..." << endl << endl;
+    //   return std::make_tuple(-999,-999,0,0);
+    // }
   }
 #else
   iDevice = 0;
@@ -186,11 +194,11 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                         dev_mem_s(k_range[t_h1b],k_range[t_h2b],
                                   k_range[t_h3b],k_range[t_p4b],
                                   k_range[t_p5b],k_range[t_p6b]);
-           
+
                         dev_mem_d(k_range[t_h1b],k_range[t_h2b],
                                   k_range[t_h3b],k_range[t_p4b],
                                   k_range[t_p5b],k_range[t_p6b]);
-                                  
+
                         #elif defined(USE_DPCPP)
                           k_singles.resize(size,0);
                           k_doubles.resize(size,0);
@@ -201,16 +209,16 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
 
                       ccsd_t_singles_unfused(ec,MO,noab,nvab,k_spin,
                           k_singles, d_t1, d_v2, k_evl_sorted,
-                          k_range,t_h1b, t_h2b, t_h3b, t_p4b, 
+                          k_range,t_h1b, t_h2b, t_h3b, t_p4b,
                           t_p5b, t_p6b, has_GPU, is_restricted, use_nwc_gpu_kernels);
                       ccsd_t_doubles_unfused(ec,MO,noab,nvab,
                           k_spin,k_doubles,d_t2,d_v2,
                           k_evl_sorted,k_range,t_h1b,t_h2b,t_h3b,
-                          t_p4b,t_p5b,t_p6b, has_GPU, is_restricted, use_nwc_gpu_kernels); 
+                          t_p4b,t_p5b,t_p6b, has_GPU, is_restricted, use_nwc_gpu_kernels);
 
                       double factor = 0.0;
 
-                      if (is_restricted) 
+                      if (is_restricted)
                         factor = 2.0;
                       else factor = 1.0;
 
@@ -227,7 +235,7 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                       } else if ((t_h1b == t_h2b) || (t_h2b == t_h3b)) {
                         factor /= 2.0;
                       }
-                      
+
                       if(!has_GPU || use_dpcpp){
                         size_t indx = 0;
                         for (size_t t_p4=0;t_p4 < k_range[t_p4b];t_p4++)
@@ -237,9 +245,9 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                         for (size_t t_h2=0;t_h2 < k_range[t_h2b];t_h2++)
                         for (size_t t_h3=0;t_h3 < k_range[t_h3b];t_h3++)
                         {
-                          double denom = 
+                          double denom =
                              (-1*k_evl_sorted[k_offset[t_p4b]+t_p4]
-                                -k_evl_sorted[k_offset[t_p5b]+t_p5] 
+                                -k_evl_sorted[k_offset[t_p5b]+t_p5]
                                 -k_evl_sorted[k_offset[t_p6b]+t_p6]
                                 +k_evl_sorted[k_offset[t_h1b]+t_h1]
                                 +k_evl_sorted[k_offset[t_h2b]+t_h2]
@@ -249,17 +257,17 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
 
                             energy2 += (factor * k_doubles[indx] *
                                           (k_singles[indx] + k_doubles[indx])) / denom;
-                                          
+
                           indx++;
                         }
 
-#if defined(USE_CUDA) || defined(USE_HIP) 
+#if defined(USE_CUDA) || defined(USE_HIP)
 			finalizememmodule();
 #endif
                       }
                       else {
                       auto factor_l = factor;
-                      #if defined(USE_CUDA) || defined(USE_HIP) 
+                      #if defined(USE_CUDA) || defined(USE_HIP)
                       compute_energy(factor_l, &energy_l[0],
                                   &k_evl_sorted[k_offset[t_h1b]],
                                   &k_evl_sorted[k_offset[t_h2b]],
@@ -271,21 +279,21 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                                   k_range[t_h3b],k_range[t_p4b],
                                   k_range[t_p5b],k_range[t_p6b],
                                   &k_doubles[0], &k_singles[0]);
-                      // cout << "AFTER energy-l=" << energy_l << endl;                                  
+                      // cout << "AFTER energy-l=" << energy_l << endl;
                       energy1 += energy_l[0];
                       energy2 += energy_l[1];
 
                       // cout << "e1,e2=" << energy1 << "," << energy2 << endl;
                       dev_release();
-#if defined(USE_CUDA) || defined(USE_HIP) 
+#if defined(USE_CUDA) || defined(USE_HIP)
                       finalizememmodule();
 #endif
                       #endif
                     }
 
-                      next = ac->fetch_add(0, 1); 
+                      next = ac->fetch_add(0, 1);
                     }
-                      
+
                       taskcount++;
                   // } if sym
                     }
@@ -313,7 +321,7 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
       delete ac;
 
       return std::make_tuple(energy1, energy2, ccsd_t_time, total_t_time);
- 
+
 }
 
 #endif //CCSD_T_UNFUSED_HPP_

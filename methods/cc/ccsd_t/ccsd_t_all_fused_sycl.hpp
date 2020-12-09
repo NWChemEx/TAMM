@@ -2540,6 +2540,30 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     //  to partially reduce the energies--- E(4) and E(5)
     //  a warp: 32 -(1)-> 16 -(2)-> 8 -(3)-> 4 -(4)-> 2
     //
+#ifdef TAMM_INTEL_ATS
+	// sm_a[16][64]
+	// sm_b[16][64]
+	sm_a[threadIdx_y][threadIdx_x] = energy_1;
+	sm_b[threadIdx_y][threadIdx_x] = energy_2;
+	item_ct.barrier();
+
+	double final_energy_1 = 0.0;
+	double final_energy_2 = 0.0;
+	if (threadIdx_x == 0 && threadIdx_y == 0)
+	{
+		//if (blockIdx.x == 0) printf ("[%s] called\n", __func__);
+
+		for (int i = 0; i < 16; i++)
+		for (int j = 0; j < 16; j++)
+		{
+			final_energy_1 += sm_a[j][i];
+			final_energy_2 += sm_b[j][i];
+		}
+
+		reduced_energy[blockIdx_x] = final_energy_1;
+		reduced_energy[blockIdx_x + item_ct.get_group_range(1)] = final_energy_2;
+	}
+#else
     energy_1 = cl::sycl::ONEAPI::reduce(item_ct.get_group(), energy_1, cl::sycl::ONEAPI::plus<>());
     energy_2 = cl::sycl::ONEAPI::reduce(item_ct.get_group(), energy_2, cl::sycl::ONEAPI::plus<>());
 
@@ -2562,9 +2586,9 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         }
 
         reduced_energy[blockIdx_x] = final_energy_1;
-        reduced_energy[blockIdx_x + item_ct.get_group_range(1)] =
-            final_energy_2;
+        reduced_energy[blockIdx_x + item_ct.get_group_range(1)] = final_energy_2;
     }
+#endif
 }
 
 void fully_fused_ccsd_t_gpu(cl::sycl::queue *stream_id, size_t num_blocks,

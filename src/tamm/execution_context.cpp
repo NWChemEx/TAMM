@@ -9,6 +9,7 @@
 #include "runtime_engine.hpp"
 #include "memory_manager.hpp"
 
+
 #if defined(USE_DPCPP)
 auto sycl_asynchandler = [] (cl::sycl::exception_list exceptions) {
     for (std::exception_ptr const& e : exceptions) {
@@ -55,18 +56,44 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   cl::sycl::platform platform(device_selector);
   auto const& gpu_devices = platform.get_devices();
   for (int i = 0; i < gpu_devices.size(); i++) {
-    if (gpu_devices[i].is_gpu())
-      ngpu_++;
+      if (gpu_devices[i].is_gpu()) {
+
+#ifdef TAMM_INTEL_ATS
+          assert(gpu_devices[i].get_info<cl::sycl::info::device::partition_type_property>() ==
+                 cl::sycl::info::partition_property::no_partition);
+
+          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(
+              cl::sycl::info::partition_affinity_domain::numa);
+          for (const auto &tile : SubDevicesDomainNuma) {
+              ngpu_++;
+          }
+#else
+          ngpu_++;
+#endif
+
+      }
   }
 
   dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
   if (ngpu_ == 1) dev_id_ = 0;
   if ((pg.rank().value() % ranks_pn_) < ngpu_) has_gpu_ = true;
   for (int i = 0; i < gpu_devices.size(); i++) {
-    if( gpu_devices[i].is_gpu() )
-      vec_syclQue.push_back( new sycl::queue( gpu_devices[i],
-                                              sycl_asynchandler,
-                                              sycl::property_list{sycl::property::queue::in_order{}} ) );
+      if (gpu_devices[i].is_gpu()) {
+
+#ifdef TAMM_INTEL_ATS
+          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(
+              cl::sycl::info::partition_affinity_domain::numa);
+          for (const auto &tile : SubDevicesDomainNuma) {
+              vec_syclQue.push_back( new sycl::queue( tile,
+                                                      sycl_asynchandler,
+                                                      sycl::property_list{sycl::property::queue::in_order{}} ) );
+          }
+#else
+          vec_syclQue.push_back( new sycl::queue( gpu_devices[i],
+                                                  sycl_asynchandler,
+                                                  sycl::property_list{sycl::property::queue::in_order{}} ) );
+#endif
+      }
   }
 #endif
   // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);

@@ -99,8 +99,16 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
     cl::sycl::platform platform(device_selector);
     auto const& gpu_devices = platform.get_devices();
     for (int i = 0; i < gpu_devices.size(); i++) {
-            if (gpu_devices[i].is_gpu())
-	      dev_count_check++;
+        if (gpu_devices[i].is_gpu()) {
+#ifdef TAMM_INTEL_ATS
+            auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(cl::sycl::info::partition_affinity_domain::numa);
+            for (const auto &tile : SubDevicesDomainNuma) {
+                dev_count_check++;
+            }
+#else
+            dev_count_check++;
+#endif
+        }
     }
 
     if(dev_count_check < nDevices) {
@@ -420,7 +428,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
               num_task++;
 
               #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-              ccsd_t_fully_fused_none_df_none_task(is_restricted, 
+              ccsd_t_fully_fused_none_df_none_task(is_restricted,
                                                    #if defined(USE_DPCPP)
                                                     syclQue,
                                                    #endif

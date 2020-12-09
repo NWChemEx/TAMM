@@ -1,6 +1,7 @@
 #include "ccsd_t_common.hpp"
 #include <map>
 #include <set>
+#include <cstdlib>
 using namespace std;
 
 // #define NO_OPT

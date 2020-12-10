@@ -76,14 +76,13 @@ mkdir build && cd build
 
 * **[Build using Intel MKL](install.md#build-using-intel-mkl)**
 
-* **[Build instructions using Intel One API](install.md#build-using-intel-oneapi)**
-
 * **[Build instructions for Summit using ESSL](install.md#build-instructions-for-summit-using-essl)**
 
 * **[Build instructions for Cori](install.md#build-instructions-for-cori)**
 
 * **[Build instructions for Theta](install.md#build-instructions-for-theta)**
 
+* **[Building the DPCPP code path using Intel OneAPI SDK](install.md#build-dpcpp-code-path-using-intel-oneapi-sdk)**
 
 ## Build using reference BLAS from NETLIB
 
@@ -111,30 +110,6 @@ export MKLROOT=/opt/intel/compilers_and_libraries_2019.0.117/linux/mkl
 cd $TAMM_SRC/build 
 
 CC=gcc CXX=g++ FC=gfortran cmake -DBLAS_VENDOR=IntelMKL -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
-
-make -j3
-make install
-```
-
-## Build using Intel OneAPI
-
-### Set `MKLROOT` and `DPCPP_ROOT` accordingly
-
-```
-export MKLROOT=/opt/oneapi/mkl/latest
-export DPCPP_ROOT=/opt/oneapi/compiler/latest/linux
-```
-
-### Also need to set root dir for a GCC installation (need gcc >= v8.3)
-```
-export GCCROOT=/opt/gcc8.3
-```
-
-```
-cd $TAMM_SRC/build 
-
-CC=icx CXX=dpcpp FC=ifx cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH -DUSE_OPENMP=OFF -DBLAS_VENDOR=IntelMKL -DUSE_DPCPP=ON -DGCCROOT=$GCCROOT \
--DTAMM_CXX_FLAGS="-fno-sycl-early-optimizations -fsycl -fsycl-targets=spir64_gen-unknown-linux-sycldevice -Xsycl-target-backend '-device skl'"
 
 make -j3
 make install
@@ -219,6 +194,39 @@ cd $TAMM_SRC/build
 
 CC=cc CXX=CC FC=ftn cmake -DBLAS_VENDOR=IntelMKL -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
+make -j3
+make install
+```
+## Build DPCPP code path using Intel OneAPI SDK
+
+- `IMPORTANT:` `OneAPI compilers currently only work with CMake versions <= 3.18`
+- `MPI:` Tested using `MPICH`. Use `impi` branch of `CMakeBuild` repository if using `IntelMPI` from the OneAPI SDK.
+
+- Set `MKLROOT` and `DPCPP_ROOT` accordingly
+
+```
+export MKLROOT=/opt/oneapi/mkl/latest
+export DPCPP_ROOT=/opt/oneapi/compiler/latest/linux
+```
+
+- Set ROOT dir of the GCC installation (need gcc >= v8.3)
+```
+export GCCROOT=/opt/gcc8.3
+```
+
+```
+cd $TAMM_SRC/build 
+
+CC=icx CXX=dpcpp FC=ifx cmake \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
+-DMPIEXEC_EXECUTABLE=mpiexec -DUSE_GA_AT=ON \
+-DUSE_OPENMP=OFF -DBLAS_VENDOR=IntelMKL -DUSE_DPCPP=ON -DGCCROOT=$GCCROOT \
+-DTAMM_CXX_FLAGS="-fno-sycl-early-optimizations -fsycl -fsycl-targets=spir64_gen-unknown-linux-sycldevice -Xsycl-target-backend '-device skl'"
+```
+
+`TAMM_CXX_FLAGS` shown above build for the Intel GEN9 GPU. Please change the `-device skl` flag as needed for other GENX devices.
+
+```
 make -j3
 make install
 ```

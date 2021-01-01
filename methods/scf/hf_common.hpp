@@ -4,38 +4,14 @@
 
 #include <cctype>
 
-// Eigen matrix algebra library
-#include <Eigen/Dense>
-#include <Eigen/Eigenvalues>
-// #include <unsupported/Eigen/CXX11/Tensor>
-#include <unsupported/Eigen/MatrixFunctions>
-#undef I
-
-#include "common/molden.hpp"
-
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-#include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"
 
-// #define EIGEN_DIAG 
-// #ifndef SCALAPACK
-  #include "common/linalg.hpp"
-#ifdef SCALAPACK
-  // CXXBLACS BLACS/ScaLAPACK wrapper
-  // #include LAPACKE_HEADER
-  // #define CXXBLACS_HAS_LAPACK
-  #define CB_INT BLA_LAPACK_INT
-  #define CXXBLACS_LAPACK_Complex16 BLA_LAPACK_COMPLEX16
-  #define CXXBLACS_LAPACK_Complex8 BLA_LAPACK_COMPLEX8
-  #include <cxxblacs.hpp>
-//std::unique_ptr<CXXBLACS::BlacsGrid> blacs_grid;
-#endif
-#undef I 
+#include "tamm/eigen_utils.hpp"
 
+#include "common/molden.hpp"
+#include "common/linalg.hpp"
 #include "common/json_data.hpp"
 
 using namespace tamm;
@@ -72,10 +48,12 @@ int iediis  = 0;
 bool switch_diis=false;
 
 //AO
-tamm::TiledIndexSpace tAO, tAOt;
+int final_AO_tilesize;
+tamm::TiledIndexSpace tAO, tAOt; //tAO_ld
 std::vector<tamm::Tile> AO_tiles;
 std::vector<tamm::Tile> AO_opttiles;
 std::vector<size_t> shell_tile_map;
+// tamm::TiledIndexLabel mu_ld, nu_ld;
 tamm::TiledIndexLabel mu, nu, ku;
 tamm::TiledIndexLabel mup, nup, kup;
 
@@ -94,10 +72,11 @@ tamm::TiledIndexSpace tdfCocc;
 tamm::TiledIndexLabel dCocc_til;
 
 struct EigenTensors {
-  Matrix H,S;
-  Matrix C,G,D,F,X;
-  Matrix C_occ;
-  Matrix C_beta,G_beta,D_beta,F_beta,X_beta;
+  // Matrix H,S;
+  Matrix F,C,C_occ,X; //only rank 0 allocates F{a,b}, C_occ, C{a,b}, X{a,b}
+  Matrix F_beta,C_beta,X_beta;
+  Matrix G,D;
+  Matrix G_beta,D_beta;
 };
 
 struct TAMMTensors {
@@ -228,66 +207,59 @@ std::vector<size_t> map_basis_function_to_shell(
 }
 
 template<typename T>
-void readMD(std::vector<T>& mbuf, std::vector<T>& dbuf, std::string movecsfile, std::string densityfile) {
+Matrix read_scf_mat(std::string matfile) {
 
-  auto mfile_id = H5Fopen(movecsfile.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-  auto dfile_id = H5Fopen(densityfile.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+  std::string mname = fs::path(matfile).extension();
+  mname.erase(0, 1); //remove "."
+  
+  auto mfile_id = H5Fopen(matfile.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
 
-  auto mdataset_id = H5Dopen(mfile_id, "movecs",  H5P_DEFAULT);
-  auto ddataset_id = H5Dopen(dfile_id, "density", H5P_DEFAULT);
+  // Read attributes - reduced dims
+  std::vector<int64_t> rdims(2);
+  auto attr_dataset = H5Dopen(mfile_id, "rdims",  H5P_DEFAULT);
+  H5Dread(attr_dataset, H5T_NATIVE_INT64, H5S_ALL, H5S_ALL, H5P_DEFAULT, rdims.data());
+
+  Matrix mat = Matrix::Zero(rdims[0],rdims[1]);
+  auto mdataset_id = H5Dopen(mfile_id, mname.c_str(),  H5P_DEFAULT);
 
    /* Read the datasets. */
-  H5Dread(mdataset_id, get_hdf5_dt<T>(), H5S_ALL, H5S_ALL, H5P_DEFAULT, mbuf.data());
-  H5Dread(ddataset_id, get_hdf5_dt<T>(), H5S_ALL, H5S_ALL, H5P_DEFAULT, dbuf.data());                    
+  H5Dread(mdataset_id, get_hdf5_dt<T>(), H5S_ALL, H5S_ALL, H5P_DEFAULT, mat.data());
 
+  H5Dclose(attr_dataset);
   H5Dclose(mdataset_id);
-  H5Dclose(ddataset_id);
   H5Fclose(mfile_id);
-  H5Fclose(dfile_id);
+
+  return mat;
 }
 
-void writeC(Matrix& C, std::string scf_files_prefix){
-  std::string outputfile = scf_files_prefix + ".movecs";
+template<typename T>
+void write_scf_mat(Matrix& C, std::string matfile){
+  std::string mname = fs::path(matfile).extension();
+  mname.erase(0, 1); //remove "."
+
   const auto N = C.rows();
   const auto Northo = C.cols();
-  std::vector<TensorType> Cbuf(N*Northo);
-  TensorType *buf = Cbuf.data();
-  Eigen::Map<Matrix>(buf,N,Northo) = C;  
-
-  // out.write((char *)(buf), sizeof(TensorType) *N*Northo);
+  TensorType *buf = C.data();
 
   /* Create a file. */
-  hid_t file_id = H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t file_id = H5Fcreate(matfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
   hsize_t tsize = N*Northo;
   hid_t dataspace_id = H5Screate_simple(1, &tsize, NULL);
 
   /* Create dataset. */
-  hid_t dataset_id = H5Dcreate(file_id, "movecs", get_hdf5_dt<TensorType>(), dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t dataset_id = H5Dcreate(file_id, mname.c_str(), get_hdf5_dt<T>(), dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   /* Write the dataset. */
-  /* herr_t status = */ H5Dwrite(dataset_id, get_hdf5_dt<TensorType>(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);   
+  /* herr_t status = */ H5Dwrite(dataset_id, get_hdf5_dt<T>(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);   
 
-  H5Dclose(dataset_id);
-  H5Sclose(dataspace_id);
-  H5Fclose(file_id);   
-}
-
-void writeD(Matrix& D, std::string scf_files_prefix){
-  std::string outputfile = scf_files_prefix + ".density";
-  const auto N = D.rows();
-  std::vector<TensorType> Dbuf(N*N);
-  TensorType *buf = Dbuf.data();
-  Eigen::Map<Matrix>(buf,N,N) = D;  
-
-  // out.write((char *)(buf), sizeof(TensorType) *N*N);
-
-  hid_t file_id = H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-
-  hsize_t tsize = N*N;
-  hid_t dataspace_id = H5Screate_simple(1, &tsize, NULL);
-
-  hid_t dataset_id = H5Dcreate(file_id, "density", get_hdf5_dt<TensorType>(), dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  /* herr_t status = */ H5Dwrite(dataset_id, get_hdf5_dt<TensorType>(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buf);   
+  /* Create and write attribute information - dims */
+  std::vector<int64_t> rdims{N,Northo};
+  hsize_t attr_size = rdims.size();
+  auto attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
+  auto attr_dataset = H5Dcreate(file_id, "rdims", H5T_NATIVE_INT64, attr_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  H5Dwrite(attr_dataset, H5T_NATIVE_INT64, H5S_ALL, H5S_ALL, H5P_DEFAULT, rdims.data());
+  H5Dclose(attr_dataset);
+  H5Sclose(attr_dataspace);
 
   H5Dclose(dataset_id);
   H5Sclose(dataspace_id);
@@ -346,8 +318,11 @@ void t2e_hf_helper(const ExecutionContext& ec, tamm::Tensor<T>& ttensor,Matrix& 
 //
 // A is conditioned to max_condition_number
 std::tuple<Matrix, Matrix, size_t, double, double, int64_t> gensqrtinv(
-    const ExecutionContext& ec, const Matrix& S, bool symmetric = false,
+    ExecutionContext& ec, tamm::Tensor<double> S, bool symmetric = false,
     double threshold=1e-5) {
+
+  using T = double;
+
 #ifdef SCALAPACK
   Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(S);
   auto U = eig_solver.eigenvectors();
@@ -390,68 +365,75 @@ std::tuple<Matrix, Matrix, size_t, double, double, int64_t> gensqrtinv(
   double condition_number, result_condition_number;
   Matrix X, Xinv;
 
-  const int64_t N = S.rows();
+  const int64_t N = S.tiled_index_spaces()[0].index_space().num_indices(); //S.rows();
   int64_t n_illcond = 0;
 
   if( world_rank == 0 ) {
+    // Eigendecompose S -> VsV**T
+    Matrix V(N,N);
+    tamm_to_eigen_tensor(S,V);
+    T* Vbuf = V.data();
 
-  // Eigendecompose S -> VsV**T
-  Eigen::MatrixXd V = S;
-  std::vector<double> s(N);
-  linalg::lapack::syevd( 'V', 'L', N, V.data(), N, s.data() );
+    std::vector<double> s(N);
+    linalg::lapack::syevd( 'V', 'L', N, Vbuf, N, s.data() );
 
-  // condition_number = std::min(
-  //   s.back() / std::max( s.front(), std::numeric_limits<double>::min() ),
-  //   1.       / std::numeric_limits<double>::epsilon()
-  // );
+    // condition_number = std::min(
+    //   s.back() / std::max( s.front(), std::numeric_limits<double>::min() ),
+    //   1.       / std::numeric_limits<double>::epsilon()
+    // );
 
-  // const auto threshold = s.back() / max_condition_number;
-  auto first_above_thresh = std::find_if( s.begin(), s.end(), [&](const auto& x){ return x >= threshold; } );
-  result_condition_number = s.back() / *first_above_thresh;
+    // const auto threshold = s.back() / max_condition_number;
+    auto first_above_thresh = std::find_if( s.begin(), s.end(), [&](const auto& x){ return x >= threshold; } );
+    result_condition_number = s.back() / *first_above_thresh;
 
-  n_illcond = std::distance( s.begin(), first_above_thresh );
-  n_cond    = N - n_illcond;
+    n_illcond = std::distance( s.begin(), first_above_thresh );
+    n_cond    = N - n_illcond;
 
-  if(n_illcond > 0) {
-    std::cout << std::endl << "WARNING: Found " << n_illcond << " linear dependencies" << std::endl;
-    cout << "First eigen value above tol_lindep = " << *first_above_thresh << endl;
-    std::cout << "The overlap matrix has " << n_illcond << " vectors deemed linearly dependent with eigenvalues:" << std::endl;
-    
-    for( int64_t i = 0; i < n_illcond; i++ ) cout << std::defaultfloat << i+1 << ": " << s[i] << endl;
-  }
+    if(n_illcond > 0) {
+      std::cout << std::endl << "WARNING: Found " << n_illcond << " linear dependencies" << std::endl;
+      cout << "First eigen value above tol_lindep = " << *first_above_thresh << endl;
+      std::cout << "The overlap matrix has " << n_illcond << " vectors deemed linearly dependent with eigenvalues:" << std::endl;
+      
+      for( int64_t i = 0; i < n_illcond; i++ ) cout << std::defaultfloat << i+1 << ": " << s[i] << endl;
+    }
 
-  auto* V_cond = V.data() + n_illcond * N;
-  X.resize( N, n_cond ); Xinv.resize( N, n_cond );
-  // X.setZero(N,N); Xinv.setZero( N, N );
+    // auto* V_cond = Vbuf + n_illcond * N;
+    Matrix V_cond = V.block(n_illcond, 0, N-n_illcond, N);
+    V.resize(0,0);
+    X.resize( N, n_cond ); // Xinv.resize( N, n_cond );
+    // X.setZero(N,N); Xinv.setZero( N, N );
+    // Matrix V_cond(n_cond,N);
+    // V_cond = Eigen::Map<Matrix>(Vbuf + n_illcond * N,n_cond,N);
+    X = V_cond.transpose();
+    // Xinv = X;
+    V_cond.resize(0,0);
 
-  // Form canonical X/Xinv
-  for( auto i = 0; i < n_cond; ++i ) {
+    // Form canonical X/Xinv
+    for( auto i = 0; i < n_cond; ++i ) {
 
-    const double srt = std::sqrt( *(first_above_thresh + i) );
+      const double srt = std::sqrt( *(first_above_thresh + i) );
 
-    // X is row major...
-    auto* X_col    = X.data()    + i;
-    auto* Xinv_col = Xinv.data() + i;
+      // X is row major...
+      auto* X_col    = X.data()    + i;
+      // auto* Xinv_col = Xinv.data() + i;
 
-    linalg::blas::copy( N, V_cond + i*N, 1, X_col,    n_cond );
-    linalg::blas::copy( N, V_cond + i*N, 1, Xinv_col, n_cond );
-    linalg::blas::scal( N, 1./srt, X_col,    n_cond );
-    linalg::blas::scal( N, srt,    Xinv_col, n_cond );
+      linalg::blas::scal( N, 1./srt, X_col,    n_cond );
+      // linalg::blas::scal( N, srt,    Xinv_col, n_cond );
 
-  }  
+    }  
 
-  if( symmetric ) {
+    if( symmetric ) {
 
-    assert( not symmetric );
+      assert( not symmetric );
 
-/*
-    // X is row major, thus we need to form X**T = V_cond * X**T
-    Matrix TMP = X;
-    X.resize( N, N );
-    linalg::blas::gemm( 'N', 'N', N, N, n_cond, 1., V_cond, N, TMP.data(), n_cond, 0., X.data(), N );
-*/
+  /*
+      // X is row major, thus we need to form X**T = V_cond * X**T
+      Matrix TMP = X;
+      X.resize( N, N );
+      linalg::blas::gemm( 'N', 'N', N, N, n_cond, 1., V_cond, N, TMP.data(), n_cond, 0., X.data(), N );
+  */
 
-  }
+    }
   } // compute on root 
 
 
@@ -463,14 +445,17 @@ std::tuple<Matrix, Matrix, size_t, double, double, int64_t> gensqrtinv(
     MPI_Bcast( &condition_number,        1, MPI_DOUBLE,  0, world );
     MPI_Bcast( &result_condition_number, 1, MPI_DOUBLE,  0, world );
 
-    if( world_rank != 0 ) {
-      X.resize( N, n_cond ); Xinv.resize(N, n_cond);
-      // X.setZero(N,N); Xinv.setZero(N,N);
-    }
+    // if( world_rank != 0 ) {
+    //   X.resize( N, n_cond ); //Xinv.resize(N, n_cond);
+    //   // X.setZero(N,N); Xinv.setZero(N,N);
+    // }
 
-    MPI_Bcast( X.data(),    X.size(),    MPI_DOUBLE, 0, world );
-    MPI_Bcast( Xinv.data(), Xinv.size(), MPI_DOUBLE, 0, world );
+    // MPI_Bcast( X.data(),    X.size(),    MPI_DOUBLE, 0, world );
+    // MPI_Bcast( Xinv.data(), Xinv.size(), MPI_DOUBLE, 0, world );
   }
+
+  // tAO_ld = TiledIndexSpace{IndexSpace(range(0, n_cond)), final_AO_tilesize};
+  // Tensor<T> X{tAO, tAO_ld};
 
 #endif
   return std::make_tuple(X, Xinv, size_t(n_cond), condition_number,
@@ -478,7 +463,7 @@ std::tuple<Matrix, Matrix, size_t, double, double, int64_t> gensqrtinv(
 }
 
 std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
-  const ExecutionContext& ec, SystemData& sys_data, const Matrix& S) {
+  ExecutionContext& ec, SystemData& sys_data, tamm::Tensor<double> S) {
   size_t obs_rank;
   double S_condition_number;
   double XtX_condition_number;
@@ -486,11 +471,11 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
   int64_t n_illcond;
   double S_condition_number_threshold = sys_data.options_map.scf_options.tol_lindep;
 
-  assert(S.rows() == S.cols());
+  // assert(S.rows() == S.cols());
 
   std::tie(X, Xinv, obs_rank, S_condition_number, XtX_condition_number, n_illcond) =
       gensqrtinv(ec, S, false, S_condition_number_threshold);
-  auto obs_nbf_omitted = (long)S.rows() - (long)obs_rank;
+  auto obs_nbf_omitted = (long)(S.tiled_index_spaces()[0].index_space().num_indices()) - (long)obs_rank;
   // std::cout << "overlap condition number = " << S_condition_number;
   // if (obs_nbf_omitted > 0){
   //   if(GA_Nodeid()==0) std::cout << " (dropped " << obs_nbf_omitted << " "
@@ -499,12 +484,13 @@ std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
   // }
   // if(GA_Nodeid()==0) std::cout << endl;
 
-  if (obs_nbf_omitted > 0) {
-    Matrix should_be_I = X.transpose() * S * X;
-    Matrix I = Matrix::Identity(should_be_I.rows(), should_be_I.cols());
-    if(ec.pg().rank()==0) std::cout << std::endl << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
-              << " (should be 0)" << endl;
-  }
+  // FIXME:UNCOMMENT
+  // if (obs_nbf_omitted > 0) {
+  //   Matrix should_be_I = X.transpose() * S * X;
+  //   Matrix I = Matrix::Identity(should_be_I.rows(), should_be_I.cols());
+  //   if(ec.pg().rank()==0) std::cout << std::endl << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
+  //             << " (should be 0)" << endl;
+  // }
 
   sys_data.n_lindep = n_illcond;
 

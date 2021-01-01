@@ -219,6 +219,7 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(SystemData sys_data, bool triple
     TAMM_SIZE freeze_virtual = sys_data.n_frozen_virtual;
 
     Tile tce_tile = sys_data.options_map.ccsd_options.tilesize;
+    bool balance_tiles = sys_data.options_map.ccsd_options.balance_tiles;
     if(!triples) {
       if ((tce_tile < static_cast<Tile>(sys_data.nbf/10) || tce_tile < 50 || tce_tile > 100) && !sys_data.options_map.ccsd_options.force_tilesize) {
         tce_tile = static_cast<Tile>(sys_data.nbf/10);
@@ -227,7 +228,10 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(SystemData sys_data, bool triple
         if(GA_Nodeid()==0) std::cout << std::endl << "Resetting CCSD tilesize to: " << tce_tile << std::endl;
       }
     }
-    else tce_tile = sys_data.options_map.ccsd_options.ccsdt_tilesize;
+    else {
+      balance_tiles = false;
+      tce_tile = sys_data.options_map.ccsd_options.ccsdt_tilesize;
+    }
 
     TAMM_SIZE nmo = sys_data.nmo;
     TAMM_SIZE n_vir_alpha = sys_data.n_vir_alpha;
@@ -263,7 +267,7 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(SystemData sys_data, bool triple
 
     std::vector<Tile> mo_tiles;
     
-    if(!sys_data.options_map.ccsd_options.balance_tiles) {
+    if(!balance_tiles) {
       tamm::Tile est_nt = n_occ_alpha/tce_tile;
       tamm::Tile last_tile = n_occ_alpha%tce_tile;
       for (tamm::Tile x=0;x<est_nt;x++)mo_tiles.push_back(tce_tile);

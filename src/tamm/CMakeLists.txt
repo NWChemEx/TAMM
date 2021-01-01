@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION ${CMAKE_VERSION})
 project(tamm VERSION ${PROJECT_VERSION} LANGUAGES CXX)
-include(TargetMacros) #For nwchemex_add_library
+include(TargetMacros) #For cmsb_add_library
 
 if(USE_CUDA)
     set(tamm_cuda_SRCS cuda_memory_allocator.cu cudamemset.cu)
@@ -40,6 +40,7 @@ set(tamm_INCLUDES
     index_loop_nest.hpp
     utils.hpp
     tamm_utils.hpp
+    tamm_dpcpp.hpp
     eigen_utils.hpp
     runtime_engine.hpp
     block_buffer.hpp
@@ -53,6 +54,6 @@ set(tamm_INCLUDES
 set(tamm_DEFINITIONS )
 set(tamm_LFLAGS )
 
-nwchemex_add_library(tamm tamm_SRCS tamm_INCLUDES tamm_DEFINTIONS tamm_LFLAGS)
+cmsb_add_library(tamm tamm_SRCS tamm_INCLUDES tamm_DEFINTIONS tamm_LFLAGS)
 target_include_directories(tamm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../utils/external)
 

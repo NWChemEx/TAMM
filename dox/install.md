@@ -1,41 +1,17 @@
 
 The prerequisites needed to build TAMM can be found [here](prerequisites.md).
 
-TAMM uses [CMakeBuild Repository](https://github.com/NWChemEx-Project/CMakeBuild) to manage the build process and can be built as explained below.
-
-First need to setup the [CMakeBuild Repository](https://github.com/NWChemEx-Project/CMakeBuild).
-
-
 Build Instructions
 =====================
 
 ```
 export TAMM_SRC=$HOME/TAMM
 export TAMM_INSTALL_PATH=$HOME/tamm_install
+export REPO_URL=https://github.com/NWChemEx-Project
 ```
 
-Step 1: Setup CMakeBuild
-========================
-
-```
-git clone https://github.com/NWChemEx-Project/CMakeBuild.git
-cd CMakeBuild
-mkdir build && cd build
-CC=gcc CXX=g++ FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
-
-make install
-```
-
-Step 2: Choose Build Options
-=====================
-
-<!-- ### BLIS Options 
-```
--DBLIS_CONFIG=arch
-Ex: -DBLIS_CONFIG=haswell
-If BLIS_CONFIG is not provided, the BLIS build will try to
-auto-detect (only for x86_64 systems) the architecture.
-``` -->
+Choose Build Options
+============================
 
 ### CUDA Options 
 ```
@@ -60,17 +36,17 @@ auto-detect (only for x86_64 systems) the architecture.
 ```
 
 
-Step 3: Building TAMM
+Building TAMM
 =====================
 
 ```
-git clone https://github.com/NWChemEx-Project/TAMM.git $TAMM_SRC
+git clone $REPO_URL/TAMM.git $TAMM_SRC
 cd $TAMM_SRC
 # Checkout the branch you want to build
 mkdir build && cd build
 ```
 
-## In addition to the build options chosen in Step 2, there are various build configurations depending on the BLAS library one wants to use.
+## In addition to the build options chosen, there are various build configurations depending on the BLAS library one wants to use.
 
 * **[Build using reference BLAS from NETLIB](install.md#build-using-reference-blas-from-netlib)**
 
@@ -119,17 +95,15 @@ make install
 
 ```
 module load gcc/8.3.0
-module load cmake/3.17.3
+module load cmake/3.18.2
 module load essl/6.1.0-2
 module load cuda/10.1.105
-module load netlib-lapack/3.8.0
 ```
 
 ```
 The following paths may need to be adjusted if the modules change:
 
 export ESSLROOT=/sw/summit/essl/6.1.0-2/essl/6.1
-export NETLIB_BLAS_LIBS="/autofs/nccs-svm1_sw/summit/.swci/1-compute/opt/spack/20180914/linux-rhel7-ppc64le/gcc-8.1.1/netlib-lapack-3.8.0-moo2tlhxtaae4ij2vkhrkzcgu2pb3bmy/lib64"
 ```
 
 ### To enable CUDA build, add `-DUSE_CUDA=ON`
@@ -139,7 +113,6 @@ cd $TAMM_SRC/build
 
 CC=gcc CXX=g++ FC=gfortran cmake \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
--DTAMM_EXTRA_LIBS=$NETLIB_BLAS_LIBS/liblapack.a \
 -DBLIS_CONFIG=power9 \
 -DBLAS_VENDOR=IBMESSL ..
 
@@ -199,9 +172,7 @@ make install
 ```
 ## Build DPCPP code path using Intel OneAPI SDK
 
-- `IMPORTANT:` `OneAPI compilers currently only work with CMake versions <= 3.18`
-- `MPI:` Tested using `MPICH`. Use `impi` branch of `CMakeBuild` repository if using `IntelMPI` from the OneAPI SDK.
-
+- `MPI:` Only tested using `MPICH`.
 - Set `MKLROOT` and `DPCPP_ROOT` accordingly
 
 ```
@@ -219,8 +190,8 @@ cd $TAMM_SRC/build
 
 CC=icx CXX=dpcpp FC=ifx cmake \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
--DMPIEXEC_EXECUTABLE=mpiexec -DUSE_GA_AT=ON \
--DUSE_OPENMP=OFF -DBLAS_VENDOR=IntelMKL -DUSE_DPCPP=ON -DGCCROOT=$GCCROOT \
+-DMPIEXEC_EXECUTABLE=mpiexec -DUSE_OPENMP=OFF \
+-DBLAS_VENDOR=IntelMKL -DUSE_DPCPP=ON -DGCCROOT=$GCCROOT \
 -DTAMM_CXX_FLAGS="-fno-sycl-early-optimizations -fsycl -fsycl-targets=spir64_gen-unknown-linux-sycldevice -Xsycl-target-backend '-device skl'"
 ```
 
@@ -253,7 +224,6 @@ mpirun -n 2 $TAMM_EXE $TAMM_INPUT
 
 ### On Summit:
 ```
-export ARMCI_DEFAULT_SHMMAX_UBOUND=65536
 
 export PAMI_IBV_ENABLE_DCT=1
 export PAMI_ENABLE_STRIPING=1

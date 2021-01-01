@@ -27,7 +27,7 @@ std::tuple<int,int,int> get_hf_nranks(const size_t N){
     auto nnodes = GA_Cluster_nnodes();
     auto ppn = GA_Cluster_nprocs(0);
 
-    int hf_guessranks = std::ceil(0.5*N);
+    int hf_guessranks = std::ceil(0.3*N);
     int hf_nnodes = hf_guessranks/ppn;
     if(hf_guessranks%ppn>0 || hf_nnodes==0) hf_nnodes++;
     if(hf_nnodes > nnodes) hf_nnodes = nnodes;
@@ -93,6 +93,7 @@ std::tuple<std::vector<size_t>, std::vector<Tile>, std::vector<Tile>>
     //heuristic to set tilesize to atleast 5% of nbf
     if(tile_size < N*0.05 && !sys_data.options_map.scf_options.force_tilesize) {
       tile_size = std::ceil(N*0.05);
+      final_AO_tilesize = tile_size;
       if(rank == 0) cout << "***** Reset tilesize to nbf*5% = " << tile_size << endl;
     }
     
@@ -129,12 +130,13 @@ std::tuple<std::vector<size_t>, std::vector<Tile>, std::vector<Tile>>
 }
 
 
-Matrix compute_orthogonalizer(const ExecutionContext& ec, SystemData& sys_data, EigenTensors& etensors) {
+Matrix compute_orthogonalizer(ExecutionContext& ec, SystemData& sys_data, TAMMTensors& ttensors) {
     
     auto hf_t1 = std::chrono::high_resolution_clock::now();
     auto rank = ec.pg().rank(); 
 
     // compute orthogonalizer X such that X.transpose() . S . X = I
+    //TODO: Xinv not used
     Matrix X, Xinv;
     double XtX_condition_number;  // condition number of "re-conditioned"
                                   // overlap obtained as Xinv.transpose() . Xinv
@@ -143,14 +145,11 @@ Matrix compute_orthogonalizer(const ExecutionContext& ec, SystemData& sys_data, 
     // by default assume can manage to compute with condition number of S <= 1/eps
     // this is probably too optimistic, but in well-behaved cases even 10^11 is OK
     std::tie(X, Xinv, XtX_condition_number) =
-        conditioning_orthogonalizer(ec, sys_data, etensors.S);
+        conditioning_orthogonalizer(ec, sys_data, ttensors.S1);
 
     // TODO Redeclare TAMM S1 with new dims?
     auto hf_t2   = std::chrono::high_resolution_clock::now();
     auto hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-
-    //TODO: not used ?
-    Xinv.resize(0,0);
 
     if(rank == 0) std::cout << "Time for computing orthogonalizer: " << hf_time << " secs" << endl << endl;
 
@@ -165,7 +164,7 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
       std::vector<size_t>& shell_tile_map, std::vector<Tile>& AO_tiles, TAMMTensors& ttensors, EigenTensors& etensors){
 
     using libint2::Operator;
-    const size_t N = nbasis(shells);
+    // const size_t N = nbasis(shells);
     auto rank = ec.pg().rank();
 
     ttensors.H1 = {tAO, tAO};
@@ -175,9 +174,6 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
     Tensor<TensorType>::allocate(&ec, ttensors.H1, ttensors.S1, ttensors.T1, ttensors.V1);
 
     auto [mu, nu] = tAO.labels<2>("all");
-
-    etensors.H = Matrix::Zero(N,N);
-    etensors.S = Matrix::Zero(N,N);
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
@@ -194,10 +190,6 @@ ExecutionContext& ec, std::vector<libint2::Atom>& atoms, libint2::BasisSet& shel
       (ttensors.H1(mu, nu) +=  ttensors.V1(mu, nu)).execute();
 
     // tamm::scale_ip(ttensors.H1(),2.0);
-
-    t2e_hf_helper<TensorType,2>(ec, ttensors.H1, etensors.H, "H1-H");
-    t2e_hf_helper<TensorType,2>(ec, ttensors.S1, etensors.S, "S1-S");
-
 }
 
 void scf_restart_test(const ExecutionContext& ec, const SystemData& sys_data, const std::string& filename, 
@@ -237,48 +229,30 @@ void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const s
 
     EXPECTS(Northo == sys_data.nbf);
 
-    std::vector<TensorType> Cbuf_a(N*Northo);
-    std::vector<TensorType> Cbuf_b;
-    std::vector<TensorType> Dbuf_a(N*N);
-    std::vector<TensorType> Dbuf_b;
-
-    if(is_uhf) {
-      Cbuf_b.resize(N*Northo);
-      Dbuf_b.resize(N*N);
-    }
-
     std::string movecsfile_alpha  = files_prefix + ".alpha.movecs";
     std::string densityfile_alpha = files_prefix + ".alpha.density";
 
-
     if(rank==0) {
       cout << "Reading movecs and density files ... ";
-      readMD(Cbuf_a,Dbuf_a,movecsfile_alpha,densityfile_alpha);
+      etensors.C = read_scf_mat<TensorType>(movecsfile_alpha);
+      etensors.D = read_scf_mat<TensorType>(densityfile_alpha);
 
       if(is_uhf) {
         std::string movecsfile_beta  = files_prefix + ".beta.movecs";       
         std::string densityfile_beta = files_prefix + ".beta.density"; 
-        readMD(Cbuf_b,Dbuf_b,movecsfile_beta,densityfile_beta);               
+        etensors.C_beta = read_scf_mat<TensorType>(movecsfile_beta);
+        etensors.D_beta = read_scf_mat<TensorType>(densityfile_beta);     
       }
       cout << "done" << endl;
     }
     ec.pg().barrier();
-    // MPI_Bcast(&rstatus,1       ,mpi_type<int>()       ,0,ec.pg().comm());
 
-    TensorType *Cbufp_a = &Cbuf_a[0];
-    TensorType *Dbufp_a = &Dbuf_a[0];    
-    MPI_Bcast(Cbufp_a,N*Northo,mpi_type<TensorType>(),0,ec.pg().comm());
-    MPI_Bcast(Dbufp_a,N*N     ,mpi_type<TensorType>(),0,ec.pg().comm());
-    etensors.C      = Eigen::Map<Matrix>(Cbufp_a,N,Northo);
-    etensors.D      = Eigen::Map<Matrix>(Dbufp_a,N,N);
+    TensorType *Dbufp_a = etensors.D.data();    
+    MPI_Bcast(Dbufp_a,N*N,mpi_type<TensorType>(),0,ec.pg().comm());
 
     if(is_uhf) {
-      TensorType *Cbufp_b = &Cbuf_b[0];
-      TensorType *Dbufp_b = &Dbuf_b[0];      
-      MPI_Bcast(Cbufp_b,N*Northo,mpi_type<TensorType>(),0,ec.pg().comm());
-      MPI_Bcast(Dbufp_b,N*N     ,mpi_type<TensorType>(),0,ec.pg().comm());
-      etensors.C_beta = Eigen::Map<Matrix>(Cbufp_b,N,Northo);
-      etensors.D_beta = Eigen::Map<Matrix>(Dbufp_b,N,N);
+      TensorType *Dbufp_b = etensors.D_beta.data();      
+      MPI_Bcast(Dbufp_b,N*N,mpi_type<TensorType>(),0,ec.pg().comm());
     }    
     ec.pg().barrier();
 }
@@ -419,10 +393,6 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
           ++idiis;
           diis(ec, tAO, D_alpha_tamm, F1_alpha, err_mat_alpha_tamm, iter, max_hist, idiis, sys_data.n_lindep,
             ttensors.diis_hist, ttensors.fock_hist);
-          
-          // F1_a_nrm    = norm(F1_alpha);
-          // if(rank==0) cout << std::setprecision(18) << "3norm of F1_alpha: " << F1_a_nrm << endl;
-     
         }
         if(is_uhf) {
           Tensor<TensorType> F1_T{tAO, tAO};
@@ -458,10 +428,11 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         }
       }
       
-
-      tamm_to_eigen_tensor(F1_alpha,F_alpha);
-      if(is_uhf) {
-        tamm_to_eigen_tensor(F1_beta, F_beta);
+      if( rank == 0 ) {
+        tamm_to_eigen_tensor(F1_alpha,F_alpha);
+        if(is_uhf) {
+          tamm_to_eigen_tensor(F1_beta, F_beta);
+        }
       }
       
       auto do_t1 = std::chrono::high_resolution_clock::now();
@@ -531,7 +502,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         #else
       
           if(is_rhf) {
-            const int64_t Northo_a = X_a.cols();
+            const int64_t Northo_a = sys_data.nbf; //X_a.cols();
             if( rank == 0 ) {
               Matrix Fp = F_alpha; // XXX: Can F be destroyed?
               C_alpha.resize(N,Northo_a);
@@ -546,15 +517,16 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
               linalg::blas::gemm( 'T', 'N', Northo_a, N, Northo_a, 
                                   1., Fp.data(), Northo_a, X_a.data(), Northo_a, 
                                   0., C_alpha.data(), Northo_a );
-            } else C_alpha.resize( N, Northo_a );
+            } 
+            // else C_alpha.resize( N, Northo_a );
 
-            if( ec.pg().size() > 1 )
-              MPI_Bcast( C_alpha.data(), C_alpha.size(), MPI_DOUBLE, 0, ec.pg().comm() );
+            // if( ec.pg().size() > 1 )
+            //   MPI_Bcast( C_alpha.data(), C_alpha.size(), MPI_DOUBLE, 0, ec.pg().comm() );
           }
 
           if(is_uhf) {
-            const int64_t Northo_a = X_a.cols();
-            const int64_t Northo_b = X_b.cols();
+            const int64_t Northo_a = sys_data.nbf; //X_a.cols();
+            const int64_t Northo_b = sys_data.nbf; //X_b.cols();
             if( rank == 0 ) {
               //alpha
               Matrix Fp = F_alpha; 
@@ -585,32 +557,34 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
                                   1., Fp.data(), Northo_b, X_b.data(), Northo_b, 
                                   0., C_beta.data(), Northo_b );
             } 
-            else {
-              C_alpha.resize(N, Northo_a);
-              C_beta.resize(N, Northo_b);
-            }
+            // else {
+            //   C_alpha.resize(N, Northo_a);
+            //   C_beta.resize(N, Northo_b);
+            // }
           
-            if( ec.pg().size() > 1 ) {
-              MPI_Bcast( C_alpha.data(), C_alpha.size(), MPI_DOUBLE, 0, ec.pg().comm() );
-              MPI_Bcast( C_beta.data(),  C_beta.size(),  MPI_DOUBLE, 0, ec.pg().comm() );
-            }
+            // if( ec.pg().size() > 1 ) {
+            //   MPI_Bcast( C_alpha.data(), C_alpha.size(), MPI_DOUBLE, 0, ec.pg().comm() );
+            //   MPI_Bcast( C_beta.data(),  C_beta.size(),  MPI_DOUBLE, 0, ec.pg().comm() );
+            // }
           }
 
         #endif
 
         // compute density
-        if(is_rhf) {
-          C_occ   = C_alpha.leftCols(sys_data.nelectrons_alpha);
-          D_alpha = 2.0 * C_occ * C_occ.transpose();
-          X_a     = C_alpha;
-        }
-        if(is_uhf) {
-          C_occ   = C_alpha.leftCols(sys_data.nelectrons_alpha);
-          D_alpha = C_occ * C_occ.transpose();
-          X_a     = C_alpha;
-          C_occ   = C_beta.leftCols(sys_data.nelectrons_beta);
-          D_beta  = C_occ * C_occ.transpose();
-          X_b     = C_beta;
+        if( rank == 0 ) {
+          if(is_rhf) {
+            C_occ   = C_alpha.leftCols(sys_data.nelectrons_alpha);
+            D_alpha = 2.0 * C_occ * C_occ.transpose();
+            X_a     = C_alpha;
+          }
+          if(is_uhf) {
+            C_occ   = C_alpha.leftCols(sys_data.nelectrons_alpha);
+            D_alpha = C_occ * C_occ.transpose();
+            X_a     = C_alpha;
+            C_occ   = C_beta.leftCols(sys_data.nelectrons_beta);
+            D_beta  = C_occ * C_occ.transpose();
+            X_b     = C_beta;
+          }
         }
 
         auto do_t2 = std::chrono::high_resolution_clock::now();
@@ -620,10 +594,15 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         if(rank == 0 && debug) std::cout << "eigen_solve:" << do_time << "s, " << std::endl; 
       }//end scf_restart 
 
-      eigen_to_tamm_tensor(D_alpha_tamm,D_alpha);
-      if(is_uhf) {
-        eigen_to_tamm_tensor(D_beta_tamm, D_beta);
+      if(rank == 0) {
+        eigen_to_tamm_tensor(D_alpha_tamm,D_alpha);
+        if(is_uhf) {
+          eigen_to_tamm_tensor(D_beta_tamm, D_beta);
+        }
       }
+
+      MPI_Bcast(D_alpha.data(), D_alpha.size(), MPI_DOUBLE, 0, ec.pg().comm() );
+      if(is_uhf) MPI_Bcast(D_beta.data(), D_beta.size(), MPI_DOUBLE, 0, ec.pg().comm() );
 
       double ehf = 0.0;
 
@@ -1093,7 +1072,6 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
         if(rank == 0 && debug) std::cout << "2BF:" << do_time << "s, ";
-        // ec.pg().barrier();
         
         eigen_to_tamm_tensor_acc(F1tmp1,G);
         if(is_uhf) eigen_to_tamm_tensor_acc(F1tmp1_beta,G_beta);
@@ -1487,7 +1465,7 @@ void energy_diis(ExecutionContext& ec, TiledIndexSpace& tAO, int iter, int max_h
       IPIV.data(), B.data(), N, X.data(), N, RCOND, FERR.data(), BERR.data() );
       
     if(info!=0) {
-      if(rank==0) cout << "<E-DIIS> Singularity in Pulay matrix. Density and Fock difference matrices removed." << endl;
+      // if(rank==0) cout << "<E-DIIS> Singularity in Pulay matrix. Density and Fock difference matrices removed." << endl;
       fock_hist.erase(fock_hist.begin());
       D_hist.erase(D_hist.begin());
       idim--;
@@ -1629,7 +1607,7 @@ void diis(ExecutionContext& ec, TiledIndexSpace& tAO, Tensor<TensorType> D, Tens
       IPIV.data(), B.data(), N, X.data(), N, RCOND, FERR.data(), BERR.data() );
       
     if(info!=0) {
-      if(rank==0) cout << "<DIIS> Singularity in Pulay matrix. Error and Fock matrices removed." << endl;
+      if(rank==0) cout << "<DIIS> Singularity in Pulay matrix detected." /*Error and Fock matrices removed." */ << endl;
       diis_hist.erase(diis_hist.begin());
       fock_hist.erase(fock_hist.begin());            
       idim--;

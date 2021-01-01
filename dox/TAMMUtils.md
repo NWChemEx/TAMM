@@ -70,5 +70,26 @@ A call to a utility routine assumes that the routine is executed on the process 
   - Execute routine on smaller PG extracted from tensor as usual.
    
   - It will work if the tensor is replicated per rank ie smaller PG=`MPI_Comm_SELF`
-    - `U_NT`: return new replicated tensor created using smaller PG
+    - `U_NT`: return new replicated tensor created using smaller PG - already handled
+     
+  - If not replicated, for all other cases not possible to write such code with `group_incl`? - can write if `comm_split` is used
+  ```
+      ProcGroup gpg{GA_MPI_Comm()};
+
+      //Create subcomm using group_incl 
+      // ranks not in subcomm have MPI_COMM_NULL
+      if (subcomm != MPI_COMM_NULL) {
+          ProcGroup pg{subcomm};
+          ...
+          //Create tensor on smaller pg
+          call util_name(tensor)
+      }
+
+      // if comm_split is used - all ranks have a valid comm, unless color=MPI_UNDEFINED which is eqv. to above code snippet.
+        ProcGroup pg{subcomm};
+        // create tensor using pg - ranks that dont need the tensor also create it
+        call util_name(tensor) - this should already work?
+  ```
+    `Soln`: Don't worry since `group_incl` case is not possible to write and `comm_split` will always work?
+
 

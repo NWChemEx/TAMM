@@ -1,10 +1,8 @@
-Base Documentation Repository for NWChemEx
+Base Documentation Repository for TAMM
 ==========================================
 
 Doxygen supports numerous customization features (take a look at the Doxyfile in
-this repo for a complete list).  The point of this repo is to provide a source 
-of the NWChemEx project's preferred settings so as to generate uniform
-documentation.   
+this repo for a complete list). 
 
 How To Use
 ----------
@@ -17,7 +15,7 @@ doxygen dox/Doxyfile
 
 :warning: This repo has only been tested for manually building the
 documentation.  CodeDocs offers a means of recursively linking documentations 
-together, but can only operate on public repositories.  Until NWChemEx is public
+together, but can only operate on public repositories.  Until TAMM is public
 the last two steps will not work.
 
 0. "Install" [git subrepo](https://github.com/ingydotnet/git-subrepo) if you

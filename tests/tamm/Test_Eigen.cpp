@@ -1,15 +1,12 @@
 
 
-// Eigen matrix algebra library
-#include <Eigen/Dense>
-#include <unsupported/Eigen/CXX11/Tensor>
-
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest/doctest.h"
 #include "ga.h"
 #include "mpi.h"
 #include "macdecls.h"
 #include "ga-mpi.h"
+#include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
 
 #include <string>

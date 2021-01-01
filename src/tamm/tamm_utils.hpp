@@ -6,6 +6,7 @@
 #include <random>
 #include <fstream>
 #include <type_traits>
+#include <iomanip>
 #include <hdf5.h>
 
 #define IO_ISIRREG 1
@@ -93,13 +94,14 @@ void print_tensor(const Tensor<T>& tensor, std::string filename="") {
         tstring << "bdims: " << bdims << ", size: " << size << std::endl;
         
         for(TAMM_SIZE i = 0; i < size; i++) {
+            if(i%6==0) tstring << "\n";
             if constexpr(tamm::internal::is_complex_v<T>) {
                  if(buf[i].real() > 0.0000000000001 ||
-                   buf[i].real() < -0.0000000000001)
-                    tstring << buf[i] << " ";
+                   buf[i].real() < -0.0000000000001) 
+                   tstring << std::fixed << std::setw( 10 ) << std::setprecision(5) << buf[i] << " ";
             } else {
                if(buf[i] > 0.0000000000001 || buf[i] < -0.0000000000001)
-                    tstring << buf[i] << " ";
+                    tstring << std::fixed << std::setw( 10 ) << std::setprecision(5) << buf[i] << " ";
             }
         }
         tstring << std::endl;
@@ -138,7 +140,8 @@ void print_tensor_all(const Tensor<T>& tensor, std::string filename="") {
         tstring << "bdims: " << bdims << ", size: " << size << std::endl;
         
         for(TAMM_SIZE i = 0; i < size; i++) {
-            tstring << buf[i] << " ";
+            if(i%6==0) tstring << "\n";
+            tstring << std::fixed << std::setw( 10 ) << std::setprecision(5) << buf[i] << " ";
         }
         tstring << std::endl;
     }

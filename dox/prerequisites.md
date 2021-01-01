@@ -3,7 +3,7 @@ Prerequisites
 -------------
 - Git
 - autotools
-- cmake >= 3.17
+- cmake >= 3.18
 - MPI Library
 - C++17 compiler
 - CUDA >= 10.2 (only if building with GPU support)

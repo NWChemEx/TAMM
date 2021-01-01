@@ -39,11 +39,7 @@ using tensor_handle = talsh_tens_t;
 #undef C10
 #endif
 
-#ifdef USE_DPCPP
-#include <CL/sycl.hpp>
-#include "oneapi/mkl.hpp"
-using namespace cl::sycl::ONEAPI;
-#endif
+#include "tamm/tamm_dpcpp.hpp"
 
 namespace tamm {
 

@@ -272,7 +272,7 @@ template<typename TensorType>
 void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
     const std::vector<libint2::Atom>& atoms, const libint2::BasisSet& shells,
     const std::string& basis, bool is_spherical, EigenTensors& etensors,
-    int charge, int multiplicity){
+    TAMMTensors& ttensors, int charge, int multiplicity){
 
     auto ig1 = std::chrono::high_resolution_clock::now();
 
@@ -283,7 +283,7 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
     const auto world_size = ec.pg().size();
     const auto N = nbasis(shells);
 
-    const Matrix& H   = etensors.H; 
+    // const Matrix& H   = etensors.H; 
     const Matrix& X_a = etensors.X;
     const Matrix& X_b = etensors.X_beta;
     Matrix& C_a       = etensors.C;
@@ -317,8 +317,12 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
     if(rank == 0) std::cout << std::endl << 
       "Projecting minimal basis SOAD onto basis set specified (" << basis << ")" << endl;
     
-    auto Ft_a = H;
-    auto Ft_b = H;
+    Matrix Ft_a, Ft_b;
+    if(rank == 0) {
+      Ft_a = Matrix::Zero(N,N);
+      tamm_to_eigen_tensor(ttensors.H1, Ft_a);
+      if(is_uhf) Ft_b = Ft_a;
+    }
 
     double precision = std::numeric_limits<double>::epsilon();
     // double precision = std::min(sys_data.options_map.scf_options.tol_int, 1e-3 * sys_data.options_map.scf_options.conve);
@@ -328,11 +332,13 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
     const libint2::BasisSet& D_bs = minbs;
 
     Matrix G_a = Matrix::Zero(N,N);
-    Matrix G_b = Matrix::Zero(N,N);
+    Matrix G_b;
+    if(is_uhf) G_b = Matrix::Zero(N,N);
     Tensor<TensorType> F1tmp{tAOt, tAOt}; //not allocated
     Tensor<TensorType> F1tmp1_a{tAO, tAO};
     Tensor<TensorType> F1tmp1_b{tAO, tAO};
-    Tensor<TensorType>::allocate(&ec, F1tmp1_a,F1tmp1_b);
+    Tensor<TensorType>::allocate(&ec, F1tmp1_a);
+    if(is_uhf) Tensor<TensorType>::allocate(&ec,F1tmp1_b);
 
     // construct the 2-electron repulsion integrals engine
     using libint2::Operator;
@@ -485,8 +491,10 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
         (F1tmp1_a() = 0).execute();
       eigen_to_tamm_tensor_acc(F1tmp1_a,G_a);
       ec.pg().barrier();
-      tamm_to_eigen_tensor(F1tmp1_a,G_a);
-      Ft_a += G_a;
+      if(rank == 0) {
+        tamm_to_eigen_tensor(F1tmp1_a,G_a);
+        Ft_a += G_a;
+      }
     } 
     if(is_uhf) {
       Matrix Gt_a = 0.5 * (G_a + G_a.transpose());
@@ -501,17 +509,24 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
       eigen_to_tamm_tensor_acc(F1tmp1_a,G_a);
       eigen_to_tamm_tensor_acc(F1tmp1_b,G_b);
       ec.pg().barrier();
-      tamm_to_eigen_tensor(F1tmp1_a,G_a);
-      tamm_to_eigen_tensor(F1tmp1_b,G_b);
-      Ft_a += G_a;
-      Ft_b += G_b;
+      if(rank == 0) {
+        tamm_to_eigen_tensor(F1tmp1_a,G_a);
+        tamm_to_eigen_tensor(F1tmp1_b,G_b);
+        Ft_a += G_a;
+        Ft_b += G_b;
+      }
     } 
 
-    D_minbs_a.resize(0,0);
-    D_minbs_b.resize(0,0);
     G_a.resize(0,0);
-    G_b.resize(0,0); 
-    Tensor<TensorType>::deallocate(F1tmp1_a,F1tmp1_b);
+    D_minbs_a.resize(0,0);
+    Tensor<TensorType>::deallocate(F1tmp1_a);
+
+    if(is_uhf) {
+      G_b.resize(0,0); 
+      D_minbs_b.resize(0,0);
+      Tensor<TensorType>::deallocate(F1tmp1_b);
+    }
+
 
     // solve F C = e S C by (conditioned) transformation to F' C' = e C',
     // where
@@ -543,7 +558,7 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
     #else
       
       if(is_rhf) {
-        const int64_t Northo_a = X_a.cols();
+        const int64_t Northo_a = sys_data.nbf; //X_a.cols();
         if( rank == 0 ) {// TODO: Check for linear dep case
           C_a.resize(N,Northo_a);
           linalg::blas::gemm( 'N', 'T', N, Northo_a, N,
@@ -559,15 +574,15 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
                               1., Ft_a.data(), Northo_a, X_a.data(), Northo_a, 
                               0., C_a.data(), Northo_a );
         } 
-        else C_a.resize(N, Northo_a);
+        // else C_a.resize(N, Northo_a);
           
-        if( world_size > 1 ) 
-          MPI_Bcast( C_a.data(), C_a.size(), MPI_DOUBLE, 0, ec.pg().comm() );
+        // if( world_size > 1 ) 
+        //   MPI_Bcast( C_a.data(), C_a.size(), MPI_DOUBLE, 0, ec.pg().comm() );
       }
 
       if(is_uhf) {
-        const int64_t Northo_a = X_a.cols();
-        const int64_t Northo_b = X_b.cols();
+        const int64_t Northo_a = sys_data.nbf; //X_a.cols();
+        const int64_t Northo_b = sys_data.nbf; //X_b.cols();
         if( rank == 0 ) {
           //alpha
           C_a.resize(N,Northo_a);
@@ -596,29 +611,31 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
                               1., Ft_b.data(), Northo_b, X_b.data(), Northo_b, 
                               0., C_b.data(), Northo_b );
         } 
-        else {
-          C_a.resize(N, Northo_a);
-          C_b.resize(N, Northo_b);
-        }
+        // else {
+        //   C_a.resize(N, Northo_a);
+        //   C_b.resize(N, Northo_b);
+        // }
 
-        if( world_size > 1 ) {
-          MPI_Bcast( C_a.data(), C_a.size(), MPI_DOUBLE, 0, ec.pg().comm() );
-          MPI_Bcast( C_b.data(), C_b.size(), MPI_DOUBLE, 0, ec.pg().comm() );
-        }
+        // if( world_size > 1 ) {
+        //   MPI_Bcast( C_a.data(), C_a.size(), MPI_DOUBLE, 0, ec.pg().comm() );
+        //   MPI_Bcast( C_b.data(), C_b.size(), MPI_DOUBLE, 0, ec.pg().comm() );
+        // }
       }
 
     #endif
 
     // compute density
-    if(is_rhf) {
-      C_occ_a = C_a.leftCols(sys_data.nelectrons_alpha); 
-      D_a = 2.0 * C_occ_a * C_occ_a.transpose();
-    }
-    if(is_uhf) {
-      C_occ_a = C_a.leftCols(sys_data.nelectrons_alpha); 
-      auto C_occ_b = C_b.leftCols(sys_data.nelectrons_beta);
-      D_a = C_occ_a * C_occ_a.transpose();
-      D_b = C_occ_b * C_occ_b.transpose();
+    if( rank == 0 ) {
+      if(is_rhf) {
+        C_occ_a = C_a.leftCols(sys_data.nelectrons_alpha); 
+        D_a = 2.0 * C_occ_a * C_occ_a.transpose();
+      }
+      if(is_uhf) {
+        C_occ_a = C_a.leftCols(sys_data.nelectrons_alpha); 
+        auto C_occ_b = C_b.leftCols(sys_data.nelectrons_beta);
+        D_a = C_occ_a * C_occ_a.transpose();
+        D_b = C_occ_b * C_occ_b.transpose();
+      }
     }
 
     auto ig2 = std::chrono::high_resolution_clock::now();
@@ -628,6 +645,8 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
 
 }
 
+// FIXME:UNCOMMENT
+#if 0
 template<typename TensorType>
 void compute_sad_guess(ExecutionContext& ec, SystemData& sys_data,
                       const std::vector<libint2::Atom>& atoms, const libint2::BasisSet& shells,
@@ -1171,5 +1190,6 @@ void compute_sad_guess(ExecutionContext& ec, SystemData& sys_data,
     // if(rank==0) cout << "in sad_guess, D_tot: " << endl << D << endl;
 
 }
+#endif
 
 #endif //TAMM_SCF_GUESS_HPP_

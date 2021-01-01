@@ -213,7 +213,7 @@ class CCSDOptions: public Options {
     ndiis          = 5;
     lshift         = 0;
     ccsd_maxiter   = 50;
-    balance_tiles  = false;
+    balance_tiles  = true;
     profile_ccsd   = false;
 
     writet         = false;

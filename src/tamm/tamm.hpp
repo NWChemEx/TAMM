@@ -13,6 +13,10 @@
 #include <type_traits>
 #include <vector>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #include "tamm/execution_context.hpp"
 #include "tamm/index_space.hpp"
 #include "tamm/labeled_tensor.hpp"
@@ -23,7 +27,6 @@
 #include "tamm/dag_impl.hpp"
 #include "tamm/tamm_utils.hpp"
 #include "tamm/lru_cache.hpp"
-#undef I
 
 namespace tamm {
 void initialize(int argc, char *argv[]);

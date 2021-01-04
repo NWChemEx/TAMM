@@ -74,18 +74,14 @@ make install
 
 ## Build using Intel MKL
 
-### Set `MKLROOT` accordingly
-
-```
-export MKLROOT=/opt/intel/compilers_and_libraries_2019.0.117/linux/mkl
-```
-
 ### To enable CUDA build, add `-DUSE_CUDA=ON`
 
 ```
 cd $TAMM_SRC/build 
 
-CC=gcc CXX=g++ FC=gfortran cmake -DBLAS_VENDOR=IntelMKL -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
+CC=gcc CXX=g++ FC=gfortran cmake -DLINALG_VENDOR=IntelMKL \
+-DLINALG_PREFIX=/opt/intel/mkl \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
 make -j3
 make install
@@ -103,7 +99,6 @@ module load cuda/10.1.105
 ```
 The following paths may need to be adjusted if the modules change:
 
-export ESSLROOT=/sw/summit/essl/6.1.0-2/essl/6.1
 ```
 
 ### To enable CUDA build, add `-DUSE_CUDA=ON`
@@ -114,7 +109,8 @@ cd $TAMM_SRC/build
 CC=gcc CXX=g++ FC=gfortran cmake \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
 -DBLIS_CONFIG=power9 \
--DBLAS_VENDOR=IBMESSL ..
+-DLINALG_VENDOR=IBMESSL \
+-DLINALG_PREFIX=/sw/summit/essl/6.1.0-2/essl/6.1 ..
 
 make -j3
 make install
@@ -134,7 +130,6 @@ module load cuda/10.1.168
 
 ```
 export CRAYPE_LINK_TYPE=dynamic
-export MKLROOT=/opt/intel/compilers_and_libraries_2019.3.199/linux/mkl
 ```
 
 ### To enable CUDA build, add `-DUSE_CUDA=ON`
@@ -142,7 +137,9 @@ export MKLROOT=/opt/intel/compilers_and_libraries_2019.3.199/linux/mkl
 ```
 cd $TAMM_SRC/build
 
-CC=cc CXX=CC FC=ftn cmake -DBLAS_VENDOR=IntelMKL -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
+CC=cc CXX=CC FC=ftn cmake -DLINALG_VENDOR=IntelMKL \
+-DLINALG_PREFIX=/opt/intel/mkl \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
 make -j3
 make install
@@ -159,13 +156,14 @@ module load cmake
 
 ```
 export CRAYPE_LINK_TYPE=dynamic
-export MKLROOT=/theta-archive/intel/compilers_and_libraries_2019.5.281/linux/mkl
 ```
 
 ```
 cd $TAMM_SRC/build
 
-CC=cc CXX=CC FC=ftn cmake -DBLAS_VENDOR=IntelMKL -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
+CC=cc CXX=CC FC=ftn cmake -DLINALG_VENDOR=IntelMKL \
+-DLINALG_PREFIX=/opt/intel/mkl \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
 make -j3
 make install
@@ -173,10 +171,9 @@ make install
 ## Build DPCPP code path using Intel OneAPI SDK
 
 - `MPI:` Only tested using `MPICH`.
-- Set `MKLROOT` and `DPCPP_ROOT` accordingly
+- Set `DPCPP_ROOT` accordingly
 
 ```
-export MKLROOT=/opt/oneapi/mkl/latest
 export DPCPP_ROOT=/opt/oneapi/compiler/latest/linux
 ```
 
@@ -191,7 +188,8 @@ cd $TAMM_SRC/build
 CC=icx CXX=dpcpp FC=ifx cmake \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
 -DMPIEXEC_EXECUTABLE=mpiexec -DUSE_OPENMP=OFF \
--DBLAS_VENDOR=IntelMKL -DUSE_DPCPP=ON -DGCCROOT=$GCCROOT \
+-DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=/opt/oneapi/mkl/latest \
+-DUSE_DPCPP=ON -DGCCROOT=$GCCROOT \
 -DTAMM_CXX_FLAGS="-fno-sycl-early-optimizations -fsycl -fsycl-targets=spir64_gen-unknown-linux-sycldevice -Xsycl-target-backend '-device skl'"
 ```
 

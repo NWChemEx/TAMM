@@ -34,7 +34,6 @@
     "tilesize": 50,
     "itilesize": 1000,
     "CCSD(T)": {
-      "ngpu": 1, 
       "ccsdt_tilesize": 28
     },
     "profile_ccsd": false

@@ -4,7 +4,9 @@
 #include <omp.h>
 #endif
 
-#include <CL/sycl.hpp>
+#if defined(USE_DPCPP)
+  #include <CL/sycl.hpp>
+#endif
 #include <iostream>
 
 void sd_t_d1_1_cpu(size_t size_idx_h1, size_t size_idx_h2, size_t size_idx_h3, size_t size_idx_h7, size_t size_idx_p4, size_t size_idx_p5, size_t size_idx_p6, double *triplesx, double *t2sub, double *v2sub) {
@@ -439,7 +441,6 @@ void dpcpp_ready_ccsd_t_unfused_sd2_1_kernel_driver(cl::sycl::queue* syclQueue,
 		int base_size_h1b, int base_size_h2b, int base_size_h3b, 
 		int base_size_p4b, int base_size_p5b, int base_size_p6b, int base_size_p7b, 
 		double* host_d2_t3, double* host_d2_t2, double* host_d2_v2) {
-  std::cout << "[" << __func__ << "]" << std::endl;
 	// 
 	sycl::queue syclQ = *syclQueue;
 	unsigned int num_grid_x = CEIL(base_size_h3b, F_SIZE_T_H3) * CEIL(base_size_h2b, F_SIZE_T_H2) * CEIL(base_size_p5b, F_SIZE_T_P5);
@@ -510,7 +511,6 @@ void dpcpp_ready_ccsd_t_unfused_sd2_1_kernel_driver(cl::sycl::queue* syclQueue,
 
 
 void sd_t_d2_1_cpu(size_t size_idx_h1, size_t size_idx_h2, size_t size_idx_h3, size_t size_idx_p4, size_t size_idx_p5, size_t size_idx_p6, size_t size_idx_p7, double *triplesx, double *t2sub, double *v2sub) {
-  std::cout << "[" << __func__ << "]" << std::endl;
   #pragma omp parallel for collapse(6)
   for (size_t t3_h3 = 0; t3_h3 < size_idx_h3; t3_h3++)
   for (size_t t3_h2 = 0; t3_h2 < size_idx_h2; t3_h2++)

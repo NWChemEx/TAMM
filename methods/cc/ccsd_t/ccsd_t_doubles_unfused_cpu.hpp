@@ -30,7 +30,7 @@ void sd_t_d2_7_cpu(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,doub
 void sd_t_d2_8_cpu(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void sd_t_d2_9_cpu(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 
-
+//
 template<typename T>
 void ccsd_t_doubles_unfused(ExecutionContext& ec,
                    const TiledIndexSpace& MO,
@@ -497,10 +497,10 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
      {
-          sd_t_d2_1_cpu(k_range[t_h1b],k_range[t_h2b],
-                    k_range[t_h3b],k_range[t_p4b],
-                    k_range[t_p5b],k_range[t_p6b],k_range[p7b],
-                    &a_c[0],&k_a_sort[0],&k_b_sort[0]);        
+        sd_t_d2_1_cpu(k_range[t_h1b],k_range[t_h2b],
+                  k_range[t_h3b],k_range[t_p4b],
+                  k_range[t_p5b],k_range[t_p6b],k_range[p7b],
+                  &a_c[0],&k_a_sort[0],&k_b_sort[0]);
      }
 
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)

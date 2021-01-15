@@ -24,12 +24,6 @@ using libint2::Atom;
 using TensorType = double;
 const auto max_engine_precision = std::numeric_limits<double>::epsilon() / 1e10;
 
-using Matrix   = Eigen::Matrix<TensorType, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-using Tensor1D = Eigen::Tensor<TensorType, 1, Eigen::RowMajor>;
-using Tensor2D = Eigen::Tensor<TensorType, 2, Eigen::RowMajor>;
-using Tensor3D = Eigen::Tensor<TensorType, 3, Eigen::RowMajor>;
-using Tensor4D = Eigen::Tensor<TensorType, 4, Eigen::RowMajor>;
-
 using shellpair_list_t = std::unordered_map<size_t, std::vector<size_t>>;
 shellpair_list_t obs_shellpair_list;  // shellpair list for OBS
 shellpair_list_t dfbs_shellpair_list;  // shellpair list for DFBS

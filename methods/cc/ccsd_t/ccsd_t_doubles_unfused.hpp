@@ -53,13 +53,6 @@ void sd_t_d2_7_cpu(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,doub
 void sd_t_d2_8_cpu(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void sd_t_d2_9_cpu(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 
-//DPCPP sample
-void dpcpp_ready_ccsd_t_unfused_sd2_1_kernel_driver(cl::sycl::queue* syclQueue, 
-		int base_size_h1b, int base_size_h2b, int base_size_h3b, 
-		int base_size_p4b, int base_size_p5b, int base_size_p6b, int base_size_p7b, 
-		double* host_d2_t3, double* host_d2_t2, double* host_d2_v2);
-
-
 //NWChem source-centric GPU kernels
 void sd_t_d1_1_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void sd_t_d1_2_cuda(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);

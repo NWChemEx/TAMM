@@ -93,10 +93,11 @@ void ccsd_driver() {
         && fs::exists(f1file) && fs::exists(v2file)) );
 
     //deallocates F_AO, C_AO
-    auto [cholVpr,d_f1,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
+    auto [cholVpr,d_f1,lcao,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
                         (options_map, ec, MO, AO_opt, ov_alpha, nao, freeze_core,
                                 freeze_virtual, C_AO, F_AO, shells, shell_tile_map,
                                 ccsd_restart, cholfile);
+    free_tensors(lcao);
 
     TiledIndexSpace N = MO("all");
 

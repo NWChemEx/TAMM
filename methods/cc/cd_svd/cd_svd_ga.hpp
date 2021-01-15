@@ -4,10 +4,9 @@
 
 #include "scf/hartree_fock_tamm.hpp"
 #include "tamm/eigen_utils.hpp"
-#include "tamm/tamm.hpp"
+#include "common/json_data.hpp"
 
 using namespace tamm;
-using TensorType = double;
 using TAMM_GA_SIZE = int64_t;
 
 bool cd_debug = false;
@@ -54,10 +53,11 @@ bool cd_debug = false;
     return ret;
   }
 
-Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndexSpace& tAO,
-  Tensor<TensorType> C_alpha_AO, Tensor<TensorType> F_alpha_AO, Tensor<TensorType> C_beta_AO, Tensor<TensorType> F_beta_AO,
-  Tensor<TensorType> F_MO, TAMM_SIZE& chol_count, const TAMM_GA_SIZE max_cvecs,
-  libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map) {
+
+
+template <typename TensorType>
+Tensor<TensorType> cd_svd_ga(SystemData sys_data, ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndexSpace& tAO,
+  TAMM_SIZE& chol_count, const TAMM_GA_SIZE max_cvecs, libint2::BasisSet& shells, Tensor<TensorType>& lcao) {
 
   using libint2::Atom;
   using libint2::Shell;
@@ -66,150 +66,22 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
 
   double             diagtol        = sys_data.options_map.cd_options.diagtol;
   const tamm::Tile   itile_size     = sys_data.options_map.ccsd_options.itilesize;
-  SCFOptions         scf_options    = sys_data.options_map.scf_options;
-  const TAMM_GA_SIZE n_occ_alpha    = sys_data.n_occ_alpha;
-  const TAMM_GA_SIZE n_occ_beta     = sys_data.n_occ_beta;
-  const TAMM_GA_SIZE n_vir_alpha    = sys_data.n_vir_alpha;
-  const TAMM_GA_SIZE n_vir_beta     = sys_data.n_vir_beta;
   const TAMM_GA_SIZE northo         = sys_data.nbf;
   const TAMM_GA_SIZE nao            = sys_data.nbf_orig;
-  const TAMM_GA_SIZE freeze_core    = sys_data.n_frozen_core;
-  const TAMM_GA_SIZE freeze_virtual = sys_data.n_frozen_virtual;
-  const TAMM_GA_SIZE n_lindep       = sys_data.n_lindep;
 
   auto rank = ec.pg().rank();
 
-  std::vector<unsigned int> AO_tiles;
-  for(auto s : shells) AO_tiles.push_back(s.size());
+  auto N = 2*northo;
 
-  auto n_occ_alpha_eff = n_occ_alpha - freeze_core;
-  auto n_vir_alpha_eff = n_vir_alpha - freeze_virtual;
-  auto n_occ_beta_eff  = n_occ_beta  - freeze_core;
-  auto n_vir_beta_eff  = n_vir_beta  - freeze_virtual;
-  auto n_occ_eff       = n_occ_alpha_eff + n_occ_beta_eff;
+  Matrix lcao_eig(nao,N);
+  lcao_eig.setZero();
+  tamm_to_eigen_tensor(lcao,lcao_eig);
+  TensorType *k_movecs_sorted = lcao_eig.data();
 
-  //
-  // 2-index transform
-  // 
-  auto hf_t1 = std::chrono::high_resolution_clock::now();
-
-  auto N = 2 * nao - 2 * freeze_core - 2 * freeze_virtual - 2 * n_lindep; // N == 2*northo
-  
-  const bool is_rhf  = scf_options.scf_type == "rhf";
-  const bool is_uhf  = scf_options.scf_type == "uhf";
-  // const bool is_rohf = scf_options.scf_type == "rohf";
-
-  Matrix CTiled(nao, N);
-
-  if(rank == 0) {
-    cout << std::endl << "-----------------------------------------------------" << endl;
-    cout << "Begin Cholesky Decomposition ... " << endl;
-    cout << std::endl << "#AOs, #electrons = " << nao << " , " << n_occ_alpha+n_occ_beta << endl;
-
-    Matrix C_alpha;
-    Matrix C_beta;
-    C_alpha.setZero(nao,northo);
-    tamm_to_eigen_tensor(C_alpha_AO,C_alpha);
-    // replicate horizontally
-    Matrix C_2N(nao, N);
-    if(is_rhf) C_2N << C_alpha, C_alpha;
-    if(is_uhf) {
-      C_beta.setZero(nao,northo);
-      tamm_to_eigen_tensor(C_beta_AO, C_beta);
-      C_2N << C_alpha, C_beta;
-      C_beta.resize(0,0);
-    }
-    C_alpha.resize(0,0);
-        
-    cout << "n_occ_alpha, n_vir_alpha, n_occ_beta, n_vir_beta = " 
-         << n_occ_alpha << "," << n_vir_alpha << "," << n_occ_beta << "," << n_vir_beta << endl;
-
-    Matrix C_noa = C_2N.block(0, 0,                       nao, n_occ_alpha_eff);
-    Matrix C_nva = C_2N.block(0, n_occ_alpha_eff,         nao, n_vir_alpha_eff);
-    Matrix C_nob = C_2N.block(0, northo,                  nao, n_occ_beta_eff);
-    Matrix C_nvb = C_2N.block(0, northo + n_occ_beta_eff, nao, n_vir_beta_eff);
-
-    C_2N.resize(0,0);
-    CTiled << C_noa, C_nob, C_nva, C_nvb;
-
-    Matrix F1_a;
-    Matrix F1_b;
-    F1_a.setZero(nao,nao);
-    tamm_to_eigen_tensor(F_alpha_AO,F1_a);
-
-    if(is_uhf) {
-      F1_b.setZero(nao,nao);
-      tamm_to_eigen_tensor(F_beta_AO, F1_b);
-    }
-
-    Matrix F_oa;
-    Matrix F_va;
-    Matrix F_ob;
-    Matrix F_vb;
-    // F_oa.setZero(n_occ_alpha_eff,n_occ_alpha_eff);
-    // F_va.setZero(n_vir_alpha_eff,n_vir_alpha_eff);
-    // F_ob.setZero(n_occ_beta_eff, n_occ_beta_eff);
-    // F_vb.setZero(n_vir_beta_eff, n_vir_beta_eff);
-
-    F_oa = C_noa.transpose() * (F1_a * C_noa);
-    F_va = C_nva.transpose() * (F1_a * C_nva);
-
-    if(is_rhf) {
-      F_ob = F_oa;
-      F_vb = F_va;
-    }
-    if(is_uhf) {
-      F_ob = C_nob.transpose() * (F1_b * C_nob);
-      F_vb = C_nvb.transpose() * (F1_b * C_nvb);
-    }
-
-    F1_a.resize(0,0);
-    F1_b.resize(0,0);
-
-    Matrix F;
-    F.setZero(N,N);
-
-    TAMM_GA_SIZE k = 0;
-    for (TAMM_GA_SIZE i=0;i<n_occ_alpha_eff;i++){
-      F(i,i) = F_oa(k,k);
-      k++;
-    }
-    k = 0;
-    for (TAMM_GA_SIZE i=n_occ_alpha_eff;i<n_occ_eff;i++){
-      F(i,i) = F_ob(k,k);
-      k++;
-    }
-    k = 0;
-    for (TAMM_GA_SIZE i=n_occ_eff;i<n_occ_eff+n_vir_alpha_eff;i++){
-      F(i,i) = F_va(k,k);
-      k++;
-    }
-    k = 0;
-    for (TAMM_GA_SIZE i=n_occ_eff+n_vir_alpha_eff;i<N;i++){
-      F(i,i) = F_vb(k,k);
-      k++;
-    }
-
-    eigen_to_tamm_tensor(F_MO,F);
-
-  }
-
-  std::vector<TensorType> CTiledBuf(nao*N);
-  TensorType *k_movecs_sorted = &CTiledBuf[0];
-  Eigen::Map<Matrix>(k_movecs_sorted,nao,N) = CTiled;  
-  GA_Brdcst(k_movecs_sorted,nao*N*sizeof(TensorType),0);
-  CTiled.resize(0,0);
-
-  auto hf_t2 = std::chrono::high_resolution_clock::now();
-  auto hf_time =
-      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(rank == 0) std::cout << std::endl << "Time taken for Fao->Fmo transform: " << hf_time << " secs" << endl;
-  GA_Sync();
-  
   //
   // Cholesky decomposition
   //
-  hf_t1 = std::chrono::high_resolution_clock::now();
+  auto hf_t1 = std::chrono::high_resolution_clock::now();
 
   // Step A. Initialization
   int64_t iproc = rank.value();
@@ -494,8 +366,8 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data,ExecutionContext& ec, TiledInde
   NGA_Destroy(g_r);
   NGA_Destroy(g_d);
 
-  hf_t2 = std::chrono::high_resolution_clock::now();
-  hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+  auto hf_t2 = std::chrono::high_resolution_clock::now();
+  auto hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
   if(iproc == 0) std::cout << std::endl << "Time taken for cholesky decomp: " << hf_time << " secs" << endl;
  
   dimsmo[0] =  N; dimsmo[1] =  N; dimsmo[2] = count;

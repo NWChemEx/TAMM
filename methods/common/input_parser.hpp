@@ -58,6 +58,7 @@ class Options {
     std::string sphcart;
     std::string geom_units;
     std::string output_file_prefix;
+    std::vector<libint2::Atom> atoms;
 
     void print() {
       std::cout << std::defaultfloat;
@@ -560,7 +561,7 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
 
 }
 
-inline std::tuple<std::vector<Atom>, OptionsMap, json>
+inline std::tuple<OptionsMap, json>
    parse_input(std::istream& is) {
 
     const double angstrom_to_bohr =
@@ -632,6 +633,7 @@ inline std::tuple<std::vector<Atom>, OptionsMap, json>
 
     OptionsMap options_map;
     options_map.options = options;
+    options_map.options.atoms = atoms;
     options_map.scf_options = scf_options;
     options_map.cd_options = cd_options;
 
@@ -641,7 +643,7 @@ inline std::tuple<std::vector<Atom>, OptionsMap, json>
 
     options_map.ccsd_options = ccsd_options;
 
-    return std::make_tuple(atoms, options_map, jinput);
+    return std::make_tuple(options_map, jinput);
 }
 
 

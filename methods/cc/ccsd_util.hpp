@@ -3,15 +3,11 @@
 
 // #include "cd_svd.hpp"
 #include "cd_svd/cd_svd_ga.hpp"
+#include "cd_svd/two_index_transform.hpp"
 #include "macdecls.h"
 #include "ga-mpi.h"
 
-
 using namespace tamm;
-using Tensor2D   = Eigen::Tensor<double, 2, Eigen::RowMajor>;
-using Tensor3D   = Eigen::Tensor<double, 3, Eigen::RowMajor>;
-using Tensor4D   = Eigen::Tensor<double, 4, Eigen::RowMajor>;
-
 
   // auto lambdar2 = [](const IndexVector& blockid, span<double> buf){
   //     if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
@@ -464,9 +460,9 @@ std::tuple<SystemData, double,
     json jinput;
     check_json(filename);
     auto is = std::ifstream(filename);
-    std::vector<Atom> atoms;
     OptionsMap options_map;
-    std::tie(atoms, options_map, jinput) = parse_input(is);
+    std::tie(options_map, jinput) = parse_input(is);
+    std::vector<Atom> atoms = options_map.options.atoms;
     if(options_map.options.output_file_prefix.empty()) 
       options_map.options.output_file_prefix = getfilename(filename);
     
@@ -487,54 +483,6 @@ std::tuple<SystemData, double,
     return std::make_tuple(sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, tAO, tAOt, scf_conv);
 }
 
-#if 0
-template<typename T> 
-std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile>  cd_svd_driver(OptionsMap options_map,
- ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& AO_tis,
-  const TAMM_SIZE n_occ_alpha, const TAMM_SIZE nao, const TAMM_SIZE freeze_core,
-  const TAMM_SIZE freeze_virtual, Tensor<TensorType> C_AO, Tensor<TensorType> F_AO,
-  libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map){
-
-    CDOptions cd_options = options_map.cd_options;
-    tamm::Tile max_cvecs = cd_options.max_cvecs_factor * nao;
-    auto diagtol = cd_options.diagtol; // tolerance for the max. diagonal
-
-    std::cout << std::defaultfloat;
-    auto rank = ec.pg().rank();
-    if(rank==0) cd_options.print();
-
-    TiledIndexSpace N = MO("all");
-
-    Tensor<T> d_f1{{N,N},{1,1}};
-    Tensor<T>::allocate(&ec,d_f1);
-
-    auto hf_t1        = std::chrono::high_resolution_clock::now();
-    TAMM_SIZE chol_count = 0;
-
-    //std::tie(V2) = 
-    Tensor<T> cholVpr = cd_svd(ec, MO, AO_tis, n_occ_alpha, nao, freeze_core, freeze_virtual,
-                                C_AO, F_AO, d_f1, chol_count, max_cvecs, diagtol, shells, shell_tile_map);
-    auto hf_t2        = std::chrono::high_resolution_clock::now();
-    double cd_svd_time =
-      std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-
-    if(rank == 0) std::cout << std::endl << "Total Time taken for CD (+SVD): " << cd_svd_time
-              << " secs" << std::endl;
-
-    Tensor<T>::deallocate(C_AO,F_AO);
-
-    // IndexSpace CI{range(0, max_cvecs)};
-    // TiledIndexSpace tCI{CI, max_cvecs};
-    // auto [cindex] = tCI.labels<1>("all");
-
-    // IndexSpace CIp{range(0, chol_count)};
-    // TiledIndexSpace tCIp{CIp, 1};
-    // auto [cindexp] = tCIp.labels<1>("all");
-
-    return std::make_tuple(cholVpr, d_f1, chol_count, max_cvecs);
-
-}
-#endif
 
 void ccsd_stats(ExecutionContext& ec, double hf_energy,double residual,double energy,double thresh){
 
@@ -730,10 +678,10 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI
 }
 
 template<typename T> 
-std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_ga_driver(SystemData& sys_data,
-  ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& AO_tis,
-  Tensor<TensorType> C_AO, Tensor<TensorType> F_AO, Tensor<TensorType> C_beta_AO, Tensor<TensorType> F_beta_AO, libint2::BasisSet& shells, 
-  std::vector<size_t>& shell_tile_map, bool readv2=false, std::string cholfile=""){
+std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  
+  cd_svd_ga_driver(SystemData& sys_data, ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& AO,
+  Tensor<T> C_AO, Tensor<T> F_AO, Tensor<T> C_beta_AO, Tensor<T> F_beta_AO, 
+  libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map, bool readv2=false, std::string cholfile="") {
 
     CDOptions cd_options = sys_data.options_map.cd_options;
     auto diagtol = cd_options.diagtol; // tolerance for the max. diagonal
@@ -749,7 +697,8 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_g
     TiledIndexSpace N = MO("all");
 
     Tensor<T> d_f1{{N,N},{1,1}};
-    Tensor<T>::allocate(&ec,d_f1);
+    Tensor<T> lcao{AO, N};
+    Tensor<T>::allocate(&ec,d_f1,lcao);
 
     auto hf_t1        = std::chrono::high_resolution_clock::now();
     TAMM_SIZE chol_count = 0;
@@ -760,8 +709,8 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_g
     auto itile_size = sys_data.options_map.ccsd_options.itilesize;
 
     if(!readv2) {
-      cholVpr = cd_svd_ga(sys_data, ec, MO, AO_tis,
-                          C_AO, F_AO, C_beta_AO,F_beta_AO, d_f1, chol_count, max_cvecs, shells, shell_tile_map);
+      two_index_transform(sys_data, ec, C_AO, F_AO, C_beta_AO,F_beta_AO, d_f1, lcao);
+      cholVpr = cd_svd_ga(sys_data, ec, MO, AO, chol_count, max_cvecs, shells, lcao);
     }
     else{
       std::ifstream in(cholfile, std::ios::in);
@@ -798,7 +747,7 @@ std::tuple<Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  cd_svd_g
 
     if(rank == 0) sys_data.print();
 
-    return std::make_tuple(cholVpr, d_f1, chol_count, max_cvecs, CI);
+    return std::make_tuple(cholVpr, d_f1, lcao, chol_count, max_cvecs, CI);
 }
 
 #endif //TESTS_CCSD_UTIL_HPP_

@@ -31,11 +31,6 @@ void sd_t_d2_8_cpu(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,doub
 void sd_t_d2_9_cpu(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 
 //
-void dpcpp_ready_ccsd_t_unfused_sd2_1_kernel_driver(cl::sycl::queue* syclQueue, 
-		int base_size_h1b, int base_size_h2b, int base_size_h3b, 
-		int base_size_p4b, int base_size_p5b, int base_size_p6b, int base_size_p7b, 
-		double* host_d2_t3, double* host_d2_t2, double* host_d2_v2);
-
 template<typename T>
 void ccsd_t_doubles_unfused(ExecutionContext& ec,
                    const TiledIndexSpace& MO,
@@ -502,47 +497,10 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)
      && (t_h1b == h1b) && (t_h2b == h2b) && (t_h3b == h3b))
      {
-     #if defined(USE_DPCPP) 
-        std::vector<cl::sycl::queue*> syclQueues = ec.get_syclQue();
-        cl::sycl::queue* syclQue = nullptr;
-            
-        // in device_init()
-        int dev_count_check = 0;
-        cl::sycl::gpu_selector device_selector;
-        cl::sycl::platform platform(device_selector);
-        auto const& gpu_devices = platform.get_devices();
-
-        for (const auto &dev : gpu_devices) {
-          if (dev.is_gpu()) {
-        #ifdef TAMM_INTEL_ATS
-            auto SubDevicesDomainNuma = dev.create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(cl::sycl::info::partition_affinity_domain::numa);
-            for (const auto &tile : SubDevicesDomainNuma) {
-              dev_count_check++; 
-            }
-        #else 
-            dev_count_check = gpu_devices.size();
-        #endif       
-          }
-        }
-        auto ppn = GA_Cluster_nprocs(0);
-        static long long device_id = GA_Nodeid() % ppn;
-        int actual_device_id = device_id % dev_count_check;
-      
-        //
-        syclQue = syclQueues[actual_device_id];
-    
-        // 
-        dpcpp_ready_ccsd_t_unfused_sd2_1_kernel_driver(syclQue, 
-                  (int)k_range[t_h1b], (int)k_range[t_h2b], (int)k_range[t_h3b], 
-                  (int)k_range[t_p4b], (int)k_range[t_p5b], (int)k_range[t_p6b], (int)k_range[p7b], 
-                  &a_c[0], &k_a_sort[0],&k_b_sort[0]);
-
-    #else
         sd_t_d2_1_cpu(k_range[t_h1b],k_range[t_h2b],
                   k_range[t_h3b],k_range[t_p4b],
                   k_range[t_p5b],k_range[t_p6b],k_range[p7b],
                   &a_c[0],&k_a_sort[0],&k_b_sort[0]);
-    #endif
      }
 
     if ((t_p4b == p4b) && (t_p5b == p5b) && (t_p6b == p6b)

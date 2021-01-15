@@ -200,7 +200,6 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                                   k_range[t_p5b],k_range[t_p6b]);
 
                         #elif defined(USE_DPCPP)
-                          printf ("[%s] USE_DPCPP=ON\n", __func__);
                           k_singles.resize(size,0);
                           k_doubles.resize(size,0);
                         #endif

@@ -14,6 +14,8 @@
 #endif
 #include "ccsd_t_common.hpp"
 
+#define TAMM_INTEL_ATS 1
+
 int check_device(long);
 #if defined(USE_CUDA) || defined(USE_HIP)
 int device_init(long ngpu, int *cuda_device_number);
@@ -26,11 +28,11 @@ size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* h
 #if defined(USE_DPCPP)
 void finalizememmodule(
 #if defined(USE_DPCPP)
-		       cl::sycl::queue& syclQueue
+		       sycl::queue& syclQueue
 #endif
 		       );
-int device_init(const std::vector<cl::sycl::queue*> iDevice_syclQueue,
-		cl::sycl::queue *syclQue,
+int device_init(const std::vector<sycl::queue*> iDevice_syclQueue,
+		sycl::queue *syclQue,
 		long ngpu, int *cuda_device_number);
 #endif
 
@@ -92,13 +94,13 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
 #elif defined(USE_DPCPP)
   {
     use_dpcpp = true;
-    cl::sycl::gpu_selector device_selector;
-    cl::sycl::platform platform(device_selector);
+    sycl::gpu_selector device_selector;
+    sycl::platform platform(device_selector);
     auto const& gpu_devices = platform.get_devices();
     for (auto &gpu_device : gpu_devices) {
 	if (gpu_device.is_gpu()) {
 #ifdef TAMM_INTEL_ATS
-            auto SubDevicesDomainNuma = gpu_device.create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(cl::sycl::info::partition_affinity_domain::numa);
+            auto SubDevicesDomainNuma = gpu_device.create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
             for (const auto &tile : SubDevicesDomainNuma) {
                 dev_count_check++;
             }

@@ -1821,7 +1821,7 @@ public:
             {
                 const int dev_id = ec.gpu_devid();
 #ifdef USE_DPCPP
-		cl::sycl::queue* syclQueue = ec.get_syclQue()[dev_id];
+		sycl::queue* syclQueue = ec.get_syclQue()[dev_id];
 #endif
                 // determine set of all labels
 
@@ -2271,7 +2271,7 @@ public:
             bool isgpu = false;
             const int dev_id = ec.gpu_devid();
 #ifdef USE_DPCPP
-            cl::sycl::queue* syclQueue = ec.get_syclQue()[dev_id];
+            sycl::queue* syclQueue = ec.get_syclQue()[dev_id];
 #endif
 
 

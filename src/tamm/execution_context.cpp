@@ -9,13 +9,14 @@
 #include "runtime_engine.hpp"
 #include "memory_manager.hpp"
 
+#define TAMM_INTEL_ATS 1
 
 #if defined(USE_DPCPP)
-auto sycl_asynchandler = [] (cl::sycl::exception_list exceptions) {
+auto sycl_asynchandler = [] (sycl::exception_list exceptions) {
     for (std::exception_ptr const& e : exceptions) {
         try {
             std::rethrow_exception(e);
-        } catch (cl::sycl::exception const& ex) {
+        } catch (sycl::exception const& ex) {
             std::cout << "Caught asynchronous SYCL exception:" << std::endl
             << ex.what() << ", OpenCL code: " << ex.get_cl_code() << std::endl;
         }
@@ -52,18 +53,18 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #endif
 
 #if defined(USE_DPCPP)
-  cl::sycl::gpu_selector device_selector;
-  cl::sycl::platform platform(device_selector);
+  sycl::gpu_selector device_selector;
+  sycl::platform platform(device_selector);
   auto const& gpu_devices = platform.get_devices();
   for (int i = 0; i < gpu_devices.size(); i++) {
       if (gpu_devices[i].is_gpu()) {
 
 #ifdef TAMM_INTEL_ATS
-          assert(gpu_devices[i].get_info<cl::sycl::info::device::partition_type_property>() ==
-                 cl::sycl::info::partition_property::no_partition);
+          assert(gpu_devices[i].get_info<sycl::info::device::partition_type_property>() ==
+                 sycl::info::partition_property::no_partition);
 
-          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(
-              cl::sycl::info::partition_affinity_domain::numa);
+          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+              sycl::info::partition_affinity_domain::numa);
           for (const auto &tile : SubDevicesDomainNuma) {
               ngpu_++;
           }
@@ -81,8 +82,8 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
       if (gpu_devices[i].is_gpu()) {
 
 #ifdef TAMM_INTEL_ATS
-          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(
-              cl::sycl::info::partition_affinity_domain::numa);
+          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+              sycl::info::partition_affinity_domain::numa);
           for (const auto &tile : SubDevicesDomainNuma) {
               vec_syclQue.push_back( new sycl::queue( tile,
                                                       sycl_asynchandler,

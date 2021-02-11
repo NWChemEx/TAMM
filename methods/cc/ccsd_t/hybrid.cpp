@@ -16,6 +16,7 @@ int util_my_smp_index(){
   auto ppn = GA_Cluster_nprocs(0);
   return GA_Nodeid()%ppn;
 }
+#define TAMM_INTEL_ATS 1
 
 //
 //
@@ -32,8 +33,8 @@ int check_device(long iDevice) {
 
 int device_init(
 #if defined(USE_DPCPP)
-		const std::vector<cl::sycl::queue*> iDevice_syclQueue,
-		cl::sycl::queue **syclQue,
+		const std::vector<sycl::queue*> iDevice_syclQueue,
+		sycl::queue **syclQue,
 #endif
                 long iDevice,int *gpu_device_number) {
 
@@ -44,14 +45,14 @@ int device_init(
 #elif defined(USE_HIP)
   hipGetDeviceCount(&dev_count_check);
 #elif defined(USE_DPCPP)
-  cl::sycl::gpu_selector device_selector;
-  cl::sycl::platform platform(device_selector);
+  sycl::gpu_selector device_selector;
+  sycl::platform platform(device_selector);
   auto const& gpu_devices = platform.get_devices();
 
   for (const auto &dev : gpu_devices) {
       if (dev.is_gpu()) {
 #ifdef TAMM_INTEL_ATS
-          auto SubDevicesDomainNuma = dev.create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(cl::sycl::info::partition_affinity_domain::numa);
+          auto SubDevicesDomainNuma = dev.create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
           for (const auto &tile : SubDevicesDomainNuma) {
               dev_count_check++;
           }

@@ -120,7 +120,7 @@ void block_multiply(bool &isgpuOp,
           int copy_ctrl,
         #endif
         #ifdef USE_DPCPP
-          cl::sycl::queue* dev_queue,
+          sycl::queue* dev_queue,
         #endif
           int dev_id, T alpha, const T2* abuf, const SizeVec& adims,
           const IntLabelVec& alabels, const T3* bbuf,
@@ -273,15 +273,15 @@ void block_multiply(bool &isgpuOp,
     assign<T3>(binter_buf.data(), binter_dims, binter_labels, T3{1}, bbuf, bdims,
            blabels, true);
 #ifdef USE_DPCPP
-    T2* ainter_buf_dev = cl::sycl::malloc_device<T2>(ainter_buf.size(), *dev_queue);
-    T3* binter_buf_dev = cl::sycl::malloc_device<T3>(binter_buf.size(), *dev_queue);
-    T1* cinter_buf_dev = cl::sycl::malloc_device<T1>(cinter_buf.size(), *dev_queue);
+    T2* ainter_buf_dev = sycl::malloc_device<T2>(ainter_buf.size(), *dev_queue);
+    T3* binter_buf_dev = sycl::malloc_device<T3>(binter_buf.size(), *dev_queue);
+    T1* cinter_buf_dev = sycl::malloc_device<T1>(cinter_buf.size(), *dev_queue);
 
     // host-->device copy
     dev_queue->memcpy(ainter_buf_dev, ainter_buf.data(), ainter_buf.size()*sizeof(T2));
     dev_queue->memcpy(binter_buf_dev, binter_buf.data(), binter_buf.size()*sizeof(T3));
     dev_queue->memcpy(cinter_buf_dev, cinter_buf.data(), cinter_buf.size()*sizeof(T1));
-    dev_queue->wait_and_throw();
+    dev_queue->wait();
 #endif
 
     // dgemm
@@ -290,13 +290,18 @@ void block_multiply(bool &isgpuOp,
           for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
-                oneapi::mkl::blas::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
-                                binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
-                                binter_ld,
-                                ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
-                                ainter_ld, beta, cinter_buf_dev + i * cbatch_ld,
-                                cinter_ld);
-                dev_queue->wait();
+                  oneapi::mkl::blas::row_major::gemm(*dev_queue,
+                                                     oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
+                                                     M, N, K,
+                                                     alpha,
+                                                     ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
+                                                     ainter_ld,
+                                                     binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
+                                                     binter_ld,
+                                                     beta,
+                                                     cinter_buf_dev + i * cbatch_ld,
+                                                     cinter_ld);
+                  dev_queue->wait();
 #else
                   internal::gemm_wrapper<T>(
                     CblasRowMajor, transA, transB, M, N, K, alpha,
@@ -312,7 +317,7 @@ void block_multiply(bool &isgpuOp,
 #ifdef USE_DPCPP
       // device-->host copy
       dev_queue->memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
-      dev_queue->wait_and_throw();
+      dev_queue->wait();
 #endif
     }
     #ifdef USE_BLIS
@@ -328,24 +333,10 @@ void block_multiply(bool &isgpuOp,
             bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
           else if constexpr(std::is_same_v<T3,float>)
             bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
-#ifdef USE_DPCPP
-          T1* bbuf_complex_dev = cl::sycl::malloc_device<T1>(bbuf_complex.size(), *dev_queue);
-          // host-->device copy
-          dev_queue->memcpy(bbuf_complex_dev, bbuf_complex.data(), bbuf_complex.size()*sizeof(T1));
-          dev_queue->wait_and_throw();
-#endif
 
           for(size_t ari = 0; ari < AR; ari++) {
             for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
-#ifdef USE_DPCPP
-                oneapi::mkl::blas::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
-                                bbuf_complex_dev + bri * breduce_ld + i * bbatch_ld,
-                                binter_ld,
-                                ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
-                                ainter_ld, beta, cinter_buf_dev + i * cbatch_ld,
-                                cinter_ld);
-#else
                 internal::gemm_wrapper<T>(
                   CblasRowMajor, transA, transB, M, N, K, alpha,
                   ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
@@ -353,15 +344,9 @@ void block_multiply(bool &isgpuOp,
                   bbuf_complex.data() + bri * breduce_ld + i * bbatch_ld,
                   binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
                   cinter_ld);
-#endif
               }
             }
           }
-#ifdef USE_DPCPP
-          // device-->host copy
-          dev_queue->memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
-          dev_queue->wait_and_throw();
-#endif
         } //is_complex<T1>
         else {
           //T1,T2 (C,A) are real, T3 (B) is complex
@@ -371,24 +356,10 @@ void block_multiply(bool &isgpuOp,
             bli_dcopyv(BLIS_NO_CONJUGATE,bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
           else if constexpr(std::is_same_v<T1,float>)
             bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),bbuf_comp_ptr,2,&bbuf_real[0],1);
-#ifdef USE_DPCPP
-          T1* bbuf_real_dev = cl::sycl::malloc_device<T1>(bbuf_real.size(), *dev_queue);
-          // host-->device copy
-          dev_queue->memcpy(bbuf_real_dev, bbuf_real.data(), bbuf_real.size()*sizeof(T1));
-          dev_queue->wait_and_throw();
-#endif
 
           for(size_t ari = 0; ari < AR; ari++) {
             for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
-#ifdef USE_DPCPP
-                oneapi::mkl::blas::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
-                                bbuf_real_dev + bri * breduce_ld + i * bbatch_ld,
-                                binter_ld,
-                                ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
-                                ainter_ld, beta, cinter_buf_dev + i * cbatch_ld,
-                                cinter_ld);
-#else
                 internal::gemm_wrapper<T1>(
                   CblasRowMajor, transA, transB, M, N, K, alpha,
                   ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
@@ -396,15 +367,9 @@ void block_multiply(bool &isgpuOp,
                   bbuf_real.data() + bri * breduce_ld + i * bbatch_ld,
                   binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
                   cinter_ld);
-#endif
               }
             }
           }
-#ifdef USE_DPCPP
-          // device-->host copy
-          dev_queue->memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
-          dev_queue->wait_and_throw();
-#endif
         } //is_real<T1>
 
       } //is_same_v<T1,T2>
@@ -417,24 +382,10 @@ void block_multiply(bool &isgpuOp,
             bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
           else if constexpr(std::is_same_v<T2,float>)
             bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
-#ifdef USE_DPCPP
-          T1* abuf_complex_dev = cl::sycl::malloc_device<T1>(abuf_complex.size(), *dev_queue);
-          // host-->device copy
-          dev_queue->memcpy(abuf_complex_dev, abuf_complex.data(), abuf_complex.size()*sizeof(T1));
-          dev_queue->wait_and_throw();
-#endif
 
           for(size_t ari = 0; ari < AR; ari++) {
             for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
-#ifdef USE_DPCPP
-                oneapi::mkl::blas::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
-                                binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
-                                binter_ld,
-                                abuf_complex_dev + ari * areduce_ld + i * abatch_ld,
-                                ainter_ld, beta, cinter_buf_dev + i * cbatch_ld,
-                                cinter_ld);
-#else
                 internal::gemm_wrapper<T>(
                   CblasRowMajor, transA, transB, M, N, K, alpha,
                   abuf_complex.data() + ari * areduce_ld + i * abatch_ld,
@@ -442,15 +393,9 @@ void block_multiply(bool &isgpuOp,
                   binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
                   binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
                   cinter_ld);
-#endif
               }
             }
           }
-#ifdef USE_DPCPP
-          // device-->host copy
-          dev_queue->memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
-          dev_queue->wait_and_throw();
-#endif
         }
         else{
           //T1,T3 (C,B) are real, T2 (A) is complex
@@ -460,24 +405,10 @@ void block_multiply(bool &isgpuOp,
             bli_dcopyv(BLIS_NO_CONJUGATE,asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
           else if constexpr(std::is_same_v<T1,float>)
             bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),abuf_comp_ptr,2,&abuf_real[0],1);
-#ifdef USE_DPCPP
-          T1* abuf_real_dev = cl::sycl::malloc_device<T1>(abuf_real.size(), *dev_queue);
-          // host-->device copy
-          dev_queue->memcpy(abuf_real_dev, abuf_real.data(), abuf_real.size()*sizeof(T1));
-          dev_queue->wait_and_throw();
-#endif
 
           for(size_t ari = 0; ari < AR; ari++) {
             for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
-#ifdef USE_DPCPP
-                oneapi::mkl::blas::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
-                                binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
-                                binter_ld,
-                                abuf_real_dev + ari * areduce_ld + i * abatch_ld,
-                                ainter_ld, beta, cinter_buf_dev + i * cbatch_ld,
-                                cinter_ld);
-#else
                 internal::gemm_wrapper<T1>(
                   CblasRowMajor, transA, transB, M, N, K, alpha,
                   abuf_real.data() + ari * areduce_ld + i * abatch_ld,
@@ -485,15 +416,9 @@ void block_multiply(bool &isgpuOp,
                   binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
                   binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
                   cinter_ld);
-#endif
               }
             }
           }
-#ifdef USE_DPCPP
-          // device-->host copy
-          dev_queue->memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
-          dev_queue->wait_and_throw();
-#endif
         }
 
       } //is_same_v<T1,T3>
@@ -513,26 +438,10 @@ void block_multiply(bool &isgpuOp,
             bli_scopyv(BLIS_NO_CONJUGATE,asize.value(),&ainter_buf[0],1,abuf_comp_ptr,2);
             bli_scopyv(BLIS_NO_CONJUGATE,bsize.value(),&binter_buf[0],1,bbuf_comp_ptr,2);
           }
-#ifdef USE_DPCPP
-        T1* abuf_complex_dev = cl::sycl::malloc_device<T1>(abuf_complex.size(), *dev_queue);
-        T2* bbuf_complex_dev = cl::sycl::malloc_device<T2>(bbuf_complex.size(), *dev_queue);
-        // host-->device copy
-        dev_queue->memcpy(abuf_complex_dev, abuf_complex.data(), abuf_complex.size()*sizeof(T1));
-        dev_queue->memcpy(bbuf_complex_dev, bbuf_complex.data(), bbuf_complex.size()*sizeof(T2));
-        dev_queue->wait_and_throw();
-#endif
 
           for(size_t ari = 0; ari < AR; ari++) {
             for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
-#ifdef USE_DPCPP
-                oneapi::mkl::blas::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
-                                bbuf_complex_dev + bri * breduce_ld + i * bbatch_ld,
-                                binter_ld,
-                                abuf_complex_dev + ari * areduce_ld + i * abatch_ld,
-                                ainter_ld, beta, cinter_buf_dev + i * cbatch_ld,
-                                cinter_ld);
-#else
                 internal::gemm_wrapper<T>(
                   CblasRowMajor, transA, transB, M, N, K, alpha,
                   abuf_complex.data() + ari * areduce_ld + i * abatch_ld,
@@ -540,15 +449,9 @@ void block_multiply(bool &isgpuOp,
                   bbuf_complex.data() + bri * breduce_ld + i * bbatch_ld,
                   binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
                   cinter_ld);
-#endif
               }
             }
           }
-#ifdef USE_DPCPP
-          // device-->host copy
-          dev_queue->memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
-          dev_queue->wait_and_throw();
-#endif
       }
 
       else NOT_IMPLEMENTED();
@@ -557,9 +460,9 @@ void block_multiply(bool &isgpuOp,
     // C[0]="<<cinter_buf[0]<<"\n";
 
 #ifdef USE_DPCPP
-    cl::sycl::free(ainter_buf_dev, *dev_queue);
-    cl::sycl::free(binter_buf_dev, *dev_queue);
-    cl::sycl::free(cinter_buf_dev, *dev_queue);
+    sycl::free(ainter_buf_dev, *dev_queue);
+    sycl::free(binter_buf_dev, *dev_queue);
+    sycl::free(cinter_buf_dev, *dev_queue);
 #endif
 
     assign<T1>(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,

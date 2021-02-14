@@ -16,7 +16,6 @@ int util_my_smp_index(){
   auto ppn = GA_Cluster_nprocs(0);
   return GA_Nodeid()%ppn;
 }
-#define TAMM_INTEL_ATS 1
 
 //
 //

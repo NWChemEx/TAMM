@@ -14,7 +14,6 @@
 #endif
 #include "ccsd_t_common.hpp"
 
-#define TAMM_INTEL_ATS 1
 
 int check_device(long);
 #if defined(USE_CUDA) || defined(USE_HIP)

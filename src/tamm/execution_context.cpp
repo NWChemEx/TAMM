@@ -9,8 +9,6 @@
 #include "runtime_engine.hpp"
 #include "memory_manager.hpp"
 
-#define TAMM_INTEL_ATS 1
-
 #if defined(USE_DPCPP)
 auto sycl_asynchandler = [] (sycl::exception_list exceptions) {
     for (std::exception_ptr const& e : exceptions) {

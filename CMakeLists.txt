@@ -20,10 +20,10 @@ if( NOT ${CMakeBuild_FOUND} )
 
   FetchContent_MakeAvailable( CMakeBuild )
   set(CMSB_MACROS ${CMakeBuild_SOURCE_DIR}/cmake/macros)
-endif()
 
-FetchContent_MakeAvailable( linalg-cmake-modules )
-set(CMSB_LAM_PATH ${linalg-cmake-modules_SOURCE_DIR})
+  FetchContent_MakeAvailable( linalg-cmake-modules )
+  set(CMSB_LAM_PATH ${linalg-cmake-modules_SOURCE_DIR})
+endif()
 
 set(CMSB_PROJECTS tamm)
 

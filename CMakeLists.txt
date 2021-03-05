@@ -22,6 +22,9 @@ if( NOT ${CMakeBuild_FOUND} )
   set(CMSB_MACROS ${CMakeBuild_SOURCE_DIR}/cmake/macros)
 endif()
 
+FetchContent_MakeAvailable( linalg-cmake-modules )
+set(CMSB_LAM_PATH ${linalg-cmake-modules_SOURCE_DIR})
+
 set(CMSB_PROJECTS tamm)
 
 set(tamm_DEPENDENCIES MSGSL Eigen3 LibInt2 HPTT HDF5) # GlobalArrays BLAS LAPACK

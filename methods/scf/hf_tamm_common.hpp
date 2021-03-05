@@ -21,7 +21,7 @@ void compute_1body_ints(ExecutionContext& ec, Tensor<TensorType>& tensor1e,
       std::vector<libint2::Atom>& atoms, libint2::BasisSet& shells, libint2::Operator otype,
       std::vector<size_t>& shell_tile_map, std::vector<Tile>& AO_tiles);
 
-std::tuple<int,int,int> get_hf_nranks(const size_t N){
+std::tuple<int,int,int,int> get_hf_nranks(const size_t N) {
 
     // auto nranks = GA_Nnodes();
     auto nnodes = GA_Cluster_nnodes();
@@ -33,7 +33,7 @@ std::tuple<int,int,int> get_hf_nranks(const size_t N){
     if(hf_nnodes > nnodes) hf_nnodes = nnodes;
     int hf_nranks = hf_nnodes * ppn;
 
-    return std::make_tuple(hf_nnodes,ppn,hf_nranks);
+    return std::make_tuple(nnodes,hf_nnodes,ppn,hf_nranks);
 }
 
 void compute_shellpair_list(const ExecutionContext& ec, const libint2::BasisSet& shells){

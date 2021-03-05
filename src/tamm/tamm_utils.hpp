@@ -98,10 +98,10 @@ void print_tensor(const Tensor<T>& tensor, std::string filename="") {
             if constexpr(tamm::internal::is_complex_v<T>) {
                  if(buf[i].real() > 0.0000000000001 ||
                    buf[i].real() < -0.0000000000001) 
-                   tstring << std::fixed << std::setw( 10 ) << std::setprecision(5) << buf[i] << " ";
+                   tstring << std::fixed << std::setw( 10 ) << std::setprecision(10) << buf[i] << " ";
             } else {
                if(buf[i] > 0.0000000000001 || buf[i] < -0.0000000000001)
-                    tstring << std::fixed << std::setw( 10 ) << std::setprecision(5) << buf[i] << " ";
+                    tstring << std::fixed << std::setw( 10 ) << std::setprecision(10) << buf[i] << " ";
             }
         }
         tstring << std::endl;
@@ -141,7 +141,7 @@ void print_tensor_all(const Tensor<T>& tensor, std::string filename="") {
         
         for(TAMM_SIZE i = 0; i < size; i++) {
             if(i%6==0) tstring << "\n";
-            tstring << std::fixed << std::setw( 10 ) << std::setprecision(5) << buf[i] << " ";
+            tstring << std::fixed << std::setw( 10 ) << std::setprecision(10) << buf[i] << " ";
         }
         tstring << std::endl;
     }
@@ -153,6 +153,39 @@ void print_tensor_all(const Tensor<T>& tensor, std::string filename="") {
         tos.close();
     }
     else std::cout << tstring.str();
+}
+
+/**
+ * @brief Print values in tensor greater than given threshold
+ *
+ * @tparam T template type for Tensor element type
+ * @param [in] tensor input Tensor object
+ * @param [in] printol given threshold [default=0.05]
+ *
+ * @warning This function only works sequentially
+ */
+template<typename T>
+void print_max_above_threshold(const Tensor<T>& tensor, double printtol=0.05) {
+    auto lt = tensor();
+    for(auto it : tensor.loop_nest()) {
+        auto blockid   = internal::translate_blockid(it, lt);
+        if(!tensor.is_non_zero(blockid)) continue;
+        TAMM_SIZE size = tensor.block_size(blockid);
+        std::vector<T> buf(size);
+        tensor.get(blockid, buf);
+        auto bdims = tensor.block_dims(blockid);
+        
+        for(TAMM_SIZE i = 0; i < size; i++) {
+            if constexpr(tamm::internal::is_complex_v<T>) {
+                 if(std::fabs(buf[i].real()) > printtol)
+                    std::cout << buf[i] << std::endl;
+            } else {
+               if(std::fabs(buf[i]) > printtol)
+                    std::cout << buf[i] << std::endl;
+            }
+        }
+        std::cout << std::endl;
+    }
 }
 
 /**

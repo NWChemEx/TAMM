@@ -434,6 +434,13 @@ public:
     size_t max_num_tiles() const { return tiled_info_->max_num_tiles(); }
 
     /**
+     * @brief Get the maximum number of indices in TiledIndexSpace
+     *
+     * @return maximum number of indices in the TiledIndexSpace
+     */
+    size_t max_num_indices() const { return tiled_info_->max_num_indices(); }
+
+    /**
      * @brief Get the maximum tile size of TiledIndexSpace
      *
      * @return maximum tile size in the TiledIndexSpace
@@ -969,6 +976,7 @@ protected:
         IndexVector simple_vec_;   /**< vector where at(i) = i*/
         size_t max_num_tiles_; /**< Maximum number of tiles in this tiled space */
         size_t max_tile_size_; /**< Maximum tile size */
+        size_t max_num_indices_; /**< Maximum number of indices */
         TiledIndexSpaceVec dep_vec_; /**< vector of TiledIndexSpaces that are
                                         key for the dependency map */
         std::map<IndexVector, TiledIndexSpace>
@@ -990,7 +998,8 @@ protected:
                             const std::vector<Tile>& input_tile_sizes) :
           is_{is},
           input_tile_size_{input_tile_size},
-          input_tile_sizes_{input_tile_sizes} {
+          input_tile_sizes_{input_tile_sizes},
+          max_num_indices_{is.max_num_indices()} {
             if(input_tile_sizes.size() > 0) {
               auto max_item = std::max_element(input_tile_sizes.begin(),
                                                input_tile_sizes.end());
@@ -1041,7 +1050,8 @@ protected:
           is_{is},
           input_tile_size_{0},
           input_tile_sizes_{{}},
-          dep_tile_sizes_{dep_tile_sizes} {
+          dep_tile_sizes_{dep_tile_sizes},
+          max_num_indices_{is.max_num_indices()} {
             EXPECTS(is.is_dependent());
             // construct dependency according to tile size
             for(const auto& kv : is.map_tiled_index_spaces()) {
@@ -1085,15 +1095,18 @@ protected:
                 simple_vec_.push_back(i);
             }
 
+            max_num_indices_ = 0; 
             if(input_tile_sizes_.size() > 0){ 
                 max_tile_size_ = 0;
                 for(const auto& idx : indices) {
+                    max_num_indices_ += input_tile_sizes_[idx];
                     if(max_tile_size_ < input_tile_sizes_[idx]) {
                         max_tile_size_ = input_tile_sizes_[idx];
                     }
                 }
             } else {
                 max_tile_size_ = root.max_tile_size_;
+                max_num_indices_ = indices.size() * max_tile_size_;
             }
 
             compute_max_num_tiles();
@@ -1121,15 +1134,18 @@ protected:
                 simple_vec_.push_back(i);
             }
 
-            if (input_tile_sizes_.size() > 0) {
-              max_tile_size_ = 0;
-              for (const auto &idx : indices) {
-                if (max_tile_size_ < input_tile_sizes_[idx]) {
-                  max_tile_size_ = input_tile_sizes_[idx];
+            max_num_indices_ = 0; 
+            if(input_tile_sizes_.size() > 0){ 
+                max_tile_size_ = 0;
+                for(const auto& idx : indices) {
+                    max_num_indices_ += input_tile_sizes_[idx];
+                    if(max_tile_size_ < input_tile_sizes_[idx]) {
+                        max_tile_size_ = input_tile_sizes_[idx];
+                    }
                 }
-              }
             } else {
-              max_tile_size_ = root.max_tile_size_;
+                max_tile_size_ = root.max_tile_size_;
+                max_num_indices_ = indices.size() * max_tile_size_;
             }
 
             compute_max_num_tiles();
@@ -1174,9 +1190,11 @@ protected:
             }
 
             max_tile_size_ = 0;
+            max_num_indices_ = 0;
             for(const auto& [idx, tis] : dep_map) {
                 if(max_tile_size_ < tis.max_tile_size()) {
                     max_tile_size_ = tis.max_tile_size();
+                    max_num_indices_ = tis.max_num_indices();
                 }
             }
 
@@ -1354,6 +1372,14 @@ protected:
          * @returns the maximum number of tiles in the TiledIndexSpaceInfo
          */
         size_t max_num_tiles() const { return max_num_tiles_; }
+
+        /**
+         * @brief Gets the maximum number of indices in the TiledIndexSpaceInfo
+         * object.
+         *
+         * @returns the maximum number of indices in the TiledIndexSpaceInfo
+         */
+        size_t max_num_indices() const { return max_num_indices_; }
 
         /**
          * @brief Gets the maximum tile size in TiledIndexSpaceInfo object. In 

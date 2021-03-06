@@ -82,7 +82,7 @@ void total_fused_ccsd_t_gpu(gpuStream_t* stream_id, int gpu_id,
 template<typename T>
 void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
 #if defined(USE_DPCPP)
-					  cl::sycl::queue* syclQue,
+					  sycl::queue* syclQue,
 #endif
 					  const Index noab, const Index nvab, int64_t rank,
                                           std::vector<int>& k_spin,

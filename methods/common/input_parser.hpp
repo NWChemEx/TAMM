@@ -207,6 +207,7 @@ class CCSDOptions: public Options {
   CCSDOptions() = default;
   CCSDOptions(Options o): Options(o)
   {
+    printtol       = 0.05;
     threshold      = 1e-6;
     force_tilesize = false;
     tilesize       = 50;
@@ -221,8 +222,12 @@ class CCSDOptions: public Options {
     writet_iter    = ndiis;
     readt          = false;
 
+    localize       = false;
     skip_dlpno     = false;
+    keep_npairs    = 1;
+    max_pnos       = 1;
     dlpno_dfbasis  = "";
+    tcutpno        = 0;
 
     ngpu           = 0;
     ccsdt_tilesize = 28;
@@ -272,6 +277,7 @@ class CCSDOptions: public Options {
          gf_itriples, balance_tiles;
   bool   profile_ccsd;
   double lshift;
+  double printtol;
   double threshold;
 
   int    ccsd_maxiter;
@@ -282,8 +288,12 @@ class CCSDOptions: public Options {
   int    ccsdt_tilesize;
 
   //DLPNO
+  bool   localize;
   bool   skip_dlpno;
+  int    max_pnos;
+  size_t keep_npairs;
   std::string dlpno_dfbasis;
+  double tcutpno;
 
   //EOM
   int    eom_nroots;
@@ -327,6 +337,7 @@ class CCSDOptions: public Options {
       cout << " ccsdt_tilesize       = " << ccsdt_tilesize << endl;
     }
     cout << " ndiis                = " << ndiis            << endl;
+    cout << " printtol             = " << printtol         << endl;
     cout << " threshold            = " << threshold        << endl;
     cout << " tilesize             = " << tilesize         << endl;
     cout << " ccsd_maxiter         = " << ccsd_maxiter     << endl;
@@ -490,6 +501,7 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     parse_option<int>   (ccsd_options.ndiis         , jcc, "ndiis");  
     parse_option<int>   (ccsd_options.ccsd_maxiter  , jcc, "ccsd_maxiter");
     parse_option<double>(ccsd_options.lshift        , jcc, "lshift"); 
+    parse_option<double>(ccsd_options.printtol      , jcc, "printtol"); 
     parse_option<double>(ccsd_options.threshold     , jcc, "threshold"); 
     parse_option<int>   (ccsd_options.tilesize      , jcc, "tilesize"); 
     parse_option<int>   (ccsd_options.itilesize     , jcc, "itilesize");
@@ -503,8 +515,12 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     parse_option<string>(ccsd_options.ext_data_path , jcc, "ext_data_path");    
 
     json jdlpno = jcc["DLPNO"];
+    parse_option<int>   (ccsd_options.max_pnos     , jdlpno, "max_pnos");
+    parse_option<size_t>(ccsd_options.keep_npairs  , jdlpno, "keep_npairs");
+    parse_option<bool>  (ccsd_options.localize     , jdlpno, "localize");
     parse_option<bool>  (ccsd_options.skip_dlpno   , jdlpno, "skip_dlpno");
     parse_option<string>(ccsd_options.dlpno_dfbasis, jdlpno, "df_basisset");
+    parse_option<double>(ccsd_options.tcutpno      , jdlpno, "tcutpno");
 
     json jccsd_t = jcc["CCSD(T)"];
     parse_option<int>(ccsd_options.ngpu          , jccsd_t, "ngpu"); 

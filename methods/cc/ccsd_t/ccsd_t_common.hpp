@@ -17,7 +17,7 @@ using gpuEvent_t = hipEvent_t;
 using gpuStream_t = cudaStream_t;
 using gpuEvent_t = cudaEvent_t;
 #elif defined(USE_DPCPP)
-using gpuStream_t = cl::sycl::queue;
+using gpuStream_t = sycl::queue;
 #endif
 
 #include <stdio.h>
@@ -64,10 +64,10 @@ typedef long Integer;
 void initMemModule();
 
 #if defined(USE_DPCPP)
-void *getGpuMem(cl::sycl::queue& syclQueue, size_t bytes);
-void *getHostMem(cl::sycl::queue& syclQueue, size_t bytes);
-void freeHostMem(cl::sycl::queue& syclQueue, void *p);
-void freeGpuMem(cl::sycl::queue& syclQueue, void *p);
+void *getGpuMem(sycl::queue& syclQueue, size_t bytes);
+void *getHostMem(sycl::queue& syclQueue, size_t bytes);
+void freeHostMem(sycl::queue& syclQueue, void *p);
+void freeGpuMem(sycl::queue& syclQueue, void *p);
 #else
 void *getGpuMem(size_t bytes);
 void *getHostMem(size_t bytes);

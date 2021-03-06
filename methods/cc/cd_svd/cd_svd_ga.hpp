@@ -66,12 +66,12 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data, ExecutionContext& ec, TiledInd
 
   double             diagtol        = sys_data.options_map.cd_options.diagtol;
   const tamm::Tile   itile_size     = sys_data.options_map.ccsd_options.itilesize;
-  const TAMM_GA_SIZE northo         = sys_data.nbf;
+  // const TAMM_GA_SIZE northo         = sys_data.nbf;
   const TAMM_GA_SIZE nao            = sys_data.nbf_orig;
 
   auto rank = ec.pg().rank();
 
-  auto N = 2*northo;
+  TAMM_GA_SIZE N = tMO("all").max_num_indices();
 
   Matrix lcao_eig(nao,N);
   lcao_eig.setZero();
@@ -81,6 +81,9 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data, ExecutionContext& ec, TiledInd
   //
   // Cholesky decomposition
   //
+  if(rank==0) {
+    cout << "Begin Cholesky Decomposition ... " << endl;
+  }
   auto hf_t1 = std::chrono::high_resolution_clock::now();
 
   // Step A. Initialization

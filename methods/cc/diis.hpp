@@ -107,7 +107,8 @@ inline void jacobi(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
 template<typename T>
 inline void jacobi_cs(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
                    T shift, bool transpose, std::vector<double>& evl_sorted, 
-                   const TAMM_SIZE& n_occ_alpha, const TAMM_SIZE& n_vir_alpha) {
+                   const TAMM_SIZE& n_occ_alpha, const TAMM_SIZE& n_vir_alpha,
+                   const bool not_spin_orbital=false) {
     // EXPECTS(transpose == false);
     block_for(ec, d_r(), [&](IndexVector blockid) {
         const TAMM_SIZE rsize = d_r.block_size(blockid);
@@ -128,7 +129,11 @@ inline void jacobi_cs(ExecutionContext& ec, Tensor<T>& d_r, Tensor<T>& d_t,
         std::vector<double> p_evl_sorted_virt(nva);
         std::copy(evl_sorted.begin(), evl_sorted.begin() + noa,
                   p_evl_sorted_occ.begin());
-        std::copy(evl_sorted.begin() + noab, evl_sorted.begin() + noab + nva,
+        if(not_spin_orbital)
+            std::copy(evl_sorted.begin() + noa, evl_sorted.begin() + noa + nva,
+                        p_evl_sorted_virt.begin());
+        else
+            std::copy(evl_sorted.begin() + noab, evl_sorted.begin() + noab + nva,
                   p_evl_sorted_virt.begin());
 
         if(d_r.num_modes() == 2) {

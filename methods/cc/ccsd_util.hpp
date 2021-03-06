@@ -170,7 +170,8 @@ std::pair<double,double> rest_cs(ExecutionContext& ec,
                               Tensor<T>& d_r2_residual,
                               std::vector<T>& p_evl_sorted, T zshiftl, 
                               const TAMM_SIZE& noa,
-                              const TAMM_SIZE& nva, bool transpose=false) {
+                              const TAMM_SIZE& nva, bool transpose=false,
+			       const bool not_spin_orbital=false) {
 
     T residual, energy;
     Scheduler sch{ec};
@@ -191,10 +192,10 @@ std::pair<double,double> rest_cs(ExecutionContext& ec,
       };
 
       auto l1 =  [&]() {
-        jacobi_cs(ec, d_r1, d_t1, -1.0 * zshiftl, transpose, p_evl_sorted,noa,nva);
+        jacobi_cs(ec, d_r1, d_t1, -1.0 * zshiftl, transpose, p_evl_sorted,noa,nva,not_spin_orbital);
       };
       auto l2 = [&]() {
-        jacobi_cs(ec, d_r2, d_t2, -2.0 * zshiftl, transpose, p_evl_sorted,noa,nva);
+        jacobi_cs(ec, d_r2, d_t2, -2.0 * zshiftl, transpose, p_evl_sorted,noa,nva,not_spin_orbital);
       };
 
       l0();
@@ -681,7 +682,8 @@ template<typename T>
 std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>  
   cd_svd_ga_driver(SystemData& sys_data, ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& AO,
   Tensor<T> C_AO, Tensor<T> F_AO, Tensor<T> C_beta_AO, Tensor<T> F_beta_AO, 
-  libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map, bool readv2=false, std::string cholfile="") {
+  libint2::BasisSet& shells, std::vector<size_t>& shell_tile_map, bool readv2=false, 
+  std::string cholfile="", bool is_dlpno=false) {
 
     CDOptions cd_options = sys_data.options_map.cd_options;
     auto diagtol = cd_options.diagtol; // tolerance for the max. diagonal
@@ -709,7 +711,7 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
     auto itile_size = sys_data.options_map.ccsd_options.itilesize;
 
     if(!readv2) {
-      two_index_transform(sys_data, ec, C_AO, F_AO, C_beta_AO,F_beta_AO, d_f1, lcao);
+      two_index_transform(sys_data, ec, C_AO, F_AO, C_beta_AO,F_beta_AO, d_f1, lcao, is_dlpno);
       cholVpr = cd_svd_ga(sys_data, ec, MO, AO, chol_count, max_cvecs, shells, lcao);
     }
     else{

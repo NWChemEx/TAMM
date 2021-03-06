@@ -149,6 +149,15 @@ void ccsd_driver() {
     if(rank == 0) 
         std::cout << std::endl << "Time taken for Closed Shell Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
 
+    double printtol=ccsd_options.printtol;
+    if (rank == 0 && debug) {
+        std::cout << std::endl << "Threshold for printing amplitudes set to: " << printtol << std::endl;
+        std::cout << "T1 amplitudes" << std::endl;
+        print_max_above_threshold(d_t1,printtol);
+        std::cout << "T2 amplitudes" << std::endl;
+        print_max_above_threshold(d_t2,printtol);
+    }
+
     if(!ccsd_restart) {
         free_tensors(d_r1,d_r2);
         free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);

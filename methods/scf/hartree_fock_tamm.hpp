@@ -95,7 +95,12 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     if(!fs::exists(files_dir)) fs::create_directories(files_dir);
 
     #if SCF_THROTTLE_RESOURCES
-      auto [hf_nnodes,ppn,hf_nranks] = get_hf_nranks(N);
+      auto [t_nnodes,hf_nnodes,ppn,hf_nranks] = get_hf_nranks(N);
+      if (scf_options.nnodes > t_nnodes) {
+        const std::string errmsg = "ERROR: nnodes (" + std::to_string(scf_options.nnodes)
+        + ") provided is greater than the number of nodes (" + std::to_string(t_nnodes) + ") available!";
+        tamm_terminate(errmsg);
+      }
       if (scf_options.nnodes > hf_nnodes) {
         hf_nnodes = scf_options.nnodes;
         hf_nranks = hf_nnodes * ppn;

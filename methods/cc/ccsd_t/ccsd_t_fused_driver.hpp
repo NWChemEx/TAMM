@@ -99,16 +99,16 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
     sycl::platform platform(device_selector);
     auto const& gpu_devices = platform.get_devices();
     for (int i = 0; i < gpu_devices.size(); i++) {
-        if (gpu_devices[i].is_gpu()) {
-#ifdef TAMM_INTEL_ATS
-            auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
-            for (const auto &tile : SubDevicesDomainNuma) {
-                dev_count_check++;
-            }
-#else
-            dev_count_check++;
-#endif
-        }
+      if (gpu_devices[i].is_gpu()) {
+	if(gpu_devices[i].get_info<cl::sycl::info::device::partition_max_sub_devices>() > 0) {
+	  auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(
+	    cl::sycl::info::partition_affinity_domain::numa);
+	  dev_count_check += SubDevicesDomainNuma.size();
+	}
+	else {
+	  dev_count_check++;
+	}
+      }
     }
 
     if(dev_count_check < nDevices) {
@@ -121,11 +121,6 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                      "Terminating program..." << endl << endl;
       return std::make_tuple(-999,-999,0,0);
     }
-    // else if (dev_count_check > 1) {
-    //   if(nodezero) cout << "ERROR: TODO multi-device per node support for SYCL is not yet supported. "
-    //                     << " Terminating program..." << endl << endl;
-    //   return std::make_tuple(-999,-999,0,0);
-    // }
   }
 #else
   nDevices = 0;

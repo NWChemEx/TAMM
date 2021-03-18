@@ -79,16 +79,16 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                           //
                                           int base_size_h1b, int base_size_h2b, int base_size_h3b,
                                           int base_size_p4b, int base_size_p5b, int base_size_p6b,
-                                          sycl::nd_item<2>& item_ct,
+                                          sycl::nd_item<2>& item,
                                           int* const_df_s1_size, int* const_df_s1_exec,
                                           int* const_df_d1_size, int* const_df_d1_exec,
                                           int* const_df_d2_size, int* const_df_d2_exec,
                                           localAcc sm_a,
                                           localAcc sm_b)
 {
-    size_t threadIdx_x = item_ct.get_local_id(1);
-    size_t threadIdx_y = item_ct.get_local_id(0);
-    size_t blockIdx_x = item_ct.get_group(1);
+    size_t threadIdx_x = item.get_local_id(1);
+    size_t threadIdx_y = item.get_local_id(0);
+    size_t blockIdx_x = item.get_group(1);
 
     int internal_upperbound = 0;
     int internal_offset;
@@ -332,7 +332,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                           base_size_h3b];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: -1
                 // Part: Generalized Threads
@@ -353,7 +353,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] -= temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -401,7 +401,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                            base_size_h1b) *
                                           base_size_h3b];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: -1
                 // Part: Generalized Threads
@@ -422,7 +422,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] += temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -469,7 +469,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                             base_size_h1b) *
                                            base_size_h2b)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: -1
                 // Part: Generalized Threads
@@ -490,7 +490,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] -= temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
     }
@@ -620,7 +620,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                             base_size_p7b +
                                             (threadIdx_x + l)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: 16
                 // Part: Generalized Threads
@@ -641,7 +641,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] -= temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -689,7 +689,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                             base_size_p7b +
                                             (threadIdx_x + l)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: 16
                 // Part: Generalized Threads
@@ -710,7 +710,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] -= temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -758,7 +758,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                             base_size_p7b +
                                             (threadIdx_x + l)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: 16
                 // Part: Generalized Threads
@@ -779,7 +779,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] += temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
     }
@@ -834,7 +834,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             sm_b[2 + (threadIdx_y - 4) * 4][threadIdx_x + 48] = reg_tile[2][3];
             sm_b[3 + (threadIdx_y - 4) * 4][threadIdx_x + 48] = reg_tile[3][3];
         }
-        item_ct.barrier(sycl::access::fence_space::local_space);
+        item.barrier(sycl::access::fence_space::local_space);
 
         if (threadIdx_y < 4) // 0, 1, 2, 3
         {
@@ -881,7 +881,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             reg_tile[2][3] = sm_b[(threadIdx_y - 4) + 8][(threadIdx_x) + 48];
             reg_tile[3][3] = sm_b[(threadIdx_y - 4) + 12][(threadIdx_x) + 48];
         }
-        item_ct.barrier(sycl::access::fence_space::local_space);
+        item.barrier(sycl::access::fence_space::local_space);
 
         if (threadIdx_y >= 8 && threadIdx_y < 12) // 8, 9, 10, 11
         {
@@ -928,7 +928,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             sm_b[2 + (threadIdx_y - 12) * 4][threadIdx_x + 48] = reg_tile[2][3];
             sm_b[3 + (threadIdx_y - 12) * 4][threadIdx_x + 48] = reg_tile[3][3];
         }
-        item_ct.barrier(sycl::access::fence_space::local_space);
+        item.barrier(sycl::access::fence_space::local_space);
 
         if (threadIdx_y >= 8 && threadIdx_y < 12) // 8, 9, 10, 11
         {
@@ -975,7 +975,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             reg_tile[2][3] = sm_b[(threadIdx_y - 12) + 8][(threadIdx_x) + 48];
             reg_tile[3][3] = sm_b[(threadIdx_y - 12) + 12][(threadIdx_x) + 48];
         }
-        item_ct.barrier(sycl::access::fence_space::local_space);
+        item.barrier(sycl::access::fence_space::local_space);
     }   // 	End of Register Transpose
 
     //
@@ -1107,7 +1107,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                               base_size_h2b) *
                                              base_size_h3b)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: -1
                 // Part: Generalized Threads
@@ -1128,7 +1128,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] -= temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -1176,7 +1176,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                               base_size_h1b) *
                                              base_size_h3b)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: -1
                 // Part: Generalized Threads
@@ -1197,7 +1197,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] += temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -1245,7 +1245,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                               base_size_h1b) *
                                              base_size_h2b)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: -1
                 // Part: Generalized Threads
@@ -1266,7 +1266,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] -= temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -1313,7 +1313,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                               base_size_h2b) *
                                              base_size_h3b)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: -1
                 // Part: Generalized Threads
@@ -1334,7 +1334,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] += temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -1383,7 +1383,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                               base_size_h1b) *
                                              base_size_h3b)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: -1
                 // Part: Generalized Threads
@@ -1404,7 +1404,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] -= temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -1453,7 +1453,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                               base_size_h1b) *
                                              base_size_h2b)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: -1
                 // Part: Generalized Threads
@@ -1474,7 +1474,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] += temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
     }
@@ -1609,7 +1609,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                             base_size_p7b +
                                             (threadIdx_x + l)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: 16
                 // Part: Generalized Threads
@@ -1630,7 +1630,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] -= temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -1679,7 +1679,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                             base_size_p7b +
                                             (threadIdx_x + l)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: 16
                 // Part: Generalized Threads
@@ -1700,7 +1700,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] -= temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -1749,7 +1749,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                             base_size_p7b +
                                             (threadIdx_x + l)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: 16
                 // Part: Generalized Threads
@@ -1770,7 +1770,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] += temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -1819,7 +1819,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                             base_size_p7b +
                                             (threadIdx_x + l)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: 16
                 // Part: Generalized Threads
@@ -1840,7 +1840,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] += temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -1889,7 +1889,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                             base_size_p7b +
                                             (threadIdx_x + l)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: 16
                 // Part: Generalized Threads
@@ -1910,7 +1910,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] += temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
 
@@ -1959,7 +1959,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                             base_size_p7b +
                                             (threadIdx_x + l)];
                     }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
 
                 // Cross-Product: 16
                 // Part: Generalized Threads
@@ -1980,7 +1980,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                         reg_tile[3][xx] -= temp_av * temp_bv[3];
                     }
                 }
-                item_ct.barrier(sycl::access::fence_space::local_space);
+                item.barrier(sycl::access::fence_space::local_space);
             }
         }
     }
@@ -2086,7 +2086,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
             if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p6 < rng_p6 && idx_h1 < rng_p5)
                 sm_b[idx_h1][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4] = tmp_dev_s1_v2_1[blk_idx_h3b * 4 + idx_h3 + (blk_idx_h2b * 4 + idx_h2 + (blk_idx_p6b * 4 + idx_p6 + (blk_idx_p5b * 4 + idx_h1) * base_size_p6b) * base_size_h2b) * base_size_h3b];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
 
             //  "p4"
             temp_av = sm_a[0][0 + (idx_h1) * 4];
@@ -2123,7 +2123,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             reg_singles[3][1] += temp_av * temp_bv[1];
             reg_singles[3][2] += temp_av * temp_bv[2];
             reg_singles[3][3] += temp_av * temp_bv[3];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
         }
 
         //                                        "x1,x2"     "x1,x2,x3,y1"
@@ -2140,7 +2140,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
             if (idx_h3 < rng_h3 && idx_h2 < rng_h1 && idx_p6 < rng_p6 && idx_h1 < rng_p5)
                 sm_b[idx_h1][idx_h3 + (idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3] = tmp_dev_s1_v2_2[str_blk_idx_h3 + idx_h3 + (str_blk_idx_h1 + idx_h2 + (str_blk_idx_p6 + idx_p6 + (str_blk_idx_p5 + idx_h1) * base_size_p6b) * base_size_h1b) * base_size_h3b];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
 
             //  "p4"
             temp_av = sm_a[0][0 + (idx_h2) * 4];
@@ -2177,7 +2177,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             reg_singles[3][1] -= temp_av * temp_bv[1];
             reg_singles[3][2] -= temp_av * temp_bv[2];
             reg_singles[3][3] -= temp_av * temp_bv[3];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
         }
 
         //
@@ -2194,7 +2194,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
             if (idx_h3 < rng_h2 && idx_h2 < rng_h1 && idx_p6 < rng_p6 && idx_h1 < rng_p5)
                 sm_b[idx_h1][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4] = tmp_dev_s1_v2_3[blk_idx_h2b * 4 + idx_h3 + (blk_idx_h1b * 4 + idx_h2 + (blk_idx_p6b * 4 + idx_p6 + (blk_idx_p5b * 4 + idx_h1) * base_size_p6b) * base_size_h1b) * base_size_h2b];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
 
             //  "p4"
             temp_av = sm_a[0][0 + (idx_h3) * 4];
@@ -2231,7 +2231,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             reg_singles[3][1] += temp_av * temp_bv[1];
             reg_singles[3][2] += temp_av * temp_bv[2];
             reg_singles[3][3] += temp_av * temp_bv[3];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
         }
 
         //
@@ -2247,7 +2247,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
             if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p6 < rng_p6 && idx_h1 < rng_p4)
                 sm_b[idx_h1][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4] = tmp_dev_s1_v2_4[str_blk_idx_h3 + idx_h3 + (str_blk_idx_h2 + idx_h2 + (str_blk_idx_p6 + idx_p6 + (str_blk_idx_p4 + idx_h1) * base_size_p6b) * base_size_h2b) * base_size_h3b];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
 
             //  "p5"
             temp_av = sm_a[0][0 + (idx_h1) * 4];
@@ -2284,7 +2284,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             reg_singles[1][3] -= temp_av * temp_bv[1];
             reg_singles[2][3] -= temp_av * temp_bv[2];
             reg_singles[3][3] -= temp_av * temp_bv[3];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
         }
 
         //
@@ -2301,7 +2301,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
             if (idx_h3 < rng_h3 && idx_h2 < rng_h1 && idx_p6 < rng_p6 && idx_h1 < rng_p4)
                 sm_b[idx_h1][idx_h3 + (idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3] = tmp_dev_s1_v2_5[str_blk_idx_h3 + idx_h3 + (str_blk_idx_h1 + idx_h2 + (str_blk_idx_p6 + idx_p6 + (str_blk_idx_p4 + idx_h1) * base_size_p6b) * base_size_h1b) * base_size_h3b];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
 
             //  "p5"
             temp_av = sm_a[0][0 + (idx_h2) * 4];
@@ -2338,7 +2338,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             reg_singles[1][3] += temp_av * temp_bv[1];
             reg_singles[2][3] += temp_av * temp_bv[2];
             reg_singles[3][3] += temp_av * temp_bv[3];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
         }
 
         //
@@ -2355,7 +2355,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
             if (idx_h3 < rng_h2 && idx_h2 < rng_h1 && idx_p6 < rng_p6 && idx_h1 < rng_p4)
                 sm_b[idx_h1][idx_h3 + (idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2] = tmp_dev_s1_v2_6[str_blk_idx_h2 + idx_h3 + (str_blk_idx_h1 + idx_h2 + (str_blk_idx_p6 + idx_p6 + (str_blk_idx_p4 + idx_h1) * base_size_p6b) * base_size_h1b) * base_size_h2b];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
 
             //  "p5"
             temp_av = sm_a[0][0 + (idx_h3) * FUSION_SIZE_SLICE_1_P5];
@@ -2392,7 +2392,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             reg_singles[1][3] -= temp_av * temp_bv[1];
             reg_singles[2][3] -= temp_av * temp_bv[2];
             reg_singles[3][3] -= temp_av * temp_bv[3];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
         }
 
         //
@@ -2409,7 +2409,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
             if (idx_h3 < rng_h3 && idx_h2 < rng_h2 && idx_p6 < rng_p5 && idx_h1 < rng_p4)
                 sm_b[idx_h1][idx_h3 + (idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3] = tmp_dev_s1_v2_7[str_blk_idx_h3 + idx_h3 + (str_blk_idx_h2 + idx_h2 + (str_blk_idx_p5 + idx_p6 + (str_blk_idx_p4 + idx_h1) * base_size_p5b) * base_size_h2b) * base_size_h3b];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
 
             //  "p4" x "p5"
             reg_singles[0][0] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h2 + (0) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
@@ -2431,7 +2431,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             reg_singles[3][1] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h2 + (1) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
             reg_singles[3][2] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h2 + (2) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
             reg_singles[3][3] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h2 + (3) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
         }
 
         //
@@ -2448,7 +2448,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
             if (idx_h3 < rng_h3 && idx_h2 < rng_h1 && idx_p6 < rng_p5 && idx_h1 < rng_p4)
                 sm_b[idx_h1][idx_h3 + (idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3] = tmp_dev_s1_v2_8[str_blk_idx_h3 + idx_h3 + (str_blk_idx_h1 + idx_h2 + (str_blk_idx_p5 + idx_p6 + (str_blk_idx_p4 + idx_h1) * base_size_p5b) * base_size_h1b) * base_size_h3b];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
 
             //  "p4" x "p5"
             reg_singles[0][0] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
@@ -2470,7 +2470,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             reg_singles[3][1] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
             reg_singles[3][2] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
             reg_singles[3][3] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
         }
 
         //
@@ -2487,7 +2487,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
             if (idx_h3 < rng_h2 && idx_h2 < rng_h1 && idx_p6 < rng_p5 && idx_h1 < rng_p4)
                 sm_b[idx_h1][idx_h3 + (idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2] = tmp_dev_s1_v2_9[str_blk_idx_h2 + idx_h3 + (str_blk_idx_h1 + idx_h2 + (str_blk_idx_p5 + idx_p6 + (str_blk_idx_p4 + idx_h1) * base_size_p5b) * base_size_h1b) * base_size_h2b];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
 
             //  "p4" x "p5"
             reg_singles[0][0] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h2 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
@@ -2509,7 +2509,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             reg_singles[3][1] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h2 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
             reg_singles[3][2] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h2 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
             reg_singles[3][3] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h2 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            item_ct.barrier(sycl::access::fence_space::local_space);
+            item.barrier(sycl::access::fence_space::local_space);
         }
     }
 
@@ -2534,16 +2534,18 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             }
         }
     }
-    item_ct.barrier(sycl::access::fence_space::local_space);
+    item.barrier(sycl::access::fence_space::local_space);
 
     //
     //  to partially reduce the energies--- E(4) and E(5)
     //  a warp: 32 -(1)-> 16 -(2)-> 8 -(3)-> 4 -(4)-> 2
     //
+#if 0
+    sycl::ONEAPI::sub_group SG = item.get_sub_group();
     for (int offset = 32/2; offset > 0; offset /= 2)
     {
-        energy_1 += item_ct.get_sub_group().shuffle_down(energy_1, offset);
-        energy_2 += item_ct.get_sub_group().shuffle_down(energy_2, offset);
+        energy_1 += SG.shuffle_down(energy_1, offset);
+        energy_2 += SG.shuffle_down(energy_2, offset);
     }
 
     if (threadIdx_x == 0 && threadIdx_y % 2 == 0)
@@ -2551,7 +2553,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         sm_a[0][threadIdx_y / 2] = energy_1;
         sm_b[0][threadIdx_y / 2] = energy_2;
     }
-    item_ct.barrier(sycl::access::fence_space::local_space);
+    item.barrier(sycl::access::fence_space::local_space);
 
     double final_energy_1 = 0.0;
     double final_energy_2 = 0.0;
@@ -2563,8 +2565,32 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             final_energy_2 += sm_b[0][i];
         }
         reduced_energy[blockIdx_x] = final_energy_1;
-        reduced_energy[blockIdx_x + item_ct.get_group_range(1)] = final_energy_2;
+        reduced_energy[blockIdx_x + item.get_group_range(1)] = final_energy_2;
     }
+#else
+    // sm_a[16][64]
+    // sm_b[16][64]
+    sm_a[threadIdx_y][threadIdx_x] = energy_1;
+    sm_b[threadIdx_y][threadIdx_x] = energy_2;
+    item.barrier(sycl::access::fence_space::local_space);
+
+    double final_energy_1 = 0.0;
+    double final_energy_2 = 0.0;
+    if (threadIdx_x == 0 && threadIdx_y == 0)
+    {
+      //if (blockIdx.x == 0) printf ("[%s] called\n", __func__);
+
+      for (int i = 0; i < 16; i++)
+	for (int j = 0; j < 16; j++)
+	{
+	  final_energy_1 += sm_a[j][i];
+	  final_energy_2 += sm_b[j][i];
+	}
+
+      reduced_energy[blockIdx_x] = final_energy_1;
+      reduced_energy[blockIdx_x + item.get_group_range(1)] = final_energy_2;
+    }
+#endif
 }
 
 void fully_fused_ccsd_t_gpu(sycl::queue *stream_id, size_t num_blocks,
@@ -2629,7 +2655,7 @@ void fully_fused_ccsd_t_gpu(sycl::queue *stream_id, size_t num_blocks,
         auto global_range = gridsize * blocksize;
 
         cgh.parallel_for(sycl::nd_range<2>(global_range, blocksize),
-                         [=](sycl::nd_item<2> item_ct)
+                         [=](sycl::nd_item<2> item)
         {
             sycl::device_ptr<double> df_dev_d1_t2_all_USM(df_dev_d1_t2_all);
             sycl::device_ptr<double> df_dev_d1_v2_all_USM(df_dev_d1_v2_all);
@@ -2667,7 +2693,7 @@ void fully_fused_ccsd_t_gpu(sycl::queue *stream_id, size_t num_blocks,
                                                  (sycl::cl_int)base_size_p4b,
                                                  (sycl::cl_int)base_size_p5b,
                                                  (sycl::cl_int)base_size_p6b,
-                                                 item_ct,
+                                                 item,
                                                  const_df_s1_size_acc.get_pointer(), const_df_s1_exec_acc.get_pointer(),
                                                  const_df_d1_size_acc.get_pointer(), const_df_d1_exec_acc.get_pointer(),
                                                  const_df_d2_size_acc.get_pointer(), const_df_d2_exec_acc.get_pointer(),

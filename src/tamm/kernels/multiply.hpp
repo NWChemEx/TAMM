@@ -290,18 +290,18 @@ void block_multiply(bool &isgpuOp,
           for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
-                  oneapi::mkl::blas::row_major::gemm(*dev_queue,
-                                                     oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
-                                                     M, N, K,
-                                                     alpha,
-                                                     ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
-                                                     ainter_ld,
-                                                     binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
-                                                     binter_ld,
-                                                     beta,
-                                                     cinter_buf_dev + i * cbatch_ld,
-                                                     cinter_ld);
-                  dev_queue->wait();
+		auto event_gemm = oneapi::mkl::blas::row_major::gemm(*dev_queue,
+								     oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
+								     M, N, K,
+								     alpha,
+								     ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
+								     ainter_ld,
+								     binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
+								     binter_ld,
+								     beta,
+								     cinter_buf_dev + i * cbatch_ld,
+								     cinter_ld);
+		event_gemm.wait();
 #else
                   internal::gemm_wrapper<T>(
                     CblasRowMajor, transA, transB, M, N, K, alpha,
@@ -316,8 +316,8 @@ void block_multiply(bool &isgpuOp,
       }
 #ifdef USE_DPCPP
       // device-->host copy
-      dev_queue->memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
-      dev_queue->wait();
+      auto d2h_cinter = dev_queue->memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
+      d2h_cinter.wait();
 #endif
     }
     #ifdef USE_BLIS

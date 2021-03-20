@@ -26,7 +26,6 @@
 // #define USE_TALSH
 #ifdef USE_TALSH
 #include "tamm/talsh_tamm.hpp"
-#include "tamm/cuda_memory_allocator.hpp"
 using tensor_handle = talsh_tens_t;
 
 #undef C0
@@ -37,6 +36,11 @@ using tensor_handle = talsh_tens_t;
 #undef C8
 #undef C9
 #undef C10
+
+#ifndef USE_HIP
+#include "tamm/cuda_memory_allocator.hpp"
+#endif
+
 #endif
 
 #include "tamm/tamm_dpcpp.hpp"

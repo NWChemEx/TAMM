@@ -7,7 +7,10 @@
 #include <iostream>
 // #include "talsh.h"
 #include "talsh/talshxx.hpp"
+
+#ifndef USE_HIP
 #include "cudamemset.hpp"
+#endif
 
 namespace ti_internal {
   template<typename> struct is_complex : std::false_type {};
@@ -34,6 +37,7 @@ struct memChunk
    memChunk(char* _start, char* _end) : start(_start), end(_end){ }
 };
 
+#ifndef USE_HIP
 /**
  * @brief GPUmempool to create a chunk of memory on GPU
  * This memory can be used as Device Argument Buffer (DAB)
@@ -99,6 +103,7 @@ class GPUmempool
    }
 
 };
+#endif
 
 class TALSH {
   using tensor_handle = talsh_tens_t;
@@ -236,6 +241,7 @@ class TALSH {
     return tens;
   }
 
+#ifndef USE_HIP
  tensor_handle host_block_zero(int rank,
                                const int dims[],
                                void *buf = nullptr) {
@@ -254,6 +260,7 @@ class TALSH {
     //EXPECTS(!errc);
     return tens;
   }
+#endif
 
  void free_block(tensor_handle tens) {
     int errc=talshTensorDestruct(&tens);
@@ -284,6 +291,7 @@ class TALSH {
     return tens;
   }
 
+#ifndef USE_HIP
  tensor_handle gpu_block_and_set(int rank,
                                  const int dims[],
                                  double const set_val,
@@ -335,6 +343,7 @@ class TALSH {
     //EXPECTS(!errc);
     return tens;
   }
+#endif
 
   
  tensor_handle gpu_block_copy(tensor_handle tens) { 
@@ -401,6 +410,8 @@ class TALSH {
    *
    * tens[...] = val
    */
+
+#ifndef USE_HIP
  void set_block(tensor_handle tens, double val) {
     talsh_tens_shape_t shape;
 
@@ -456,6 +467,7 @@ class TALSH {
       }
     }
   }
+#endif
 
   /**
    * ltens[llabels] += scale * rtens[rlabels]

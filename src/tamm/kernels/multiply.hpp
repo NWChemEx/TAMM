@@ -348,7 +348,7 @@ void block_multiply(bool &isgpuOp,
             for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
-                oneapi::mkl::blas::row_major::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
+                oneapi::mkl::blas::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
                                 bbuf_complex_dev + bri * breduce_ld + i * bbatch_ld,
                                 binter_ld,
                                 ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
@@ -391,7 +391,7 @@ void block_multiply(bool &isgpuOp,
             for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
-                oneapi::mkl::blas::row_major::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
+                oneapi::mkl::blas::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
                                 bbuf_real_dev + bri * breduce_ld + i * bbatch_ld,
                                 binter_ld,
                                 ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
@@ -437,7 +437,7 @@ void block_multiply(bool &isgpuOp,
             for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
-                oneapi::mkl::blas::row_major::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
+                oneapi::mkl::blas::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
                                 binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
                                 binter_ld,
                                 abuf_complex_dev + ari * areduce_ld + i * abatch_ld,
@@ -480,7 +480,7 @@ void block_multiply(bool &isgpuOp,
             for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
-                oneapi::mkl::blas::row_major::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
+                oneapi::mkl::blas::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
                                 binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
                                 binter_ld,
                                 abuf_real_dev + ari * areduce_ld + i * abatch_ld,
@@ -535,7 +535,7 @@ void block_multiply(bool &isgpuOp,
             for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
-                oneapi::mkl::blas::row_major::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
+                oneapi::mkl::blas::gemm(*dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
                                 bbuf_complex_dev + bri * breduce_ld + i * bbatch_ld,
                                 binter_ld,
                                 abuf_complex_dev + ari * areduce_ld + i * abatch_ld,

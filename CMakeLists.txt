@@ -29,7 +29,7 @@ set(CMSB_PROJECTS tamm)
 
 set(tamm_DEPENDENCIES MSGSL Eigen3 LibInt2 HPTT HDF5) # GlobalArrays BLAS LAPACK
 
-if(USE_CUDA) 
+if(USE_CUDA OR USE_HIP) 
    list(APPEND tamm_DEPENDENCIES TALSH)
 endif()
 

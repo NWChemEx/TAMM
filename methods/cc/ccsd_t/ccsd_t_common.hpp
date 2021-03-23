@@ -4,8 +4,10 @@
 #ifdef USE_CUDA
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include "cublas_v2.h"
 #elif defined(USE_HIP)
 #include <hip/hip_runtime.h>
+#include "rocblas.h"
 #elif defined(USE_DPCPP)
 #include <CL/sycl.hpp>
 #endif

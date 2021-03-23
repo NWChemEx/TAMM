@@ -1822,6 +1822,10 @@ public:
                 const int dev_id = ec.gpu_devid();
 #ifdef USE_DPCPP
 		sycl::queue* syclQueue = ec.get_syclQue()[dev_id];
+#elif defined(USE_CUDA)
+		cublasHandle_t *handle = ec.get_cublas_handle()[dev_id];
+#elif defined(USE_HIP)
+		rocblas_handle *handle = ec.get_rocblas_handle()[dev_id];
 #endif
                 // determine set of all labels
 
@@ -1896,6 +1900,10 @@ public:
                                         #endif
                                         #ifdef USE_DPCPP
                   	                syclQueue,
+                                        #elif defined(USE_CUDA)
+                                        handle,
+                                        #elif defined(USE_HIP)
+                                        handle,
                                         #endif
                                         dev_id, alpha_,
                                         abuf.data(), adims_sz,
@@ -2272,6 +2280,10 @@ public:
             const int dev_id = ec.gpu_devid();
 #ifdef USE_DPCPP
             sycl::queue* syclQueue = ec.get_syclQue()[dev_id];
+#elif defined(USE_CUDA)
+            cublasHandle_t *handle = ec.get_cublas_handle()[dev_id];
+#elif defined(USE_HIP)
+            rocblas_handle *handle = ec.get_rocblas_handle()[dev_id];
 #endif
 
 
@@ -2494,6 +2506,10 @@ public:
                                         #endif
                                         #ifdef USE_DPCPP
                                         syclQueue,
+                                        #elif defined(USE_CUDA)
+                                        handle,
+                                        #elif defined(USE_HIP)
+                                        handle,
                                         #endif
                                         dev_id, alpha_,
                                         (abptr->abuf_).data(), adims_sz,

@@ -121,6 +121,10 @@ void block_multiply(bool &isgpuOp,
         #endif
         #ifdef USE_DPCPP
           sycl::queue* dev_queue,
+        #elif defined(USE_CUDA)
+          cublasHandle_t *handle,
+        #elif defined(USE_HIP)
+          rocblas_handle *handle,
         #endif
           int dev_id, T alpha, const T2* abuf, const SizeVec& adims,
           const IntLabelVec& alabels, const T3* bbuf,
@@ -282,6 +286,40 @@ void block_multiply(bool &isgpuOp,
     dev_queue->memcpy(binter_buf_dev, binter_buf.data(), binter_buf.size()*sizeof(T3));
     dev_queue->memcpy(cinter_buf_dev, cinter_buf.data(), cinter_buf.size()*sizeof(T1));
     dev_queue->wait();
+#elif defined(USE_CUDA)
+    T2* ainter_buf_dev = nullptr;
+    T3* binter_buf_dev = nullptr;
+    T1* cinter_buf_dev = nullptr;
+
+    size_t T2_size = ainter_buf.size()*sizeof(T2);
+    size_t T3_size = binter_buf.size()*sizeof(T3);
+    size_t T1_size = cinter_buf.size()*sizeof(T1);
+
+    cudaMalloc((void**)&ainter_buf_dev, T2_size);
+    cudaMalloc((void**)&binter_buf_dev, T3_size);
+    cudaMalloc((void**)&cinter_buf_dev, T1_size);
+
+    // host-->device copy
+    cudaMemcpy(ainter_buf_dev, ainter_buf.data(), T2_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(binter_buf_dev, binter_buf.data(), T3_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(cinter_buf_dev, cinter_buf.data(), T1_size, cudaMemcpyHostToDevice);
+#elif defined(USE_HIP)
+    T2* ainter_buf_dev = nullptr;
+    T3* binter_buf_dev = nullptr;
+    T1* cinter_buf_dev = nullptr;
+
+    size_t T2_size = ainter_buf.size()*sizeof(T2);
+    size_t T3_size = binter_buf.size()*sizeof(T3);
+    size_t T1_size = cinter_buf.size()*sizeof(T1);
+
+    hipMalloc((void**)&ainter_buf_dev, T2_size);
+    hipMalloc((void**)&binter_buf_dev, T3_size);
+    hipMalloc((void**)&cinter_buf_dev, T1_size);
+
+    // host-->device copy
+    hipMemcpy(ainter_buf_dev, ainter_buf.data(), T2_size, hipMemcpyHostToDevice);
+    hipMemcpy(binter_buf_dev, binter_buf.data(), T3_size, hipMemcpyHostToDevice);
+    hipMemcpy(cinter_buf_dev, cinter_buf.data(), T1_size, hipMemcpyHostToDevice);
 #endif
 
     // dgemm
@@ -302,7 +340,32 @@ void block_multiply(bool &isgpuOp,
 								     cinter_buf_dev + i * cbatch_ld,
 								     cinter_ld);
 		event_gemm.wait();
+#elif defined(USE_CUDA)
+                cublasDgemm(*handle,
+                            CUBLAS_OP_N, CUBLAS_OP_N,
+                            M, N, K,
+                            &alpha,
+                            binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
+                            binter_ld,
+                            ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
+                            ainter_ld,
+                            &beta,
+                            cinter_buf_dev + i * cbatch_ld,
+                            cinter_ld);
+#elif defined(USE_HIP)
+                rocblas_dgemm(*handle,
+                              rocblas_operation_none, rocblas_operation_none,
+                              M, N, K,
+                              &alpha,
+                              binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
+                              binter_ld,
+                              ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
+                              ainter_ld,
+                              &beta,
+                              cinter_buf_dev + i * cbatch_ld,
+                              cinter_ld);
 #else
+
                   internal::gemm_wrapper<T>(
                     CblasRowMajor, transA, transB, M, N, K, alpha,
                     ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
@@ -318,6 +381,10 @@ void block_multiply(bool &isgpuOp,
       // device-->host copy
       auto d2h_cinter = dev_queue->memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
       d2h_cinter.wait();
+#elif defined(USE_CUDA)
+      cudaMemcpy(cinter_buf.data(), cinter_buf_dev, T1_size, cudaMemcpyDeviceToHost);
+#elif defined(USE_HIP)
+      hipMemcpy(cinter_buf.data(), cinter_buf_dev, T1_size, hipMemcpyDeviceToHost);
 #endif
     }
     #ifdef USE_BLIS

@@ -34,9 +34,15 @@ int device_init(
 #if defined(USE_DPCPP)
 		const std::vector<sycl::queue*> iDevice_syclQueue,
 		sycl::queue **syclQue,
+#if defined(USE_CUDA)
+		const std::vector<cublasHandle_t*> iDevice_handle,
+		cublasHandle_t **handle,
+#if defined(USE_HIP)
+		const std::vector<rocblas_handle*> iDevice_handle,
+		rocblas_handle **handle,
 #endif
-                long iDevice,int *gpu_device_number) {
-
+                long iDevice,int *gpu_device_number)
+{
   /* Set device_id */
   int dev_count_check = 0;
 #if defined(USE_CUDA)
@@ -77,9 +83,11 @@ int device_init(
 #if defined(USE_CUDA)
     // cudaSetDevice(device_id);
     cudaSetDevice(actual_device_id);
+    *handle = iDevice_handle[actual_device_id];
 #elif defined(USE_HIP)
     // hipSetDevice(device_id);
     hipSetDevice(actual_device_id);
+    *handle = iDevice_handle[actual_device_id];
 #elif defined(USE_DPCPP)
     *syclQue = iDevice_syclQueue[actual_device_id];
 #endif

@@ -34,10 +34,10 @@ int device_init(
 #if defined(USE_DPCPP)
 		const std::vector<sycl::queue*> iDevice_syclQueue,
 		sycl::queue **syclQue,
-#if defined(USE_CUDA)
+#elif defined(USE_CUDA)
 		const std::vector<cublasHandle_t*> iDevice_handle,
 		cublasHandle_t **handle,
-#if defined(USE_HIP)
+#elif defined(USE_HIP)
 		const std::vector<rocblas_handle*> iDevice_handle,
 		rocblas_handle **handle,
 #endif

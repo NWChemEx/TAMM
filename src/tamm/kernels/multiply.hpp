@@ -345,29 +345,57 @@ void block_multiply(bool &isgpuOp,
 								     cinter_ld);
 		event_gemm.wait();
 #elif defined(USE_CUDA)
-                cublasDgemm(*handle,
-                            CUBLAS_OP_N, CUBLAS_OP_N,
-                            M, N, K,
-                            &alpha,
-                            binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
-                            binter_ld,
-                            ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
-                            ainter_ld,
-                            &beta,
-                            cinter_buf_dev + i * cbatch_ld,
-                            cinter_ld);
+                if constexpr (std::is_same_v<T, double>) {
+                    cublasDgemm(*handle,
+                                CUBLAS_OP_N, CUBLAS_OP_N,
+                                M, N, K,
+                                &alpha,
+                                binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
+                                binter_ld,
+                                ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
+                                ainter_ld,
+                                &beta,
+                                cinter_buf_dev + i * cbatch_ld,
+                                cinter_ld);
+                  } else if constexpr (std::is_same_v<T, float>) {
+                    cublasSgemm(*handle,
+                                CUBLAS_OP_N, CUBLAS_OP_N,
+                                M, N, K,
+                                &alpha,
+                                binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
+                                binter_ld,
+                                ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
+                                ainter_ld,
+                                &beta,
+                                cinter_buf_dev + i * cbatch_ld,
+                                cinter_ld);
+                  }
 #elif defined(USE_HIP)
-                rocblas_dgemm(*handle,
-                              rocblas_operation_none, rocblas_operation_none,
-                              M, N, K,
-                              &alpha,
-                              binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
-                              binter_ld,
-                              ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
-                              ainter_ld,
-                              &beta,
-                              cinter_buf_dev + i * cbatch_ld,
-                              cinter_ld);
+                if constexpr (std::is_same_v<T, double>) {
+                    rocblas_dgemm(*handle,
+                                  rocblas_operation_none, rocblas_operation_none,
+                                  M, N, K,
+                                  &alpha,
+                                  binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
+                                  binter_ld,
+                                  ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
+                                  ainter_ld,
+                                  &beta,
+                                  cinter_buf_dev + i * cbatch_ld,
+                                  cinter_ld);
+                  } else if constexpr (std::is_same_v<T, float>) {
+                    rocblas_sgemm(*handle,
+                                  rocblas_operation_none, rocblas_operation_none,
+                                  M, N, K,
+                                  &alpha,
+                                  binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
+                                  binter_ld,
+                                  ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
+                                  ainter_ld,
+                                  &beta,
+                                  cinter_buf_dev + i * cbatch_ld,
+                                  cinter_ld);
+                  }
 #else
 
                   internal::gemm_wrapper<T>(

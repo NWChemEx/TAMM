@@ -20,11 +20,6 @@
 
 #if defined(USE_DPCPP)
 #include <CL/sycl.hpp>
-#elif defined(USE_CUDA)
-#include <cublas_v2.h>
-#elif defined(USE_HIP)
-#include "hip/hip_runtime_api.h"
-#include "rocblas.h"
 #endif
 
 namespace tamm {
@@ -337,14 +332,6 @@ public:
     std::vector<sycl::queue*> get_syclQue() const {
         return vec_syclQue;
     }
-#elif defined(USE_CUDA)
-    std::vector<cublasHandle_t*> get_cublas_handle() const {
-        return vec_blas_handle;
-    }
-#elif defined(USE_HIP)
-    std::vector<rocblas_handle*> get_rocblas_handle() const {
-        return vec_blas_handle;
-    }
 #endif
 
 template<typename... Args>
@@ -405,10 +392,6 @@ private:
     int dev_id_=-1;
 #if defined(USE_DPCPP)
     std::vector<sycl::queue*> vec_syclQue;
-#elif defined(USE_CUDA)
-    std::vector<cublasHandle_t*> vec_blas_handle;
-#elif defined(USE_HIP)
-    std::vector<rocblas_handle*> vec_blas_handle;
 #endif
 
     std::stringstream profile_data_;

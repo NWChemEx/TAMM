@@ -13,15 +13,7 @@ int check_device(long);
 #if defined(USE_DPCPP)
 int device_init(const std::vector<sycl::queue*> iDevice_syclQueue,
 		sycl::queue **syclQue,
-		long ngpu, int *device_number);
-#elif defined(USE_CUDA)
-int device_init(const std::vector<cublasHandle_t*> iDevice_handle,
-                cublasHandle_t **handle,
-                long ngpu, int *device_number);
-#elif defined(USE_HIP)
-int device_init(const std::vector<rocblas_handle*> iDevice_handle,
-                rocblas_handle **handle,
-                long ngpu, int *device_number);
+		long ngpu, int *cuda_device_number);
 #else
 int device_init(long ngpu, int *cuda_device_number);
 void dev_release();
@@ -29,7 +21,7 @@ void dev_release();
 
 void finalizememmodule(
 #if defined(USE_DPCPP)
-  sycl::queue& syclQueue
+		       sycl::queue& syclQueue
 #endif
 );
 
@@ -52,11 +44,8 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                         bool seq_h3b=false, bool tilesize_opt=true)
 {
 #ifdef USE_DPCPP
+  std::vector<sycl::queue*> syclQueues = ec.get_syclQue();
   sycl::queue* syclQue = nullptr;
-#elif defined(USE_CUDA)
-  cublasHandle_t* handle = nullptr;
-#elif defined(USE_HIP)
-  rocblas_handle* handle = nullptr;
 #endif
 
   //
@@ -145,29 +134,17 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
 
   if(nDevices==0) has_GPU=0;
   // cout << "rank,has_gpu" << rank << "," << has_GPU << endl;
-  if(has_GPU == 1) {
+  if(has_GPU == 1){
       device_init(
 #if defined(USE_DPCPP)
                   ec.get_syclQue(),
-                  &syclQue,
-#elif defined(USE_CUDA)
-                  ec.get_cublas_handle(),
-                  &handle,
-#elif defined(USE_HIP)
-                  ec.get_rocblas_handle(),
-                  &handle,
+		  &syclQue,
 #endif
                   nDevices, &gpu_device_number);
 
 #if defined(USE_DPCPP)
       if(syclQue == nullptr)
 	cout << "ERROR: Obtained a invalid SYCL queue. Terminating program..." << endl << endl;
-#elif defined(USE_CUDA)
-      if(handle == nullptr)
-	cout << "ERROR: Obtained a invalid CUDA blas handle. Terminating program..." << endl << endl;
-#elif defined(USE_HIP)
-      if(handle == nullptr)
-	cout << "ERROR: Obtained a invalid HIP blas handle. Terminating program..." << endl << endl;
 #endif
     // if(gpu_device_number==30) // QUIT
   }

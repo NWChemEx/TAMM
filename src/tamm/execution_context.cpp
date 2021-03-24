@@ -86,33 +86,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
        }
      }
   }
-#elif defined(USE_CUDA)
-  cudaGetDeviceCount(&ngpu_);
-
-  dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
-  if (ngpu_ == 1) dev_id_ = 0;
-  if ((pg.rank().value() % ranks_pn_) < ngpu_) has_gpu_ = true;
-
-  for (int i = 0; i < ngpu_; i++) {
-    cudaSetDevice(i);
-    cublasHandle_t* cublashandle=nullptr;
-    cublasCreate(cublashandle);
-    vec_blas_handle.push_back( cublashandle );
-  }
-#elif defined(USE_HIP)
-  hipGetDeviceCount(&ngpu_);
-
-  dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
-  if (ngpu_ == 1) dev_id_ = 0;
-  if ((pg.rank().value() % ranks_pn_) < ngpu_) has_gpu_ = true;
-
-  for (int i = 0; i < ngpu_; i++) {
-    hipSetDevice(i);
-    rocblas_handle* rocblashandle=nullptr;
-    rocblas_create_handle(rocblashandle);
-    vec_blas_handle.push_back( rocblashandle );
-  }
-#endif
+#endif // USE_DPCPP
   // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
 }
 

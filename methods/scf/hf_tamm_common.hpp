@@ -308,8 +308,9 @@ void print_energies(ExecutionContext& ec, TAMMTensors& ttensors, const SystemDat
 
 template<typename TensorType>
 std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec, 
-#ifdef SCALAPACK
-      CXXBLACS::BlacsGrid* blacs_grid,
+#ifdef USE_SCALAPACK
+      blacspp::Grid* blacs_grid,
+      scalapackpp::BlockCyclicDist2D* blockcyclic_dist,
 #endif
       const int& iter, const SystemData& sys_data,
       TAMMTensors& ttensors, EigenTensors& etensors, bool ediis, bool scf_restart=false){
@@ -441,50 +442,72 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         // solve F C = e S C by (conditioned) transformation to F' C' = e C',
         // where
         // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
-        #ifdef SCALAPACK
-          // TODO
-          // // Allocate space for C_ortho
-          // Matrix C_ortho( F.rows(), F.cols() );
-        
-          // if( blacs_grid ){ // Scope temp data
-          //   Matrix F_ortho = X.transpose() * F * X;
+        #ifdef USE_SCALAPACK
+          const auto& grid = *blacs_grid;
+          const auto  mb   = blockcyclic_dist->mb();
+          const auto Northo = sys_data.nbf;
+          // TODO: Optimize intermediates here
+          scalapackpp::BlockCyclicMatrix<double> 
+            Fa_sca  ( grid, N,      N,      mb, mb ),
+            Xa_sca  ( grid, Northo, N,      mb, mb ), // Xa is row-major
+            Fp_sca  ( grid, Northo, Northo, mb, mb ),
+            Ca_sca  ( grid, Northo, Northo, mb, mb ),
+            TMP1_sca( grid, N,      Northo, mb, mb ),
+            TMP2_sca( grid, Northo, N,      mb, mb );
 
-          //   auto [MLoc, NLoc] = blacs_grid->getLocalDims( N, N );
-          //   std::vector< double > F_ortho_loc( MLoc*NLoc );
-          //   std::vector< double > C_ortho_loc( MLoc*NLoc );
-          //   std::vector< double > F_eig( F.rows() );
+          // Scatter Fock / X alpha from root
+          Fa_sca.scatter_to( N,      N, F_alpha.data(), N,      0, 0 ); 
+          Xa_sca.scatter_to( Northo, N, X_a.data(),     Northo, 0, 0 );
 
-          //   auto DescF = blacs_grid->descInit( N, N, 0, 0, MLoc );
+          // Compute TMP = F * X -> F * X**T (b/c row-major)
+          scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::Trans,
+                              1., Fa_sca, Xa_sca, 0., TMP1_sca );
 
-          //   // Scatter copy of F_ortho from root rank to all ranks
-          //   // FIXME: should just grab local data from replicated 
-          //   //   matrix
-          //   blacs_grid->Scatter(N, N, F_ortho.data(), N, 
-          //                       F_ortho_loc.data(), MLoc,
-          //                       0, 0 );
+          // Compute Fp = X**T * TMP -> X * TMP (b/c row-major)
+          scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans,
+                              1., Xa_sca, TMP1_sca, 0., Fp_sca );
 
-          //   // Diagonalize
-          //   auto PSYEV_INFO = CXXBLACS::PSYEV('V', 'U', N, 
-          //                                     F_ortho_loc.data(), 1, 1, DescF,
-          //                                     F_eig.data(),
-          //                                     C_ortho_loc.data(), 1, 1, DescF);
+          // Solve EVP
+          std::vector<double> eps_a( Northo );
+          scalapackpp::hereigd( scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
+                                Fp_sca, eps_a.data(), Ca_sca );
 
-          //   if( PSYEV_INFO ) {
-          //     std::runtime_error err("PSYEV Failed");
-          //     throw err;
-          //   }
+          // Backtransform TMP = X * Ca -> TMP**T = Ca**T * X
+          scalapackpp::pgemm( scalapackpp::Op::Trans, scalapackpp::Op::NoTrans,
+                              1., Ca_sca, Xa_sca, 0., TMP2_sca );
 
-          //   // Gather the eigenvectors to root process and replicate
-          //   blacs_grid->Gather(N, N, C_ortho.data(), N, 
-          //                      C_ortho_loc.data(), MLoc,
-          //                      0,0 );
-          // } // ScaLAPACK Scope
+          // Gather results
+          if( rank == 0 ) C_alpha.resize( N, Northo );
+          TMP2_sca.gather_from( Northo, N, C_alpha.data(), Northo, 0, 0 );
 
-          // MPI_Bcast(C_ortho.data(), C_ortho.size(), MPI_DOUBLE,
-          //           0, ec.pg().comm() );
- 
-          // // Backtransform C
-          // C = X * C_ortho.transpose();
+          if(is_uhf) {
+
+            // Scatter Fock / X beta from root
+            Fa_sca.scatter_to( N,      N, F_beta.data(), N,      0, 0 ); 
+            Xa_sca.scatter_to( Northo, N, X_b.data(),    Northo, 0, 0 );
+
+            // Compute TMP = F * X -> F * X**T (b/c row-major)
+            scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::Trans,
+                                1., Fa_sca, Xa_sca, 0., TMP1_sca );
+
+            // Compute Fp = X**T * TMP -> X * TMP (b/c row-major)
+            scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans,
+                                1., Xa_sca, TMP1_sca, 0., Fp_sca );
+
+            // Solve EVP
+            std::vector<double> eps_a( Northo );
+            scalapackpp::hereigd( scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
+                                  Fp_sca, eps_a.data(), Ca_sca );
+
+            // Backtransform TMP = X * Cb -> TMP**T = Cb**T * X
+            scalapackpp::pgemm( scalapackpp::Op::Trans, scalapackpp::Op::NoTrans,
+                                1., Ca_sca, Xa_sca, 0., TMP2_sca );
+
+            // Gather results
+            if( rank == 0 ) C_beta.resize( N, Northo );
+            TMP2_sca.gather_from( Northo, N, C_beta.data(), Northo, 0, 0 );
+          
+          }
 
         #elif defined(EIGEN_DIAG)
 

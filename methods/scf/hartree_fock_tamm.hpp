@@ -269,7 +269,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     #endif
       ProcGroup pg_l = ProcGroup::create_coll(MPI_COMM_SELF);
       ExecutionContext ec_l{pg_l, DistributionKind::nw, MemoryManagerKind::local};
-    #ifdef SCALAPACK
+    #ifdef USE_SCALAPACK
 
       auto blacs_setup_st = std::chrono::high_resolution_clock::now();
       // Sanity checks
@@ -280,6 +280,20 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       // XXX: This should be for hf_comm
       int world_size;
       MPI_Comm_size( ec.pg().comm(), &world_size );
+
+      // Default to square(ish) grid
+      if( scalapack_nranks == 0 ) {
+        int64_t npr = std::sqrt( world_size );
+        int64_t npc = world_size / npr; 
+        while( npr * npc != world_size ) {
+          npr--;
+          npc = world_size / npr;
+        }
+        scalapack_nranks = world_size;
+        scf_options.scalapack_np_row = npr;
+        scf_options.scalapack_np_col = npc;
+      }
+
       assert( world_size >= scalapack_nranks );
 
       if( not scalapack_nranks ) scalapack_nranks = world_size;
@@ -292,13 +306,17 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       MPI_Group_incl( world_group, scalapack_nranks, scalapack_ranks.data(), &scalapack_group );
       MPI_Comm_create( ec.pg().comm(), scalapack_group, &scalapack_comm );
       
-      // Define a BLACS grid
-      const CB_INT MB = scf_options.scalapack_nb; 
-      const CB_INT NPR = scf_options.scalapack_np_row;
-      const CB_INT NPC = scf_options.scalapack_np_col;
-      std::unique_ptr<CXXBLACS::BlacsGrid> blacs_grid = 
-        scalapack_comm == MPI_COMM_NULL ? nullptr :
-        std::make_unique<CXXBLACS::BlacsGrid>( scalapack_comm, MB, MB, NPR, NPC );
+        std::unique_ptr<blacspp::Grid> blacs_grid = nullptr;
+        std::unique_ptr<scalapackpp::BlockCyclicDist2D> blockcyclic_dist = nullptr;
+        if( scalapack_comm != MPI_COMM_NULL ) {
+          const auto NPR = scf_options.scalapack_np_row;
+          const auto NPC = scf_options.scalapack_np_col;
+          blacs_grid = std::make_unique<blacspp::Grid>( scalapack_comm, NPR, NPC );
+
+          const auto MB = scf_options.scalapack_nb;
+          blockcyclic_dist = std::make_unique<scalapackpp::BlockCyclicDist2D>( 
+            *blacs_grid, MB, MB, 0, 0 );
+        }
 
       auto blacs_setup_en = std::chrono::high_resolution_clock::now();
 
@@ -306,7 +324,6 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       
       if(rank == 0) std::cout << std::endl << "Time for BLACS setup: " << blacs_time.count() << " secs" << std::endl;
 
-      if(debug and blacs_grid) blacs_grid->printCoord( std::cout );
     #endif
 
       TAMMTensors ttensors;
@@ -617,8 +634,9 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         }
 
         std::tie(ehf,rmsd) = scf_iter_body<TensorType>(ec, 
-        #ifdef SCALAPACK
+        #ifdef USE_SCALAPACK
                         blacs_grid.get(),
+                        blockcyclic_dist.get(),
         #endif 
                         iter, sys_data, ttensors, etensors, ediis, scf_conv);
 
@@ -737,7 +755,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       ec_l.flush_and_sync();
 
-      #ifdef SCALAPACK
+      #ifdef USE_SCALAPACK
       // Free up created comms / groups
       MPI_Comm_free( &scalapack_comm );
       MPI_Group_free( &scalapack_group );

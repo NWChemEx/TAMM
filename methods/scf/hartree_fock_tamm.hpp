@@ -16,6 +16,22 @@
 
 #include "hf_tamm_common.hpp"
 
+template <typename T>
+inline std::ostream& operator<<( std::ostream& os, const GauXC::Shell<T>& sh ) {
+    os << "GauXC::Shell:( O={" << sh.O()[0] << "," << sh.O()[1] << "," << sh.O()[2] << "}" << std::endl;
+    os << "  ";
+    os << " {l=" << sh.l() << ",sph=" << sh.pure() << "}";
+    os << std::endl;
+
+    for(auto i=0ul; i<sh.nprim(); ++i) {
+      os << "  " << sh.alpha()[i];
+      os << " "  << sh.coeff().at(i);
+      os << std::endl;
+    }
+
+    return os;
+}
+
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -88,6 +104,31 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
     const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
     // const bool is_rohf = (sys_data.scf_type == sys_data.SCFType::rohf);    
+
+    /*** =========================== ***/
+    /*** Setup GauXC types           ***/
+    /*** =========================== ***/
+    auto gauxc_mol   = gauxc_util::make_gauxc_molecule( atoms  );
+    auto gauxc_basis = gauxc_util::make_gauxc_basis   ( shells );
+
+    //for( auto x : shells ) std::cout << x << std::endl;
+    //for( auto x : gauxc_basis ) std::cout << x << std::endl;
+
+    GauXC::MolGrid 
+      gauxc_molgrid( GauXC::AtomicGridSizeDefault::UltraFineGrid, gauxc_mol );
+    auto gauxc_molmeta = std::make_shared<GauXC::MolMeta>( gauxc_mol );
+    auto gauxc_lb      = std::make_shared<GauXC::LoadBalancer>(exc.pg().comm(),
+      gauxc_mol, gauxc_molgrid, gauxc_basis, gauxc_molmeta
+    );
+
+    GauXC::functional_type gauxc_func( ExchCXX::Backend::builtin,
+                                       ExchCXX::functional_map.value("PBE0"),
+                                       ExchCXX::Spin::Unpolarized );
+    GauXC::XCIntegrator<Matrix> gauxc_integrator( GauXC::ExecutionSpace::Host,
+      exc.pg().comm(), gauxc_func, gauxc_basis, gauxc_lb );
+
+    const double xHF = 1.; //gauxc_func.hyb_exx();
+
 
     std::string out_fp = options_map.options.output_file_prefix+"."+scf_options.basis;
     std::string files_dir = out_fp+"_files/scf";
@@ -387,6 +428,9 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       ttensors.FD_tamm     = {tAO, tAO}; 
       ttensors.FDS_tamm    = {tAO, tAO};
 
+      // XXX: Enable only for DFT
+      ttensors.VXC = {tAO, tAO};
+
       if(is_uhf) {
         ttensors.ehf_beta_tmp     = {tAO, tAO};
         ttensors.F1_beta          = {tAO, tAO};
@@ -406,6 +450,10 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
                                           ttensors.D_beta_tamm , ttensors.D_last_beta_tamm, 
                                           ttensors.F1tmp1_beta , ttensors.ehf_beta_tmp    ,
                                           ttensors.FD_beta_tamm, ttensors.FDS_beta_tamm);
+
+
+      // XXX: Only allocate for DFT
+      Tensor<TensorType>::allocate( &ec, ttensors.VXC );
 
       const auto do_schwarz_screen = SchwarzK.cols() != 0 && SchwarzK.rows() != 0;
       // engine precision controls primitive truncation, assume worst-case scenario
@@ -555,7 +603,8 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         }
         //F1 = H1 + F1tmp1
         compute_2bf<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
-                                max_nprim4, shells, ttensors, etensors, do_density_fitting);          
+                                max_nprim4, shells, ttensors, etensors, do_density_fitting, xHF);          
+        //auto gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
         // ehf = D * (H1+F1);
         if(is_rhf) {
           sch
@@ -606,6 +655,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         // build a new Fock matrix
         compute_2bf<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
                                 max_nprim4,shells, ttensors, etensors, do_density_fitting);
+        auto gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
 
         //E_Diis
         if(ediis) {

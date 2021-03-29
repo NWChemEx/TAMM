@@ -29,6 +29,10 @@ set(CMSB_PROJECTS tamm)
 
 set(tamm_DEPENDENCIES MSGSL Eigen3 LibInt2 HPTT HDF5) # GlobalArrays BLAS LAPACK
 
+#if(ENABLE_DFT)
+  list(APPEND tamm_DEPENDENCIES GauXC )
+#endif()
+
 if(USE_CUDA) 
    list(APPEND tamm_DEPENDENCIES TALSH)
 endif()

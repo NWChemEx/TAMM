@@ -22,6 +22,9 @@
 #include <scalapackpp/pblas/gemm.hpp>
 #endif
 
+#include <gauxc/xc_integrator.hpp>
+#include <gauxc/xc_integrator/impl.hpp>
+
 using namespace tamm;
 using std::cerr;
 using std::cout;
@@ -105,6 +108,7 @@ struct TAMMTensors {
     Tensor<TensorType> F1tmp1;
     Tensor<TensorType> F1tmp1_beta;
     Tensor<TensorType> F1tmp; //not allocated {tAOt, tAOt}
+    Tensor<TensorType> VXC;
 
     Tensor<TensorType> D_tamm;
     Tensor<TensorType> D_beta_tamm;

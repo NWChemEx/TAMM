@@ -901,7 +901,8 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
       const bool do_schwarz_screen, const std::vector<size_t>& shell2bf,
       const Matrix& SchwarzK, 
       const size_t& max_nprim4, libint2::BasisSet& shells,
-      TAMMTensors& ttensors, EigenTensors& etensors, const bool do_density_fitting=false){
+      TAMMTensors& ttensors, EigenTensors& etensors, const bool do_density_fitting=false,
+      double xHF = 1.){
 
       using libint2::Operator;
 
@@ -1043,27 +1044,27 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
                         G(bf3, bf4)      += 0.5   * D(bf1, bf2) * value_scal_by_deg;
                         G(bf1, bf2)      += 0.5   * D_beta(bf3, bf4) * value_scal_by_deg;
                         G(bf3, bf4)      += 0.5   * D_beta(bf1, bf2) * value_scal_by_deg;
-                        G(bf1, bf3)      -= 0.25  * D(bf2, bf4) * value_scal_by_deg;
-                        G(bf2, bf4)      -= 0.25  * D(bf1, bf3) * value_scal_by_deg;
-                        G(bf1, bf4)      -= 0.25  * D(bf2, bf3) * value_scal_by_deg;
-                        G(bf2, bf3)      -= 0.25  * D(bf1, bf4) * value_scal_by_deg;
+                        G(bf1, bf3)      -= xHF*0.25  * D(bf2, bf4) * value_scal_by_deg;
+                        G(bf2, bf4)      -= xHF*0.25  * D(bf1, bf3) * value_scal_by_deg;
+                        G(bf1, bf4)      -= xHF*0.25  * D(bf2, bf3) * value_scal_by_deg;
+                        G(bf2, bf3)      -= xHF*0.25  * D(bf1, bf4) * value_scal_by_deg;
                         //beta_part
                         G_beta(bf1, bf2) += 0.5   * D_beta(bf3, bf4) * value_scal_by_deg;
                         G_beta(bf3, bf4) += 0.5   * D_beta(bf1, bf2) * value_scal_by_deg;
                         G_beta(bf1, bf2) += 0.5   * D(bf3, bf4) * value_scal_by_deg;
                         G_beta(bf3, bf4) += 0.5   * D(bf1, bf2) * value_scal_by_deg;
-                        G_beta(bf1, bf3) -= 0.25  * D_beta(bf2, bf4) * value_scal_by_deg;
-                        G_beta(bf2, bf4) -= 0.25  * D_beta(bf1, bf3) * value_scal_by_deg;
-                        G_beta(bf1, bf4) -= 0.25  * D_beta(bf2, bf3) * value_scal_by_deg;
-                        G_beta(bf2, bf3) -= 0.25  * D_beta(bf1, bf4) * value_scal_by_deg;
+                        G_beta(bf1, bf3) -= xHF*0.25  * D_beta(bf2, bf4) * value_scal_by_deg;
+                        G_beta(bf2, bf4) -= xHF*0.25  * D_beta(bf1, bf3) * value_scal_by_deg;
+                        G_beta(bf1, bf4) -= xHF*0.25  * D_beta(bf2, bf3) * value_scal_by_deg;
+                        G_beta(bf2, bf3) -= xHF*0.25  * D_beta(bf1, bf4) * value_scal_by_deg;
                       }
                       if(is_rhf) {
                         G(bf1, bf2)      += 0.5   * D(bf3, bf4) * value_scal_by_deg;
                         G(bf3, bf4)      += 0.5   * D(bf1, bf2) * value_scal_by_deg;
-                        G(bf1, bf3)      -= 0.125 * D(bf2, bf4) * value_scal_by_deg;
-                        G(bf2, bf4)      -= 0.125 * D(bf1, bf3) * value_scal_by_deg;
-                        G(bf1, bf4)      -= 0.125 * D(bf2, bf3) * value_scal_by_deg;
-                        G(bf2, bf3)      -= 0.125 * D(bf1, bf4) * value_scal_by_deg;
+                        G(bf1, bf3)      -= xHF*0.125 * D(bf2, bf4) * value_scal_by_deg;
+                        G(bf2, bf4)      -= xHF*0.125 * D(bf1, bf3) * value_scal_by_deg;
+                        G(bf1, bf4)      -= xHF*0.125 * D(bf2, bf3) * value_scal_by_deg;
+                        G(bf2, bf3)      -= xHF*0.125 * D(bf1, bf4) * value_scal_by_deg;
                       }
                     }
                   }
@@ -1369,7 +1370,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
         // Tensor2D K_ret = xiK.contract(xiK,idx_1122); 
         // xiK.resize(0, 0, 0);
         sch
-        (F1tmp1(mu,ku) += -1.0 * xiK_tamm(mu,dCocc_til,d_mu) * xiK_tamm(ku,dCocc_til,d_mu))
+        (F1tmp1(mu,ku) += -xHF * xiK_tamm(mu,dCocc_til,d_mu) * xiK_tamm(ku,dCocc_til,d_mu))
         .deallocate(xiK_tamm).execute();
 
          ig2 = std::chrono::high_resolution_clock::now();
@@ -1664,6 +1665,62 @@ void diis(ExecutionContext& ec, TiledIndexSpace& tAO, Tensor<TensorType> D, Tens
   }
   // sch(F() += 0.5 * D()); //level shift
   sch.execute();
+
+}
+
+
+namespace gauxc_util {
+
+GauXC::Molecule make_gauxc_molecule( const std::vector<libint2::Atom>& atoms ) {
+  GauXC::Molecule mol; mol.resize( atoms.size() );
+  std::transform( atoms.begin(), atoms.end(), mol.begin(), 
+    []( const libint2::Atom& atom ) {
+      GauXC::Atom gauxc_atom( GauXC::AtomicNumber( atom.atomic_number ),
+                              atom.x, atom.y, atom.z );
+      return gauxc_atom;
+    });
+  return mol;
+}
+
+GauXC::BasisSet<double> make_gauxc_basis( const libint2::BasisSet& basis ) {
+  using shell_t = GauXC::Shell<double>;
+  using prim_t  = typename shell_t::prim_array;
+  using cart_t  = typename shell_t::cart_array;
+
+  GauXC::BasisSet<double> gauxc_basis;
+  for( const auto& shell : basis ) {
+    prim_t prim_array, coeff_array;
+    cart_t origin;
+
+    std::copy( shell.alpha.begin(), shell.alpha.end(), prim_array.begin() );
+    std::copy( shell.contr[0].coeff.begin(), shell.contr[0].coeff.end(),
+               coeff_array.begin() );
+    std::copy( shell.O.begin(), shell.O.end(), origin.begin() );
+
+    gauxc_basis.emplace_back( GauXC::PrimSize( shell.alpha.size() ),
+                              GauXC::AngularMomentum( shell.contr[0].l ),
+                              GauXC::SphericalType( shell.contr[0].pure ),
+                              prim_array, coeff_array, origin, false );
+  }
+  gauxc_basis.generate_shell_to_ao();
+  return gauxc_basis;
+}
+
+template <typename TensorType>
+TensorType compute_xcf( ExecutionContext& ec, TAMMTensors& ttensors, 
+    EigenTensors& etensors, GauXC::XCIntegrator<Matrix>& xc_integrator ) {
+
+  const auto& D = etensors.D;
+  auto [EXC, VXC] = xc_integrator.eval_exc_vxc( D );
+
+  auto& VXC_tamm = ttensors.VXC;
+  eigen_to_tamm_tensor_acc( VXC_tamm, VXC );
+  ec.pg().barrier();
+
+  return EXC;
+
+}
+
 
 }
 

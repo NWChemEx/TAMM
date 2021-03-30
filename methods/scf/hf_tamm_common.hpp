@@ -446,45 +446,20 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
           const auto& grid = *blacs_grid;
           const auto  mb   = blockcyclic_dist->mb();
           const auto Northo = sys_data.nbf;
-          // TODO: Optimize intermediates here
-          scalapackpp::BlockCyclicMatrix<double> 
-            Fa_sca  ( grid, N,      N,      mb, mb ),
-            Xa_sca  ( grid, Northo, N,      mb, mb ), // Xa is row-major
-            Fp_sca  ( grid, Northo, Northo, mb, mb ),
-            Ca_sca  ( grid, Northo, Northo, mb, mb ),
-            TMP1_sca( grid, N,      Northo, mb, mb ),
-            TMP2_sca( grid, Northo, N,      mb, mb );
+          if( grid.ipr() >= 0 and grid.ipc() >= 0 ) {
+            std::cout << "IN SCALAPACK " << rank << std::endl; 
+            // TODO: Optimize intermediates here
+            scalapackpp::BlockCyclicMatrix<double> 
+              Fa_sca  ( grid, N,      N,      mb, mb ),
+              Xa_sca  ( grid, Northo, N,      mb, mb ), // Xa is row-major
+              Fp_sca  ( grid, Northo, Northo, mb, mb ),
+              Ca_sca  ( grid, Northo, Northo, mb, mb ),
+              TMP1_sca( grid, N,      Northo, mb, mb ),
+              TMP2_sca( grid, Northo, N,      mb, mb );
 
-          // Scatter Fock / X alpha from root
-          Fa_sca.scatter_to( N,      N, F_alpha.data(), N,      0, 0 ); 
-          Xa_sca.scatter_to( Northo, N, X_a.data(),     Northo, 0, 0 );
-
-          // Compute TMP = F * X -> F * X**T (b/c row-major)
-          scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::Trans,
-                              1., Fa_sca, Xa_sca, 0., TMP1_sca );
-
-          // Compute Fp = X**T * TMP -> X * TMP (b/c row-major)
-          scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans,
-                              1., Xa_sca, TMP1_sca, 0., Fp_sca );
-
-          // Solve EVP
-          std::vector<double> eps_a( Northo );
-          scalapackpp::hereigd( scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
-                                Fp_sca, eps_a.data(), Ca_sca );
-
-          // Backtransform TMP = X * Ca -> TMP**T = Ca**T * X
-          scalapackpp::pgemm( scalapackpp::Op::Trans, scalapackpp::Op::NoTrans,
-                              1., Ca_sca, Xa_sca, 0., TMP2_sca );
-
-          // Gather results
-          if( rank == 0 ) C_alpha.resize( N, Northo );
-          TMP2_sca.gather_from( Northo, N, C_alpha.data(), Northo, 0, 0 );
-
-          if(is_uhf) {
-
-            // Scatter Fock / X beta from root
-            Fa_sca.scatter_to( N,      N, F_beta.data(), N,      0, 0 ); 
-            Xa_sca.scatter_to( Northo, N, X_b.data(),    Northo, 0, 0 );
+            // Scatter Fock / X alpha from root
+            Fa_sca.scatter_to( N,      N, F_alpha.data(), N,      0, 0 ); 
+            Xa_sca.scatter_to( Northo, N, X_a.data(),     Northo, 0, 0 );
 
             // Compute TMP = F * X -> F * X**T (b/c row-major)
             scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::Trans,
@@ -499,15 +474,43 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
             scalapackpp::hereigd( scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
                                   Fp_sca, eps_a.data(), Ca_sca );
 
-            // Backtransform TMP = X * Cb -> TMP**T = Cb**T * X
+            // Backtransform TMP = X * Ca -> TMP**T = Ca**T * X
             scalapackpp::pgemm( scalapackpp::Op::Trans, scalapackpp::Op::NoTrans,
                                 1., Ca_sca, Xa_sca, 0., TMP2_sca );
 
             // Gather results
-            if( rank == 0 ) C_beta.resize( N, Northo );
-            TMP2_sca.gather_from( Northo, N, C_beta.data(), Northo, 0, 0 );
-          
-          }
+            if( rank == 0 ) C_alpha.resize( N, Northo );
+            TMP2_sca.gather_from( Northo, N, C_alpha.data(), Northo, 0, 0 );
+
+            if(is_uhf) {
+
+              // Scatter Fock / X beta from root
+              Fa_sca.scatter_to( N,      N, F_beta.data(), N,      0, 0 ); 
+              Xa_sca.scatter_to( Northo, N, X_b.data(),    Northo, 0, 0 );
+
+              // Compute TMP = F * X -> F * X**T (b/c row-major)
+              scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::Trans,
+                                  1., Fa_sca, Xa_sca, 0., TMP1_sca );
+
+              // Compute Fp = X**T * TMP -> X * TMP (b/c row-major)
+              scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans,
+                                  1., Xa_sca, TMP1_sca, 0., Fp_sca );
+
+              // Solve EVP
+              std::vector<double> eps_a( Northo );
+              scalapackpp::hereigd( scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
+                                    Fp_sca, eps_a.data(), Ca_sca );
+
+              // Backtransform TMP = X * Cb -> TMP**T = Cb**T * X
+              scalapackpp::pgemm( scalapackpp::Op::Trans, scalapackpp::Op::NoTrans,
+                                  1., Ca_sca, Xa_sca, 0., TMP2_sca );
+
+              // Gather results
+              if( rank == 0 ) C_beta.resize( N, Northo );
+              TMP2_sca.gather_from( Northo, N, C_beta.data(), Northo, 0, 0 );
+            
+            }
+          } // rank participates in ScaLAPACK call
 
         #elif defined(EIGEN_DIAG)
 

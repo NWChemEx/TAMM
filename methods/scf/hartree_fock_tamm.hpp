@@ -297,26 +297,34 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       assert( world_size >= scalapack_nranks );
 
       if( not scalapack_nranks ) scalapack_nranks = world_size;
-      std::vector<int> scalapack_ranks( scalapack_nranks );
+      std::vector<int64_t> scalapack_ranks( scalapack_nranks );
       std::iota( scalapack_ranks.begin(), scalapack_ranks.end(), 0 );
 
+#if 0
       MPI_Group world_group, scalapack_group;
       MPI_Comm scalapack_comm;
       MPI_Comm_group( ec.pg().comm(), &world_group );
       MPI_Group_incl( world_group, scalapack_nranks, scalapack_ranks.data(), &scalapack_group );
       MPI_Comm_create( ec.pg().comm(), scalapack_group, &scalapack_comm );
       
-        std::unique_ptr<blacspp::Grid> blacs_grid = nullptr;
-        std::unique_ptr<scalapackpp::BlockCyclicDist2D> blockcyclic_dist = nullptr;
-        if( scalapack_comm != MPI_COMM_NULL ) {
-          const auto NPR = scf_options.scalapack_np_row;
-          const auto NPC = scf_options.scalapack_np_col;
-          blacs_grid = std::make_unique<blacspp::Grid>( scalapack_comm, NPR, NPC );
+      std::unique_ptr<blacspp::Grid> blacs_grid = nullptr;
+      std::unique_ptr<scalapackpp::BlockCyclicDist2D> blockcyclic_dist = nullptr;
+      if( scalapack_comm != MPI_COMM_NULL ) {
+        const auto NPR = scf_options.scalapack_np_row;
+        const auto NPC = scf_options.scalapack_np_col;
+        blacs_grid = std::make_unique<blacspp::Grid>( scalapack_comm, NPR, NPC );
 
-          const auto MB = scf_options.scalapack_nb;
-          blockcyclic_dist = std::make_unique<scalapackpp::BlockCyclicDist2D>( 
-            *blacs_grid, MB, MB, 0, 0 );
-        }
+        const auto MB = scf_options.scalapack_nb;
+        blockcyclic_dist = std::make_unique<scalapackpp::BlockCyclicDist2D>( 
+          *blacs_grid, MB, MB, 0, 0 );
+      }
+#else
+      auto blacs_grid = std::make_unique<blacspp::Grid>( 
+        ec.pg().comm(), scf_options.scalapack_np_row, scf_options.scalapack_np_col,
+        scalapack_ranks.data(), scf_options.scalapack_np_row );
+      auto blockcyclic_dist = std::make_unique<scalapackpp::BlockCyclicDist2D>( 
+          *blacs_grid, scf_options.scalapack_nb, scf_options.scalapack_nb, 0, 0 );
+#endif
 
       auto blacs_setup_en = std::chrono::high_resolution_clock::now();
 
@@ -755,11 +763,13 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       ec_l.flush_and_sync();
 
+      #if 0
       #ifdef USE_SCALAPACK
       // Free up created comms / groups
       MPI_Comm_free( &scalapack_comm );
       MPI_Group_free( &scalapack_group );
       MPI_Group_free( &world_group );
+      #endif
       #endif
     
     #if SCF_THROTTLE_RESOURCES

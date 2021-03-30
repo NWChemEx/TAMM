@@ -447,7 +447,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
           const auto  mb   = blockcyclic_dist->mb();
           const auto Northo = sys_data.nbf;
           if( grid.ipr() >= 0 and grid.ipc() >= 0 ) {
-            std::cout << "IN SCALAPACK " << rank << std::endl; 
+            // std::cout << "IN SCALAPACK " << rank << std::endl; 
             // TODO: Optimize intermediates here
             scalapackpp::BlockCyclicMatrix<double> 
               Fa_sca  ( grid, N,      N,      mb, mb ),

@@ -26,7 +26,20 @@ struct SystemData {
   int  focc;
   bool ediis;
 
-  enum SCFType { uhf, rhf, rohf };
+  enum class SCFType : int8_t { 
+    _hf           = 0x01,
+    _ks           = 0x02,
+    _restricted   = 0x10,
+    _unrestricted = 0x20,
+    _ro           = 0x30,
+    rhf           = 0x11, // _hf | _restricted 
+    uhf,          = 0x21, // _hf | _unrestricted
+    rohf          = 0x31, // _hf | _ro
+    rhf           = 0x12, // _ks | _restricted 
+    uhf,          = 0x22, // _ks | _unrestricted
+    rohf          = 0x32  // _ks | _ro
+  };
+
   SCFType scf_type; //1-rhf, 2-uhf, 3-rohf
   std::string scf_type_string; 
   std::string input_molecule;
@@ -82,9 +95,24 @@ struct SystemData {
     : options_map(options_map_), scf_type_string(scf_type_string) {
       scf_type = SCFType::rhf;
       results =  json::object();
+      #if 0
       if(scf_type_string == "uhf")       { focc = 1; scf_type = SCFType::uhf; }
       else if(scf_type_string == "rhf")  { focc = 2; scf_type = SCFType::rhf; }
       else if(scf_type_string == "rohf") { focc = -1; scf_type = SCFType::rohf; }
+      #else
+      std::map< std::string, SCFType > scf_type_map = {
+        { "rhf",  SCFType::rhf  },
+        { "uhf",  SCFType::uhf  },
+        { "rohf", SCFType::rohf },
+        { "rks",  SCFType::rks  },
+        { "uks",  SCFType::uks  },
+        { "roks", SCFType::roks } 
+      };
+      scf_type = scf_type_map.at( scf_type_string );
+      if( scf_type & SCFType::_restricted )        focc = 2;
+      else if( scf_type & SCFType::_unrestricted ) focc = 1;
+      else if( scf_type & SCFType::_ro )           focc = -1;
+      #endif
     }
 
 };

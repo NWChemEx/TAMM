@@ -101,8 +101,9 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     sys_data.nbf_orig = N;
     sys_data.ediis    = ediis;
 
-    const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
-    const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
+    const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
+    const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
+    const bool is_ks  = int8_t(sys_data.scf_type & SCFType::_ks);
     // const bool is_rohf = (sys_data.scf_type == sys_data.SCFType::rohf);    
 
     /*** =========================== ***/
@@ -111,9 +112,6 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     auto gauxc_mol   = gauxc_util::make_gauxc_molecule( atoms  );
     auto gauxc_basis = gauxc_util::make_gauxc_basis   ( shells );
 
-    //for( auto x : shells ) std::cout << x << std::endl;
-    //for( auto x : gauxc_basis ) std::cout << x << std::endl;
-
     GauXC::MolGrid 
       gauxc_molgrid( GauXC::AtomicGridSizeDefault::UltraFineGrid, gauxc_mol );
     auto gauxc_molmeta = std::make_shared<GauXC::MolMeta>( gauxc_mol );
@@ -121,13 +119,17 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       gauxc_mol, gauxc_molgrid, gauxc_basis, gauxc_molmeta
     );
 
+    std::string xc_string = scf_options.xc_type;
+    std::transform( xc_string.begin(), xc_string.end(), xc_string.begin(), ::toupper );
     GauXC::functional_type gauxc_func( ExchCXX::Backend::builtin,
-                                       ExchCXX::functional_map.value("PBE0"),
+                                       ExchCXX::functional_map.value(xc_string),
                                        ExchCXX::Spin::Unpolarized );
     GauXC::XCIntegrator<Matrix> gauxc_integrator( GauXC::ExecutionSpace::Host,
       exc.pg().comm(), gauxc_func, gauxc_basis, gauxc_lb );
 
-    const double xHF = 1.; //gauxc_func.hyb_exx();
+    // TODO
+    //const double xHF = is_ks ? gauxc_func.hyb_exx() : 1.;
+    const double xHF = 1.;
 
 
     std::string out_fp = options_map.options.output_file_prefix+"."+scf_options.basis;
@@ -663,7 +665,10 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         // build a new Fock matrix
         compute_2bf<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
                                 max_nprim4,shells, ttensors, etensors, do_density_fitting);
-        auto gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
+        TensorType gauxc_exc = 0.;
+        if(is_ks) {
+          gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
+        }
 
         //E_Diis
         if(ediis) {

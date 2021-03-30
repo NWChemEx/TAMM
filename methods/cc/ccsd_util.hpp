@@ -739,7 +739,7 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
               << " secs" << std::endl;
 
     Tensor<T>::deallocate(C_AO,F_AO);
-    if(sys_data.scf_type == sys_data.SCFType::uhf) Tensor<T>::deallocate(C_beta_AO,F_beta_AO);
+    if(sys_data.scf_type == SCFType::uhf) Tensor<T>::deallocate(C_beta_AO,F_beta_AO);
 
     IndexSpace chol_is{range(0,chol_count)};
     TiledIndexSpace CI{chol_is,static_cast<tamm::Tile>(itile_size)}; 

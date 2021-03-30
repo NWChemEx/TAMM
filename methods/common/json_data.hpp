@@ -6,6 +6,27 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
+enum class SCFType : int8_t { 
+  _hf           = 0x01, // 0000 0001
+  _ks           = 0x02, // 0000 0010
+  _restricted   = 0x10, // 0001 0000
+  _unrestricted = 0x20, // 0010 0000
+  _ro           = 0x40, // 0100 0000
+  rhf           = 0x11, // _hf | _restricted 
+  uhf           = 0x21, // _hf | _unrestricted
+  rohf          = 0x41, // _hf | _ro
+  rks           = 0x12, // _ks | _restricted 
+  uks           = 0x22, // _ks | _unrestricted
+  roks          = 0x42  // _ks | _ro
+};
+
+inline SCFType operator|( SCFType a, SCFType b ) {
+  return static_cast<SCFType>(int8_t(a) | int8_t(b));
+}
+inline SCFType operator&( SCFType a, SCFType b ) {
+  return static_cast<SCFType>(int8_t(a) & int8_t(b));
+}
+
 struct SystemData {
   OptionsMap options_map;  
   int  n_occ_alpha;
@@ -25,20 +46,6 @@ struct SystemData {
   int  nvir;
   int  focc;
   bool ediis;
-
-  enum class SCFType : int8_t { 
-    _hf           = 0x01,
-    _ks           = 0x02,
-    _restricted   = 0x10,
-    _unrestricted = 0x20,
-    _ro           = 0x30,
-    rhf           = 0x11, // _hf | _restricted 
-    uhf,          = 0x21, // _hf | _unrestricted
-    rohf          = 0x31, // _hf | _ro
-    rhf           = 0x12, // _ks | _restricted 
-    uhf,          = 0x22, // _ks | _unrestricted
-    rohf          = 0x32  // _ks | _ro
-  };
 
   SCFType scf_type; //1-rhf, 2-uhf, 3-rohf
   std::string scf_type_string; 
@@ -109,9 +116,9 @@ struct SystemData {
         { "roks", SCFType::roks } 
       };
       scf_type = scf_type_map.at( scf_type_string );
-      if( scf_type & SCFType::_restricted )        focc = 2;
-      else if( scf_type & SCFType::_unrestricted ) focc = 1;
-      else if( scf_type & SCFType::_ro )           focc = -1;
+      if( int8_t(scf_type & SCFType::_restricted) )        focc = 2;
+      else if( int8_t(scf_type & SCFType::_unrestricted) ) focc = 1;
+      else if( int8_t(scf_type & SCFType::_ro) )           focc = -1;
       #endif
     }
 

@@ -196,7 +196,7 @@ void scf_restart_test(const ExecutionContext& ec, const SystemData& sys_data, co
                       bool restart, std::string files_prefix) {
     if(!restart) return;
     const auto rank    = ec.pg().rank();
-    const bool is_uhf  = (sys_data.scf_type == sys_data.SCFType::uhf);
+    const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
 
     int        rstatus = 1;
 
@@ -225,7 +225,7 @@ void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const s
     const auto rank    = ec.pg().rank();
     const auto N       = sys_data.nbf_orig;
     const auto Northo  = N - sys_data.n_lindep;
-    const bool is_uhf  = (sys_data.scf_type == sys_data.SCFType::uhf);
+    const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
 
     EXPECTS(Northo == sys_data.nbf);
 
@@ -269,8 +269,8 @@ double tt_trace(ExecutionContext& ec, Tensor<TensorType>& T1, Tensor<TensorType>
 
 void print_energies(ExecutionContext& ec, TAMMTensors& ttensors, const SystemData& sys_data, bool debug=false){
 
-      const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
-      const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+      const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
+      const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
       
       double nelectrons = 0.0;
       double kinetic_1e = 0.0;
@@ -315,8 +315,8 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       const int& iter, const SystemData& sys_data,
       TAMMTensors& ttensors, EigenTensors& etensors, bool ediis, bool scf_restart=false){
 
-      const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
-      const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+      const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
+      const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
 
       Tensor<TensorType>& H1                = ttensors.H1;
       Tensor<TensorType>& S1                = ttensors.S1;
@@ -722,8 +722,8 @@ void compute_2bf_simple(ExecutionContext& ec, const SystemData& sys_data, const 
 
       using libint2::Operator;
 
-      const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
-      const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+      const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
+      const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
 
       Matrix& G_a = etensors.G;
       Matrix& D_a = etensors.D; 
@@ -909,8 +909,8 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
 
       using libint2::Operator;
 
-      const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
-      const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+      const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
+      const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
 
       Matrix& G      = etensors.G;
       Matrix& D      = etensors.D; 

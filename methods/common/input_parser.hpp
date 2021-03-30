@@ -104,6 +104,7 @@ class SCFOptions: public Options {
       moldenfile     = "";
       n_lindep       = 0;
       scf_type       = "rhf";
+      xc_type        = "pbe0";
       alpha          = 0.7;
       nnodes         = 1;
       writem         = diis_hist;
@@ -481,7 +482,7 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     parse_option<bool>  (scf_options.debug           , jscf, "debug");
     parse_option<string>(scf_options.moldenfile      , jscf, "moldenfile"); 
     parse_option<string>(scf_options.scf_type        , jscf, "scf_type");
-    parse_option<string>(xc_options.xc_type          , jscf, "xc_type");
+    parse_option<string>(scf_options.xc_type         , jscf, "xc_type");
     parse_option<int>   (scf_options.n_lindep        , jscf, "n_lindep"); 
     parse_option<int>   (scf_options.scalapack_nb    , jscf, "scalapack_nb");
     parse_option<int>   (scf_options.scalapack_np_row, jscf, "scalapack_np_row");                                                             

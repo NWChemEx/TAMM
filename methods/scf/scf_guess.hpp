@@ -276,8 +276,8 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
 
     auto ig1 = std::chrono::high_resolution_clock::now();
 
-    const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
-    const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+    const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
+    const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
 
     const auto rank       = ec.pg().rank();
     const auto world_size = ec.pg().size();

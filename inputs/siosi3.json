@@ -43,7 +43,6 @@
   },
   "SCF": {
     "tilesize": 30,
-    "restart": false,
-    "scalapack_nb": 128
+    "restart": false
   }
 }

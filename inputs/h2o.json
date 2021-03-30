@@ -23,10 +23,7 @@
     "sad": false,
     "writem": 10,
     "force_tilesize": false,
-    "tilesize": 30,
-    "scalapack_nb": 1,
-    "scalapack_np_row": 1,
-    "scalapack_np_col": 1
+    "tilesize": 30
   },
   "CD": {
     "diagtol": 1e-08,

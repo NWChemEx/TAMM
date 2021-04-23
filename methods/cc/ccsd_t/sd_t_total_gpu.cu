@@ -12743,3 +12743,293 @@ void jk_ccsd_t_s1_9(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     cudaFree(dev_t2);
     cudaFree(dev_v2);
 }
+
+// A100 and cuda 11.1 
+#if 1
+
+#include <cooperative_groups/memcpy_async.h>
+#include <cuda/pipeline> // cuda >= 11.1
+
+#define CUCHK(call) {	\
+	cudaError_t err = call; \
+	if( cudaSuccess != err) {	\
+		fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n",	\
+				__FILE__, __LINE__, cudaGetErrorString(err) );	\
+		fflush(stderr); \
+		exit(EXIT_FAILURE);	\
+}}
+
+#include "tensor_core_helper.cuh" // 
+
+//
+#define SIZE_TILE_P7 16
+#define SIZE_TILE_H3 4
+#define SIZE_TILE_P4 4
+#define SIZE_TILE_H2 4
+#define SIZE_TILE_H1 4
+#define SIZE_TILE_P6 4
+#define SIZE_TILE_P5 4
+#define SIZE_UNIT_INT SIZE_TILE_P7
+
+// 
+#define PAD 4
+#define STAGE_ALIGN 32
+#define SINGLE_STAGE_SIZE (64 * (PAD + 16))
+#define STAGE_OFFSET ((SINGLE_STAGE_SIZE + STAGE_ALIGN - 1) / STAGE_ALIGN) * STAGE_ALIGN
+#define NUM_STAGE 2
+
+#define TEST_ENABLE_RT
+#define TEST_OLD_STYLE
+
+//------------------------------------------------------------------------------ device helper fuctions
+__device__ inline void zero_shared(double *smem) {
+	const int t_id = threadIdx.y * blockDim.x + threadIdx.x;
+	#pragma unroll
+	for (int i = t_id; i < SINGLE_STAGE_SIZE; i += blockDim.x * blockDim.y) {
+		smem[i] = 0;
+	}
+}
+
+#include "ccsd_t_g2s_device_functions.cu"
+
+//------------------------------------------------------------------------------ kernels and callers
+
+//
+__global__ void next_unfused_kernel_d1_11_1(double* dev_t3_d, const double* __restrict__ dev_d1_t2_1, const double* __restrict__ dev_d1_v2_1, 
+                                            int size_h3, int size_h2, int size_h1, int size_p6, int size_p5, int size_p4, int size_h7, 
+                                            int numBlk_h3, int numBlk_h2, int numBlk_h1, int numBlk_p6, int numBlk_p5, int numBlk_p4, 
+                                            int stride_reg_x, int stride_reg_y, 
+                                            int size_internal) {
+    // 
+    auto grid = cooperative_groups::this_grid();
+    auto block = cooperative_groups::this_thread_block();
+
+    // For Shared Memory,
+    const int lda = 16 + PAD;
+    extern __shared__ double sm_block[];
+    double *sm_a = reinterpret_cast<double *>(sm_block) + 0 * STAGE_OFFSET;
+    double *sm_b = reinterpret_cast<double *>(sm_block) + NUM_STAGE * STAGE_OFFSET;
+
+    #pragma unroll
+    for (int i = 0; i < NUM_STAGE; i++) {
+        zero_shared(sm_a + STAGE_OFFSET * i);
+        zero_shared(sm_b + STAGE_OFFSET * i);
+    }
+    block.sync();
+
+    // Allocate shared storage for a N-stage cuda::pipeline:
+    cuda::pipeline<cuda::thread_scope_thread> pipeline = cuda::make_pipeline();
+
+    const int thread_id = threadIdx.y * blockDim.x + threadIdx.x;
+    const int warp_id = thread_id / 32; // 0:7
+    WarpRegisterMapping wrm(thread_id);
+
+    const int tile_m = warp_id % 2; // 0:1
+    const int tile_n = warp_id / 2; // 0:3
+
+    MmaOperandC op_c;
+
+    int internal_upperbound = 0;
+    int internal_offset;
+
+    //  
+    //  based on sd2_1
+    //  (p6,h2), (h1,h3)
+    int idx_p6 = threadIdx.x % SIZE_TILE_P6; // this is not used for sd2. 
+	int idx_h2 = threadIdx.x / SIZE_TILE_P6;
+	int idx_h1 = threadIdx.y % SIZE_TILE_H1;
+	int idx_h3 = threadIdx.y / SIZE_TILE_H1;
+
+	int blk_idx_p4 = blockIdx.x / (numBlk_p5 * numBlk_p6 * numBlk_h1 * numBlk_h2 * numBlk_h3);
+	int tmp_blkIdx = blockIdx.x % (numBlk_p5 * numBlk_p6 * numBlk_h1 * numBlk_h2 * numBlk_h3);
+
+	int blk_idx_p5 = tmp_blkIdx / (numBlk_p6 * numBlk_h1 * numBlk_h2 * numBlk_h3);
+	    tmp_blkIdx = tmp_blkIdx % (numBlk_p6 * numBlk_h1 * numBlk_h2 * numBlk_h3);
+
+	int blk_idx_p6 = tmp_blkIdx / (numBlk_h1 * numBlk_h2 * numBlk_h3);
+	    tmp_blkIdx = tmp_blkIdx % (numBlk_h1 * numBlk_h2 * numBlk_h3);
+
+	int blk_idx_h1 = tmp_blkIdx / (numBlk_h2 * numBlk_h3);
+	    tmp_blkIdx = tmp_blkIdx % (numBlk_h2 * numBlk_h3);
+
+	int blk_idx_h2 = tmp_blkIdx / numBlk_h3;
+	    tmp_blkIdx = tmp_blkIdx % (numBlk_h3);
+
+	int blk_idx_h3 = tmp_blkIdx;
+
+    int base_addr_t3 = blk_idx_h3 * SIZE_TILE_H3 + idx_h2 +
+                    (blk_idx_h2 * SIZE_TILE_H2 + idx_h1 + 
+                    (blk_idx_h1 * SIZE_TILE_H1 + idx_h3 + 
+                    (blk_idx_p6 * SIZE_TILE_P6 + 
+                    (blk_idx_p5 * SIZE_TILE_P5 + 
+                    (blk_idx_p4 * SIZE_TILE_P4 + idx_p6) * size_p5) * size_p6) * size_h1) * size_h2) * size_h3;
+
+	// need to support partial tiles
+	int rng_h3, rng_h2, rng_h1, rng_p6, rng_p5, rng_p4;
+	if ((size_h3 - (blk_idx_h3 * SIZE_TILE_H3)) >= SIZE_TILE_H3)  { rng_h3 = SIZE_TILE_H3; }
+	else                                                          { rng_h3 = size_h3 % SIZE_TILE_H3; }
+	
+    if ((size_h2 - (blk_idx_h2 * SIZE_TILE_H2)) >= SIZE_TILE_H2)  { rng_h2 = SIZE_TILE_H2; }
+	else                                                          { rng_h2 = size_h2 % SIZE_TILE_H2; }
+	
+    if ((size_h1 - (blk_idx_h1 * SIZE_TILE_H1)) >= SIZE_TILE_H1)  { rng_h1 = SIZE_TILE_H1; }
+	else                                                          { rng_h1 = size_h1 % SIZE_TILE_H1; }
+
+	if ((size_p6 - (blk_idx_p6 * SIZE_TILE_P6)) >= SIZE_TILE_P6)  { rng_p6 = SIZE_TILE_P6; }
+	else                                                          { rng_p6 = size_p6 % SIZE_TILE_P6; }
+
+	if ((size_p5 - (blk_idx_p5 * SIZE_TILE_P5)) >= SIZE_TILE_P5)  { rng_p5 = SIZE_TILE_P5; }
+	else                                                          { rng_p5 = size_p5 % SIZE_TILE_P5; }
+
+	if ((size_p4 - (blk_idx_p4 * SIZE_TILE_P4)) >= SIZE_TILE_P4)  { rng_p4 = SIZE_TILE_P4; }
+	else                                                          { rng_p4 = size_p4 % SIZE_TILE_P4; }
+
+    // 
+	const size_t num_batches = (size_internal + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+
+    #pragma unroll 1
+    for (size_t compute_batch = 0, fetch_batch = 0; compute_batch < num_batches; ++compute_batch) {
+        #pragma unroll 1
+        for (; fetch_batch < num_batches && fetch_batch < (compute_batch + NUM_STAGE); ++fetch_batch) {
+        pipeline.producer_acquire();
+
+        const int l_fetch = fetch_batch * SIZE_UNIT_INT;
+        const size_t shared_idx = fetch_batch % NUM_STAGE;
+        internal_offset = (l_fetch + SIZE_UNIT_INT) - size_internal;
+        block.sync();
+
+        if (internal_offset > 0) { 
+            internal_upperbound = internal_offset;
+            zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
+            zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+            block.sync();
+        }
+
+        if ((idx_h3 < rng_h1) && (idx_h1 < rng_p4) && threadIdx.x < SIZE_UNIT_INT - internal_upperbound) { // p4,h1
+            g2s_d1_t2_1<lda, 1, 4 * lda>(sm_a + STAGE_OFFSET * shared_idx, dev_d1_t2_1, 
+            blk_idx_h1, 					idx_h3, 
+            blk_idx_p5, size_p5, 	
+            blk_idx_p4, size_p4,  idx_h1, 
+                        size_h7, 	threadIdx.x + l_fetch, 
+                        rng_p5, 	pipeline);
+        }
+
+        if ((idx_h2 < rng_h2) && (idx_p6 < rng_h3) && threadIdx.y < SIZE_UNIT_INT - internal_upperbound) { // h3,h2
+            g2s_d1_v2_1<lda, 1, 4 * lda>(sm_b + STAGE_OFFSET * shared_idx, dev_d1_v2_1, 
+            blk_idx_p6, size_p6,	
+            blk_idx_h2, size_h2, 	idx_h2, 
+            blk_idx_h3, size_h3, 	idx_p6, 
+                                    threadIdx.y + l_fetch, 
+                        rng_p6, 	pipeline);
+        }
+        pipeline.producer_commit();
+        }
+        pipeline.consumer_wait();
+        block.sync();
+        const size_t shared_idx = compute_batch % NUM_STAGE;
+
+        #pragma unroll
+        for (int ll = 0; ll < 4; ll++) {
+        MmaOperandA op_a;
+        op_a.template load<lda>(sm_b + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
+        MmaOperandB op_b;
+        op_b.template load<lda>(sm_a + STAGE_OFFSET * shared_idx, ll, tile_n, wrm);
+        mma(op_c, op_a, op_b);
+        }
+        pipeline.consumer_release();
+    }
+    block.sync(); 
+
+    //     (p6,h2),     (h1,h3)
+    // TB_X(p4,h3), TB_Y(h2,h1), REG_X,Y(p5,p6)
+    dev_t3_d = dev_t3_d + base_addr_t3;
+	if (idx_p6 < rng_p4 && idx_h2 < rng_h3 && idx_h1 < rng_h2 && idx_h3 < rng_h1) {
+		#pragma unroll 4
+		for (int idx_reg_y = 0; idx_reg_y < 4; idx_reg_y++) {
+			#pragma unroll 4
+			for (int idx_reg_x = 0; idx_reg_x < 4; idx_reg_x++) {
+				// 
+				if (idx_reg_y < rng_p6 && idx_reg_x < rng_p5) { 
+                    dev_t3_d[idx_reg_y * stride_reg_y + idx_reg_x * stride_reg_x] += op_c.reg[idx_reg_x + idx_reg_y * 4];
+				}
+			}
+		}
+	}
+}
+
+extern "C"
+void driver_ccsd_t_d1_1(int size_h3, int size_h2, int size_h1, int size_p6, int size_p5, int size_p4, int size_h7, double* host_t3, double* host_t2, double* host_v2) {
+	// 
+	int numTbs = CEIL(size_h3, SIZE_TILE_H3) * CEIL(size_h2, SIZE_TILE_H2) * CEIL(size_h1, SIZE_TILE_H1) * 
+				CEIL(size_p6, SIZE_TILE_P6) * CEIL(size_p5, SIZE_TILE_P5) * CEIL(size_p4, SIZE_TILE_P4);
+	
+	// sd1_1: t3[h3,h2,h1,p6,p5,p4] -= t2[h7,p4,p5,h1] * v2[h3,h2,p6,h7]
+	double* dev_t3; double* dev_t2; double* dev_v2;
+  
+    // cudaMalloc()
+    // CUCHK(cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4));
+    CUCHK(cudaMalloc((void**) &dev_t2, sizeof(double) * size_h7 * size_p4 * size_p5 * size_h1));
+    CUCHK(cudaMalloc((void**) &dev_v2, sizeof(double) * size_h3 * size_h2 * size_p6 * size_h7));
+
+    // cudaMemcpy()
+    // CUCHK(cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice));
+    CUCHK(cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h7 * size_p4 * size_p5 * size_h1, cudaMemcpyHostToDevice));
+    CUCHK(cudaMemcpy(dev_v2, host_v2, sizeof(double) * size_h3 * size_h2 * size_p6 * size_h7, cudaMemcpyHostToDevice));
+  
+	// Related to Kernels
+    size_t numOperations = 2 * (size_t)(size_h3) * (size_t)(size_h2) * (size_t)(size_h1) * (size_t)(size_p6) * (size_t)(size_p5) * (size_t)(size_p4) * (size_t)(size_h7);
+
+	// 
+	dim3 gridsize_1(numTbs);
+	dim3 blocksize_1(16, 16);
+
+    int stride_output_h3 = 1;
+    int stride_output_h2 = stride_output_h3 * size_h3;
+    int stride_output_h1 = stride_output_h2 * size_h2;
+    int stride_output_p6 = stride_output_h1 * size_h1;
+    int stride_output_p5 = stride_output_p6 * size_p6;
+    int stride_output_p4 = stride_output_p5 * size_p5;
+    int stride_reg_x = stride_output_p5;
+    int stride_reg_y = stride_output_p6;
+       
+    // 
+    dev_t3 = t3_d;
+
+	//cudaDeviceSetCacheConfig(cudaFuncCachePreferShared);
+	cudaEvent_t start_kernel;
+    cudaEvent_t stop_kernel;
+    cudaEventCreate(&start_kernel);
+    cudaEventCreate(&stop_kernel);
+    cudaEventRecord(start_kernel);
+
+    // 
+    // int maxbytes = 98304; // 96 KB
+    // CUCHK(cudaFuncSetAttribute(next_unfused_kernel_d1_11_1, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes));
+    next_unfused_kernel_d1_11_1<<<gridsize_1, blocksize_1, 2 * NUM_STAGE * 8 * STAGE_OFFSET, 0>>>(dev_t3, dev_t2, dev_v2, size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7, 
+		CEIL(size_h3, SIZE_TILE_H3), CEIL(size_h2, SIZE_TILE_H2), CEIL(size_h1, SIZE_TILE_H1), 
+		CEIL(size_p6, SIZE_TILE_P6), CEIL(size_p5, SIZE_TILE_P5), CEIL(size_p4, SIZE_TILE_P4), 
+		stride_reg_x, stride_reg_y,
+        size_h7);
+    // cudaDeviceSynchronize();
+    CUCHK(cudaGetLastError());
+  
+    cudaEventRecord(stop_kernel);
+    cudaEventSynchronize(stop_kernel);
+    float kernel_ms = 0;
+    cudaEventElapsedTime(&kernel_ms, start_kernel, stop_kernel);
+    printf ("[%s] kernel: %f (ms)\n", __func__, kernel_ms);
+
+    // Copy the Result from Device to Host
+    // CUCHK(cudaMemcpy(host_t3, dev_t3, sizeof(double) * (size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4), cudaMemcpyDeviceToHost));
+
+    // cudaFree()
+    // CUCHK(cudaFree(dev_t3)); 
+	CUCHK(cudaFree(dev_t2)); 
+	CUCHK(cudaFree(dev_v2));
+}
+
+
+
+
+
+#endif // A100 and cuda 11.1 

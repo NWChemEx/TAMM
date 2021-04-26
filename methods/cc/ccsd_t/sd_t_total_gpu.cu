@@ -1,6 +1,6 @@
 #include "ccsd_t_common.hpp"
 
-extern __device__ double* t3_s_d;
+extern __device__ double* t3_s_d; // does not work correctly.
 extern __device__ double* t3_d;
 
 #define FUSION_SIZE_SLICE_1_H3  4
@@ -36,6 +36,8 @@ extern __device__ double* t3_d;
 //
 __constant__ int list_stride_t2[9];
 __constant__ int list_stride_v2[9];
+
+#define DEBUG_ENALBLE_ALL_KERNEL
 
 /*
     doubles (d1)
@@ -588,8 +590,14 @@ void jk_ccsd_t_d1_1(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 	double *dev_v2;
 
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);	
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_h1 * size_p5 * size_p4 * size_h7);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p6 * size_h2 * size_h3);
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_h1 * size_p5 * size_p4 * size_h7);
+	// cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p6 * size_h2 * size_h3);
+
+    size_t size_t2 = (sizeof(double) * size_h1 * size_p5 * size_p4 * size_h7);
+	size_t size_v2 = (sizeof(double) * size_h7 * size_p6 * size_h2 * size_h3);
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h1 * size_p5 * size_p4 * size_h7, cudaMemcpyHostToDevice);
@@ -634,6 +642,7 @@ void jk_ccsd_t_d1_1(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     // 
     dev_t3 = t3_d;
 
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd1_1<<<gridsize_2, blocksize_2>>>(dev_t3, 
     dev_t2, dev_v2, 
     (int)size_h3, (int)size_h2, (int)size_h1, (int)size_p6, (int)size_p5, (int)size_p4, (int)size_h7,
@@ -641,13 +650,16 @@ void jk_ccsd_t_d1_1(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
     str_reg_x_2, str_reg_y_2,
     size_internal);
+#endif
 
     // Copy the Result from Device to Host
 	// cudaMemcpy(host_t3, dev_t3, sizeof(double) * (size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d1_2
@@ -1198,8 +1210,14 @@ void jk_ccsd_t_d1_2(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 	double *dev_v2;
 
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_h2 * size_p5 * size_p4 * size_h7);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p6 * size_h1 * size_h3);
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_h2 * size_p5 * size_p4 * size_h7);
+	// cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p6 * size_h1 * size_h3);
+
+    size_t size_t2 = (sizeof(double) * size_h2 * size_p5 * size_p4 * size_h7);
+    size_t size_v2 = (sizeof(double) * size_h7 * size_p6 * size_h1 * size_h3);
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h2 * size_p5 * size_p4 * size_h7, cudaMemcpyHostToDevice);
@@ -1244,6 +1262,7 @@ void jk_ccsd_t_d1_2(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     // 
     dev_t3 = t3_d;
 
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd1_2<<<gridsize_2, blocksize_2>>>(dev_t3, 
     dev_t2, dev_v2, 
     (int)size_h3, (int)size_h2, (int)size_h1, (int)size_p6, (int)size_p5, (int)size_p4, (int)size_h7,
@@ -1251,13 +1270,16 @@ void jk_ccsd_t_d1_2(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
     str_reg_x_2, str_reg_y_2,
     size_internal);
+#endif
 
     // Copy the Result from Device to Host
 	// cudaMemcpy(host_t3, dev_t3, sizeof(double) * (size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d1_3
@@ -1808,8 +1830,14 @@ void jk_ccsd_t_d1_3(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 	double *dev_v2;
 
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_p5 * size_p4 * size_h7);
-    cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p6 * size_h1 * size_h2);
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_p5 * size_p4 * size_h7);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p6 * size_h1 * size_h2);
+
+    size_t size_t2 = (sizeof(double) * size_h3 * size_p5 * size_p4 * size_h7);
+    size_t size_v2 = (sizeof(double) * size_h7 * size_p6 * size_h1 * size_h2);
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h3 * size_p5 * size_p4 * size_h7, cudaMemcpyHostToDevice);
@@ -1854,6 +1882,7 @@ void jk_ccsd_t_d1_3(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     // 
     dev_t3 = t3_d;
 
+#ifdef DEBUG_ENALBLE_ALL_KERNEL 
     kernel_ccsdT_sd1_3<<<gridsize_2, blocksize_2>>>(dev_t3, 
     dev_t2, dev_v2, 
     (int)size_h3, (int)size_h2, (int)size_h1, (int)size_p6, (int)size_p5, (int)size_p4, (int)size_h7,
@@ -1861,13 +1890,15 @@ void jk_ccsd_t_d1_3(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_2_P6),CEIL(size_p5, FUSION_SIZE_SLICE_2_P5),CEIL(size_p4, FUSION_SIZE_SLICE_2_P4),
     str_reg_x_2, str_reg_y_2,
     size_internal);
-
+#endif
     // Copy the Result from Device to Host
 	// cudaMemcpy(host_t3, dev_t3, sizeof(double) * (size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d1_4
@@ -2418,8 +2449,14 @@ void jk_ccsd_t_d1_4(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 	double *dev_v2;
 
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_h1 * size_p6 * size_p5 * size_h7);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p4 * size_h2 * size_h3);
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_h1 * size_p6 * size_p5 * size_h7);
+	// cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p4 * size_h2 * size_h3);
+
+    size_t size_t2 = (sizeof(double) * size_h1 * size_p6 * size_p5 * size_h7);
+	size_t size_v2 = (sizeof(double) * size_h7 * size_p4 * size_h2 * size_h3);
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 	
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h1 * size_p6 * size_p5 * size_h7, cudaMemcpyHostToDevice);
@@ -2463,7 +2500,7 @@ void jk_ccsd_t_d1_4(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd1_4<<<gridsize_1, blocksize_1>>>(dev_t3, 
     dev_t2, dev_v2, 
     size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
@@ -2471,13 +2508,15 @@ void jk_ccsd_t_d1_4(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_1_P6),CEIL(size_p5, FUSION_SIZE_SLICE_1_P5),CEIL(size_p4, FUSION_SIZE_SLICE_1_P4),
     str_reg_x_1, str_reg_y_1,
     size_internal);
-
+#endif
     // Copy the Result from Device to Host
 	// cudaMemcpy(host_t3, dev_t3, sizeof(double) * (size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d1_5
@@ -3026,8 +3065,14 @@ void jk_ccsd_t_d1_5(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 	double *dev_v2;
 
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-    cudaMalloc((void**) &dev_t2, sizeof(double) * size_h2 * size_p6 * size_p5 * size_h7);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p4 * size_h1 * size_h3);
+    // cudaMalloc((void**) &dev_t2, sizeof(double) * size_h2 * size_p6 * size_p5 * size_h7);
+	// cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p4 * size_h1 * size_h3);
+
+    size_t size_t2 = (sizeof(double) * size_h2 * size_p6 * size_p5 * size_h7);
+	size_t size_v2 = (sizeof(double) * size_h7 * size_p4 * size_h1 * size_h3);
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 	
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h2 * size_p6 * size_p5 * size_h7, cudaMemcpyHostToDevice);
@@ -3071,7 +3116,7 @@ void jk_ccsd_t_d1_5(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd1_5<<<gridsize_1, blocksize_1>>>(dev_t3, 
     dev_t2, dev_v2, 
     size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
@@ -3079,13 +3124,15 @@ void jk_ccsd_t_d1_5(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_1_P6),CEIL(size_p5, FUSION_SIZE_SLICE_1_P5),CEIL(size_p4, FUSION_SIZE_SLICE_1_P4),
     str_reg_x_1, str_reg_y_1,
     size_internal);
-
+#endif
     // Copy the Result from Device to Host
 	// cudaMemcpy(host_t3, dev_t3, sizeof(double) * (size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d1_6
@@ -3634,8 +3681,14 @@ void jk_ccsd_t_d1_6(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 	double *dev_v2;
 
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_p6 * size_p5 * size_h7);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p4 * size_h1 * size_h2);
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_p6 * size_p5 * size_h7);
+	// cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p4 * size_h1 * size_h2);
+
+    size_t size_t2 = (sizeof(double) * size_h3 * size_p6 * size_p5 * size_h7);
+	size_t size_v2 = (sizeof(double) * size_h7 * size_p4 * size_h1 * size_h2);
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 	
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h3 * size_p6 * size_p5 * size_h7, cudaMemcpyHostToDevice);
@@ -3679,7 +3732,7 @@ void jk_ccsd_t_d1_6(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd1_6<<<gridsize_1, blocksize_1>>>(dev_t3, 
     dev_t2, dev_v2, 
     size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
@@ -3687,13 +3740,15 @@ void jk_ccsd_t_d1_6(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_1_P6),CEIL(size_p5, FUSION_SIZE_SLICE_1_P5),CEIL(size_p4, FUSION_SIZE_SLICE_1_P4),
     str_reg_x_1, str_reg_y_1,
     size_internal);
-
+#endif
     // Copy the Result from Device to Host
 	// cudaMemcpy(host_t3, dev_t3, sizeof(double) * (size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d1_7
@@ -4242,8 +4297,14 @@ void jk_ccsd_t_d1_7(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 	double *dev_v2;
 
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-    cudaMalloc((void**) &dev_t2, sizeof(double) * size_h1 * size_p6 * size_p4 * size_h7);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p5 * size_h2 * size_h3);
+    // cudaMalloc((void**) &dev_t2, sizeof(double) * size_h1 * size_p6 * size_p4 * size_h7);
+	// cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p5 * size_h2 * size_h3);
+
+    size_t size_t2 = (sizeof(double) * size_h1 * size_p6 * size_p4 * size_h7);
+	size_t size_v2 = (sizeof(double) * size_h7 * size_p5 * size_h2 * size_h3);
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h1 * size_p6 * size_p4 * size_h7, cudaMemcpyHostToDevice);
@@ -4287,7 +4348,7 @@ void jk_ccsd_t_d1_7(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd1_7<<<gridsize_1, blocksize_1>>>(dev_t3, 
     dev_t2, dev_v2, 
     size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
@@ -4295,13 +4356,15 @@ void jk_ccsd_t_d1_7(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_1_P6),CEIL(size_p5, FUSION_SIZE_SLICE_1_P5),CEIL(size_p4, FUSION_SIZE_SLICE_1_P4),
     str_reg_x_1, str_reg_y_1,
     size_internal);
-
+#endif
     // Copy the Result from Device to Host
 	// cudaMemcpy(host_t3, dev_t3, sizeof(double) * (size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d1_8
@@ -4851,8 +4914,14 @@ void jk_ccsd_t_d1_8(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 	double *dev_v2;
 
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-    cudaMalloc((void**) &dev_t2, sizeof(double) * size_h2 * size_p6 * size_p4 * size_h7);
-	cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p5 * size_h1 * size_h3);
+    // cudaMalloc((void**) &dev_t2, sizeof(double) * size_h2 * size_p6 * size_p4 * size_h7);
+	// cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p5 * size_h1 * size_h3);
+
+    size_t size_t2 = (sizeof(double) * size_h2 * size_p6 * size_p4 * size_h7);
+	size_t size_v2 = (sizeof(double) * size_h7 * size_p5 * size_h1 * size_h3);
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
 	cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h2 * size_p6 * size_p4 * size_h7, cudaMemcpyHostToDevice);
@@ -4896,7 +4965,7 @@ void jk_ccsd_t_d1_8(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd1_8<<<gridsize_1, blocksize_1>>>(dev_t3, 
     dev_t2, dev_v2, 
     size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
@@ -4904,13 +4973,15 @@ void jk_ccsd_t_d1_8(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_1_P6),CEIL(size_p5, FUSION_SIZE_SLICE_1_P5),CEIL(size_p4, FUSION_SIZE_SLICE_1_P4),
     str_reg_x_1, str_reg_y_1,
     size_internal);
-
+#endif
     // Copy the Result from Device to Host
 	// cudaMemcpy(host_t3, dev_t3, sizeof(double) * (size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d1_9
@@ -5459,8 +5530,14 @@ void jk_ccsd_t_d1_9(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 	double *dev_v2;
 
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-	cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_p6 * size_p4 * size_h7);
-    cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p5 * size_h1 * size_h2);
+	// cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_p6 * size_p4 * size_h7);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_h7 * size_p5 * size_h1 * size_h2);
+
+    size_t size_t2 = (sizeof(double) * size_h3 * size_p6 * size_p4 * size_h7);
+    size_t size_v2 = (sizeof(double) * size_h7 * size_p5 * size_h1 * size_h2);
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);    
     cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h3 * size_p6 * size_p4 * size_h7, cudaMemcpyHostToDevice);
@@ -5504,7 +5581,7 @@ void jk_ccsd_t_d1_9(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd1_9<<<gridsize_1, blocksize_1>>>(dev_t3, 
     dev_t2, dev_v2, 
     size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7,
@@ -5512,13 +5589,15 @@ void jk_ccsd_t_d1_9(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_1_P6),CEIL(size_p5, FUSION_SIZE_SLICE_1_P5),CEIL(size_p4, FUSION_SIZE_SLICE_1_P4),
     str_reg_x_1, str_reg_y_1,
     size_internal);
-
+#endif
     // Copy the Result from Device to Host
 	// cudaMemcpy(host_t3, dev_t3, sizeof(double) * (size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4), cudaMemcpyDeviceToHost);
 
 	// cudaFree()
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 /*
@@ -6071,8 +6150,14 @@ void jk_ccsd_t_d2_1(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2;
     
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-    cudaMalloc((void**) &dev_t2, sizeof(double) * size_h2 * size_h1 * size_p4 * size_p7);
-    cudaMalloc((void**) &dev_v2, sizeof(double) * size_p5 * size_p6 * size_h3 * size_p7);
+    // cudaMalloc((void**) &dev_t2, sizeof(double) * size_h2 * size_h1 * size_p4 * size_p7);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_p5 * size_p6 * size_h3 * size_p7);
+
+    size_t size_t2 = sizeof(double) * size_h2 * size_h1 * size_p4 * size_p7;
+    size_t size_v2 = sizeof(double) * size_p5 * size_p6 * size_h3 * size_p7;
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h2 * size_h1 * size_p4 * size_p7, cudaMemcpyHostToDevice);
@@ -6107,7 +6192,7 @@ void jk_ccsd_t_d2_1(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd2_1<<<gridsize_1, blocksize_1>>>(dev_t3, 
     dev_t2, dev_v2, 
     size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_p7,
@@ -6115,12 +6200,14 @@ void jk_ccsd_t_d2_1(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_1_P6), CEIL(size_p5, FUSION_SIZE_SLICE_1_P5), CEIL(size_p4, FUSION_SIZE_SLICE_1_P4), 
     str_reg_x_1, str_reg_y_1,
     internal);
-         
+#endif
     // 
     // cudaMemcpy(host_t3, dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyDeviceToHost);
 
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d2_2
@@ -6670,8 +6757,14 @@ void jk_ccsd_t_d2_2(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2;
     
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-    cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_h2 * size_p4 * size_p7);
-    cudaMalloc((void**) &dev_v2, sizeof(double) * size_p5 * size_p6 * size_h1 * size_p7);
+    // cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_h2 * size_p4 * size_p7);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_p5 * size_p6 * size_h1 * size_p7);
+
+    size_t size_t2 = sizeof(double) * size_h3 * size_h2 * size_p4 * size_p7;
+    size_t size_v2 = sizeof(double) * size_p5 * size_p6 * size_h1 * size_p7;
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h3 * size_h2 * size_p4 * size_p7, cudaMemcpyHostToDevice);
@@ -6706,7 +6799,7 @@ void jk_ccsd_t_d2_2(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd2_2<<<gridsize_1, blocksize_1>>>(dev_t3, 
     dev_t2, dev_v2, 
     size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_p7,
@@ -6714,12 +6807,14 @@ void jk_ccsd_t_d2_2(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_1_P6), CEIL(size_p5, FUSION_SIZE_SLICE_1_P5), CEIL(size_p4, FUSION_SIZE_SLICE_1_P4), 
     str_reg_x_1, str_reg_y_1,
     internal);
-         
+#endif
     // 
     // cudaMemcpy(host_t3, dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyDeviceToHost);
 
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d2_3
@@ -7269,8 +7364,14 @@ void jk_ccsd_t_d2_3(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2;
     
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-    cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_h1 * size_p4 * size_p7);
-    cudaMalloc((void**) &dev_v2, sizeof(double) * size_p5 * size_p6 * size_h2 * size_p7);
+    // cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_h1 * size_p4 * size_p7);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_p5 * size_p6 * size_h2 * size_p7);
+
+    size_t size_t2 = sizeof(double) * size_h3 * size_h1 * size_p4 * size_p7;
+    size_t size_v2 = sizeof(double) * size_p5 * size_p6 * size_h2 * size_p7;
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h3 * size_h1 * size_p4 * size_p7, cudaMemcpyHostToDevice);
@@ -7304,7 +7405,7 @@ void jk_ccsd_t_d2_3(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd2_3<<<gridsize_1, blocksize_1>>>(dev_t3, 
     dev_t2, dev_v2, 
     size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_p7,
@@ -7312,12 +7413,14 @@ void jk_ccsd_t_d2_3(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_1_P6), CEIL(size_p5, FUSION_SIZE_SLICE_1_P5), CEIL(size_p4, FUSION_SIZE_SLICE_1_P4), 
     str_reg_x_1, str_reg_y_1,
     internal);
-
+#endif
     // 
     // cudaMemcpy(host_t3, dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyDeviceToHost);
 
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d2_4
@@ -7867,8 +7970,14 @@ void jk_ccsd_t_d2_4(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2;
     
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-    cudaMalloc((void**) &dev_t2, sizeof(double) * size_h2 * size_h1 * size_p5 * size_p7);
-    cudaMalloc((void**) &dev_v2, sizeof(double) * size_p4 * size_p6 * size_h3 * size_p7);
+    // cudaMalloc((void**) &dev_t2, sizeof(double) * size_h2 * size_h1 * size_p5 * size_p7);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_p4 * size_p6 * size_h3 * size_p7);
+
+    size_t size_t2 = sizeof(double) * size_h2 * size_h1 * size_p5 * size_p7;
+    size_t size_v2 = sizeof(double) * size_p4 * size_p6 * size_h3 * size_p7;
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h2 * size_h1 * size_p5 * size_p7, cudaMemcpyHostToDevice);
@@ -7902,7 +8011,7 @@ void jk_ccsd_t_d2_4(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd2_4<<<gridsize_1, blocksize_1>>>(dev_t3, 
     dev_t2, dev_v2, 
     (int)size_h3, (int)size_h2, (int)size_h1, (int)size_p6, (int)size_p5, (int)size_p4, (int)size_p7,
@@ -7910,12 +8019,14 @@ void jk_ccsd_t_d2_4(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_1_P6), CEIL(size_p5, FUSION_SIZE_SLICE_1_P5), CEIL(size_p4, FUSION_SIZE_SLICE_1_P4), 
     str_reg_x_1, str_reg_y_1,
     internal);
-         
+#endif
     // 
     // cudaMemcpy(host_t3, dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyDeviceToHost);
 
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d2_5
@@ -8465,8 +8576,14 @@ void jk_ccsd_t_d2_5(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2;
     
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-    cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_h2 * size_p5 * size_p7);
-    cudaMalloc((void**) &dev_v2, sizeof(double) * size_p4 * size_p6 * size_h1 * size_p7);
+    // cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_h2 * size_p5 * size_p7);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_p4 * size_p6 * size_h1 * size_p7);
+
+    size_t size_t2 = sizeof(double) * size_h3 * size_h2 * size_p5 * size_p7;
+    size_t size_v2 = sizeof(double) * size_p4 * size_p6 * size_h1 * size_p7;
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h3 * size_h2 * size_p5 * size_p7, cudaMemcpyHostToDevice);
@@ -8500,7 +8617,7 @@ void jk_ccsd_t_d2_5(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd2_5<<<gridsize_1, blocksize_1>>>(dev_t3, 
     dev_t2, dev_v2, 
     (int)size_h3, (int)size_h2, (int)size_h1, (int)size_p6, (int)size_p5, (int)size_p4, (int)size_p7,
@@ -8508,12 +8625,14 @@ void jk_ccsd_t_d2_5(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_1_P6), CEIL(size_p5, FUSION_SIZE_SLICE_1_P5), CEIL(size_p4, FUSION_SIZE_SLICE_1_P4), 
     str_reg_x_1, str_reg_y_1,
     internal);
-
+#endif
     // 
     // cudaMemcpy(host_t3, dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyDeviceToHost);
 
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d2_6
@@ -9063,8 +9182,14 @@ void jk_ccsd_t_d2_6(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2;
     
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-    cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_h1 * size_p5 * size_p7);
-    cudaMalloc((void**) &dev_v2, sizeof(double) * size_p4 * size_p6 * size_h2 * size_p7);
+    // cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_h1 * size_p5 * size_p7);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_p4 * size_p6 * size_h2 * size_p7);
+
+    size_t size_t2 = sizeof(double) * size_h3 * size_h1 * size_p5 * size_p7;
+    size_t size_v2 = sizeof(double) * size_p4 * size_p6 * size_h2 * size_p7;
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 
     // 
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
@@ -9099,7 +9224,7 @@ void jk_ccsd_t_d2_6(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd2_6<<<gridsize_1, blocksize_1>>>(dev_t3, 
     dev_t2, dev_v2, 
     (int)size_h3, (int)size_h2, (int)size_h1, (int)size_p6, (int)size_p5, (int)size_p4, (int)size_p7,
@@ -9107,12 +9232,14 @@ void jk_ccsd_t_d2_6(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_1_P6), CEIL(size_p5, FUSION_SIZE_SLICE_1_P5), CEIL(size_p4, FUSION_SIZE_SLICE_1_P4), 
     str_reg_x_1, str_reg_y_1,
     internal);
-         
+#endif
     // 
     // cudaMemcpy(host_t3, dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyDeviceToHost);
 
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d2_7
@@ -9661,8 +9788,14 @@ void jk_ccsd_t_d2_7(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2;
     
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-    cudaMalloc((void**) &dev_t2, sizeof(double) * size_h2 * size_h1 * size_p6 * size_p7);
-    cudaMalloc((void**) &dev_v2, sizeof(double) * size_p4 * size_p5 * size_h3 * size_p7);
+    // cudaMalloc((void**) &dev_t2, sizeof(double) * size_h2 * size_h1 * size_p6 * size_p7);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_p4 * size_p5 * size_h3 * size_p7);
+
+    size_t size_t2 = sizeof(double) * size_h2 * size_h1 * size_p6 * size_p7;
+    size_t size_v2 = sizeof(double) * size_p4 * size_p5 * size_h3 * size_p7;
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h2 * size_h1 * size_p6 * size_p7, cudaMemcpyHostToDevice);
@@ -9696,7 +9829,7 @@ void jk_ccsd_t_d2_7(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd2_7<<<gridsize_2, blocksize_2>>>(dev_t3, 
     dev_t2, dev_v2, 
     (int)size_h3, (int)size_h2, (int)size_h1, (int)size_p6, (int)size_p5, (int)size_p4, (int)size_p7,
@@ -9704,12 +9837,14 @@ void jk_ccsd_t_d2_7(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_2_P6), CEIL(size_p5, FUSION_SIZE_SLICE_2_P5), CEIL(size_p4, FUSION_SIZE_SLICE_2_P4), 
     str_reg_x_2, str_reg_y_2,
     internal);
-         
+#endif
     // 
     // cudaMemcpy(host_t3, dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyDeviceToHost);
 
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d2_8
@@ -10257,8 +10392,14 @@ void jk_ccsd_t_d2_8(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2;
     
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);    
-    cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_h2 * size_p6 * size_p7);
-    cudaMalloc((void**) &dev_v2, sizeof(double) * size_p4 * size_p5 * size_h1 * size_p7);
+    // cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_h2 * size_p6 * size_p7);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_p4 * size_p5 * size_h1 * size_p7);
+
+    size_t size_t2 = sizeof(double) * size_h3 * size_h2 * size_p6 * size_p7;
+    size_t size_v2 = sizeof(double) * size_p4 * size_p5 * size_h1 * size_p7;
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h3 * size_h2 * size_p6 * size_p7, cudaMemcpyHostToDevice);
@@ -10292,7 +10433,7 @@ void jk_ccsd_t_d2_8(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd2_8<<<gridsize_2, blocksize_2>>>(dev_t3, 
     dev_t2, dev_v2, 
     (int)size_h3, (int)size_h2, (int)size_h1, (int)size_p6, (int)size_p5, (int)size_p4, (int)size_p7,
@@ -10300,12 +10441,14 @@ void jk_ccsd_t_d2_8(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_2_P6), CEIL(size_p5, FUSION_SIZE_SLICE_2_P5), CEIL(size_p4, FUSION_SIZE_SLICE_2_P4), 
     str_reg_x_2, str_reg_y_2,
     internal);
-         
+#endif
     // 
     // cudaMemcpy(host_t3, dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyDeviceToHost);
 
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: d2_9
@@ -10853,8 +10996,13 @@ void jk_ccsd_t_d2_9(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     double *dev_v2;
     
     // cudaMalloc((void**) &dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4);
-    cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_h1 * size_p6 * size_p7);
-    cudaMalloc((void**) &dev_v2, sizeof(double) * size_p4 * size_p5 * size_h2 * size_p7);
+    // cudaMalloc((void**) &dev_t2, sizeof(double) * size_h3 * size_h1 * size_p6 * size_p7);
+    // cudaMalloc((void**) &dev_v2, sizeof(double) * size_p4 * size_p5 * size_h2 * size_p7);
+    size_t size_t2 = sizeof(double) * size_h3 * size_h1 * size_p6 * size_p7;
+    size_t size_v2 = sizeof(double) * size_p4 * size_p5 * size_h2 * size_p7;
+
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
 
     // cudaMemcpy(dev_t3, host_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, sizeof(double) * size_h3 * size_h1 * size_p6 * size_p7, cudaMemcpyHostToDevice);
@@ -10888,7 +11036,7 @@ void jk_ccsd_t_d2_9(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     kernel_ccsdT_sd2_9<<<gridsize_2, blocksize_2>>>(dev_t3, 
     dev_t2, dev_v2, 
     (int)size_h3, (int)size_h2, (int)size_h1, (int)size_p6, (int)size_p5, (int)size_p4, (int)size_p7,
@@ -10896,12 +11044,14 @@ void jk_ccsd_t_d2_9(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     CEIL(size_p6, FUSION_SIZE_SLICE_2_P6), CEIL(size_p5, FUSION_SIZE_SLICE_2_P5), CEIL(size_p4, FUSION_SIZE_SLICE_2_P4), 
     str_reg_x_2, str_reg_y_2,
     internal);
-         
+#endif
     // 
     // cudaMemcpy(host_t3, dev_t3, sizeof(double) * size_h3 * size_h2 * size_h1 * size_p6 * size_p5 * size_p4, cudaMemcpyDeviceToHost);
 
     // cudaFree(dev_t3);
-    cudaFree(dev_t2); cudaFree(dev_v2);
+    // cudaFree(dev_t2); cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 /*  
@@ -11080,8 +11230,10 @@ void jk_ccsd_t_s1_1(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     size_t size_v2 = sizeof(double) * size_h3 * size_h2 * size_p6 * size_p5;
 
     // cudaMalloc((void**) &dev_t3, size_t3); 
-    cudaMalloc((void**) &dev_t2, size_t2); 
-    cudaMalloc((void**) &dev_v2, size_v2); 
+    // cudaMalloc((void**) &dev_t2, size_t2); 
+    // cudaMalloc((void**) &dev_v2, size_v2); 
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, size_t3, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, size_t2, cudaMemcpyHostToDevice);
@@ -11108,18 +11260,20 @@ void jk_ccsd_t_s1_1(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_s_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     //
     jk_ccsd_t_s1_1<<<gridsize, blocksize>>>(dev_t3, dev_t2, dev_v2, 
                                             size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, 
                                             num_blks_h3, num_blks_h2, num_blks_h1, num_blks_p6, num_blks_p5, num_blks_p4, 
                                             stride_reg_x, stride_reg_y);
-
+#endif
     // cudaMemcpy(host_t3, dev_t3, size_t3, cudaMemcpyDeviceToHost);
     
     // cudaFree(dev_t3);
-    cudaFree(dev_t2);
-    cudaFree(dev_v2);
+    // cudaFree(dev_t2);
+    // cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: s1_2
@@ -11286,8 +11440,10 @@ void jk_ccsd_t_s1_2(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     size_t size_v2 = sizeof(double) * size_h3 * size_h1 * size_p6 * size_p5;
     
     // cudaMalloc((void**) &dev_t3, size_t3); 
-    cudaMalloc((void**) &dev_t2, size_t2); 
-    cudaMalloc((void**) &dev_v2, size_v2); 
+    // cudaMalloc((void**) &dev_t2, size_t2); 
+    // cudaMalloc((void**) &dev_v2, size_v2); 
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, size_t3, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, size_t2, cudaMemcpyHostToDevice);
@@ -11314,7 +11470,7 @@ void jk_ccsd_t_s1_2(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_s_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     //
     jk_ccsd_t_s1_2<<<gridsize, blocksize>>>(dev_t3, dev_t2, dev_v2, 
                                             size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, 
@@ -11322,10 +11478,12 @@ void jk_ccsd_t_s1_2(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
                                             stride_reg_x, stride_reg_y);
 
     // cudaMemcpy(host_t3, dev_t3, size_t3, cudaMemcpyDeviceToHost);
-    
+#endif  
     // cudaFree(dev_t3);
-    cudaFree(dev_t2);
-    cudaFree(dev_v2);
+    // cudaFree(dev_t2);
+    // cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
     
 // kernel: s1_3
@@ -11489,8 +11647,10 @@ void jk_ccsd_t_s1_3(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     size_t size_v2 = sizeof(double) * size_h2 * size_h1 * size_p6 * size_p5;
     
     // cudaMalloc((void**) &dev_t3, size_t3); 
-    cudaMalloc((void**) &dev_t2, size_t2); 
-    cudaMalloc((void**) &dev_v2, size_v2); 
+    // cudaMalloc((void**) &dev_t2, size_t2); 
+    // cudaMalloc((void**) &dev_v2, size_v2); 
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, size_t3, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, size_t2, cudaMemcpyHostToDevice);
@@ -11517,7 +11677,7 @@ void jk_ccsd_t_s1_3(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_s_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     //
     jk_ccsd_t_s1_3<<<gridsize, blocksize>>>(dev_t3, dev_t2, dev_v2, 
                                             size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, 
@@ -11525,10 +11685,12 @@ void jk_ccsd_t_s1_3(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
                                             stride_reg_x, stride_reg_y);
 
     // cudaMemcpy(host_t3, dev_t3, size_t3, cudaMemcpyDeviceToHost);
-    
+#endif
     // cudaFree(dev_t3);
-    cudaFree(dev_t2);
-    cudaFree(dev_v2);
+    // cudaFree(dev_t2);
+    // cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: s1_4
@@ -11697,8 +11859,10 @@ void jk_ccsd_t_s1_4(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     size_t size_v2 = sizeof(double) * size_h3 * size_h2 * size_p6 * size_p4;
     
     // cudaMalloc((void**) &dev_t3, size_t3); 
-    cudaMalloc((void**) &dev_t2, size_t2); 
-    cudaMalloc((void**) &dev_v2, size_v2); 
+    // cudaMalloc((void**) &dev_t2, size_t2); 
+    // cudaMalloc((void**) &dev_v2, size_v2); 
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, size_t3, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, size_t2, cudaMemcpyHostToDevice);
@@ -11725,7 +11889,7 @@ void jk_ccsd_t_s1_4(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_s_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     //
     jk_ccsd_t_s1_4<<<gridsize, blocksize>>>(dev_t3, dev_t2, dev_v2, 
                                             size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, 
@@ -11733,10 +11897,12 @@ void jk_ccsd_t_s1_4(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
                                             stride_reg_x, stride_reg_y);
 
     // cudaMemcpy(host_t3, dev_t3, size_t3, cudaMemcpyDeviceToHost);
-    
+#endif
     // cudaFree(dev_t3);
-    cudaFree(dev_t2);
-    cudaFree(dev_v2);
+    // cudaFree(dev_t2);
+    // cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: s1_5
@@ -11905,8 +12071,10 @@ void jk_ccsd_t_s1_5(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     size_t size_v2 = sizeof(double) * size_h3 * size_h1 * size_p6 * size_p4;
     
     // cudaMalloc((void**) &dev_t3, size_t3); 
-    cudaMalloc((void**) &dev_t2, size_t2); 
-    cudaMalloc((void**) &dev_v2, size_v2); 
+    // cudaMalloc((void**) &dev_t2, size_t2); 
+    // cudaMalloc((void**) &dev_v2, size_v2); 
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, size_t3, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, size_t2, cudaMemcpyHostToDevice);
@@ -11933,7 +12101,7 @@ void jk_ccsd_t_s1_5(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_s_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     //
     jk_ccsd_t_s1_5<<<gridsize, blocksize>>>(dev_t3, dev_t2, dev_v2, 
                                             size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, 
@@ -11941,10 +12109,12 @@ void jk_ccsd_t_s1_5(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
                                             stride_reg_x, stride_reg_y);
 
     // cudaMemcpy(host_t3, dev_t3, size_t3, cudaMemcpyDeviceToHost);
-    
+#endif
     // cudaFree(dev_t3);
-    cudaFree(dev_t2);
-    cudaFree(dev_v2);
+    // cudaFree(dev_t2);
+    // cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: s1_6
@@ -12113,8 +12283,10 @@ void jk_ccsd_t_s1_6(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     size_t size_v2 = sizeof(double) * size_h2 * size_h1 * size_p6 * size_p4;
     
     // cudaMalloc((void**) &dev_t3, size_t3); 
-    cudaMalloc((void**) &dev_t2, size_t2); 
-    cudaMalloc((void**) &dev_v2, size_v2); 
+    // cudaMalloc((void**) &dev_t2, size_t2); 
+    // cudaMalloc((void**) &dev_v2, size_v2); 
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, size_t3, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, size_t2, cudaMemcpyHostToDevice);
@@ -12141,7 +12313,7 @@ void jk_ccsd_t_s1_6(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_s_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     //
     jk_ccsd_t_s1_6<<<gridsize, blocksize>>>(dev_t3, dev_t2, dev_v2, 
                                             size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, 
@@ -12149,10 +12321,12 @@ void jk_ccsd_t_s1_6(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
                                             stride_reg_x, stride_reg_y);
 
     // cudaMemcpy(host_t3, dev_t3, size_t3, cudaMemcpyDeviceToHost);
-    
+#endif
     // cudaFree(dev_t3);
-    cudaFree(dev_t2);
-    cudaFree(dev_v2);
+    // cudaFree(dev_t2);
+    // cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: s1_7
@@ -12310,8 +12484,10 @@ void jk_ccsd_t_s1_7(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     size_t size_v2 = sizeof(double) * size_h3 * size_h2 * size_p5 * size_p4;
     
     // cudaMalloc((void**) &dev_t3, size_t3); 
-    cudaMalloc((void**) &dev_t2, size_t2); 
-    cudaMalloc((void**) &dev_v2, size_v2); 
+    // cudaMalloc((void**) &dev_t2, size_t2); 
+    // cudaMalloc((void**) &dev_v2, size_v2); 
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, size_t3, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, size_t2, cudaMemcpyHostToDevice);
@@ -12338,7 +12514,7 @@ void jk_ccsd_t_s1_7(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_s_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     //
     jk_ccsd_t_s1_7<<<gridsize, blocksize>>>(dev_t3, dev_t2, dev_v2, 
                                             size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, 
@@ -12346,10 +12522,12 @@ void jk_ccsd_t_s1_7(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
                                             stride_reg_x, stride_reg_y);
 
     // cudaMemcpy(host_t3, dev_t3, size_t3, cudaMemcpyDeviceToHost);
-    
+#endif
     // cudaFree(dev_t3);
-    cudaFree(dev_t2);
-    cudaFree(dev_v2);
+    // cudaFree(dev_t2);
+    // cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: s1_8
@@ -12506,8 +12684,10 @@ void jk_ccsd_t_s1_8(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     size_t size_v2 = sizeof(double) * size_h3 * size_h1 * size_p5 * size_p4;
     
     // cudaMalloc((void**) &dev_t3, size_t3); 
-    cudaMalloc((void**) &dev_t2, size_t2); 
-    cudaMalloc((void**) &dev_v2, size_v2); 
+    // cudaMalloc((void**) &dev_t2, size_t2); 
+    // cudaMalloc((void**) &dev_v2, size_v2); 
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, size_t3, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, size_t2, cudaMemcpyHostToDevice);
@@ -12534,7 +12714,7 @@ void jk_ccsd_t_s1_8(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_s_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     //
     jk_ccsd_t_s1_8<<<gridsize, blocksize>>>(dev_t3, dev_t2, dev_v2, 
                                             size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, 
@@ -12542,10 +12722,12 @@ void jk_ccsd_t_s1_8(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
                                             stride_reg_x, stride_reg_y);
 
     // cudaMemcpy(host_t3, dev_t3, size_t3, cudaMemcpyDeviceToHost);
-    
+#endif
     // cudaFree(dev_t3);
-    cudaFree(dev_t2);
-    cudaFree(dev_v2);
+    // cudaFree(dev_t2);
+    // cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // kernel: s1_9
@@ -12702,8 +12884,10 @@ void jk_ccsd_t_s1_9(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
     size_t size_v2 = sizeof(double) * size_h2 * size_h1 * size_p5 * size_p4;
 
     // cudaMalloc((void**) &dev_t3, size_t3); 
-    cudaMalloc((void**) &dev_t2, size_t2); 
-    cudaMalloc((void**) &dev_v2, size_v2); 
+    // cudaMalloc((void**) &dev_t2, size_t2); 
+    // cudaMalloc((void**) &dev_v2, size_v2); 
+    dev_t2 = (double *) getGpuMem(size_t2);
+	dev_v2 = (double *) getGpuMem(size_v2);
     
     // cudaMemcpy(dev_t3, host_t3, size_t3, cudaMemcpyHostToDevice);
     cudaMemcpy(dev_t2, host_t2, size_t2, cudaMemcpyHostToDevice);
@@ -12730,7 +12914,7 @@ void jk_ccsd_t_s1_9(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 
     // 
     dev_t3 = t3_s_d;
-
+#ifdef DEBUG_ENALBLE_ALL_KERNEL
     //
     jk_ccsd_t_s1_9<<<gridsize, blocksize>>>(dev_t3, dev_t2, dev_v2, 
                                             size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, 
@@ -12738,10 +12922,12 @@ void jk_ccsd_t_s1_9(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
                                             stride_reg_x, stride_reg_y);
 
     // cudaMemcpy(host_t3, dev_t3, size_t3, cudaMemcpyDeviceToHost);
-    
+#endif
     // cudaFree(dev_t3);
-    cudaFree(dev_t2);
-    cudaFree(dev_v2);
+    // cudaFree(dev_t2);
+    // cudaFree(dev_v2);
+    freeGpuMem(dev_t2);
+	freeGpuMem(dev_v2);
 }
 
 // A100 and cuda 11.1 
@@ -12795,11 +12981,12 @@ __device__ inline void zero_shared(double *smem) {
 //------------------------------------------------------------------------------ kernels and callers
 
 //
-__global__ void next_unfused_kernel_d1_11_1(double* dev_t3_d, const double* __restrict__ dev_d1_t2_1, const double* __restrict__ dev_d1_v2_1, 
-                                            int size_h3, int size_h2, int size_h1, int size_p6, int size_p5, int size_p4, int size_h7, 
-                                            int numBlk_h3, int numBlk_h2, int numBlk_h1, int numBlk_p6, int numBlk_p5, int numBlk_p4, 
-                                            int stride_reg_x, int stride_reg_y, 
-                                            int size_internal) {
+__global__ void next_unfused_kernel_d1_1(double* dev_t3_d, const double* __restrict__ dev_d1_t2_1, const double* __restrict__ dev_d1_v2_1, 
+                                        int size_h3, int size_h2, int size_h1, int size_p6, int size_p5, int size_p4, int size_h7, 
+                                        int numBlk_h3, int numBlk_h2, int numBlk_h1, int numBlk_p6, int numBlk_p5, int numBlk_p4, 
+                                        int stride_reg_x, int stride_reg_y, 
+                                        int size_internal) 
+{
     // 
     auto grid = cooperative_groups::this_grid();
     auto block = cooperative_groups::this_thread_block();
@@ -12957,8 +13144,8 @@ __global__ void next_unfused_kernel_d1_11_1(double* dev_t3_d, const double* __re
 	}
 }
 
-extern "C"
-void driver_ccsd_t_d1_1(int size_h3, int size_h2, int size_h1, int size_p6, int size_p5, int size_p4, int size_h7, double* host_t3, double* host_t2, double* host_v2) {
+void driver_ccsd_t_d1_1(int size_h3, int size_h2, int size_h1, int size_p6, int size_p5, int size_p4, int size_h7, double* host_t3, double* host_t2, double* host_v2) 
+{
 	// 
 	int numTbs = CEIL(size_h3, SIZE_TILE_H3) * CEIL(size_h2, SIZE_TILE_H2) * CEIL(size_h1, SIZE_TILE_H1) * 
 				CEIL(size_p6, SIZE_TILE_P6) * CEIL(size_p5, SIZE_TILE_P5) * CEIL(size_p4, SIZE_TILE_P4);
@@ -13004,8 +13191,8 @@ void driver_ccsd_t_d1_1(int size_h3, int size_h2, int size_h1, int size_p6, int 
 
     // 
     // int maxbytes = 98304; // 96 KB
-    // CUCHK(cudaFuncSetAttribute(next_unfused_kernel_d1_11_1, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes));
-    next_unfused_kernel_d1_11_1<<<gridsize_1, blocksize_1, 2 * NUM_STAGE * 8 * STAGE_OFFSET, 0>>>(dev_t3, dev_t2, dev_v2, size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7, 
+    // CUCHK(cudaFuncSetAttribute(next_unfused_kernel_d1_1, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes));
+    next_unfused_kernel_d1_1<<<gridsize_1, blocksize_1, 2 * NUM_STAGE * 8 * STAGE_OFFSET, 0>>>(dev_t3, dev_t2, dev_v2, size_h3, size_h2, size_h1, size_p6, size_p5, size_p4, size_h7, 
 		CEIL(size_h3, SIZE_TILE_H3), CEIL(size_h2, SIZE_TILE_H2), CEIL(size_h1, SIZE_TILE_H1), 
 		CEIL(size_p6, SIZE_TILE_P6), CEIL(size_p5, SIZE_TILE_P5), CEIL(size_p4, SIZE_TILE_P4), 
 		stride_reg_x, stride_reg_y,

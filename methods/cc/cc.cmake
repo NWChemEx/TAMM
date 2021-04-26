@@ -18,6 +18,7 @@ set(CCSD_T_SRCS
 
 if(USE_CUDA)
     set(CCSD_T_UNFUSED_SRCS ${CCSD_T_SRCS}
+            ${CCSD_T_SRCDIR}/sd_t_total_gpu.cu
             ${CCSD_T_SRCDIR}/sd_t_total_nwc.cu
             ${CCSD_T_SRCDIR}/ccsd_t_singles_unfused.hpp
             ${CCSD_T_SRCDIR}/ccsd_t_doubles_unfused.hpp)

@@ -135,16 +135,15 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   if(nDevices==0) has_GPU=0;
   // cout << "rank,has_gpu" << rank << "," << has_GPU << endl;
   if(has_GPU == 1){
-      device_init(
+    device_init(
 #if defined(USE_DPCPP)
-                  ec.get_syclQue(),
-		  &syclQue,
+      ec.get_syclQue(), &syclQue,
 #endif
-                  nDevices, &gpu_device_number);
+      nDevices, &gpu_device_number);
 
 #if defined(USE_DPCPP)
-      if(syclQue == nullptr)
-	cout << "ERROR: Obtained a invalid SYCL queue. Terminating program..." << endl << endl;
+    if(syclQue == nullptr)
+	    cout << "ERROR: Obtained a invalid SYCL queue. Terminating program..." << endl << endl;
 #endif
     // if(gpu_device_number==30) // QUIT
   }
@@ -152,12 +151,10 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   //std::cout << std::flush;
 
   //TODO replicate d_t1 L84-89 ccsd_t_gpu.F
-
   double energy1 = 0.0;
   double energy2 = 0.0;
   std::vector<double> energy_l(2);
-  std::vector<double> tmp_energy_l(2);
-
+  
   AtomicCounter* ac = new AtomicCounterGA(ec.pg(), 1);
   ac->allocate(0);
   int64_t taskcount = 0;
@@ -187,10 +184,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   size_t size_T_d2_t2 = max_d2_kernels_pertask * (max_pdim * max_pdim) * (max_hdim * max_hdim);
   size_t size_T_d2_v2 = max_d2_kernels_pertask * (max_pdim * max_pdim * max_pdim) * (max_hdim);
 
-
-
 #if defined(USE_DPCPP)
-
   T* df_host_pinned_s1_t1 = (T*)getHostMem(*syclQue, sizeof(double) * size_T_s1_t1);
   T* df_host_pinned_s1_v2 = (T*)getHostMem(*syclQue, sizeof(double) * size_T_s1_v2);
   T* df_host_pinned_d1_t2 = (T*)getHostMem(*syclQue, sizeof(double) * size_T_d1_t2);
@@ -223,21 +217,23 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   T* df_host_pinned_d2_v2 = (T*)getHostMem(sizeof(double) * size_T_d2_v2);
 
   //
-  int* df_simple_s1_size = (int*)getHostMem(sizeof(int) * (6));
-  int* df_simple_s1_exec = (int*)getHostMem(sizeof(int) * (9));
+  int* df_simple_s1_size  = (int*)getHostMem(sizeof(int) * (6));
+  int* df_simple_s1_exec  = (int*)getHostMem(sizeof(int) * (9));
 
-  int* df_simple_d1_size = (int*)getHostMem(sizeof(int) * (7 * noab));
-  int* df_simple_d1_exec = (int*)getHostMem(sizeof(int) * (9 * noab));
+  int* host_d1_size       = (int*)getHostMem(sizeof(int) * (noab));
+  int* df_simple_d1_size  = (int*)getHostMem(sizeof(int) * (7 * noab));
+  int* df_simple_d1_exec  = (int*)getHostMem(sizeof(int) * (9 * noab));
 
-  int* df_simple_d2_size = (int*)getHostMem(sizeof(int) * (7 * nvab));
-  int* df_simple_d2_exec = (int*)getHostMem(sizeof(int) * (9 * nvab));
+  int* host_d2_size       = (int*)getHostMem(sizeof(int) * (nvab));
+  int* df_simple_d2_size  = (int*)getHostMem(sizeof(int) * (7 * nvab));
+  int* df_simple_d2_exec  = (int*)getHostMem(sizeof(int) * (9 * nvab));
   #if defined(USE_CUDA) || defined(USE_HIP)
-  double* df_dev_s1_t1_all = (double*)getGpuMem(sizeof(double) * size_T_s1_t1);
-  double* df_dev_s1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_s1_v2);
-  double* df_dev_d1_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_t2);
-  double* df_dev_d1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_v2);
-  double* df_dev_d2_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_t2);
-  double* df_dev_d2_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_v2);
+    double* df_dev_s1_t1_all = (double*)getGpuMem(sizeof(double) * size_T_s1_t1);
+    double* df_dev_s1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_s1_v2);
+    double* df_dev_d1_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_t2);
+    double* df_dev_d1_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d1_v2);
+    double* df_dev_d2_t2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_t2);
+    double* df_dev_d2_v2_all = (double*)getGpuMem(sizeof(double) * size_T_d2_v2);
   #endif
 #endif
   //
@@ -245,10 +241,10 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   max_num_blocks = std::ceil((max_num_blocks+4-1)/4.0);
 
 #if defined(USE_DPCPP)
-  double* df_host_energies = (double*)getHostMem(*syclQue, sizeof(double) * std::pow(max_num_blocks, 6) * 2);
-  double* df_dev_energies = (double*)getGpuMem(*syclQue, sizeof(double) * std::pow(max_num_blocks, 6) * 2);
-  #else
-  double* df_host_energies = (double*)getHostMem(sizeof(double) * std::pow(max_num_blocks, 6) * 2);
+  double* df_host_energies  = (double*)getHostMem(*syclQue, sizeof(double) * std::pow(max_num_blocks, 6) * 2);
+  double* df_dev_energies   = (double*)getGpuMem(*syclQue, sizeof(double) * std::pow(max_num_blocks, 6) * 2);
+#else
+  double* df_host_energies    = (double*)getHostMem(sizeof(double) * std::pow(max_num_blocks, 6) * 2);
   #if defined(USE_CUDA) || defined(USE_HIP)
   double* df_dev_energies = (double*)getGpuMem(sizeof(double) * std::pow(max_num_blocks, 6) * 2);
   #endif
@@ -256,8 +252,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
 
   //
   int num_task = 0;
-  if(!seq_h3b)
-  {
+  if(!seq_h3b) {
     if(rank==0) {
       std::cout << "456123 parallel 6d loop variant" << std::endl;
       std::cout << "tile142563,kernel,memcpy,data,total" << std::endl;
@@ -274,10 +269,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
             (k_spin[t_p4b] + k_spin[t_p5b] + k_spin[t_p6b] +
             k_spin[t_h1b] + k_spin[t_h2b] + k_spin[t_h3b]) <= 8) {
           if (next == taskcount) {
-            // if (has_GPU==1) {
-            //   initmemmodule();
-            // }
-
+            // 
             double factor = 1.0;
             if (is_restricted) factor = 2.0;
             if ((t_p4b == t_p5b) && (t_p5b == t_p6b)) {
@@ -295,11 +287,10 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
             num_task++;
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-            // printf ("[%s] rank: %d >> calls the gpu code\n", __func__, rank);
             ccsd_t_fully_fused_none_df_none_task(is_restricted,
-                                                #if defined(USE_DPCPP)
+                                              #if defined(USE_DPCPP)
                                                 syclQue,
-                                                #endif
+                                              #endif
                                                 noab, nvab, rank,
                                                 k_spin,
                                                 k_range,
@@ -311,6 +302,10 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                 df_host_pinned_d1_t2, df_host_pinned_d1_v2,
                                                 df_host_pinned_d2_t2, df_host_pinned_d2_v2,
                                                 df_host_energies,
+                                                // 
+                                                //
+                                                //
+                                                host_d1_size, host_d2_size, 
                                                 //
                                                 df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
                                                 df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
@@ -329,7 +324,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                 size_T_d1_t2, size_T_d1_v2,
                                                 size_T_d2_t2, size_T_d2_v2,
                                                 //
-                                                tmp_energy_l,
+                                                energy_l, 
                                                 cache_s1t, cache_s1v,
                                                 cache_d1t, cache_d1v,
                                                 cache_d2t, cache_d2v);
@@ -358,7 +353,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                 size_T_d1_t2, size_T_d1_v2,
                                                 size_T_d2_t2, size_T_d2_v2,
                                                 //
-                                                tmp_energy_l,
+                                                energy_l,
                                                 cache_s1t, cache_s1v,
                                                 cache_d1t, cache_d1v,
                                                 cache_d2t, cache_d2v);
@@ -439,6 +434,10 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                   df_host_pinned_d2_t2, df_host_pinned_d2_v2,
                                                   df_host_energies,
                                                   //
+                                                  //
+                                                  //
+                                                  host_d1_size, host_d2_size, 
+                                                  //
                                                   df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
                                                   df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
                                                   //
@@ -456,7 +455,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                   size_T_d1_t2, size_T_d1_v2,
                                                   size_T_d2_t2, size_T_d2_v2,
                                                   //
-                                                  tmp_energy_l,
+                                                  energy_l, 
                                                   cache_s1t, cache_s1v,
                                                   cache_d1t, cache_d1v,
                                                   cache_d2t, cache_d2v);
@@ -485,7 +484,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                 size_T_d1_t2, size_T_d1_v2,
                                                 size_T_d2_t2, size_T_d2_v2,
                                                 //
-                                                tmp_energy_l,
+                                                energy_l,
                                                 cache_s1t, cache_s1v,
                                                 cache_d1t, cache_d1v,
                                                 cache_d2t, cache_d2v);
@@ -502,8 +501,8 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   } //end seq h3b
 
   //
-  energy1 = tmp_energy_l[0];
-  energy2 = tmp_energy_l[1];
+  energy1 = energy_l[0];
+  energy2 = energy_l[1];
 
   //
   //
@@ -554,7 +553,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   freeHostMem(df_simple_d2_size);
 
   freeHostMem(df_host_energies);
-
+  
   #if defined(USE_CUDA) || defined(USE_HIP)
   freeGpuMem(df_dev_s1_t1_all); freeGpuMem(df_dev_s1_v2_all);
   freeGpuMem(df_dev_d1_t2_all); freeGpuMem(df_dev_d1_v2_all);
@@ -572,13 +571,11 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
 	);
 
   auto cc_t2 = std::chrono::high_resolution_clock::now();
-  auto ccsd_t_time =
-        std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
+  auto ccsd_t_time = std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
 
   ec.pg().barrier ();
   cc_t2 = std::chrono::high_resolution_clock::now();
-  auto total_t_time =
-        std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
+  auto total_t_time = std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
 
   //
   next = ac->fetch_add(0, 1);

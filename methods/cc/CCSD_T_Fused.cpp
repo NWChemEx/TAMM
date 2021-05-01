@@ -45,15 +45,17 @@ void ccsd_driver() {
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     auto rank = ec.pg().rank();
 
+    printf ("[%s] calls hartree_fock_driver<T>(...)==========================================\n", __func__);
     auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, AO_opt, AO_tis,scf_conv]  
                     = hartree_fock_driver<T>(ec,filename);
+    printf ("[%s] ===========================================================================\n", __func__);
 
     //force writet on
     sys_data.options_map.ccsd_options.writet = true;
 
     CCSDOptions ccsd_options = sys_data.options_map.ccsd_options;
     debug = ccsd_options.debug;
-    if(rank == 0) ccsd_options.print();
+    if(rank==0) ccsd_options.print();
     
     if(rank==0) cout << endl << "#occupied, #virtual = " << sys_data.nocc << ", " << sys_data.nvir << endl;
     
@@ -82,8 +84,10 @@ void ccsd_driver() {
                                 ccsd_restart, cholfile);
     free_tensors(lcao);
 
+    printf ("[%s] calls setupTensors(...)====================================================\n", __func__);
     auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
             = setupTensors(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
+    printf ("[%s] ===========================================================================\n", __func__);
 
     if(ccsd_restart) {
         read_from_disk(d_f1,f1file);
@@ -362,12 +366,10 @@ void ccsd_driver() {
     //
     if (rank == 0)     
     {
-        // std::cout << "--------------------------------------------------------------------" << std::endl;
         ccsd_t_fused_driver_calculator_ops<T>(sys_data,ec,k_spin,MO1,
                                     p_evl_sorted,hf_energy+corr_energy,ccsd_options.ngpu,is_restricted,
                                     total_num_ops, 
                                     seq_h3b);
-        // std::cout << "--------------------------------------------------------------------" << std::endl;
     }
 
     ec.pg().barrier();
@@ -479,5 +481,4 @@ void ccsd_driver() {
 
     ec.flush_and_sync();
     // delete ec;
-
 }

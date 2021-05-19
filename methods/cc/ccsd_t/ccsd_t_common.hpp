@@ -76,4 +76,12 @@ void freeGpuMem(void *p);
 #endif
 void finalizeMemModule();
 
+
+struct hostEnergyReduceData_t {
+  double *result_energy;
+  double *host_energies;
+  size_t num_blocks;
+  double factor;
+};
+
 #endif /*CCSD_T_COMMON_HPP_*/

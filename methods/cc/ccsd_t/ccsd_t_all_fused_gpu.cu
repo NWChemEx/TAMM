@@ -2425,7 +2425,7 @@ using namespace std;
 #define NUM_INDEX 		6
 #define CEIL(a, b) 		(((a) + (b) - 1) / (b))
 
-#define PAD 4
+#define PAD 3
 #define STAGE_ALIGN 32
 #define SINGLE_STAGE_SIZE (64 * (PAD + 16))
 #define STAGE_OFFSET ((SINGLE_STAGE_SIZE + STAGE_ALIGN - 1) / STAGE_ALIGN) * STAGE_ALIGN
@@ -2486,7 +2486,7 @@ __device__ inline void rt_load_fixed(double* smem, const int idx_x_1, const int 
 
 //------------------------------------------------------------------------------
 // created by tc_gen_code_Kernel()
-__global__ 
+__global__ __launch_bounds__(256, 3)
 void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab, 
 	// common
 	int size_max_dim_s1_t1, int size_max_dim_s1_v2, 
@@ -4403,6 +4403,16 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		block.sync();
 	}
 
+#if 1
+	block.sync();
+
+	if (threadIdx.y == 0) {
+		if (idx_h2 < rng_p6 && idx_p6 < rng_p5) { 
+		sm_a[idx_h2 * 4 + idx_p6] = (dev_evl_sorted_p5b[blk_idx_p5 * SIZE_TILE_P5 + idx_p6] + dev_evl_sorted_p6b[blk_idx_p6 * SIZE_TILE_P6 + idx_h2]);
+		}
+	}
+	block.sync();
+#endif
   // 
   // 	kernel x(idx_p6,idx_h2), y(idx_h1,idx_h3)
   // 
@@ -4415,10 +4425,16 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 			for (int idx_reg_x = 0; idx_reg_x < 4; idx_reg_x++) {
 				// 
 				if (idx_reg_y < rng_p6 && idx_reg_x < rng_p5) { 
+#if 1
+					double inner_factor = (partial_inner_factor - sm_a[idx_reg_y * 4 + idx_reg_x]);
+					double temp = op_c.reg[idx_reg_y * 4 + idx_reg_x] / inner_factor;
+					energy_1 += temp *  op_c.reg[idx_reg_y * 4 + idx_reg_x];
+					energy_2 += temp * (op_c.reg[idx_reg_y * 4 + idx_reg_x] + op_c_s.reg[idx_reg_y * 4 + idx_reg_x]);
+#else
 					double inner_factor = partial_inner_factor - dev_evl_sorted_p5b[blk_idx_p5 * SIZE_TILE_P5 + idx_reg_x] - dev_evl_sorted_p6b[blk_idx_p6 * SIZE_TILE_P6 + idx_reg_y];
-
 					energy_1 += op_c.reg[idx_reg_y * 4 + idx_reg_x] *  op_c.reg[idx_reg_y * 4 + idx_reg_x] / inner_factor;
 					energy_2 += op_c.reg[idx_reg_y * 4 + idx_reg_x] * (op_c.reg[idx_reg_y * 4 + idx_reg_x] + op_c_s.reg[idx_reg_y * 4 + idx_reg_x]) / inner_factor;
+#endif
 				}
 			}
 		}
@@ -4488,7 +4504,8 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(cudaStream_t* stream_id, size_t numBlks,
 	double factor, 
 	double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b, 
 	double* dev_evl_sorted_p4b, double* dev_evl_sorted_p5b, double* dev_evl_sorted_p6b, 
-	double* dev_energies)
+	double* dev_energies,
+	gpuEvent_t done_compute, gpuEvent_t done_copy) 
 {	
 	// 
 	// 	constant memories
@@ -4514,7 +4531,7 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(cudaStream_t* stream_id, size_t numBlks,
 	// 	host_exec_d2[3 + (i) * 9], host_exec_d2[4 + (i) * 9], host_exec_d2[5 + (i) * 9],
 	// 	host_exec_d2[6 + (i) * 9], host_exec_d2[7 + (i) * 9], host_exec_d2[8 + (i) * 9]);
 	// }
-
+	cudaEventRecord(done_copy);
 
 	// 
 	dim3 gridsize_1(numBlks);
@@ -4577,3 +4594,4 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(cudaStream_t* stream_id, size_t numBlks,
 	// *final_energy_5 = factor * host_energies[1];
 	// printf ("[%s] (gpu) energy: %.10f, %.10f\n", __func__, *final_energy_4, *final_energy_5);
 }
+

@@ -23,7 +23,7 @@
 
 #pragma once
 
-constexpr int pad = 4;
+constexpr int pad = 3;
 
 constexpr int WARP_M = 4;
 constexpr int WARP_N = 2;

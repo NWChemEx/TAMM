@@ -153,7 +153,18 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   //TODO replicate d_t1 L84-89 ccsd_t_gpu.F
   double energy1 = 0.0;
   double energy2 = 0.0;
-  std::vector<double> energy_l(2);
+  std::vector<double> energy_l;
+  energy_l.resize(2);
+  energy_l[0] = 0.0;
+  energy_l[1] = 0.0;
+
+  gpuStream_t stream;
+  cudaStreamCreate(&stream);
+  gpuEvent_t done_compute, done_copy;
+  cudaEventCreate(&done_compute);
+  cudaEventCreate(&done_copy);
+
+  hostEnergyReduceData_t* reduceData = (hostEnergyReduceData_t*) malloc(1 * sizeof(hostEnergyReduceData_t));
   
   AtomicCounter* ac = new AtomicCounterGA(ec.pg(), 1);
   ac->allocate(0);
@@ -291,6 +302,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                               #if defined(USE_DPCPP)
                                                 syclQue,
                                               #endif
+                                              stream,
                                                 noab, nvab, rank,
                                                 k_spin,
                                                 k_range,
@@ -325,9 +337,11 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                 size_T_d2_t2, size_T_d2_v2,
                                                 //
                                                 energy_l, 
+                                                reduceData,
                                                 cache_s1t, cache_s1v,
                                                 cache_d1t, cache_d1v,
-                                                cache_d2t, cache_d2v);
+                                                cache_d2t, cache_d2v,
+                                                done_compute, done_copy);
             #else
             total_fused_ccsd_t_cpu<T>(is_restricted, noab, nvab, rank,
                                                 k_spin,
@@ -422,6 +436,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                    #if defined(USE_DPCPP)
                                                     syclQue,
                                                    #endif
+                                                   stream,
                                                   noab, nvab, rank,
                                                   k_spin,
                                                   k_range,
@@ -456,9 +471,11 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                   size_T_d2_t2, size_T_d2_v2,
                                                   //
                                                   energy_l, 
+                                                  reduceData,
                                                   cache_s1t, cache_s1v,
                                                   cache_d1t, cache_d1v,
-                                                  cache_d2t, cache_d2v);
+                                                  cache_d2t, cache_d2v,
+                                                  done_compute, done_copy);
             #else
             total_fused_ccsd_t_cpu<T>(is_restricted, noab, nvab, rank,
                                                 k_spin,
@@ -500,9 +517,15 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
     }}}}}
   } //end seq h3b
 
+  cudaDeviceSynchronize();
   //
   energy1 = energy_l[0];
   energy2 = energy_l[1];
+
+  free(reduceData);
+  cudaEventDestroy(done_compute);
+  cudaEventDestroy(done_copy);
+  cudaStreamDestroy(stream);
 
   //
   //

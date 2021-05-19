@@ -18,7 +18,29 @@ void dev_mem_d(size_t,size_t,size_t,size_t,size_t,size_t);
 #define TEST_NEW_KERNEL
 #define TEST_NEW_THREAD
 
+#define STREAM_REDUCE
+
 #define CEIL(a, b)  (((a) + (b) - 1) / (b))
+
+void hostEnergyReduce(void* data) {
+  hostEnergyReduceData_t* data_t = (hostEnergyReduceData_t*) data;
+  const size_t num_blocks = data_t->num_blocks;
+  double* host_energies = data_t->host_energies;
+  double* res = data_t->result_energy;
+  double factor = data_t->factor;
+
+  double final_energy_1 = 0.0;
+  double final_energy_2 = 0.0; 
+  for (size_t i = 0; i < num_blocks; i++)
+  {
+    final_energy_1 += host_energies[i];
+    final_energy_2 += host_energies[i + num_blocks];
+  }
+
+  res[0] += final_energy_1 * factor;
+  res[1] += final_energy_2 * factor;
+}
+
 
 // driver for the fully-fused kernel (FP64)
 void fully_fused_ccsd_t_gpu(gpuStream_t* stream_id, size_t num_blocks,
@@ -67,7 +89,8 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(cudaStream_t* stream_id, size_t numBlks,
 	double factor, 
 	double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b, 
 	double* dev_evl_sorted_p4b, double* dev_evl_sorted_p5b, double* dev_evl_sorted_p6b, 
-	double* dev_final_energies);
+	double* dev_final_energies,
+	gpuEvent_t done_compute, gpuEvent_t done_copy);
 
 
 // #define OPT_ALL_TIMING
@@ -80,6 +103,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
           #if defined(USE_DPCPP)
 					  sycl::queue* syclQue,
           #endif
+            gpuStream_t stream,
 					  const Index noab, const Index nvab, int64_t rank,
             std::vector<int>& k_spin,
             std::vector<size_t>& k_range,
@@ -112,9 +136,12 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
             size_t size_T_d2_t2, size_t size_T_d2_v2,
             //
             std::vector<double>& energy_l,
+            hostEnergyReduceData_t* reduceData,
             LRUCache<Index,std::vector<T>>& cache_s1t, LRUCache<Index,std::vector<T>>& cache_s1v,
             LRUCache<Index,std::vector<T>>& cache_d1t, LRUCache<Index,std::vector<T>>& cache_d1v,
-            LRUCache<Index,std::vector<T>>& cache_d2t, LRUCache<Index,std::vector<T>>& cache_d2v)
+            LRUCache<Index,std::vector<T>>& cache_d2t, LRUCache<Index,std::vector<T>>& cache_d2v,
+            gpuEvent_t done_compute,
+            gpuEvent_t done_copy)
 {
 #ifdef OPT_KERNEL_TIMING
   long double total_num_ops_s1 = 0;
@@ -149,6 +176,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
 #endif
 #endif //OPT_ALL_TIMING
 
+#if 0
 // create and assign streams
 #if defined(USE_CUDA)|| defined(USE_HIP) || defined(USE_DPCPP)
   gpuStream_t stream;
@@ -160,7 +188,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
 #elif defined(USE_DPCPP)
   stream = *syclQue; // abb: does this need std::move(*syclQue) ?
 #endif
-
+#endif
   // Index p4b,p5b,p6b,h1b,h2b,h3b;
   const size_t max_dim_s1_t1 = size_T_s1_t1 / 9;
   const size_t max_dim_s1_v2 = size_T_s1_v2 / 9;
@@ -209,6 +237,10 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
   cudaEventRecord(stop_init);
   cudaEventSynchronize(stop_init);
   cudaEventRecord(start_collecting_data);
+#endif
+
+#ifdef STREAM_REDUCE
+  cudaEventSynchronize(done_copy);
 #endif
 
   // resets
@@ -268,6 +300,10 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
   cudaEventRecord(stop_collecting_data);
   cudaEventSynchronize(stop_collecting_data);
   cudaEventRecord(start_pre_processing);
+#endif
+
+#ifdef STREAM_REDUCE
+  cudaEventSynchronize(done_compute);
 #endif
 
 #if defined(USE_CUDA)
@@ -361,7 +397,6 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
   cudaEventRecord(start_kernel_only);
 #endif
 #endif //OPT_KERNEL_TIMING
-
   // printf ("====================================================================================================\n");
   //
   //
@@ -424,7 +459,8 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
                         dev_evl_sorted_h1b, dev_evl_sorted_h2b, dev_evl_sorted_h3b,
                         dev_evl_sorted_p4b, dev_evl_sorted_p5b, dev_evl_sorted_p6b,
                         //
-                        dev_energies);
+                        dev_energies,
+                        done_compute, done_copy);
 #endif
   //
 #ifdef OPT_KERNEL_TIMING
@@ -453,7 +489,9 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
   // printf ("post-processing for base task based on %u\n", df_base_id);
 #if defined(USE_CUDA) 
   cudaMemcpyAsync(host_energies, dev_energies, num_blocks * 2 * sizeof(double), cudaMemcpyDeviceToHost, stream);
+#ifndef STREAM_REDUCE
   cudaDeviceSynchronize();
+#endif
 #elif defined(USE_HIP)
   hipMemcpyHtoDAsync(host_energies, dev_energies, num_blocks * 2 * sizeof(double), stream);
   hipStreamSynchronize(stream);
@@ -476,7 +514,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
   energy_l[0] += final_energy_1 * factor;
   energy_l[1] += final_energy_2 * factor;
 #else
-
+#ifndef STREAM_REDUCE
   // 
   double final_energy_1 = 0.0;
   double final_energy_2 = 0.0; 
@@ -488,6 +526,14 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
 
   energy_l[0] += final_energy_1 * factor;
   energy_l[1] += final_energy_2 * factor;
+#else
+  reduceData->num_blocks = num_blocks;
+  reduceData->host_energies = host_energies;
+  reduceData->result_energy = energy_l.data();
+  reduceData->factor = factor;
+  cudaLaunchHostFunc(stream, hostEnergyReduce, reduceData);
+  cudaEventRecord(done_compute);
+#endif
 #endif
   
   //

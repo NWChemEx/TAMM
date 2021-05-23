@@ -1,7 +1,7 @@
 #include "diis.hpp"
 #include "ccsd_util.hpp"
-#include "macdecls.h"
-#include "ga-mpi.h"
+#include "ga/macdecls.h"
+#include "ga/ga-mpi.h"
 
 
 using namespace tamm;

@@ -1,8 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest/doctest.h"
-#include "ga-mpi.h"
-#include "ga.h"
-#include "macdecls.h"
+#include "ga/ga-mpi.h"
+#include "ga/ga.h"
+#include "ga/macdecls.h"
 #include "mpi.h"
 #include "tamm/tamm.hpp"
 #include "tamm/utils.hpp"

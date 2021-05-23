@@ -117,27 +117,6 @@ void patch_copy(std::vector<T>& sbuf,
     }
 }
 
-
-template<typename T>
-Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> tamm_to_eigen_matrix(
-  const tamm::Tensor<T>& tensor){
-    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> etensor;
-    auto dim1 = tensor.tiled_index_spaces()[0].max_num_indices();
-    auto dim2 = tensor.tiled_index_spaces()[1].max_num_indices();
-
-    etensor.setZero(dim1,dim2);
-    for(const auto& blockid : tensor.loop_nest()) {
-        const tamm::TAMM_SIZE size = tensor.block_size(blockid);
-        std::vector<T> buf(size);
-        tensor.get(blockid, buf);
-        auto block_dims   = tensor.block_dims(blockid);
-        auto block_offset = tensor.block_offsets(blockid);
-        patch_copy<T>(buf, etensor, block_dims, block_offset, true);
-    }
-
-    return etensor;
-}
-
 template<typename T, int ndim>
 Eigen::Tensor<T, ndim, Eigen::RowMajor> tamm_to_eigen_tensor(
     const tamm::Tensor<T>& tensor) {
@@ -158,6 +137,24 @@ Eigen::Tensor<T, ndim, Eigen::RowMajor> tamm_to_eigen_tensor(
         patch_copy<T>(buf, etensor, block_dims, block_offset, true);
     }
 
+    return etensor;
+}
+
+template<typename T>
+Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> tamm_to_eigen_matrix(
+  const tamm::Tensor<T>& tensor){
+    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> etensor;
+    auto dim1 = tensor.tiled_index_spaces()[0].max_num_indices();
+    auto dim2 = tensor.tiled_index_spaces()[1].max_num_indices();
+    etensor.setZero(dim1,dim2);
+    for(const auto& blockid : tensor.loop_nest()) {
+        const tamm::TAMM_SIZE size = tensor.block_size(blockid);
+        std::vector<T> buf(size);
+        tensor.get(blockid, buf);
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+        patch_copy<T>(buf, etensor, block_dims, block_offset, true);
+    }
     return etensor;
 }
 
@@ -261,8 +258,6 @@ void eigen_to_tamm_tensor_acc(
         tensor.add(blockid, buf);
     }
 }
-
-
 
 template<typename T, typename fxn_t>
 void call_eigen_matrix_fxn(const tamm::Tensor<T>& tensor, fxn_t fxn) {

@@ -41,6 +41,11 @@ void two_index_transform(SystemData sys_data, ExecutionContext& ec, Tensor<Tenso
   const bool is_uhf  = scf_options.scf_type == "uhf";
   // const bool is_rohf = scf_options.scf_type == "rohf";
 
+  std::string out_fp = sys_data.output_file_prefix+"."+sys_data.options_map.ccsd_options.basis;
+  std::string files_dir = out_fp+"_files";
+  std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
+  std::string lcaofile = files_prefix+".lcao";
+
   Matrix CTiled(nao, N);
 
   if(rank == 0) {
@@ -135,6 +140,7 @@ void two_index_transform(SystemData sys_data, ExecutionContext& ec, Tensor<Tenso
 
       eigen_to_tamm_tensor(F_MO,F);
       eigen_to_tamm_tensor(lcao,CTiled);
+      write_scf_mat<TensorType>(CTiled,lcaofile);
     }
     else {
       Matrix F_AO_eig,F_MO_eig,C_AO_eig;

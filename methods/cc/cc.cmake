@@ -2,6 +2,7 @@
 include(TargetMacros)
 add_mpi_unit_test(CD_CCSD_CS 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.json")
 add_mpi_unit_test(CD_CCSD_OS 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.json")
+add_mpi_unit_test(CholeskyDecomp 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.json")
 
 set(CCSD_T_SRCDIR ${CMAKE_CURRENT_SOURCE_DIR}/cc/ccsd_t)
 set(CCSD_T_SRCS
@@ -28,6 +29,7 @@ if(USE_CUDA)
             ${CCSD_T_SRCDIR}/ccsd_t_all_fused_gpu.cu)
 
 elseif(USE_DPCPP)
+    set(CCSD_T_UNFUSED_SRCS ${CCSD_T_SRCS})
     set(CCSD_T_FUSED_SRCS ${CCSD_T_SRCS}
             ${CCSD_T_SRCDIR}/ccsd_t_all_fused.hpp
             ${CCSD_T_SRCDIR}/ccsd_t_all_fused_sycl.hpp)

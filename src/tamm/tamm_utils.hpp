@@ -8,6 +8,10 @@
 #include <type_traits>
 #include <iomanip>
 #include <hdf5.h>
+// Eigen matrix algebra library
+#include <Eigen/Dense>
+#include <unsupported/Eigen/CXX11/Tensor>
+#undef I
 
 #define IO_ISIRREG 1
 
@@ -97,7 +101,7 @@ void print_tensor(const Tensor<T>& tensor, std::string filename="") {
             if(i%6==0) tstring << "\n";
             if constexpr(tamm::internal::is_complex_v<T>) {
                  if(buf[i].real() > 0.0000000000001 ||
-                   buf[i].real() < -0.0000000000001) 
+                    buf[i].real() < -0.0000000000001) 
                    tstring << std::fixed << std::setw( 10 ) << std::setprecision(10) << buf[i] << " ";
             } else {
                if(buf[i] > 0.0000000000001 || buf[i] < -0.0000000000001)
@@ -155,15 +159,71 @@ void print_tensor_all(const Tensor<T>& tensor, std::string filename="") {
     else std::cout << tstring.str();
 }
 
-/**
- * @brief Print values in tensor greater than given threshold
- *
- * @tparam T template type for Tensor element type
- * @param [in] tensor input Tensor object
- * @param [in] printol given threshold [default=0.05]
- *
- * @warning This function only works sequentially
- */
+template <typename T>
+void print_tensor_reshaped(LabeledTensor<T> l_tensor,
+                           const IndexLabelVec &new_labels) {
+  EXPECTS(l_tensor.tensor().is_allocated());
+  auto ec = l_tensor.tensor().execution_context();
+
+  Tensor<T> new_tensor{new_labels};
+
+  Scheduler sch{*ec};
+
+  sch.allocate(new_tensor)(new_tensor(new_labels) = l_tensor).execute();
+
+  print_tensor_all(new_tensor);
+  sch.deallocate(new_tensor).execute();
+}
+
+template <typename T>
+void print_labeled_tensor(LabeledTensor<T> l_tensor) {
+  EXPECTS(l_tensor.tensor().is_allocated());
+  auto ec = l_tensor.tensor().execution_context();
+
+  Tensor<T> new_tensor{l_tensor.labels()};
+
+  Scheduler sch{*ec};
+
+  sch.allocate(new_tensor)(new_tensor(l_tensor.labels()) = l_tensor).execute();
+
+  print_tensor_all(new_tensor);
+  sch.deallocate(new_tensor).execute();
+}
+
+template<typename T>
+std::string tensor_to_string(const Tensor<T>& tensor) {
+    std::stringstream tstring;
+    auto lt = tensor();
+
+    int ndims = tensor.num_modes();
+    std::vector<int64_t> dims;
+    for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
+
+    tstring << "tensor dims = " << dims << std::endl;
+    tstring << "actual tensor size = " << tensor.size() << std::endl;
+    for(auto it : tensor.loop_nest()) {
+        auto blockid   = internal::translate_blockid(it, lt);
+        if(!tensor.is_non_zero(blockid)) continue;
+        TAMM_SIZE size = tensor.block_size(blockid);
+        std::vector<T> buf(size);
+        tensor.get(blockid, buf);
+        auto bdims = tensor.block_dims(blockid);
+        auto boffsets = tensor.block_offsets(blockid);
+        tstring << "blockid: " << blockid << ", ";
+        tstring << "block_offsets: " << boffsets << ", ";
+        tstring << "bdims: " << bdims << ", size: " << size << std::endl;
+        
+        for(TAMM_SIZE i = 0; i < size; i++) {
+            if(i%6==0) tstring << "\n";
+            tstring << std::fixed << std::setw(15) << std::setprecision(15)
+                    << buf[i] << " ";
+        }
+        tstring << std::endl;
+    }
+    
+    return tstring.str();
+}
+
 template<typename T>
 void print_max_above_threshold(const Tensor<T>& tensor, double printtol=0.05) {
     auto lt = tensor();
@@ -500,46 +560,6 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor) {
         for(size_t i=0;i<ndims;i++) lo[i]   = cd_ncast<size_t>(block_offset[i]);
         for(size_t i=0;i<ndims;i++) hi[i]   = cd_ncast<size_t>(block_offset[i] + block_dims[i]-1);
         for(size_t i=1;i<ndims;i++) ld[i-1] = cd_ncast<size_t>(block_dims[i]);
-
-        std::vector<TensorType> sbuf(dsize);
-        tensor.get(blockid, sbuf);
-        NGA_Put64(ga_tens,&lo[0],&hi[0],&sbuf[0],&ld[0]);
-    };
-
-    block_for(ec, tensor(), tamm_ga_lambda);
-
-    return ga_tens;
-}
-
-//For dense->dlpno
-template<typename TensorType>
-int tamm_to_ga2(ExecutionContext& ec, Tensor<TensorType>& tensor) {
-
-  int ndims = tensor.num_modes();
-  std::vector<int64_t> dims;
-  std::vector<int64_t> chnks(ndims,-1);
-
-  for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
-
-  auto ga_eltype = to_ga_eltype(tensor_element_type<TensorType>());
-  int ga_tens = NGA_Create64(ga_eltype,ndims,&dims[0],const_cast<char*>("iotemp"),&chnks[0]);
-  //GA_Zero(ga_tens);
-
-    //convert tamm tensor to GA
-    auto tamm_ga_lambda = [&](const IndexVector& bid){
-        const IndexVector blockid =
-        internal::translate_blockid(bid, tensor());
-
-        auto block_dims   = tensor.block_dims(blockid);
-        auto block_offset = tensor.block_offsets(blockid);
-
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        
-        std::vector<int64_t> lo(ndims),hi(ndims),ld(ndims-1);
-
-        for(size_t i=0;i<ndims-1;i++) lo[i]   = cd_ncast<size_t>(block_offset[i]);
-        for(size_t i=0;i<ndims-1;i++) hi[i]   = cd_ncast<size_t>(block_offset[i] + block_dims[i]-1);
-        for(size_t i=1;i<ndims-1;i++) ld[i-1] = cd_ncast<size_t>(block_dims[i]);
 
         std::vector<TensorType> sbuf(dsize);
         tensor.get(blockid, sbuf);
@@ -988,38 +1008,31 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor, int ga_tens) {
     // NGA_Destroy(ga_tens);
 }
 
-//For dlpno->dense
+/**
+ * @brief retile a tamm tensor 
+ *
+ * @param stensor source tensor
+ * @param dtensor tensor after retiling.
+ *  Assumed to be created & allocated using the new tiled index space.
+ */
 template<typename TensorType>
-void ga_to_tamm2(ExecutionContext& ec, Tensor<TensorType>& tensor, int ga_tens) {
-  
-    size_t ndims = tensor.num_modes();
+void retile_tamm_tensor(Tensor<TensorType> stensor, Tensor<TensorType>& dtensor, std::string tname="") {
+    auto io_t1 = std::chrono::high_resolution_clock::now();
 
-    //convert ga to tamm tensor
-    auto ga_tamm_lambda = [&](const IndexVector& bid){
-        const IndexVector blockid =
-        internal::translate_blockid(bid, tensor());
+    ExecutionContext& ec = get_ec(stensor());
+    int rank = ec.pg().rank().value();
 
-        auto block_dims   = tensor.block_dims(blockid);
-        auto block_offset = tensor.block_offsets(blockid);
+    int ga_tens = tamm_to_ga(ec,stensor);
+    ga_to_tamm(ec, dtensor, ga_tens);
+    NGA_Destroy(ga_tens);
 
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+    auto io_t2 = std::chrono::high_resolution_clock::now();
 
-        std::vector<int64_t> lo(ndims),hi(ndims),ld(ndims-1);
-
-        for(size_t i=0;i<ndims-1;i++)  lo[i]   = cd_ncast<size_t>(block_offset[i]);
-        for(size_t i=0;i<ndims-1;i++)  hi[i]   = cd_ncast<size_t>(block_offset[i] + block_dims[i]-1);
-        for(size_t i=1;i<ndims-1;i++)  ld[i-1] = cd_ncast<size_t>(block_dims[i]);
-
-        std::vector<TensorType> sbuf(dsize);
-        NGA_Get64(ga_tens,&lo[0],&hi[0],&sbuf[0],&ld[0]);
-
-        tensor.put(blockid, sbuf);
-    };
-
-    block_for(ec, tensor(), ga_tamm_lambda);
-
-    // NGA_Destroy(ga_tens);
+    double rt_time = 
+        std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
+    if(rank == 0 && !tname.empty()) std::cout << "Time to re-tile " << tname << " tensor: " << rt_time << " secs" << std::endl;
 }
+
 /**
  * @brief read tensor from disk using HDF5
  *
@@ -1426,26 +1439,277 @@ void read_from_disk_mpiio(Tensor<TensorType> tensor, const std::string& filename
 template<typename T>
 void dlpno_to_dense(Tensor<T> src, Tensor<T> dst){
     //T1_dlpno(a_ii, ii) -> T1_dense(a, i)
+    //V*(O*O) -> V*O -- if (ii / O == ii % O) i = ii / O;
     //T2_dlpno(a_ij, b_ij, ij) -> T2_dense(a, b, i, j)
-    bool is_2D = src.num_modes() == 2;
-    ExecutionContext& ec = get_ec(src());
-    int ga_src = tamm_to_ga(ec,src);
-    if(is_2D) ga_to_tamm(ec, dst, ga_src);
-    else ga_to_tamm2(ec, dst, ga_src);
-    NGA_Destroy(ga_src);
+    //V*V*(O*O) -> V*V*O*O -- i = ij / O, j = ij % O
+    int ndims = dst.num_modes();
+    // ExecutionContext& ec = get_ec(src());
+    // int ga_src = tamm_to_ga(ec,src);
+    // if(is_2D) ga_to_tamm(ec, dst, ga_src);
+    // else ga_to_tamm2(ec, dst, ga_src);
+    // NGA_Destroy(ga_src);
+    std::vector<int> dims_dst;
+    for(auto tis: dst.tiled_index_spaces()) dims_dst.push_back(tis.index_space().num_indices());  
+    int V = dims_dst[0];
+
+    if(ndims == 2){
+        int O = dims_dst[1];          
+        using Tensor2D = Eigen::Tensor<T, 2, Eigen::RowMajor>;        
+        Tensor2D dense_eig(V,O);
+        Tensor2D dlpno_eig(V,O*O);
+        tamm_to_eigen_tensor(src,dlpno_eig);
+        for (int a = 0;a<V;a++)
+          for (int i = 0; i < O; i++) {
+            int ii = i * O + i;
+            dense_eig(a, i) = dlpno_eig(a, ii);
+          }
+        eigen_to_tamm_tensor(dst,dense_eig);
+    }    
+    else if(ndims == 4){
+        int O = dims_dst[2];  
+        using Tensor3D = Eigen::Tensor<T, 3, Eigen::RowMajor>;
+        using Tensor4D = Eigen::Tensor<T, 4, Eigen::RowMajor>;        
+        Tensor4D dense_eig(V,V,O,O);
+        Tensor3D dlpno_eig(V,V,O*O);
+        tamm_to_eigen_tensor(src,dlpno_eig);
+        for (int a = 0;a<V;a++) // a
+        for (int b = 0;b<V;b++) // b
+        for (int ij = 0;ij<O*O;ij++) // ij
+            dense_eig(a,b,ij/O,ij%O) = dlpno_eig(a,b,ij);
+        eigen_to_tamm_tensor(dst,dense_eig);
+    }        
+    else NOT_ALLOWED();
+
 }
 
 template<typename T>
 void dense_to_dlpno(Tensor<T> src, Tensor<T> dst){
     //T1_dense(a, i) -> T1_dlpno(a_ii, ii) 
+    //V*O -> V*(O*O) -- ii = i * O + i 
     //T2_dense(a, b, i, j) -> T2_dlpno(a_ij, b_ij, ij)
-    bool is_2D = src.num_modes() == 2;
-    ExecutionContext& ec = get_ec(src());
-    int ga_src;
-    if(is_2D) ga_src = tamm_to_ga(ec,src);
-    else ga_src = tamm_to_ga2(ec,src);
-    ga_to_tamm(ec, dst, ga_src);
-    NGA_Destroy(ga_src);
+    //V*V*O*O -->  V*V*(O*O) -- ij = i * O + j
+    int ndims = src.num_modes();
+    // ExecutionContext& ec = get_ec(src());
+    // int ga_src;
+    // if(is_2D) ga_src = tamm_to_ga(ec,src);
+    // else ga_src = tamm_to_ga2(ec,src);
+    // ga_to_tamm(ec, dst, ga_src);
+    // NGA_Destroy(ga_src);
+  std::vector<int> dims;
+  for(auto tis: src.tiled_index_spaces()) 
+    dims.push_back(tis.index_space().num_indices());    
+  if(ndims == 2){
+      using Tensor2D = Eigen::Tensor<T, 2, Eigen::RowMajor>;        
+      Tensor2D dense_eig(dims[0],dims[1]);
+      Tensor2D dlpno_eig(dims[0],dims[1]*dims[1]);
+      dlpno_eig.setZero();
+
+      tamm_to_eigen_tensor(src,dense_eig);
+      for (int a = 0;a<dims[0];a++)
+      for (int i = 0;i<dims[1];i++) {
+        int ii = i*dims[1] + i;
+        dlpno_eig(a,ii) = dense_eig(a,i);
+      }
+      eigen_to_tamm_tensor(dst,dlpno_eig);
+  }
+  else if(ndims == 4){
+      using Tensor3D = Eigen::Tensor<T, 3, Eigen::RowMajor>;
+      using Tensor4D = Eigen::Tensor<T, 4, Eigen::RowMajor>;
+      Tensor4D dense_eig(dims[0],dims[1],dims[2],dims[3]);
+      Tensor3D dlpno_eig(dims[0],dims[1],dims[2]*dims[3]);
+      tamm_to_eigen_tensor(src,dense_eig);
+      for (int a = 0;a<dims[0];a++)
+      for (int b = 0;b<dims[1];b++)
+      for (int i = 0;i<dims[2];i++)
+      for (int j = 0;j<dims[3];j++) {
+          int ij = i * dims[3] + j;
+          dlpno_eig(a,b,ij) = dense_eig(a,b,i,j);
+      }       
+      eigen_to_tamm_tensor(dst,dlpno_eig);        
+  }
+  else NOT_ALLOWED();
+}
+
+template<typename TensorType>
+TensorType linf_norm(Tensor<TensorType> tensor) {
+    return linf_norm(tensor());
+}
+
+template<typename TensorType>
+TensorType linf_norm(LabeledTensor<TensorType> ltensor) {
+    ExecutionContext& gec = get_ec(ltensor);
+
+    TensorType linfnorm         = 0;
+    TensorType glinfnorm        = 0;
+    Tensor<TensorType> tensor = ltensor.tensor();
+
+    MPI_Comm sub_comm;
+    int rank = gec.pg().rank().value();
+    get_subgroup_info(gec,tensor,sub_comm);
+
+    if(sub_comm != MPI_COMM_NULL) {
+        ProcGroup pg = ProcGroup {ProcGroup::create_coll(sub_comm)};
+        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
+
+        auto getnorm = [&](const IndexVector& bid) {
+            const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+            const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+            std::vector<TensorType> dbuf(dsize);
+            tensor.get(blockid, dbuf);
+            for(TensorType val : dbuf) {
+                TensorType aval = std::fabs(val);
+                if(linfnorm < aval) linfnorm = aval;
+            }
+        };
+        block_for(ec, ltensor, getnorm);
+        ec.flush_and_sync();
+        //MemoryManagerGA::destroy_coll(mgr);
+        MPI_Comm_free(&sub_comm);
+        pg.destroy_coll();
+    }
+
+    gec.pg().barrier();
+
+    MPI_Allreduce(&linfnorm, &glinfnorm, 1, mpi_type<TensorType>(), MPI_MAX, gec.pg().comm());
+    return glinfnorm;
+}
+
+template <typename T>
+void write_to_disk_hdf5(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic , Eigen::RowMajor> eigen_tensor,
+                        std::string filename, bool write1D = false) {
+  std::string outputfile = filename + ".data";
+  hid_t file_id =
+      H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+
+  T *buf = eigen_tensor.data();
+  hid_t dataspace_id;
+
+  std::vector<hsize_t> dims(2);
+  dims[0] = eigen_tensor.rows();
+  dims[1] = eigen_tensor.cols();
+  int rank = 2;
+  dataspace_id = H5Screate_simple(rank, dims.data(), NULL);
+
+  hid_t dataset_id = H5Dcreate(file_id, "data", get_hdf5_dt<T>(), dataspace_id,
+                               H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+  /* herr_t status = */ H5Dwrite(dataset_id, get_hdf5_dt<T>(), H5S_ALL, H5S_ALL,
+                                 H5P_DEFAULT, buf);
+
+  /* Create and write attribute information - reduced dims */
+  std::vector<int> reduced_dims{static_cast<int>(dims[0]),static_cast<int>(dims[1])};
+  hsize_t attr_size = reduced_dims.size();
+  auto attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
+  auto attr_dataset = H5Dcreate(file_id, "rdims", H5T_NATIVE_INT, attr_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  H5Dwrite(attr_dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, reduced_dims.data());
+  H5Dclose(attr_dataset);
+  H5Sclose(attr_dataspace);
+
+  H5Dclose(dataset_id);
+  H5Sclose(dataspace_id);
+  H5Fclose(file_id);
+}
+
+template <typename T, int N>
+void write_to_disk_hdf5(Eigen::Tensor<T, N, Eigen::RowMajor> eigen_tensor,
+                        std::string filename, bool write1D = false) {
+  std::string outputfile = filename + ".data";
+  hid_t file_id =
+      H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  
+  
+  std::array<long, N> dims = eigen_tensor.dimensions();
+  T *buf = eigen_tensor.data();
+
+  hid_t dataspace_id;
+
+  if (write1D) {
+    hsize_t total_size = 1;
+    for (const auto &dim : eigen_tensor.dimensions()) {
+      total_size *= dim;
+    }
+    dataspace_id = H5Screate_simple(1, &total_size, NULL);
+  } else {
+    std::vector<hsize_t> dims;
+    for (const auto &dim : eigen_tensor.dimensions()) {
+      dims.push_back(dim);
+    }
+    int rank = eigen_tensor.NumDimensions;
+    dataspace_id = H5Screate_simple(rank, dims.data(), NULL);
+  }
+
+  hid_t dataset_id = H5Dcreate(file_id, "data", get_hdf5_dt<T>(), dataspace_id,
+                               H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+  /* herr_t status = */ H5Dwrite(dataset_id, get_hdf5_dt<T>(), H5S_ALL, H5S_ALL,
+                                 H5P_DEFAULT, buf);
+
+  /* Create and write attribute information - reduced dims */
+  std::vector<int> reduced_dims{static_cast<int>(dims[0]),static_cast<int>(dims[1])};
+  hsize_t attr_size = reduced_dims.size();
+  auto attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
+  auto attr_dataset = H5Dcreate(file_id, "rdims", H5T_NATIVE_INT, attr_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  H5Dwrite(attr_dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, reduced_dims.data());
+  H5Dclose(attr_dataset);
+  H5Sclose(attr_dataspace);
+
+  H5Dclose(dataset_id);
+  H5Sclose(dataspace_id);
+  H5Fclose(file_id);
+}
+
+template <typename T, int N>
+void write_to_disk_hdf5(Tensor<T> tensor, std::string filename,
+                        bool write1D = false) {
+  std::string outputfile = filename + ".data";
+  hid_t file_id =
+      H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  std::array<long, N> dims;
+
+  const auto &tindices = tensor.tiled_index_spaces();
+  for (int i = 0; i < N; i++) {
+    dims[i] = tindices[i].max_num_indices();
+  }
+  Eigen::Tensor<T, N, Eigen::RowMajor> eigen_tensor(dims);
+  eigen_tensor.setZero();
+  tamm_to_eigen_tensor(tensor, eigen_tensor);
+  T *buf = eigen_tensor.data();
+
+  hid_t dataspace_id;
+
+  if (write1D) {
+    hsize_t total_size = 1;
+    for (const auto &dim : eigen_tensor.dimensions()) {
+      total_size *= dim;
+    }
+    dataspace_id = H5Screate_simple(1, &total_size, NULL);
+  } else {
+    std::vector<hsize_t> dims;
+    for (const auto &dim : eigen_tensor.dimensions()) {
+      dims.push_back(dim);
+    }
+    int rank = eigen_tensor.NumDimensions;
+    dataspace_id = H5Screate_simple(rank, dims.data(), NULL);
+  }
+
+  hid_t dataset_id = H5Dcreate(file_id, "data", get_hdf5_dt<T>(), dataspace_id,
+                               H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+
+  /* herr_t status = */ H5Dwrite(dataset_id, get_hdf5_dt<T>(), H5S_ALL, H5S_ALL,
+                                 H5P_DEFAULT, buf);
+
+  /* Create and write attribute information - reduced dims */
+  std::vector<int> reduced_dims{static_cast<int>(dims[0]),static_cast<int>(dims[1])};
+  hsize_t attr_size = reduced_dims.size();
+  auto attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
+  auto attr_dataset = H5Dcreate(file_id, "rdims", H5T_NATIVE_INT, attr_dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  H5Dwrite(attr_dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, reduced_dims.data());
+  H5Dclose(attr_dataset);
+  H5Sclose(attr_dataspace);
+  
+  H5Dclose(dataset_id);
+  H5Sclose(dataspace_id);
+  H5Fclose(file_id);
 }
 
 /**

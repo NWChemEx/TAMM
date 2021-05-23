@@ -5,8 +5,8 @@
 #include <cctype>
 
 #include "tamm/tamm.hpp"
-#include "macdecls.h"
-#include "ga-mpi.h"
+#include "ga/macdecls.h"
+#include "ga/ga-mpi.h"
 
 #include "tamm/eigen_utils.hpp"
 
@@ -14,6 +14,13 @@
 #include "common/molden.hpp"
 #include "common/linalg.hpp"
 #include "common/json_data.hpp"
+
+#ifdef USE_SCALAPACK
+#include <blacspp/grid.hpp>
+#include <scalapackpp/block_cyclic_matrix.hpp>
+#include <scalapackpp/eigenvalue_problem/sevp.hpp>
+#include <scalapackpp/pblas/gemm.hpp>
+#endif
 
 using namespace tamm;
 using std::cerr;

@@ -583,8 +583,8 @@ inline std::tuple<OptionsMap, json>
     const double angstrom_to_bohr =
       1.889725989; // 1 / bohr_to_angstrom; //1.889726125
     
-    json jinput;
-    is >> jinput;
+    json jinput = json::parse(is, nullptr, false);
+    if (jinput.is_discarded()) { tamm_terminate("Error parsing input file"); }
 
     std::vector<string> geometry;
     parse_option<std::vector<string>>(geometry, jinput["geometry"], "coordinates", false);

@@ -1,13 +1,14 @@
 #ifndef TAMM_PROC_GROUP_H_
 #define TAMM_PROC_GROUP_H_
 
-#include <ga.h>
+#include "ga/ga.h"
 #include <mpi.h>
 #include <pthread.h>
 #include <cassert>
 #include <map>
 #include <vector>
-#include "ga-mpi.h"
+#include <memory>
+#include "ga/ga-mpi.h"
 
 #include "tamm/types.hpp"
 
@@ -183,6 +184,37 @@ class ProcGroup {
     MPI_Group_translate_ranks(group1, 1, &ranks1, group2, &ranks2);
     assert(ranks2 != MPI_PROC_NULL);
     return Proc{ranks2};
+  }
+
+  /**
+   * @brief Translate all ranks from this proc group to ranks in @param pg2 
+   *
+   * @param pg2 Proc group to which this group's ranks need to be translated
+   * @return std::vector<Proc> Translated rank for each rank in this group. -1
+   * indicates a rank in this group that is not in @param pg2
+   */
+  std::vector<Proc> rank_translate(const ProcGroup& pg2) {
+    EXPECTS(is_valid());
+    EXPECTS(pg2.is_valid());
+    MPI_Group group1, group2;
+    const size_t nranks = size().value();
+    int ranks1[nranks];
+    for(size_t i=0; i<nranks; i++) {
+      ranks1[i] = i;
+    }
+    int ranks2[nranks];
+    for (size_t i = 0; i < nranks; i++) {
+      ranks2[i] = MPI_PROC_NULL;
+    }
+    // MPI_Comm_group(comm_, &group1);
+    MPI_Comm_group(pginfo_->mpi_comm_, &group1);
+    MPI_Comm_group(pg2.pginfo_->mpi_comm_, &group2);
+    MPI_Group_translate_ranks(group1, nranks, ranks1, group2, ranks2);
+    std::vector<Proc> ret(nranks);
+    for(int i=0; i<nranks; i++) {
+      ret[i] = Proc{ranks2[i]};
+    }
+    return ret;
   }
 
   /**

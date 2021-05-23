@@ -1,4 +1,4 @@
-#include "cd_ccsd_common.hpp"
+#include "cd_ccsd_common_cs_ann.hpp"
 #include "ccsd_t/ccsd_t_fused_driver.hpp"
 
 void ccsd_driver();
@@ -48,13 +48,39 @@ void ccsd_driver() {
     auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, AO_opt, AO_tis,scf_conv]  
                     = hartree_fock_driver<T>(ec,filename);
 
+    int nsranks = sys_data.nbf/15;
+    if(nsranks < 1) nsranks=1;
+    int ga_cnn = GA_Cluster_nnodes();
+    if(nsranks>ga_cnn) nsranks=ga_cnn;
+    nsranks = nsranks * GA_Cluster_nprocs(0);
+    int subranks[nsranks];
+    for (int i = 0; i < nsranks; i++) subranks[i] = i;
+    auto world_comm = ec.pg().comm();
+    MPI_Group world_group;
+    MPI_Comm_group(world_comm,&world_group);
+    MPI_Group subgroup;
+    MPI_Group_incl(world_group,nsranks,subranks,&subgroup);
+    MPI_Comm subcomm;
+    MPI_Comm_create(world_comm,subgroup,&subcomm);
+    
+    ProcGroup sub_pg;
+    ExecutionContext *sub_ec=nullptr;
+
+    if(subcomm != MPI_COMM_NULL){
+        sub_pg = ProcGroup::create_coll(subcomm);
+        sub_ec = new ExecutionContext(sub_pg, DistributionKind::nw, MemoryManagerKind::ga);
+    }
+
+    Scheduler sub_sch{*sub_ec};
+
     //force writet on
     sys_data.options_map.ccsd_options.writet = true;
+    sys_data.options_map.ccsd_options.computeTData = true;
 
     CCSDOptions ccsd_options = sys_data.options_map.ccsd_options;
     debug = ccsd_options.debug;
     if(rank == 0) ccsd_options.print();
-    
+
     if(rank==0) cout << endl << "#occupied, #virtual = " << sys_data.nocc << ", " << sys_data.nvir << endl;
     
     auto [MO,total_orbitals] = setupMOIS(sys_data);
@@ -73,17 +99,16 @@ void ccsd_driver() {
         ( (fs::exists(t1file) && fs::exists(t2file)     
         && fs::exists(f1file) && fs::exists(v2file)) );
 
-    TiledIndexSpace N = MO("all");
-
-    #if 1
     //deallocates F_AO, C_AO
     auto [cholVpr,d_f1,lcao,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
                         (sys_data, ec, MO, AO_opt, C_AO, F_AO, C_beta_AO, F_beta_AO, shells, shell_tile_map,
                                 ccsd_restart, cholfile);
     free_tensors(lcao);
 
+    TiledIndexSpace N = MO("all");
+
     auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
-            = setupTensors(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
+            = setupTensors_cs(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
 
     if(ccsd_restart) {
         read_from_disk(d_f1,f1file);
@@ -119,28 +144,83 @@ void ccsd_driver() {
     
     ec.pg().barrier();
 
-    ExecutionHW hw = ExecutionHW::CPU;
+    auto cc_t1 = std::chrono::high_resolution_clock::now();
 
+    ExecutionHW ex_hw = ExecutionHW::CPU;
     #ifdef USE_TALSH_T
-    hw = ExecutionHW::GPU;
-    const bool has_gpu = ec.has_gpu();    
+    ex_hw = ExecutionHW::GPU;
+    const bool has_gpu = ec.has_gpu();
     TALSH talsh_instance;
     if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
     #endif
 
-    auto cc_t1 = std::chrono::high_resolution_clock::now();
-
     ccsd_restart = ccsd_restart && fs::exists(ccsdstatus) && scf_conv;
 
-    auto [residual, corr_energy] = cd_ccsd_driver<T>(
-            sys_data, ec, MO, CI, d_t1, d_t2, d_f1, 
-            d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
-            p_evl_sorted, 
-            cholVpr, ccsd_restart, files_prefix);
+    std::string fullV2file = files_prefix+".fullV2";
+    t1file = files_prefix+".fullT1amp";
+    t2file = files_prefix+".fullT2amp";
+
+    bool  computeTData = ccsd_options.computeTData; 
+    if(ccsd_options.writev) 
+        computeTData = computeTData && !fs::exists(fullV2file) 
+                && !fs::exists(t1file) && !fs::exists(t2file);
+
+    if(computeTData) {
+        TiledIndexSpace O = MO("occ");
+        TiledIndexSpace V = MO("virt");
+
+        const int otiles = O.num_tiles();
+        const int vtiles = V.num_tiles();
+        const int obtiles = MO("occ_beta").num_tiles();
+        const int vbtiles = MO("virt_beta").num_tiles();
+
+        o_beta = {MO("occ"), range(obtiles,otiles)};
+        v_beta = {MO("virt"), range(vbtiles,vtiles)};
+
+        dt1_full = {{V,O},{1,1}};
+        dt2_full = {{V,V,O,O},{2,2}};
+        t1_bb    = {{v_beta ,o_beta}                 ,{1,1}};
+        t2_bbbb  = {{v_beta ,v_beta ,o_beta ,o_beta} ,{2,2}};
+
+        Tensor<T>::allocate(&ec,t1_bb,t2_bbbb,dt1_full,dt2_full);
+        // (dt1_full() = 0)
+        // (dt1_full() = 0)
+    }
+
+    double residual=0, corr_energy=0;
+
+    if(ccsd_restart) {
+        if(subcomm != MPI_COMM_NULL) {
+            const int ppn = GA_Cluster_nprocs(0);
+            if(rank==0) std::cout << "Executing with " << nsranks << " ranks (" << nsranks/ppn << " nodes)" << std::endl; 
+            std::tie(residual, corr_energy) = cd_ccsd_cs_driver<T>(
+                    sys_data, *sub_ec, MO, CI, d_t1, d_t2, d_f1, 
+                    d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
+                    p_evl_sorted, 
+                    cholVpr, ccsd_restart, files_prefix,
+                    computeTData);
+        }
+        ec.pg().barrier();
+    }
+    else {
+        std::tie(residual, corr_energy) = cd_ccsd_cs_driver<T>(
+                sys_data, ec, MO, CI, d_t1, d_t2, d_f1, 
+                d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
+                p_evl_sorted, 
+                cholVpr, ccsd_restart, files_prefix,
+                computeTData);
+        }      
+
+    if(computeTData) {
+        free_tensors(t1_bb,t2_bbbb);
+        if(ccsd_options.writev) {
+            write_to_disk(d_t1,t1file);
+            write_to_disk(d_t2,t2file); 
+            free_tensors(dt1_full, dt1_full);
+        }
+    }  
 
     ccsd_stats(ec, hf_energy,residual,corr_energy,ccsd_options.threshold);
-
-    auto cc_t2 = std::chrono::high_resolution_clock::now();
 
     if(ccsd_options.writet && !fs::exists(ccsdstatus)) {
         // write_to_disk(d_t1,t1file);
@@ -150,114 +230,55 @@ void ccsd_driver() {
           if(!out) cerr << "Error opening file " << ccsdstatus << endl;
           out << 1 << std::endl;
           out.close();
-        }                
+        }          
     }
 
+    if(subcomm != MPI_COMM_NULL){
+      (*sub_ec).flush_and_sync();
+      MPI_Comm_free(&subcomm);
+    }
+
+    auto cc_t2 = std::chrono::high_resolution_clock::now();
     double ccsd_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-    if(rank == 0) std::cout << std::endl << "Time taken for Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
+    if(rank == 0) 
+        std::cout << std::endl << "Time taken for Closed Shell Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
+
+    // double printtol=ccsd_options.printtol;
+    // if (rank == 0) {
+    //     std::cout << std::endl << "Threshold for printing amplitudes set to: " << printtol << std::endl;
+    //     std::cout << "T1 amplitudes" << std::endl;
+    //     print_max_above_threshold(d_t1,printtol);
+    //     std::cout << "T2 amplitudes" << std::endl;
+    //     print_max_above_threshold(d_t2,printtol);
+    // }
 
     if(!ccsd_restart) {
         free_tensors(d_r1,d_r2);
         free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);
     }
 
-    free_tensors(d_t1, d_t2, d_f1);
+    free_tensors(d_t1, d_t2);
     ec.flush_and_sync();
 
-    std::string fullV2file = files_prefix+".fullV2";
-    bool  ccsd_t_restart =
-        ( (fs::exists(t1file) && fs::exists(t2file)     
-        && fs::exists(f1file) && fs::exists(fullV2file)) );
+    bool  ccsd_t_restart = fs::exists(t1file) && fs::exists(t2file) &&
+                           fs::exists(f1file) && fs::exists(fullV2file);
 
     Tensor<T> d_v2;
-    if(!ccsd_t_restart) {
-        d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, hw);
-        write_to_disk(d_v2,fullV2file,true);
-        Tensor<T>::deallocate(d_v2);
+    if(computeTData) {
+        d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, ex_hw);
+        if(ccsd_options.writev) {
+          write_to_disk(d_v2,fullV2file,true);
+          Tensor<T>::deallocate(d_v2);
+        }
     }
 
-    Tensor<T>::deallocate(cholVpr);
+    free_tensors(cholVpr);
 
     #ifdef USE_TALSH_T
     //talshStats();
     if(has_gpu) talsh_instance.shutdown();
     #endif  
-
-    #endif 
-
-    #if 0
-    TiledIndexSpace O = MO("occ");
-    TiledIndexSpace V = MO("virt");
-    double residual=0, corr_energy=0;
-
-    Tensor<T> d_f1{{N,N},{1,1}};
-    Tensor<T> d_t1{{V,O},{1,1}};
-    Tensor<T> d_t2{{V,V,O,O},{2,2}};
-
-    {
-        genTime = 0;
-        TimerGuard tg_total{&genTime};
-        Tensor<T>::allocate(&ec,d_f1);
-        Scheduler{ec}(d_f1()=4.20).execute();
-    }
-    if(rank==0) std::cout << "done alloc/init F1: " << genTime << "secs" << std::endl; 
-
-    std::vector<T> p_evl_sorted;
-    {
-        genTime = 0;
-        TimerGuard tg_total{&genTime};
-        p_evl_sorted = tamm::diagonal(d_f1);
-    }
-    if(rank==0) std::cout << "diagonal(f1): " << genTime << "secs" << std::endl; 
-
-    {
-        genTime = 0;
-        TimerGuard tg_total{&genTime};
-        Tensor<T>::deallocate(C_AO,F_AO);
-    }
-    if(rank==0) std::cout << "deallocate(C_AO,F_AO): " << genTime << "secs" << std::endl; 
-
-    Tensor<T> d_v2{{N,N,N,N},{2,2}};
-    {
-      genTime = 0; memTime1 =0; memTime2 = 0; memTime3=0; memTime4=0;
-      memTime5=0; memTime6=0; memTime7=0; memTime8=0;
-        TimerGuard tg_total{&genTime};    
-        Tensor<T>::allocate(&ec,d_v2);
-    }
-    if(rank==0) {
-        std::cout << "Time to allocate V2: " << genTime << "secs" << std::endl; 
-        std::cout << "   -> timpl: allocate: total: " << memTime1 << "secs" << std::endl; 
-        std::cout << "   -> timpl: allocate: dist clone: " << memTime2 << "secs" << std::endl; 
-        std::cout << "   -> mmga: alloc_coll: total: " << memTime3 << "secs" << std::endl; 
-        std::cout << "   -> mmga: alloc_coll: ga-create-irreg: " << memTime4 << "secs" << std::endl; 
-        std::cout << "   -> mmga: alloc_coll: all_reduce: " << memTime5 << "secs" << std::endl; 
-        std::cout << "   -> mmga: alloc_coll: all_gather: " << memTime6 << "secs" << std::endl; 
-        std::cout << "   -> mmga: alloc_coll: partial_sum: " << memTime7 << "secs" << std::endl; 
-        std::cout << "   -> mmga: alloc_coll: ga-dist: " << memTime8 << "secs" << std::endl; 
-    }
-
-    {
-       genTime = 0;
-       TimerGuard tg_total{&genTime};    
-       Tensor<T>::allocate(&ec,d_t1,d_t2);
-    }
-    if(rank==0) 
-        std::cout << "allocate T1,T2: " << genTime << "secs" << std::endl; 
-
-    auto cc_t1 = std::chrono::high_resolution_clock::now();
-
-    // Scheduler{ec}
-    // (d_t1() = 5.21)
-    // (d_v2() = 2.3)
-    // (d_t2() = 8.234)
-    // .execute();
-    auto cc_t2= std::chrono::high_resolution_clock::now();
-    double alloc_time = 
-        std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();    
-    if(rank==0) std::cout << "initialize T1,T2,V2: " << alloc_time << "secs" << std::endl; 
-
-    #endif
 
     double energy1=0, energy2=0;
 
@@ -269,35 +290,63 @@ void ccsd_driver() {
     auto [MO1,total_orbitals1] = setupMOIS(sys_data,true);
     TiledIndexSpace N1 = MO1("all");
     TiledIndexSpace O1 = MO1("occ");
-    TiledIndexSpace V1 = MO1("virt");     
+    TiledIndexSpace V1 = MO1("virt");
 
-    Tensor<T> t_d_f1{{N1,N1},{1,1}};
+    // Tensor<T> t_d_f1{{N1,N1},{1,1}};
     Tensor<T> t_d_t1{{V1,O1},{1,1}};
     Tensor<T> t_d_t2{{V1,V1,O1,O1},{2,2}};
     Tensor<T> t_d_v2{{N1,N1,N1,N1},{2,2}};
-    Tensor<T>::allocate(&ec,t_d_f1,t_d_t1,t_d_t2,t_d_v2);
+    Tensor<T>::allocate(&ec,t_d_t1,t_d_t2,t_d_v2);
 
-    Scheduler{ec}   
-    (t_d_f1() = 0)
-    (t_d_t1() = 0)
-    (t_d_t2() = 0)
-    (t_d_v2() = 0)
-    .execute();
+    if(!ccsd_t_restart) {
+        if(rank==0) {
+            cout << endl << "Retile T1,T2,V2 ... " << endl;   
+        }
 
-    TiledIndexSpace O = MO("occ");
-    TiledIndexSpace V = MO("virt");
-    Tensor<T> wd_f1{{N,N},{1,1}};
-    Tensor<T> wd_t1{{V,O},{1,1}};
-    Tensor<T> wd_t2{{V,V,O,O},{2,2}};
-    Tensor<T> wd_v2{{N,N,N,N},{2,2}};
+        Scheduler{ec}   
+        // (t_d_f1() = 0)
+        (t_d_t1() = 0)
+        (t_d_t2() = 0)
+        (t_d_v2() = 0)
+        .execute();
 
-    read_from_disk(t_d_f1,f1file,false,wd_f1);
-    read_from_disk(t_d_t1,t1file,false,wd_t1);
-    read_from_disk(t_d_t2,t2file,false,wd_t2);
-    read_from_disk(t_d_v2,fullV2file,false,wd_v2,true); 
+        TiledIndexSpace O = MO("occ");
+        TiledIndexSpace V = MO("virt");
 
-    ec.pg().barrier();
-    p_evl_sorted = tamm::diagonal(t_d_f1);
+        if(ccsd_options.writev) {
+          // Tensor<T> wd_f1{{N,N},{1,1}};
+          Tensor<T> wd_t1{{V,O},{1,1}};
+          Tensor<T> wd_t2{{V,V,O,O},{2,2}};
+          Tensor<T> wd_v2{{N,N,N,N},{2,2}};
+                        
+          // read_from_disk(t_d_f1,f1file,false,wd_f1);
+          read_from_disk(t_d_t1,t1file,false,wd_t1);
+          read_from_disk(t_d_t2,t2file,false,wd_t2);
+          read_from_disk(t_d_v2,fullV2file,false,wd_v2); 
+          
+          ec.pg().barrier();
+          // write_to_disk(t_d_f1,f1file);
+          write_to_disk(t_d_t1,t1file);
+          write_to_disk(t_d_t2,t2file);
+          write_to_disk(t_d_v2,fullV2file);
+        }
+        
+        else {
+          retile_tamm_tensor(dt1_full,t_d_t1);
+          retile_tamm_tensor(dt2_full,t_d_t2);
+          free_tensors(dt1_full, dt2_full);
+          retile_tamm_tensor(d_v2,t_d_v2,"V2");
+          free_tensors(d_v2);
+        }        
+    }
+    else if(ccsd_options.writev) {
+        // read_from_disk(t_d_f1,f1file);
+        read_from_disk(t_d_t1,t1file);
+        read_from_disk(t_d_t2,t2file);
+        read_from_disk(t_d_v2,fullV2file);
+    }
+
+    p_evl_sorted = tamm::diagonal(d_f1);
 
     cc_t1 = std::chrono::high_resolution_clock::now();
 
@@ -390,8 +439,6 @@ void ccsd_driver() {
         return g_getTime/nranks;        
     };
 
-    // cout << rank << "," << ccsd_t_time << endl;
-    // ec.pg().barrier();
     if(rank == 0) {
       std::cout << std::endl << "------CCSD(T) Performance------" << std::endl;
       std::cout << "Total CCSD(T) Time: " << total_t_time << std::endl;
@@ -418,64 +465,7 @@ void ccsd_driver() {
 
     ec.pg().barrier();
 
-    #if 1
-    std::vector<Index> cvec_s1t;
-    std::vector<Index> cvec_s1v;
-    std::vector<Index> cvec_d1t;
-    std::vector<Index> cvec_d1v;
-    std::vector<Index> cvec_d2t;
-    std::vector<Index> cvec_d2v;
-
-    cache_s1t.gather_stats(cvec_s1t);
-    cache_s1v.gather_stats(cvec_s1v);
-    cache_d1t.gather_stats(cvec_d1t);
-    cache_d1v.gather_stats(cvec_d1v);
-    cache_d2t.gather_stats(cvec_d2t);
-    cache_d2v.gather_stats(cvec_d2v);
-
-    std::vector<Index> g_cvec_s1t(cvec_s1t.size());
-    std::vector<Index> g_cvec_s1v(cvec_s1v.size());
-    std::vector<Index> g_cvec_d1t(cvec_d1t.size());
-    std::vector<Index> g_cvec_d1v(cvec_d1v.size());
-    std::vector<Index> g_cvec_d2t(cvec_d2t.size());
-    std::vector<Index> g_cvec_d2v(cvec_d2v.size());
-    MPI_Reduce(&cvec_s1t[0], &g_cvec_s1t[0], cvec_s1t.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());
-    MPI_Reduce(&cvec_s1v[0], &g_cvec_s1v[0], cvec_s1v.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());
-    MPI_Reduce(&cvec_d1t[0], &g_cvec_d1t[0], cvec_d1t.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
-    MPI_Reduce(&cvec_d1v[0], &g_cvec_d1v[0], cvec_d1v.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
-    MPI_Reduce(&cvec_d2t[0], &g_cvec_d2t[0], cvec_d2t.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
-    MPI_Reduce(&cvec_d2v[0], &g_cvec_d2v[0], cvec_d2v.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
-
-    out_fp = sys_data.input_molecule+"."+sys_data.options_map.ccsd_options.basis;
-    files_dir = out_fp+"_files/ccsd_t";
-    if(seq_h3b) files_dir = out_fp+"_files/ccsd_t_seq_h3b";
-    if(!fs::exists(files_dir)) fs::create_directories(files_dir);    
-    std::string fp = files_dir+"/";
-
-    auto print_stats = [&](std::ostream& os, std::vector<uint32_t>& vec){
-      for (uint32_t i = 0; i < vec.size(); i++) {
-        os << i << " : " << vec[i] << std::endl;
-      }
-    };
-
-    if(rank == 0) {
-      std::ofstream fp_s1t(fp+"s1t_stats");
-      std::ofstream fp_s1v(fp+"s1v_stats");
-      std::ofstream fp_d1t(fp+"d1t_stats");
-      std::ofstream fp_d1v(fp+"d1v_stats");
-      std::ofstream fp_d2t(fp+"d2t_stats");
-      std::ofstream fp_d2v(fp+"d2v_stats");
-
-      print_stats(fp_s1t,g_cvec_s1t);
-      print_stats(fp_s1v,g_cvec_s1v);
-      print_stats(fp_d1t,g_cvec_d1t);
-      print_stats(fp_d1v,g_cvec_d1v);
-      print_stats(fp_d2t,g_cvec_d2t);
-      print_stats(fp_d2v,g_cvec_d2v);
-    }
-    #endif
-
-    free_tensors(t_d_t1, t_d_t2, t_d_f1, t_d_v2);
+    free_tensors(t_d_t1, t_d_t2, d_f1, t_d_v2);
 
     ec.flush_and_sync();
     // delete ec;

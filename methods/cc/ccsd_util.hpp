@@ -4,8 +4,8 @@
 // #include "cd_svd.hpp"
 #include "cd_svd/cd_svd_ga.hpp"
 #include "cd_svd/two_index_transform.hpp"
-#include "macdecls.h"
-#include "ga-mpi.h"
+#include "ga/macdecls.h"
+#include "ga/ga-mpi.h"
 
 using namespace tamm;
 
@@ -33,6 +33,28 @@ void update_r2(ExecutionContext& ec,
     };
     block_for(ec, ltensor, lambda);
 }
+
+template<typename TensorType>
+void update_gamma2(ExecutionContext& ec, 
+              LabeledTensor<TensorType> ltensor) {
+    Tensor<TensorType> tensor = ltensor.tensor();
+    auto tis = tensor.tiled_index_spaces();
+
+    auto lambda = [&](const IndexVector& bid) {
+        const IndexVector blockid   = internal::translate_blockid(bid, ltensor);
+        if(  (tis[0].spin(blockid[0]) != tis[2].spin(blockid[2])) 
+          || (tis[1].spin(blockid[1]) != tis[3].spin(blockid[3])) ) {
+          const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+          std::vector<TensorType> dbuf(dsize);
+          tensor.get(blockid, dbuf);
+          // func(blockid, dbuf);
+          for(auto i = 0U; i < dsize; i++) dbuf[i] = 0; 
+          tensor.put(blockid, dbuf);
+        }
+    };
+    block_for(ec, ltensor, lambda);
+}
+
 
 template<typename TensorType>
 void init_diagonal(ExecutionContext& ec,
@@ -712,7 +734,7 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
 
     if(!readv2) {
       two_index_transform(sys_data, ec, C_AO, F_AO, C_beta_AO,F_beta_AO, d_f1, lcao, is_dlpno);
-      cholVpr = cd_svd_ga(sys_data, ec, MO, AO, chol_count, max_cvecs, shells, lcao);
+      if(!is_dlpno) cholVpr = cd_svd_ga(sys_data, ec, MO, AO, chol_count, max_cvecs, shells, lcao);
     }
     else{
       std::ifstream in(cholfile, std::ios::in);
@@ -727,7 +749,7 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
       TiledIndexSpace CI{chol_is,static_cast<tamm::Tile>(itile_size)}; 
 
       cholVpr = {{N,N,CI},{SpinPosition::upper,SpinPosition::lower,SpinPosition::ignore}};
-      Tensor<TensorType>::allocate(&ec, cholVpr);
+      if(!is_dlpno) Tensor<TensorType>::allocate(&ec, cholVpr);
       // Scheduler{ec}(cholVpr()=0).execute();
     }
 

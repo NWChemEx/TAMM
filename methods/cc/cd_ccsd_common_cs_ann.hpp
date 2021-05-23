@@ -1,7 +1,7 @@
 #include "diis.hpp"
 #include "ccsd_util.hpp"
-#include "macdecls.h"
-#include "ga-mpi.h"
+#include "ga/macdecls.h"
+#include "ga/ga-mpi.h"
 
 using namespace tamm;
 
@@ -22,6 +22,8 @@ Tensor<double> _a02, _a01_aa,_a03_aa_vo,_a04_aa,_a05_aa,_a05_bb;
 Tensor<double> _a007,_a001_aa,_a001_bb,_a017_aa,_a017_bb;
 Tensor<double> _a006_aa,_a006_bb,_a009_aa,_a009_bb,_a021_aa,_a021_bb,_a008_aa,
                _a019_abab,_a020_aaaa,_a020_baba,_a020_baab,_a020_bbbb,_a022_abab;
+
+Tensor<double> dt1_full, dt2_full, t1_bb, t2_bbbb;
 
 template<typename T>
 void ccsd_e(/* ExecutionContext &ec, */
@@ -230,7 +232,7 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
                    Tensor<T>& r1_aa, Tensor<T>& r2_abab, std::vector<Tensor<T>>& d_r1s, 
                    std::vector<Tensor<T>>& d_r2s, std::vector<Tensor<T>>& d_t1s, 
                    std::vector<Tensor<T>>& d_t2s, std::vector<T>& p_evl_sorted,
-                   Tensor<T>& cv3d, bool ccsd_restart=false, std::string out_fp="") {
+                   Tensor<T>& cv3d, bool ccsd_restart=false, std::string out_fp="",bool computeTData=false) {
 
     int    maxiter     = sys_data.options_map.ccsd_options.ccsd_maxiter;
     int    ndiis       = sys_data.options_map.ccsd_options.ndiis;
@@ -485,8 +487,22 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
         sys_data.results["output"]["CCSD"]["n_iterations"] =   niter+1;
         sys_data.results["output"]["CCSD"]["final_energy"]["correlation"] =  energy;
         sys_data.results["output"]["CCSD"]["final_energy"]["total"] =  sys_data.scf_energy+energy;
-
         write_json_data(sys_data,"CCSD");
+    }
+
+    if(computeTData) {
+        Tensor<T> d_t1 = dt1_full;
+        Tensor<T> d_t2 = dt2_full;
+
+        sch
+        .exact_copy(t1_bb(p1_vb,h3_ob),  t1_aa(p1_vb,h3_ob))
+        .exact_copy(t2_bbbb(p1_vb,p2_vb,h3_ob,h4_ob),  t2_aaaa(p1_vb,p2_vb,h3_ob,h4_ob))
+
+        (d_t1(p1_va,h3_oa)             = t1_aa(p1_va,h3_oa))
+        (d_t1(p1_vb,h3_ob)             = t1_bb(p1_vb,h3_ob)) 
+        (d_t2(p1_va,p2_va,h3_oa,h4_oa) = t2_aaaa(p1_va,p2_va,h3_oa,h4_oa))
+        (d_t2(p1_va,p2_vb,h3_oa,h4_ob) = t2_abab(p1_va,p2_vb,h3_oa,h4_ob))
+        (d_t2(p1_vb,p2_vb,h3_ob,h4_ob) = t2_bbbb(p1_vb,p2_vb,h3_ob,h4_ob)).execute();
     }
 
     sch.deallocate(i0_temp,t2_aaaa_temp,_a01,_a02_aa,_a03_aa);
@@ -498,5 +514,4 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
                     chol3d_bb_oo, chol3d_bb_ov, chol3d_bb_vv).execute();
 
     return std::make_tuple(residual,energy);
-
 }

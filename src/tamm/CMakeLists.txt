@@ -5,7 +5,10 @@ include(TargetMacros) #For cmsb_add_library
 if(USE_CUDA)
     set(tamm_cuda_SRCS cuda_memory_allocator.cu cudamemset.cu)
     set(tamm_cuda_INCS cuda_memory_allocator.hpp cudamemset.hpp talsh_tamm.hpp)
+elseif(USE_HIP)
+    set(tamm_cuda_INCS talsh_tamm.hpp)
 endif()
+
 
 #Add the current directory's sources to the list
 set(tamm_SRCS tamm.cpp index_space.cpp execution_context.cpp "${tamm_cuda_SRCS}")

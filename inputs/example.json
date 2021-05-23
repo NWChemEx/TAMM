@@ -64,6 +64,7 @@
         "lshift": 0,
         "ndiis": 5,
         "ccsd_maxiter": 50,
+        "printtol": 0.05,
 
         "readt": false,
         "writet": false,
@@ -71,7 +72,7 @@
 
         "debug": false,
         "profile_ccsd": false,
-        "balance_tiles": false,
+        "balance_tiles": true,
 
         "ext_data_path": "",
     

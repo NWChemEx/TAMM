@@ -27,6 +27,12 @@
 #include "tamm/dag_impl.hpp"
 #include "tamm/tamm_utils.hpp"
 #include "tamm/lru_cache.hpp"
+#include "tamm/blockops_blis.hpp"
+#include "tamm/op_dag.hpp"
+//#ifdef USE_TALSH
+// #include "tamm/blockops_talsh.hpp"
+//#endif
+#include <nlohmann/json.hpp>
 
 namespace tamm {
 void initialize(int argc, char *argv[]);

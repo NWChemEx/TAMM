@@ -268,9 +268,10 @@ public:
 
     RuntimeEngine* re() const { return re_.get(); }
 
-    void set_re(RuntimeEngine* re) {
-        re_.reset(re);
-    }
+    void set_re(RuntimeEngine* re); 
+    // {
+    //     re_.reset(re);
+    // }
 
     /**
      * @brief Flush communication in this execution context, synchronize, and

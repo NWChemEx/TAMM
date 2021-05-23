@@ -1,7 +1,7 @@
 #include "tamm/tamm.hpp"
-#include "macdecls.h"
+#include "ga/macdecls.h"
 #include "mpi.h"
-#include "ga.h"
+#include "ga/ga.h"
 #undef I
 namespace tamm {
 

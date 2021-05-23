@@ -430,6 +430,73 @@ void ip_hptt(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
     plan->execute();
 }
 
+/**
+ * @brief
+ *
+ * @todo add support for triangular arrays
+ *
+ * @tparam T
+ * @param dbuf
+ * @param ddims
+ * @param dlabel
+ * @param sbuf
+ * @param sdims
+ * @param slabel
+ * @param scale
+ * @param update
+ */
+template <typename T>
+inline void block_add(T* dbuf, const std::vector<size_t>& ddims,
+                      const IndexLabelVec& dlabel, T* sbuf,
+                      const std::vector<size_t>& sdims,
+                      const IndexLabelVec& slabel, T scale, bool update) {
+  if (are_permutations(dlabel, slabel)) {
+    EXPECTS(slabel.size() == dlabel.size());
+    EXPECTS(sdims.size() == slabel.size());
+    EXPECTS(ddims.size() == dlabel.size());
+    auto label_perm = perm_compute(dlabel, slabel);
+    for (unsigned i = 0; i < label_perm.size(); i++) {
+      EXPECTS(ddims[i] == sdims[label_perm[i]]);
+    }
+    if (!update) {
+      index_permute(dbuf, sbuf, label_perm, ddims, scale);
+    } else {
+      index_permute_acc(dbuf, sbuf, label_perm, ddims, scale);
+    }
+  } else {
+    IndexLabelVec unique_labels = unique_entries(dlabel);
+    unique_labels = sort_on_dependence(unique_labels);
+
+    const auto& dperm_map = perm_map_compute(unique_labels, dlabel);
+    const auto& sperm_map = perm_map_compute(unique_labels, slabel);
+    const auto& dinv_pm = perm_map_compute(dlabel, unique_labels);
+
+    auto idx = [](const auto& index_vec, const auto& dims_vec) {
+      size_t ret = 0, ld = 1;
+      EXPECTS(index_vec.size() == dims_vec.size());
+      for (int i = index_vec.size(); i >= 0; i--) {
+        ret += ld * index_vec[i];
+        ld *= dims_vec[i];
+      }
+      return ret;
+    };
+
+    std::vector<size_t> itrv(unique_labels.size(), 0);
+    std::vector<size_t> endv(unique_labels.size());
+    endv = internal::perm_map_apply(ddims, dinv_pm);
+    do {
+      const auto& itval = itrv;
+      const auto& sindex = perm_map_apply(itval, sperm_map);
+      const auto& dindex = perm_map_apply(itval, dperm_map);
+      if (!update) {
+        dbuf[idx(dindex, ddims)] = scale * sbuf[idx(sindex, sdims)];
+      } else {
+        dbuf[idx(dindex, ddims)] += scale * sbuf[idx(sindex, sdims)];
+      }
+    } while (internal::cartesian_iteration(itrv, endv));
+  }
+}
+
 } // namespace internal
 
 //////////////////////////////////////////////////////////////////////////

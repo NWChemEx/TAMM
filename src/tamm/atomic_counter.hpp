@@ -1,7 +1,7 @@
 #ifndef ATOMIC_COUNTER_HPP_
 #define ATOMIC_COUNTER_HPP_
 
-#include "ga-mpi.h"
+#include "ga/ga-mpi.h"
 #include "tamm/proc_group.hpp"
 #include <atomic>
 

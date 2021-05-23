@@ -7,7 +7,6 @@
 #include <tuple>
 #include <type_traits>
 #include <iostream>
-#include <random>
 
 #include "tamm/tensor_base.hpp"
 #include "tamm/utils.hpp"
@@ -122,7 +121,7 @@ public:
      * 
      * @return DistributionType 
      */
-    DistributionKind kind() const {
+    DistKind kind() const {
       return kind_;
     }
 
@@ -146,7 +145,7 @@ public:
      * @param [in] nproc number of processes
      */
     Distribution(const TensorBase* tensor_structure, Proc nproc,
-                 DistributionKind kind)
+                 DistKind kind)
         : tensor_structure_{tensor_structure}, nproc_{nproc}, kind_{kind} {}
 
     /**
@@ -174,7 +173,7 @@ protected:
                                             corresponding Tensor structure */
     Proc nproc_;                         /**< Number of processes */
     
-    DistributionKind kind_; /**< Distribution kind */
+    DistKind kind_; /**< Distribution kind */
 
     size_t hash_;
 
@@ -200,7 +199,7 @@ public:
 
     Distribution_NW(const TensorBase* tensor_structure = nullptr,
                     Proc nproc                         = Proc{1}) :
-      Distribution{tensor_structure, nproc, DistributionKind::nw} {
+      Distribution{tensor_structure, nproc, DistKind::nw} {
         EXPECTS(nproc > 0);
         if(tensor_structure == nullptr) { return; }
 
@@ -390,7 +389,7 @@ class Distribution_SimpleRoundRobin : public Distribution {
 
   Distribution_SimpleRoundRobin(const TensorBase* tensor_structure = nullptr,
                                 Proc nproc = Proc{1})
-      : Distribution{tensor_structure, nproc, DistributionKind::simple_round_robin} {
+      : Distribution{tensor_structure, nproc, DistKind::simple_round_robin} {
     EXPECTS(nproc > 0);
     if (tensor_structure == nullptr) {
       return;
@@ -398,24 +397,20 @@ class Distribution_SimpleRoundRobin : public Distribution {
 
     compute_key_offsets();
     // compute number of tiles
-    total_num_blocks_ = 1;
+    total_num_tiles_ = 1;
     EXPECTS(tensor_structure != nullptr);
     for (const auto& tis : tensor_structure->tiled_index_spaces()) {
-      total_num_blocks_ *= tis.max_num_tiles();
+      total_num_tiles_ *= tis.max_num_tiles();
     }
     // compute max block size
     max_block_size_ = 1;
     for (const auto& tis : tensor_structure->tiled_index_spaces()) {
-      max_block_size_ *= tis.max_tile_size();
+      max_block_size_ *= max_tile_size(tis);
     }
     // compute max buffer size on any proc
-    max_proc_buf_size_ = ((total_num_blocks_ / nproc_.value()) +
-                          (total_num_blocks_.value() % nproc_.value() ? 1 : 0)) *
+    max_proc_buf_size_ = ((total_num_tiles_ / nproc_.value()) +
+                          (total_num_tiles_.value() % nproc_.value() ? 1 : 0)) *
                          max_block_size_;
-    set_hash(compute_hash());
-    
-    start_proc_ = compute_start_proc(nproc_);
-    step_proc_ = std::max(Proc{nproc_.value() / total_num_blocks_.value()}, Proc{1});
   }
 
   Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
@@ -430,15 +425,8 @@ class Distribution_SimpleRoundRobin : public Distribution {
 
   std::pair<Proc, Offset> locate(const IndexVector& blockid) const {
     auto key = compute_key(blockid);
-    EXPECTS(key >= 0 && key < total_num_blocks_);
-    // return {key % nproc_.value(), (key / nproc_.value()) * max_block_size_.value()};
-    Proc proc =
-        (key * step_proc_.value() + start_proc_.value()) % nproc_.value();
-    EXPECTS(step_proc_ == 1 || total_num_blocks_.value() <= nproc_.value());
-    Offset offset = (step_proc_ != Proc{1}
-                         ? Offset{0}
-                         : (key / nproc_.value()) * max_block_size_.value());
-    return {proc, offset};
+    EXPECTS(key >= 0 && key < total_num_tiles_);
+    return {key % nproc_.value(), (key / nproc_.value()) * max_block_size_.value()};
   }
 
   Size buf_size(Proc proc) const {
@@ -459,16 +447,6 @@ class Distribution_SimpleRoundRobin : public Distribution {
   Size total_size() const override {
     return nproc_.value() * max_proc_buf_size_;
   }
-
-  size_t compute_hash() const override {
-      size_t result = static_cast<size_t>(kind());
-      internal::hash_combine(result, total_num_blocks_.value());
-      internal::hash_combine(result, max_proc_buf_size_.value());
-      internal::hash_combine(result, max_block_size_.value());
-      internal::hash_combine(result, total_size().value());
-
-      return result;
-    }
 
  private:
   /**
@@ -502,30 +480,20 @@ class Distribution_SimpleRoundRobin : public Distribution {
     return key;
   }
 
-  /**
-   * @brief Randomly determine the proc to hold the 0-th block. All ranks should
-   * agree on this start proc. For now, we set it arbitrary to 0.
-   *
-   * @param nproc Number of procs in the distribution, assumed to be < MAX_PROC
-   * (currently 100,000).
-   * @return Proc A proc in the range [0, nproc)
-   */
-  static Proc compute_start_proc(Proc nproc) {
-    return Proc{0};
-    static std::random_device dev;
-    static std::mt19937 rng(dev());
-    static const int MAX_PROC = 100000;
-    static std::uniform_int_distribution<std::mt19937::result_type> dist(
-        0, MAX_PROC);
-    return Proc{dist(rng)%nproc.value()};
+  size_t max_tile_size(const TiledIndexSpace& tis) {
+    EXPECTS(!tis.is_dependent());
+
+    size_t max_size = 0;
+    for (size_t i = 0; i < tis.num_tiles(); i++) {
+      max_size = std::max(max_size, tis.tile_size(i));
+    }
+    return max_size;
   }
 
-  Offset total_num_blocks_;         /**< Total number of blocks */
+  Offset total_num_tiles_;          /**< Total numnber of tiles */
   Size max_proc_buf_size_;          /**< Max buffer size on any rank */
   Size max_block_size_;             /**< Max size of any block */
   std::vector<Offset> key_offsets_; /**< Vector of offsets for each key value */
-  Proc start_proc_;                 /**< Proc with 0-th block */
-  Proc step_proc_;                  /**< Step size in distributing blocks */
 };                                  // class Distribution_SimpleRoundRobin
 
 /**
@@ -543,7 +511,7 @@ class Distribution_Dense : public Distribution {
    */
   Distribution_Dense(const TensorBase* tensor_structure = nullptr,
                      Proc nproc = Proc{1})
-      : Distribution{tensor_structure, nproc, DistributionKind::dense} {
+      : Distribution{tensor_structure, nproc, DistKind::dense} {
     EXPECTS(nproc > 0);
     if (tensor_structure == nullptr) {
       return;
@@ -997,53 +965,6 @@ class Distribution_Dense : public Distribution {
       part_offsets_; /**< Offset (in elements) partitioned among ranks along
                         each dimension */
 };                   // class Distribution_Dense
-
-class ViewDistribution : public Distribution {
-  public:
-  using Func = std::function<IndexVector(const IndexVector&)>;
-  // Ctors
-  ViewDistribution(const Distribution* ref_dist, Func map_func) :
-    Distribution(nullptr, ref_dist->get_dist_proc(),
-                 DistributionKind::view),
-    ref_dist_{ref_dist},
-    map_func_{map_func} {}
-
-  // Dtor
-  ~ViewDistribution() = default;
-
-  std::pair<Proc, Offset> locate(const IndexVector& blockid) const override {
-    const auto& idx_vec = map_func_(blockid);
-    return ref_dist_->locate(idx_vec);
-  }
-
-    Size buf_size(Proc proc) const override {
-      return ref_dist_->buf_size(proc);
-    }
-
-    Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
-        NOT_ALLOWED();
-    }
-
-    Size max_proc_buf_size() const override {
-      return ref_dist_->max_proc_buf_size();
-    }
-
-    Size max_block_size() const override { return ref_dist_->max_block_size(); }
-
-    Size total_size() const override {
-      return ref_dist_->total_size();
-    }
-
-    size_t compute_hash() const {
-      return ref_dist_->compute_hash();
-    }
-  
-  protected:
-  const Distribution* ref_dist_;
-  Func map_func_;
-
-}; // class ViewDistribution
-
 //#if 0
 template <int N, typename BodyFunc, typename InitFunc, typename UpdateFunc,
           typename... Args>
@@ -1383,7 +1304,7 @@ template <typename LabeledTensorT, typename T>
 void set_op_execute(const ProcGroup& pg, const LabeledTensorT& lhs, T value,
                     bool is_assign) {
   EXPECTS(!is_slicing(lhs));  // dense and no slicing in labels
-  EXPECTS(lhs.tensor().distribution().kind() == DistributionKind::dense); //tensor uses Distribution_Dense
+  EXPECTS(lhs.tensor().distribution().kind() == DistKind::dense); //tensor uses Distribution_Dense
   //EXPECTS(
   //    lhs.tensor().execution_context()->pg() ==
   //        pg);  // tensor allocation proc grid same as op execution proc grid
@@ -1442,7 +1363,7 @@ void set_op_execute(const ProcGroup& pg, const LabeledTensorT& lhs, T value,
 //#endif
 
 // template<typename... Args>
-// std::unique_ptr<Distribution> distribution_factory(DistributionKind dkind, Args&&... args)  {
+// std::unique_ptr<Distribution> distribution_factory(DistKind dkind, Args&&... args)  {
 //   switch(dkind) {
 //     case Distribution::Kind::invalid:
 //       NOT_ALLOWED();

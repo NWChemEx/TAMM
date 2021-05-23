@@ -49,17 +49,17 @@ namespace tamm {
 
 namespace internal {
 
-template<typename>
-struct is_tuple : std::false_type {};
-template<typename... T>
-struct is_tuple<std::tuple<T...>> : std::true_type {};
-template<typename T>
-inline constexpr bool is_tuple_v = is_tuple<T>::value;
+// template<typename>
+// struct is_tuple : std::false_type {};
+// template<typename... T>
+// struct is_tuple<std::tuple<T...>> : std::true_type {};
+// template<typename T>
+// inline constexpr bool is_tuple_v = is_tuple<T>::value;
 
-template<typename> struct is_complex : std::false_type {};
-template<typename T> struct is_complex<std::complex<T>> : std::true_type {};
-template<typename T>
-inline constexpr bool is_complex_v = is_complex<T>::value;
+// template<typename> struct is_complex : std::false_type {};
+// template<typename T> struct is_complex<std::complex<T>> : std::true_type {};
+// template<typename T>
+// inline constexpr bool is_complex_v = is_complex<T>::value;
 
 template<typename T>
 void gemm_wrapper(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,

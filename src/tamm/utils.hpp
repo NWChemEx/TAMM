@@ -1,10 +1,28 @@
 #ifndef TAMM_UTILS_HPP_
 #define TAMM_UTILS_HPP_
 
+#include "tamm/perm.hpp"
+#include "tamm/tiled_index_space.hpp"
+#include "tamm/iteration.hpp"
+#include <map>
+#include <vector>
+
 namespace tamm {
 
 namespace internal {
 
+    template<typename>
+    struct is_tuple : std::false_type {};
+    template<typename... T>
+    struct is_tuple<std::tuple<T...>> : std::true_type {};
+    template<typename T>
+    inline constexpr bool is_tuple_v = is_tuple<T>::value;
+
+    template<typename> struct is_complex : std::false_type {};
+    template<typename T> struct is_complex<std::complex<T>> : std::true_type {};
+    template<typename T>
+    inline constexpr bool is_complex_v = is_complex<T>::value;
+    
 inline void update_fillin_map(std::map<std::string, Label>& str_to_labels,
                               const std::vector<bool>& str_map,
                               const std::vector<std::string>& str_labels,
@@ -31,54 +49,43 @@ inline void fillin_tensor_label_from_map(
     ltensor.set_labels(new_labels);
 }
 
-/**
- * @ingroup perm
- * @brief Compute permutation to be performed to permute vector @p from to
- * vector @p to.
- * @param from Source vector for the permutation
- * @param to Target vector for the permutation
- * @pre @p from and @p to are permutations of each other
- * @pre from.size() == to.size()
- * @return Vector to permute @p from to @p to.
- * @post Return ret such that:
- * ensures 0<=i<from.size(): to[i] = from[ret[i]]
- */
-template<typename T>
-PermVector perm_compute(const std::vector<T>& from, const std::vector<T>& to) {
-    PermVector layout;
+// /**
+//  * @ingroup perm
+//  * @brief Compute permutation to be performed to permute vector @p from to
+//  * vector @p to.
+//  * @param from Source vector for the permutation
+//  * @param to Target vector for the permutation
+//  * @pre @p from and @p to are permutations of each other
+//  * @pre from.size() == to.size()
+//  * @return Vector to permute @p from to @p to.
+//  * @post Return ret such that:
+//  * ensures 0<=i<from.size(): to[i] = from[ret[i]]
+//  */
+// template<typename T>
+// PermVector perm_compute(const std::vector<T>& from, const std::vector<T>& to) {
+//     PermVector layout;
 
-    EXPECTS(from.size() == to.size());
-    for(auto p : to) {
-        auto itr = std::find(from.begin(), from.end(), p);
-        EXPECTS(itr != from.end());
-        layout.push_back(itr - from.begin());
-    }
-    return layout;
-}
+//     EXPECTS(from.size() == to.size());
+//     for(auto p : to) {
+//         auto itr = std::find(from.begin(), from.end(), p);
+//         EXPECTS(itr != from.end());
+//         layout.push_back(itr - from.begin());
+//     }
+//     return layout;
+// }
 
-template<typename T>
-bool are_permutations(const std::vector<T>& vec1, const std::vector<T>& vec2) {
-    if(vec1.size() != vec2.size()) { return false; }
-    std::vector<bool> taken(vec1.size(), false);
-    for(size_t i = 0; i < vec1.size(); i++) {
-        auto it = std::find(vec2.begin(), vec2.end(), vec1[i]);
-        if(it == vec2.end()) { return false; }
-        if(taken[std::distance(vec2.begin(), it)] == true) { return false; }
-        taken[std::distance(vec2.begin(), it)] = true;
-    }
-    return true;
-}
-
-template<typename T>
-std::vector<T> unique_entries(const std::vector<T>& input_vec) {
-    std::vector<T> ret;
-
-    for(const auto& val : input_vec) {
-        auto it = std::find(ret.begin(), ret.end(), val);
-        if(it == ret.end()) { ret.push_back(val); }
-    }
-    return ret;
-}
+// template<typename T>
+// bool are_permutations(const std::vector<T>& vec1, const std::vector<T>& vec2) {
+//     if(vec1.size() != vec2.size()) { return false; }
+//     std::vector<bool> taken(vec1.size(), false);
+//     for(size_t i = 0; i < vec1.size(); i++) {
+//         auto it = std::find(vec2.begin(), vec2.end(), vec1[i]);
+//         if(it == vec2.end()) { return false; }
+//         if(taken[std::distance(vec2.begin(), it)] == true) { return false; }
+//         taken[std::distance(vec2.begin(), it)] = true;
+//     }
+//     return true;
+// }
 
 template<typename TiledIndexLabel>
 std::vector<TiledIndexLabel> unique_entries_by_primary_label(const std::vector<TiledIndexLabel>& input_vec) {
@@ -93,18 +100,18 @@ std::vector<TiledIndexLabel> unique_entries_by_primary_label(const std::vector<T
     return ret;
 }
 
-template<typename T>
-std::vector<size_t> perm_map_compute(const std::vector<T>& unique_vec,
-                                     const std::vector<T>& vec_required) {
-    std::vector<size_t> ret;
-    for(const auto& val : vec_required) {
-        auto it = std::find(unique_vec.begin(), unique_vec.end(), val);
-        EXPECTS(it >= unique_vec.begin());
-        EXPECTS(it != unique_vec.end());
-        ret.push_back(it - unique_vec.begin());
-    }
-    return ret;
-}
+// template<typename T>
+// std::vector<size_t> perm_map_compute(const std::vector<T>& unique_vec,
+//                                      const std::vector<T>& vec_required) {
+//     std::vector<size_t> ret;
+//     for(const auto& val : vec_required) {
+//         auto it = std::find(unique_vec.begin(), unique_vec.end(), val);
+//         EXPECTS(it >= unique_vec.begin());
+//         EXPECTS(it != unique_vec.end());
+//         ret.push_back(it - unique_vec.begin());
+//     }
+//     return ret;
+// }
 
 template<typename T>
 std::vector<size_t> perm_map_compute_by_primary_label(
@@ -122,26 +129,26 @@ std::vector<size_t> perm_map_compute_by_primary_label(
     return ret;
 }
 
-template<typename T, typename Integer>
-std::vector<T> perm_map_apply(const std::vector<T>& input_vec,
-                              const std::vector<Integer>& perm_map) {
-    std::vector<T> ret;
-    for(const auto& pm : perm_map) {
-        EXPECTS(pm < input_vec.size());
-        ret.push_back(input_vec[pm]);
-    }
-    return ret;
-}
+// template<typename T, typename Integer>
+// std::vector<T> perm_map_apply(const std::vector<T>& input_vec,
+//                               const std::vector<Integer>& perm_map) {
+//     std::vector<T> ret;
+//     for(const auto& pm : perm_map) {
+//         EXPECTS(pm < input_vec.size());
+//         ret.push_back(input_vec[pm]);
+//     }
+//     return ret;
+// }
 
-template<typename T, typename Integer>
-void perm_map_apply(std::vector<T>& out_vec, const std::vector<T>& input_vec,
-                    const std::vector<Integer>& perm_map) {
-    out_vec.resize(perm_map.size());
-    for(size_t i = 0; i < perm_map.size(); i++) {
-        EXPECTS(perm_map[i] < input_vec.size());
-        out_vec[i] = input_vec[perm_map[i]];
-    }
-}
+// template<typename T, typename Integer>
+// void perm_map_apply(std::vector<T>& out_vec, const std::vector<T>& input_vec,
+//                     const std::vector<Integer>& perm_map) {
+//     out_vec.resize(perm_map.size());
+//     for(size_t i = 0; i < perm_map.size(); i++) {
+//         EXPECTS(perm_map[i] < input_vec.size());
+//         out_vec[i] = input_vec[perm_map[i]];
+//     }
+// }
 
 inline IndexLabelVec sort_on_dependence(const IndexLabelVec& labels) {
     std::vector<TileLabelElement> primary_labels;
@@ -193,21 +200,21 @@ extract_blockid_and_label(const IndexLabelVec& input_labels,
     return {ret_labels, ret_blockid};
 }
 
-template<typename T>
-bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
-    EXPECTS(itr.size() == end.size());
+// template<typename T>
+// bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
+//     EXPECTS(itr.size() == end.size());
 
-    int i;
-    for(i = -1 + itr.size(); i >= 0 && itr[i] + 1 == end[i]; i--) {
-        itr[i] = T{0};
-    }
+//     int i;
+//     for(i = -1 + itr.size(); i >= 0 && itr[i] + 1 == end[i]; i--) {
+//         itr[i] = T{0};
+//     }
 
-    if(i >= 0) {
-        ++itr[i];
-        return true;
-    }
-    return false;
-}
+//     if(i >= 0) {
+//         ++itr[i];
+//         return true;
+//     }
+//     return false;
+// }
 
 inline IndexVector indep_values(
   const IndexVector& blockid, const Index& idx,
@@ -422,33 +429,37 @@ inline std::map<size_t, std::vector<size_t>> construct_dep_map(
 }
 
 template<typename T>
-std::vector<T> topological_sort(const std::map<T,std::vector<T>>& dep_map) {
+std::vector<T> topological_sort(const std::map<T, std::vector<T>>& dep_map) {
     size_t num_ids = dep_map.size();
     std::vector<T> order(num_ids);
     std::vector<bool> done(num_ids, false);
-    size_t ctr=0;
-    for(size_t i=0; i<num_ids; i++) {
+    std::vector<bool> is_ordered(num_ids, false);
+    size_t ctr = 0;
+    for(size_t i = 0; i < num_ids; i++) {
         if(done[i]) continue;
         std::vector<size_t> stack{i};
         while(!stack.empty()) {
-            for(auto id: dep_map.find(stack.back())->second) {
+            for(auto id : dep_map.find(stack.back())->second) {
                 EXPECTS(id != i);
                 if(!done[id]) {
                     stack.push_back(id);
                     continue;
                 }
             }
-            order[stack.back()] = ctr++;
-            done[stack.back()] = true;
+
+            if(!is_ordered[stack.back()]) {
+                order[stack.back()]      = ctr++;
+                is_ordered[stack.back()] = true;
+                done[stack.back()]       = true;
+            }
+
             stack.pop_back();
         }
         EXPECTS(done[i]);
     }
     EXPECTS(ctr == num_ids);
     std::vector<T> new_order(num_ids);
-    for (size_t i = 0; i < num_ids; i++) {
-        new_order[order[i]] = i;
-    }
+    for(size_t i = 0; i < num_ids; i++) { new_order[order[i]] = i; }
 
     return new_order;
     // return order;
@@ -647,21 +658,97 @@ inline bool is_slicing(const LabeledTensorT& lt) {
     return false;
 }
 
-  inline bool empty_reduction_primary_labels(const IndexLabelVec& lhs_labels,
-				  const IndexLabelVec& rhs_labels) {
+template <typename T>
+inline bool has_duplicates(const std::vector<T>& vec) {
+    std::set<T> set_T(vec.begin(), vec.end());
+    return (vec.size() != set_T.size());
+}
+
+inline bool empty_reduction_primary_labels(const IndexLabelVec& lhs_labels,
+                                           const IndexLabelVec& rhs_labels) {
     std::set<TileLabelElement> lhs_plabels, rhs_plabels;
-    for(const auto& lbl: lhs_labels) {
-      lhs_plabels.insert(lbl.primary_label());
+    for(const auto& lbl : lhs_labels) {
+        lhs_plabels.insert(lbl.primary_label());
     }
-    for(const auto& lbl: rhs_labels) {
-      rhs_plabels.insert(lbl.primary_label());
+    for(const auto& lbl : rhs_labels) {
+        rhs_plabels.insert(lbl.primary_label());
     }
     std::set<TileLabelElement> result;
-    std::set_difference(lhs_plabels.begin(), lhs_plabels.end(), rhs_plabels.begin(), rhs_plabels.end(),
-    std::inserter(result, result.end()));
+    std::set_difference(lhs_plabels.begin(), lhs_plabels.end(),
+                        rhs_plabels.begin(), rhs_plabels.end(),
+                        std::inserter(result, result.end()));
     return result.empty();
-  }
+}
 
+// Convert array into a tuple
+template<typename Array, std::size_t... I>
+inline auto a2t_impl(const Array& a, std::index_sequence<I...>) {
+    return std::make_tuple(a[I]...);
+}
+
+template<typename T, std::size_t N,
+         typename Indices = std::make_index_sequence<N>>
+inline auto array2tuple(const std::array<T, N>& a) {
+    return a2t_impl(a, Indices{});
+}
+
+template <typename VecT, size_t N>
+inline auto split_vector(const VecT& vec, const std::vector<size_t>& sizes) {
+    EXPECTS(N == sizes.size());
+    EXPECTS(N > 0);
+    size_t total_size = 0;
+    for(const auto& size : sizes) { total_size += size; }
+    EXPECTS(total_size = vec.size());
+
+    std::array<VecT, N> new_vecs;
+    size_t start = 0;
+    for (size_t i = 0; i < N; i++) {
+        auto start_it = vec.begin() + start;
+        auto end_it = start_it + sizes[i];
+        EXPECTS(vec.end() - end_it >= 0);
+        new_vecs[i].insert(new_vecs[i].end(), start_it, end_it);
+        start += sizes[i];
+    }
+
+    return array2tuple(new_vecs);
+}
+
+template <typename VecT>
+inline void merge_vector_impl(VecT& result, const VecT& last) {
+    result.insert(result.end(), last.begin(), last.end());
+}
+
+template <typename VecT, typename... Args>
+inline void merge_vector_impl(VecT& result, const VecT& next, Args&&... rest) {
+    result.insert(result.end(), next.begin(), next.end());
+    merge_vector_impl(result, std::forward<Args>(rest)...);
+}
+
+template<typename VecT, typename... Args>
+inline VecT merge_vector(Args&&... rest) {
+    VecT result;
+
+    merge_vector_impl(result, std::forward<Args>(rest)...);
+
+    return result;
+}
+
+template<typename T> 
+inline bool has_repeated_elements(const std::vector<T>& vec){
+    return vec.size() != internal::unique_entries(vec).size();
+}
+
+inline std::vector<std::string> split_string(std::string str, char delim) {
+    std::vector<std::string> result;
+
+    std::istringstream str_stream(str);
+    std::string split_str;
+    while (getline(str_stream, split_str, delim)) {
+        result.push_back(split_str);
+    }
+
+    return result;
+}
 /**
  * @brief New optimized loop related functions
  * 

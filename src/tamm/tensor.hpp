@@ -2,8 +2,12 @@
 #define TAMM_TENSOR_HPP_
 
 #include "tamm/tensor_impl.hpp"
+#include "tamm/symbol.hpp"
 
 namespace tamm {
+
+template <typename T>
+class LabeledTensor;
 
 /**
  * @ingroup tensors
@@ -14,7 +18,7 @@ namespace tamm {
  * @tparam T type for the Tensor value
  */
 template<typename T>
-class Tensor {
+class Tensor : public Symbol {
 public:
     /**
      * @brief Construct a scalar Tensor with 0-modes
@@ -139,6 +143,22 @@ public:
     Tensor(IndexLabelVec t_lbls, std::vector<size_t> spin_sizes) :
       impl_{std::make_shared<TensorImpl<T>>(t_lbls, spin_sizes)} {}
 
+    using MapFunc = std::function<IndexVector(const IndexVector &)>;
+    using CopyFunc = std::function<void(const BlockSpan<T>&, BlockSpan<T>&, const IndexVector&)>;
+    Tensor(Tensor<T> ref_tensor, TiledIndexSpaceVec t_spaces,
+           MapFunc ref_map_func)
+        : impl_{std::make_shared<ViewTensorImpl<T>>(ref_tensor, t_spaces,
+                                                    ref_map_func)} {}
+
+    Tensor(Tensor<T> ref_tensor, IndexLabelVec t_labels, MapFunc ref_map_func)
+        : impl_{std::make_shared<ViewTensorImpl<T>>(ref_tensor, t_labels,
+                                                    ref_map_func)} {}
+
+    Tensor(Tensor<T> ref_tensor, IndexLabelVec t_labels, MapFunc ref_map_func,
+           CopyFunc get_copy, CopyFunc put_copy)
+        : impl_{std::make_shared<ViewTensorImpl<T>>(
+              ref_tensor, t_labels, ref_map_func, get_copy, put_copy)} {}
+
     // LambdaTensor Constructors
     /**
      * @brief Signature description for Lambda functor
@@ -160,6 +180,9 @@ public:
 
     Tensor(IndexLabelVec t_labels, Func lambda) :
       impl_{std::make_shared<LambdaTensorImpl<T>>(t_labels, lambda)} {}
+
+    Tensor(IndexLabelVec t_labels, Tensor<T> ref_tensor, IndexLabelVec ref_labels, IndexLabelVec use_labels, std::vector<TranslateFunc> translate_func_vec) :
+      impl_{std::make_shared<LambdaTensorImpl<T>>(t_labels, ref_tensor, ref_labels, use_labels, translate_func_vec)} {}
 
     /**
      * @brief Construct a new Tensor object with a Lambda function
@@ -459,6 +482,10 @@ public:
       return impl_->has_spin();
     }
 
+    TensorBase::TensorKind kind() const {
+      return impl_->kind();
+    }
+
     bool has_spatial() const {
       return impl_->has_spatial();
     }
@@ -487,14 +514,48 @@ public:
       return impl_->access_local_buf();
     }
 
+    size_t local_buf_size() const {
+      return impl_->local_buf_size();
+    }
+
+    size_t total_buf_size(Proc proc) const {
+      return impl_->total_buf_size(proc);
+    }
+
+    MemoryRegion* memory_region() const {
+      return impl_->memory_region();
+    }
+
+    void add_update(const TensorUpdate& new_update) {
+      impl_->add_update(new_update);
+    }
+
+    std::vector<TensorUpdate> get_updates() const {
+        return impl_->get_updates();
+    }
+
+
+    void clear_updates() {
+      impl_->clear_updates();
+    }
+
+    size_t version() const {
+      return impl_->version();
+    }
+
+    void update_version(size_t inc = 1) {
+      impl_->update_version(inc);
+    }
+
     int64_t size() const {
       return impl_->size();
     }
 
-private:
+    bool is_allocated() const { return impl_->is_allocated(); }
+
+  private:
     std::shared_ptr<TensorImpl<T>>
       impl_; /**< Shared pointer to the implementation object */
-
     // Private allocate and de-allocate functions
     /**
      * @brief Static allocation method (used internally only)

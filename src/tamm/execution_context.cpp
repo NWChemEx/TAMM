@@ -1,4 +1,4 @@
-#include <ga.h>
+#include "ga/ga.h"
 #include <memory>
 #include <mpi.h>
 
@@ -57,12 +57,12 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   for (int i = 0; i < gpu_devices.size(); i++) {
     if (gpu_devices[i].is_gpu()) {
        if(gpu_devices[i].get_info<cl::sycl::info::device::partition_max_sub_devices>() > 0) {
-         auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(
+          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(
            cl::sycl::info::partition_affinity_domain::numa);
-	 ngpu_ += SubDevicesDomainNuma.size();
+	        ngpu_ += SubDevicesDomainNuma.size();
        }
        else {
-         ngpu_++;
+          ngpu_++;
        }
      }
   }
@@ -109,4 +109,7 @@ void ExecutionContext::set_distribution(Distribution* distribution) {
         distribution_kind_ = DistributionKind::invalid;
     }
 }
+
+void ExecutionContext::set_re(RuntimeEngine* re) { re_.reset(re); }
+
 } // namespace tamm

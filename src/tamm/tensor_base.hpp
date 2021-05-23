@@ -2,7 +2,7 @@
 #define TAMM_TENSOR_BASE_HPP_
 
 #include "tamm/errors.hpp"
-#include "tamm/execution_context.hpp"
+// #include "tamm/execution_context.hpp"
 #include "tamm/index_loop_nest.hpp"
 #include "tamm/utils.hpp"
 
@@ -13,6 +13,32 @@
  */
 
 namespace tamm {
+
+class ExecutionContext;
+
+namespace new_ops {
+class Op;
+class LTOp;
+} // namespace new_ops
+
+
+struct TensorUpdate {
+    TensorUpdate(const IndexLabelVec& ilv,
+                 const std::unique_ptr<new_ops::Op>& op,
+                 bool is_update = false);
+
+    TensorUpdate(const TensorUpdate& other);
+
+    // ~TensorUpdate() = default;
+
+    TensorUpdate& operator=(const TensorUpdate& other);
+
+
+    IndexLabelVec ilv_;
+    std::unique_ptr<new_ops::Op> op_;
+    bool is_update_;
+};
+
 
 /**
  * @ingroup tensors
@@ -34,6 +60,15 @@ namespace tamm {
 
 class TensorBase {
 public:
+    enum class TensorKind { 
+        invalid,
+        spin,
+        dense,
+        lambda,
+        normal,
+        view
+    };
+
     // Ctors
     TensorBase() = default;
 
@@ -44,14 +79,14 @@ public:
      * @param [in] block_indices vector of TiledIndexSpace objects for each mode
      * used to construct the tensor
      */
-    TensorBase(const std::vector<TiledIndexSpace>& block_indices) :
-      block_indices_{block_indices},
-      allocation_status_{AllocationStatus::invalid},
-      num_modes_{block_indices.size()} {
-        for(const auto& tis : block_indices_) { EXPECTS(!tis.is_dependent()); }
-        fillin_tlabels();
-        construct_dep_map();
-    }
+    TensorBase(const std::vector<TiledIndexSpace>& block_indices); // :
+    //   block_indices_{block_indices},
+    //   allocation_status_{AllocationStatus::invalid},
+    //   num_modes_{block_indices.size()} {
+    //     for(const auto& tis : block_indices_) { EXPECTS(!tis.is_dependent()); }
+    //     fillin_tlabels();
+    //     construct_dep_map();
+    // }
 
     /**
      * @brief Construct a new TensorBase object using a vector of
@@ -61,40 +96,40 @@ public:
      * corresponding TiledIndexSpace objects for each mode used to construct the
      * tensor
      */
-    TensorBase(const std::vector<TiledIndexLabel>& lbls) :
-      allocation_status_{AllocationStatus::invalid},
-      num_modes_{lbls.size()} {
-#if 0
-        for(const auto& lbl : lbls) {
-            auto tis = lbl.tiled_index_space();
-            if(tis.is_dependent()){
-                if(lbl.secondary_labels().size() == 0){
-                    auto new_tis = tis.parent_tis();
-                    // negative lbl id is used to avoid overlap
-                    auto new_lbl = new_tis.label(-1);
-                    block_indices_.push_back(new_tis);
-                    tlabels_.push_back(new_lbl);
-                }
-                else {
-                    EXPECTS(lbl.secondary_labels().size() ==
-                        tis.num_key_tiled_index_spaces());
-                    block_indices_.push_back(tis);
-                    tlabels_.push_back(lbl);
-                } 
-            } else {
-                block_indices_.push_back(tis);
-                tlabels_.push_back(lbl);
-            }
-        }
-#else
-        tlabels_ = lbls;
-        for(auto& lbl : tlabels_) {
-            block_indices_.push_back(lbl.tiled_index_space());
-        }
-#endif
-        construct_dep_map();
-        update_labels();
-    }
+    TensorBase(const std::vector<TiledIndexLabel>& lbls); // :
+    //       allocation_status_{AllocationStatus::invalid},
+    //       num_modes_{lbls.size()} {
+    // #if 0
+    //         for(const auto& lbl : lbls) {
+    //             auto tis = lbl.tiled_index_space();
+    //             if(tis.is_dependent()){
+    //                 if(lbl.secondary_labels().size() == 0){
+    //                     auto new_tis = tis.parent_tis();
+    //                     // negative lbl id is used to avoid overlap
+    //                     auto new_lbl = new_tis.label(-1);
+    //                     block_indices_.push_back(new_tis);
+    //                     tlabels_.push_back(new_lbl);
+    //                 }
+    //                 else {
+    //                     EXPECTS(lbl.secondary_labels().size() ==
+    //                         tis.num_key_tiled_index_spaces());
+    //                     block_indices_.push_back(tis);
+    //                     tlabels_.push_back(lbl);
+    //                 }
+    //             } else {
+    //                 block_indices_.push_back(tis);
+    //                 tlabels_.push_back(lbl);
+    //             }
+    //         }
+    // #else
+    //         tlabels_ = lbls;
+    //         for(auto& lbl : tlabels_) {
+    //             block_indices_.push_back(lbl.tiled_index_space());
+    //         }
+    // #endif
+    //         construct_dep_map();
+    //         update_labels();
+    //     }
 
     /**
      * @brief Construct a new TensorBase object recursively with a set of
@@ -105,19 +140,19 @@ public:
      * @param [in] rest remaining part of the arguments
      */
     template<class... Ts>
-    TensorBase(const TiledIndexSpace& tis, Ts... rest) : TensorBase{rest...} {
-        EXPECTS(!tis.is_dependent());
-        block_indices_.insert(block_indices_.begin(), tis);
-        fillin_tlabels();
-        construct_dep_map();
-        // tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 -
-        // block_indices_.size()));
-    }
+    TensorBase(const TiledIndexSpace& tis, Ts... rest) ; // : TensorBase{rest...} {
+    //     EXPECTS(!tis.is_dependent());
+    //     block_indices_.insert(block_indices_.begin(), tis);
+    //     fillin_tlabels();
+    //     construct_dep_map();
+    //     // tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 -
+    //     // block_indices_.size()));
+    // }
 
     // Dtor
-    virtual ~TensorBase(){
-      // EXPECTS(allocation_status_ == AllocationStatus::invalid);
-    };
+    virtual ~TensorBase() ; // {
+    //   // EXPECTS(allocation_status_ == AllocationStatus::invalid);
+    // };
 
     /**
      * @brief Method for getting the number of modes of the tensor
@@ -294,10 +329,35 @@ public:
         return (upper_total == lower_total);
     }
 
+
+    void add_update(const TensorUpdate& new_update) ;// {
+    //   updates_.push_back(new_update);
+    // }
+
+    std::vector<TensorUpdate> get_updates() const ; //{
+    //   return updates_;
+    // }
+
+    void update_version(size_t inc = 1) {
+        version_+= inc;
+    }
+
+    TensorKind kind() const { return kind_; }
+
+    void setKind(TensorKind kind) {
+        kind_ = kind;
+    }
+
+    size_t version() const {
+        return version_;
+    }
+
+    void clear_updates();
+    
 protected:
     void fillin_tlabels() {
         tlabels_.clear();
-        for(size_t i = 0; i < block_indices_.size(); i++) {
+        for(int i = 0; i < static_cast<int>(block_indices_.size()); i++) {
             tlabels_.push_back(block_indices_[i].label(-1 - i));
         }
     }
@@ -354,6 +414,10 @@ protected:
     std::map<size_t, std::vector<size_t>> dep_map_;
     ExecutionContext* ec_ = nullptr;
     std::vector<SpinPosition> spin_mask_;
+
+    std::vector<TensorUpdate> updates_;
+    size_t version_ = 0;
+    TensorKind kind_ = TensorKind::normal;
 }; // TensorBase
 
 inline bool operator<=(const TensorBase& lhs, const TensorBase& rhs) {

@@ -1,7 +1,7 @@
 #ifndef TAMM_DIIS_HPP_
 #define TAMM_DIIS_HPP_
 
-#include "ga.h"
+#include "ga/ga.h"
 #include "tamm/tamm.hpp"
 #include <Eigen/Dense>
 

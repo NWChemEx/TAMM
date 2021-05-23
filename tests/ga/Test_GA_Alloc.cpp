@@ -3,8 +3,8 @@
 #include <math.h>
 
 #include "mpi.h"
-#include "ga.h"
-#include "macdecls.h"
+#include "ga/ga.h"
+#include "ga/macdecls.h"
 
 #define DEFAULT_SIZE 1048576
 #define MAX_LOOP 20

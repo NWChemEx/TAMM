@@ -190,7 +190,7 @@ CC=icx CXX=dpcpp FC=ifx cmake \
 -DMPIEXEC_EXECUTABLE=mpiexec -DUSE_OPENMP=OFF \
 -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=/opt/oneapi/mkl/latest \
 -DUSE_DPCPP=ON -DGCCROOT=$GCCROOT \
--DTAMM_CXX_FLAGS="-fno-sycl-early-optimizations -fsycl -fsycl-targets=spir64_gen-unknown-linux-sycldevice -Xsycl-target-backend '-device skl'"
+-DTAMM_CXX_FLAGS="-fno-sycl-early-optimizations -fsycl -fsycl-targets=spir64_gen-unknown-linux-sycldevice" -DSYCL_TBE="skl"
 ```
 
 `TAMM_CXX_FLAGS` shown above build for the Intel GEN9 GPU. Please change the `-device skl` flag as needed for other GENX devices.

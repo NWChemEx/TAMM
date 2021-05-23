@@ -3,7 +3,7 @@
 
 #include <set>
 
-#include "ga-mpi.h"
+#include "ga/ga-mpi.h"
 #include "tamm/dag_impl.hpp"
 #include "tamm/execution_context.hpp"
 #include "tamm/ops.hpp"
@@ -41,7 +41,7 @@ public:
     Scheduler& operator()(const OpType& op, std::string opstr="", ExecutionHW exhw = ExecutionHW::DEFAULT) {
         OpList t_ops = op.canonicalize();
 
-        for(auto& op : t_ops) { op->opstr_ = opstr; op->exhw_ = exhw, ops_.push_back(op); }
+        for(auto& op : t_ops) { op->opstr_ = opstr; op->exhw_ = exhw; ops_.push_back(op); }
         return (*this);
     }
 

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.18.0)
 
 include(FetchContent)
 
-project(tamm VERSION 0.0.0 LANGUAGES C CXX Fortran)
+project(TAMM VERSION 0.0.0 LANGUAGES C CXX Fortran)
 include(${PROJECT_SOURCE_DIR}/cmake/check_user_env.cmake)
 
 find_package( CMakeBuild QUIET )
@@ -25,37 +25,41 @@ if( NOT ${CMakeBuild_FOUND} )
   set(CMSB_LAM_PATH ${linalg-cmake-modules_SOURCE_DIR})
 endif()
 
-set(CMSB_PROJECTS tamm)
+set(CMSB_PROJECTS TAMM)
 
-set(tamm_DEPENDENCIES MSGSL Eigen3 LibInt2 HPTT HDF5) # GlobalArrays BLAS LAPACK
+set(TAMM_DEPENDENCIES NJSON MSGSL DOCTEST Eigen3 LibInt2 HPTT HDF5) # GlobalArrays BLAS LAPACK
 
 if(USE_CUDA OR USE_HIP) 
-   list(APPEND tamm_DEPENDENCIES TALSH)
+   list(APPEND TAMM_DEPENDENCIES TALSH)
 endif()
 
 if(DEFINED LINALG_VENDOR)
     if(NOT ${LINALG_VENDOR} STREQUAL "BLIS")
-        list(APPEND tamm_DEPENDENCIES BLIS)
+        list(APPEND TAMM_DEPENDENCIES BLIS)
     endif()
 endif()
 
 if(USE_GA_AT)
     if(USE_DPCPP)
-        list(APPEND tamm_DEPENDENCIES IntelSYCL)
+        list(APPEND TAMM_DEPENDENCIES IntelSYCL)
     endif()
-    list(APPEND tamm_DEPENDENCIES GlobalArrays)
+    list(APPEND TAMM_DEPENDENCIES GlobalArrays)
     if(USE_SCALAPACK)
-        list(APPEND tamm_DEPENDENCIES ScaLAPACK LAPACK BLAS)
+        list(APPEND TAMM_DEPENDENCIES ScaLAPACK LAPACK BLAS)
     else()
-        list(APPEND tamm_DEPENDENCIES LAPACK BLAS)
+        list(APPEND TAMM_DEPENDENCIES LAPACK BLAS)
     endif()
 else()
-    list(APPEND tamm_DEPENDENCIES GlobalArrays)
+    list(APPEND TAMM_DEPENDENCIES GlobalArrays)
 endif()
 
-set(tamm_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/tamm)
-set(tamm_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/)
-set(tamm_METHODS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/methods/)
+if(USE_GAUXC)
+  list(APPEND TAMM_DEPENDENCIES GauXC)
+endif()
+
+set(TAMM_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/tamm)
+set(TAMM_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/)
+set(TAMM_METHODS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/methods/)
 
 if(NOT CMAKE_BUILD_TYPE)
     set (CMAKE_BUILD_TYPE Release)

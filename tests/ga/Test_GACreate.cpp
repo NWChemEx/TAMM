@@ -1,9 +1,9 @@
 
-#include "macdecls.h"
+#include "ga/macdecls.h"
 #include "mpi.h"
 #include "armci.h"
-#include "ga.h"
-#include "ga-mpi.h"
+#include "ga/ga.h"
+#include "ga/ga-mpi.h"
 
 #include <chrono>
 #include <cmath>

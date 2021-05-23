@@ -5,8 +5,8 @@
 #include <cctype>
 
 #include "tamm/tamm.hpp"
-#include "macdecls.h"
-#include "ga-mpi.h"
+#include "ga/macdecls.h"
+#include "ga/ga-mpi.h"
 
 #include "tamm/eigen_utils.hpp"
 

@@ -7,9 +7,9 @@ static long long device_id=-1;
 #include <stdlib.h>
 #include "ccsd_t_common.hpp"
 #include "mpi.h"
-#include "ga.h"
-#include "ga-mpi.h"
-#include "typesf2c.h"
+#include "ga/ga.h"
+#include "ga/ga-mpi.h"
+#include "ga/typesf2c.h"
 
 //
 int util_my_smp_index(){

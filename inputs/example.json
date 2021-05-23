@@ -68,6 +68,7 @@
 
         "readt": false,
         "writet": false,
+        "writev": false,
         "writet_iter": 5,
 
         "debug": false,
@@ -82,6 +83,7 @@
         },
     
         "DLPNO": {
+            "localize": false,
             "skip_dlpno": false,
             "df_basisset": ""
         }

@@ -1,7 +1,7 @@
 
 include(TargetMacros)
- add_cxx_unit_test(Test_IndexSpace)
- add_cxx_unit_test(Test_IndexLoopNest)
+#  add_cxx_unit_test(Test_IndexSpace)
+#  add_cxx_unit_test(Test_IndexLoopNest)
 # add_mpi_unit_test(Test_Tensors 2 "")
  add_mpi_unit_test(Test_Ops 2 "")
 # add_cxx_unit_test(Test_LabeledTensor)
@@ -12,7 +12,9 @@ include(TargetMacros)
 #add_mpi_unit_test(Test_PG 2 "")
 add_mpi_unit_test(Test_Mult_Ops 2 "10 2" )
 add_mpi_unit_test(Test_DLPNO_Ops 2 "10 2" )
+# add_mpi_unit_test(Test_OpDAG 2 "")
+add_mpi_unit_test(Test_DLPNO_CC 2 "")
+add_mpi_unit_test(Test_Opmin 2 "")
 add_mpi_unit_test(Test_IO 2 "10 10" )
-
-
+# add_mpi_unit_test(Test_ViewTensor 2 "")
 # add_mpi_unit_test(Test_QR 2 "")

@@ -14,8 +14,8 @@
 #include <libint2/basis.h>
 #include <libint2/chemistry/sto3g_atomic_density.h>
 
-#include "ga.h"
-#include "ga-mpi.h"
+#include "ga/ga.h"
+#include "ga/ga-mpi.h"
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::ordered_json;
@@ -219,15 +219,23 @@ class CCSDOptions: public Options {
     profile_ccsd   = false;
 
     writet         = false;
+    writev         = false;
     writet_iter    = ndiis;
     readt          = false;
+    computeTData   = false;
 
     localize       = false;
     skip_dlpno     = false;
     keep_npairs    = 1;
     max_pnos       = 1;
     dlpno_dfbasis  = "";
-    tcutpno        = 0;
+    TCutEN         = 0.97;
+    TCutPNO        = 0.00;
+    TCutPre        = -1.0;
+    TCutPairs      = 0.00;
+    TCutDO         = 1e-2;
+    TCutDOij       = 1e-5;
+    TCutDOPre      = 3e-2;
 
     ngpu           = 0;
     ccsdt_tilesize = 28;
@@ -273,8 +281,8 @@ class CCSDOptions: public Options {
   bool   force_tilesize;
   int    ndiis;
   int    writet_iter;
-  bool   readt, writet, gf_restart, gf_ip, gf_ea, gf_os, gf_cs, 
-         gf_itriples, balance_tiles;
+  bool   readt, writet, writev, gf_restart, gf_ip, gf_ea, gf_os, gf_cs, 
+         gf_itriples, balance_tiles, computeTData;
   bool   profile_ccsd;
   double lshift;
   double printtol;
@@ -293,7 +301,14 @@ class CCSDOptions: public Options {
   int    max_pnos;
   size_t keep_npairs;
   std::string dlpno_dfbasis;
-  double tcutpno;
+  double TCutEN;
+  double TCutPNO;
+  double TCutPre;
+  double TCutPairs;
+  double TCutDO;
+  double TCutDOij;
+  double TCutDOPre;
+  std::vector<int> doubles_opt_eqns;
 
   //EOM
   int    eom_nroots;
@@ -348,11 +363,18 @@ class CCSDOptions: public Options {
       cout << " gf_nprocs_poi        = " << gf_nprocs_poi  << endl;
     print_bool(" readt               ", readt); 
     print_bool(" writet              ", writet);
+    print_bool(" writev              ", writev);
+    // print_bool(" computeTData        ", computeTData);    
     cout << " writet_iter          = " << writet_iter      << endl;
     print_bool(" profile_ccsd        ", profile_ccsd);
     print_bool(" balance_tiles       ", balance_tiles);
     
     if(!dlpno_dfbasis.empty()) cout << " dlpno_dfbasis        = " << dlpno_dfbasis << endl; 
+    if(!doubles_opt_eqns.empty()) {
+      cout << " doubles_opt_eqns        = [";
+      for(auto x: doubles_opt_eqns) cout << x << ",";
+      cout << "]" << endl;           
+    }
 
     if(!ext_data_path.empty()) {
       cout << " ext_data_path   = " << ext_data_path << endl;    
@@ -508,11 +530,13 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     parse_option<bool>  (ccsd_options.debug         , jcc, "debug");
     parse_option<bool>  (ccsd_options.readt         , jcc, "readt"); 
     parse_option<bool>  (ccsd_options.writet        , jcc, "writet");
+    parse_option<bool>  (ccsd_options.writev        , jcc, "writev");
     parse_option<int>   (ccsd_options.writet_iter   , jcc, "writet_iter");           
     parse_option<bool>  (ccsd_options.balance_tiles , jcc, "balance_tiles");
     parse_option<bool>  (ccsd_options.profile_ccsd  , jcc, "profile_ccsd");                
     parse_option<bool>  (ccsd_options.force_tilesize, jcc, "force_tilesize");     
-    parse_option<string>(ccsd_options.ext_data_path , jcc, "ext_data_path");    
+    parse_option<string>(ccsd_options.ext_data_path , jcc, "ext_data_path");   
+    parse_option<bool>  (ccsd_options.computeTData  , jcc, "computeTData");
 
     json jdlpno = jcc["DLPNO"];
     parse_option<int>   (ccsd_options.max_pnos     , jdlpno, "max_pnos");
@@ -520,7 +544,14 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     parse_option<bool>  (ccsd_options.localize     , jdlpno, "localize");
     parse_option<bool>  (ccsd_options.skip_dlpno   , jdlpno, "skip_dlpno");
     parse_option<string>(ccsd_options.dlpno_dfbasis, jdlpno, "df_basisset");
-    parse_option<double>(ccsd_options.tcutpno      , jdlpno, "tcutpno");
+    parse_option<double>(ccsd_options.TCutDO       , jdlpno, "TCutDO");
+    parse_option<double>(ccsd_options.TCutEN       , jdlpno, "TCutEN");
+    parse_option<double>(ccsd_options.TCutPNO      , jdlpno, "TCutPNO");
+    parse_option<double>(ccsd_options.TCutPre      , jdlpno, "TCutPre");
+    parse_option<double>(ccsd_options.TCutPairs    , jdlpno, "TCutPairs");
+    parse_option<double>(ccsd_options.TCutDOij     , jdlpno, "TCutDOij");
+    parse_option<double>(ccsd_options.TCutDOPre    , jdlpno, "TCutDOPre");
+    parse_option<std::vector<int>>(ccsd_options.doubles_opt_eqns, jdlpno, "doubles_opt_eqns");
 
     json jccsd_t = jcc["CCSD(T)"];
     parse_option<int>(ccsd_options.ngpu          , jccsd_t, "ngpu"); 
@@ -590,14 +621,16 @@ inline std::tuple<OptionsMap, json>
     parse_option<std::vector<string>>(geometry, jinput["geometry"], "coordinates", false);
     size_t natom = geometry.size();
 
-    // rest of lines are atoms
     std::vector<Atom> atoms(natom);
+    std::vector<string> geom_bohr(natom);
+
     for(size_t i = 0; i < natom; i++) {
         std::string line = geometry[i];
         std::istringstream iss(line);
         std::string element_symbol;
         double x, y, z;
         iss >> element_symbol >> x >> y >> z;
+        geom_bohr[i] = element_symbol;
 
         // .xyz files report element labels, hence convert to atomic numbers
         int Z = -1;
@@ -623,24 +656,37 @@ inline std::tuple<OptionsMap, json>
 
     auto [options, scf_options, cd_options, ccsd_options] = parse_json(jinput);    
 
+    json jgeom_bohr;
+    bool nw_units_bohr = true;
     //Done parsing input file
     {
       //If geometry units specified are angstrom, convert to bohr
-      bool nw_units_bohr = true;
       if(options.geom_units == "angstrom") nw_units_bohr = false;
 
       if(!nw_units_bohr){
         // .xyz files report Cartesian coordinates in angstroms; 
         // convert to bohr
         for(auto i = 0U; i < atoms.size(); i++){
+          std::ostringstream ss_bohr;
           atoms[i].x *= angstrom_to_bohr;
           atoms[i].y *= angstrom_to_bohr;
           atoms[i].z *= angstrom_to_bohr;
+          ss_bohr << std::setw(3) << std::left << geom_bohr[i]
+                  << " " << std::right << std::setw(14) << std::fixed << std::setprecision(10) << atoms[i].x
+                  << " " << std::right << std::setw(14) << std::fixed << std::setprecision(10) << atoms[i].y 
+                  << " " << std::right << std::setw(14) << std::fixed << std::setprecision(10) << atoms[i].z;
+          geom_bohr[i] = ss_bohr.str();
         }
+        jgeom_bohr["geometry_bohr"] = geom_bohr;
       }
     }
 
     if(GA_Nodeid()==0){
+      std::cout << jinput.dump(2) << std::endl;
+      if(!nw_units_bohr) {
+        std::cout << "Geometry in bohr as follows:" << std::endl;
+        std::cout << jgeom_bohr.dump(2) << std::endl;
+      }
       options.print();
       // scf_options.print();
       // cd_options.print();

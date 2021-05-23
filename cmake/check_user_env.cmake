@@ -44,9 +44,9 @@ endif()
 check_compiler_version(C Clang 8)
 check_compiler_version(CXX Clang 8)
 
-check_compiler_version(C GNU 8.1)
-check_compiler_version(CXX GNU 8.1)
-check_compiler_version(Fortran GNU 8.1)
+check_compiler_version(C GNU 8.3)
+check_compiler_version(CXX GNU 8.3)
+check_compiler_version(Fortran GNU 8.3)
 
 #TODO:Check for GCC>=8 compatibility
 # check_compiler_version(C Intel 19)
@@ -65,32 +65,35 @@ if(USE_CUDA)
     check_language(CUDA)
     if(CMAKE_CUDA_COMPILER)
         enable_language(CUDA)
-            
-        set(OUTPUTFILE ${CMAKE_CURRENT_BINARY_DIR}/cuda_arch_detect_script) 
-        set(CUDAFILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cuda_arch_detect.cu)
-        execute_process(COMMAND nvcc ${CUDA_CUDART_LIBRARY} ${CUDAFILE} -o ${OUTPUTFILE})
-        execute_process(COMMAND ${OUTPUTFILE}
-                        RESULT_VARIABLE CUDA_RETURN_CODE
-                        OUTPUT_VARIABLE ARCH)
-        if(${CUDA_RETURN_CODE} EQUAL 0)
-            message(STATUS "CUDA Architecture: ${ARCH}")     
-            set(NV_GPU_ARCH ${ARCH})                   
+        if(NV_GPU_ARCH)
+            message(STATUS "CUDA Architecture provided: ${NV_GPU_ARCH}")
         else()
-            message(WARNING "Setting CUDA Architecture to: 35")  
-            set(NV_GPU_ARCH 35)
+            set(OUTPUTFILE ${CMAKE_CURRENT_BINARY_DIR}/cuda_arch_detect_script)
+            set(CUDAFILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cuda_arch_detect.cu)
+            execute_process(COMMAND nvcc ${CUDA_CUDART_LIBRARY} ${CUDAFILE} -o ${OUTPUTFILE})
+            execute_process(COMMAND ${OUTPUTFILE}
+                            RESULT_VARIABLE CUDA_RETURN_CODE
+                            OUTPUT_VARIABLE ARCH)
+            if(${CUDA_RETURN_CODE} EQUAL 0)
+                message(STATUS "CUDA Architecture detected: ${ARCH}")
+                set(NV_GPU_ARCH ${ARCH})
+            else()
+                message(WARNING "Setting CUDA Architecture to: 35")
+                set(NV_GPU_ARCH 35)
+            endif()
         endif()
     else()
         if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "8.5")
-          get_compiler_exec_name("${CMAKE_CXX_COMPILER}")
-          message(FATAL_ERROR "${comp_exec_name} version provided (${CMAKE_CXX_COMPILER_VERSION}) \
+        get_compiler_exec_name("${CMAKE_CXX_COMPILER}")
+        message(FATAL_ERROR "${comp_exec_name} version provided (${CMAKE_CXX_COMPILER_VERSION}) \
     is not supported by CUDA version provided. Need ${comp_exec_name} = 8.x for building TAMM with GPU support.")
         endif()    
-       message(FATAL_ERROR "CUDA Toolkit not found.")
+        message(FATAL_ERROR "CUDA Toolkit not found.")
     endif()
     if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 10.1)
         message(FATAL_ERROR "CUDA version provided \
-         (${CMAKE_CUDA_COMPILER_VERSION}) \
-         is insufficient. Need CUDA >= 10.1)")
+        (${CMAKE_CUDA_COMPILER_VERSION}) \
+        is insufficient. Need CUDA >= 10.1)")
     endif()
     
 endif()

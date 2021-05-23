@@ -141,6 +141,130 @@ Matrix compute_soad(const std::vector<Atom>& atoms) {
   return D;  // we use densities normalized to # of electrons/2
 }
 
+
+template<typename TensorType>
+void compute_dipole_ints(ExecutionContext& ec, Tensor<TensorType>& tensorX,
+      Tensor<TensorType>& tensorY, Tensor<TensorType>& tensorZ, 
+      std::vector<libint2::Atom>& atoms, libint2::BasisSet& shells, libint2::Operator otype,
+      std::vector<size_t>& shell_tile_map, std::vector<Tile>& AO_tiles) {
+
+    using libint2::Atom;
+    using libint2::Engine;
+    using libint2::Operator;
+    using libint2::Shell;
+    using libint2::BasisSet;
+
+    Engine engine(otype, max_nprim(shells), max_l(shells), 0);
+
+    // engine.set(otype);
+
+    // auto& buf = (engine.results());
+
+    auto compute_dipole_ints_lambda = [&](const IndexVector& blockid) {
+
+        auto bi0 = blockid[0];
+        auto bi1 = blockid[1];
+
+        const TAMM_SIZE size = tensorX.block_size(blockid);
+        auto block_dims   = tensorX.block_dims(blockid);
+        std::vector<TensorType> dbufX(size);
+        std::vector<TensorType> dbufY(size);
+        std::vector<TensorType> dbufZ(size);
+
+        auto bd1 = block_dims[1];
+
+        // cout << "blockid: [" << blockid[0] <<"," << blockid[1] << "], dims(0,1) = " <<
+        //  block_dims[0] << ", " << block_dims[1] << endl;
+
+        // auto s1 = blockid[0];
+        auto s1range_end = shell_tile_map[bi0];
+        decltype(s1range_end) s1range_start = 0l;
+        if (bi0>0) s1range_start = shell_tile_map[bi0-1]+1;
+        
+        // cout << "s1-start,end = " << s1range_start << ", " << s1range_end << endl; 
+        for (auto s1 = s1range_start; s1 <= s1range_end; ++s1) {
+          // auto bf1 = shell2bf[s1]; //shell2bf[s1]; // first basis function in
+          // this shell
+          auto n1 = shells[s1].size();
+
+          auto s2range_end = shell_tile_map[bi1];
+          decltype(s2range_end) s2range_start = 0l;
+          if (bi1>0) s2range_start = shell_tile_map[bi1-1]+1;
+
+          // cout << "s2-start,end = " << s2range_start << ", " << s2range_end << endl; 
+
+          // cout << "screend shell pair list = " << s2spl << endl;
+          for (auto s2 = s2range_start; s2 <= s2range_end; ++s2) {
+            // for (auto s2: obs_shellpair_list[s1]) {
+            // auto s2 = blockid[1];
+            // if (s2>s1) continue;
+          
+            if(s2>s1){
+              auto s2spl = obs_shellpair_list[s2];
+              if(std::find(s2spl.begin(),s2spl.end(),s1) == s2spl.end()) continue;
+            }
+            else{
+              auto s2spl = obs_shellpair_list[s1];
+              if(std::find(s2spl.begin(),s2spl.end(),s2) == s2spl.end()) continue;
+            }
+
+            // auto bf2 = shell2bf[s2];
+            auto n2 = shells[s2].size();
+
+            std::vector<TensorType> tbufX(n1*n2);
+            std::vector<TensorType> tbufY(n1*n2);
+            std::vector<TensorType> tbufZ(n1*n2);
+
+            // compute shell pair; return is the pointer to the buffer
+            const auto &buf = engine.compute(shells[s1], shells[s2]);
+            EXPECTS(buf.size() >= 4);
+            if (buf[0] == nullptr) continue;          
+            // "map" buffer to a const Eigen Matrix, and copy it to the
+            // corresponding blocks of the result
+
+            // cout << buf[1].size() << endl;
+            // cout << buf[2].size() << endl;
+            // cout << buf[3].size() << endl;
+            
+            Eigen::Map<const Matrix> buf_mat_X(buf[1], n1, n2);
+            Eigen::Map<Matrix>(&tbufX[0],n1,n2) = buf_mat_X;
+            Eigen::Map<const Matrix> buf_mat_Y(buf[2], n1, n2);
+            Eigen::Map<Matrix>(&tbufY[0],n1,n2) = buf_mat_Y;
+            Eigen::Map<const Matrix> buf_mat_Z(buf[3], n1, n2);
+            Eigen::Map<Matrix>(&tbufZ[0],n1,n2) = buf_mat_Z;                        
+            
+            // cout << "buf_mat_X :" << buf_mat_X << endl;
+            // cout << "buf_mat_Y :" << buf_mat_Y << endl;
+            // cout << "buf_mat_Z :" << buf_mat_Z << endl;
+
+            auto curshelloffset_i = 0U;
+            auto curshelloffset_j = 0U;
+            for(auto x=s1range_start;x<s1;x++) curshelloffset_i += AO_tiles[x];
+            for(auto x=s2range_start;x<s2;x++) curshelloffset_j += AO_tiles[x];
+
+            size_t c = 0;
+            auto dimi =  curshelloffset_i + AO_tiles[s1];
+            auto dimj =  curshelloffset_j + AO_tiles[s2];
+
+            for(size_t i = curshelloffset_i; i < dimi; i++) {
+              for(size_t j = curshelloffset_j; j < dimj; j++, c++) {
+                dbufX[i*bd1+j] = tbufX[c];
+                dbufY[i*bd1+j] = tbufY[c];
+                dbufZ[i*bd1+j] = tbufZ[c];
+              }
+            }
+          } //s2
+        } //s1
+
+        tensorX.put(blockid,dbufX);
+        tensorY.put(blockid,dbufY);
+        tensorZ.put(blockid,dbufZ);
+    };
+
+    block_for(ec, tensorX(), compute_dipole_ints_lambda);
+
+}
+
 template<typename TensorType>
 void compute_1body_ints(ExecutionContext& ec, Tensor<TensorType>& tensor1e, 
       std::vector<libint2::Atom>& atoms, libint2::BasisSet& shells, libint2::Operator otype,

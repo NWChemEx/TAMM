@@ -1,17 +1,19 @@
 cmake_minimum_required(VERSION ${CMAKE_VERSION})
-project(tamm VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+project(TAMM VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For cmsb_add_library
 
 if(USE_CUDA)
     set(tamm_cuda_SRCS cuda_memory_allocator.cu cudamemset.cu)
     set(tamm_cuda_INCS cuda_memory_allocator.hpp cudamemset.hpp talsh_tamm.hpp)
+elseif(USE_HIP)
+    set(tamm_cuda_INCS talsh_tamm.hpp)    
 endif()
 
 #Add the current directory's sources to the list
-set(tamm_SRCS tamm.cpp index_space.cpp execution_context.cpp "${tamm_cuda_SRCS}")
+set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp "${tamm_cuda_SRCS}")
 
 #Add the current directory's header files to the list
-set(tamm_INCLUDES
+set(TAMM_INCLUDES
     atomic_counter.hpp
     work.hpp
     tamm.hpp
@@ -47,13 +49,45 @@ set(tamm_INCLUDES
     lru_cache.hpp
     kernels/assign.hpp
     kernels/multiply.hpp
+    op_dag.hpp
+    interfaces.hpp
+    op_attributes.hpp
+    op_visitors.hpp
+    scalar.hpp
+    block_plan.hpp
+    block_set_plan.hpp
+    block_lambda_plan.hpp
+    block_assign_plan.hpp
+    block_mult_plan.hpp
+    block_span.hpp
+    blockops_cpu.hpp
+    perm.hpp
+    iteration.hpp
+    ip_hptt.hpp
+    blockops_blis.hpp
+    blockops_talsh.hpp
+    kernels/blas_wrappers.hpp
+    tensor_variant.hpp
+    op_executor.hpp
+    symbol.hpp
+    op_cost.hpp
+    block_operations.hpp
+    setop.hpp
+    scanop.hpp
+    mapop.hpp
+    allocop.hpp
+    deallocop.hpp
+    addop.hpp
+    multop.hpp
+    op_base.hpp
+    label_translator.hpp
+    opmin.hpp
     "${tamm_cuda_INCS}"
     # spin_tensor.hpp
    )
 
-set(tamm_DEFINITIONS )
-set(tamm_LFLAGS )
+set(TAMM_CFLAGS )
+set(TAMM_LFLAGS )
 
-cmsb_add_library(tamm tamm_SRCS tamm_INCLUDES tamm_DEFINTIONS tamm_LFLAGS)
-target_include_directories(tamm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../utils/external)
+cmsb_add_library(tamm TAMM_SRCS TAMM_INCLUDES TAMM_CFLAGS TAMM_LFLAGS)
 

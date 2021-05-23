@@ -3,8 +3,8 @@
 
 #include "tamm/memory_manager.hpp"
 #include "armci.h"
-#include "ga.h"
-#include "ga-mpi.h"
+#include "ga/ga.h"
+#include "ga/ga-mpi.h"
 
 #include <vector>
 #include <string>

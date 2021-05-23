@@ -1,7 +1,7 @@
 #ifndef TAMM_DISTRIBUTION_H_
 #define TAMM_DISTRIBUTION_H_
 
-#include "ga.h"
+#include "ga/ga.h"
 #include <map>
 #include <memory>
 #include <tuple>
@@ -12,6 +12,7 @@
 #include "tamm/tensor_base.hpp"
 #include "tamm/utils.hpp"
 #include "tamm/types.hpp"
+#include "tamm/proc_group.hpp"
 
 template<typename T>
 std::ostream& operator <<(std::ostream& os, const std::vector<T>& vec) {
@@ -101,7 +102,19 @@ public:
      * @return Maximum size of any block (in number of elements)
      */
     virtual Size max_block_size() const = 0;
+    
+    /**
+     * @brief Computes the hash value for the given distribution
+     * 
+     * @returns hash value of type size_t
+     */
+    virtual size_t compute_hash() const = 0;
 
+    /**
+     * @brief Gets the total tensor size distributed over the proc grid
+     *
+     * @returns total size of type Size (aka. uint64_t)
+     */
     virtual Size total_size() const = 0;
 
     /**
@@ -117,9 +130,13 @@ public:
       return tensor_structure_;
     }
 
-    Proc get_dist_proc() {
+    Proc get_dist_proc() const {
       return nproc_;
     }
+
+    size_t hash() const { return hash_; }
+
+    void set_hash(size_t hash) { hash_ = hash; }
 
     /**
      * @brief Construct a new Distribution object using a TensorBase object and
@@ -132,15 +149,45 @@ public:
                  DistributionKind kind)
         : tensor_structure_{tensor_structure}, nproc_{nproc}, kind_{kind} {}
 
+    /**
+     * @brief Equality comparison operator
+     *
+     * @param [in] lhs Left-hand side
+     * @param [in] rhs Right-hand side
+     *
+     * @return true if lhs == rhs
+     */
+    friend bool operator==(const Distribution& lhs, const Distribution& rhs);
 
-   protected:
+    /**
+     * @brief Inequality comparison operator
+     *
+     * @param [in] lhs Left-hand side
+     * @param [in] rhs Right-hand side
+     *
+     * @return true if lhs != rhs
+     */
+    friend bool operator!=(const Distribution& lhs, const Distribution& rhs);
+
+protected:
     const TensorBase* tensor_structure_; /**< TensorBase object for the
                                             corresponding Tensor structure */
     Proc nproc_;                         /**< Number of processes */
     
     DistributionKind kind_; /**< Distribution kind */
 
+    size_t hash_;
+
 }; // class Distribution
+
+// Comparison operator implementations
+inline bool operator==(const Distribution& lhs, const Distribution& rhs) {
+    return lhs.hash() == rhs.hash();
+}
+
+inline bool operator!=(const Distribution& lhs, const Distribution& rhs) {
+    return !(lhs == rhs);
+}
 
 /**
  * @brief Implementation of the Distribution object for NWChem
@@ -178,8 +225,7 @@ public:
             }
           });
         }
-
-        EXPECTS(hash_.size() > 0);
+EXPECTS(hash_.size() > 0);
 
         std::sort(hash_.begin(), hash_.end(),
                   [](const KeyOffsetPair& lhs, const KeyOffsetPair& rhs) {
@@ -213,6 +259,7 @@ public:
         EXPECTS(proc_offsets_.size() == static_cast<uint64_t>(nproc.value()));
         proc_offsets_.push_back(total_size_);
         init_max_proc_buf_size();
+        set_hash(compute_hash());
     }
 
     Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
@@ -257,6 +304,8 @@ public:
 
     Size max_block_size() const override { return max_block_size_; }
 
+    Size total_size() const override { return total_size_; }
+
     /**
      * @brief Initialize distribution for maximum buffer size on rnay rank
      */
@@ -269,8 +318,14 @@ public:
       }
     }
 
-    Size total_size() const override { 
-      return Size{total_size_.value()};
+    size_t compute_hash() const override {
+      size_t result = static_cast<size_t>(kind());
+      internal::hash_combine(result, get_dist_proc().value());
+      internal::hash_combine(result, max_proc_buf_size_.value());
+      internal::hash_combine(result, max_block_size_.value());
+      internal::hash_combine(result, total_size_.value());
+
+      return result;
     }
 
 private:
@@ -322,6 +377,7 @@ private:
 
 }; // class Distribution_NW
 
+
 /**
  *  @brief A simple round-robin distribution that allocates equal-sized blocks
  * (or the largest block) in a round-robin fashion. This distribution
@@ -356,6 +412,8 @@ class Distribution_SimpleRoundRobin : public Distribution {
     max_proc_buf_size_ = ((total_num_blocks_ / nproc_.value()) +
                           (total_num_blocks_.value() % nproc_.value() ? 1 : 0)) *
                          max_block_size_;
+    set_hash(compute_hash());
+    
     start_proc_ = compute_start_proc(nproc_);
     step_proc_ = std::max(Proc{nproc_.value() / total_num_blocks_.value()}, Proc{1});
   }
@@ -401,6 +459,16 @@ class Distribution_SimpleRoundRobin : public Distribution {
   Size total_size() const override {
     return nproc_.value() * max_proc_buf_size_;
   }
+
+  size_t compute_hash() const override {
+      size_t result = static_cast<size_t>(kind());
+      internal::hash_combine(result, total_num_blocks_.value());
+      internal::hash_combine(result, max_proc_buf_size_.value());
+      internal::hash_combine(result, max_block_size_.value());
+      internal::hash_combine(result, total_size().value());
+
+      return result;
+    }
 
  private:
   /**
@@ -490,6 +558,8 @@ class Distribution_Dense : public Distribution {
     }
     tiss_ = tensor_structure->tiled_index_spaces();
     init_index_partition(tensor_structure);
+
+    set_hash(compute_hash());
   }
 
   /**
@@ -537,10 +607,12 @@ class Distribution_Dense : public Distribution {
 
   Size max_block_size() const override { return max_block_size_; }
 
-  Size total_size() const override {
-      Size total_size{0};
-      for(const auto& proc : proc_grid_) { total_size += buf_size(proc); }
-      return total_size;
+  Size total_size() const override { 
+    Size result{0};
+    for(const auto& proc : proc_grid_) {
+      result += buf_size(proc);
+    }
+    return result;
   }
 
   // template <typename Func>
@@ -892,6 +964,21 @@ class Distribution_Dense : public Distribution {
     return bdims;
   }
 
+  size_t compute_hash() const override {
+      size_t result = static_cast<size_t>(kind());
+      internal::hash_combine(result, get_dist_proc().value());
+      internal::hash_combine(result, tiss_.size());
+
+      for(const auto& tis : tiss_) {
+          internal::hash_combine(result, tis.hash());
+      }
+
+      internal::hash_combine(result, max_proc_with_data_.value());
+      internal::hash_combine(result, max_proc_buf_size_.value());
+      internal::hash_combine(result, max_block_size_.value());
+
+      return result;
+  }
 
   Proc nproc_; /**< Number of ranks */
   std::vector<TiledIndexSpace>
@@ -910,6 +997,53 @@ class Distribution_Dense : public Distribution {
       part_offsets_; /**< Offset (in elements) partitioned among ranks along
                         each dimension */
 };                   // class Distribution_Dense
+
+class ViewDistribution : public Distribution {
+  public:
+  using Func = std::function<IndexVector(const IndexVector&)>;
+  // Ctors
+  ViewDistribution(const Distribution* ref_dist, Func map_func) :
+    Distribution(nullptr, ref_dist->get_dist_proc(),
+                 DistributionKind::view),
+    ref_dist_{ref_dist},
+    map_func_{map_func} {}
+
+  // Dtor
+  ~ViewDistribution() = default;
+
+  std::pair<Proc, Offset> locate(const IndexVector& blockid) const override {
+    const auto& idx_vec = map_func_(blockid);
+    return ref_dist_->locate(idx_vec);
+  }
+
+    Size buf_size(Proc proc) const override {
+      return ref_dist_->buf_size(proc);
+    }
+
+    Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
+        NOT_ALLOWED();
+    }
+
+    Size max_proc_buf_size() const override {
+      return ref_dist_->max_proc_buf_size();
+    }
+
+    Size max_block_size() const override { return ref_dist_->max_block_size(); }
+
+    Size total_size() const override {
+      return ref_dist_->total_size();
+    }
+
+    size_t compute_hash() const {
+      return ref_dist_->compute_hash();
+    }
+  
+  protected:
+  const Distribution* ref_dist_;
+  Func map_func_;
+
+}; // class ViewDistribution
+
 //#if 0
 template <int N, typename BodyFunc, typename InitFunc, typename UpdateFunc,
           typename... Args>

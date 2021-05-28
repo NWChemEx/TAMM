@@ -390,8 +390,7 @@ void ccsd_t_driver() {
     for(tamm::Index x=0;x<nvab/2;x++) k_spin.push_back(1);
     for(tamm::Index x=nvab/2;x<nvab;x++) k_spin.push_back(2);
 
-    bool is_restricted = true;
-    if(sys_data.options_map.scf_options.scf_type == "uhf") is_restricted = false;
+    bool is_restricted = is_rhf;
 
     if(rank==0) {
         if(is_restricted) cout << endl << "Running Closed Shell CCSD(T) calculation" << endl;

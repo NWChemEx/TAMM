@@ -1,7 +1,7 @@
-#include "cd_ccsd_common_cs_ann.hpp"
+#include "cd_ccsd_os_ann.hpp"
 #include "ccsd_t/ccsd_t_fused_driver.hpp"
 
-void ccsd_driver();
+void ccsd_t_driver();
 std::string filename;
 double ccsdt_s1_t1_GetTime = 0;
 double ccsdt_s1_v2_GetTime = 0;
@@ -28,14 +28,14 @@ int main( int argc, char* argv[] )
 
     tamm::initialize(argc, argv);
 
-    ccsd_driver();
+    ccsd_t_driver();
 
     tamm::finalize();
 
     return 0;
 }
 
-void ccsd_driver() {
+void ccsd_t_driver() {
 
     // std::cout << "Input file provided = " << filename << std::endl;
 
@@ -77,7 +77,7 @@ void ccsd_driver() {
     sys_data.options_map.ccsd_options.writet = true;
     sys_data.options_map.ccsd_options.computeTData = true;
 
-    CCSDOptions ccsd_options = sys_data.options_map.ccsd_options;
+    CCSDOptions& ccsd_options = sys_data.options_map.ccsd_options;
     debug = ccsd_options.debug;
     if(rank == 0) ccsd_options.print();
 
@@ -94,7 +94,9 @@ void ccsd_driver() {
     std::string v2file = files_prefix+".cholv2";
     std::string cholfile = files_prefix+".cholcount";
     std::string ccsdstatus = files_prefix+".ccsdstatus";
-    
+
+    const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+
     bool ccsd_restart = ccsd_options.readt || 
         ( (fs::exists(t1file) && fs::exists(t2file)     
         && fs::exists(f1file) && fs::exists(v2file)) );
@@ -105,10 +107,20 @@ void ccsd_driver() {
                                 ccsd_restart, cholfile);
     free_tensors(lcao);
 
+    if(ccsd_options.writev) ccsd_options.writet = true;
+
     TiledIndexSpace N = MO("all");
 
-    auto [p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s] 
-            = setupTensors_cs(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
+    std::vector<T> p_evl_sorted;
+    Tensor<T> d_r1, d_r2, d_t1, d_t2;
+    std::vector<Tensor<T>> d_r1s, d_r2s, d_t1s, d_t2s;
+
+    if(is_rhf) 
+        std::tie(p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s)
+                = setupTensors_cs(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
+    else
+        std::tie(p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s)
+                = setupTensors(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
 
     if(ccsd_restart) {
         read_from_disk(d_f1,f1file);
@@ -165,7 +177,7 @@ void ccsd_driver() {
         computeTData = computeTData && !fs::exists(fullV2file) 
                 && !fs::exists(t1file) && !fs::exists(t2file);
 
-    if(computeTData) {
+    if(computeTData && is_rhf) {
         TiledIndexSpace O = MO("occ");
         TiledIndexSpace V = MO("virt");
 
@@ -189,34 +201,43 @@ void ccsd_driver() {
 
     double residual=0, corr_energy=0;
 
-    if(ccsd_restart) {
-        if(subcomm != MPI_COMM_NULL) {
-            const int ppn = GA_Cluster_nprocs(0);
-            if(rank==0) std::cout << "Executing with " << nsranks << " ranks (" << nsranks/ppn << " nodes)" << std::endl; 
-            std::tie(residual, corr_energy) = cd_ccsd_cs_driver<T>(
-                    sys_data, *sub_ec, MO, CI, d_t1, d_t2, d_f1, 
-                    d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
-                    p_evl_sorted, 
-                    cholVpr, ccsd_restart, files_prefix,
-                    computeTData);
-        }
-        ec.pg().barrier();
+    if(is_rhf) {
+      if(ccsd_restart) {
+          if(subcomm != MPI_COMM_NULL) {
+              const int ppn = GA_Cluster_nprocs(0);
+              if(rank==0) std::cout << "Executing with " << nsranks << " ranks (" << nsranks/ppn << " nodes)" << std::endl; 
+              std::tie(residual, corr_energy) = cd_ccsd_cs_driver<T>(
+                      sys_data, *sub_ec, MO, CI, d_t1, d_t2, d_f1, 
+                      d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
+                      p_evl_sorted, 
+                      cholVpr, ccsd_restart, files_prefix,
+                      computeTData);
+          }
+          ec.pg().barrier();
+      }
+      else {
+          std::tie(residual, corr_energy) = cd_ccsd_cs_driver<T>(
+                  sys_data, ec, MO, CI, d_t1, d_t2, d_f1, 
+                  d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
+                  p_evl_sorted, 
+                  cholVpr, ccsd_restart, files_prefix,
+                  computeTData);
+          }      
     }
-    else {
-        std::tie(residual, corr_energy) = cd_ccsd_cs_driver<T>(
-                sys_data, ec, MO, CI, d_t1, d_t2, d_f1, 
-                d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
-                p_evl_sorted, 
-                cholVpr, ccsd_restart, files_prefix,
-                computeTData);
-        }      
+    else
+        std::tie(residual, corr_energy) = cd_ccsd_os_driver<T>(
+            sys_data, ec, MO, CI, d_t1, d_t2, d_f1, 
+            d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
+            p_evl_sorted, 
+            cholVpr, ccsd_restart, files_prefix,
+            computeTData);
 
-    if(computeTData) {
+    if(computeTData && is_rhf) {
         free_tensors(t1_bb,t2_bbbb);
         if(ccsd_options.writev) {
-            write_to_disk(d_t1,t1file);
-            write_to_disk(d_t2,t2file); 
-            free_tensors(dt1_full, dt1_full);
+            write_to_disk(dt1_full,t1file);
+            write_to_disk(dt2_full,t2file);
+            free_tensors(dt1_full, dt2_full);
         }
     }  
 
@@ -241,24 +262,28 @@ void ccsd_driver() {
     auto cc_t2 = std::chrono::high_resolution_clock::now();
     double ccsd_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
-    if(rank == 0) 
+    if(rank == 0) { 
+      if(is_rhf)
         std::cout << std::endl << "Time taken for Closed Shell Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
+      else
+        std::cout << std::endl << "Time taken for Open Shell Cholesky CCSD: " << ccsd_time << " secs" << std::endl;
+    }
 
-    // double printtol=ccsd_options.printtol;
-    // if (rank == 0) {
-    //     std::cout << std::endl << "Threshold for printing amplitudes set to: " << printtol << std::endl;
-    //     std::cout << "T1 amplitudes" << std::endl;
-    //     print_max_above_threshold(d_t1,printtol);
-    //     std::cout << "T2 amplitudes" << std::endl;
-    //     print_max_above_threshold(d_t2,printtol);
-    // }
+    double printtol=ccsd_options.printtol;
+    if (rank == 0 && debug) {
+        std::cout << std::endl << "Threshold for printing amplitudes set to: " << printtol << std::endl;
+        std::cout << "T1 amplitudes" << std::endl;
+        print_max_above_threshold(d_t1,printtol);
+        std::cout << "T2 amplitudes" << std::endl;
+        print_max_above_threshold(d_t2,printtol);
+    }
 
     if(!ccsd_restart) {
         free_tensors(d_r1,d_r2);
         free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);
     }
 
-    free_tensors(d_t1, d_t2);
+    if(is_rhf) free_tensors(d_t1, d_t2);
     ec.flush_and_sync();
 
     bool  ccsd_t_restart = fs::exists(t1file) && fs::exists(t2file) &&
@@ -299,6 +324,10 @@ void ccsd_driver() {
     Tensor<T>::allocate(&ec,t_d_t1,t_d_t2,t_d_v2);
 
     if(!ccsd_t_restart) {
+        if(!is_rhf) {
+          dt1_full = d_t1;
+          dt2_full = d_t2;
+        }        
         if(rank==0) {
             cout << endl << "Retile T1,T2,V2 ... " << endl;   
         }
@@ -334,7 +363,7 @@ void ccsd_driver() {
         else {
           retile_tamm_tensor(dt1_full,t_d_t1);
           retile_tamm_tensor(dt2_full,t_d_t2);
-          free_tensors(dt1_full, dt2_full);
+          if(is_rhf) free_tensors(dt1_full, dt2_full);
           retile_tamm_tensor(d_v2,t_d_v2,"V2");
           free_tensors(d_v2);
         }        
@@ -345,6 +374,8 @@ void ccsd_driver() {
         read_from_disk(t_d_t2,t2file);
         read_from_disk(t_d_v2,fullV2file);
     }
+
+    if(!is_rhf) free_tensors(d_t1, d_t2);
 
     p_evl_sorted = tamm::diagonal(d_f1);
 

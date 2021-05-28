@@ -8,25 +8,36 @@ using namespace tamm;
 bool debug = false;
 
 TiledIndexSpace o_alpha,v_alpha,o_beta,v_beta;
-Tensor<double> f1_aa_oo, f1_aa_ov, f1_aa_vv;
-Tensor<double> f1_bb_oo, f1_bb_ov, f1_bb_vv;
-Tensor<double> t2_aaaa;
-Tensor<double> chol3d_aa_oo, chol3d_aa_ov, chol3d_aa_vv;
-Tensor<double> chol3d_bb_oo, chol3d_bb_ov, chol3d_bb_vv;
-Tensor<double> _a004_aaaa, _a004_abab;
+Tensor<double> f1_aa_oo    , f1_aa_ov    , f1_aa_vo    , f1_aa_vv    ,
+               f1_bb_oo    , f1_bb_ov    , f1_bb_vo    , f1_bb_vv    ,
+               chol3d_aa_oo, chol3d_aa_ov, chol3d_aa_vo, chol3d_aa_vv,
+               chol3d_bb_oo, chol3d_bb_ov, chol3d_bb_vo, chol3d_bb_vv,
+               t1_aa       , t1_bb       , t2_aaaa     , t2_abab     , t2_bbbb     ,
+               r1_aa       , r1_bb       , r2_aaaa     , r2_abab     , r2_bbbb     ,
+               i0_atmp     , i0_btmp     ,
+               _a004_aaaa  , _a004_abab  , _a004_bbbb  ,
+               _a01        , _a01_aa     , _a01_bb     , 
+               _a02        , _a02_aa     , _a02_bb     ,
+               _a03_aa     , _a03_bb     , _a03_aa_vo  , _a03_bb_vo  ,
+               _a04_aa     , _a04_bb     , 
+               _a05_aa     , _a05_bb     ,
+               _a007       , 
+               _a001_aa    , _a001_bb    , 
+               _a017_aa    , _a017_bb    ,
+               _a006_aa    , _a006_bb    ,  
+               _a008_aa    , _a008_bb    , 
+               _a009_aa    , _a009_bb    ,
+               _a019_aaaa  , _a019_abab  , _a019_abba  , _a019_baba  , _a019_bbbb  ,
+               _a020_aaaa  , _a020_baba  , _a020_abab  , _a020_baab  , _a020_bbbb  , _a020_abba  ,
+               _a021_aa    , _a021_bb    , 
+               _a022_aaaa  , _a022_abab  , _a022_bbbb  ;
 
-Tensor<double> t2_aaaa_temp;
-Tensor<double> i0_temp;
-Tensor<double> _a01,_a02_aa,_a03_aa;
-Tensor<double> _a02, _a01_aa,_a03_aa_vo,_a04_aa,_a05_aa,_a05_bb;
-Tensor<double> _a007,_a001_aa,_a001_bb,_a017_aa,_a017_bb;
-Tensor<double> _a006_aa,_a006_bb,_a009_aa,_a009_bb,_a021_aa,_a021_bb,_a008_aa,
-               _a019_abab,_a020_aaaa,_a020_baba,_a020_baab,_a020_bbbb,_a022_abab;
+Tensor<double> dt1_full, dt2_full;
+Tensor<double> i0_temp, t2_aaaa_temp;
 
-Tensor<double> dt1_full, dt2_full, t1_bb, t2_bbbb;
 
 template<typename T>
-void ccsd_e(/* ExecutionContext &ec, */
+void ccsd_e_cs(/* ExecutionContext &ec, */
             Scheduler& sch,
             const TiledIndexSpace& MO, const TiledIndexSpace& CI, Tensor<T>& de, 
             const Tensor<T>& t1_aa, const Tensor<T>& t2_abab) { 
@@ -56,7 +67,7 @@ void ccsd_e(/* ExecutionContext &ec, */
 }
 
 template<typename T>
-void ccsd_t1(/* ExecutionContext& ec,  */
+void ccsd_t1_cs(/* ExecutionContext& ec,  */
              Scheduler& sch,
              const TiledIndexSpace& MO,const TiledIndexSpace& CI, 
              Tensor<T>& i0_aa, const Tensor<T>& t1_aa, const Tensor<T>& t2_abab) { 
@@ -96,7 +107,7 @@ void ccsd_t1(/* ExecutionContext& ec,  */
 }
 
 template<typename T>
-void ccsd_t2(/* ExecutionContext& ec, */
+void ccsd_t2_cs(/* ExecutionContext& ec, */
              Scheduler& sch,
              const TiledIndexSpace& MO,const TiledIndexSpace& CI, 
              Tensor<T>& i0_abab, const Tensor<T>& t1_aa, Tensor<T>& t2_abab) { 
@@ -338,9 +349,9 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
                ((d_t2s[off])()  = t2_abab())
                .execute();
 
-            ccsd_e(/* ec,  */sch, MO, CI, d_e, t1_aa, t2_abab);
-            ccsd_t1(/* ec,  */sch, MO, CI, r1_aa, t1_aa, t2_abab);
-            ccsd_t2(/* ec,  */sch, MO, CI, r2_abab, t1_aa, t2_abab);
+            ccsd_e_cs(/* ec,  */sch, MO, CI, d_e, t1_aa, t2_abab);
+            ccsd_t1_cs(/* ec,  */sch, MO, CI, r1_aa, t1_aa, t2_abab);
+            ccsd_t2_cs(/* ec,  */sch, MO, CI, r2_abab, t1_aa, t2_abab);
 
             #ifdef USE_TALSH
               sch.execute(ExecutionHW::GPU, profile);
@@ -400,7 +411,7 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContex
 
     } //no restart
     else {
-        ccsd_e(/* ec,  */sch, MO, CI, d_e, t1_aa, t2_abab);
+        ccsd_e_cs(/* ec,  */sch, MO, CI, d_e, t1_aa, t2_abab);
         sch.execute();
         energy = get_scalar(d_e);
         residual = 0.0;

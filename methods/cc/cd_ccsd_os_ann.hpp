@@ -1,41 +1,10 @@
-#include "diis.hpp"
-#include "ccsd_util.hpp"
-#include "ga/macdecls.h"
-#include "ga/ga-mpi.h"
 
 
-using namespace tamm;
-
-bool debug = false;
-
-TiledIndexSpace o_alpha,v_alpha,o_beta,v_beta;
-Tensor<double> f1_aa_oo    , f1_aa_ov    , f1_aa_vo    , f1_aa_vv    ,
-               f1_bb_oo    , f1_bb_ov    , f1_bb_vo    , f1_bb_vv    ,
-               chol3d_aa_oo, chol3d_aa_ov, chol3d_aa_vo, chol3d_aa_vv,
-               chol3d_bb_oo, chol3d_bb_ov, chol3d_bb_vo, chol3d_bb_vv,
-               t1_aa       , t1_bb       , t2_aaaa     , t2_abab     , t2_bbbb     ,
-               r1_aa       , r1_bb       , r2_aaaa     , r2_abab     , r2_bbbb     ,
-               i0_atmp     , i0_btmp     ,
-               _a004_aaaa  , _a004_abab  , _a004_bbbb  ,
-               _a01        , _a01_aa     , _a01_bb     , 
-               _a02        , _a02_aa     , _a02_bb     ,
-               _a03_aa     , _a03_bb     , _a03_aa_vo  , _a03_bb_vo  ,
-               _a04_aa     , _a04_bb     , 
-               _a05_aa     , _a05_bb     ,
-               _a007       , 
-               _a001_aa    , _a001_bb    , 
-               _a017_aa    , _a017_bb    ,
-               _a006_aa    , _a006_bb    ,  
-               _a008_aa    , _a008_bb    , 
-               _a009_aa    , _a009_bb    ,
-               _a019_aaaa  , _a019_abab  , _a019_abba  , _a019_baba  , _a019_bbbb  ,
-               _a020_aaaa  , _a020_baba  , _a020_abab  , _a020_baab  , _a020_bbbb  , _a020_abba  ,
-               _a021_aa    , _a021_bb    , 
-               _a022_aaaa  , _a022_abab  , _a022_bbbb  ;
+#include "cd_ccsd_cs_ann.hpp"
 
 
 template<typename T>
-void ccsd_e(/* ExecutionContext &ec, */
+void ccsd_e_os(/* ExecutionContext &ec, */
             Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace& CI, Tensor<T>& de) { 
 
     auto [cind]                =      CI.labels<1>("all");
@@ -75,7 +44,7 @@ void ccsd_e(/* ExecutionContext &ec, */
 }
 
 template<typename T>
-void ccsd_t1(/* ExecutionContext& ec,  */
+void ccsd_t1_os(/* ExecutionContext& ec,  */
              Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace& CI, Tensor<T>& i0) {
     
     auto [cind]                       =      CI.labels<1>("all");
@@ -175,7 +144,7 @@ void ccsd_t1(/* ExecutionContext& ec,  */
 }
 
 template<typename T>
-void ccsd_t2(/* ExecutionContext& ec, */
+void ccsd_t2_os(/* ExecutionContext& ec, */
              Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace& CI, Tensor<T>& i0) {
                 
     auto [cind]                                     =      CI.labels<1>("all");
@@ -391,14 +360,14 @@ void ccsd_t2(/* ExecutionContext& ec, */
 
 
 template<typename T>
-std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& ec, 
+std::tuple<double,double> cd_ccsd_os_driver(SystemData sys_data, ExecutionContext& ec, 
                    const TiledIndexSpace& MO, const TiledIndexSpace& CI,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_f1, 
                    Tensor<T>& d_r1, Tensor<T>& d_r2, std::vector<Tensor<T>>& d_r1s, 
                    std::vector<Tensor<T>>& d_r2s, std::vector<Tensor<T>>& d_t1s, 
                    std::vector<Tensor<T>>& d_t2s, std::vector<T>& p_evl_sorted,
-                   Tensor<T>& cv3d, bool ccsd_restart=false, std::string out_fp="") {
+                   Tensor<T>& cv3d, bool ccsd_restart=false, std::string out_fp="", bool computeTData=false) {
 
     int    maxiter     = sys_data.options_map.ccsd_options.ccsd_maxiter;
     int    ndiis       = sys_data.options_map.ccsd_options.ndiis;
@@ -594,9 +563,9 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
                (t2_bbbb(p1_vb,p2_vb,h3_ob,h4_ob) = d_t2(p1_vb,p2_vb,h3_ob,h4_ob))
                .execute();
 
-            ccsd_e( /* ec,  */sch, MO, CI, d_e);
-            ccsd_t1(/* ec,  */sch, MO, CI, d_r1);
-            ccsd_t2(/* ec,  */sch, MO, CI, d_r2);
+            ccsd_e_os( /* ec,  */sch, MO, CI, d_e);
+            ccsd_t1_os(/* ec,  */sch, MO, CI, d_r1);
+            ccsd_t2_os(/* ec,  */sch, MO, CI, d_r2);
 
             sch
               (d_r1(p2_va, h1_oa)                = r1_aa(p2_va, h1_oa))
@@ -628,11 +597,10 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
 
             iteration_print(sys_data, ec.pg(), iter, residual, energy, iter_time);
 
-            if(writet && ( ((iter+1)%writet_iter == 0) || (residual < thresh) ) ) {
+            if(writet && ( ((iter+1)%writet_iter == 0) /*|| (residual < thresh)*/ ) ) {
                 write_to_disk(d_t1,t1file);
                 write_to_disk(d_t2,t2file);
             }
-
 
             if(residual < thresh) { 
                 Tensor<T> t2_copy{{V,V,O,O},{2,2}};
@@ -644,6 +612,14 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
                    (d_t2(p2_vb,p1_va,h4_ob,h3_oa) =  1.0 * t2_copy(p1_va,p2_vb,h3_oa,h4_ob))
                    .deallocate(t2_copy)
                    .execute();
+                if(writet) {
+                  write_to_disk(d_t1,t1file);
+                  write_to_disk(d_t2,t2file);
+                  if(computeTData && sys_data.options_map.ccsd_options.writev) {
+                    fs::copy_file(t1file, out_fp+".fullT1amp", fs::copy_options::update_existing);
+                    fs::copy_file(t2file, out_fp+".fullT2amp", fs::copy_options::update_existing);
+                  }
+                }
                 break; 
             }
             
@@ -694,7 +670,7 @@ std::tuple<double,double> cd_ccsd_driver(SystemData sys_data, ExecutionContext& 
          (t2_abab(p1_va,p2_vb,h3_oa,h4_ob) = d_t2(p1_va,p2_vb,h3_oa,h4_ob))
          (t2_bbbb(p1_vb,p2_vb,h3_ob,h4_ob) = d_t2(p1_vb,p2_vb,h3_ob,h4_ob));
 
-      ccsd_e(/* ec,  */sch, MO, CI, d_e);
+      ccsd_e_os(/* ec,  */sch, MO, CI, d_e);
       sch.execute();
 
       energy   = get_scalar(d_e);

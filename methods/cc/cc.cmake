@@ -1,7 +1,6 @@
 
 include(TargetMacros)
-add_mpi_unit_test(CD_CCSD_CS 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.json")
-add_mpi_unit_test(CD_CCSD_OS 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.json")
+add_mpi_unit_test(CD_CCSD 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.json")
 add_mpi_unit_test(CholeskyDecomp 2 "${CMAKE_SOURCE_DIR}/../inputs/h2o.json")
 
 set(CCSD_T_SRCDIR ${CMAKE_CURRENT_SOURCE_DIR}/cc/ccsd_t)

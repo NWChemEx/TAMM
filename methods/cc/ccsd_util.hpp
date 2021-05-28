@@ -1,5 +1,5 @@
-#ifndef TESTS_CCSD_UTIL_HPP_
-#define TESTS_CCSD_UTIL_HPP_
+#ifndef METHODS_CCSD_UTIL_HPP_
+#define METHODS_CCSD_UTIL_HPP_
 
 // #include "cd_svd.hpp"
 #include "cd_svd/cd_svd_ga.hpp"
@@ -774,4 +774,4 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
     return std::make_tuple(cholVpr, d_f1, lcao, chol_count, max_cvecs, CI);
 }
 
-#endif //TESTS_CCSD_UTIL_HPP_
+#endif //METHODS_CCSD_UTIL_HPP_

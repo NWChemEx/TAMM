@@ -15,6 +15,21 @@ using namespace tamm;
   //     }
   // };
 
+template<typename T>
+void setup_full_t1t2(ExecutionContext& ec, const TiledIndexSpace& MO,
+  Tensor<T>& dt1_full, Tensor<T>& dt2_full) {
+
+  TiledIndexSpace O = MO("occ");
+  TiledIndexSpace V = MO("virt");
+
+  dt1_full = Tensor<T>{{V,O},{1,1}};
+  dt2_full = Tensor<T>{{V,V,O,O},{2,2}};
+
+  Tensor<TensorType>::allocate(&ec,dt1_full,dt2_full);
+  // (dt1_full() = 0)
+  // (dt2_full() = 0)
+}
+
 template<typename TensorType>
 void update_r2(ExecutionContext& ec, 
               LabeledTensor<TensorType> ltensor) {
@@ -563,10 +578,10 @@ setupLambdaTensors(ExecutionContext& ec, TiledIndexSpace& MO, size_t ndiis) {
     TiledIndexSpace O = MO("occ");
     TiledIndexSpace V = MO("virt");
     
-     auto rank = ec.pg().rank();
+    auto rank = ec.pg().rank();
 
-  Tensor<T> d_r1{{O,V},{1,1}};
-  Tensor<T> d_r2{{O,O,V,V},{2,2}};
+    Tensor<T> d_r1{{O,V},{1,1}};
+    Tensor<T> d_r2{{O,O,V,V},{2,2}};
     Tensor<T> d_y1{{O,V},{1,1}};
     Tensor<T> d_y2{{O,O,V,V},{2,2}};
 

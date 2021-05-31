@@ -8,7 +8,7 @@
 using namespace tamm;
 
 template<typename T>
-void ccsd_e(ExecutionContext &ec,
+void ccsd_e(Scheduler& sch,
             const TiledIndexSpace& MO, Tensor<T>& de, const Tensor<T>& t1,
             const Tensor<T>& t2, const Tensor<T>& f1, const Tensor<T>& v2) {
     const TiledIndexSpace& O = MO("occ");
@@ -26,18 +26,17 @@ void ccsd_e(ExecutionContext &ec,
     std::tie(p1, p2, p3, p4, p5) = MO.labels<5>("virt");
     std::tie(h3, h4, h5, h6)     = MO.labels<4>("occ");
 
-    Scheduler{ec}.allocate(i1)
+    sch.allocate(i1)
         (i1(h6, p5) = f1(h6, p5))
         (i1(h6, p5) += 0.5 * t1(p3, h4) * v2(h4, h6, p3, p5))
         (de() = 0)
         (de() += t1(p5, h6) * i1(h6, p5))
         (de() += 0.25 * t2(p1, p2, h3, h4) * v2(h3, h4, p1, p2))
-        .deallocate(i1)
-        .execute();
+        .deallocate(i1);
 }
 
 template<typename T>
-void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
+void ccsd_t1(Scheduler& sch, const TiledIndexSpace& MO, Tensor<T>& i0,
              const Tensor<T>& t1, const Tensor<T>& t2, const Tensor<T>& f1,
              const Tensor<T>& v2) {
     const TiledIndexSpace& O = MO("occ");
@@ -62,7 +61,6 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     std::tie(p2, p3, p4, p5, p6, p7) = MO.labels<6>("virt");
     std::tie(h1, h4, h5, h6, h7, h8) = MO.labels<6>("occ");
 
-    Scheduler sch{ec};
     sch
       .allocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
       (t1_2_1(h7, h1) = 0)
@@ -86,13 +84,12 @@ void ccsd_t1(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
       ( t1_6_1(h4,h5,h1,p3) += -1   * t1(p6,h1)       * v2(h4,h5,p3,p6))
       ( i0(p2,h1)           += -0.5 * t2(p2,p3,h4,h5) * t1_6_1(h4,h5,h1,p3))
       ( i0(p2,h1)           += -0.5 * t2(p3,p4,h1,h5) * v2(h5,p2,p3,p4))
-    .deallocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1)
-    .execute();
+    .deallocate(t1_2_1, t1_2_2_1, t1_3_1, t1_5_1, t1_6_1);
 
 }
 
 template<typename T>
-void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
+void ccsd_t2(Scheduler& sch, const TiledIndexSpace& MO, Tensor<T>& i0,
              const Tensor<T>& t1, Tensor<T>& t2, const Tensor<T>& f1,
              const Tensor<T>& v2) {
     const TiledIndexSpace &O = MO("occ");
@@ -130,7 +127,6 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     std::tie(p1, p2, p3, p4, p5, p6, p7, p8, p9) = MO.labels<9>("virt");
     std::tie(h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11) = MO.labels<11>("occ");
 
-    Scheduler sch{ec};
     sch.allocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
              t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1,vt1t1_1_temp,t2_2_2_1_temp,
              t2_2_1_temp,i0_temp,t2_temp,t2_6_1_temp)
@@ -297,7 +293,7 @@ void ccsd_t2(ExecutionContext& ec, const TiledIndexSpace& MO, Tensor<T>& i0,
     .deallocate(t2_2_1, t2_2_2_1, t2_2_2_2_1, t2_2_4_1, t2_2_5_1, t2_4_1, t2_4_2_1,
               t2_5_1, t2_6_1, t2_6_2_1, t2_7_1, vt1t1_1,vt1t1_1_temp,t2_2_2_1_temp,
               t2_2_1_temp,i0_temp,t2_temp,t2_6_1_temp);
-    sch.execute();
+    // sch.execute();
 
 }
 
@@ -310,73 +306,83 @@ std::tuple<double,double> ccsd_spin_driver(SystemData sys_data, ExecutionContext
                    std::vector<Tensor<T>>& d_t2s, std::vector<T>& p_evl_sorted,
                    bool ccsd_restart=false, std::string out_fp="") {
 
-    double zshiftl = 0.0;                
-    int maxiter    = sys_data.options_map.ccsd_options.ccsd_maxiter;
-    int ndiis = sys_data.options_map.ccsd_options.ndiis;
-    double thresh  = sys_data.options_map.ccsd_options.threshold;
-    bool writet = sys_data.options_map.ccsd_options.writet;
+    int    maxiter     = sys_data.options_map.ccsd_options.ccsd_maxiter;
+    int    ndiis       = sys_data.options_map.ccsd_options.ndiis;
+    double thresh      = sys_data.options_map.ccsd_options.threshold;
+    bool   writet      = sys_data.options_map.ccsd_options.writet;
+    int    writet_iter = sys_data.options_map.ccsd_options.writet_iter;
+    double zshiftl     = sys_data.options_map.ccsd_options.lshift;
+    bool   profile     = sys_data.options_map.ccsd_options.profile_ccsd;    
+    double residual    = 0.0;
+    double energy      = 0.0;
+    int    niter       = 0;
+
     const TAMM_SIZE n_occ_alpha = static_cast<TAMM_SIZE>(sys_data.n_occ_alpha);
-    const TAMM_SIZE n_occ_beta = static_cast<TAMM_SIZE>(sys_data.n_occ_beta);
+    const TAMM_SIZE n_occ_beta  = static_cast<TAMM_SIZE>(sys_data.n_occ_beta);
     
     std::string t1file = out_fp+".t1amp";
     std::string t2file = out_fp+".t2amp";                       
 
     std::cout.precision(15);
 
-    double residual = 0.0;
-    double energy = 0.0;
-
     Tensor<T> d_e{};
     Tensor<T>::allocate(&ec, d_e);
     Scheduler sch{ec};
 
-    Tensor<T> d_r1_residual{}, d_r2_residual{};
-    Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
     
     if(!ccsd_restart) {
-        sch
-        (d_r1() = 0)
-        (d_r2() = 0);
 
-  for(int titer = 0; titer < maxiter; titer += ndiis) {
+    Tensor<T> d_r1_residual{}, d_r2_residual{};
+    Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
+
+    for(int titer = 0; titer < maxiter; titer += ndiis) {
       for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
 
         const auto timer_start = std::chrono::high_resolution_clock::now();
         
+        niter   = iter;
         int off = iter - titer;
 
-        sch(d_e() = 0)
-        (d_r1_residual() = 0)
-        (d_r2_residual() = 0)
-        ((d_t1s[off])() = d_t1())
-        ((d_t2s[off])() = d_t2())
-        .execute();
+        sch
+            ((d_t1s[off])()  = d_t1())
+            ((d_t2s[off])()  = d_t2())
+            .execute();
 
-        ccsd_e(ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
-        ccsd_t1(ec, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
-        ccsd_t2(ec, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
+        ccsd_e(sch, MO, d_e, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t1(sch, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
+        ccsd_t2(sch, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
 
         #ifdef USE_TALSH
-            sch.execute(ExecutionHW::GPU);
+          sch.execute(ExecutionHW::GPU, profile);
         #else
-            sch.execute();
+          sch.execute(ExecutionHW::CPU, profile);
         #endif
 
         std::tie(residual, energy) = rest(ec, MO, d_r1, d_r2, d_t1, d_t2,
-                        d_e, d_r1_residual, d_r2_residual, p_evl_sorted, zshiftl,
-                        n_occ_alpha, n_occ_beta);
+                                d_e, d_r1_residual, d_r2_residual, 
+                                p_evl_sorted, zshiftl, n_occ_alpha, n_occ_beta);
 
         update_r2(ec, d_r2());
 
-        sch((d_r1s[off])() = d_r1())((d_r2s[off])() = d_r2()).execute();
+        sch
+            ((d_r1s[off])() = d_r1())
+            ((d_r2s[off])() = d_r2())
+            .execute();
 
         const auto timer_end = std::chrono::high_resolution_clock::now();
         auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
         iteration_print(sys_data, ec.pg(), iter, residual, energy, iter_time);
-        
 
-        if(residual < thresh) { break; }
+        if(writet && ( ((iter+1)%writet_iter == 0) || (residual < thresh) ) ) {
+            write_to_disk(d_t1,t1file);
+            write_to_disk(d_t2,t2file);
+        }   
+
+        if(residual < thresh) { 
+            break; 
+        }
+
       }
 
       if(residual < thresh || titer + ndiis >= maxiter) { break; }
@@ -388,26 +394,36 @@ std::tuple<double,double> ccsd_spin_driver(SystemData sys_data, ExecutionContext
           std::cout << std::right << "5" << std::endl;
       }
 
-
       std::vector<std::vector<Tensor<T>>> rs{d_r1s, d_r2s};
       std::vector<std::vector<Tensor<T>>> ts{d_t1s, d_t2s};
       std::vector<Tensor<T>> next_t{d_t1, d_t2};
       diis<T>(ec, rs, ts, next_t);
-      if(writet) {
-            write_to_disk(d_t1,t1file);
-            write_to_disk(d_t2,t2file);
-      }
+    }
+    Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
+
+  } //no restart
+  else {
+    ccsd_e(sch, MO, d_e, d_t1, d_t2, d_f1, d_v2);
+
+    #ifdef USE_TALSH
+        sch.execute(ExecutionHW::GPU, profile);
+    #else
+        sch.execute(ExecutionHW::CPU, profile);
+    #endif
+
+    energy   = get_scalar(d_e);
+    residual = 0.0;
   }
- } //no restart
-    else {
-            sch(d_e()=0);
-            ccsd_e(ec, MO, d_e, d_t1, d_t2, d_f1, d_v2);
-            sch.execute();
-            energy = get_scalar(d_e);
-            residual = 0.0;
+
+    sys_data.ccsd_corr_energy  = energy;
+
+    if(ec.pg().rank() == 0) {
+      sys_data.results["output"]["CCSD"]["n_iterations"] =   niter+1;
+      sys_data.results["output"]["CCSD"]["final_energy"]["correlation"] =  energy;
+      sys_data.results["output"]["CCSD"]["final_energy"]["total"] =  sys_data.scf_energy+energy;
+
+      write_json_data(sys_data,"CCSD");
     }
 
-    Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
     return std::make_tuple(residual,energy);
-  
 }

@@ -262,6 +262,8 @@ std::tuple<double,double> cd_ccsd_os_driver(SystemData sys_data, ExecutionContex
     auto [h1_oa, h2_oa, h3_oa, h4_oa] = o_alpha.labels<4>("all");
     auto [h1_ob, h2_ob, h3_ob, h4_ob] =  o_beta.labels<4>("all");           
 
+    Tensor<T> d_e{};
+
     _a004_aaaa   = {{v_alpha,v_alpha,o_alpha,o_alpha},{2,2}};
     _a004_abab   = {{v_alpha,v_beta ,o_alpha,o_beta} ,{2,2}};
     _a004_bbbb   = {{v_beta ,v_beta ,o_beta ,o_beta} ,{2,2}};
@@ -291,8 +293,83 @@ std::tuple<double,double> cd_ccsd_os_driver(SystemData sys_data, ExecutionContex
     r2_aaaa      = {{v_alpha,v_alpha,o_alpha,o_alpha},{2,2}};
     r2_abab      = {{v_alpha,v_beta ,o_alpha,o_beta} ,{2,2}};
     r2_bbbb      = {{v_beta ,v_beta ,o_beta ,o_beta} ,{2,2}};
-    
+
+    //Energy intermediates
+    _a01    = {CI};
+    _a02_aa = {{o_alpha,o_alpha,CI},{1,1}}; 
+    _a02_bb = {{o_beta,o_beta,CI}  ,{1,1}};
+    _a03_aa = {{o_alpha,v_alpha,CI},{1,1}}; 
+    _a03_bb = {{o_beta,v_beta,CI}  ,{1,1}};
+    //T1
+    _a02       = {CI};
+    _a01_aa    = {{o_alpha,o_alpha,CI}             ,{1,1}}; 
+    _a01_bb    = {{o_beta,o_beta,CI}               ,{1,1}};
+    _a03_aa_vo = {{v_alpha,o_alpha,CI}             ,{1,1}}; 
+    _a03_bb_vo = {{v_beta,o_beta,CI}               ,{1,1}};
+    _a04_aa    = {{o_alpha,o_alpha}                ,{1,1}};    
+    _a04_bb    = {{o_beta,o_beta}                  ,{1,1}};
+    _a05_aa    = {{o_alpha,v_alpha}                ,{1,1}};    
+    _a05_bb    = {{o_beta,v_beta}                  ,{1,1}};
+    //T2
+    _a007      = {CI};
+    _a017_aa   = {{v_alpha,o_alpha,CI}             ,{1,1}};
+    _a017_bb   = {{v_beta,o_beta,CI}               ,{1,1}};
+    _a006_aa   = {{o_alpha,o_alpha}                ,{1,1}};
+    _a006_bb   = {{o_beta,o_beta}                  ,{1,1}};
+    _a009_aa   = {{o_alpha,o_alpha,CI}             ,{1,1}};
+    _a009_bb   = {{o_beta,o_beta,CI}               ,{1,1}};
+    _a021_aa   = {{v_alpha,v_alpha,CI}             ,{1,1}};
+    _a021_bb   = {{v_beta,v_beta,CI}               ,{1,1}};
+    _a008_aa   = {{o_alpha,o_alpha,CI}             ,{1,1}};
+    _a008_bb   = {{o_beta,o_beta,CI}               ,{1,1}};
+    _a001_aa   = {{v_alpha,v_alpha}                ,{1,1}};
+    _a001_bb   = {{v_beta,v_beta}                  ,{1,1}};
+    _a019_aaaa = {{o_alpha,o_alpha,o_alpha,o_alpha},{2,2}};
+    _a019_abab = {{o_alpha,o_beta,o_alpha,o_beta}  ,{2,2}};
+    _a019_bbbb = {{o_beta,o_beta,o_beta,o_beta}    ,{2,2}};
+    _a020_aaaa = {{v_alpha,o_alpha,v_alpha,o_alpha},{2,2}};
+    _a020_abab = {{v_alpha,o_beta,v_alpha,o_beta}  ,{2,2}};
+    _a020_baab = {{v_beta,o_alpha,v_alpha,o_beta}  ,{2,2}};
+    _a020_abba = {{v_alpha,o_beta,v_beta,o_alpha}  ,{2,2}};
+    _a020_baba = {{v_beta,o_alpha,v_beta,o_alpha}  ,{2,2}};
+    _a020_bbbb = {{v_beta,o_beta,v_beta,o_beta}    ,{2,2}};
+    _a022_aaaa = {{v_alpha,v_alpha,v_alpha,v_alpha},{2,2}};
+    _a022_abab = {{v_alpha,v_beta,v_alpha,v_beta}  ,{2,2}};
+    _a022_bbbb = {{v_beta,v_beta,v_beta,v_beta}    ,{2,2}};
+    i0_atmp    = {{v_alpha,v_alpha,o_alpha,o_alpha},{2,2}};
+    i0_btmp    = {{v_beta ,v_beta ,o_beta ,o_beta} ,{2,2}};
+
+    double total_ccsd_mem = sum_tensor_sizes(d_t1,d_t2,d_f1,d_r1,d_r2,cv3d,
+                d_e,_a01,_a02_aa,_a02_bb,_a03_aa,_a03_bb,
+                t1_aa, t1_bb, t2_aaaa, t2_abab, t2_bbbb, 
+                r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb,
+                f1_aa_oo, f1_aa_ov, f1_aa_vo, f1_aa_vv, 
+                f1_bb_oo, f1_bb_ov, f1_bb_vo, f1_bb_vv,
+                chol3d_aa_oo, chol3d_aa_ov, chol3d_aa_vo, chol3d_aa_vv,
+                chol3d_bb_oo, chol3d_bb_ov, chol3d_bb_vo, chol3d_bb_vv,
+                _a004_aaaa, _a004_abab, _a004_bbbb);
+
+    for(size_t ri=0;ri<d_r1s.size();ri++)
+        total_ccsd_mem += sum_tensor_sizes(d_r1s[ri],d_r2s[ri],d_t1s[ri],d_t2s[ri]);
+
+    //Intermediates
+    double total_ccsd_mem_tmp = sum_tensor_sizes
+        (_a02,_a01_aa,_a01_bb,_a03_aa_vo,_a03_bb_vo,_a04_aa,_a04_bb,_a05_aa,_a05_bb,
+              _a007,_a001_aa,_a001_bb,_a017_aa,_a017_bb,
+              _a006_aa,_a006_bb,_a009_aa,_a009_bb,_a021_aa,_a021_bb,_a008_aa,
+              _a008_bb,_a019_aaaa,_a019_abab,_a019_bbbb,_a020_aaaa,_a020_baba,
+              _a020_abab,_a020_baab,_a020_bbbb,_a020_abba,_a022_aaaa,_a022_abab,
+              _a022_bbbb,i0_atmp,i0_btmp);
+
+    if(!ccsd_restart) total_ccsd_mem += total_ccsd_mem_tmp;
+
+    if(ec.pg().rank()==0) {
+        std::cout << "Total CPU memory required for Open Shell Cholesky CCSD calculation: " 
+            << std::setprecision(5) << total_ccsd_mem << " GiB" << std::endl << std::endl;
+    }
+
     Scheduler sch{ec};
+    sch.allocate(d_e,_a01,_a02_aa,_a02_bb,_a03_aa,_a03_bb);
     sch.allocate(t1_aa, t1_bb, t2_aaaa, t2_abab, t2_bbbb, 
                  r1_aa, r1_bb, r2_aaaa, r2_abab, r2_bbbb,
                  f1_aa_oo, f1_aa_ov, f1_aa_vo, f1_aa_vv, 
@@ -320,66 +397,15 @@ std::tuple<double,double> cd_ccsd_os_driver(SystemData sys_data, ExecutionContex
        (chol3d_bb_vv(p1_vb,p2_vb,cind)  =  cv3d(p1_vb,p2_vb,cind))
        ;
 
-    Tensor<T> d_e{};
-    Tensor<T>::allocate(&ec, d_e);
-
-    //Energy intermediates
-    _a01    = {CI};
-    _a02_aa = {{o_alpha,o_alpha,CI},{1,1}}; 
-    _a02_bb = {{o_beta,o_beta,CI}  ,{1,1}};
-    _a03_aa = {{o_alpha,v_alpha,CI},{1,1}}; 
-    _a03_bb = {{o_beta,v_beta,CI}  ,{1,1}};
-
-    sch.allocate(_a01,_a02_aa,_a02_bb,_a03_aa,_a03_bb);
-
     if(!ccsd_restart) {
 
         //allocate all intermediates 
-        //T1
-        _a02       = {CI};
-        _a01_aa    = {{o_alpha,o_alpha,CI}             ,{1,1}}; 
-        _a01_bb    = {{o_beta,o_beta,CI}               ,{1,1}};
-        _a03_aa_vo = {{v_alpha,o_alpha,CI}             ,{1,1}}; 
-        _a03_bb_vo = {{v_beta,o_beta,CI}               ,{1,1}};
-        _a04_aa    = {{o_alpha,o_alpha}                ,{1,1}};    
-        _a04_bb    = {{o_beta,o_beta}                  ,{1,1}};
-        _a05_aa    = {{o_alpha,v_alpha}                ,{1,1}};    
-        _a05_bb    = {{o_beta,v_beta}                  ,{1,1}};
-        //T2
-        _a007      = {CI};
-        _a017_aa   = {{v_alpha,o_alpha,CI}             ,{1,1}};
-        _a017_bb   = {{v_beta,o_beta,CI}               ,{1,1}};
-        _a006_aa   = {{o_alpha,o_alpha}                ,{1,1}};
-        _a006_bb   = {{o_beta,o_beta}                  ,{1,1}};
-        _a009_aa   = {{o_alpha,o_alpha,CI}             ,{1,1}};
-        _a009_bb   = {{o_beta,o_beta,CI}               ,{1,1}};
-        _a021_aa   = {{v_alpha,v_alpha,CI}             ,{1,1}};
-        _a021_bb   = {{v_beta,v_beta,CI}               ,{1,1}};
-        _a008_aa   = {{o_alpha,o_alpha,CI}             ,{1,1}};
-        _a008_bb   = {{o_beta,o_beta,CI}               ,{1,1}};
-        _a001_aa   = {{v_alpha,v_alpha}                ,{1,1}};
-        _a001_bb   = {{v_beta,v_beta}                  ,{1,1}};
-        _a019_aaaa = {{o_alpha,o_alpha,o_alpha,o_alpha},{2,2}};
-        _a019_abab = {{o_alpha,o_beta,o_alpha,o_beta}  ,{2,2}};
-        _a019_bbbb = {{o_beta,o_beta,o_beta,o_beta}    ,{2,2}};
-        _a020_aaaa = {{v_alpha,o_alpha,v_alpha,o_alpha},{2,2}};
-        _a020_abab = {{v_alpha,o_beta,v_alpha,o_beta}  ,{2,2}};
-        _a020_baab = {{v_beta,o_alpha,v_alpha,o_beta}  ,{2,2}};
-        _a020_abba = {{v_alpha,o_beta,v_beta,o_alpha}  ,{2,2}};
-        _a020_baba = {{v_beta,o_alpha,v_beta,o_alpha}  ,{2,2}};
-        _a020_bbbb = {{v_beta,o_beta,v_beta,o_beta}    ,{2,2}};
-        _a022_aaaa = {{v_alpha,v_alpha,v_alpha,v_alpha},{2,2}};
-        _a022_abab = {{v_alpha,v_beta,v_alpha,v_beta}  ,{2,2}};
-        _a022_bbbb = {{v_beta,v_beta,v_beta,v_beta}    ,{2,2}};
-        i0_atmp    = {{v_alpha,v_alpha,o_alpha,o_alpha},{2,2}};
-        i0_btmp    = {{v_beta ,v_beta ,o_beta ,o_beta} ,{2,2}};
         sch.allocate(_a02, _a01_aa,_a01_bb,_a03_aa_vo,_a03_bb_vo,_a04_aa,_a04_bb,_a05_aa,_a05_bb,
                      _a007,_a001_aa,_a001_bb,_a017_aa,_a017_bb,
                      _a006_aa,_a006_bb,_a009_aa,_a009_bb,_a021_aa,_a021_bb,_a008_aa,
                      _a008_bb,_a019_aaaa,_a019_abab,_a019_bbbb,_a020_aaaa,_a020_baba,
-                     _a020_abab,_a020_baab,_a020_bbbb,_a020_abba,_a022_aaaa,_a022_abab,_a022_bbbb,
-                     i0_atmp,i0_btmp)
-           .execute();
+                     _a020_abab,_a020_baab,_a020_bbbb,_a020_abba,_a022_aaaa,_a022_abab,
+                     _a022_bbbb,i0_atmp,i0_btmp).execute();
 
         sch
            (_a004_aaaa(p1_va, p2_va, h4_oa, h3_oa) = 1.0 * chol3d_aa_vo(p1_va, h4_oa, cind) * chol3d_aa_vo(p2_va, h3_oa, cind))
@@ -515,7 +541,12 @@ std::tuple<double,double> cd_ccsd_os_driver(SystemData sys_data, ExecutionContex
          (t2_bbbb(p1_vb,p2_vb,h3_ob,h4_ob) = d_t2(p1_vb,p2_vb,h3_ob,h4_ob));
 
       ccsd_e_os(/* ec,  */sch, MO, CI, d_e);
-      sch.execute();
+
+      #ifdef USE_TALSH
+        sch.execute(ExecutionHW::GPU, profile);
+      #else
+        sch.execute(ExecutionHW::CPU, profile);
+      #endif
 
       energy   = get_scalar(d_e);
       residual = 0.0;
@@ -542,6 +573,4 @@ std::tuple<double,double> cd_ccsd_os_driver(SystemData sys_data, ExecutionContex
         .execute();
 
     return std::make_tuple(residual,energy);
-
-
 }

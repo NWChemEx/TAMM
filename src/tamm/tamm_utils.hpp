@@ -51,6 +51,22 @@ void print_varlist(Arg&& arg, Args&&... args)
 }
 
 template<typename T>
+double compute_tensor_size(const Tensor<T>& tensor) {
+    auto lt = tensor();
+    double size = 0;
+    for(auto it : tensor.loop_nest()) {
+        auto blockid   = internal::translate_blockid(it, lt);
+        if(!tensor.is_non_zero(blockid)) continue;
+        size += tensor.block_size(blockid);
+    }
+    return size;
+}
+
+auto sum_tensor_sizes = [](auto&&... t) {
+    return ( ( compute_tensor_size(t) + ...) * 8 ) / (1024*1024*1024.0);
+};
+
+template<typename T>
 MPI_Datatype mpi_type(){
     using std::is_same_v;
 

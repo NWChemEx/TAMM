@@ -48,6 +48,12 @@ void ccsd_t_driver() {
     auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, AO_opt, AO_tis,scf_conv]  
                     = hartree_fock_driver<T>(ec,filename);
 
+    #if defined(USE_CUDA) || defined(USE_HIP) //|| defined(USE_DPCPP)
+        CCSDOptions cc_opt = sys_data.options_map.ccsd_options;
+        std::string t_errmsg = check_memory_req(cc_opt.ngpu,cc_opt.ccsdt_tilesize,sys_data.nbf);
+        if(!t_errmsg.empty()) tamm_terminate(t_errmsg);
+    #endif
+
     int nsranks = sys_data.nbf/15;
     if(nsranks < 1) nsranks=1;
     int ga_cnn = GA_Cluster_nnodes();
@@ -80,13 +86,13 @@ void ccsd_t_driver() {
     CCSDOptions& ccsd_options = sys_data.options_map.ccsd_options;
     debug = ccsd_options.debug;
     if(rank == 0) ccsd_options.print();
-    
+
     if(rank==0) cout << endl << "#occupied, #virtual = " << sys_data.nocc << ", " << sys_data.nvir << endl;
     
     auto [MO,total_orbitals] = setupMOIS(sys_data,true);
 
     std::string out_fp = sys_data.output_file_prefix+"."+ccsd_options.basis;
-    std::string files_dir = out_fp+"_files";
+    std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type;
     std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
     std::string f1file = files_prefix+".f1_mo";
     std::string t1file = files_prefix+".t1amp";
@@ -180,27 +186,8 @@ void ccsd_t_driver() {
         computeTData = computeTData && !fs::exists(fullV2file) 
                 && !fs::exists(t1file) && !fs::exists(t2file);
 
-    if(computeTData && is_rhf) {
-        TiledIndexSpace O = MO("occ");
-        TiledIndexSpace V = MO("virt");
-
-        const int otiles = O.num_tiles();
-        const int vtiles = V.num_tiles();
-        const int obtiles = MO("occ_beta").num_tiles();
-        const int vbtiles = MO("virt_beta").num_tiles();
-
-        o_beta = {MO("occ"), range(obtiles,otiles)};
-        v_beta = {MO("virt"), range(vbtiles,vtiles)};
-
-        dt1_full = {{V,O},{1,1}};
-        dt2_full = {{V,V,O,O},{2,2}};
-        t1_bb    = {{v_beta ,o_beta}                 ,{1,1}};
-        t2_bbbb  = {{v_beta ,v_beta ,o_beta ,o_beta} ,{2,2}};
-
-        Tensor<T>::allocate(&ec,t1_bb,t2_bbbb,dt1_full,dt2_full);
-        // (dt1_full() = 0)
-        // (dt1_full() = 0)
-    }
+    if(computeTData && is_rhf) 
+      setup_full_t1t2(ec,MO,dt1_full,dt2_full);
 
     double residual=0, corr_energy=0;
 
@@ -227,16 +214,31 @@ void ccsd_t_driver() {
                   computeTData);
           }      
     }
-    else
-        std::tie(residual, corr_energy) = cd_ccsd_os_driver<T>(
-            sys_data, ec, MO, CI, d_t1, d_t2, d_f1, 
-            d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
-            p_evl_sorted, 
-            cholVpr, ccsd_restart, files_prefix,
-            computeTData);
+    else {
+      if(ccsd_restart) {
+          if(subcomm != MPI_COMM_NULL) {
+              const int ppn = GA_Cluster_nprocs(0);
+              if(rank==0) std::cout << "Executing with " << nsranks << " ranks (" << nsranks/ppn << " nodes)" << std::endl; 
+              std::tie(residual, corr_energy) = cd_ccsd_os_driver<T>(
+                      sys_data, *sub_ec, MO, CI, d_t1, d_t2, d_f1, 
+                      d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
+                      p_evl_sorted, 
+                      cholVpr, ccsd_restart, files_prefix,
+                      computeTData);
+          }
+          ec.pg().barrier();
+      }
+      else {
+          std::tie(residual, corr_energy) = cd_ccsd_os_driver<T>(
+                  sys_data, ec, MO, CI, d_t1, d_t2, d_f1, 
+                  d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
+                  p_evl_sorted, 
+                  cholVpr, ccsd_restart, files_prefix,
+                  computeTData);
+          }
+    }
 
     if(computeTData && is_rhf) {
-        free_tensors(t1_bb,t2_bbbb);
         if(ccsd_options.writev) {
             write_to_disk(dt1_full,t1file);
             write_to_disk(dt2_full,t2file);
@@ -254,7 +256,7 @@ void ccsd_t_driver() {
           if(!out) cerr << "Error opening file " << ccsdstatus << endl;
           out << 1 << std::endl;
           out.close();
-        }                
+        }
     }
 
     if(subcomm != MPI_COMM_NULL){
@@ -306,9 +308,11 @@ void ccsd_t_driver() {
     #ifdef USE_TALSH_T
     //talshStats();
     if(has_gpu) talsh_instance.shutdown();
-    #endif  
+    #endif
 
-    #endif 
+    #endif
+
+    double energy1=0, energy2=0;
 
     #if 1
     TiledIndexSpace O = MO("occ");
@@ -318,6 +322,14 @@ void ccsd_t_driver() {
     Tensor<T> d_f1{{N,N},{1,1}};
     Tensor<T> d_t1{{V,O},{1,1}};
     Tensor<T> d_t2{{V,V,O,O},{2,2}};
+    Tensor<T> d_v2{{N,N,N,N},{2,2}};
+    
+    T ccsd_t_mem = sum_tensor_sizes(d_f1,d_t1,d_t2,d_v2);
+    if(rank==0) {
+        std::cout << std::string(70, '-') << std::endl;
+        std::cout << "Total CPU memory required for (T) calculation = " << std::setprecision(5) << ccsd_t_mem << " GiB" << std::endl;
+        std::cout << std::string(70, '-') << std::endl;
+    }
 
     {
         genTime = 0;
@@ -342,7 +354,6 @@ void ccsd_t_driver() {
     }
     if(rank==0) std::cout << "deallocate(C_AO,F_AO): " << genTime << "secs" << std::endl; 
 
-    Tensor<T> d_v2{{N,N,N,N},{2,2}};
     {
       genTime = 0; memTime1 =0; memTime2 = 0; memTime3=0; memTime4=0;
       memTime5=0; memTime6=0; memTime7=0; memTime8=0;
@@ -383,8 +394,6 @@ void ccsd_t_driver() {
 
     #endif
 
-    double energy1=0, energy2=0;
-
     if(rank==0) {
         auto mo_tiles = MO.input_tile_sizes();
         cout << endl << "CCSD MO Tiles = " << mo_tiles << endl;   
@@ -393,7 +402,7 @@ void ccsd_t_driver() {
     auto [MO1,total_orbitals1] = setupMOIS(sys_data,true);
     TiledIndexSpace N1 = MO1("all");
     TiledIndexSpace O1 = MO1("occ");
-    TiledIndexSpace V1 = MO1("virt");     
+    TiledIndexSpace V1 = MO1("virt");
 
     #if 0
 
@@ -414,13 +423,13 @@ void ccsd_t_driver() {
 
         Scheduler{ec}   
         // (t_d_f1() = 0)
-    (t_d_t1() = 0)
-    (t_d_t2() = 0)
-    (t_d_v2() = 0)
-    .execute();
+        (t_d_t1() = 0)
+        (t_d_t2() = 0)
+        (t_d_v2() = 0)
+        .execute();
 
-    TiledIndexSpace O = MO("occ");
-    TiledIndexSpace V = MO("virt");
+        TiledIndexSpace O = MO("occ");
+        TiledIndexSpace V = MO("virt");
 
         if(ccsd_options.writev) {
           // Tensor<T> wd_f1{{N,N},{1,1}};

@@ -90,7 +90,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     // const bool is_rohf = (sys_data.scf_type == sys_data.SCFType::rohf);    
 
     std::string out_fp = options_map.options.output_file_prefix+"."+scf_options.basis;
-    std::string files_dir = out_fp+"_files/scf";
+    std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type+"/scf";
     std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
     if(!fs::exists(files_dir)) fs::create_directories(files_dir);
 

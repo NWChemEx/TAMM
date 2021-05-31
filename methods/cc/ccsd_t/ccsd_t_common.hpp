@@ -25,6 +25,7 @@ using gpuStream_t = sycl::queue;
 #include <sys/time.h>
 #include <assert.h>
 #include <time.h>
+#include <string>
 
 #ifdef USE_TALSH
   #define USE_TALSH_T
@@ -62,6 +63,7 @@ typedef long Integer;
 #define TG_MIN(x,y) ((x)<(y)?(x):(y))
 
 void initMemModule();
+std::string check_memory_req(const int nDevices, const int cc_t_ts, const int nbf);
 
 #if defined(USE_DPCPP)
 void *getGpuMem(sycl::queue& syclQueue, size_t bytes);

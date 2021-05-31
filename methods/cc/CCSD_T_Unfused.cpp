@@ -87,7 +87,7 @@ void ccsd_t_driver() {
     auto [MO,total_orbitals] = setupMOIS(sys_data);
 
     std::string out_fp = sys_data.output_file_prefix+"."+ccsd_options.basis;
-    std::string files_dir = out_fp+"_files";
+    std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type;
     std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
     std::string f1file = files_prefix+".f1_mo";
     std::string t1file = files_prefix+".t1amp";
@@ -178,27 +178,8 @@ void ccsd_t_driver() {
         computeTData = computeTData && !fs::exists(fullV2file) 
                 && !fs::exists(t1file) && !fs::exists(t2file);
 
-    if(computeTData && is_rhf) {
-        TiledIndexSpace O = MO("occ");
-        TiledIndexSpace V = MO("virt");
-
-        const int otiles = O.num_tiles();
-        const int vtiles = V.num_tiles();
-        const int obtiles = MO("occ_beta").num_tiles();
-        const int vbtiles = MO("virt_beta").num_tiles();
-
-        o_beta = {MO("occ"), range(obtiles,otiles)};
-        v_beta = {MO("virt"), range(vbtiles,vtiles)};
-
-        dt1_full = {{V,O},{1,1}};
-        dt2_full = {{V,V,O,O},{2,2}};
-        t1_bb    = {{v_beta ,o_beta}                 ,{1,1}};
-        t2_bbbb  = {{v_beta ,v_beta ,o_beta ,o_beta} ,{2,2}};
-
-        Tensor<T>::allocate(&ec,t1_bb,t2_bbbb,dt1_full,dt2_full);
-        // (dt1_full() = 0)
-        // (dt1_full() = 0)
-    }
+    if(computeTData && is_rhf) 
+      setup_full_t1t2(ec,MO,dt1_full,dt2_full);
 
     double residual=0, corr_energy=0;
 
@@ -225,16 +206,31 @@ void ccsd_t_driver() {
                   computeTData);
           }      
     }
-    else
-        std::tie(residual, corr_energy) = cd_ccsd_os_driver<T>(
-            sys_data, ec, MO, CI, d_t1, d_t2, d_f1, 
-            d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
-            p_evl_sorted, 
-            cholVpr, ccsd_restart, files_prefix,
-            computeTData);
+    else {
+      if(ccsd_restart) {
+          if(subcomm != MPI_COMM_NULL) {
+              const int ppn = GA_Cluster_nprocs(0);
+              if(rank==0) std::cout << "Executing with " << nsranks << " ranks (" << nsranks/ppn << " nodes)" << std::endl; 
+              std::tie(residual, corr_energy) = cd_ccsd_os_driver<T>(
+                      sys_data, *sub_ec, MO, CI, d_t1, d_t2, d_f1, 
+                      d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
+                      p_evl_sorted, 
+                      cholVpr, ccsd_restart, files_prefix,
+                      computeTData);
+          }
+          ec.pg().barrier();
+      }
+      else {
+          std::tie(residual, corr_energy) = cd_ccsd_os_driver<T>(
+                  sys_data, ec, MO, CI, d_t1, d_t2, d_f1, 
+                  d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s, 
+                  p_evl_sorted, 
+                  cholVpr, ccsd_restart, files_prefix,
+                  computeTData);
+          }
+    }
 
     if(computeTData && is_rhf) {
-        free_tensors(t1_bb,t2_bbbb);
         if(ccsd_options.writev) {
             write_to_disk(dt1_full,t1file);
             write_to_disk(dt2_full,t2file);
@@ -252,7 +248,7 @@ void ccsd_t_driver() {
           if(!out) cerr << "Error opening file " << ccsdstatus << endl;
           out << 1 << std::endl;
           out.close();
-        }                
+        }
     }
 
     if(subcomm != MPI_COMM_NULL){
@@ -290,7 +286,33 @@ void ccsd_t_driver() {
     bool  ccsd_t_restart = fs::exists(t1file) && fs::exists(t2file) &&
                            fs::exists(f1file) && fs::exists(fullV2file);
 
-    Tensor<T> d_v2;
+    Tensor<T> d_v2{{N,N,N,N},{2,2}};
+    
+    auto [MO1,total_orbitals1] = setupMOIS(sys_data,true);
+    TiledIndexSpace N1 = MO1("all");
+    TiledIndexSpace O1 = MO1("occ");
+    TiledIndexSpace V1 = MO1("virt");
+
+    // Tensor<T> t_d_f1{{N1,N1},{1,1}};
+    Tensor<T> t_d_t1{{V1,O1},{1,1}};
+    Tensor<T> t_d_t2{{V1,V1,O1,O1},{2,2}};
+    Tensor<T> t_d_v2{{N1,N1,N1,N1},{2,2}};
+
+    T ccsd_t_mem = sum_tensor_sizes(d_f1,d_v2,t_d_t1,t_d_t2,t_d_v2);
+    if(is_rhf) ccsd_t_mem += sum_tensor_sizes(dt1_full,dt2_full);
+    else ccsd_t_mem += sum_tensor_sizes(d_t1,d_t2);
+    const double Osize = MO("occ").max_num_indices()*8/(1024*1024*1024.0);
+    const double Vsize = MO("virt").max_num_indices()*8/(1024*1024*1024.0);
+    const double Nsize = N.max_num_indices()*8/(1024*1024*1024.0);
+    //retiling allocates full GA versions of the tensors.
+    ccsd_t_mem +=  (Osize*Vsize + Vsize*Vsize*Osize*Osize + Nsize*Nsize*Nsize*Nsize);
+
+    if(rank==0) {
+        std::cout << std::string(70, '-') << std::endl;
+        std::cout << "Total CPU memory required for (T) calculation = " << std::setprecision(5) << ccsd_t_mem << " GiB" << std::endl;
+        std::cout << std::string(70, '-') << std::endl;
+    }
+
     if(computeTData) {
         d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, ex_hw);
         if(ccsd_options.writev) {
@@ -313,15 +335,6 @@ void ccsd_t_driver() {
         cout << endl << "CCSD MO Tiles = " << mo_tiles << endl;   
     }
 
-    auto [MO1,total_orbitals1] = setupMOIS(sys_data,true);
-    TiledIndexSpace N1 = MO1("all");
-    TiledIndexSpace O1 = MO1("occ");
-    TiledIndexSpace V1 = MO1("virt");     
-
-    // Tensor<T> t_d_f1{{N1,N1},{1,1}};
-    Tensor<T> t_d_t1{{V1,O1},{1,1}};
-    Tensor<T> t_d_t2{{V1,V1,O1,O1},{2,2}};
-    Tensor<T> t_d_v2{{N1,N1,N1,N1},{2,2}};
     Tensor<T>::allocate(&ec,t_d_t1,t_d_t2,t_d_v2);
 
     if(!ccsd_t_restart) {
@@ -421,7 +434,7 @@ void ccsd_t_driver() {
         cout << "CCSD(T) correction energy / hartree  = " << energy2 << endl;
         cout << "CCSD(T) correlation energy / hartree = " << corr_energy + energy2 << endl;
         cout << "CCSD(T) total energy / hartree       = " << hf_energy + corr_energy + energy2 << endl;
-        
+    
     }
 
     ec.pg().barrier();
@@ -440,7 +453,7 @@ void ccsd_t_driver() {
         MPI_Reduce(&ctime, &g_min_getTime, 1, MPI_DOUBLE, MPI_MIN, 0, ec.pg().comm());
         MPI_Reduce(&ctime, &g_max_getTime, 1, MPI_DOUBLE, MPI_MAX, 0, ec.pg().comm());
         if(rank == 0) 
-        print_profile_stats(timer_type, g_getTime, g_min_getTime, g_max_getTime);  
+        print_profile_stats(timer_type, g_getTime, g_min_getTime, g_max_getTime);
         return g_getTime/nranks;        
     };
 

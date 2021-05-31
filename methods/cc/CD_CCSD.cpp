@@ -51,7 +51,7 @@ void ccsd_driver() {
     auto [MO,total_orbitals] = setupMOIS(sys_data);
 
     std::string out_fp = sys_data.output_file_prefix+"."+ccsd_options.basis;
-    std::string files_dir = out_fp+"_files";
+    std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type;
     std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
     std::string f1file = files_prefix+".f1_mo";
     std::string t1file = files_prefix+".t1amp";
@@ -76,16 +76,16 @@ void ccsd_driver() {
 
     TiledIndexSpace N = MO("all");
 
-std::vector<T> p_evl_sorted;
-Tensor<T> d_r1, d_r2, d_t1, d_t2;
-std::vector<Tensor<T>> d_r1s, d_r2s, d_t1s, d_t2s;
+    std::vector<T> p_evl_sorted;
+    Tensor<T> d_r1, d_r2, d_t1, d_t2;
+    std::vector<Tensor<T>> d_r1s, d_r2s, d_t1s, d_t2s;
 
-if(is_rhf) 
-    std::tie(p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s)
-            = setupTensors_cs(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
-else
-    std::tie(p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s)
-            = setupTensors(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
+    if(is_rhf) 
+        std::tie(p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s)
+                = setupTensors_cs(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
+    else
+        std::tie(p_evl_sorted,d_t1,d_t2,d_r1,d_r2, d_r1s, d_r2s, d_t1s, d_t2s)
+                = setupTensors(ec,MO,d_f1,ccsd_options.ndiis,ccsd_restart && fs::exists(ccsdstatus) && scf_conv);
 
     if(ccsd_restart) {
         read_from_disk(d_f1,f1file);
@@ -142,27 +142,8 @@ else
         computeTData = computeTData && !fs::exists(fullV2file)
                 && !fs::exists(t1file) && !fs::exists(t2file);
 
-    if(computeTData && is_rhf) {
-        TiledIndexSpace O = MO("occ");
-        TiledIndexSpace V = MO("virt");
-
-        const int otiles = O.num_tiles();
-        const int vtiles = V.num_tiles();
-        const int obtiles = MO("occ_beta").num_tiles();
-        const int vbtiles = MO("virt_beta").num_tiles();
-
-        o_beta = {MO("occ"), range(obtiles,otiles)};
-        v_beta = {MO("virt"), range(vbtiles,vtiles)};
-
-        dt1_full = {{V,O},{1,1}};
-        dt2_full = {{V,V,O,O},{2,2}};
-        t1_bb    = {{v_beta ,o_beta}                 ,{1,1}};
-        t2_bbbb  = {{v_beta ,v_beta ,o_beta ,o_beta} ,{2,2}};
-
-        Tensor<T>::allocate(&ec,t1_bb,t2_bbbb,dt1_full,dt2_full);
-        // (dt1_full() = 0)
-        // (dt1_full() = 0)
-    }
+    if(computeTData && is_rhf)
+      setup_full_t1t2(ec,MO,dt1_full,dt2_full);
 
     double residual=0, corr_energy=0;
 
@@ -182,7 +163,6 @@ else
             computeTData);
 
     if(computeTData && is_rhf) {
-        free_tensors(t1_bb,t2_bbbb);
         if(ccsd_options.writev) {
             write_to_disk(dt1_full,t1file);
             write_to_disk(dt2_full,t2file); 

@@ -152,7 +152,7 @@ void write_json_data(SystemData& sys_data, const std::string module){
   to_lower(l_module);
 
   std::string out_fp = sys_data.output_file_prefix+"."+sys_data.options_map.ccsd_options.basis;
-  std::string files_dir = out_fp+"_files";
+  std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type;
   std::string files_prefix = files_dir+"/"+out_fp;  
   std::string json_file = files_prefix+"."+l_module+".json";
   bool json_exists = std::filesystem::exists(json_file);

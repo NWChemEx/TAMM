@@ -2452,13 +2452,16 @@ __constant__ int const_d1_h7b[MAX_NOAB];
 __constant__ int const_d2_p7b[MAX_NVAB];
 
 //------------------------------------------------------------------------------ device helper fuctions
-__device__ inline void zero_shared(double *smem) {
+__device__ inline void zero_shared(double *smem, const int start_row, const int num_rows) {
 	const int t_id = threadIdx.y * blockDim.x + threadIdx.x;
-	#pragma unroll
-	for (int i = t_id; i < SINGLE_STAGE_SIZE; i += blockDim.x * blockDim.y) {
-		smem[i] = 0;
+	const int col_idx = t_id % 64;
+	const int row_idx = t_id / 64;
+	const int row_inc = blockDim.x * blockDim.y / 64;
+	for (int i = row_idx + start_row; i < num_rows; i += row_inc) {
+		smem[col_idx * (16 + PAD) + i] = 0.0;
 	}
 }
+
 
 // fixed (reg_x, reg_y)
 __device__ inline void rt_store_fixed(double* smem, const int idx_x_1, const int idx_x_2, const int idx_y_1, const int idx_y_2, MmaOperandC& op_c) {
@@ -2516,8 +2519,8 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 
 	#pragma unroll
 	for (int i = 0; i < NUM_STAGE; i++) {
-		zero_shared(sm_a + STAGE_OFFSET * i);
-		zero_shared(sm_b + STAGE_OFFSET * i);
+		zero_shared(sm_a + STAGE_OFFSET * i, 0, 16);
+		zero_shared(sm_b + STAGE_OFFSET * i, 0, 16);
 	}
 	block.sync();
 
@@ -2597,6 +2600,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d2_1 = const_d2_exec[0 + (iter_nvab) * 9];
 
 		const size_t num_batches = (size_p7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
 		if (flag_d2_1 >= 0) {
 			double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_1;
@@ -2616,9 +2620,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_p7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -2644,8 +2650,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load<lda>(sm_a + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -2666,6 +2673,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d1_6 = const_d1_exec[5 + (iter_noab) * 9];
 		
 		const size_t num_batches = (size_h7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
 		if (flag_d1_6 >= 0) {
 			double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_6;
@@ -2685,9 +2693,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_h7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -2747,6 +2757,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d2_2 = const_d2_exec[1 + (iter_nvab) * 9];
 
 		const size_t num_batches = (size_p7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
 		if (flag_d2_2 >= 0) {
 			double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_2;
@@ -2767,9 +2778,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_p7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -2795,8 +2808,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 				
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load<lda>(sm_a + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -2817,6 +2831,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d1_4 = const_d1_exec[3 + (iter_noab) * 9];
 		
 		const size_t num_batches = (size_h7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
 		if (flag_d1_4 >= 0) {
 			double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_4;
@@ -2837,9 +2852,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_h7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -2866,8 +2883,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load<lda>(sm_b + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -2899,6 +2917,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d2_3 = const_d2_exec[2 + (iter_nvab) * 9];
 
 		const size_t num_batches = (size_p7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
 		if (flag_d2_3 >= 0) {
 			double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_3;
@@ -2919,9 +2938,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_p7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx);
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -2947,8 +2968,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 				
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load_plus<lda>(sm_a + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -2969,6 +2991,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d1_5 = const_d1_exec[4 + (iter_noab) * 9];
 		
 		const size_t num_batches = (size_h7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
 		if (flag_d1_5 >= 0) {
 			double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_5;
@@ -2989,9 +3012,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_h7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3018,8 +3043,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load_plus<lda>(sm_b + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -3058,6 +3084,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d2_4 = const_d2_exec[3 + (iter_nvab) * 9];
 
 		const size_t num_batches = (size_p7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
 		if (flag_d2_4 >= 0) {
 			double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_4;
@@ -3077,9 +3104,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_p7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx);
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3105,8 +3134,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 				
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load_plus<lda>(sm_a + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -3127,6 +3157,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d1_9 = const_d1_exec[8 + (iter_noab) * 9];
 		
 		const size_t num_batches = (size_h7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
 		if (flag_d1_9 >= 0) {
 			double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_9;
@@ -3146,9 +3177,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_h7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3175,8 +3208,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load_plus<lda>(sm_b + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -3210,6 +3244,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d2_5 = const_d2_exec[4 + (iter_nvab) * 9];
 
 		const size_t num_batches = (size_p7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
 		if (flag_d2_5 >= 0) {
 			double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_5;
@@ -3229,9 +3264,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_p7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3257,8 +3294,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 				
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load_plus<lda>(sm_a + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -3279,6 +3317,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d1_7 = const_d1_exec[6 + (iter_noab) * 9];
 		
 		const size_t num_batches = (size_h7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
 		if (flag_d1_7 >= 0) {
 			double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_7;
@@ -3298,9 +3337,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_h7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3327,8 +3368,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load_plus<lda>(sm_b + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -3361,6 +3403,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d2_6 = const_d2_exec[5 + (iter_nvab) * 9];
 
 		const size_t num_batches = (size_p7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
 		if (flag_d2_6 >= 0) {
 			double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_6;
@@ -3380,9 +3423,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_p7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3408,8 +3453,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 				
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load<lda>(sm_a + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -3430,6 +3476,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d1_8 = const_d1_exec[7 + (iter_noab) * 9];
 		
 		const size_t num_batches = (size_h7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
 		if (flag_d1_8 >= 0) {
 			double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_8;
@@ -3449,9 +3496,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_h7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3478,8 +3527,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load<lda>(sm_b + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -3523,6 +3573,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d2_7 = const_d2_exec[6 + (iter_nvab) * 9];
 
 		const size_t num_batches = (size_p7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
 		if (flag_d2_7 >= 0) {
 			double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_7;
@@ -3542,9 +3593,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_p7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3570,8 +3623,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 				
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load<lda>(sm_a + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -3593,6 +3647,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d1_3 = const_d1_exec[2 + (iter_noab) * 9];
 		
 		const size_t num_batches = (size_h7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
 		if (flag_d1_3 >= 0) {
 			double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_3;
@@ -3612,9 +3667,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_h7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3641,8 +3698,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load<lda>(sm_b + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -3674,6 +3732,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d2_8 = const_d2_exec[7 + (iter_nvab) * 9];
 
 		const size_t num_batches = (size_p7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
 		if (flag_d2_8 >= 0) {
 			double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_8;
@@ -3693,9 +3752,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_p7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3720,8 +3781,10 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 
 				const size_t shared_idx = compute_batch % NUM_STAGE;
-				// #pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load<lda>(sm_a + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -3743,6 +3806,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d1_1 = const_d1_exec[0 + (iter_noab) * 9];
 		
 		const size_t num_batches = (size_h7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
 		if (flag_d1_1 >= 0) {
 			double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_1;
@@ -3762,9 +3826,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_h7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3791,8 +3857,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load<lda>(sm_b + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -3824,6 +3891,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d2_9 = const_d2_exec[8 + (iter_nvab) * 9];
 
 		const size_t num_batches = (size_p7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
 		if (flag_d2_9 >= 0) {
 			double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_9;
@@ -3843,9 +3911,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_p7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3872,8 +3942,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load_plus<lda>(sm_a + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;
@@ -3895,6 +3966,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		int flag_d1_2 = const_d1_exec[1 + (iter_noab) * 9];
 		
 		const size_t num_batches = (size_h7 + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
+		const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
 		if (flag_d1_2 >= 0) {
 			double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_2;
@@ -3914,9 +3986,11 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 					block.sync();
 
 					if (internal_offset > 0) { 
+						const int start_row = size_h7 - l_fetch;
+						const int max_row = ((start_row+3)/4)*4;
 						internal_upperbound = internal_offset;
-						zero_shared(sm_a + STAGE_OFFSET * shared_idx); // Zero out shared memory if partial tile
-						zero_shared(sm_b + STAGE_OFFSET * shared_idx);
+						zero_shared(sm_a + STAGE_OFFSET * shared_idx, start_row, max_row); // Zero out shared memory if partial tile
+						zero_shared(sm_b + STAGE_OFFSET * shared_idx, start_row, max_row);
 						block.sync();
 					}
 
@@ -3943,8 +4017,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load_plus<lda>(sm_b + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;

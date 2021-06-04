@@ -559,15 +559,18 @@ void ccsd_stats(ExecutionContext& ec, double hf_energy,double residual,double en
 //   Tensor<T>::deallocate(d_r1, d_r2, d_t1, d_t2, d_f1);//, d_v2);
 // }
 
+auto sum_tensor_sizes = [](auto&&... t) {
+    return ( ( compute_tensor_size(t) + ...) * 8 ) / (1024*1024*1024.0);
+};
 
-  auto free_vec_tensors = [](auto&&... vecx) {
-      (std::for_each(vecx.begin(), vecx.end(), [](auto& t) { t.deallocate(); }),
-       ...);
-  };
+auto free_vec_tensors = [](auto&&... vecx) {
+    (std::for_each(vecx.begin(), vecx.end(), [](auto& t) { t.deallocate(); }),
+      ...);
+};
 
-  auto free_tensors = [](auto&&... t) {
-      ( (t.deallocate()), ...);
-  };
+auto free_tensors = [](auto&&... t) {
+    ( (t.deallocate()), ...);
+};
 
 
 template<typename T>

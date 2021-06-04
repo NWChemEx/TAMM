@@ -15,8 +15,9 @@ Choose Build Options
 
 ### CUDA Options 
 ```
--DUSE_CUDA=ON (OFF by Default)  
--DCUDA_MAXREGCOUNT=128 (set to 64 by Default)
+-DUSE_CUDA=ON (OFF by default)  
+-DCUDA_MAXREGCOUNT=128 (64 by default)
+-DNV_GPU_ARCH=70 (GPU arch is detected automatically, only set this option if need to override)
 ```
 ### Optionally build with cuTensor support when USE_CUDA=ON  
 ```
@@ -48,7 +49,7 @@ mkdir build && cd build
 
 ## In addition to the build options chosen, there are various build configurations depending on the BLAS library one wants to use.
 
-* **[Build using reference BLAS from NETLIB](install.md#build-using-reference-blas-from-netlib)**
+* **[Default build using BLIS and NETLIB Lapack](install.md#default-build-using-blis-and-netlib-lapack)**
 
 * **[Build using Intel MKL](install.md#build-using-intel-mkl)**
 
@@ -60,7 +61,7 @@ mkdir build && cd build
 
 * **[Building the DPCPP code path using Intel OneAPI SDK](install.md#build-dpcpp-code-path-using-intel-oneapi-sdk)**
 
-## Build using reference BLAS from NETLIB
+## Default build using BLIS and NETLIB Lapack
 
 ### To enable CUDA build, add `-DUSE_CUDA=ON`
 

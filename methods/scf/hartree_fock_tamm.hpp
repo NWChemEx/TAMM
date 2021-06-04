@@ -540,7 +540,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       if(rank == 0) {
           std::cout << std::endl << std::endl;
-          std::cout << " Hartree-Fock iterations" << endl;
+          std::cout << " SCF iterations" << endl;
           std::cout << std::string(65, '-') << endl;
           std::string  sph = " Iter     Energy            E-Diff        RMSD        Time(s)";
           if(scf_conv) sph = " Iter     Energy            E-Diff        Time(s)";
@@ -701,11 +701,11 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       if(rank == 0) {
         std::cout.precision(13);
         if (is_conv)
-          cout << endl << "** Hartree-Fock energy = " << ehf << endl;
+          cout << endl << "** Total SCF energy = " << ehf << endl;
         else {
           cout << endl << std::string(50, '*') << endl;
           cout << std::string(10, ' ') << 
-                  "ERROR: Hartree-Fock calculation does not converge!!!" << endl;
+                  "ERROR: SCF calculation does not converge!!!" << endl;
           cout << std::string(50, '*') << endl;
         }        
       }

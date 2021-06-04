@@ -62,10 +62,6 @@ double compute_tensor_size(const Tensor<T>& tensor) {
     return size;
 }
 
-auto sum_tensor_sizes = [](auto&&... t) {
-    return ( ( compute_tensor_size(t) + ...) * 8 ) / (1024*1024*1024.0);
-};
-
 template<typename T>
 MPI_Datatype mpi_type(){
     using std::is_same_v;

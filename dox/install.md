@@ -49,7 +49,7 @@ mkdir build && cd build
 
 ## In addition to the build options chosen, there are various build configurations depending on the BLAS library one wants to use.
 
-* **[Default build using BLIS and NETLIB Lapack](install.md#default-build-using-blis-and-netlib-lapack)**
+* **[Default build using BLIS and NETLIB LAPACK](install.md#default-build-using-blis-and-netlib-lapack)**
 
 * **[Build using Intel MKL](install.md#build-using-intel-mkl)**
 
@@ -61,7 +61,7 @@ mkdir build && cd build
 
 * **[Building the DPCPP code path using Intel OneAPI SDK](install.md#build-dpcpp-code-path-using-intel-oneapi-sdk)**
 
-## Default build using BLIS and NETLIB Lapack
+## Default build using BLIS and NETLIB LAPACK
 
 ### To enable CUDA build, add `-DUSE_CUDA=ON`
 
@@ -223,7 +223,6 @@ mpirun -n 2 $TAMM_EXE $TAMM_INPUT
 
 ### On Summit:
 ```
-
 export PAMI_IBV_ENABLE_DCT=1
 export PAMI_ENABLE_STRIPING=1
 export PAMI_IBV_ADAPTER_AFFINITY=1
@@ -236,3 +235,4 @@ export GA_NUM_PROGRESS_RANKS_PER_NODE=6
 export TAMM_INPUT=$TAMM_SRC/inputs/ubiquitin_dgrtl.json
 
 jsrun -a12 -c12 -g6 -r1 -dpacked $TAMM_EXE $TAMM_INPUT
+```

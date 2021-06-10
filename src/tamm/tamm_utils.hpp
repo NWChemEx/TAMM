@@ -62,10 +62,6 @@ double compute_tensor_size(const Tensor<T>& tensor) {
     return size;
 }
 
-auto sum_tensor_sizes = [](auto&&... t) {
-    return ( ( compute_tensor_size(t) + ...) * 8 ) / (1024*1024*1024.0);
-};
-
 template<typename T>
 MPI_Datatype mpi_type(){
     using std::is_same_v;
@@ -241,8 +237,25 @@ std::string tensor_to_string(const Tensor<T>& tensor) {
 }
 
 template<typename T>
-void print_max_above_threshold(const Tensor<T>& tensor, double printtol=0.05) {
+void print_vector(std::vector<T> vec, std::string filename="") {
+    std::stringstream tstring;
+    for (size_t i=0;i<vec.size();i++) 
+        tstring << i+1 << "\t" << vec[i] << std::endl;
+
+    if(!filename.empty()) {
+        std::ofstream tos(filename, std::ios::out);
+        if(!tos) std::cerr << "Error opening file " << filename << std::endl;
+        tos << tstring.str() << std::endl;
+        tos.close();
+    }
+    else std::cout << tstring.str();
+}
+
+template<typename T>
+void print_max_above_threshold(const Tensor<T>& tensor, double printtol, std::string filename="") {
     auto lt = tensor();
+    std::stringstream tstring;
+
     for(auto it : tensor.loop_nest()) {
         auto blockid   = internal::translate_blockid(it, lt);
         if(!tensor.is_non_zero(blockid)) continue;
@@ -254,14 +267,22 @@ void print_max_above_threshold(const Tensor<T>& tensor, double printtol=0.05) {
         for(TAMM_SIZE i = 0; i < size; i++) {
             if constexpr(tamm::internal::is_complex_v<T>) {
                  if(std::fabs(buf[i].real()) > printtol)
-                    std::cout << buf[i] << std::endl;
+                    tstring << buf[i] << std::endl;
             } else {
                if(std::fabs(buf[i]) > printtol)
-                    std::cout << buf[i] << std::endl;
+                    tstring << buf[i] << std::endl;
             }
         }
-        std::cout << std::endl;
+        // tstring << std::endl;
     }
+    
+    if(!filename.empty()) {
+        std::ofstream tos(filename, std::ios::out);
+        if(!tos) std::cerr << "Error opening file " << filename << std::endl;
+        tos << tstring.str() << std::endl;
+        tos.close();
+    }
+    else std::cout << tstring.str();
 }
 
 /**

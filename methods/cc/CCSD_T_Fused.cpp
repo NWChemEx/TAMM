@@ -155,9 +155,8 @@ void ccsd_t_driver() {
     }
 
     if(rank==0 && debug){
-      cout << "eigen values:" << endl << std::string(50,'-') << endl;
-      for (size_t i=0;i<p_evl_sorted.size();i++) cout << i+1 << "   " << p_evl_sorted[i] << endl;
-      cout << std::string(50,'-') << endl;
+      print_vector(p_evl_sorted, files_prefix+".eigen_values.txt");
+      cout << "Eigen values written to file: " << files_prefix+".eigen_values.txt" << endl << endl;
     }
     
     ec.pg().barrier();
@@ -274,10 +273,10 @@ void ccsd_t_driver() {
     double printtol=ccsd_options.printtol;
     if (rank == 0 && debug) {
         std::cout << std::endl << "Threshold for printing amplitudes set to: " << printtol << std::endl;
-        std::cout << "T1 amplitudes" << std::endl;
-        print_max_above_threshold(d_t1,printtol);
-        std::cout << "T2 amplitudes" << std::endl;
-        print_max_above_threshold(d_t2,printtol);
+        std::cout << "T1, T2 amplitudes written to files: " << files_prefix+".print_t1amp.txt" 
+                  << ", " << files_prefix+".print_t2amp.txt" << std::endl << std::endl;
+        print_max_above_threshold(d_t1,printtol,files_prefix+".print_t1amp.txt");
+        print_max_above_threshold(d_t2,printtol,files_prefix+".print_t2amp.txt");
     }
 
     if(!ccsd_restart) {

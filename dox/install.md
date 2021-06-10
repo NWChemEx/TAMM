@@ -15,8 +15,9 @@ Choose Build Options
 
 ### CUDA Options 
 ```
--DUSE_CUDA=ON (OFF by Default)  
--DCUDA_MAXREGCOUNT=128 (set to 64 by Default)
+-DUSE_CUDA=ON (OFF by default)  
+-DCUDA_MAXREGCOUNT=128 (64 by default)
+-DNV_GPU_ARCH=70 (GPU arch is detected automatically, only set this option if need to override)
 ```
 ### Optionally build with cuTensor support when USE_CUDA=ON  
 ```
@@ -48,7 +49,7 @@ mkdir build && cd build
 
 ## In addition to the build options chosen, there are various build configurations depending on the BLAS library one wants to use.
 
-* **[Build using reference BLAS from NETLIB](install.md#build-using-reference-blas-from-netlib)**
+* **[Default build using BLIS and NETLIB LAPACK](install.md#default-build-using-blis-and-netlib-lapack)**
 
 * **[Build using Intel MKL](install.md#build-using-intel-mkl)**
 
@@ -60,7 +61,7 @@ mkdir build && cd build
 
 * **[Building the DPCPP code path using Intel OneAPI SDK](install.md#build-dpcpp-code-path-using-intel-oneapi-sdk)**
 
-## Build using reference BLAS from NETLIB
+## Default build using BLIS and NETLIB LAPACK
 
 ### To enable CUDA build, add `-DUSE_CUDA=ON`
 
@@ -190,10 +191,8 @@ CC=icx CXX=dpcpp FC=ifx cmake \
 -DMPIEXEC_EXECUTABLE=mpiexec -DUSE_OPENMP=OFF \
 -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=/opt/oneapi/mkl/latest \
 -DUSE_DPCPP=ON -DGCCROOT=$GCCROOT \
--DTAMM_CXX_FLAGS="-fno-sycl-early-optimizations -fsycl -fsycl-targets=spir64_gen-unknown-linux-sycldevice" -DSYCL_TBE="skl"
+-DTAMM_CXX_FLAGS="-fsycl-device-code-split=per_kernel"
 ```
-
-`TAMM_CXX_FLAGS` shown above build for the Intel GEN9 GPU. Please change the `-device skl` flag as needed for other GENX devices.
 
 ```
 make -j3
@@ -222,7 +221,6 @@ mpirun -n 2 $TAMM_EXE $TAMM_INPUT
 
 ### On Summit:
 ```
-
 export PAMI_IBV_ENABLE_DCT=1
 export PAMI_ENABLE_STRIPING=1
 export PAMI_IBV_ADAPTER_AFFINITY=1
@@ -235,3 +233,4 @@ export GA_NUM_PROGRESS_RANKS_PER_NODE=6
 export TAMM_INPUT=$TAMM_SRC/inputs/ubiquitin_dgrtl.json
 
 jsrun -a12 -c12 -g6 -r1 -dpacked $TAMM_EXE $TAMM_INPUT
+```

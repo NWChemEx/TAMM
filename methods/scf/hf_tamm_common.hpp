@@ -302,7 +302,7 @@ void print_energies(ExecutionContext& ec, TAMMTensors& ttensors, const SystemDat
         std::cout << "1e energy kinetic = "<< std::setprecision(16) << kinetic_1e << endl;
         std::cout << "1e energy N-e     = " << NE_1e << endl;
         std::cout << "1e energy         = " << energy_1e << endl;
-        std::cout << "2e-energy         = " << energy_2e << std::endl;        
+        std::cout << "2e energy         = " << energy_2e << std::endl;
       }
 }
 

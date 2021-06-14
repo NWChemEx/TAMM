@@ -431,8 +431,8 @@ std::tuple<Matrix, Matrix, size_t, double, double, int64_t> gensqrtinv(
 #else
 
   auto world = ec.pg().comm();
-  int world_rank = ec.pg().rank();
-  int world_size = ec.pg().size();
+  int world_rank = ec.pg().rank().value();
+  int world_size = ec.pg().size().value();
 
   int64_t n_cond;
   double condition_number, result_condition_number;

@@ -48,6 +48,16 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
   if (ngpu_ == 1) dev_id_ = 0;
   if ((pg.rank().value() % ranks_pn_) < ngpu_) has_gpu_ = true;
+  if(ranks_pn_ > ngpu_) {
+    if(pg.rank()==0) {
+      std::string msg = "#ranks per node(" + std::to_string(ranks_pn_) + 
+        ") > #gpus(" + std::to_string(ngpu_) + ") per node ... terminating program.";
+      std::cout << msg << std::endl << std::endl;
+    }
+    GA_Terminate();
+    MPI_Finalize();
+    exit(0);
+  }  
 #endif
 
 #if defined(USE_DPCPP)
@@ -70,6 +80,16 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
   if (ngpu_ == 1) dev_id_ = 0;
   if ((pg.rank().value() % ranks_pn_) < ngpu_) has_gpu_ = true;
+  if(ranks_pn_ > ngpu_) {
+    if(pg.rank()==0) {
+      std::string msg = "#ranks per node(" + std::to_string(ranks_pn_) + 
+        ") > #gpus(" + std::to_string(ngpu_) + ") per node ... terminating program.";
+      std::cout << msg << std::endl << std::endl;
+    }
+    GA_Terminate();
+    MPI_Finalize();
+    exit(0);
+  }    
   for (int i = 0; i < gpu_devices.size(); i++) {
     if (gpu_devices[i].is_gpu()) {
        if(gpu_devices[i].get_info<cl::sycl::info::device::partition_max_sub_devices>() > 0) {

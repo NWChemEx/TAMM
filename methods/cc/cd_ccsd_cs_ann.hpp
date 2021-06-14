@@ -236,7 +236,7 @@ void ccsd_t2_cs(/* ExecutionContext& ec, */
 }
 
 template<typename T>
-std::tuple<double,double> cd_ccsd_cs_driver(SystemData sys_data, ExecutionContext& ec, 
+std::tuple<double,double> cd_ccsd_cs_driver(SystemData& sys_data, ExecutionContext& ec, 
                    const TiledIndexSpace& MO, const TiledIndexSpace& CI,
                    Tensor<T>& t1_aa, Tensor<T>& t2_abab,
                    Tensor<T>& d_f1, 

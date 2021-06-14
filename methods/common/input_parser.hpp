@@ -608,14 +608,36 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
 
 }
 
+class json_sax_no_exception : public nlohmann::detail::json_sax_dom_parser<json>
+{
+  public:
+    json_sax_no_exception(json& j)
+      : nlohmann::detail::json_sax_dom_parser<json>(j, false)
+    {}
+
+    bool parse_error(std::size_t position,
+                     const std::string& last_token,
+                     const json::exception& ex)
+    {
+      if(GA_Nodeid()==0) {
+        std::cerr << std::endl << ex.what() << std::endl
+                  << "last read: " << last_token
+                  << std::endl;
+      }
+      return false;
+    }
+};
+
 inline std::tuple<OptionsMap, json>
    parse_input(std::istream& is) {
 
     const double angstrom_to_bohr =
       1.889725989; // 1 / bohr_to_angstrom; //1.889726125
     
-    json jinput = json::parse(is, nullptr, false);
-    if (jinput.is_discarded()) { tamm_terminate("Error parsing input file"); }
+    json jinput;
+    json_sax_no_exception jsax(jinput);
+    bool parse_result = json::sax_parse(is, &jsax);
+    if (!parse_result) tamm_terminate("Error parsing input file");
 
     std::vector<string> geometry;
     parse_option<std::vector<string>>(geometry, jinput["geometry"], "coordinates", false);

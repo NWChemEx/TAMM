@@ -124,8 +124,9 @@ module unload PrgEnv-intel/6.0.5
 module load PrgEnv-gnu/6.0.5
 module swap gcc/8.3.0 
 module swap craype/2.5.18
-module swap cray-mpich/7.7.6 
-module load cmake
+module swap cray-mpich/7.7.6 (OR) module load openmpi
+module unload cmake
+module load cmake/3.18.2
 module load cuda/10.1.168
 ```
 
@@ -202,11 +203,10 @@ make install
 Running the code
 =====================
 - SCF  
-`export TAMM_EXE=$TAMM_SRC/build/methods_stage/$TAMM_INSTALL_PATH/methods/HartreeFock_TAMM`  
+`export TAMM_EXE=$TAMM_SRC/build/methods_stage/$TAMM_INSTALL_PATH/methods/HartreeFock`  
 
 - CCSD  
-`export TAMM_EXE=$TAMM_SRC/build/methods_stage/$TAMM_INSTALL_PATH/methods/CD_CCSD_CS`  
-`export TAMM_EXE=$TAMM_SRC/build/methods_stage/$TAMM_INSTALL_PATH/methods/CD_CCSD_OS`
+`export TAMM_EXE=$TAMM_SRC/build/methods_stage/$TAMM_INSTALL_PATH/methods/CD_CCSD`  
 
 - CCSD(T)   
 `export TAMM_EXE=$TAMM_SRC/build/methods_stage/$TAMM_INSTALL_PATH/methods/CCSD_T_Fused`

@@ -62,23 +62,22 @@ int checkCudaKernelCompatible() {
 template<typename T>
 std::tuple<double,double,double,double>
 ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
-                        std::vector<int>& k_spin,
-                        const TiledIndexSpace& MO,
-                        Tensor<T>& d_t1, Tensor<T>& d_t2,
-                        Tensor<T>& d_v2,
-                        std::vector<T>& k_evl_sorted,
-                        double hf_ccsd_energy, int nDevices,
-                        bool is_restricted,
-                        LRUCache<Index,std::vector<T>>& cache_s1t, LRUCache<Index,std::vector<T>>& cache_s1v,
-                        LRUCache<Index,std::vector<T>>& cache_d1t, LRUCache<Index,std::vector<T>>& cache_d1v,
-                        LRUCache<Index,std::vector<T>>& cache_d2t, LRUCache<Index,std::vector<T>>& cache_d2v,
-                        bool seq_h3b=false, bool tilesize_opt=true)
+  std::vector<int>& k_spin,
+  const TiledIndexSpace& MO,
+  Tensor<T>& d_t1, Tensor<T>& d_t2,
+  Tensor<T>& d_v2,
+  std::vector<T>& k_evl_sorted,
+  double hf_ccsd_energy, int nDevices,
+  bool is_restricted,
+  LRUCache<Index,std::vector<T>>& cache_s1t, LRUCache<Index,std::vector<T>>& cache_s1v,
+  LRUCache<Index,std::vector<T>>& cache_d1t, LRUCache<Index,std::vector<T>>& cache_d1v,
+  LRUCache<Index,std::vector<T>>& cache_d2t, LRUCache<Index,std::vector<T>>& cache_d2v,
+  bool seq_h3b=false, bool tilesize_opt=true)
 {
 #ifdef USE_DPCPP
   std::vector<sycl::queue*> syclQueues = ec.get_syclQue();
   sycl::queue* syclQue = nullptr;
 #endif
-  // 
   int opt_CUDA_TC = checkCudaKernelCompatible();
   cout << "opt_CUDA_TC = " << opt_CUDA_TC << endl;
 
@@ -331,81 +330,81 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
 
             num_task++;
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+          #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
             ccsd_t_fully_fused_none_df_none_task(is_restricted, opt_CUDA_TC, 
-                                              #if defined(USE_DPCPP)
-                                                syclQue,
-                                              #endif
-                                              stream,
-                                                noab, nvab, rank,
-                                                k_spin,
-                                                k_range,
-                                                k_offset,
-                                                d_t1, d_t2, d_v2,
-                                                k_evl_sorted,
-                                                //
-                                                df_host_pinned_s1_t1, df_host_pinned_s1_v2,
-                                                df_host_pinned_d1_t2, df_host_pinned_d1_v2,
-                                                df_host_pinned_d2_t2, df_host_pinned_d2_v2,
-                                                df_host_energies,
-                                                // 
-                                                //
-                                                //
-                                                host_d1_size, host_d2_size, 
-                                                //
-                                                df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
-                                                df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
-                                                //
-                                                df_dev_s1_t1_all, df_dev_s1_v2_all,
-                                                df_dev_d1_t2_all, df_dev_d1_v2_all,
-                                                df_dev_d2_t2_all, df_dev_d2_v2_all,
-                                                df_dev_energies,
-                                                //
-                                                t_h1b, t_h2b, t_h3b,
-                                                t_p4b, t_p5b, t_p6b,
-                                                factor, taskcount,
-                                                max_d1_kernels_pertask, max_d2_kernels_pertask,
-                                                //
-                                                size_T_s1_t1, size_T_s1_v2,
-                                                size_T_d1_t2, size_T_d1_v2,
-                                                size_T_d2_t2, size_T_d2_v2,
-                                                //
-                                                energy_l, 
-                                                reduceData,
-                                                cache_s1t, cache_s1v,
-                                                cache_d1t, cache_d1v,
-                                                cache_d2t, cache_d2v,
-                                                done_compute, done_copy);
-            #else
-            total_fused_ccsd_t_cpu<T>(is_restricted, noab, nvab, rank,
-                                                k_spin,
-                                                k_range,
-                                                k_offset,
-                                                d_t1, d_t2, d_v2,
-                                                k_evl_sorted,
-                                                //
-                                                df_host_pinned_s1_t1, df_host_pinned_s1_v2,
-                                                df_host_pinned_d1_t2, df_host_pinned_d1_v2,
-                                                df_host_pinned_d2_t2, df_host_pinned_d2_v2,
-                                                df_host_energies,
-                                                //
-                                                df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
-                                                df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
-                                                //
-                                                t_h1b, t_h2b, t_h3b,
-                                                t_p4b, t_p5b, t_p6b,
-                                                factor, taskcount,
-                                                max_d1_kernels_pertask, max_d2_kernels_pertask,
-                                                //
-                                                size_T_s1_t1, size_T_s1_v2,
-                                                size_T_d1_t2, size_T_d1_v2,
-                                                size_T_d2_t2, size_T_d2_v2,
-                                                //
-                                                energy_l,
-                                                cache_s1t, cache_s1v,
-                                                cache_d1t, cache_d1v,
-                                                cache_d2t, cache_d2v);
+            #if defined(USE_DPCPP)
+              syclQue,
             #endif
+              stream,
+              noab, nvab, rank,
+              k_spin,
+              k_range,
+              k_offset,
+              d_t1, d_t2, d_v2,
+              k_evl_sorted,
+              //
+              df_host_pinned_s1_t1, df_host_pinned_s1_v2,
+              df_host_pinned_d1_t2, df_host_pinned_d1_v2,
+              df_host_pinned_d2_t2, df_host_pinned_d2_v2,
+              df_host_energies,
+              // 
+              //
+              //
+              host_d1_size, host_d2_size, 
+              //
+              df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
+              df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
+              //
+              df_dev_s1_t1_all, df_dev_s1_v2_all,
+              df_dev_d1_t2_all, df_dev_d1_v2_all,
+              df_dev_d2_t2_all, df_dev_d2_v2_all,
+              df_dev_energies,
+              //
+              t_h1b, t_h2b, t_h3b,
+              t_p4b, t_p5b, t_p6b,
+              factor, taskcount,
+              max_d1_kernels_pertask, max_d2_kernels_pertask,
+              //
+              size_T_s1_t1, size_T_s1_v2,
+              size_T_d1_t2, size_T_d1_v2,
+              size_T_d2_t2, size_T_d2_v2,
+              //
+              energy_l, 
+              reduceData,
+              cache_s1t, cache_s1v,
+              cache_d1t, cache_d1v,
+              cache_d2t, cache_d2v,
+              done_compute, done_copy);
+          #else
+            total_fused_ccsd_t_cpu<T>(is_restricted, noab, nvab, rank,
+              k_spin,
+              k_range,
+              k_offset,
+              d_t1, d_t2, d_v2,
+              k_evl_sorted,
+              //
+              df_host_pinned_s1_t1, df_host_pinned_s1_v2,
+              df_host_pinned_d1_t2, df_host_pinned_d1_v2,
+              df_host_pinned_d2_t2, df_host_pinned_d2_v2,
+              df_host_energies,
+              //
+              df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
+              df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
+              //
+              t_h1b, t_h2b, t_h3b,
+              t_p4b, t_p5b, t_p6b,
+              factor, taskcount,
+              max_d1_kernels_pertask, max_d2_kernels_pertask,
+              //
+              size_T_s1_t1, size_T_s1_v2,
+              size_T_d1_t2, size_T_d1_v2,
+              size_T_d2_t2, size_T_d2_v2,
+              //
+              energy_l,
+              cache_s1t, cache_s1v,
+              cache_d1t, cache_d1v,
+              cache_d2t, cache_d2v);
+          #endif
 
             next = ac->fetch_add(0, 1);
           }

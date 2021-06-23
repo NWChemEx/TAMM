@@ -2313,7 +2313,7 @@ void fully_fused_ccsd_t_gpu(cudaStream_t* stream_id, size_t num_blocks,
 	// 
 	double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b, 
 	double* dev_evl_sorted_p4b, double* dev_evl_sorted_p5b, double* dev_evl_sorted_p6b,
-	double* partial_energies, 
+	double* partial_energies,
 	gpuEvent_t done_compute, gpuEvent_t done_copy) 
 {
 	// 	
@@ -2438,6 +2438,8 @@ using namespace std;
 #define TEST_ENABLE_RT
 
 // 
+// 	helpers
+// 
 #define MAX_NOAB 30
 #define MAX_NVAB 120
 
@@ -2459,6 +2461,7 @@ __device__ inline void zero_shared(double *smem, const int start_row, const int 
 		smem[col_idx * (16 + PAD) + i] = 0.0;
 	}
 }
+
 
 // fixed (reg_x, reg_y)
 __device__ inline void rt_store_fixed(double* smem, const int idx_x_1, const int idx_x_2, const int idx_y_1, const int idx_y_2, MmaOperandC& op_c) {
@@ -4551,6 +4554,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 	#endif
 	}
 }
+
 
 // #define DEBUG_PRINT_KERNEL_TIME
 /**

@@ -41,6 +41,7 @@ void hostEnergyReduce(void* data) {
   res[1] += final_energy_2 * factor;
 }
 
+
 // driver for the fully-fused kernel (FP64)
 void fully_fused_ccsd_t_gpu(gpuStream_t* stream_id, size_t num_blocks,
 	size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b,
@@ -66,8 +67,8 @@ void fully_fused_ccsd_t_gpu(gpuStream_t* stream_id, size_t num_blocks,
 	//
 	double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b,
 	double* dev_evl_sorted_p4b, double* dev_evl_sorted_p5b, double* dev_evl_sorted_p6b,
-	double* partial_energies, 
-  gpuEvent_t done_compute, gpuEvent_t done_copy);
+	double* partial_energies,
+	gpuEvent_t done_compute, gpuEvent_t done_copy);
 
 // driver for fully-fused kernel for 3rd gen. tensor core (FP64)
 void ccsd_t_fully_fused_nvidia_tc_fp64(cudaStream_t* stream_id, size_t numBlks, 
@@ -140,8 +141,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, int opt_CUDA_TC,
   LRUCache<Index,std::vector<T>>& cache_s1t, LRUCache<Index,std::vector<T>>& cache_s1v,
   LRUCache<Index,std::vector<T>>& cache_d1t, LRUCache<Index,std::vector<T>>& cache_d1v,
   LRUCache<Index,std::vector<T>>& cache_d2t, LRUCache<Index,std::vector<T>>& cache_d2v,
-  gpuEvent_t done_compute,
-  gpuEvent_t done_copy)
+  gpuEvent_t done_compute, gpuEvent_t done_copy)
 {
 #ifdef OPT_KERNEL_TIMING
   long double total_num_ops_s1 = 0;
@@ -349,7 +349,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, int opt_CUDA_TC,
   cudaEventRecord(start_fused_kernel);
 #endif
 
-  // 
+  //
   size_t num_blocks = CEIL(base_size_h3b,4) * CEIL(base_size_h2b,4) * CEIL(base_size_h1b,4) *
                       CEIL(base_size_p6b,4) * CEIL(base_size_p5b,4) * CEIL(base_size_p4b,4);
 
@@ -362,10 +362,10 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, int opt_CUDA_TC,
 
   //
   helper_calculate_num_ops(noab, nvab,
-                            df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
-                            df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
-                            task_num_ops_s1, task_num_ops_d1, task_num_ops_d2,
-                            total_num_ops_s1, total_num_ops_d1, total_num_ops_d2);
+    df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
+    df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
+    task_num_ops_s1, task_num_ops_d1, task_num_ops_d2,
+    total_num_ops_s1, total_num_ops_d1, total_num_ops_d2);
 
   //
   task_num_ops_total = task_num_ops_s1 + task_num_ops_d1 + task_num_ops_d2;
@@ -383,7 +383,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, int opt_CUDA_TC,
 #endif //OPT_KERNEL_TIMING
   
 // #ifdef TEMP_ENABLED_OLD
-  if (opt_CUDA_TC != 1) {
+  if (opt_CUDA_TC != 1) { 
     printf ("[%s] called the old kernel\n", __func__);
     fully_fused_ccsd_t_gpu(&stream, num_blocks,
       k_range[t_h1b],k_range[t_h2b],
@@ -407,14 +407,18 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, int opt_CUDA_TC,
       noab, max_dim_d1_t2, max_dim_d1_v2,
       nvab, max_dim_d2_t2, max_dim_d2_v2,
             max_dim_s1_t1, max_dim_s1_v2,
+      //
       factor,
+      //
       dev_evl_sorted_h1b, dev_evl_sorted_h2b, dev_evl_sorted_h3b,
       dev_evl_sorted_p4b, dev_evl_sorted_p5b, dev_evl_sorted_p6b,
+      //
       dev_energies, 
       done_compute, done_copy);
+  } else { 
 // #else
-  } else {
-    printf ("[%s] called the new kernel\n", __func__);
+    // 
+    // printf ("[%s] called the new kernel\n", __func__);
     ccsd_t_fully_fused_nvidia_tc_fp64(&stream,num_blocks,
       k_range[t_h3b],k_range[t_h2b],k_range[t_h1b],
       k_range[t_p6b],k_range[t_p5b],k_range[t_p4b],
@@ -444,29 +448,26 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, int opt_CUDA_TC,
 // #endif
   //
 #ifdef OPT_KERNEL_TIMING
-    cudaEventRecord(stop_kernel_only);
-    cudaEventSynchronize(stop_kernel_only);
+  cudaEventRecord(stop_kernel_only);
+  cudaEventSynchronize(stop_kernel_only);
 
-    float ms_time_kernel_only = 0.0;
-    cudaEventElapsedTime(&ms_time_kernel_only, start_kernel_only, stop_kernel_only);
-    if (rank == 0)
-    {
-        // printf ("[%s] s1: %lu, d1: %lu, d2: %lu >> total: %lu\n", __func__, task_num_ops_s1, task_num_ops_d1, task_num_ops_d2, task_num_ops_total);
-        printf ("[ms_time_kernel_only] time: %f (ms) >> # of ops: %Lf >> %Lf GFLOPS\n", ms_time_kernel_only, task_num_ops_total, task_num_ops_total / (ms_time_kernel_only * 1000000));
-    }
+  float ms_time_kernel_only = 0.0;
+  cudaEventElapsedTime(&ms_time_kernel_only, start_kernel_only, stop_kernel_only);
+  if (rank == 0)
+  {
+      // printf ("[%s] s1: %lu, d1: %lu, d2: %lu >> total: %lu\n", __func__, task_num_ops_s1, task_num_ops_d1, task_num_ops_d2, task_num_ops_total);
+      printf ("[ms_time_kernel_only] time: %f (ms) >> # of ops: %Lf >> %Lf GFLOPS\n", ms_time_kernel_only, task_num_ops_total, task_num_ops_total / (ms_time_kernel_only * 1000000));
+  }
 #endif
 
-    //
+  //
 #ifdef OPT_ALL_TIMING
-    cudaEventRecord(stop_fused_kernel);
-    cudaEventSynchronize(stop_fused_kernel);
-    cudaEventRecord(start_post_processing);
+  cudaEventRecord(stop_fused_kernel);
+  cudaEventSynchronize(stop_fused_kernel);
+  cudaEventRecord(start_post_processing);
 #endif
 
-  //
-  //
-  //
-  // printf ("post-processing for base task based on %u\n", df_base_id);
+  // 
 #if defined(USE_CUDA) 
   cudaMemcpyAsync(host_energies, dev_energies, num_blocks * 2 * sizeof(double), cudaMemcpyDeviceToHost, stream);
 #ifndef STREAM_REDUCE
@@ -482,7 +483,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, int opt_CUDA_TC,
 
   //
 // #ifdef TEMP_ENABLED_OLD
-  if (opt_CUDA_TC != -1) { 
+  if (0) { 
     double final_energy_1 = 0.0;
     double final_energy_2 = 0.0;
     for (size_t i = 0; i < num_blocks; i++)
@@ -494,28 +495,28 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, int opt_CUDA_TC,
     //
     energy_l[0] += final_energy_1 * factor;
     energy_l[1] += final_energy_2 * factor;
-  } else {
+  } else { 
 // #else
-#ifndef STREAM_REDUCE
-  // 
-  double final_energy_1 = 0.0;
-  double final_energy_2 = 0.0; 
-  for (size_t i = 0; i < num_blocks; i++)
-  {
-    final_energy_1 += host_energies[i];
-    final_energy_2 += host_energies[i + num_blocks];
-  }
+  #ifndef STREAM_REDUCE
+    // 
+    double final_energy_1 = 0.0;
+    double final_energy_2 = 0.0; 
+    for (size_t i = 0; i < num_blocks; i++)
+    {
+      final_energy_1 += host_energies[i];
+      final_energy_2 += host_energies[i + num_blocks];
+    }
 
-  energy_l[0] += final_energy_1 * factor;
-  energy_l[1] += final_energy_2 * factor;
-#else
-  reduceData->num_blocks = num_blocks;
-  reduceData->host_energies = host_energies;
-  reduceData->result_energy = energy_l.data();
-  reduceData->factor = factor;
-  cudaLaunchHostFunc(stream, hostEnergyReduce, reduceData);
-  cudaEventRecord(done_compute);
-#endif
+    energy_l[0] += final_energy_1 * factor;
+    energy_l[1] += final_energy_2 * factor;
+  #else
+    reduceData->num_blocks = num_blocks;
+    reduceData->host_energies = host_energies;
+    reduceData->result_energy = energy_l.data();
+    reduceData->factor = factor;
+    cudaLaunchHostFunc(stream, hostEnergyReduce, reduceData);
+    cudaEventRecord(done_compute);
+  #endif
   }
 // #endif
   

@@ -1,7 +1,9 @@
 /*
-	To-Do: 	#1. 2D Grid 
-			#2. Optimized Memory
+	Two Different Fully-Fused Kernels
+	(1) Pure FP64
+	(2) 3rd. Generation Tensor Cores (FP64)
 */
+// (1) Pure FP64
 #include "ccsd_t_common.hpp"
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,7 +67,6 @@ __constant__ int const_df_d1_size[7 * MAX_NOAB];
 __constant__ int const_df_d1_exec[9 * MAX_NOAB];
 __constant__ int const_df_d2_size[7 * MAX_NVAB];
 __constant__ int const_df_d2_exec[9 * MAX_NVAB];
-
 
 __global__ 
 void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab, 
@@ -2288,7 +2289,6 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 	}
 }
 
-
 void fully_fused_ccsd_t_gpu(cudaStream_t* stream_id, size_t num_blocks, 
 	size_t base_size_h1b, size_t base_size_h2b, size_t base_size_h3b, 
 	size_t base_size_p4b, size_t base_size_p5b, size_t base_size_p6b,
@@ -2313,7 +2313,8 @@ void fully_fused_ccsd_t_gpu(cudaStream_t* stream_id, size_t num_blocks,
 	// 
 	double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b, 
 	double* dev_evl_sorted_p4b, double* dev_evl_sorted_p5b, double* dev_evl_sorted_p6b,
-	double* partial_energies)
+	double* partial_energies, 
+	gpuEvent_t done_compute, gpuEvent_t done_copy) 
 {
 	// 	
 	// 	to handle constant memories
@@ -2326,6 +2327,8 @@ void fully_fused_ccsd_t_gpu(cudaStream_t* stream_id, size_t num_blocks,
 
 	cudaMemcpyToSymbolAsync(const_df_d2_size, host_d2_size, sizeof(int) * (7 * size_nvab), 0, cudaMemcpyHostToDevice, *stream_id);
 	cudaMemcpyToSymbolAsync(const_df_d2_exec, host_d2_exec, sizeof(int) * (9 * size_nvab), 0, cudaMemcpyHostToDevice, *stream_id);
+
+	cudaEventRecord(done_copy);
 
 	// 
 	// 	Depends on # of Fused Kernel
@@ -2389,11 +2392,9 @@ void fully_fused_ccsd_t_gpu(cudaStream_t* stream_id, size_t num_blocks,
 	printf ("[%s] kernel: %f (ms)\n", __func__, kernel_ms);
 #endif
 }
-// 
+// end of (1) Pure FP64
 
-//
-//	for NVIDIA 3rd tensor core
-//
+// (2) 3rd. Generation Tensor Cores (FP64)
 #include <cooperative_groups/memcpy_async.h>
 #include <cuda/pipeline>
 
@@ -2409,7 +2410,6 @@ using namespace std;
 		fflush(stderr); \
 		exit(EXIT_FAILURE);	\
 }}
-
 
 //
 #define SIZE_TILE_P7 16
@@ -2438,8 +2438,6 @@ using namespace std;
 #define TEST_ENABLE_RT
 
 // 
-// 	helpers
-// 
 #define MAX_NOAB 30
 #define MAX_NVAB 120
 
@@ -2461,7 +2459,6 @@ __device__ inline void zero_shared(double *smem, const int start_row, const int 
 		smem[col_idx * (16 + PAD) + i] = 0.0;
 	}
 }
-
 
 // fixed (reg_x, reg_y)
 __device__ inline void rt_store_fixed(double* smem, const int idx_x_1, const int idx_x_2, const int idx_y_1, const int idx_y_2, MmaOperandC& op_c) {
@@ -4555,7 +4552,6 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 	}
 }
 
-
 // #define DEBUG_PRINT_KERNEL_TIME
 /**
  *	@brief the driver of the fully-fused kernel for CCSD(T)
@@ -4669,4 +4665,4 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(cudaStream_t* stream_id, size_t numBlks,
 	// *final_energy_5 = factor * host_energies[1];
 	// printf ("[%s] (gpu) energy: %.10f, %.10f\n", __func__, *final_energy_4, *final_energy_5);
 }
-
+// end of (2) 3rd. Generation Tensor Cores (FP64)

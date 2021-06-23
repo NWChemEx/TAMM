@@ -25,8 +25,39 @@ void finalizememmodule(
 #endif
 );
 
-//
-//
+/**
+ *  to check if target NVIDIA GPUs can support the fully-fused kernel 
+ *  based on 3rd gen. tensor cores or not.
+ *  - requirements: (1) arch >= 80 and (2) driver >= 11.2?
+ **/
+int checkCudaKernelCompatible() {
+  int version = 0;
+  cudaDeviceProp dP;
+
+  cudaError_t cuda_arch = cudaGetDeviceProperties(&dP, 0);
+  if (cuda_arch != cudaSuccess) {
+    cudaError_t error = cudaGetLastError();
+    printf ("CUDA error: %s", cudaGetErrorString(error));
+    return cuda_arch; /* Failure */
+  }
+  // printf ("[%s] dP.major: %d, dP.minor: %d\n", __func__, dP.major, dP.minor);
+  
+  // the version is returned as (1000 major + 10 minior)
+  cudaError_t cuda_driver = cudaRuntimeGetVersion(&version);
+  if (cuda_driver != cudaSuccess) {
+    cudaError_t error = cudaGetLastError();
+    printf ("CUDA error: %s", cudaGetErrorString(error));
+    return cuda_driver;
+  }
+  
+  int driver_major = version / 1000;
+  int driver_minor = (version - (driver_major * 1000)) / 10;
+  printf ("[%s] dp.Major: %d, driver_major,minor: %d,%d\n", __func__, dP.major, driver_major, driver_minor);
+
+  if (dP.major >= 8 && driver_major >= 11 && driver_minor >= 1) { return 1; } 
+  else { return -1; }
+}
+
 //
 template<typename T>
 std::tuple<double,double,double,double>
@@ -47,6 +78,9 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   std::vector<sycl::queue*> syclQueues = ec.get_syclQue();
   sycl::queue* syclQue = nullptr;
 #endif
+  // 
+  int opt_CUDA_TC = checkCudaKernelCompatible();
+  cout << "opt_CUDA_TC = " << opt_CUDA_TC << endl;
 
   //
   auto rank     = ec.pg().rank().value();
@@ -298,7 +332,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
             num_task++;
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-            ccsd_t_fully_fused_none_df_none_task(is_restricted,
+            ccsd_t_fully_fused_none_df_none_task(is_restricted, opt_CUDA_TC, 
                                               #if defined(USE_DPCPP)
                                                 syclQue,
                                               #endif
@@ -432,7 +466,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
               num_task++;
 
               #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-              ccsd_t_fully_fused_none_df_none_task(is_restricted,
+              ccsd_t_fully_fused_none_df_none_task(is_restricted, opt_CUDA_TC, 
                                                    #if defined(USE_DPCPP)
                                                     syclQue,
                                                    #endif

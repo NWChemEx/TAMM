@@ -14,12 +14,15 @@
 #include <tuple>
 #include <vector>
 
-#include "hf_tamm_common.hpp"
+//#include "hf_tamm_common.hpp"
+#include "hf_assignment.hpp"
 
 #include <filesystem>
 namespace fs = std::filesystem;
 
 #define SCF_THROTTLE_RESOURCES 1
+
+
 
 std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, 
     Tensor<double>, Tensor<double>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace, bool> 
@@ -587,7 +590,30 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         if(rank==0) 
           std::cout << std::setprecision(18) << "Total HF energy after restart: " << ehf << std::endl;
       }   
+        /* This is the place where I (Ferdous) need to add scheduling code*/
+        //NODE_T nMachine = ec.pg().size().value();
+        if(rank ==0)
+        {
+            //# of nodes
+            NODE_T nMachine = 110;
+            std::string fileName="/global/homes/s/sferdou/TAMM/inputs/ubi_sto3g.csv";  
+            Loads dummyLoads;
+            /***start ferdous code***/ 
+            readLoads(fileName, dummyLoads);
 
+            simpleLoadBal(dummyLoads,nMachine);
+            Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> taskmap;
+            int tmdim = std::max(dummyLoads.maxS1,dummyLoads.maxS2);
+            taskmap.resize(tmdim+1,tmdim+1);
+            for(int i=0;i<tmdim;i++)
+                for(int j=0;j<tmdim;j++) {
+                    taskmap(i,j) = -1; //this value in this array is the rank that executes task i,j
+            } 
+            //cout<<"creating task map"<<endl;
+            createTaskMap(taskmap,dummyLoads);
+            //cout<<"task map creation completed"<<endl;
+        }
+        /****end************/
       //SCF main loop
       do {
         const auto loop_start = std::chrono::high_resolution_clock::now();

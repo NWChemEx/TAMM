@@ -396,6 +396,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
             ttensors.diis_hist, ttensors.fock_hist);
         }
         if(is_uhf) {
+          ++idiis;
           Tensor<TensorType> F1_T{tAO, tAO};
           Tensor<TensorType> F1_S{tAO, tAO};
           Tensor<TensorType> D_T{tAO, tAO};

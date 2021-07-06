@@ -656,7 +656,8 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
             NODE_T nMachine =  ec.pg().size().value();
             Loads dummyLoads;
             /***start ferdous code***/ 
-            readLoads(std::filesystem::absolute(taskfile), dummyLoads);
+            //readLoads(std::filesystem::absolute(taskfile), dummyLoads);
+            readLoads(s1_all,s2_all,ntasks_all, dummyLoads);
 
             simpleLoadBal(dummyLoads,nMachine);
             tmdim = std::max(dummyLoads.maxS1,dummyLoads.maxS2);

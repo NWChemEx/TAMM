@@ -7,7 +7,7 @@
 /******* Ferdous's addition codes*********/
 typedef int NODE_T;
 typedef int EDGE_T;
-typedef double VAL_T;
+typedef int VAL_T;
 
 //load data struct
 struct Load
@@ -53,16 +53,18 @@ bool cmpbyFirst(const std::pair<VAL_T,NODE_T> &T1,const std::pair<VAL_T,NODE_T> 
 //Any header content on the load files needs to be started with 
 //% sign. Each line should containt 4 white space seperated values
 //The rank, s1, s2, nTasks.
-void readLoads(std::string fileName, Loads &L)
+//void readLoads(std::string fileName, Loads &L)
+void readLoads(std::vector<NODE_T> &s1_all, std::vector<NODE_T> &s2_all,std::vector<VAL_T> ntasks_all, Loads &L)
 {
-    std::ifstream fileread(fileName.c_str());
+    //std::ifstream fileread(fileName.c_str());
     
-    if(fileread.is_open()==false)
+    /*if(fileread.is_open()==false)
     {
         std::cout << "No file named "<<fileName<<std::endl;
         std::exit(1);
     }
     while (fileread.peek() == '%') fileread.ignore(2048, '\n');
+    */
     
     EDGE_T nLoads = 0; 
     
@@ -71,8 +73,13 @@ void readLoads(std::string fileName, Loads &L)
     NODE_T s2;
     VAL_T nTasks;
     
-    while(fileread>>rank>>s1>>s2>>nTasks)    
+    for(int i=0;i<s1_all.size();i++)    
     {
+        s1 = s1_all[i];
+        s2 = s2_all[i];
+        nTasks = ntasks_all[i];
+        rank = 0;
+
         if (s1+1 > L.maxS1) L.maxS1 = s1;
         if (s2+1 > L.maxS2) L.maxS2 = s2;
 

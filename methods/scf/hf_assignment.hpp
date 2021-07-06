@@ -101,7 +101,7 @@ void simpleLoadBal(Loads &L, NODE_T nMachine )
     std::vector<NODE_T> cV(nMachine);
 
     NODE_T b_prime = L.nLoads/nMachine;
-    cout<<b_prime<<endl;
+    // cout<<b_prime<<endl;
     NODE_T remainder = L.nLoads%nMachine;
 
     for(NODE_T i=0;i<nMachine;i++)

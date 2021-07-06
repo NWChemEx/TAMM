@@ -637,7 +637,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         EXPECTS(s1_all.size() == s2_all.size());
         EXPECTS(s1_all.size() == ntasks_all.size());
 
-        std::string taskfile = files_prefix + ".taskinfo.csv";
+        /*std::string taskfile = files_prefix + ".taskinfo.csv";
         if(rank==0) {
           std::ofstream out(taskfile, std::ios::out);
           if(!out) cerr << "Error opening file " << taskfile << endl;
@@ -648,6 +648,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           out << taskinfo.str() << std::endl;
           out.close();
         }
+        */
         
         int tmdim = 0;
         if(rank ==0)

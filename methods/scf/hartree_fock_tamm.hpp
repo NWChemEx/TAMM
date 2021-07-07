@@ -651,12 +651,12 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         */
         
         int tmdim = 0;
-        if(rank ==0)
+        if(rank == 0)
         {
             //# of ranks
             NODE_T nMachine =  ec.pg().size().value();
             Loads dummyLoads;
-            /***start ferdous code***/ 
+            /***generate load balanced task map***/
             //readLoads(std::filesystem::absolute(taskfile), dummyLoads);
             readLoads(s1_all,s2_all,ntasks_all, dummyLoads);
 
@@ -670,6 +670,20 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
             //cout<<"creating task map"<<endl;
             createTaskMap(taskmap,dummyLoads);
             //cout<<"task map creation completed"<<endl;
+
+            //debug taskmap
+            if(debug) {
+              std::string taskfile = files_prefix + ".taskmap.txt";
+              std::ofstream out(taskfile, std::ios::out);
+              if(!out) cerr << "Error opening file " << taskfile << endl;
+              std::ostringstream taskinfo;
+              taskinfo << "s1 s2 rank\n";
+              for(int i=0;i<tmdim;i++)
+                for(int j=0;j<tmdim;j++)
+                  taskinfo << i << " " << j << " " << taskmap(i,j) << "\n";
+              out << taskinfo.str() << std::endl;
+              out.close();
+            }
         }
 
         MPI_Bcast(&tmdim        ,1,mpi_type<int>()       ,0,ec.pg().comm());

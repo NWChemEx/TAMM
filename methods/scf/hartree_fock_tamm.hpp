@@ -655,6 +655,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         {
             //# of ranks
             NODE_T nMachine =  ec.pg().size().value();
+            //NODE_T nMachine =  3000;
             Loads dummyLoads;
             /***generate load balanced task map***/
             //readLoads(std::filesystem::absolute(taskfile), dummyLoads);
@@ -663,8 +664,8 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
             simpleLoadBal(dummyLoads,nMachine);
             tmdim = std::max(dummyLoads.maxS1,dummyLoads.maxS2);
             taskmap.resize(tmdim+1,tmdim+1);
-            for(int i=0;i<tmdim;i++)
-                for(int j=0;j<tmdim;j++) {
+            for(int i=0;i<tmdim+1;i++)
+                for(int j=0;j<tmdim+1;j++) {
                     taskmap(i,j) = -1; //this value in this array is the rank that executes task i,j
             } 
             //cout<<"creating task map"<<endl;
@@ -672,19 +673,36 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
             //cout<<"task map creation completed"<<endl;
 
             //debug taskmap
+            
             if(debug) {
               std::string taskfile = files_prefix + ".taskmap.txt";
               std::ofstream out(taskfile, std::ios::out);
               if(!out) cerr << "Error opening file " << taskfile << endl;
               std::ostringstream taskinfo;
-              taskinfo << "s1 s2 rank\n";
-              for(int i=0;i<tmdim;i++)
-                for(int j=0;j<tmdim;j++)
-                  taskinfo << i << " " << j << " " << taskmap(i,j) << "\n";
-              out << taskinfo.str() << std::endl;
-              out.close();
+              taskinfo << "s1 s2 ind rank ntasks\n";
+              for(int i=0;i<tmdim+1;i++)
+              {
+                for(int j=0;j<tmdim+1;j++)
+                {
+                  int index = taskmap(i,j);
+                  if(index>=0)
+                    {
+                      //int u = dummyLoads.loadList[index].s1;
+                      //int v = dummyLoads.loadList[index].s2;
+                      //int mId = dummyLoads.loadList[index].rank;
+                      //int ntask = dummyLoads.loadList[index].nTasks;
+
+                      //taskinfo << u << " " << v << " " << index << " "<<mId<<" "<<ntask<<"\n";
+                      taskinfo << i << " " << j << " " << index <<"\n";
+                    }
+                }
             }
+            out << taskinfo.str() << std::endl;
+            out.close();
+            //cout<<"end writing"<<endl;
         }
+        
+    }
 
         MPI_Bcast(&tmdim        ,1,mpi_type<int>()       ,0,ec.pg().comm());
         if(rank!=0) taskmap.resize(tmdim+1,tmdim+1);

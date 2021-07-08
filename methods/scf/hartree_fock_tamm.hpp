@@ -638,7 +638,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         EXPECTS(s1_all.size() == ntasks_all.size());
 
         /*std::string taskfile = files_prefix + ".taskinfo.csv";
-        if(rank==0) {
+        if(rank==0 && debug) {
           std::ofstream out(taskfile, std::ios::out);
           if(!out) cerr << "Error opening file " << taskfile << endl;
           std::ostringstream taskinfo;
@@ -655,7 +655,6 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         {
             //# of ranks
             NODE_T nMachine =  ec.pg().size().value();
-            //NODE_T nMachine =  3000;
             Loads dummyLoads;
             /***generate load balanced task map***/
             //readLoads(std::filesystem::absolute(taskfile), dummyLoads);
@@ -673,36 +672,25 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
             //cout<<"task map creation completed"<<endl;
 
             //debug taskmap
-            
-            if(debug) {
-              std::string taskfile = files_prefix + ".taskmap.txt";
-              std::ofstream out(taskfile, std::ios::out);
-              if(!out) cerr << "Error opening file " << taskfile << endl;
-              std::ostringstream taskinfo;
-              taskinfo << "s1 s2 ind rank ntasks\n";
-              for(int i=0;i<tmdim+1;i++)
-              {
-                for(int j=0;j<tmdim+1;j++)
-                {
-                  int index = taskmap(i,j);
-                  if(index>=0)
-                    {
-                      //int u = dummyLoads.loadList[index].s1;
-                      //int v = dummyLoads.loadList[index].s2;
-                      //int mId = dummyLoads.loadList[index].rank;
-                      //int ntask = dummyLoads.loadList[index].nTasks;
-
-                      //taskinfo << u << " " << v << " " << index << " "<<mId<<" "<<ntask<<"\n";
-                      taskinfo << i << " " << j << " " << index <<"\n";
-                    }
-                }
-            }
-            out << taskinfo.str() << std::endl;
-            out.close();
-            //cout<<"end writing"<<endl;
+            // if(debug) {
+            //   std::string taskfile = files_prefix + ".taskmap.txt";
+            //   std::ofstream out(taskfile, std::ios::out);
+            //   if(!out) cerr << "Error opening file " << taskfile << endl;
+            //   std::ostringstream taskinfo;
+            //   taskinfo << "s1 s2 ind rank ntasks\n";
+            //   for(int i=0;i<tmdim+1;i++) {
+            //     for(int j=0;j<tmdim+1;j++) {
+            //       int index = taskmap(i,j);
+            //       if(index>=0) {
+            //           taskinfo << i << " " << j << " " << index <<"\n";
+            //       }
+            //     }
+            //   }
+            //   out << taskinfo.str() << std::endl;
+            //   out.close();
+            //   //cout<<"end writing"<<endl;
+            // }
         }
-        
-    }
 
         MPI_Bcast(&tmdim        ,1,mpi_type<int>()       ,0,ec.pg().comm());
         if(rank!=0) taskmap.resize(tmdim+1,tmdim+1);

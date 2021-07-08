@@ -80,8 +80,8 @@ void readLoads(std::vector<NODE_T> &s1_all, std::vector<NODE_T> &s2_all,std::vec
         nTasks = ntasks_all[i];
         rank = 0;
 
-        if (s1+1 > L.maxS1) L.maxS1 = s1;
-        if (s2+1 > L.maxS2) L.maxS2 = s2;
+        if (s1 > L.maxS1) L.maxS1 = s1;
+        if (s2 > L.maxS2) L.maxS2 = s2;
 
         if(nTasks > 0)
         {
@@ -167,6 +167,7 @@ void createTaskMap(Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::Row
         auto u = L.loadList[i].s1;
         auto v = L.loadList[i].s2;
         taskmap(u,v) = L.loadList[i].rank;
+        //taskmap(u,v) = i;
        // std::cout<<u<<" "<<v<<" "<<taskmap(u,v)<<" "<<L.loadList[i].nTasks<<std::endl;
    }
 

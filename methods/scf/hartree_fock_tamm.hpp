@@ -551,6 +551,55 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       std::cout << std::fixed << std::setprecision(2);
 
+      // ----- Generate task mapping -----
+
+      //Collect task info
+      auto [s1vec,s2vec,ntask_vec] = compute_2bf_taskinfo<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
+                      max_nprim4,shells, ttensors, etensors, do_density_fitting);
+
+      auto [s1_all,s2_all,ntasks_all] = gather_task_vectors<TensorType>(ec,s1vec,s2vec,ntask_vec);
+
+      int tmdim = 0;
+      if(rank == 0)
+      {
+          Loads dummyLoads;
+          /***generate load balanced task map***/
+          readLoads(s1_all, s2_all, ntasks_all, dummyLoads);
+          simpleLoadBal(dummyLoads,ec.pg().size().value());
+          tmdim = std::max(dummyLoads.maxS1,dummyLoads.maxS2);
+          taskmap.resize(tmdim+1,tmdim+1);
+          for(int i=0;i<tmdim+1;i++)
+              for(int j=0;j<tmdim+1;j++) {
+                  taskmap(i,j) = -1; //this value in this array is the rank that executes task i,j
+          } 
+          //cout<<"creating task map"<<endl;
+          createTaskMap(taskmap,dummyLoads);
+          //cout<<"task map creation completed"<<endl;
+
+          //debug taskmap
+          // if(debug) {
+          //   std::string taskfile = files_prefix + ".taskmap.txt";
+          //   std::ofstream out(taskfile, std::ios::out);
+          //   if(!out) cerr << "Error opening file " << taskfile << endl;
+          //   std::ostringstream taskinfo;
+          //   taskinfo << "s1 s2 ind rank ntasks\n";
+          //   for(int i=0;i<tmdim+1;i++) {
+          //     for(int j=0;j<tmdim+1;j++) {
+          //       int index = taskmap(i,j);
+          //       if(index>=0) {
+          //           taskinfo << i << " " << j << " " << index <<"\n";
+          //       }
+          //     }
+          //   }
+          //   out << taskinfo.str() << std::endl;
+          //   out.close();
+          // }
+      }
+
+      MPI_Bcast(&tmdim        ,1,mpi_type<int>()       ,0,ec.pg().comm());
+      if(rank!=0) taskmap.resize(tmdim+1,tmdim+1);
+      MPI_Bcast(taskmap.data(),taskmap.size(),mpi_type<int>(),0,ec.pg().comm());
+      
       if(restart) {
         
         sch
@@ -589,113 +638,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           std::cout << std::setprecision(18) << "Total HF energy after restart: " << ehf << std::endl;
       }   
 
-        // ----- Generate task mapping -----
 
-        //Collect task info
-        auto [s1vec,s2vec,ntask_vec] = compute_2bf_taskinfo<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
-                        max_nprim4,shells, ttensors, etensors, do_density_fitting);
-
-        const int nranks = ec.pg().size().value();
-        std::vector<int> s1_count(nranks);
-        std::vector<int> s2_count(nranks);
-        std::vector<int> nt_count(nranks);
-
-        int s1vec_size = (int)s1vec.size();
-        int s2vec_size = (int)s2vec.size();
-        int ntvec_size = (int)ntask_vec.size();
-
-        // Root gathers number of elements at each rank.
-        MPI_Gather(&s1vec_size, 1, MPI_INT, s1_count.data(), 1, MPI_INT, 0, ec.pg().comm());
-        MPI_Gather(&s2vec_size, 1, MPI_INT, s2_count.data(), 1, MPI_INT, 0, ec.pg().comm());
-        MPI_Gather(&ntvec_size, 1, MPI_INT, nt_count.data(), 1, MPI_INT, 0, ec.pg().comm());
-
-        // Displacements in the receive buffer for MPI_GATHERV
-        std::vector<int> disps_s1(nranks);
-        std::vector<int> disps_s2(nranks);
-        std::vector<int> disps_nt(nranks);
-        for (int i = 0; i < nranks; i++) {
-          disps_s1[i] = (i > 0) ? (disps_s1[i-1] + s1_count[i-1]) : 0;
-          disps_s2[i] = (i > 0) ? (disps_s2[i-1] + s2_count[i-1]) : 0;
-          disps_nt[i] = (i > 0) ? (disps_nt[i-1] + nt_count[i-1]) : 0;
-        }
-
-        // Allocate vectors to gather data at root
-        std::vector<int> s1_all;
-        std::vector<int> s2_all;
-        std::vector<int> ntasks_all;
-        if (rank == 0) {
-          s1_all.resize(disps_s1[nranks-1]+s1_count[nranks-1]);
-          s2_all.resize(disps_s2[nranks-1]+s2_count[nranks-1]);
-          ntasks_all.resize(disps_nt[nranks-1]+nt_count[nranks-1]);
-        }
-
-        // Gather at root
-        MPI_Gatherv(s1vec.data(), s1vec_size, MPI_INT, s1_all.data(), s1_count.data(), disps_s1.data(), MPI_INT, 0, ec.pg().comm());
-        MPI_Gatherv(s2vec.data(), s2vec_size, MPI_INT, s2_all.data(), s2_count.data(), disps_s2.data(), MPI_INT, 0, ec.pg().comm());
-        MPI_Gatherv(ntask_vec.data(), ntvec_size, MPI_INT, ntasks_all.data(), nt_count.data(), disps_nt.data(), MPI_INT, 0, ec.pg().comm());
-
-        EXPECTS(s1_all.size() == s2_all.size());
-        EXPECTS(s1_all.size() == ntasks_all.size());
-
-        /*std::string taskfile = files_prefix + ".taskinfo.csv";
-        if(rank==0 && debug) {
-          std::ofstream out(taskfile, std::ios::out);
-          if(!out) cerr << "Error opening file " << taskfile << endl;
-          std::ostringstream taskinfo;
-          taskinfo << "%rank s1 s2 ntasks\n";
-          for (size_t i=0;i<s1_all.size();i++)
-            taskinfo << "0 " << s1_all[i] << " " << s2_all[i] << " " << ntasks_all[i] << "\n";
-          out << taskinfo.str() << std::endl;
-          out.close();
-        }
-        */
-        
-        int tmdim = 0;
-        if(rank == 0)
-        {
-            //# of ranks
-            NODE_T nMachine =  ec.pg().size().value();
-            Loads dummyLoads;
-            /***generate load balanced task map***/
-            //readLoads(std::filesystem::absolute(taskfile), dummyLoads);
-            readLoads(s1_all,s2_all,ntasks_all, dummyLoads);
-
-            simpleLoadBal(dummyLoads,nMachine);
-            tmdim = std::max(dummyLoads.maxS1,dummyLoads.maxS2);
-            taskmap.resize(tmdim+1,tmdim+1);
-            for(int i=0;i<tmdim+1;i++)
-                for(int j=0;j<tmdim+1;j++) {
-                    taskmap(i,j) = -1; //this value in this array is the rank that executes task i,j
-            } 
-            //cout<<"creating task map"<<endl;
-            createTaskMap(taskmap,dummyLoads);
-            //cout<<"task map creation completed"<<endl;
-
-            //debug taskmap
-            // if(debug) {
-            //   std::string taskfile = files_prefix + ".taskmap.txt";
-            //   std::ofstream out(taskfile, std::ios::out);
-            //   if(!out) cerr << "Error opening file " << taskfile << endl;
-            //   std::ostringstream taskinfo;
-            //   taskinfo << "s1 s2 ind rank ntasks\n";
-            //   for(int i=0;i<tmdim+1;i++) {
-            //     for(int j=0;j<tmdim+1;j++) {
-            //       int index = taskmap(i,j);
-            //       if(index>=0) {
-            //           taskinfo << i << " " << j << " " << index <<"\n";
-            //       }
-            //     }
-            //   }
-            //   out << taskinfo.str() << std::endl;
-            //   out.close();
-            //   //cout<<"end writing"<<endl;
-            // }
-        }
-
-        MPI_Bcast(&tmdim        ,1,mpi_type<int>()       ,0,ec.pg().comm());
-        if(rank!=0) taskmap.resize(tmdim+1,tmdim+1);
-        MPI_Bcast(taskmap.data(),taskmap.size(),mpi_type<int>(),0,ec.pg().comm());
-      
       //SCF main loop
       do {
         const auto loop_start = std::chrono::high_resolution_clock::now();

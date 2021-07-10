@@ -79,6 +79,7 @@ struct EigenTensors {
   Matrix F_beta,C_beta,X_beta;
   Matrix G,D;
   Matrix G_beta,D_beta;
+  Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> taskmap;
 };
 
 struct TAMMTensors {

@@ -21,8 +21,6 @@ void compute_1body_ints(ExecutionContext& ec, Tensor<TensorType>& tensor1e,
       std::vector<libint2::Atom>& atoms, libint2::BasisSet& shells, libint2::Operator otype,
       std::vector<size_t>& shell_tile_map, std::vector<Tile>& AO_tiles);
 
-Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> taskmap;
-
 std::tuple<int,int,int,int> get_hf_nranks(const size_t N) {
 
     // auto nranks = GA_Nnodes();
@@ -1168,9 +1166,9 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
         G.setZero(N,N);
         if(is_uhf) G_beta.setZero(N,N);
         //block_for(ec, F1tmp(), comp_2bf_lambda);
-        for (Eigen::Index i1=0;i1<taskmap.rows();i1++)
-        for (Eigen::Index j1=0;j1<taskmap.cols();j1++) {
-          if(taskmap(i1,j1)==-1 || taskmap(i1,j1) != rank) continue;
+        for (Eigen::Index i1=0;i1<etensors.taskmap.rows();i1++)
+        for (Eigen::Index j1=0;j1<etensors.taskmap.cols();j1++) {
+          if(etensors.taskmap(i1,j1)==-1 || etensors.taskmap(i1,j1) != rank) continue;
           IndexVector blockid{i1,j1};
           comp_2bf_lambda(blockid);
         }

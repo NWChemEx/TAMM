@@ -604,7 +604,14 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
         }
     };
 
-    block_for(ec, F1tmp(), compute_2body_fock_general_lambda);
+    // block_for(ec, F1tmp(), compute_2body_fock_general_lambda);
+    for (Eigen::Index i1=0;i1<etensors.taskmap.rows();i1++)
+    for (Eigen::Index j1=0;j1<etensors.taskmap.cols();j1++) {
+      if(etensors.taskmap(i1,j1)==-1 || etensors.taskmap(i1,j1) != rank) continue;
+      IndexVector blockid{i1,j1};
+      compute_2body_fock_general_lambda(blockid);
+    }
+    ec.pg().barrier();       
 
     if(is_rhf) {
       //symmetrize the result
@@ -1315,5 +1322,69 @@ void compute_sad_guess(ExecutionContext& ec, SystemData& sys_data,
 
 }
 #endif
+
+template<typename TensorType>
+std::tuple<std::vector<int>,std::vector<int>,std::vector<int>> compute_initial_guess_taskinfo(ExecutionContext& ec, SystemData& sys_data,
+    const std::vector<libint2::Atom>& atoms, const libint2::BasisSet& shells,
+    const std::string& basis, bool is_spherical, EigenTensors& etensors,
+    TAMMTensors& ttensors, int charge, int multiplicity){
+
+    const auto rank       = ec.pg().rank();
+
+    // compute guess in minimal basis
+    libint2::BasisSet minbs("STO-3G", atoms);
+    if(is_spherical) minbs.set_pure(true);
+    else minbs.set_pure(false);  // use cartesian gaussians  
+
+    bool D_is_shelldiagonal = true;
+    const libint2::BasisSet& obs  = shells;
+    const libint2::BasisSet& D_bs = minbs;
+
+    Tensor<TensorType> F1tmp{tAOt, tAOt}; //not allocated
+
+    auto shell2bf   = obs.shell2bf();
+
+    std::vector<int> s1vec;
+    std::vector<int> s2vec;
+    std::vector<int> ntask_vec;
+    
+    auto compute_2body_fock_general_lambda = [&](IndexVector blockid) {
+
+        auto s1 = blockid[0];
+        auto bf1_first = shell2bf[s1];  // first basis function in this shell
+        auto n1 = obs[s1].size();       // number of basis functions in this shell
+
+        auto s2 = blockid[1];
+        // if(s2>s1) return;
+
+        auto sp12_iter = obs_shellpair_data.at(s1).begin();
+        auto s2spl = obs_shellpair_list[s1];
+        auto s2_itr = std::find(s2spl.begin(),s2spl.end(),s2);
+        if(s2_itr == s2spl.end()) return;
+        auto s2_pos = std::distance(s2spl.begin(),s2_itr);
+
+        std::advance(sp12_iter,s2_pos);
+
+        size_t taskid = 0;
+
+        for (decltype(s1) s3 = 0; s3 < D_bs.size(); ++s3) {
+          
+          auto s4_begin = D_is_shelldiagonal ? s3 : 0;
+          auto s4_fence = D_is_shelldiagonal ? s3 + 1 : D_bs.size();
+
+          for (decltype(s1) s4 = s4_begin; s4 != s4_fence; ++s4) {
+            if (s3 >= s4) taskid++;
+            taskid++;
+          }
+        }
+        s1vec.push_back(s1);
+        s2vec.push_back(s2);
+        ntask_vec.push_back(taskid);        
+    };
+
+    block_for(ec, F1tmp(), compute_2body_fock_general_lambda);
+    return std::make_tuple(s1vec,s2vec,ntask_vec);
+
+}
 
 #endif //TAMM_SCF_GUESS_HPP_

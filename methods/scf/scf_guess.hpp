@@ -405,7 +405,8 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
 
     const auto rank       = ec.pg().rank();
     const auto world_size = ec.pg().size();
-    const auto N = nbasis(shells);
+    const auto N          = nbasis(shells);
+    const bool debug      = sys_data.options_map.scf_options.debug;
 
     // const Matrix& H   = etensors.H; 
     const Matrix& X_a = etensors.X;
@@ -463,6 +464,8 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
     Tensor<TensorType> F1tmp1_b{tAO, tAO};
     Tensor<TensorType>::allocate(&ec, F1tmp1_a);
     if(is_uhf) Tensor<TensorType>::allocate(&ec,F1tmp1_b);
+
+    auto do_t1 = std::chrono::high_resolution_clock::now();
 
     // construct the 2-electron repulsion integrals engine
     using libint2::Operator;
@@ -612,6 +615,12 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
       compute_2body_fock_general_lambda(blockid);
     }
     ec.pg().barrier();       
+
+    auto do_t2 = std::chrono::high_resolution_clock::now();
+    auto do_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
+
+    if(rank == 0 && debug) std::cout << "Time to compute Fock Matrix: " << do_time << " secs" << std::endl;
 
     if(is_rhf) {
       //symmetrize the result

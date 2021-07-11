@@ -502,8 +502,13 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           if(rank!=0) etensors.taskmap.resize(tmdim+1,tmdim+1);
           MPI_Bcast(etensors.taskmap.data(),etensors.taskmap.size(),mpi_type<int>(),0,ec.pg().comm());
 
-          compute_initial_guess<TensorType>(ec, sys_data, atoms, shells, basis, is_spherical,
-                                            etensors, ttensors, charge, multiplicity);
+          compute_initial_guess<TensorType>(ec, 
+                  #ifdef USE_SCALAPACK
+                        blacs_grid.get(),
+                        blockcyclic_dist.get(),
+                  #endif 
+                  sys_data, atoms, shells, basis, is_spherical,
+                  etensors, ttensors, charge, multiplicity);
 
           etensors.taskmap.resize(0,0);
           if(rank == 0) {

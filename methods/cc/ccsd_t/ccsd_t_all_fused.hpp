@@ -382,9 +382,8 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, int opt_CUDA_TC,
 #endif
 #endif //OPT_KERNEL_TIMING
   
-// #ifdef TEMP_ENABLED_OLD
   if (opt_CUDA_TC != 1) { 
-    printf ("[%s] called the old kernel\n", __func__);
+    // printf ("[%s] called the old kernel\n", __func__);
     fully_fused_ccsd_t_gpu(&stream, num_blocks,
       k_range[t_h1b],k_range[t_h2b],
       k_range[t_h3b],k_range[t_p4b],
@@ -416,8 +415,6 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, int opt_CUDA_TC,
       dev_energies, 
       done_compute, done_copy);
   } else { 
-// #else
-    // 
     // printf ("[%s] called the new kernel\n", __func__);
     ccsd_t_fully_fused_nvidia_tc_fp64(&stream,num_blocks,
       k_range[t_h3b],k_range[t_h2b],k_range[t_h1b],
@@ -445,7 +442,6 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted, int opt_CUDA_TC,
       dev_energies,
       done_compute, done_copy);
   }
-// #endif
   //
 #ifdef OPT_KERNEL_TIMING
   cudaEventRecord(stop_kernel_only);

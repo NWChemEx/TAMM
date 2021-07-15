@@ -42,6 +42,17 @@ int checkCudaKernelCompatible() {
   }
   // printf ("[%s] dP.major: %d, dP.minor: %d\n", __func__, dP.major, dP.minor);
   
+#if 0
+  // Returns the latest version of CUDA supported by the driver.
+  int driverVersion = 0;
+  cudaError_t cuda_driverVersion = cudaDriverGetVersion(&driverVersion);
+  if (cuda_driverVersion != cudaSuccess) {
+    cudaError_t error = cudaGetLastError();
+    printf ("CUDA error: %s", cudaGetErrorString(error));
+    return cuda_driverVersion;
+  }
+#endif
+
   // the version is returned as (1000 major + 10 minior)
   cudaError_t cuda_driver = cudaRuntimeGetVersion(&version);
   if (cuda_driver != cudaSuccess) {
@@ -50,10 +61,11 @@ int checkCudaKernelCompatible() {
     return cuda_driver;
   }
   
+  // 
   int driver_major = version / 1000;
   int driver_minor = (version - (driver_major * 1000)) / 10;
-  printf ("[%s] dp.Major: %d, driver_major,minor: %d,%d\n", __func__, dP.major, driver_major, driver_minor);
-
+  printf ("Given info.: Compatibility = %d.%d, CUDA Version = %d.%d\n", dP.major, dP.minor, driver_major, driver_minor);
+  
   if (dP.major >= 8 && driver_major >= 11 && driver_minor >= 1) { return 1; } 
   else { return -1; }
 }
@@ -78,8 +90,16 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   std::vector<sycl::queue*> syclQueues = ec.get_syclQue();
   sycl::queue* syclQue = nullptr;
 #endif
+#if defined(USE_CUDA)
   int opt_CUDA_TC = checkCudaKernelCompatible();
-  cout << "opt_CUDA_TC = " << opt_CUDA_TC << endl;
+  if (opt_CUDA_TC == 1) {
+    cout << "Enabled the fully-fused kernel based on FP64 TC (Third Gen. Tensor Cores)" << endl;
+  } else {
+    cout << "Enabled the fully-fused kernel based on FP64" << endl;
+  }
+#else
+  int opt_CUDA_TC = -1;
+#endif
 
   //
   auto rank     = ec.pg().rank().value();
@@ -170,9 +190,9 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   if(has_GPU == 1){
     device_init(
 #if defined(USE_DPCPP)
-      ec.get_syclQue(), &syclQue,
+    ec.get_syclQue(), &syclQue,
 #endif
-      nDevices, &gpu_device_number);
+    nDevices, &gpu_device_number);
 
 #if defined(USE_DPCPP)
     if(syclQue == nullptr)

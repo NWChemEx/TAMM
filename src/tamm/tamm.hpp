@@ -36,7 +36,6 @@
 
 namespace tamm {
 void initialize(int argc, char *argv[]);
-void initialize_mpi_multi(int argc, char *argv[]); // MPI_THREAD_MULTIPLE
 void finalize();
 }
 

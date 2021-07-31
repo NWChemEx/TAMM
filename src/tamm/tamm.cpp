@@ -47,23 +47,6 @@ void initialize(int argc, char *argv[]) {
   }
 }
 
-// TAMM-SDE for MPI_THREAD_MULTIPLE
-void initialize_mpi_multi(int argc, char *argv[]) {
-  int flag;
-  MPI_Initialized(&flag);
-  if (!flag) {
-    int prov;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &prov);
-  }
-  if (!GA_Initialized()) {
-    GA_Initialize();
-    (void)ProcGroup::self_ga_pgroup(true);
-  }
-  if (!MA_initialized()) {
-    MA_init(MT_DBL, 8000000, 20000000);
-  }
-}
-
 void finalize() {
   if (GA_Initialized()) {
     GA_Terminate();

@@ -393,7 +393,12 @@ void compute_1body_ints(ExecutionContext& ec, Tensor<TensorType>& tensor1e,
 }
 
 template<typename TensorType>
-void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
+void compute_initial_guess(ExecutionContext& ec, 
+#ifdef USE_SCALAPACK
+      blacspp::Grid* blacs_grid,
+      scalapackpp::BlockCyclicDist2D* blockcyclic_dist,
+#endif
+    SystemData& sys_data,
     const std::vector<libint2::Atom>& atoms, const libint2::BasisSet& shells,
     const std::string& basis, bool is_spherical, EigenTensors& etensors,
     TAMMTensors& ttensors, int charge, int multiplicity){
@@ -405,7 +410,8 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
 
     const auto rank       = ec.pg().rank();
     const auto world_size = ec.pg().size();
-    const auto N = nbasis(shells);
+    const auto N          = nbasis(shells);
+    const bool debug      = sys_data.options_map.scf_options.debug;
 
     // const Matrix& H   = etensors.H; 
     const Matrix& X_a = etensors.X;
@@ -463,6 +469,8 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
     Tensor<TensorType> F1tmp1_b{tAO, tAO};
     Tensor<TensorType>::allocate(&ec, F1tmp1_a);
     if(is_uhf) Tensor<TensorType>::allocate(&ec,F1tmp1_b);
+
+    auto do_t1 = std::chrono::high_resolution_clock::now();
 
     // construct the 2-electron repulsion integrals engine
     using libint2::Operator;
@@ -604,7 +612,20 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
         }
     };
 
-    block_for(ec, F1tmp(), compute_2body_fock_general_lambda);
+    // block_for(ec, F1tmp(), compute_2body_fock_general_lambda);
+    for (Eigen::Index i1=0;i1<etensors.taskmap.rows();i1++)
+    for (Eigen::Index j1=0;j1<etensors.taskmap.cols();j1++) {
+      if(etensors.taskmap(i1,j1)==-1 || etensors.taskmap(i1,j1) != rank) continue;
+      IndexVector blockid{i1,j1};
+      compute_2body_fock_general_lambda(blockid);
+    }
+    ec.pg().barrier();       
+
+    auto do_t2 = std::chrono::high_resolution_clock::now();
+    auto do_time =
+    std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
+
+    if(rank == 0 && debug) std::cout << "Time to compute Fock Matrix: " << do_time << " secs" << std::endl;
 
     if(is_rhf) {
       //symmetrize the result
@@ -655,18 +676,75 @@ void compute_initial_guess(ExecutionContext& ec, SystemData& sys_data,
     // solve F C = e S C by (conditioned) transformation to F' C' = e C',
     // where
     // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
-    #ifdef SCALAPACK
-      //TODO
-      if(is_rhf) {
-        Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X_a.transpose() * Ft_a * X_a);
-        C_a = X_a * eig_solver.eigenvectors();
-      }
-      if(is_uhf) {
-        Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X_a.transpose() * Ft_a * X_a);
-        C_a = X_a * eig_solver.eigenvectors();
-        Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(X_b.transpose() * Ft_a * X_b);
-        C_b = X_b * eig_solver.eigenvectors();
-      }
+    #ifdef USE_SCALAPACK
+      const auto& grid = *blacs_grid;
+      const auto  mb   = blockcyclic_dist->mb();
+      const auto Northo = sys_data.nbf;
+      if( grid.ipr() >= 0 and grid.ipc() >= 0 ) {
+        // std::cout << "IN SCALAPACK " << rank << std::endl; 
+        // TODO: Optimize intermediates here
+        scalapackpp::BlockCyclicMatrix<double> 
+          Fa_sca  ( grid, N,      N,      mb, mb ),
+          Xa_sca  ( grid, Northo, N,      mb, mb ), // Xa is row-major
+          Fp_sca  ( grid, Northo, Northo, mb, mb ),
+          Ca_sca  ( grid, Northo, Northo, mb, mb ),
+          TMP1_sca( grid, N,      Northo, mb, mb ),
+          TMP2_sca( grid, Northo, N,      mb, mb );
+
+        // Scatter Fock / X alpha from root
+        Fa_sca.scatter_to( N,      N, Ft_a.data(), N,      0, 0 ); 
+        Xa_sca.scatter_to( Northo, N, X_a.data(),  Northo, 0, 0 );
+
+        // Compute TMP = F * X -> F * X**T (b/c row-major)
+        scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::Trans,
+                            1., Fa_sca, Xa_sca, 0., TMP1_sca );
+
+        // Compute Fp = X**T * TMP -> X * TMP (b/c row-major)
+        scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans,
+                            1., Xa_sca, TMP1_sca, 0., Fp_sca );
+
+        // Solve EVP
+        std::vector<double> eps_a( Northo );
+        scalapackpp::hereigd( scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
+                              Fp_sca, eps_a.data(), Ca_sca );
+
+        // Backtransform TMP = X * Ca -> TMP**T = Ca**T * X
+        scalapackpp::pgemm( scalapackpp::Op::Trans, scalapackpp::Op::NoTrans,
+                            1., Ca_sca, Xa_sca, 0., TMP2_sca );
+
+        // Gather results
+        if( rank == 0 ) C_a.resize( N, Northo );
+        TMP2_sca.gather_from( Northo, N, C_a.data(), Northo, 0, 0 );
+
+        if(is_uhf) {
+
+          // Scatter Fock / X beta from root
+          Fa_sca.scatter_to( N,      N, Ft_b.data(), N,      0, 0 ); 
+          Xa_sca.scatter_to( Northo, N, X_b.data(),  Northo, 0, 0 );
+
+          // Compute TMP = F * X -> F * X**T (b/c row-major)
+          scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::Trans,
+                              1., Fa_sca, Xa_sca, 0., TMP1_sca );
+
+          // Compute Fp = X**T * TMP -> X * TMP (b/c row-major)
+          scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans,
+                              1., Xa_sca, TMP1_sca, 0., Fp_sca );
+
+          // Solve EVP
+          std::vector<double> eps_a( Northo );
+          scalapackpp::hereigd( scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
+                                Fp_sca, eps_a.data(), Ca_sca );
+
+          // Backtransform TMP = X * Cb -> TMP**T = Cb**T * X
+          scalapackpp::pgemm( scalapackpp::Op::Trans, scalapackpp::Op::NoTrans,
+                              1., Ca_sca, Xa_sca, 0., TMP2_sca );
+
+          // Gather results
+          if( rank == 0 ) C_b.resize( N, Northo );
+          TMP2_sca.gather_from( Northo, N, C_b.data(), Northo, 0, 0 );
+        
+        }
+      } // rank participates in ScaLAPACK call
 
     #elif defined(EIGEN_DIAG)
       if(is_rhf) {
@@ -1315,5 +1393,69 @@ void compute_sad_guess(ExecutionContext& ec, SystemData& sys_data,
 
 }
 #endif
+
+template<typename TensorType>
+std::tuple<std::vector<int>,std::vector<int>,std::vector<int>> compute_initial_guess_taskinfo(ExecutionContext& ec, SystemData& sys_data,
+    const std::vector<libint2::Atom>& atoms, const libint2::BasisSet& shells,
+    const std::string& basis, bool is_spherical, EigenTensors& etensors,
+    TAMMTensors& ttensors, int charge, int multiplicity){
+
+    const auto rank       = ec.pg().rank();
+
+    // compute guess in minimal basis
+    libint2::BasisSet minbs("STO-3G", atoms);
+    if(is_spherical) minbs.set_pure(true);
+    else minbs.set_pure(false);  // use cartesian gaussians  
+
+    bool D_is_shelldiagonal = true;
+    const libint2::BasisSet& obs  = shells;
+    const libint2::BasisSet& D_bs = minbs;
+
+    Tensor<TensorType> F1tmp{tAOt, tAOt}; //not allocated
+
+    auto shell2bf   = obs.shell2bf();
+
+    std::vector<int> s1vec;
+    std::vector<int> s2vec;
+    std::vector<int> ntask_vec;
+    
+    auto compute_2body_fock_general_lambda = [&](IndexVector blockid) {
+
+        auto s1 = blockid[0];
+        auto bf1_first = shell2bf[s1];  // first basis function in this shell
+        auto n1 = obs[s1].size();       // number of basis functions in this shell
+
+        auto s2 = blockid[1];
+        // if(s2>s1) return;
+
+        auto sp12_iter = obs_shellpair_data.at(s1).begin();
+        auto s2spl = obs_shellpair_list[s1];
+        auto s2_itr = std::find(s2spl.begin(),s2spl.end(),s2);
+        if(s2_itr == s2spl.end()) return;
+        auto s2_pos = std::distance(s2spl.begin(),s2_itr);
+
+        std::advance(sp12_iter,s2_pos);
+
+        size_t taskid = 0;
+
+        for (decltype(s1) s3 = 0; s3 < D_bs.size(); ++s3) {
+          
+          auto s4_begin = D_is_shelldiagonal ? s3 : 0;
+          auto s4_fence = D_is_shelldiagonal ? s3 + 1 : D_bs.size();
+
+          for (decltype(s1) s4 = s4_begin; s4 != s4_fence; ++s4) {
+            if (s3 >= s4) taskid++;
+            taskid++;
+          }
+        }
+        s1vec.push_back(s1);
+        s2vec.push_back(s2);
+        ntask_vec.push_back(taskid);        
+    };
+
+    block_for(ec, F1tmp(), compute_2body_fock_general_lambda);
+    return std::make_tuple(s1vec,s2vec,ntask_vec);
+
+}
 
 #endif //TAMM_SCF_GUESS_HPP_

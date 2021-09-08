@@ -82,6 +82,7 @@ struct EigenTensors {
   Matrix F_beta,C_beta,X_beta;
   Matrix G,D;
   Matrix G_beta,D_beta;
+  Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> taskmap;
 };
 
 struct TAMMTensors {
@@ -756,6 +757,59 @@ Matrix compute_shellblock_norm(const libint2::BasisSet& obs, const Matrix& A) {
   }
 
   return Ash;
+}
+
+template<typename TensorType>
+std::tuple<std::vector<int>,std::vector<int>,std::vector<int>>
+  gather_task_vectors(ExecutionContext& ec, std::vector<int>& s1vec,
+        std::vector<int>& s2vec, std::vector<int>& ntask_vec) {
+
+      const int rank = ec.pg().rank().value();
+      const int nranks = ec.pg().size().value();
+
+      std::vector<int> s1_count(nranks);
+      std::vector<int> s2_count(nranks);
+      std::vector<int> nt_count(nranks);
+
+      int s1vec_size = (int)s1vec.size();
+      int s2vec_size = (int)s2vec.size();
+      int ntvec_size = (int)ntask_vec.size();
+
+      // Root gathers number of elements at each rank.
+      MPI_Gather(&s1vec_size, 1, MPI_INT, s1_count.data(), 1, MPI_INT, 0, ec.pg().comm());
+      MPI_Gather(&s2vec_size, 1, MPI_INT, s2_count.data(), 1, MPI_INT, 0, ec.pg().comm());
+      MPI_Gather(&ntvec_size, 1, MPI_INT, nt_count.data(), 1, MPI_INT, 0, ec.pg().comm());
+
+      // Displacements in the receive buffer for MPI_GATHERV
+      std::vector<int> disps_s1(nranks);
+      std::vector<int> disps_s2(nranks);
+      std::vector<int> disps_nt(nranks);
+      for (int i = 0; i < nranks; i++) {
+        disps_s1[i] = (i > 0) ? (disps_s1[i-1] + s1_count[i-1]) : 0;
+        disps_s2[i] = (i > 0) ? (disps_s2[i-1] + s2_count[i-1]) : 0;
+        disps_nt[i] = (i > 0) ? (disps_nt[i-1] + nt_count[i-1]) : 0;
+      }
+
+      // Allocate vectors to gather data at root
+      std::vector<int> s1_all;
+      std::vector<int> s2_all;
+      std::vector<int> ntasks_all;
+      if (rank == 0) {
+        s1_all.resize(disps_s1[nranks-1]+s1_count[nranks-1]);
+        s2_all.resize(disps_s2[nranks-1]+s2_count[nranks-1]);
+        ntasks_all.resize(disps_nt[nranks-1]+nt_count[nranks-1]);
+      }
+
+      // Gather at root
+      MPI_Gatherv(s1vec.data(), s1vec_size, MPI_INT, s1_all.data(), s1_count.data(), disps_s1.data(), MPI_INT, 0, ec.pg().comm());
+      MPI_Gatherv(s2vec.data(), s2vec_size, MPI_INT, s2_all.data(), s2_count.data(), disps_s2.data(), MPI_INT, 0, ec.pg().comm());
+      MPI_Gatherv(ntask_vec.data(), ntvec_size, MPI_INT, ntasks_all.data(), nt_count.data(), disps_nt.data(), MPI_INT, 0, ec.pg().comm());
+
+      EXPECTS(s1_all.size() == s2_all.size());
+      EXPECTS(s1_all.size() == ntasks_all.size());
+
+      return std::make_tuple(s1_all,s2_all,ntasks_all);
+
 }
 
 #endif // TAMM_METHODS_HF_COMMON_HPP_

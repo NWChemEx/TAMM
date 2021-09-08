@@ -14,7 +14,8 @@
 #include <tuple>
 #include <vector>
 
-#include "hf_tamm_common.hpp"
+//#include "hf_tamm_common.hpp"
+#include "hf_assignment.hpp"
 
 template <typename T>
 inline std::ostream& operator<<( std::ostream& os, const GauXC::Shell<T>& sh ) {
@@ -343,6 +344,12 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       std::vector<int64_t> scalapack_ranks( scalapack_nranks );
       std::iota( scalapack_ranks.begin(), scalapack_ranks.end(), 0 );
 
+      if(rank==0) {
+        std::cout << "scalapack_nranks = " << scalapack_nranks << std::endl;
+        std::cout << "scalapack_np_row = " << scf_options.scalapack_np_row << std::endl;
+        std::cout << "scalapack_np_col = " << scf_options.scalapack_np_col << std::endl;
+      }
+
 #if 0
       MPI_Group world_group, scalapack_group;
       MPI_Comm scalapack_comm;
@@ -520,9 +527,40 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         else
         #endif
         {
-          compute_initial_guess<TensorType>(ec, sys_data, atoms, shells, basis, is_spherical,
+          auto [s1vec,s2vec,ntask_vec] = compute_initial_guess_taskinfo<TensorType>(ec, sys_data, atoms, shells, basis, is_spherical,
                                             etensors, ttensors, charge, multiplicity);
 
+          auto [s1_all,s2_all,ntasks_all] = gather_task_vectors<TensorType>(ec,s1vec,s2vec,ntask_vec);
+
+          int tmdim = 0;
+          if(rank == 0)
+          {
+              Loads dummyLoads;
+              /***generate load balanced task map***/
+              readLoads(s1_all, s2_all, ntasks_all, dummyLoads);
+              simpleLoadBal(dummyLoads,ec.pg().size().value());
+              tmdim = std::max(dummyLoads.maxS1,dummyLoads.maxS2);
+              etensors.taskmap.resize(tmdim+1,tmdim+1);
+              for(int i=0;i<tmdim+1;i++)
+                  for(int j=0;j<tmdim+1;j++) {
+                      etensors.taskmap(i,j) = -1; //this value in this array is the rank that executes task i,j
+              }
+              createTaskMap(etensors.taskmap,dummyLoads);
+          }
+
+          MPI_Bcast(&tmdim        ,1,mpi_type<int>()       ,0,ec.pg().comm());
+          if(rank!=0) etensors.taskmap.resize(tmdim+1,tmdim+1);
+          MPI_Bcast(etensors.taskmap.data(),etensors.taskmap.size(),mpi_type<int>(),0,ec.pg().comm());
+
+          compute_initial_guess<TensorType>(ec, 
+                  #ifdef USE_SCALAPACK
+                        blacs_grid.get(),
+                        blockcyclic_dist.get(),
+                  #endif 
+                  sys_data, atoms, shells, basis, is_spherical,
+                  etensors, ttensors, charge, multiplicity);
+
+          etensors.taskmap.resize(0,0);
           if(rank == 0) {
             write_scf_mat<TensorType>(etensors.C, movecsfile_alpha);
             write_scf_mat<TensorType>(etensors.D, densityfile_alpha);
@@ -532,7 +570,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
             }
           }
           ec.pg().barrier();
-        }
+        } //initial guess
         
       }
 
@@ -600,6 +638,55 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       std::cout << std::fixed << std::setprecision(2);
 
+      // ----- Generate task mapping -----
+
+      //Collect task info
+      auto [s1vec,s2vec,ntask_vec] = compute_2bf_taskinfo<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
+                      max_nprim4,shells, ttensors, etensors, do_density_fitting);
+
+      auto [s1_all,s2_all,ntasks_all] = gather_task_vectors<TensorType>(ec,s1vec,s2vec,ntask_vec);
+
+      int tmdim = 0;
+      if(rank == 0)
+      {
+          Loads dummyLoads;
+          /***generate load balanced task map***/
+          readLoads(s1_all, s2_all, ntasks_all, dummyLoads);
+          simpleLoadBal(dummyLoads,ec.pg().size().value());
+          tmdim = std::max(dummyLoads.maxS1,dummyLoads.maxS2);
+          etensors.taskmap.resize(tmdim+1,tmdim+1);
+          for(int i=0;i<tmdim+1;i++)
+              for(int j=0;j<tmdim+1;j++) {
+                  etensors.taskmap(i,j) = -1; //this value in this array is the rank that executes task i,j
+          } 
+          //cout<<"creating task map"<<endl;
+          createTaskMap(etensors.taskmap,dummyLoads);
+          //cout<<"task map creation completed"<<endl;
+
+          //debug etensors.taskmap
+          // if(debug) {
+          //   std::string taskfile = files_prefix + ".etensors.taskmap.txt";
+          //   std::ofstream out(taskfile, std::ios::out);
+          //   if(!out) cerr << "Error opening file " << taskfile << endl;
+          //   std::ostringstream taskinfo;
+          //   taskinfo << "s1 s2 ind rank ntasks\n";
+          //   for(int i=0;i<tmdim+1;i++) {
+          //     for(int j=0;j<tmdim+1;j++) {
+          //       int index = etensors.taskmap(i,j);
+          //       if(index>=0) {
+          //           taskinfo << i << " " << j << " " << index <<"\n";
+          //       }
+          //     }
+          //   }
+          //   out << taskinfo.str() << std::endl;
+          //   out.close();
+          // }
+      }
+
+      MPI_Bcast(&tmdim        ,1,mpi_type<int>()       ,0,ec.pg().comm());
+      if(rank!=0) etensors.taskmap.resize(tmdim+1,tmdim+1);
+      MPI_Bcast(etensors.taskmap.data(),etensors.taskmap.size(),mpi_type<int>(),0,ec.pg().comm());
+      
       if(restart) {
         
         sch
@@ -638,6 +725,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         if(rank==0) 
           std::cout << std::setprecision(18) << "Total HF energy after restart: " << ehf << std::endl;
       }   
+
 
       //SCF main loop
       do {

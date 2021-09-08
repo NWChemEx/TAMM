@@ -901,6 +901,87 @@ void compute_2bf_simple(ExecutionContext& ec, const SystemData& sys_data, const 
 }
 
 template<typename TensorType>
+std::tuple<std::vector<int>,std::vector<int>,std::vector<int>> compute_2bf_taskinfo(ExecutionContext& ec, const SystemData& sys_data, const libint2::BasisSet& obs,
+      const bool do_schwarz_screen, const std::vector<size_t>& shell2bf,
+      const Matrix& SchwarzK, 
+      const size_t& max_nprim4, libint2::BasisSet& shells,
+      TAMMTensors& ttensors, EigenTensors& etensors, const bool cs1s2=false){
+
+      Matrix& D      = etensors.D; 
+      Tensor<TensorType>& F1tmp       = ttensors.F1tmp;
+
+      double fock_precision = std::min(sys_data.options_map.scf_options.tol_int, 1e-3 * sys_data.options_map.scf_options.conve);
+      auto   rank           = ec.pg().rank();
+
+      Matrix D_shblk_norm =  compute_shellblock_norm(obs, D);  // matrix of infty-norms of shell blocks
+      
+      std::vector<int> s1vec;
+      std::vector<int> s2vec;
+      std::vector<int> ntask_vec;
+
+        auto comp_2bf_lambda = [&](IndexVector blockid) {
+
+          auto s1 = blockid[0];
+          auto sp12_iter = obs_shellpair_data.at(s1).begin();
+
+          auto s2 = blockid[1];
+          auto s2spl = obs_shellpair_list[s1];
+          auto s2_itr = std::find(s2spl.begin(),s2spl.end(),s2);
+          if(s2_itr == s2spl.end()) return;
+          auto s2_pos = std::distance(s2spl.begin(),s2_itr);
+
+          std::advance(sp12_iter,s2_pos);
+          // const auto* sp12 = sp12_iter->get();
+        
+          const auto Dnorm12 = do_schwarz_screen ? D_shblk_norm(s1, s2) : 0.;
+
+          size_t taskid = 0;          
+
+          for (decltype(s1) s3 = 0; s3 <= s1; ++s3) {
+
+            const auto Dnorm123 =
+                do_schwarz_screen
+                    ? std::max(D_shblk_norm(s1, s3),
+                      std::max(D_shblk_norm(s2, s3), Dnorm12))
+                    : 0.;
+
+            auto sp34_iter = obs_shellpair_data.at(s3).begin();
+
+            const auto s4_max = (s1 == s3) ? s2 : s3;
+            for (const auto& s4 : obs_shellpair_list[s3]) {
+              if (s4 > s4_max)
+                break;  // for each s3, s4 are stored in monotonically increasing
+                        // order
+
+              // must update the iter even if going to skip s4
+              // const auto* sp34 = sp34_iter->get();
+              ++sp34_iter;
+
+              const auto Dnorm1234 =
+                  do_schwarz_screen
+                      ? std::max(D_shblk_norm(s1, s4),
+                        std::max(D_shblk_norm(s2, s4),
+                        std::max(D_shblk_norm(s3, s4), Dnorm123)))
+                      : 0.;
+
+              if (do_schwarz_screen &&
+                  Dnorm1234 * SchwarzK(s1, s2) * SchwarzK(s3, s4) < fock_precision)
+                continue;
+
+              taskid++;
+            }
+          }
+          // taskinfo << rank.value() << ", " << s1 << ", " << s2 << ", " << taskid << "\n";
+          s1vec.push_back(s1);
+          s2vec.push_back(s2);
+          ntask_vec.push_back(taskid);
+        };
+
+        block_for(ec, F1tmp(), comp_2bf_lambda);
+        return std::make_tuple(s1vec,s2vec,ntask_vec);
+}
+
+template<typename TensorType>
 void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2::BasisSet& obs,
       const bool do_schwarz_screen, const std::vector<size_t>& shell2bf,
       const Matrix& SchwarzK, 
@@ -1085,7 +1166,14 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
       if(!do_density_fitting){
         G.setZero(N,N);
         if(is_uhf) G_beta.setZero(N,N);
-        block_for(ec, F1tmp(), comp_2bf_lambda);
+        //block_for(ec, F1tmp(), comp_2bf_lambda);
+        for (Eigen::Index i1=0;i1<etensors.taskmap.rows();i1++)
+        for (Eigen::Index j1=0;j1<etensors.taskmap.cols();j1++) {
+          if(etensors.taskmap(i1,j1)==-1 || etensors.taskmap(i1,j1) != rank) continue;
+          IndexVector blockid{i1,j1};
+          comp_2bf_lambda(blockid);
+        }
+        ec.pg().barrier();        
         //symmetrize G
         Matrix Gt = 0.5*(G + G.transpose());
         G = Gt;

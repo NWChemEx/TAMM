@@ -30,14 +30,14 @@ void finalizememmodule(
  *  based on 3rd gen. tensor cores or not.
  *  - requirements: (1) arch >= 80 and (2) driver >= 11.2?
  **/
-int checkCudaKernelCompatible() {
+int checkCudaKernelCompatible(bool r0) {
   int version = 0;
   cudaDeviceProp dP;
 
   cudaError_t cuda_arch = cudaGetDeviceProperties(&dP, 0);
   if (cuda_arch != cudaSuccess) {
     cudaError_t error = cudaGetLastError();
-    printf ("CUDA error: %s", cudaGetErrorString(error));
+    if(r0) printf ("CUDA error: %s", cudaGetErrorString(error));
     return cuda_arch; /* Failure */
   }
   // printf ("[%s] dP.major: %d, dP.minor: %d\n", __func__, dP.major, dP.minor);
@@ -48,7 +48,7 @@ int checkCudaKernelCompatible() {
   cudaError_t cuda_driverVersion = cudaDriverGetVersion(&driverVersion);
   if (cuda_driverVersion != cudaSuccess) {
     cudaError_t error = cudaGetLastError();
-    printf ("CUDA error: %s", cudaGetErrorString(error));
+    if(r0) printf ("CUDA error: %s", cudaGetErrorString(error));
     return cuda_driverVersion;
   }
 #endif
@@ -57,14 +57,14 @@ int checkCudaKernelCompatible() {
   cudaError_t cuda_driver = cudaRuntimeGetVersion(&version);
   if (cuda_driver != cudaSuccess) {
     cudaError_t error = cudaGetLastError();
-    printf ("CUDA error: %s", cudaGetErrorString(error));
+    if(r0) printf ("CUDA error: %s", cudaGetErrorString(error));
     return cuda_driver;
   }
   
   // 
   int driver_major = version / 1000;
   int driver_minor = (version - (driver_major * 1000)) / 10;
-  printf ("Given info.: Compatibility = %d.%d, CUDA Version = %d.%d\n", dP.major, dP.minor, driver_major, driver_minor);
+  if(r0) printf ("Given info.: Compatibility = %d.%d, CUDA Version = %d.%d\n", dP.major, dP.minor, driver_major, driver_minor);
   
   if (dP.major >= 8 && driver_major >= 11 && driver_minor >= 1) { return 1; } 
   else { return -1; }
@@ -90,20 +90,21 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   std::vector<sycl::queue*> syclQueues = ec.get_syclQue();
   sycl::queue* syclQue = nullptr;
 #endif
-#if defined(USE_CUDA)
-  int opt_CUDA_TC = checkCudaKernelCompatible();
-  if (opt_CUDA_TC == 1) {
-    cout << "Enabled the fully-fused kernel based on FP64 TC (Third Gen. Tensor Cores)" << endl;
-  } else {
-    cout << "Enabled the fully-fused kernel based on FP64" << endl;
-  }
-#else
-  int opt_CUDA_TC = -1;
-#endif
 
   //
   auto rank     = ec.pg().rank().value();
   bool nodezero = rank==0;
+
+#if defined(USE_CUDA)
+  int opt_CUDA_TC = checkCudaKernelCompatible(nodezero);
+  if (opt_CUDA_TC == 1) {
+    if(nodezero) cout << "Enabled the fully-fused kernel based on FP64 TC (Third Gen. Tensor Cores)" << endl;
+  } else {
+    if(nodezero) cout << "Enabled the fully-fused kernel based on FP64" << endl;
+  } 
+#else
+  int opt_CUDA_TC = -1;
+#endif
 
   Index noab=MO("occ").num_tiles();
   Index nvab=MO("virt").num_tiles();

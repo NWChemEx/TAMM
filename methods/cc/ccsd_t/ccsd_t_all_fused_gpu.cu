@@ -2589,8 +2589,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 	// const size_t num_batches = (size_internal + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
 
 	// TB_X(p4,h3), TB_Y(h1,h2)
-	// if (idx_p6 < rng_p4 && idx_h2 < rng_h3 && idx_h1 < rng_h1 && idx_h3 < rng_h2) 
-	double partial_inner_factor = dev_evl_sorted_h3b[blk_idx_h3 * SIZE_TILE_H3 + idx_h2] + dev_evl_sorted_h2b[blk_idx_h2 * SIZE_TILE_H2 + idx_h3] + dev_evl_sorted_h1b[blk_idx_h1 * SIZE_TILE_H1 + idx_h1] - dev_evl_sorted_p4b[blk_idx_p4 * SIZE_TILE_P4 + idx_p6];
+	double partial_inner_factor = 0.0;
+	if (idx_p6 < rng_p4 && idx_h2 < rng_h3 && idx_h1 < rng_h1 && idx_h3 < rng_h2) 
+		partial_inner_factor = dev_evl_sorted_h3b[blk_idx_h3 * SIZE_TILE_H3 + idx_h2] + dev_evl_sorted_h2b[blk_idx_h2 * SIZE_TILE_H2 + idx_h3] + dev_evl_sorted_h1b[blk_idx_h1 * SIZE_TILE_H1 + idx_h1] - dev_evl_sorted_p4b[blk_idx_p4 * SIZE_TILE_P4 + idx_p6];
 
 	//
 #if 1
@@ -2724,8 +2725,9 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 				block.sync();
 				const size_t shared_idx = compute_batch % NUM_STAGE;
 
-				#pragma unroll
-				for (int ll = 0; ll < 4; ll++) {
+				const int max_iter = (size_internal_up - (compute_batch * SIZE_UNIT_INT)) / 4;
+				#pragma unroll 1
+				for (int ll = 0; ll < 4 && ll < max_iter; ll++) {
 					MmaOperandA op_a;
 					op_a.template load<lda>(sm_b + STAGE_OFFSET * shared_idx, ll, tile_m, wrm);
 					MmaOperandB op_b;

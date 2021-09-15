@@ -214,7 +214,7 @@ void ccsd_t2_os(/* ExecutionContext& ec, */
 
 
 template<typename T>
-std::tuple<double,double> cd_ccsd_os_driver(SystemData& sys_data, ExecutionContext& ec, 
+std::tuple<double,double> cd_ccsd_os_driver(SystemData& sys_data, ExecutionContext& ec,
                    const TiledIndexSpace& MO, const TiledIndexSpace& CI,
                    Tensor<T>& d_t1, Tensor<T>& d_t2,
                    Tensor<T>& d_f1, 

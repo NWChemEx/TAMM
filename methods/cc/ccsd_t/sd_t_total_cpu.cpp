@@ -233,7 +233,7 @@ void sd_t_d2_1_cpu(size_t size_idx_h1, size_t size_idx_h2, size_t size_idx_h3, s
 
 void sd_t_d2_2_cpu(size_t size_idx_h1, size_t size_idx_h2, size_t size_idx_h3, size_t size_idx_p4, size_t size_idx_p5, size_t size_idx_p6, size_t size_idx_p7, double *triplesx, double *t2sub, double *v2sub) 
 {
-    #pragma omp parallel for collapse(6) reduction(+: ops)
+    #pragma omp parallel for collapse(6)
     for (size_t t3_h3 = 0; t3_h3 < size_idx_h3; t3_h3++)
     for (size_t t3_h2 = 0; t3_h2 < size_idx_h2; t3_h2++)
     for (size_t t3_h1 = 0; t3_h1 < size_idx_h1; t3_h1++)

@@ -9,7 +9,7 @@ find_package( CMakeBuild QUIET )
 
 if( NOT ${CMakeBuild_FOUND} )
   if (NOT CMSB_TAG)
-    set(CMSB_TAG dc7840bca1c879f09c193a392696fa7246856f22)
+    set(CMSB_TAG ac660a07dc00322e13b53b22b0f993bbcf046750)
     if (ENABLE_DEV_MODE)
       set(CMSB_TAG master)
     endif()

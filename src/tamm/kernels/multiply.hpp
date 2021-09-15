@@ -47,72 +47,7 @@ using tensor_handle = talsh_tens_t;
 
 namespace tamm {
 
-namespace internal {
 
-// template<typename>
-// struct is_tuple : std::false_type {};
-// template<typename... T>
-// struct is_tuple<std::tuple<T...>> : std::true_type {};
-// template<typename T>
-// inline constexpr bool is_tuple_v = is_tuple<T>::value;
-
-// template<typename> struct is_complex : std::false_type {};
-// template<typename T> struct is_complex<std::complex<T>> : std::true_type {};
-// template<typename T>
-// inline constexpr bool is_complex_v = is_complex<T>::value;
-
-template<typename T>
-void gemm_wrapper(const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
-                  const CBLAS_TRANSPOSE TransB, const int M, const int N,
-                  const int K, T alpha, const T* A, const int lda, const T* B,
-                  const int ldb, T beta, T* C, const int ldc);
-
-template<>
-inline void gemm_wrapper<double>(const CBLAS_ORDER Order,
-                                 const CBLAS_TRANSPOSE TransA,
-                                 const CBLAS_TRANSPOSE TransB, const int M,
-                                 const int N, const int K, double alpha,
-                                 const double* A, const int lda,
-                                 const double* B, const int ldb, double beta,
-                                 double* C, const int ldc) {
-    cblas_dgemm(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C,
-                ldc);
-}
-
-template<>
-inline void gemm_wrapper<float>(const CBLAS_ORDER Order,
-                                const CBLAS_TRANSPOSE TransA,
-                                const CBLAS_TRANSPOSE TransB, const int M,
-                                const int N, const int K, float alpha,
-                                const float* A, const int lda, const float* B,
-                                const int ldb, float beta, float* C,
-                                const int ldc) {
-    cblas_sgemm(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C,
-                ldc);
-}
-
-template<>
-inline void gemm_wrapper<std::complex<float>>(
-  const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
-  const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
-  std::complex<float> alpha, const std::complex<float>* A, const int lda,
-  const std::complex<float>* B, const int ldb, std::complex<float> beta,
-  std::complex<float>* C, const int ldc) {
-    cblas_cgemm(Order, TransA, TransB, M, N, K, (const float*)&alpha, (const float*)A, lda,
-               (const float*)B, ldb, (const float*)&beta, (float*)C, ldc);
-}
-
-template<>
-inline void gemm_wrapper<std::complex<double>>(
-  const CBLAS_ORDER Order, const CBLAS_TRANSPOSE TransA,
-  const CBLAS_TRANSPOSE TransB, const int M, const int N, const int K,
-  std::complex<double> alpha, const std::complex<double>* A, const int lda,
-  const std::complex<double>* B, const int ldb, std::complex<double> beta,
-  std::complex<double>* C, const int ldc) {
-    cblas_zgemm(Order, TransA, TransB, M, N, K, (const double*)&alpha, (const double*)A,
-                lda, (const double*)B, ldb, (const double*)&beta, (double*)C, ldc);
-}
-} // namespace internal
 
 namespace kernels {
 
@@ -257,8 +192,8 @@ void block_multiply(bool &isgpuOp,
     cinter_dims.insert(cinter_dims.end(), bouter_dims.begin(),
                        bouter_dims.end());
 
-    auto transA    = CblasNoTrans;
-    auto transB    = CblasNoTrans;
+    auto transA    = blas::Op::NoTrans;
+    auto transB    = blas::Op::NoTrans;
     int ainter_ld  = K;
     int binter_ld  = N;
     int cinter_ld  = N;
@@ -307,8 +242,8 @@ void block_multiply(bool &isgpuOp,
 								     cinter_ld);
 		event_gemm.wait();
 #else
-                  internal::gemm_wrapper<T>(
-                    CblasRowMajor, transA, transB, M, N, K, alpha,
+                  blas::gemm(blas::Layout::RowMajor, 
+                    transA, transB, M, N, K, alpha,
                     ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
                     ainter_ld,
                     binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
@@ -355,8 +290,8 @@ void block_multiply(bool &isgpuOp,
                                 ainter_ld, beta, cinter_buf_dev + i * cbatch_ld,
                                 cinter_ld);
 #else
-                internal::gemm_wrapper<T>(
-                  CblasRowMajor, transA, transB, M, N, K, alpha,
+                blas::gemm(blas::Layout::RowMajor, 
+                  transA, transB, M, N, K, alpha,
                   ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
                   ainter_ld,
                   bbuf_complex.data() + bri * breduce_ld + i * bbatch_ld,
@@ -398,8 +333,8 @@ void block_multiply(bool &isgpuOp,
                                 ainter_ld, beta, cinter_buf_dev + i * cbatch_ld,
                                 cinter_ld);
 #else
-                internal::gemm_wrapper<T1>(
-                  CblasRowMajor, transA, transB, M, N, K, alpha,
+                blas::gemm(blas::Layout::RowMajor,
+                  transA, transB, M, N, K, alpha,
                   ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
                   ainter_ld,
                   bbuf_real.data() + bri * breduce_ld + i * bbatch_ld,
@@ -444,8 +379,8 @@ void block_multiply(bool &isgpuOp,
                                 ainter_ld, beta, cinter_buf_dev + i * cbatch_ld,
                                 cinter_ld);
 #else
-                internal::gemm_wrapper<T>(
-                  CblasRowMajor, transA, transB, M, N, K, alpha,
+                blas::gemm(blas::Layout::RowMajor,
+                  transA, transB, M, N, K, alpha,
                   abuf_complex.data() + ari * areduce_ld + i * abatch_ld,
                   ainter_ld,
                   binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
@@ -487,8 +422,8 @@ void block_multiply(bool &isgpuOp,
                                 ainter_ld, beta, cinter_buf_dev + i * cbatch_ld,
                                 cinter_ld);
 #else
-                internal::gemm_wrapper<T1>(
-                  CblasRowMajor, transA, transB, M, N, K, alpha,
+              blas::gemm(blas::Layout::RowMajor,
+                  transA, transB, M, N, K, alpha,
                   abuf_real.data() + ari * areduce_ld + i * abatch_ld,
                   ainter_ld,
                   binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
@@ -542,8 +477,8 @@ void block_multiply(bool &isgpuOp,
                                 ainter_ld, beta, cinter_buf_dev + i * cbatch_ld,
                                 cinter_ld);
 #else
-                internal::gemm_wrapper<T>(
-                  CblasRowMajor, transA, transB, M, N, K, alpha,
+                blas::gemm(blas::Layout::RowMajor,
+                  transA, transB, M, N, K, alpha,
                   abuf_complex.data() + ari * areduce_ld + i * abatch_ld,
                   ainter_ld,
                   bbuf_complex.data() + bri * breduce_ld + i * bbatch_ld,

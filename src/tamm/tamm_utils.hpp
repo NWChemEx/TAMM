@@ -427,6 +427,49 @@ TensorType trace(LabeledTensor<TensorType> ltensor) {
 }
 
 /**
+ * @brief method for getting the sum of the values on the diagonal
+ *
+ * @returns sum of the diagonal values
+ * @warning only defined for NxN tensors
+ */
+template<typename TensorType>
+TensorType trace_sqr(Tensor<TensorType> tensor) {
+    return trace_sqr(tensor());
+}
+
+template<typename TensorType>
+TensorType trace_sqr(LabeledTensor<TensorType> ltensor) {
+    ExecutionContext& ec = get_ec(ltensor);
+    TensorType lsumd = 0;
+    TensorType gsumd = 0;
+
+    Tensor<TensorType> tensor = ltensor.tensor();
+    // Defined only for NxN tensors
+    EXPECTS(tensor.num_modes() == 2);
+
+    auto gettrace = [&](const IndexVector& bid) {
+        const IndexVector blockid = internal::translate_blockid(bid, ltensor);
+        if(blockid[0] == blockid[1]) {
+            const TAMM_SIZE size = tensor.block_size(blockid);
+            std::vector<TensorType> buf(size);
+            tensor.get(blockid, buf);
+            auto block_dims   = tensor.block_dims(blockid);
+            auto block_offset = tensor.block_offsets(blockid);
+            auto dim          = block_dims[0];
+            auto offset       = block_offset[0];
+            size_t i          = 0;
+            for(auto p = offset; p < offset + dim; p++, i++) {
+                // sqr of diagonal
+                lsumd += buf[i * dim + i] * buf[i * dim + i];
+            }
+        }
+    };
+    block_for(ec, ltensor, gettrace);
+    MPI_Allreduce(&lsumd, &gsumd, 1, mpi_type<TensorType>(), MPI_SUM, ec.pg().comm());
+    return gsumd;
+}
+
+/**
  * @brief method for getting the diagonal values in a Tensor
  *
  * @returns the diagonal values

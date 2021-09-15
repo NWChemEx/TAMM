@@ -57,7 +57,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     GA_Terminate();
     MPI_Finalize();
     exit(0);
-  }  
+  }
 #endif
 
 #if defined(USE_DPCPP)  
@@ -88,7 +88,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     GA_Terminate();
     MPI_Finalize();
     exit(0);
-  }    
+  }  
   for (int i = 0; i < gpu_devices.size(); i++) {
     if (gpu_devices[i].is_gpu()) {
        if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {

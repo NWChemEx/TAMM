@@ -5,7 +5,6 @@
 #include "tamm/block_span.hpp"
 #include "tamm/blockops_blis.hpp"
 #include "tamm/errors.hpp"
-#include "tamm/kernels/blas_wrappers.hpp"
 #include "tamm/tiled_index_space.hpp"
 #include "tamm/types.hpp"
 
@@ -445,8 +444,8 @@ public:
     update_plan(lhs, rhs1, rhs2);
     size_t loff = 0, r1off = 0, r2off = 0;
     for (size_t i = 0; i < num_batches_; i++) {
-      CBLAS_TRANSPOSE TransA = transpose_arg1_ ? CblasTrans : CblasNoTrans;
-      CBLAS_TRANSPOSE TransB = transpose_arg2_ ? CblasTrans : CblasNoTrans;
+      auto TransA = transpose_arg1_ ? blas::Op::Trans : blas::Op::NoTrans;
+      auto TransB = transpose_arg2_ ? blas::Op::Trans : blas::Op::NoTrans;
       int lda = !transpose_arg1_ ? K_ : M_;
       int ldb = !transpose_arg2_ ? N_ : K_;
       int ldc = N_;
@@ -457,7 +456,7 @@ public:
                                  : reinterpret_cast<T2 *>(&bufb_);
       auto *bufc = reinterpret_cast<T1 *>(&bufc_);
 
-      gemm(CblasRowMajor, TransA, TransB, M_, N_, K_, alpha, &bufa[r1off], lda,
+      blas::gemm(blas::Layout::RowMajor, TransA, TransB, M_, N_, K_, alpha, &bufa[r1off], lda,
            &bufb[r2off], ldb, beta, &bufc[loff], ldc);
       loff += M_ * N_;
       r1off += M_ * K_;

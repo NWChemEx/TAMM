@@ -533,15 +533,15 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
             if( rank == 0 ) {
               Matrix Fp = F_alpha; // XXX: Can F be destroyed?
               C_alpha.resize(N,Northo_a);
-              linalg::blas::gemm( 'N', 'T', N, Northo_a, N,
+              blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, N, Northo_a, N,
                                   1., Fp.data(), N, X_a.data(), Northo_a, 
                                   0., C_alpha.data(), N );
-              linalg::blas::gemm( 'N', 'N', Northo_a, Northo_a, N,
+              blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, Northo_a, Northo_a, N,
                                   1., X_a.data(), Northo_a, C_alpha.data(), N, 
                                   0., Fp.data(), Northo_a );
               std::vector<double> eps_a(Northo_a);
-              linalg::lapack::syevd( 'V', 'L', Northo_a, Fp.data(), Northo_a, eps_a.data() );
-              linalg::blas::gemm( 'T', 'N', Northo_a, N, Northo_a, 
+              lapack::syevd( lapack::Job::Vec, lapack::Uplo::Lower, Northo_a, Fp.data(), Northo_a, eps_a.data() );
+              blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, Northo_a, N, Northo_a, 
                                   1., Fp.data(), Northo_a, X_a.data(), Northo_a, 
                                   0., C_alpha.data(), Northo_a );
             } 
@@ -558,29 +558,29 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
               //alpha
               Matrix Fp = F_alpha; 
               C_alpha.resize(N,Northo_a);
-              linalg::blas::gemm( 'N', 'T', N, Northo_a, N,
+              blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, N, Northo_a, N,
                                   1., Fp.data(), N, X_a.data(), Northo_a, 
                                   0., C_alpha.data(), N );
-              linalg::blas::gemm( 'N', 'N', Northo_a, Northo_a, N,
+              blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, Northo_a, Northo_a, N,
                                   1., X_a.data(), Northo_a, C_alpha.data(), N, 
                                   0., Fp.data(), Northo_a );
               std::vector<double> eps_a(Northo_a);
-              linalg::lapack::syevd( 'V', 'L', Northo_a, Fp.data(), Northo_a, eps_a.data() );
-              linalg::blas::gemm( 'T', 'N', Northo_a, N, Northo_a, 
+              lapack::syevd( lapack::Job::Vec, lapack::Uplo::Lower, Northo_a, Fp.data(), Northo_a, eps_a.data() );
+              blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, Northo_a, N, Northo_a, 
                                   1., Fp.data(), Northo_a, X_a.data(), Northo_a, 
                                   0., C_alpha.data(), Northo_a );
               //beta
               Fp = F_beta; 
               C_beta.resize(N,Northo_b);
-              linalg::blas::gemm( 'N', 'T', N, Northo_b, N,
+              blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, N, Northo_b, N,
                                   1., Fp.data(), N, X_b.data(), Northo_b, 
                                   0., C_beta.data(), N );
-              linalg::blas::gemm( 'N', 'N', Northo_b, Northo_b, N,
+              blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, Northo_b, Northo_b, N,
                                   1., X_b.data(), Northo_b, C_beta.data(), N, 
                                   0., Fp.data(), Northo_b );
               std::vector<double> eps_b(Northo_b);
-              linalg::lapack::syevd( 'V', 'L', Northo_b, Fp.data(), Northo_b, eps_b.data() );
-              linalg::blas::gemm( 'T', 'N', Northo_b, N, Northo_b, 
+              lapack::syevd( lapack::Job::Vec, lapack::Uplo::Lower, Northo_b, Fp.data(), Northo_b, eps_b.data() );
+              blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, Northo_b, N, Northo_b, 
                                   1., Fp.data(), Northo_b, X_b.data(), Northo_b, 
                                   0., C_beta.data(), Northo_b );
             } 
@@ -1169,7 +1169,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
         for (Eigen::Index i1=0;i1<etensors.taskmap.rows();i1++)
         for (Eigen::Index j1=0;j1<etensors.taskmap.cols();j1++) {
           if(etensors.taskmap(i1,j1)==-1 || etensors.taskmap(i1,j1) != rank) continue;
-          IndexVector blockid{i1,j1};
+          IndexVector blockid{(tamm::Index)i1,(tamm::Index)j1};
           comp_2bf_lambda(blockid);
         }
         ec.pg().barrier();        
@@ -1382,17 +1382,17 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const libint2
               auto ig1 = std::chrono::high_resolution_clock::now();
 
               std::vector<TensorType> eps(ndf);
-              linalg::lapack::syevd( 'V', 'L', ndf, V.data(), ndf, eps.data() );
+              lapack::syevd( lapack::Job::Vec, lapack::Uplo::Lower, ndf, V.data(), ndf, eps.data() );
 
               Matrix Vp = V;
 
               for (size_t j=0; j<ndf; ++j) {
                 double  tmp=1.0/sqrt(eps[j]);
-                linalg::blas::scal( ndf, tmp, Vp.data() + j*ndf,   1 );
+                blas::scal( ndf, tmp, Vp.data() + j*ndf,   1 );
               }
 
               Matrix ke(ndf,ndf);
-              cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, ndf, ndf, ndf,
+              blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, ndf, ndf, ndf,
                           1, Vp.data(), ndf, V.data(), ndf, 0, ke.data(), ndf);
               eigen_to_tamm_tensor(K_tamm,ke);
 
@@ -1573,11 +1573,12 @@ void energy_diis(ExecutionContext& ec, TiledIndexSpace& tAO, int iter, int max_h
       }
     }
 
-    double RCOND;
+    TensorType RCOND;
     std::vector<int64_t> IPIV(N);
     std::vector<double>  BERR(1), FERR(1); // NRHS
-    info = linalg::lapack::spsvx( 'N', 'L', N, 1, AC.data(), AF.data(), 
-      IPIV.data(), B.data(), N, X.data(), N, RCOND, FERR.data(), BERR.data() );
+
+    info = lapack::spsvx( lapack::Factored::NotFactored, lapack::Uplo::Lower, N, 1, AC.data(), AF.data(), 
+                          IPIV.data(), B.data(), N, X.data(), N, &RCOND, FERR.data(), BERR.data() );
       
     if(info!=0) {
       // if(rank==0) cout << "<E-DIIS> Singularity in Pulay matrix. Density and Fock difference matrices removed." << endl;
@@ -1718,8 +1719,8 @@ void diis(ExecutionContext& ec, TiledIndexSpace& tAO, Tensor<TensorType> D, Tens
     TensorType RCOND;
     std::vector<int64_t> IPIV(N);
     std::vector<TensorType>  BERR(1), FERR(1); // NRHS
-    info = linalg::lapack::spsvx( 'N', 'L', N, 1, AC.data(), AF.data(), 
-      IPIV.data(), B.data(), N, X.data(), N, RCOND, FERR.data(), BERR.data() );
+    info = lapack::spsvx( lapack::Factored::NotFactored, lapack::Uplo::Lower, N, 1, AC.data(), AF.data(), 
+                          IPIV.data(), B.data(), N, X.data(), N, &RCOND, FERR.data(), BERR.data() );
       
     if(info!=0) {
       if(rank==0) cout << "<DIIS> Singularity in Pulay matrix detected." /*Error and Fock matrices removed." */ << endl;

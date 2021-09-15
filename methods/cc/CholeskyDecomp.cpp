@@ -77,7 +77,7 @@ void cd_driver() {
           out << chol_count << std::endl;
           out.close();
         }        
-    }    
+    }
 
     free_tensors(d_f1,cholVpr);
 

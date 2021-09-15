@@ -458,7 +458,8 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data, ExecutionContext& ec, TiledInd
         g_num += m;
         std::vector<TensorType> k_pi(N*m);
         std::vector<TensorType> k_qj(N*m);
-        cblas_dgemm(CblasRowMajor,CblasTrans,CblasNoTrans,N,m,nbf,
+         
+        blas::gemm(blas::Layout::RowMajor,blas::Op::Trans,blas::Op::NoTrans,N,m,nbf,
                     1.0,k_movecs_sorted,N,&k_ij[0],nbf,0,&k_pi[0],N);
 
         for(auto x=0;x<N*m;x++) k_qj[x] = k_pi[x]; 
@@ -469,17 +470,17 @@ Tensor<TensorType> cd_svd_ga(SystemData sys_data, ExecutionContext& ec, TiledInd
             k_pi[i*m+j] *= sf;
         }
 
-        cblas_dgemm(CblasRowMajor,CblasNoTrans,CblasTrans,N,N,m,
+        blas::gemm(blas::Layout::RowMajor,blas::Op::NoTrans,blas::Op::Trans,N,N,m,
                 1,&k_pi[0],N,&k_qj[0],N,0,&k_pq[0],N);
 
       #else
 
         //---------Two-Step-Contraction----
         auto cvpr_t1 = std::chrono::high_resolution_clock::now();
-        cblas_dgemm(CblasRowMajor,CblasTrans,CblasNoTrans,N,nbf,nbf,
+        blas::gemm(blas::Layout::RowMajor,blas::Op::Trans,blas::Op::NoTrans,N,nbf,nbf,
                     1,k_movecs_sorted,N,&k_ij[0],nbf,0,&k_pj[0],nbf);
         
-        cblas_dgemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,N,N,nbf,
+        blas::gemm(blas::Layout::RowMajor,blas::Op::NoTrans,blas::Op::NoTrans,N,N,nbf,
                     1,&k_pj[0],nbf,k_movecs_sorted,N,0,&k_pq[0],N);
       
         auto cvpr_t2 = std::chrono::high_resolution_clock::now();

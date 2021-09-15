@@ -616,7 +616,7 @@ void compute_initial_guess(ExecutionContext& ec,
     for (Eigen::Index i1=0;i1<etensors.taskmap.rows();i1++)
     for (Eigen::Index j1=0;j1<etensors.taskmap.cols();j1++) {
       if(etensors.taskmap(i1,j1)==-1 || etensors.taskmap(i1,j1) != rank) continue;
-      IndexVector blockid{i1,j1};
+      IndexVector blockid{(tamm::Index)i1,(tamm::Index)j1};
       compute_2body_fock_general_lambda(blockid);
     }
     ec.pg().barrier();       
@@ -763,16 +763,16 @@ void compute_initial_guess(ExecutionContext& ec,
         const int64_t Northo_a = sys_data.nbf; //X_a.cols();
         if( rank == 0 ) {// TODO: Check for linear dep case
           C_a.resize(N,Northo_a);
-          linalg::blas::gemm( 'N', 'T', N, Northo_a, N,
+          blas::gemm(blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, N, Northo_a, N,
                               1., Ft_a.data(), N, X_a.data(), Northo_a, 
                               0., C_a.data(), N );
-          linalg::blas::gemm( 'N', 'N', Northo_a, Northo_a, N,
+          blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, Northo_a, Northo_a, N,
                               1., X_a.data(), Northo_a, C_a.data(), N, 
                               0., Ft_a.data(), Northo_a );
           //Ft = X.transpose() * Ft * X;
           std::vector<double> eps_a(Northo_a);
-          linalg::lapack::syevd( 'V', 'L', Northo_a, Ft_a.data(), Northo_a, eps_a.data() );
-          linalg::blas::gemm( 'T', 'N', Northo_a, N, Northo_a, 
+          lapack::syevd( lapack::Job::Vec, blas::Uplo::Lower, Northo_a, Ft_a.data(), Northo_a, eps_a.data() );
+          blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, Northo_a, N, Northo_a, 
                               1., Ft_a.data(), Northo_a, X_a.data(), Northo_a, 
                               0., C_a.data(), Northo_a );
         } 
@@ -788,28 +788,28 @@ void compute_initial_guess(ExecutionContext& ec,
         if( rank == 0 ) {
           //alpha
           C_a.resize(N,Northo_a);
-          linalg::blas::gemm( 'N', 'T', N, Northo_a, N,
+          blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, N, Northo_a, N,
                               1., Ft_a.data(), N, X_a.data(), Northo_a, 
                               0., C_a.data(), N );
-          linalg::blas::gemm( 'N', 'N', Northo_a, Northo_a, N,
+          blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, Northo_a, Northo_a, N,
                               1., X_a.data(), Northo_a, C_a.data(), N, 
                               0., Ft_a.data(), Northo_a );
           std::vector<double> eps_a(Northo_a);
-          linalg::lapack::syevd( 'V', 'L', Northo_a, Ft_a.data(), Northo_a, eps_a.data() );
-          linalg::blas::gemm( 'T', 'N', Northo_a, N, Northo_a, 
+          lapack::syevd(  lapack::Job::Vec, blas::Uplo::Lower, Northo_a, Ft_a.data(), Northo_a, eps_a.data() );
+          blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, Northo_a, N, Northo_a, 
                               1., Ft_a.data(), Northo_a, X_a.data(), Northo_a, 
                               0., C_a.data(), Northo_a );
           //beta
           C_b.resize(N,Northo_b);
-          linalg::blas::gemm( 'N', 'T', N, Northo_b, N,
+          blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, N, Northo_b, N,
                               1., Ft_b.data(), N, X_b.data(), Northo_b, 
                               0., C_b.data(), N );
-          linalg::blas::gemm( 'N', 'N', Northo_b, Northo_b, N,
+          blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, Northo_b, Northo_b, N,
                               1., X_b.data(), Northo_b, C_b.data(), N, 
                               0., Ft_b.data(), Northo_b );
           std::vector<double> eps_b(Northo_b);
-          linalg::lapack::syevd( 'V', 'L', Northo_b, Ft_b.data(), Northo_b, eps_b.data() );
-          linalg::blas::gemm( 'T', 'N', Northo_b, N, Northo_b, 
+          lapack::syevd(  lapack::Job::Vec, blas::Uplo::Lower, Northo_b, Ft_b.data(), Northo_b, eps_b.data() );
+          blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, Northo_b, N, Northo_b, 
                               1., Ft_b.data(), Northo_b, X_b.data(), Northo_b, 
                               0., C_b.data(), Northo_b );
         } 

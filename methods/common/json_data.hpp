@@ -183,6 +183,22 @@ void write_json_data(SystemData& sys_data, const std::string module){
     results["input"]["CCSD"]["balance_tiles"] = str_bool(ccsd.balance_tiles);
   }
 
+  if(module == "GFCCSD") {
+    //GFCCSD options
+    results["input"]["GFCCSD"]["gf_ngmres"] = ccsd.gf_ngmres;
+    results["input"]["GFCCSD"]["gf_maxiter"] = ccsd.gf_maxiter;
+    results["input"]["GFCCSD"]["gf_threshold"] = ccsd.gf_threshold;
+    results["input"]["GFCCSD"]["gf_nprocs_poi"] = ccsd.gf_nprocs_poi;
+    results["input"]["GFCCSD"]["gf_damping_factor"] = ccsd.gf_damping_factor;
+    results["input"]["GFCCSD"]["gf_omega_min_ip"] = ccsd.gf_omega_min_ip;
+    results["input"]["GFCCSD"]["gf_omega_max_ip"] = ccsd.gf_omega_max_ip;
+    results["input"]["GFCCSD"]["gf_omega_min_ip_e"] = ccsd.gf_omega_min_ip_e;
+    results["input"]["GFCCSD"]["gf_omega_max_ip_e"] = ccsd.gf_omega_max_ip_e;
+    results["input"]["GFCCSD"]["gf_omega_delta"] = ccsd.gf_omega_delta;
+    results["input"]["GFCCSD"]["gf_omega_delta_e"] = ccsd.gf_omega_delta_e;
+    results["input"]["GFCCSD"]["gf_extrapolate_level"] = ccsd.gf_extrapolate_level;
+  }
+
   std::string l_module = module;
   to_lower(l_module);
 

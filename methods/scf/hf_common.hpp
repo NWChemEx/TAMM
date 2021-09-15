@@ -12,7 +12,6 @@
 
 #include "common/misc.hpp"
 #include "common/molden.hpp"
-#include "common/linalg.hpp"
 #include "common/json_data.hpp"
 
 #ifdef USE_SCALAPACK
@@ -453,7 +452,7 @@ std::tuple<Matrix, Matrix, size_t, double, double, int64_t> gensqrtinv(
     T* Vbuf = V.data();
 
     std::vector<double> s(N);
-    linalg::lapack::syevd( 'V', 'L', N, Vbuf, N, s.data() );
+    lapack::syevd( lapack::Job::Vec, lapack::Uplo::Lower, N, Vbuf, N, s.data() );
 
     // condition_number = std::min(
     //   s.back() / std::max( s.front(), std::numeric_limits<double>::min() ),
@@ -495,8 +494,8 @@ std::tuple<Matrix, Matrix, size_t, double, double, int64_t> gensqrtinv(
       auto* X_col    = X.data()    + i;
       // auto* Xinv_col = Xinv.data() + i;
 
-      linalg::blas::scal( N, 1./srt, X_col,    n_cond );
-      // linalg::blas::scal( N, srt,    Xinv_col, n_cond );
+      blas::scal( N, 1./srt, X_col,    n_cond );
+      // blas::scal( N, srt, Xinv_col, n_cond );
 
     }  
 
@@ -508,7 +507,7 @@ std::tuple<Matrix, Matrix, size_t, double, double, int64_t> gensqrtinv(
       // X is row major, thus we need to form X**T = V_cond * X**T
       Matrix TMP = X;
       X.resize( N, N );
-      linalg::blas::gemm( 'N', 'N', N, N, n_cond, 1., V_cond, N, TMP.data(), n_cond, 0., X.data(), N );
+      blas::gemm( blas::Op::NoTrans, blas::Op::NoTrans, N, N, n_cond, 1., V_cond, N, TMP.data(), n_cond, 0., X.data(), N );
   */
 
     }

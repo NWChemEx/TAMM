@@ -13,7 +13,6 @@ TAMM.creator.user
 .vscode/
 
 #This is the documentation build directory
-docs/
 
 #These are common build directory names
 Debug/

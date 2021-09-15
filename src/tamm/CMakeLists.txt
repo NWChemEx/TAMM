@@ -66,7 +66,6 @@ set(TAMM_INCLUDES
     ip_hptt.hpp
     blockops_blis.hpp
     blockops_talsh.hpp
-    kernels/blas_wrappers.hpp
     tensor_variant.hpp
     op_executor.hpp
     symbol.hpp

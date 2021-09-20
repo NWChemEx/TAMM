@@ -212,6 +212,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   energy_l[0] = 0.0;
   energy_l[1] = 0.0;
 
+#if defined(USE_CUDA)
   gpuStream_t stream;
   cudaStreamCreate(&stream);
   gpuEvent_t done_compute, done_copy;
@@ -219,7 +220,8 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   cudaEventCreate(&done_copy);
 
   hostEnergyReduceData_t* reduceData = (hostEnergyReduceData_t*) malloc(1 * sizeof(hostEnergyReduceData_t));
-  
+#endif
+
   AtomicCounter* ac = new AtomicCounterGA(ec.pg(), 1);
   ac->allocate(0);
   int64_t taskcount = 0;
@@ -391,7 +393,9 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
               size_T_d2_t2, size_T_d2_v2,
               //
               energy_l, 
+              #if defined(USE_CUDA)
               reduceData,
+              #endif
               cache_s1t, cache_s1v,
               cache_d1t, cache_d1v,
               cache_d2t, cache_d2v,
@@ -408,6 +412,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
               df_host_pinned_d1_t2, df_host_pinned_d1_v2,
               df_host_pinned_d2_t2, df_host_pinned_d2_v2,
               df_host_energies,
+              host_d1_size, host_d2_size,
               //
               df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
               df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
@@ -525,7 +530,9 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                   size_T_d2_t2, size_T_d2_v2,
                                                   //
                                                   energy_l, 
+                                                  #if defined(USE_CUDA)
                                                   reduceData,
+                                                  #endif
                                                   cache_s1t, cache_s1v,
                                                   cache_d1t, cache_d1v,
                                                   cache_d2t, cache_d2v,
@@ -542,6 +549,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                 df_host_pinned_d1_t2, df_host_pinned_d1_v2,
                                                 df_host_pinned_d2_t2, df_host_pinned_d2_v2,
                                                 df_host_energies,
+                                                host_d1_size, host_d2_size,
                                                 //
                                                 df_simple_s1_size, df_simple_d1_size, df_simple_d2_size,
                                                 df_simple_s1_exec, df_simple_d1_exec, df_simple_d2_exec,
@@ -576,10 +584,12 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   energy1 = energy_l[0];
   energy2 = energy_l[1];
 
+  #if defined(USE_CUDA)
   free(reduceData);
   cudaEventDestroy(done_compute);
   cudaEventDestroy(done_copy);
   cudaStreamDestroy(stream);
+  #endif
 
   //
   //

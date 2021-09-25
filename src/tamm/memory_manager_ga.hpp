@@ -94,12 +94,11 @@ class MemoryManagerGA : public MemoryManager {
     int64_t nelements_min, nelements_max;
 
     GA_Pgroup_set_default(ga_pg_);
-
-          {
+    {
        TimerGuard tg_total{&memTime5};
-       MPI_Allreduce(&nels, &nelements_min, 1, MPI_LONG_LONG, MPI_MIN, pg_.comm());
-       MPI_Allreduce(&nels, &nelements_max, 1, MPI_LONG_LONG, MPI_MAX, pg_.comm());
-          }
+       nelements_min = pg_.allreduce(&nels, ReduceOp::min);
+       nelements_max = pg_.allreduce(&nels, ReduceOp::max);
+    }
     std::string array_name{"array_name"+std::to_string(++ga_counter_)};
 
     if (nelements_min == nels && nelements_max == nels) {
@@ -112,11 +111,11 @@ class MemoryManagerGA : public MemoryManager {
       int64_t dim, block = nranks;
       {
       TimerGuard tg_total{&memTime5};
-      MPI_Allreduce(&nels, &dim, 1, MPI_LONG_LONG, MPI_SUM, pg_.comm());
+      dim = pg_.allreduce(&nels, ReduceOp::sum);
       }
       {
       TimerGuard tg_total{&memTime6};
-      MPI_Allgather(&nels, 1, MPI_LONG_LONG, &pmr->map_[1], 1, MPI_LONG_LONG, pg_.comm());
+      pg_.allgather(&nels, &pmr->map_[1]);
       }
       pmr->map_[0] = 0; // @note this is not set by MPI_Exscan
      {

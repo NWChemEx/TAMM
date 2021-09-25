@@ -500,7 +500,6 @@ std::tuple<SystemData, double,
     auto is = std::ifstream(filename);
     OptionsMap options_map;
     std::tie(options_map, jinput) = parse_input(is);
-    std::vector<Atom> atoms = options_map.options.atoms;
     if(options_map.options.output_file_prefix.empty()) 
       options_map.options.output_file_prefix = getfilename(filename);
     
@@ -508,7 +507,7 @@ std::tuple<SystemData, double,
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-    std::tie(sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, tAO, tAOt, scf_conv) = hartree_fock(ec, filename, atoms, options_map);
+    std::tie(sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, tAO, tAOt, scf_conv) = hartree_fock(ec, filename, options_map);
     sys_data.input_molecule = getfilename(filename);
     sys_data.output_file_prefix = options_map.options.output_file_prefix;
 

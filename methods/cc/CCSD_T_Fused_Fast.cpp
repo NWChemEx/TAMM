@@ -508,11 +508,8 @@ void ccsd_t_driver() {
     // auto ccsd_t_time = 
     //     std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
 
-    double g_energy1,g_energy2;
-    MPI_Reduce(&energy1, &g_energy1, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
-    MPI_Reduce(&energy2, &g_energy2, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
-    energy1 = g_energy1;
-    energy2 = g_energy2;
+    energy1 = ec.pg().reduce(&energy1, ReduceOp::sum, 0);
+    energy2 = ec.pg().reduce(&energy2, ReduceOp::sum, 0);
 
     if (rank==0 && energy1!=-999){
 
@@ -550,12 +547,11 @@ void ccsd_t_driver() {
     };
 
     auto comm_stats = [&](const std::string& timer_type, const double ctime){
-        double g_getTime,g_min_getTime,g_max_getTime;
-        MPI_Reduce(&ctime, &g_getTime,     1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
-        MPI_Reduce(&ctime, &g_min_getTime, 1, MPI_DOUBLE, MPI_MIN, 0, ec.pg().comm());
-        MPI_Reduce(&ctime, &g_max_getTime, 1, MPI_DOUBLE, MPI_MAX, 0, ec.pg().comm());
+        double g_getTime     = ec.pg().reduce(&ctime, ReduceOp::sum, 0);
+        double g_min_getTime = ec.pg().reduce(&ctime, ReduceOp::min, 0);
+        double g_max_getTime = ec.pg().reduce(&ctime, ReduceOp::max, 0);
         if(rank == 0) 
-        print_profile_stats(timer_type, g_getTime, g_min_getTime, g_max_getTime);
+            print_profile_stats(timer_type, g_getTime, g_min_getTime, g_max_getTime);
         return g_getTime/nranks;        
     };
 
@@ -569,17 +565,16 @@ void ccsd_t_driver() {
       std::cout << std::fixed << "   -> GFLOPS: " << total_num_ops / (total_t_time * 1e9) << std::endl;
       std::cout << std::fixed << "   -> Load imbalance: " << (1.0 - ccsd_t_time / total_t_time) << std::endl;
     }
-    
-    comm_stats("S1-T1 GetTime", ccsdt_s1_t1_GetTime);    
+
+    comm_stats("S1-T1 GetTime", ccsdt_s1_t1_GetTime);
     comm_stats("S1-V2 GetTime", ccsdt_s1_v2_GetTime);
     comm_stats("D1-T2 GetTime", ccsdt_d1_t2_GetTime);
     comm_stats("D1-V2 GetTime", ccsdt_d1_v2_GetTime);
     comm_stats("D2-T2 GetTime", ccsdt_d2_t2_GetTime);
     comm_stats("D2-V2 GetTime", ccsdt_d2_v2_GetTime);
 
-    double g_ccsd_t_data_per_rank;
     ccsd_t_data_per_rank = (ccsd_t_data_per_rank * 8.0) / (1024*1024.0*1024); //GB
-    MPI_Reduce(&ccsd_t_data_per_rank, &g_ccsd_t_data_per_rank, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+    double g_ccsd_t_data_per_rank = ec.pg().reduce(&ccsd_t_data_per_rank, ReduceOp::sum, 0);
     if(rank == 0) 
         std::cout << "   -> Data Transfer (GB): " << g_ccsd_t_data_per_rank/nranks << std::endl;
 
@@ -606,12 +601,12 @@ void ccsd_t_driver() {
     std::vector<Index> g_cvec_d1v(cvec_d1v.size());
     std::vector<Index> g_cvec_d2t(cvec_d2t.size());
     std::vector<Index> g_cvec_d2v(cvec_d2v.size());
-    MPI_Reduce(&cvec_s1t[0], &g_cvec_s1t[0], cvec_s1t.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());
-    MPI_Reduce(&cvec_s1v[0], &g_cvec_s1v[0], cvec_s1v.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());
-    MPI_Reduce(&cvec_d1t[0], &g_cvec_d1t[0], cvec_d1t.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
-    MPI_Reduce(&cvec_d1v[0], &g_cvec_d1v[0], cvec_d1v.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
-    MPI_Reduce(&cvec_d2t[0], &g_cvec_d2t[0], cvec_d2t.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
-    MPI_Reduce(&cvec_d2v[0], &g_cvec_d2v[0], cvec_d2v.size(), MPI_UINT32_T, MPI_SUM, 0, ec.pg().comm());           
+    ec.pg().reduce(&cvec_s1t[0], &g_cvec_s1t[0], cvec_s1t.size(), ReduceOp::sum, 0);
+    ec.pg().reduce(&cvec_s1v[0], &g_cvec_s1v[0], cvec_s1v.size(), ReduceOp::sum, 0);
+    ec.pg().reduce(&cvec_d1t[0], &g_cvec_d1t[0], cvec_d1t.size(), ReduceOp::sum, 0);           
+    ec.pg().reduce(&cvec_d1v[0], &g_cvec_d1v[0], cvec_d1v.size(), ReduceOp::sum, 0);           
+    ec.pg().reduce(&cvec_d2t[0], &g_cvec_d2t[0], cvec_d2t.size(), ReduceOp::sum, 0);           
+    ec.pg().reduce(&cvec_d2v[0], &g_cvec_d2v[0], cvec_d2v.size(), ReduceOp::sum, 0);           
 
     out_fp = sys_data.input_molecule+"."+sys_data.options_map.ccsd_options.basis;
     files_dir = out_fp+"_files/ccsd_t";

@@ -1,6 +1,6 @@
 
-#ifndef TAMM_METHODS_HF_TAMM_HPP_
-#define TAMM_METHODS_HF_TAMM_HPP_
+#ifndef TAMM_METHODS_SCF_MAIN_HPP_
+#define TAMM_METHODS_SCF_MAIN_HPP_
 
 // standard C++ headers
 #include <cassert>
@@ -14,8 +14,8 @@
 #include <tuple>
 #include <vector>
 
-//#include "hf_tamm_common.hpp"
-#include "hf_assignment.hpp"
+//#include "scf_iter.hpp"
+#include "scf_taskmap.hpp"
 
 template <typename T>
 inline std::ostream& operator<<( std::ostream& os, const GauXC::Shell<T>& sh ) {
@@ -40,8 +40,7 @@ namespace fs = std::filesystem;
 
 std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, 
     Tensor<double>, Tensor<double>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace, bool> 
-    hartree_fock(ExecutionContext &exc, const string filename,
-                 std::vector<libint2::Atom> atoms, OptionsMap options_map) {
+    hartree_fock(ExecutionContext &exc, const string filename, OptionsMap options_map) {
 
     using libint2::Atom;
     using libint2::Engine;
@@ -49,12 +48,9 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     using libint2::Shell;
     using libint2::BasisSet;
 
-    /*** =========================== ***/
-    /*** initialize molecule         ***/
-    /*** =========================== ***/
+    /*** Setup options ***/
 
     SystemData sys_data{options_map, options_map.scf_options.scf_type};
-
     SCFOptions  scf_options  = sys_data.options_map.scf_options;
 
     std::string basis        = scf_options.basis;
@@ -70,31 +66,45 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     bool        is_spherical = (scf_options.sphcart == "spherical");
     // bool        sad          = scf_options.sad;
     auto        iter         = 0;
+    auto        rank         = exc.pg().rank();
+    const bool  molden_exists = !scf_options.moldenfile.empty();
+
+    // const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+    // const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
+    // const bool is_rohf = (sys_data.scf_type == sys_data.SCFType::rohf); 
+
+    bool molden_file_valid = false;
+    if(molden_exists) {
+      molden_file_valid = std::filesystem::exists(scf_options.moldenfile);
+      if(!molden_file_valid) tamm_terminate("ERROR: moldenfile provided: " + scf_options.moldenfile + " does not exist");
+      if(!is_spherical) std::cout << "WARNING: molden interface is not tested with sphcart:cartesian" << std::endl;
+      if(!is_rhf) tamm_terminate("ERROR: molden restart is currently only supported for RHF calculations!");
+    }
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-    // initializes the Libint integrals library ... now ready to compute
+    // Initialize the Libint integrals library
     libint2::initialize(false);
-    libint2::Shell::do_enforce_unit_normalization(false);
-    auto rank      = exc.pg().rank();
+    // libint2::Shell::do_enforce_unit_normalization(false);
 
-    /*** =========================== ***/
-    /*** create basis set            ***/
-    /*** =========================== ***/
-
+    // Create the basis set
     std::string basis_set_file = std::string(DATADIR) + "/basis/" + basis + ".g94";
     
     int basis_file_exists = 0;
     if(rank == 0) basis_file_exists = std::filesystem::exists(basis_set_file);
+    exc.pg().broadcast(&basis_file_exists,0);
 
-    MPI_Bcast(&basis_file_exists        ,1,mpi_type<int>()       ,0,exc.pg().comm());  
-    if (!basis_file_exists) tamm_terminate("basis set file " + basis_set_file + " does not exist");
+    if (!basis_file_exists) tamm_terminate("ERROR: basis set file " + basis_set_file + " does not exist");
 
+    // If starting guess is from a molden file, read the geometry.
+    if(molden_file_valid)
+      read_geom_molden(sys_data, sys_data.options_map.options.atoms);
+
+    auto atoms = sys_data.options_map.options.atoms;
     libint2::BasisSet shells(std::string(basis), atoms);
     if(is_spherical) shells.set_pure(true);
     else shells.set_pure(false);  // use cartesian gaussians
 
-    // auto shells = make_sto3g_basis(atoms);
     const size_t N = nbasis(shells);
     auto nnodes    = GA_Cluster_nnodes();
 
@@ -138,6 +148,15 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
     if(!fs::exists(files_dir)) fs::create_directories(files_dir);
 
+    // If using molden file, read the exponents and coefficients and renormalize shells.
+    // This modifies the existing basisset object.
+    if(molden_exists && molden_file_valid) {
+      read_basis_molden(sys_data,shells);
+      renormalize_libint_shells(sys_data,shells);
+      if(is_spherical) shells.set_pure(true);
+      else shells.set_pure(false);  // use cartesian gaussians      
+    }
+
     #if SCF_THROTTLE_RESOURCES
       auto [t_nnodes,hf_nnodes,ppn,hf_nranks] = get_hf_nranks(N);
       if (scf_options.nnodes > t_nnodes) {
@@ -177,8 +196,12 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       scf_options.print();
     }
 
+    SCFVars scf_vars; // init vars
+
+    // Compute Nuclear repulsion energy.
     auto [ndocc, enuc]  = compute_NRE(exc, atoms, sys_data.focc);
 
+    // Compute number of electrons.
     const auto nelectrons = sys_data.focc * ndocc - charge;
     sys_data.nelectrons = nelectrons;
     EXPECTS ( (nelectrons + scf_options.multiplicity - 1) % 2 == 0 );  
@@ -194,56 +217,61 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       std::cout << std::endl << "Nuclear repulsion energy  = " << std::setprecision(15) << enuc << std::endl << std::endl; 
     }
 
-    // compute OBS non-negligible shell-pair list
-    compute_shellpair_list(exc, shells);    
+    // Compute non-negligible shell-pair list
+    compute_shellpair_list(exc, shells, scf_vars);
 
-    //DENSITY FITTING
+    // Setup tiled index spaces
+    IndexSpace AO{range(0, N)};
+    recompute_tilesize(sys_data.options_map.scf_options.AO_tilesize,N,sys_data.options_map.scf_options.force_tilesize,rank==0);
+    std::tie(scf_vars.shell_tile_map, scf_vars.AO_tiles, scf_vars.AO_opttiles) = compute_AO_tiles(exc, sys_data, shells);
+    scf_vars.tAO  = {AO, scf_vars.AO_opttiles};
+    scf_vars.tAOt = {AO, scf_vars.AO_tiles};
+    std::tie(scf_vars.mu, scf_vars.nu, scf_vars.ku)    = scf_vars.tAO.labels<3>("all");
+    std::tie(scf_vars.mup, scf_vars.nup, scf_vars.kup) = scf_vars.tAOt.labels<3>("all");
+
+    auto mu = scf_vars.mu, nu = scf_vars.nu, ku = scf_vars.ku;
+    auto mup = scf_vars.mup, nup = scf_vars.nup, kup = scf_vars.kup;
+
+    // If a fitting basis is provided, perform the necessary setup
     const auto dfbasisname = scf_options.dfbasis;
+    bool is_3c_init = false;
     bool do_density_fitting = false;
+
     if(!dfbasisname.empty()) do_density_fitting = true;
-
     if (do_density_fitting) {
-      dfbs = BasisSet(dfbasisname, atoms);
-      if(is_spherical) dfbs.set_pure(true);
-      else dfbs.set_pure(false);  // use cartesian gaussians
+      scf_vars.dfbs = BasisSet(dfbasisname, atoms);
+      if(is_spherical) scf_vars.dfbs.set_pure(true);
+      else scf_vars.dfbs.set_pure(false);  // use cartesian gaussians
 
-      if (rank==0) cout << "density-fitting basis set rank = " << dfbs.nbf() << endl;
+      if (rank==0) cout << "density-fitting basis set rank = " << scf_vars.dfbs.nbf() << endl;
       // compute DFBS non-negligible shell-pair list
       #if 0
       {
         //TODO: Doesn't work to screen - revisit
-        std::tie(dfbs_shellpair_list, dfbs_shellpair_data) = compute_shellpairs(dfbs);
+        std::tie(scf_vars.dfbs_shellpair_list, scf_vars.dfbs_shellpair_data) = compute_shellpairs(scf_vars.dfbs);
         size_t nsp = 0;
-        for (auto& sp : dfbs_shellpair_list) {
+        for (auto& sp : scf_vars.dfbs_shellpair_list) {
           nsp += sp.second.size();
         }
         if(rank==0) std::cout << "# of {all,non-negligible} DFBS shell-pairs = {"
-                  << dfbs.size() * (dfbs.size() + 1) / 2 << "," << nsp << "}"
+                  << scf_vars.dfbs.size() * (scf_vars.dfbs.size() + 1) / 2 << "," << nsp << "}"
                   << endl;
       }
       #endif
 
-      ndf = dfbs.nbf();
-      dfAO = IndexSpace{range(0, ndf)};
-      std::tie(df_shell_tile_map, dfAO_tiles, dfAO_opttiles) = compute_AO_tiles(exc,sys_data,dfbs);
+      sys_data.ndf = scf_vars.dfbs.nbf();
+      scf_vars.dfAO = IndexSpace{range(0, sys_data.ndf)};
+      recompute_tilesize(sys_data.options_map.scf_options.dfAO_tilesize,sys_data.ndf,sys_data.options_map.scf_options.force_tilesize,rank==0);
+      std::tie(scf_vars.df_shell_tile_map, scf_vars.dfAO_tiles, scf_vars.dfAO_opttiles) = compute_AO_tiles(exc, sys_data, scf_vars.dfbs, true);
     
-      tdfAO=TiledIndexSpace{dfAO, dfAO_opttiles};
-      tdfAOt=TiledIndexSpace{dfAO, dfAO_tiles};
+      scf_vars.tdfAO  = TiledIndexSpace{scf_vars.dfAO, scf_vars.dfAO_opttiles};
+      scf_vars.tdfAOt = TiledIndexSpace{scf_vars.dfAO, scf_vars.dfAO_tiles};
       
     }
     std::unique_ptr<DFFockEngine> dffockengine(
-        do_density_fitting ? new DFFockEngine(shells, dfbs) : nullptr);
+        do_density_fitting ? new DFFockEngine(shells, scf_vars.dfbs) : nullptr);
+    // End setup for fitting basis
 
-    tamm::Tile tile_size = scf_options.AO_tilesize; //TODO
-    IndexSpace AO{range(0, N)};
-    std::tie(shell_tile_map, AO_tiles, AO_opttiles) = compute_AO_tiles(exc, sys_data, shells);
-    tAO  = {AO, AO_opttiles};
-    tAOt = {AO, AO_tiles};
-    std::tie(mu, nu, ku)    = tAO.labels<3>("all");
-    std::tie(mup, nup, kup) = tAOt.labels<3>("all");
-
-    // if(rank==0) cout << endl << "Set AO indexspace" << endl;
-      
     auto hf_t2 = std::chrono::high_resolution_clock::now();
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
@@ -257,37 +285,6 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     const bool scf_conv = restart && scf_options.noscf; 
     const int  max_hist = sys_data.options_map.scf_options.diis_hist; 
-    const bool molden_exists = !scf_options.moldenfile.empty();
-
-    if(molden_exists) {
-      //TODO: WIP, not working yet
-      size_t nmo = N-scf_options.n_lindep;
-      if(is_uhf) {
-        nmo = 2*(N-scf_options.n_lindep);
-      }
-
-      std::vector<TensorType> evl_sorted(nmo); //FIXME: not used/broadcasted
-      etensors.C.setZero(N,nmo);
-      int n_occ_alpha=0, n_occ_beta=0, n_vir_alpha=0, n_vir_beta=0;
-
-      bool molden_file_valid=std::filesystem::exists(scf_options.moldenfile);
-      if(rank == 0) {
-        cout << endl << "Reading from molden file provided ..." << endl;
-        if(molden_file_valid) {
-          // const size_t n_lindep = scf_options.n_lindep;
-          std::tie(n_occ_alpha,n_vir_alpha,n_occ_beta,n_vir_beta) = read_molden<TensorType>(scf_options,evl_sorted,etensors.C,atoms.size());
-        }
-      }
-
-      std::vector<TensorType> Cbuf(N*nmo);
-      TensorType *Cbufp = &Cbuf[0];
-      if(rank==0) Eigen::Map<Matrix>(Cbufp,N,nmo) = etensors.C;
-      MPI_Bcast(Cbufp,N*nmo,mpi_type<TensorType>(),0,exc.pg().comm());
-      etensors.C = Eigen::Map<Matrix>(Cbufp,N,nmo);
-      
-      if(!molden_file_valid) tamm_terminate("ERROR: Cannot open moldenfile provided: " + scf_options.moldenfile);
-
-    }
 
     scf_restart_test(exc, sys_data, filename, restart, files_prefix);
 
@@ -389,7 +386,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       /*** =========================== ***/
       /*** compute 1-e integrals       ***/
       /*** =========================== ***/
-      compute_hamiltonian<TensorType>(ec,atoms,shells,shell_tile_map,AO_tiles,ttensors,etensors);
+      compute_hamiltonian<TensorType>(ec,scf_vars,atoms,shells,ttensors,etensors);
 
       /*** =========================== ***/
       /*** build initial-guess density ***/
@@ -400,7 +397,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       if(N > 2000) {
         if(rank==0) ostatus = fs::exists(ortho_file);
         // if(ostatus == 0) tamm_terminate("Error reading orthogonalizer: [" + ortho_file + "]");
-        MPI_Bcast(&ostatus        ,1,mpi_type<int>()       ,0,ec.pg().comm());
+        ec.pg().broadcast(&ostatus,0);
       }
 
       if(rank == 0) etensors.F       = Matrix::Zero(N,N);
@@ -411,7 +408,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           etensors.X = read_scf_mat<TensorType>(ortho_file);
           sys_data.n_lindep = sys_data.nbf_orig - etensors.X.cols();
         }
-        MPI_Bcast(&sys_data.n_lindep        ,1,mpi_type<int>()       ,0,ec.pg().comm());
+        ec.pg().broadcast(&sys_data.n_lindep,0);
       }
       else 
       {
@@ -425,6 +422,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         etensors.X_beta  = etensors.X;
       }
 
+      // Compute Northo
       sys_data.nbf = sys_data.nbf_orig - sys_data.n_lindep;
 
       // pre-compute data for Schwarz bounds
@@ -432,16 +430,18 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       auto SchwarzK = compute_schwarz_ints<>(shells);
 
       hf_t1 = std::chrono::high_resolution_clock::now();
+      const TiledIndexSpace& tAO  = scf_vars.tAO;
+      const TiledIndexSpace& tAOt = scf_vars.tAOt;
 
       ttensors.ehf_tamm    = Tensor<TensorType>{};
-      ttensors.F1tmp       = {tAOt, tAOt}; //not allocated
+      ttensors.F_dummy     = {tAOt, tAOt}; //not allocated
 
       ttensors.ehf_tmp     = {tAO, tAO};
-      ttensors.F1          = {tAO, tAO};
+      ttensors.F_alpha     = {tAO, tAO};
       ttensors.D_tamm      = {tAO, tAO};
       ttensors.D_diff      = {tAO, tAO};
       ttensors.D_last_tamm = {tAO, tAO};
-      ttensors.F1tmp1      = {tAO, tAO};
+      ttensors.F_alpha_tmp = {tAO, tAO};
       ttensors.FD_tamm     = {tAO, tAO}; 
       ttensors.FDS_tamm    = {tAO, tAO};
 
@@ -450,22 +450,22 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       if(is_uhf) {
         ttensors.ehf_beta_tmp     = {tAO, tAO};
-        ttensors.F1_beta          = {tAO, tAO};
+        ttensors.F_beta           = {tAO, tAO};
         ttensors.D_beta_tamm      = {tAO, tAO};
         ttensors.D_last_beta_tamm = {tAO, tAO};    
-        ttensors.F1tmp1_beta      = {tAO, tAO};
+        ttensors.F_beta_tmp       = {tAO, tAO};
         ttensors.FD_beta_tamm     = {tAO, tAO}; 
         ttensors.FDS_beta_tamm    = {tAO, tAO};    
       }
     
-      Tensor<TensorType>::allocate(&ec, ttensors.F1     , 
+      Tensor<TensorType>::allocate(&ec, ttensors.F_alpha     , 
                                         ttensors.D_tamm , ttensors.D_last_tamm, ttensors.D_diff  ,
-                                        ttensors.F1tmp1 , ttensors.ehf_tmp    , ttensors.ehf_tamm,
+                                        ttensors.F_alpha_tmp , ttensors.ehf_tmp    , ttensors.ehf_tamm,
                                         ttensors.FD_tamm, ttensors.FDS_tamm);
       if(is_uhf) 
-        Tensor<TensorType>::allocate(&ec, ttensors.F1_beta     , 
+        Tensor<TensorType>::allocate(&ec, ttensors.F_beta     , 
                                           ttensors.D_beta_tamm , ttensors.D_last_beta_tamm, 
-                                          ttensors.F1tmp1_beta , ttensors.ehf_beta_tmp    ,
+                                          ttensors.F_beta_tmp , ttensors.ehf_beta_tmp    ,
                                           ttensors.FD_beta_tamm, ttensors.FDS_beta_tamm);
 
 
@@ -491,6 +491,43 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           etensors.X_beta = etensors.C_beta;
         }
       }
+      else if(molden_exists) {
+        auto N = sys_data.nbf_orig;
+        auto Northo = sys_data.nbf;
+
+        etensors.C.setZero(N,Northo);
+        if(is_uhf) etensors.C_beta.setZero(N,Northo);
+
+        if(rank == 0) {
+          cout << endl << "Reading from molden file provided ..." << endl;
+          if(molden_file_valid) {
+            read_molden<TensorType>(sys_data,shells,etensors.C,etensors.C_beta);
+          }
+        }
+
+        // compute density
+        if( rank == 0 ) {
+          if(is_rhf) {
+            auto C_occ   = etensors.C.leftCols(sys_data.nelectrons_alpha);
+            etensors.D = 2.0 * C_occ * C_occ.transpose();
+          }
+          else if(is_uhf) {
+            auto C_occ   = etensors.C.leftCols(sys_data.nelectrons_alpha);
+            etensors.D = C_occ * C_occ.transpose();
+            C_occ   = etensors.C_beta.leftCols(sys_data.nelectrons_beta);
+            etensors.D_beta  = C_occ * C_occ.transpose();
+          }
+        }
+
+        if(is_rhf)
+          etensors.X      = etensors.C;
+        if(is_uhf) {
+          etensors.X      = etensors.C;
+          etensors.X_beta = etensors.C_beta;
+        }
+
+        ec.pg().barrier(); 
+      }
       else {
         // FIXME:UNCOMMENT
         #if 0
@@ -499,13 +536,13 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
           compute_sad_guess<TensorType>(ec, sys_data, atoms, shells, basis, 
                                        is_spherical, etensors, charge, multiplicity); 
-          compute_2bf<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
-                                         max_nprim4,shells, ttensors, etensors, do_density_fitting);
+          compute_2bf<TensorType>(ec, sys_data, scf_vars, obs, do_schwarz_screen, shell2bf, SchwarzK,
+                                         max_nprim4,shells, ttensors, etensors, false, do_density_fitting);
           sch
-            (ttensors.F1()  = ttensors.H1())
-            (ttensors.F1() += ttensors.F1tmp1())
+            (ttensors.F_alpha()  = ttensors.H1())
+            (ttensors.F_alpha() += ttensors.F_alpha_tmp())
             .execute();
-          tamm_to_eigen_tensor(ttensors.F1,etensors.F);
+          tamm_to_eigen_tensor(ttensors.F_alpha,etensors.F);
           Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_guess_a(etensors.X.transpose() * etensors.F * etensors.X);
           auto C_alpha = etensors.X * eig_solver_guess_a.eigenvectors();
           auto C_occ_a = C_alpha.leftCols(sys_data.nelectrons_alpha);
@@ -514,10 +551,10 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           if(is_uhf) {
             etensors.D = C_occ_a * C_occ_a.transpose();
             sch
-              (ttensors.F1_beta()  = ttensors.H1())
-              (ttensors.F1_beta() += ttensors.F1tmp1_beta())
+              (ttensors.F_beta()  = ttensors.H1())
+              (ttensors.F_beta() += ttensors.F_beta_tmp())
               .execute();
-            tamm_to_eigen_tensor(ttensors.F1_beta,etensors.F_beta);
+            tamm_to_eigen_tensor(ttensors.F_beta,etensors.F_beta);
             Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_guess_b(etensors.X.transpose() * etensors.F_beta * etensors.X);
             auto C_beta  = etensors.X * eig_solver_guess_b.eigenvectors();
             auto C_occ_b = C_beta.leftCols(sys_data.nelectrons_beta);
@@ -527,7 +564,8 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         else
         #endif
         {
-          auto [s1vec,s2vec,ntask_vec] = compute_initial_guess_taskinfo<TensorType>(ec, sys_data, atoms, shells, basis, is_spherical,
+          auto [s1vec,s2vec,ntask_vec] = compute_initial_guess_taskinfo<TensorType>
+                                    (ec, sys_data, scf_vars, atoms, shells, basis, is_spherical,
                                             etensors, ttensors, charge, multiplicity);
 
           auto [s1_all,s2_all,ntasks_all] = gather_task_vectors<TensorType>(ec,s1vec,s2vec,ntask_vec);
@@ -541,23 +579,26 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
               simpleLoadBal(dummyLoads,ec.pg().size().value());
               tmdim = std::max(dummyLoads.maxS1,dummyLoads.maxS2);
               etensors.taskmap.resize(tmdim+1,tmdim+1);
-              for(int i=0;i<tmdim+1;i++)
-                  for(int j=0;j<tmdim+1;j++) {
-                      etensors.taskmap(i,j) = -1; //this value in this array is the rank that executes task i,j
+              for(int i=0;i<tmdim+1;i++) {
+                for(int j=0;j<tmdim+1;j++) {
+                  // value in this array is the rank that executes task i,j
+                  // -1 indicates a task i,j that can be skipped
+                  etensors.taskmap(i,j) = -1;
+                }
               }
               createTaskMap(etensors.taskmap,dummyLoads);
           }
 
-          MPI_Bcast(&tmdim        ,1,mpi_type<int>()       ,0,ec.pg().comm());
+          ec.pg().broadcast(&tmdim,0);
           if(rank!=0) etensors.taskmap.resize(tmdim+1,tmdim+1);
-          MPI_Bcast(etensors.taskmap.data(),etensors.taskmap.size(),mpi_type<int>(),0,ec.pg().comm());
+          ec.pg().broadcast(etensors.taskmap.data(),etensors.taskmap.size(),0);
 
           compute_initial_guess<TensorType>(ec, 
                   #ifdef USE_SCALAPACK
                         blacs_grid.get(),
                         blockcyclic_dist.get(),
                   #endif 
-                  sys_data, atoms, shells, basis, is_spherical,
+                  sys_data, scf_vars, atoms, shells, basis, is_spherical,
                   etensors, ttensors, charge, multiplicity);
 
           etensors.taskmap.resize(0,0);
@@ -571,7 +612,6 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           }
           ec.pg().barrier();
         } //initial guess
-        
       }
 
       hf_t2   = std::chrono::high_resolution_clock::now();
@@ -598,33 +638,33 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         }
       }
 
-      MPI_Bcast( etensors.D.data(), etensors.D.size(), MPI_DOUBLE, 0, ec.pg().comm() );
-      if(is_uhf) MPI_Bcast( etensors.D_beta.data(), etensors.D_beta.size(), MPI_DOUBLE, 0, ec.pg().comm() );
+      ec.pg().broadcast(etensors.D.data(), etensors.D.size(),0);
+      if(is_uhf) ec.pg().broadcast(etensors.D_beta.data(), etensors.D_beta.size(),0);
       
-      // FIXME: No S in etensors
-      // if(rank == 0 && scf_options.debug) {
-      //   if(is_rhf) 
-      //     cout << "debug #electrons       = " << (etensors.D*etensors.S).trace()      << endl;
-      //   if(is_uhf) {
-      //     cout << "debug #alpha electrons = " << (etensors.D*etensors.S).trace()      << endl;
-      //     cout << "debug #beta  electrons = " << (etensors.D_beta*etensors.S).trace() << endl;
-      //   }
-      // }
+      if(rank == 0 && scf_options.debug) {
+        Matrix S(sys_data.nbf_orig,sys_data.nbf_orig);
+        tamm_to_eigen_tensor(ttensors.S1,S);
+        if(is_rhf) 
+          cout << "debug #electrons       = " << (etensors.D*S).trace()      << endl;
+        if(is_uhf) {
+          cout << "debug #alpha electrons = " << (etensors.D*S).trace()      << endl;
+          cout << "debug #beta  electrons = " << (etensors.D_beta*S).trace() << endl;
+        }
+      }
     
-      //DF basis
+      // Setup tiled index spaces when a fitting basis is provided
       IndexSpace dfCocc{range(0,sys_data.nelectrons_alpha)}; 
-      tdfCocc = {dfCocc,tile_size};
-      std::tie(dCocc_til) = tdfCocc.labels<1>("all");
-
+      scf_vars.tdfCocc = {dfCocc,sys_data.options_map.scf_options.dfAO_tilesize};
+      std::tie(scf_vars.dCocc_til) = scf_vars.tdfCocc.labels<1>("all");
       if(do_density_fitting){
-        std::tie(d_mu, d_nu, d_ku) = tdfAO.labels<3>("all");
-        std::tie(d_mup, d_nup, d_kup) = tdfAOt.labels<3>("all");
+        std::tie(scf_vars.d_mu, scf_vars.d_nu, scf_vars.d_ku)    = scf_vars.tdfAO.labels<3>("all");
+        std::tie(scf_vars.d_mup, scf_vars.d_nup, scf_vars.d_kup) = scf_vars.tdfAOt.labels<3>("all");
 
-        ttensors.Zxy_tamm = Tensor<TensorType>{tdfAO, tAO, tAO}; //ndf,n,n
-        ttensors.xyK_tamm = Tensor<TensorType>{tAO, tAO, tdfAO}; //n,n,ndf
-        ttensors.C_occ_tamm = Tensor<TensorType>{tAO,tdfCocc}; //n,nocc
+        ttensors.Zxy_tamm = Tensor<TensorType>{scf_vars.tdfAO, tAO, tAO}; //ndf,n,n
+        ttensors.xyK_tamm = Tensor<TensorType>{tAO, tAO, scf_vars.tdfAO}; //n,n,ndf
+        ttensors.C_occ_tamm = Tensor<TensorType>{tAO,scf_vars.tdfCocc}; //n,nocc
         Tensor<TensorType>::allocate(&ec, ttensors.xyK_tamm, ttensors.C_occ_tamm,ttensors.Zxy_tamm);
-      }//df basis
+      }
 
       if(rank == 0) {
           std::cout << std::endl << std::endl;
@@ -638,10 +678,12 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       std::cout << std::fixed << std::setprecision(2);
 
-      // ----- Generate task mapping -----
+      /*** Generate task mapping ***/
 
       //Collect task info
-      auto [s1vec,s2vec,ntask_vec] = compute_2bf_taskinfo<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
+      auto [s1vec,s2vec,ntask_vec] = compute_2bf_taskinfo<TensorType>
+                     (ec, sys_data, scf_vars, obs, 
+                      do_schwarz_screen, shell2bf, SchwarzK,
                       max_nprim4,shells, ttensors, etensors, do_density_fitting);
 
       auto [s1_all,s2_all,ntasks_all] = gather_task_vectors<TensorType>(ec,s1vec,s2vec,ntask_vec);
@@ -655,68 +697,55 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           simpleLoadBal(dummyLoads,ec.pg().size().value());
           tmdim = std::max(dummyLoads.maxS1,dummyLoads.maxS2);
           etensors.taskmap.resize(tmdim+1,tmdim+1);
-          for(int i=0;i<tmdim+1;i++)
-              for(int j=0;j<tmdim+1;j++) {
-                  etensors.taskmap(i,j) = -1; //this value in this array is the rank that executes task i,j
+          for(int i=0;i<tmdim+1;i++) {
+            for(int j=0;j<tmdim+1;j++) {
+              // value in this array is the rank that executes task i,j
+              // -1 indicates a task i,j that can be skipped
+              etensors.taskmap(i,j) = -1; 
+            }
           } 
           //cout<<"creating task map"<<endl;
           createTaskMap(etensors.taskmap,dummyLoads);
           //cout<<"task map creation completed"<<endl;
 
-          //debug etensors.taskmap
-          // if(debug) {
-          //   std::string taskfile = files_prefix + ".etensors.taskmap.txt";
-          //   std::ofstream out(taskfile, std::ios::out);
-          //   if(!out) cerr << "Error opening file " << taskfile << endl;
-          //   std::ostringstream taskinfo;
-          //   taskinfo << "s1 s2 ind rank ntasks\n";
-          //   for(int i=0;i<tmdim+1;i++) {
-          //     for(int j=0;j<tmdim+1;j++) {
-          //       int index = etensors.taskmap(i,j);
-          //       if(index>=0) {
-          //           taskinfo << i << " " << j << " " << index <<"\n";
-          //       }
-          //     }
-          //   }
-          //   out << taskinfo.str() << std::endl;
-          //   out.close();
-          // }
       }
 
-      MPI_Bcast(&tmdim        ,1,mpi_type<int>()       ,0,ec.pg().comm());
+      ec.pg().broadcast(&tmdim,0);
       if(rank!=0) etensors.taskmap.resize(tmdim+1,tmdim+1);
-      MPI_Bcast(etensors.taskmap.data(),etensors.taskmap.size(),mpi_type<int>(),0,ec.pg().comm());
+      ec.pg().broadcast(etensors.taskmap.data(),etensors.taskmap.size(),0);
       
-      if(restart) {
+      if(restart || molden_exists) {
         
         sch
-          (ttensors.F1tmp1() = 0)
+          (ttensors.F_alpha_tmp() = 0)
           .execute();
 
         if(is_uhf) {
           sch
-            (ttensors.F1tmp1_beta() = 0)
+            (ttensors.F_beta_tmp() = 0)
             .execute();
         }
-        //F1 = H1 + F1tmp1
-        compute_2bf<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
-                                max_nprim4, shells, ttensors, etensors, do_density_fitting, xHF);          
-        //auto gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
+        //F1 = H1 + F_alpha_tmp
+        compute_2bf<TensorType>(ec, sys_data, scf_vars, obs, do_schwarz_screen, shell2bf, SchwarzK,
+                                max_nprim4, shells, ttensors, etensors, is_3c_init, do_density_fitting, xHF);        
+
+        //auto gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator);
+
         // ehf = D * (H1+F1);
         if(is_rhf) {
           sch
             (ttensors.ehf_tmp(mu,nu)  = 2.0 * ttensors.H1(mu,nu))
-            (ttensors.ehf_tmp(mu,nu) += 1.0 * ttensors.F1tmp1(mu,nu))
+            (ttensors.ehf_tmp(mu,nu) += 1.0 * ttensors.F_alpha_tmp(mu,nu))
             (ttensors.ehf_tamm()      = 1.0 * ttensors.D_tamm() * ttensors.ehf_tmp())
             .execute();
         }
         if(is_uhf) {
           sch
             (ttensors.ehf_tmp(mu,nu)  = 2.0 * ttensors.H1(mu,nu))
-            (ttensors.ehf_tmp(mu,nu) += 1.0 * ttensors.F1tmp1(mu,nu))
+            (ttensors.ehf_tmp(mu,nu) += 1.0 * ttensors.F_alpha_tmp(mu,nu))
             (ttensors.ehf_tamm()      = 1.0 * ttensors.D_tamm() * ttensors.ehf_tmp())
             (ttensors.ehf_tmp(mu,nu)  = 2.0 * ttensors.H1(mu,nu))
-            (ttensors.ehf_tmp(mu,nu) += 1.0 * ttensors.F1tmp1_beta(mu,nu))
+            (ttensors.ehf_tmp(mu,nu) += 1.0 * ttensors.F_beta_tmp(mu,nu))
             (ttensors.ehf_tamm()     += 1.0 * ttensors.D_beta_tamm() * ttensors.ehf_tmp())
             .execute();
         }
@@ -724,8 +753,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         ehf = 0.5*get_scalar(ttensors.ehf_tamm) + enuc; 
         if(rank==0) 
           std::cout << std::setprecision(18) << "Total HF energy after restart: " << ehf << std::endl;
-      }   
-
+      }
 
       //SCF main loop
       do {
@@ -736,13 +764,13 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         double ehf_last = ehf;
 
         sch
-          (ttensors.F1tmp1() = 0)
+          (ttensors.F_alpha_tmp() = 0)
           (ttensors.D_last_tamm(mu,nu) = ttensors.D_tamm(mu,nu))
           .execute();
         
         if(is_uhf) {
           sch
-            (ttensors.F1tmp1_beta() = 0)
+            (ttensors.F_beta_tmp() = 0)
             (ttensors.D_last_beta_tamm(mu,nu) = ttensors.D_beta_tamm(mu,nu))
             .execute();
         }
@@ -751,8 +779,8 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         // if(rank==0) cout << std::setprecision(18) << "norm of D_tamm: " << D_tamm_nrm << endl;
 
         // build a new Fock matrix
-        compute_2bf<TensorType>(ec, sys_data, obs, do_schwarz_screen, shell2bf, SchwarzK,
-                                max_nprim4,shells, ttensors, etensors, do_density_fitting);
+        compute_2bf<TensorType>(ec, sys_data, scf_vars, obs, do_schwarz_screen, shell2bf, SchwarzK,
+                                max_nprim4, shells, ttensors, etensors, is_3c_init, do_density_fitting);
         TensorType gauxc_exc = 0.;
         if(is_ks) {
           gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
@@ -766,7 +794,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           Tensor<TensorType>::allocate(&ec,Dcopy,Fcopy,ehf_tamm_copy);
           sch
             (Dcopy()  = ttensors.D_tamm())
-            (Fcopy()  = ttensors.F1tmp1())
+            (Fcopy()  = ttensors.F_alpha_tmp())
             (Fcopy() += ttensors.H1())
             (ehf_tamm_copy()  = 0.5 * Dcopy() * Fcopy())
             (ehf_tamm_copy() += 0.5 * Dcopy() * ttensors.H1())
@@ -780,7 +808,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           ttensors.fock_hist.push_back(Fcopy);
           ttensors.ehf_tamm_hist.push_back(ehf_tamm_copy);
           // if(rank==0) cout << "iter: " << iter << "," << (int)ttensors.D_hist.size() << "," << get_scalar(ehf_tamm_copy) << endl;
-          energy_diis(ec, tAO, iter, max_hist, ttensors.D_tamm, ttensors.F1, ttensors.ehf_tamm,
+          energy_diis(ec, tAO, iter, max_hist, ttensors.D_tamm, ttensors.F_alpha, ttensors.ehf_tamm,
                       ttensors.D_hist, ttensors.fock_hist, ttensors.ehf_tamm_hist);
         }
 
@@ -789,7 +817,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
                         blacs_grid.get(),
                         blockcyclic_dist.get(),
         #endif 
-                        iter, sys_data, ttensors, etensors, ediis, scf_conv);
+                        iter, sys_data, scf_vars, ttensors, etensors, ediis, scf_conv);
 
         if(ediis && fabs(rmsd) < ediis_off) ediis = false;
 
@@ -885,19 +913,19 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         tamm_terminate("Please check SCF input parameters");
       }
 
-      if(rank == 0) tamm_to_eigen_tensor(ttensors.F1,etensors.F);
+      if(rank == 0) tamm_to_eigen_tensor(ttensors.F_alpha,etensors.F);
 
       if(do_density_fitting) Tensor<TensorType>::deallocate(ttensors.xyK_tamm, ttensors.C_occ_tamm, ttensors.Zxy_tamm);
 
       Tensor<TensorType>::deallocate(ttensors.H1     , ttensors.S1      , ttensors.T1         , ttensors.V1,
-                                     ttensors.F1tmp1 , ttensors.ehf_tmp , ttensors.ehf_tamm   , ttensors.F1,
+                                     ttensors.F_alpha_tmp , ttensors.ehf_tmp , ttensors.ehf_tamm   , ttensors.F_alpha,
                                      ttensors.D_tamm , ttensors.D_diff  , ttensors.D_last_tamm,
                                      ttensors.FD_tamm, ttensors.FDS_tamm);
       
       if(is_uhf) 
-        Tensor<TensorType>::deallocate(ttensors.F1_beta     , 
+        Tensor<TensorType>::deallocate(ttensors.F_beta     , 
                                        ttensors.D_beta_tamm , ttensors.D_last_beta_tamm,
-                                       ttensors.F1tmp1_beta , ttensors.ehf_beta_tmp    ,
+                                       ttensors.F_beta_tmp , ttensors.ehf_beta_tmp    ,
                                        ttensors.FD_beta_tamm, ttensors.FDS_beta_tamm   );
 
       #if SCF_THROTTLE_RESOURCES
@@ -930,13 +958,13 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     sys_data.n_vir_alpha = sys_data.nbf_orig - sys_data.n_occ_alpha - sys_data.n_lindep;
     sys_data.n_vir_beta  = sys_data.nbf_orig - sys_data.n_occ_beta - sys_data.n_lindep;
 
-    MPI_Bcast(&ehf                 ,1,mpi_type<TensorType>(),0,exc.pg().comm());
-    MPI_Bcast(&sys_data.nbf        ,1,mpi_type<int>()       ,0,exc.pg().comm());    
-    MPI_Bcast(&sys_data.n_lindep   ,1,mpi_type<int>()       ,0,exc.pg().comm());
-    MPI_Bcast(&sys_data.n_occ_alpha,1,mpi_type<int>()       ,0,exc.pg().comm());
-    MPI_Bcast(&sys_data.n_vir_alpha,1,mpi_type<int>()       ,0,exc.pg().comm());
-    MPI_Bcast(&sys_data.n_occ_beta ,1,mpi_type<int>()       ,0,exc.pg().comm());
-    MPI_Bcast(&sys_data.n_vir_beta ,1,mpi_type<int>()       ,0,exc.pg().comm());
+    exc.pg().broadcast(&ehf                 ,0);
+    exc.pg().broadcast(&sys_data.nbf        ,0);  
+    exc.pg().broadcast(&sys_data.n_lindep   ,0);
+    exc.pg().broadcast(&sys_data.n_occ_alpha,0);
+    exc.pg().broadcast(&sys_data.n_vir_alpha,0);
+    exc.pg().broadcast(&sys_data.n_occ_beta ,0);
+    exc.pg().broadcast(&sys_data.n_vir_beta ,0);
 
     sys_data.update();
     if(rank==0 && debug) sys_data.print();
@@ -948,36 +976,32 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       sys_data.results["output"]["SCF"]["n_iterations"] = iter;
     }
 
-    tamm::Tile ao_tile = scf_options.AO_tilesize;
-    if(tile_size < N*0.05 && !scf_options.force_tilesize)
-        ao_tile = static_cast<tamm::Tile>(std::ceil(N*0.05));
-
     IndexSpace AO_ortho{range(0, (size_t)(sys_data.nbf_orig-sys_data.n_lindep))};
-    TiledIndexSpace tAO_ortho{AO_ortho,ao_tile};
+    TiledIndexSpace tAO_ortho{AO_ortho,sys_data.options_map.scf_options.AO_tilesize};
         
-    Tensor<TensorType> C_alpha_tamm{tAO,tAO_ortho};
-    Tensor<TensorType> C_beta_tamm{tAO,tAO_ortho};
-    Tensor<TensorType> F_alpha_tamm{tAO,tAO};
-    Tensor<TensorType> F_beta_tamm{tAO,tAO};
+    Tensor<TensorType> C_alpha_tamm{scf_vars.tAO,tAO_ortho};
+    Tensor<TensorType> C_beta_tamm{scf_vars.tAO,tAO_ortho};
+    Tensor<TensorType> F_alpha_tamm{scf_vars.tAO,scf_vars.tAO};
+    Tensor<TensorType> F_beta_tamm{scf_vars.tAO,scf_vars.tAO};
 
     Tensor<TensorType>::allocate(&exc,C_alpha_tamm,F_alpha_tamm);
     if(is_uhf)
-          Tensor<TensorType>::allocate(&exc,C_beta_tamm,F_beta_tamm);
+      Tensor<TensorType>::allocate(&exc,C_beta_tamm,F_beta_tamm);
 
     if (rank == 0) {
       eigen_to_tamm_tensor(C_alpha_tamm,etensors.C);
       eigen_to_tamm_tensor(F_alpha_tamm,etensors.F);
       if(is_uhf) {
-        eigen_to_tamm_tensor(C_beta_tamm ,etensors.C_beta);
-        eigen_to_tamm_tensor(F_beta_tamm ,etensors.F_beta);
+        eigen_to_tamm_tensor(C_beta_tamm,etensors.C_beta);
+        eigen_to_tamm_tensor(F_beta_tamm,etensors.F_beta);
       }
     }
 
     exc.pg().barrier();
 
-    return std::make_tuple(sys_data, ehf, shells, shell_tile_map, 
-      C_alpha_tamm, F_alpha_tamm, C_beta_tamm, F_beta_tamm, tAO, tAOt, scf_conv);
+    return std::make_tuple(sys_data, ehf, shells, scf_vars.shell_tile_map, 
+      C_alpha_tamm, F_alpha_tamm, C_beta_tamm, F_beta_tamm, scf_vars.tAO, scf_vars.tAOt, scf_conv);
 }
 
-#endif // TAMM_METHODS_HF_TAMM_HPP_
+#endif // TAMM_METHODS_SCF_MAIN_HPP_
 

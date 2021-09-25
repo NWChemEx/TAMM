@@ -568,7 +568,7 @@ void scf_restart_test(const ExecutionContext& ec, const SystemData& sys_data, co
                       bool restart, std::string files_prefix) {
     if(!restart) return;
     const auto rank    = ec.pg().rank();
-    const bool is_uhf  = (sys_data.scf_type == sys_data.SCFType::uhf);
+    const bool is_uhf  = (sys_data.scf_type == SCFType::uhf);
 
     int        rstatus = 1;
 
@@ -597,7 +597,7 @@ void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const s
     const auto rank    = ec.pg().rank();
     const auto N       = sys_data.nbf_orig;
     const auto Northo  = N - sys_data.n_lindep;
-    const bool is_uhf  = (sys_data.scf_type == sys_data.SCFType::uhf);
+    const bool is_uhf  = (sys_data.scf_type == SCFType::uhf);
 
     EXPECTS(Northo == sys_data.nbf);
 
@@ -635,8 +635,8 @@ double tt_trace(ExecutionContext& ec, Tensor<TensorType>& T1, Tensor<TensorType>
 
 void print_energies(ExecutionContext& ec, TAMMTensors& ttensors, const SystemData& sys_data, bool debug=false){
 
-      const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
-      const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+      const bool is_uhf = (sys_data.scf_type == SCFType::uhf);
+      const bool is_rhf = (sys_data.scf_type == SCFType::rhf);
       
       double nelectrons = 0.0;
       double kinetic_1e = 0.0;

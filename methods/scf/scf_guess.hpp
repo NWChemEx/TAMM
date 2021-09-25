@@ -418,8 +418,8 @@ void scf_diagonalize(
       Matrix& C_beta  = etensors.C_beta; 
 
       const int64_t N = sys_data.nbf_orig;
-      const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
-      const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+      const bool is_uhf = (sys_data.scf_type == SCFType::uhf);
+      const bool is_rhf = (sys_data.scf_type == SCFType::rhf);
 
       #ifdef USE_SCALAPACK
         const auto& grid = *blacs_grid;
@@ -900,8 +900,8 @@ void compute_sad_guess(ExecutionContext& ec, SystemData& sys_data, const SCFVars
     const auto rank       = ec.pg().rank();
     const auto world_size = ec.pg().size();
 
-    const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
-    const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+    const bool is_uhf = (sys_data.scf_type == SCFType::uhf);
+    const bool is_rhf = (sys_data.scf_type == SCFType::rhf);
 
     int neutral_charge = sys_data.nelectrons + charge;
     // double N_to_Neu  = (double)sys_data.nelectrons/neutral_charge;

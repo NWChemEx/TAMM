@@ -2,7 +2,7 @@
 #ifndef TAMM_CD_SVD_AO_HPP_
 #define TAMM_CD_SVD_AO_HPP_
 
-#include "HF/hartree_fock_tamm.hpp"
+#include "scf/scf_main.hpp"
 #include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
 

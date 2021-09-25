@@ -93,6 +93,7 @@ class SCFOptions: public Options {
       convd          = 1e-6;
       diis_hist      = 10;
       AO_tilesize    = 30;
+      dfAO_tilesize  = 50;
       restart        = false;
       noscf          = false;
       ediis          = false;
@@ -120,7 +121,8 @@ class SCFOptions: public Options {
   double conve;      //energy convergence
   double convd;      //density convergence
   int    diis_hist;  //number of diis history entries
-  int    AO_tilesize; 
+  uint32_t    AO_tilesize;
+  uint32_t    dfAO_tilesize;
   bool   restart;    //Read movecs from disk
   bool   noscf;      //only recompute energy from movecs
   bool   ediis;
@@ -490,7 +492,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     parse_option<double>(scf_options.convd           , jscf, "convd");            
     parse_option<int>   (scf_options.diis_hist       , jscf, "diis_hist");   
     parse_option<bool>  (scf_options.force_tilesize  , jscf, "force_tilesize"); 
-    parse_option<int>   (scf_options.AO_tilesize     , jscf, "tilesize");
+    parse_option<uint32_t>(scf_options.AO_tilesize   , jscf, "tilesize");
+    parse_option<uint32_t>(scf_options.dfAO_tilesize , jscf, "df_tilesize");
     parse_option<double>(scf_options.alpha           , jscf, "alpha");
     parse_option<int>   (scf_options.writem          , jscf, "writem");    
     parse_option<int>   (scf_options.nnodes          , jscf, "nnodes");                                     
@@ -631,8 +634,7 @@ class json_sax_no_exception : public nlohmann::detail::json_sax_dom_parser<json>
 inline std::tuple<OptionsMap, json>
    parse_input(std::istream& is) {
 
-    const double angstrom_to_bohr =
-      1.889725989; // 1 / bohr_to_angstrom; //1.889726125
+    const double angstrom_to_bohr = 1.8897259878858;
     
     json jinput;
     json_sax_no_exception jsax(jinput);

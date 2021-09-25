@@ -487,12 +487,9 @@ void ccsd_t_driver() {
     std::tie(energy1,energy2,ccsd_t_time,total_t_time) = ccsd_t_unfused_driver(ec,k_spin,MO,d_t1,d_t2,d_v2,
                 p_evl_sorted,hf_energy+corr_energy,ccsd_options.ngpu,is_restricted,use_nwc_gpu_kernels);
 
-        
-    double g_energy1,g_energy2;
-    MPI_Reduce(&energy1, &g_energy1, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
-    MPI_Reduce(&energy2, &g_energy2, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
-    energy1 = g_energy1;
-    energy2 = g_energy2;
+
+    energy1 = ec.pg().reduce(&energy1, ReduceOp::sum, 0);
+    energy2 = ec.pg().reduce(&energy2, ReduceOp::sum, 0);
 
     if (rank==0 && energy1!=-999){
 
@@ -518,12 +515,11 @@ void ccsd_t_driver() {
     };
 
     auto comm_stats = [&](const std::string& timer_type, const double ctime){
-        double g_getTime,g_min_getTime,g_max_getTime;
-        MPI_Reduce(&ctime, &g_getTime,     1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
-        MPI_Reduce(&ctime, &g_min_getTime, 1, MPI_DOUBLE, MPI_MIN, 0, ec.pg().comm());
-        MPI_Reduce(&ctime, &g_max_getTime, 1, MPI_DOUBLE, MPI_MAX, 0, ec.pg().comm());
+        double g_getTime     = ec.pg().reduce(&ctime, ReduceOp::sum, 0);
+        double g_min_getTime = ec.pg().reduce(&ctime, ReduceOp::min, 0);
+        double g_max_getTime = ec.pg().reduce(&ctime, ReduceOp::max, 0);
         if(rank == 0) 
-        print_profile_stats(timer_type, g_getTime, g_min_getTime, g_max_getTime);        
+            print_profile_stats(timer_type, g_getTime, g_min_getTime, g_max_getTime);
         return g_getTime/nranks;        
     };
 
@@ -547,9 +543,8 @@ void ccsd_t_driver() {
     comm_stats("D2-T2 GetTime", ccsdt_d2_t2_GetTime);
     comm_stats("D2-V2 GetTime", ccsdt_d2_v2_GetTime);
 
-    double g_ccsd_t_data_per_rank;
     ccsd_t_data_per_rank = (ccsd_t_data_per_rank * 8.0) / (1024*1024.0*1024); //GB
-    MPI_Reduce(&ccsd_t_data_per_rank, &g_ccsd_t_data_per_rank, 1, MPI_DOUBLE, MPI_SUM, 0, ec.pg().comm());
+    double g_ccsd_t_data_per_rank = ec.pg().reduce(&ccsd_t_data_per_rank, ReduceOp::sum, 0);
     if(rank == 0) 
         std::cout << "   -> Data Transfer (GB): " << g_ccsd_t_data_per_rank/nranks << std::endl;
 

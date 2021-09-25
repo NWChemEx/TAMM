@@ -222,7 +222,6 @@ public:
         tbarrierTime += std::chrono::duration_cast<std::chrono::duration<double>>((bt2 - bt1)).count(); 
         start_idx_ = ops_.size();
 #elif 1
-       // MPI_Barrier(ec_.pg().comm());
         auto misc_start = std::chrono::high_resolution_clock::now();
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
         EXPECTS(order.size() == ops_.size() - start_idx_);
@@ -319,38 +318,23 @@ public:
             std::vector<double> global_multop_dgemm_times_sum(nops);
             std::vector<double> global_multop_add_times_sum(nops);
 
-            // MPI_Reduce(load_imbalance_times.data(), global_load_imbalance_times_min.data(), lvl, MPI_DOUBLE, MPI_MIN, 0,
-                        // ec_.pg().comm());     
-            MPI_Reduce(op_times.data(), global_op_times_min.data(), nops, MPI_DOUBLE, MPI_MIN, 0,
-                        ec_.pg().comm());     
-            MPI_Reduce(multop_get_times.data(), global_multop_get_times_min.data(), nops, MPI_DOUBLE, MPI_MIN, 0,
-                        ec_.pg().comm());     
-            MPI_Reduce(multop_dgemm_times.data(), global_multop_dgemm_times_min.data(), nops, MPI_DOUBLE, MPI_MIN, 0,
-                        ec_.pg().comm());     
-            MPI_Reduce(multop_add_times.data(), global_multop_add_times_min.data(), nops, MPI_DOUBLE, MPI_MIN, 0,
-                        ec_.pg().comm());     
+            // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_min.data(), lvl, ReduceOp::min, 0);
+            ec_.pg().reduce(op_times.data(), global_op_times_min.data(), nops, ReduceOp::min, 0);
+            ec_.pg().reduce(multop_get_times.data(), global_multop_get_times_min.data(), nops, ReduceOp::min, 0);
+            ec_.pg().reduce(multop_dgemm_times.data(), global_multop_dgemm_times_min.data(), nops, ReduceOp::min, 0);
+            ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_min.data(), nops, ReduceOp::min, 0);
 
-            // MPI_Reduce(load_imbalance_times.data(), global_load_imbalance_times_max.data(), lvl, MPI_DOUBLE, MPI_MAX, 0,
-            //             ec_.pg().comm());     
-            MPI_Reduce(op_times.data(), global_op_times_max.data(), nops, MPI_DOUBLE, MPI_MAX, 0,
-                        ec_.pg().comm());     
-            MPI_Reduce(multop_get_times.data(), global_multop_get_times_max.data(), nops, MPI_DOUBLE, MPI_MAX, 0,
-                        ec_.pg().comm());     
-            MPI_Reduce(multop_dgemm_times.data(), global_multop_dgemm_times_max.data(), nops, MPI_DOUBLE, MPI_MAX, 0,
-                        ec_.pg().comm());     
-            MPI_Reduce(multop_add_times.data(), global_multop_add_times_max.data(), nops, MPI_DOUBLE, MPI_MAX, 0,
-                        ec_.pg().comm());     
+            // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_max.data(), lvl, ReduceOp::max, 0);     
+            ec_.pg().reduce(op_times.data(), global_op_times_max.data(), nops, ReduceOp::max, 0);
+            ec_.pg().reduce(multop_get_times.data(), global_multop_get_times_max.data(), nops, ReduceOp::max, 0);
+            ec_.pg().reduce(multop_dgemm_times.data(), global_multop_dgemm_times_max.data(), nops, ReduceOp::max, 0);
+            ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_max.data(), nops, ReduceOp::max, 0);
 
-            // MPI_Reduce(load_imbalance_times.data(), global_load_imbalance_times_sum.data(), lvl, MPI_DOUBLE, MPI_SUM, 0,
-            //             ec_.pg().comm());     
-            MPI_Reduce(op_times.data(), global_op_times_sum.data(), nops, MPI_DOUBLE, MPI_SUM, 0,
-                        ec_.pg().comm());     
-            MPI_Reduce(multop_get_times.data(), global_multop_get_times_sum.data(), nops, MPI_DOUBLE, MPI_SUM, 0,
-                        ec_.pg().comm());     
-            MPI_Reduce(multop_dgemm_times.data(), global_multop_dgemm_times_sum.data(), nops, MPI_DOUBLE, MPI_SUM, 0,
-                        ec_.pg().comm());     
-            MPI_Reduce(multop_add_times.data(), global_multop_add_times_sum.data(), nops, MPI_DOUBLE, MPI_SUM, 0,
-                        ec_.pg().comm());     
+            // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_sum.data(), lvl, ReduceOp::sum, 0);
+            ec_.pg().reduce(op_times.data(), global_op_times_sum.data(), nops, ReduceOp::sum, 0);
+            ec_.pg().reduce(multop_get_times.data(), global_multop_get_times_sum.data(), nops, ReduceOp::sum, 0);
+            ec_.pg().reduce(multop_dgemm_times.data(), global_multop_dgemm_times_sum.data(), nops, ReduceOp::sum, 0);
+            ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_sum.data(), nops, ReduceOp::sum, 0);
 
         
             int np = ec_.pg().size().value();

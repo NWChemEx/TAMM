@@ -1,14 +1,11 @@
 #ifndef TAMM_PROC_GROUP_H_
 #define TAMM_PROC_GROUP_H_
 
-#include "ga/ga.h"
-#include <mpi.h>
 #include <pthread.h>
 #include <cassert>
 #include <map>
 #include <vector>
 #include <memory>
-#include "ga/ga-mpi.h"
 
 #include "tamm/types.hpp"
 
@@ -234,6 +231,65 @@ class ProcGroup {
     ga_pg_self = create_ga_process_group_coll(MPI_COMM_SELF);
     created = true;
     return ga_pg_self;
+  }
+
+  template <typename T>
+  void broadcast(T *buf, int root) {
+    MPI_Bcast(buf, 1, mpi_type<T>(), root, pginfo_->mpi_comm_);
+  }
+
+  template <typename T>
+  void broadcast(T *buf, int buflen, int root) {
+    MPI_Bcast(buf, buflen, mpi_type<T>(), root, pginfo_->mpi_comm_);
+  }
+
+  template <typename T>
+  void gather(const T *sbuf, T *rbuf, int root) {
+    MPI_Gather(sbuf, 1, mpi_type<T>(), rbuf, 1, mpi_type<T>(), root, pginfo_->mpi_comm_);
+  }
+
+  template <typename T>
+  void gather(const T *sbuf, int scount, T *rbuf, int rcount, int root) {
+    MPI_Gather(sbuf, scount, mpi_type<T>(), rbuf, rcount, mpi_type<T>(), root, pginfo_->mpi_comm_);
+  }
+
+  template <typename T>
+  void gatherv(const T *sbuf, int scount, T *rbuf, const int* rcounts, const int* displacements, int root) {
+    MPI_Gatherv(sbuf, scount, mpi_type<T>(), rbuf, rcounts, displacements, mpi_type<T>(), root, pginfo_->mpi_comm_);
+  }  
+
+  template <typename T>
+  void allgather(const T *sbuf, T *rbuf) {
+    MPI_Allgather(sbuf, 1, mpi_type<T>(), rbuf, 1, mpi_type<T>(), pginfo_->mpi_comm_);
+  }
+
+  template <typename T>
+  void allgather(const T *sbuf, int scount, T *rbuf, int rcount) {
+    MPI_Allgather(sbuf, scount, mpi_type<T>(), rbuf, rcount, mpi_type<T>(), pginfo_->mpi_comm_);
+  }
+
+  template <typename T>
+  T reduce(const T *buf, ReduceOp op, int root) {
+    T result{};
+    MPI_Reduce(buf, &result, 1, mpi_type<T>(), mpi_op(op), root, pginfo_->mpi_comm_);
+    return result;
+  }
+
+  template <typename T>
+  void reduce(const T *sbuf, T *rbuf, int count, ReduceOp op, int root) {
+    MPI_Reduce(sbuf, rbuf, count, mpi_type<T>(), mpi_op(op), root, pginfo_->mpi_comm_);
+  }
+
+  template <typename T>
+  T allreduce(const T *buf, ReduceOp op) {
+    T result{};
+    MPI_Allreduce(buf, &result, 1, mpi_type<T>(), mpi_op(op), pginfo_->mpi_comm_);
+    return result;
+  }
+
+  template <typename T>
+  void allreduce(const T *sbuf, T *rbuf, int count, ReduceOp op) {
+    MPI_Allreduce(sbuf, rbuf, count, mpi_type<T>(), mpi_op(op), pginfo_->mpi_comm_);
   }
 
  private:

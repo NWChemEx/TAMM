@@ -10,6 +10,7 @@
 #include <iosfwd>
 #include <map>
 #include "ga/ga.h"
+#include "ga/ga-mpi.h"
 
 //#include <mpi.h>
  
@@ -176,6 +177,8 @@ enum class SpinType { ao_spin, mo_spin };
 
 enum class ExecutionHW { CPU, GPU, DEFAULT };
 
+enum class ReduceOp { min, max, sum, maxloc, minloc };
+
 using SpinMask = std::vector<SpinPosition>;
 
 using rtDataHandlePtr = ga_nbhdl_t*;
@@ -219,6 +222,43 @@ using DataCommunicationHandlePtr = DataCommunicationHandle*;
 // const Spin alpha{1};
 // const Spin beta{2};
 // }; // namespace SpinType
+
+template<typename T>
+static inline MPI_Datatype mpi_type(){
+    using std::is_same_v;
+
+    if constexpr(is_same_v<int, T>)
+        return MPI_INT;    
+    else if constexpr(is_same_v<char, T>)
+        return MPI_CHAR;
+    else if constexpr(is_same_v<int64_t, T>)
+        return MPI_INT64_T;
+    else if constexpr(is_same_v<uint32_t, T>)
+        return MPI_UNSIGNED;        
+    else if constexpr(is_same_v<size_t, T>)
+        return MPI_UNSIGNED_LONG;        
+    else if constexpr(is_same_v<float, T>)
+        return MPI_FLOAT;
+    else if constexpr(is_same_v<double, T>)
+        return MPI_DOUBLE;
+    else if constexpr(is_same_v<std::complex<float>, T>)
+        return MPI_COMPLEX;
+    else if constexpr(is_same_v<std::complex<double>, T>)
+        return MPI_DOUBLE_COMPLEX;
+}
+
+static inline MPI_Op mpi_op(ReduceOp rop) {
+    if (rop == ReduceOp::min)
+        return MPI_MIN;
+    else if (rop == ReduceOp::max)
+        return MPI_MAX;
+    else if (rop == ReduceOp::sum)
+        return MPI_SUM;
+    else if (rop == ReduceOp::minloc)
+        return MPI_MINLOC;
+    else if (rop == ReduceOp::maxloc)
+        return MPI_MAXLOC;
+}
 
 namespace internal {
     template<typename T, typename... Args>

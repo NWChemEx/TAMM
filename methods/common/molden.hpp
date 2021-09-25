@@ -3,7 +3,7 @@
 #define METHODS_MOLDEN_HPP_
 
 #include <iostream>
-#include "input_parser.hpp"
+#include "json_data.hpp"
 
 string read_option(string line){
   std::istringstream oss(line);
@@ -48,51 +48,338 @@ bool is_in_line(const std::string str, const std::string line){
   return found;
 }
 
-// bool is_empty(std::string line){
-//   if(line.find_first_not_of(' ') == std::string::npos 
-//     || line.empty() || is_comment(line)) return true;
-//   return false;
-// }
-
-// void skip_empty_lines(std::istream& is) {
-//     std::string line;
-//     auto curpos = is.tellg();
-//     std::getline(is, line);
-    
-//     if(is_empty(line)) {
-//       curpos = is.tellg();
-//       auto trackpos = curpos;
-//       while (is_empty(line)) {
-//         curpos = trackpos;
-//         std::getline(is, line);
-//         trackpos = is.tellg();
-//       }
-//     }
-//     is.clear();//cannot seek to curpos if eof is reached
-//     is.seekg(curpos,std::ios_base::beg);
-//     // std::getline(is, line);
-// }
-
 template<typename T>
-std::tuple<int,int,int,int> read_mo(SCFOptions scf_options, std::istream& is, std::vector<T>& evl_sorted, 
-  Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& C, const size_t natoms) {
+void reorder_molden_orbitals(const bool is_spherical, std::vector<AtomInfo>& atominfo, Matrix& smat, Matrix& dmat, const bool reorder_cols = true, const bool reorder_rows = true) {
+    auto dim1 = dmat.rows();
+    auto dim2 = dmat.cols();
 
-  int n_occ_alpha=0, n_occ_beta=0, n_vir_alpha=0, n_vir_beta=0;
-    
-  std::string line;
+    const T sqrt_3 = std::sqrt(static_cast<T>(3.0));
+    const T sqrt_5 = std::sqrt(static_cast<T>(5.0));
+    const T sqrt_7 = std::sqrt(static_cast<T>(7.0));
+    const T sqrt_753 = sqrt_7*sqrt_5/sqrt_3;
+
+    auto col_copy = [&](int tc, int oc, const T scale=1.0) {
+      for(size_t i=0;i<dim1;i++) {
+        dmat(i,tc) = scale * smat(i,oc);
+      }
+    };
   
-  size_t nmo = evl_sorted.size();
-  size_t N = C.rows(); //nmo
-  //if(scf_options.scf_type == "uhf") N = N/2;
-  //const size_t n_lindep = scf_options.n_lindep;
-  std::vector<T> eigenvecs(N); 
-  bool is_spherical = (scf_options.sphcart == "spherical");
+    if(reorder_rows) {
+      for(size_t i=0;i<dim2;i++) {
+        size_t j = 0;
+        for(size_t x = 0; x < atominfo.size(); x++) { //loop over atoms
+          for(auto s: atominfo[x].shells) { //loop over each shell for given atom
+            for(const auto& c: s.contr) { //loop over contractions. 
+              // FIXME: assumes only 1 contraction for now
+              if(c.l == 0) {
+                //S functions
+                dmat(j,i) = smat(j,i); j++; 
+              }
+              else if(c.l == 1) {
+                //P functions
+                //libint set_pure to solid forces y,z,x ordering for l=1
+                if(is_spherical) {
+                  dmat(j,i) = smat(j+1,i); j++;
+                  dmat(j,i) = smat(j+1,i); j++;
+                  dmat(j,i) = smat(j-2,i); j++;
+                }
+                else {
+                  dmat(j,i) = smat(j,i); j++;
+                  dmat(j,i) = smat(j,i); j++;
+                  dmat(j,i) = smat(j,i); j++;
+                }
+              }
+              else if(c.l == 2) {
+                //D functions
+                if(is_spherical) {
+                  dmat(j,i) = smat(j+4,i); j++;
+                  dmat(j,i) = smat(j+1,i); j++;
+                  dmat(j,i) = smat(j-2,i); j++;
+                  dmat(j,i) = smat(j-2,i); j++;
+                  dmat(j,i) = smat(j-1,i); j++;
+                }
+                else {
+                  dmat(j,i) = smat(j,i);          j++;
+                  dmat(j,i) = smat(j+2,i)*sqrt_3; j++;
+                  dmat(j,i) = smat(j+2,i)*sqrt_3; j++;
+                  dmat(j,i) = smat(j-2,i);        j++;
+                  dmat(j,i) = smat(j+1,i)*sqrt_3; j++;
+                  dmat(j,i) = smat(j-3,i);        j++;
+                }
+              }
+              else if(c.l == 3) {
+                //F functions
+                if(is_spherical) {
+                  dmat(j,i) = 1.0*smat(j+6,i);  j++;
+                  dmat(j,i) = smat(j+3,i);      j++;
+                  dmat(j,i) = smat(j,i);        j++;
+                  dmat(j,i) = 1.0*smat(j-3,i);  j++;
+                  dmat(j,i) = smat(j-3,i);      j++;
+                  dmat(j,i) = smat(j-2,i);      j++;
+                  dmat(j,i) = smat(j-1,i);      j++;
+                }
+                else {
+                  dmat(j,i) = smat(j,i);                 j++;
+                  dmat(j,i) = smat(j+3,i)*sqrt_5;        j++;
+                  dmat(j,i) = smat(j+3,i)*sqrt_5;        j++;
+                  dmat(j,i) = smat(j,i)  *sqrt_5;        j++;
+                  dmat(j,i) = smat(j+5,i)*sqrt_5*sqrt_3; j++;
+                  dmat(j,i) = smat(j+1,i)*sqrt_5;        j++;
+                  dmat(j,i) = smat(j-5,i);               j++;
+                  dmat(j,i) = smat(j+1,i)*sqrt_5;        j++; 
+                  dmat(j,i) = smat(j-1,i)*sqrt_5;        j++;                  
+                  dmat(j,i) = smat(j-7,i);               j++; 
+                }
+              }
+              else if(c.l == 4) {
+                //G functions
+                if(is_spherical) {
+                  dmat(j,i) = 1.0*smat(j+8,i);  j++;
+                  dmat(j,i) = smat(j+5,i);      j++;
+                  dmat(j,i) = smat(j+2,i);      j++;
+                  dmat(j,i) = smat(j-1,i);      j++;
+                  dmat(j,i) = 1.0*smat(j-4,i);  j++;
+                  dmat(j,i) = 1.0*smat(j-4,i);  j++;
+                  dmat(j,i) = smat(j-3,i);      j++;
+                  dmat(j,i) = smat(j-2,i);      j++;
+                  dmat(j,i) = 1.0*smat(j-1,i);  j++;
+                }
+                else {
+                  dmat(j,i) = smat(j,i);                 j++;
+                  dmat(j,i) = smat(j+2,i)*sqrt_7;        j++;
+                  dmat(j,i) = smat(j+2,i)*sqrt_7;        j++;
+                  dmat(j,i) = smat(j+6,i)*sqrt_753;      j++;
+                  dmat(j,i) = smat(j+8,i)*sqrt_7*sqrt_5; j++;
+                  dmat(j,i) = smat(j+5,i)*sqrt_753;      j++;
+                  dmat(j,i) = smat(j-1,i)*sqrt_7;        j++;
+                  dmat(j,i) = smat(j+6,i)*sqrt_7*sqrt_5; j++;
+                  dmat(j,i) = smat(j+6,i)*sqrt_7*sqrt_5; j++;
+                  dmat(j,i) = smat(j-2,i)*sqrt_7;        j++;
+                  dmat(j,i) = smat(j-9,i);               j++;
+                  dmat(j,i) = smat(j-5,i)*sqrt_7;        j++;
+                  dmat(j,i) = smat(j-1,i)*sqrt_753;      j++;
+                  dmat(j,i) = smat(j-5,i)*sqrt_7;        j++;
+                  dmat(j,i) = smat(j-12,i);              j++;                           
+                }
+              }
+              else if(c.l == 5) {
+                //H functions
+                if(is_spherical) {
+                  dmat(j,i) = 1.0*smat(j+10,i); j++;
+                  dmat(j,i) = -1.0*smat(j+7,i); j++;
+                  dmat(j,i) = smat(j+4,i);      j++;
+                  dmat(j,i) = smat(j+1,i);      j++;
+                  dmat(j,i) = -1.0*smat(j-2,i); j++;
+                  dmat(j,i) = 1.0*smat(j-5,i);  j++;
+                  dmat(j,i) = smat(j-5,i);      j++;
+                  dmat(j,i) = smat(j-4,i);      j++;
+                  dmat(j,i) = 1.0*smat(j-3,i);  j++;   
+                  dmat(j,i) = 1.0*smat(j-2,i);  j++;   
+                  dmat(j,i) = -1.0*smat(j-1,i); j++;  
+                }
+                else NOT_IMPLEMENTED();       
+              }                
+            } //contr
+          } //shells
+        } //atom
+      }
+      smat = dmat;
+    }
+    if(reorder_cols) {
+      dmat.setZero();
+      size_t j = 0;
+      for(size_t x = 0; x < atominfo.size(); x++) { //loop over atoms
+        for(auto s: atominfo[x].shells) { //loop over each shell for given atom
+          for(const auto& c: s.contr) { //loop over contractions. 
+            // FIXME: assumes only 1 contraction for now
+            if(c.l == 0) {
+              //S functions
+              col_copy(j,j); j++; 
+            }
+            else if(c.l == 1) {
+              //P functions
+              //libint set_pure to solid forces y,z,x ordering for l=1
+              if(is_spherical) {
+                col_copy(j,j+1); j++;
+                col_copy(j,j+1); j++;
+                col_copy(j,j-2); j++;
+              }
+              else { 
+                col_copy(j,j); j++;
+                col_copy(j,j); j++;
+                col_copy(j,j); j++;
+              }
+            }
+            else if(c.l == 2) {
+              //D functions
+              if(is_spherical) {
+                col_copy(j,j+4); j++; 
+                col_copy(j,j+1); j++; 
+                col_copy(j,j-2); j++; 
+                col_copy(j,j-2); j++; 
+                col_copy(j,j-1); j++; 
+              }
+              else {
+                col_copy(j,j);          j++;
+                col_copy(j,j+2,sqrt_3); j++;
+                col_copy(j,j+2,sqrt_3); j++;
+                col_copy(j,j-2);        j++;
+                col_copy(j,j+1,sqrt_3); j++;
+                col_copy(j,j-3);        j++;
+              }
+            }
+            else if(c.l == 3) {
+              //F functions
+              if(is_spherical) {
+                col_copy(j,j+6); j++; //-1.0
+                col_copy(j,j+3); j++; 
+                col_copy(j,j);   j++; 
+                col_copy(j,j-3); j++; //-1.0
+                col_copy(j,j-3); j++; 
+                col_copy(j,j-2); j++; 
+                col_copy(j,j-1); j++; 
+              }         
+              else {
+                col_copy(j,j);                 j++;
+                col_copy(j,j+3,sqrt_5);        j++;
+                col_copy(j,j+3,sqrt_5);        j++;
+                col_copy(j,j,  sqrt_5);        j++;
+                col_copy(j,j+5,sqrt_5*sqrt_3); j++;
+                col_copy(j,j+1,sqrt_5);        j++;
+                col_copy(j,j-5);               j++;
+                col_copy(j,j+1,sqrt_5);        j++;
+                col_copy(j,j-1,sqrt_5);        j++;
+                col_copy(j,j-7);               j++; 
+              }                       
+            }
+            else if(c.l == 4) {
+              //G functions
+              if(is_spherical) {
+                col_copy(j,j+8); j++; //-1.0
+                col_copy(j,j+5); j++; 
+                col_copy(j,j+2); j++; 
+                col_copy(j,j-1); j++; 
+                col_copy(j,j-4); j++; //-1.0
+                col_copy(j,j-4); j++; //-1.0
+                col_copy(j,j-3); j++; 
+                col_copy(j,j-2); j++; 
+                col_copy(j,j-1); j++; //-1.0 
+              }   
+              else {
+                col_copy(j,j);                 j++;
+                col_copy(j,j+2,sqrt_7);        j++;
+                col_copy(j,j+2,sqrt_7);        j++;
+                col_copy(j,j+6,sqrt_753);      j++;
+                col_copy(j,j+8,sqrt_7*sqrt_5); j++;
+                col_copy(j,j+5,sqrt_753);      j++;
+                col_copy(j,j-1,sqrt_7);        j++;
+                col_copy(j,j+6,sqrt_7*sqrt_5); j++;
+                col_copy(j,j+6,sqrt_7*sqrt_5); j++;
+                col_copy(j,j-2,sqrt_7);        j++;
+                col_copy(j,j-9);               j++;
+                col_copy(j,j-5,sqrt_7);        j++;
+                col_copy(j,j-1,sqrt_753);      j++;
+                col_copy(j,j-5,sqrt_7);        j++;
+                col_copy(j,j-12);              j++; 
+              }
+            }
+            else if(c.l == 5) {
+              //H functions
+              if(is_spherical) {
+                col_copy(j,j+10); j++; //-1.0
+                col_copy(j,j+7);  j++; 
+                col_copy(j,j+4);  j++; 
+                col_copy(j,j+1);  j++; 
+                col_copy(j,j-2);  j++; //-1.0
+                col_copy(j,j-5);  j++; //-1.0
+                col_copy(j,j-5);  j++; 
+                col_copy(j,j-4);  j++; 
+                col_copy(j,j-3);  j++; //-1.0  
+                col_copy(j,j-2);  j++; //-1.0 
+                col_copy(j,j-1);  j++; //-1.0
+              }
+              else NOT_IMPLEMENTED();               
+            }
+          } //contr
+        } //shells
+      } //atom
+      smat = dmat;
+    } //reorder cols
 
-  size_t s_count = 0;
-  size_t p_count = 0;
-  size_t d_count = 0;
-  size_t f_count = 0;
-  size_t g_count = 0;
+}
+
+void renormalize_libint_shells(const SystemData& sys_data, libint2::BasisSet& shells) {
+  using libint2::math::df_Kminus1;
+  using std::pow;
+  const auto sqrt_Pi_cubed = double{5.56832799683170784528481798212};
+
+  for (auto &s: shells) {
+    const auto np = s.nprim();
+    for(auto& c: s.contr) {
+      EXPECTS(c.l <= 15); 
+      for(auto p=0ul; p!=np; ++p) {
+        EXPECTS(s.alpha[p] >= 0);
+        if (s.alpha[p] != 0) {
+          const auto two_alpha = 2 * s.alpha[p];
+          const auto two_alpha_to_am32 = pow(two_alpha,c.l+1) * sqrt(two_alpha);
+          const auto normalization_factor = sqrt(pow(2,c.l) * two_alpha_to_am32/(sqrt_Pi_cubed * df_Kminus1[2*c.l] ));
+
+          c.coeff[p] *= normalization_factor;
+        }
+      }
+
+      // need to force normalization to unity?
+      if (s.do_enforce_unit_normalization()) {
+        // compute the self-overlap of the , scale coefficients by its inverse square root
+        double norm{0};
+        for(auto p=0ul; p!=np; ++p) {
+          for(decltype(p) q=0ul; q<=p; ++q) {
+            auto gamma = s.alpha[p] + s.alpha[q];
+            norm += (p==q ? 1 : 2) * df_Kminus1[2*c.l] * sqrt_Pi_cubed * c.coeff[p] * c.coeff[q] /
+                    (pow(2,c.l) * pow(gamma,c.l+1) * sqrt(gamma));
+          }
+        }
+        auto normalization_factor = 1 / sqrt(norm);
+        for(auto p=0ul; p!=np; ++p) {
+          c.coeff[p] *= normalization_factor;
+        }
+      }
+
+    }
+
+    // update max log coefficients
+    s.max_ln_coeff.resize(np);
+    for(auto p=0ul; p!=np; ++p) {
+      double max_ln_c = - std::numeric_limits<double>::max();
+      for(auto& c: s.contr) {
+        max_ln_c = std::max(max_ln_c, std::log(std::abs(c.coeff[p])));
+      }
+      s.max_ln_coeff[p] = max_ln_c;
+    }
+
+  } //shells
+}
+
+void read_geom_molden(const SystemData& sys_data, std::vector<libint2::Atom> &atoms) {
+  std::string line;
+  auto is = std::ifstream(sys_data.options_map.scf_options.moldenfile);
+
+  while(line.find("[Atoms]") == std::string::npos)
+    std::getline(is, line);
+
+  //line at [Atoms]
+  for (int ai=0;ai<atoms.size();ai++) {
+    std::getline(is, line);
+    std::istringstream iss(line);
+    std::vector<std::string> geom{std::istream_iterator<std::string>{iss},
+                                    std::istream_iterator<std::string>{}};
+    atoms[ai].x = std::stod(geom[3]);
+    atoms[ai].y = std::stod(geom[4]);
+    atoms[ai].z = std::stod(geom[5]);
+  }
+}
+
+void read_basis_molden(const SystemData& sys_data, libint2::BasisSet& shells) {
 
   //s_type = 0, p_type = 1, d_type = 2, 
   //f_type = 3, g_type = 4
@@ -104,71 +391,93 @@ std::tuple<int,int,int,int> read_mo(SCFOptions scf_options, std::istream& is, st
   s=1,p=3,d=6,f=10,g=15
   */
 
-  bool basis_end = false;
-  while(!basis_end) {
+  std::string line;
+  auto is = std::ifstream(sys_data.options_map.scf_options.moldenfile);
+
+  while(line.find("GTO") == std::string::npos) {
     std::getline(is, line);
-    if (line.find("GTO") != std::string::npos) {
-      basis_end=true;
-      bool basis_parse=true;
-      while(basis_parse) {
-        std::getline(is, line);
-        std::istringstream iss(line);
-        std::vector<std::string> atom2{std::istream_iterator<std::string>{iss},
-                                       std::istream_iterator<std::string>{}};
-        if(atom2.size()==0) continue;
-        if(atom2.size()==2)
-          {if(atom2[0]=="2" && atom2[1]=="0") basis_parse=false;}
-                                  
-        if (line.find("[5D]")   != std::string::npos) basis_parse=false;
-        if (atom2[0]=="s") s_count++;
-        else if (atom2[0]=="p") p_count+=3;
-        else if (atom2[0]=="d") {
-          if(is_spherical) d_count+=5;
-          else d_count+=6;
-        }
-        else if (atom2[0]=="f") {
-          if(is_spherical) f_count+=7;
-          else f_count+=10;
-        }
-        else if (atom2[0]=="g") {
-          if(is_spherical) g_count+=9;
-          else g_count+=15;
-        }
-      } //end 
-      
-    } //end basis parse
   } //end basis section
 
-  // cout << "finished reading basis: s_count, p_count, d_count, f_count, g_count = " 
-  //      << s_count << "," << p_count << "," << d_count << "," << f_count << "," << g_count <<  endl;
-
-  const size_t sp_count = s_count+p_count;
-  const size_t spd_count = sp_count+d_count;
-  const size_t spdf_count = spd_count+f_count;
-  const size_t spdfg_count = spdf_count+g_count;
-  //if(spdfg_count*natoms != N) tamm_terminate("Moldenfile read error");
-  const T sqrt_3 = std::sqrt(static_cast<T>(3.0));
-  const T sqrt_5 = std::sqrt(static_cast<T>(5.0));
-  const T sqrt_7 = std::sqrt(static_cast<T>(7.0));
-  const T sqrt_753 = sqrt_7*sqrt_5/sqrt_3;
-
-  bool mo_start = false;
-  while(!mo_start) {
-    //skip_empty_lines(is);
+  bool basis_parse=true;
+  int atom_i = 0, shell_i=0;
+  while(basis_parse) {
     std::getline(is, line);
+    std::istringstream iss(line);
+    std::vector<std::string> expc{std::istream_iterator<std::string>{iss},
+                                    std::istream_iterator<std::string>{}};
+    if(expc.size()==0) continue;
+    if(expc.size()==2) {
+      //read shell nprim 0. TODO, should expc[1]==1 ?
+      if(std::stoi(expc[0])==atom_i+1 && std::stoi(expc[1])==0) { atom_i++; } //shell_i=0;
+    }
+                              
+    else if (expc[0]=="s" || expc[0]=="p" || expc[0]=="d" || expc[0]=="f" || expc[0]=="g") { 
+      for(auto np=0;np<std::stoi(expc[1]);np++){
+        std::getline(is, line);
+        std::istringstream iss(line);
+        std::vector<std::string> expc_val{std::istream_iterator<std::string>{iss},
+                                      std::istream_iterator<std::string>{}};
+        shells[shell_i].alpha[np] = std::stod(expc_val[0]);
+        shells[shell_i].contr[0].coeff[np] = std::stod(expc_val[1]);
+      } //nprims for shell_i
+      shell_i++;
+    }
+    else if (line.find("[5D]")   != std::string::npos) basis_parse=false;
+    else if (line.find("[9G]")   != std::string::npos) basis_parse=false;
+    else if (line.find("[MO]")   != std::string::npos) basis_parse=false;
 
-    if(is_in_line("[MO]",line))
-      mo_start = true;
+  } //end basis parse
+      
+}
+
+template<typename T>
+void read_molden(const SystemData& sys_data, libint2::BasisSet& shells,
+        Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& C_alpha,
+        Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& C_beta) {
+
+  auto scf_options = sys_data.options_map.scf_options;
+  auto is = std::ifstream(scf_options.moldenfile);
+  std::string line;
+  int n_occ_alpha=0, n_occ_beta=0, n_vir_alpha=0, n_vir_beta=0;
+
+  size_t N = C_alpha.rows();
+  size_t Northo = C_alpha.cols();
+  Matrix eigenvecs(N,Northo);
+  eigenvecs.setZero();
+
+  const bool is_spherical = (scf_options.sphcart == "spherical");
+  const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
+
+  auto atoms = sys_data.options_map.options.atoms;
+  const size_t natoms = atoms.size();
+
+  auto a2s_map = shells.atom2shell(atoms);
+  std::vector<AtomInfo> atominfo(natoms);
+
+  for (size_t ai = 0; ai < natoms; ai++) {
+    auto nshells = a2s_map[ai].size();
+    auto first = a2s_map[ai][0];
+    auto last = a2s_map[ai][nshells - 1];
+    std::vector<libint2::Shell> atom_shells(nshells);
+    int as_index = 0;
+    for (auto si = first; si <= last; si++) {
+      atom_shells[as_index] = shells[si];
+      as_index++;
+    }
+    atominfo[ai].shells = atom_shells;
   }
+
+  while(line.find("[MO]") == std::string::npos) {
+    std::getline(is, line);
+  } //end basis section
   
   bool mo_end = false;
   size_t i = 0;
   // size_t kb = 0;
   while(!mo_end) { 
-    
     std::getline(is, line);
     if (line.find("Ene=") != std::string::npos) {
-      evl_sorted[i] = (std::stod(read_option(line)));
+      /*evl_sorted[i] =*/ (std::stod(read_option(line)));
     }
     else if (line.find("Spin=") != std::string::npos){
       std::string spinstr = read_option(line);
@@ -197,120 +506,18 @@ std::tuple<int,int,int,int> read_mo(SCFOptions scf_options, std::istream& is, st
     if(mo_end){
       for(size_t j=0;j<N;j++) {
         std::getline(is, line);
-        eigenvecs[j] = std::stod(read_option(line));
+        eigenvecs(j,i) = std::stod(read_option(line));
       }
-      //reorder
-      if(is_spherical) {
-        for(size_t j=0;j<N;j++) {
-          const size_t j_a = j%spdfg_count; //for each atom
-
-          if(j_a < s_count) //S functions
-            C(j,i) = eigenvecs[j];
-          else if(j_a >= s_count && j_a < sp_count) {
-            //P functions
-            //libint set_pure to solid forces y,z,x ordering for l=1
-            C(j,i) = eigenvecs[j+1]; j++;
-            C(j,i) = eigenvecs[j+1]; j++;
-            C(j,i) = eigenvecs[j-2]; 
-          }
-          else if(j_a >= sp_count && j_a < spd_count) {
-            //D functions
-            C(j,i) = eigenvecs[j+4]; j++;
-            C(j,i) = eigenvecs[j+1]; j++;
-            C(j,i) = eigenvecs[j-2]; j++;
-            C(j,i) = eigenvecs[j-2]; j++;
-            C(j,i) = eigenvecs[j-1]; 
-          }
-          else if(j_a >= spd_count && j_a < spdf_count) {
-            //F functions
-            C(j,i) = eigenvecs[j+6]; j++;
-            C(j,i) = eigenvecs[j+3]; j++;
-            C(j,i) = eigenvecs[j  ]; j++;
-            C(j,i) = eigenvecs[j-3]; j++;
-            C(j,i) = eigenvecs[j-3]; j++;
-            C(j,i) = eigenvecs[j-2]; j++;
-            C(j,i) = eigenvecs[j-1];
-          }
-          else if(j_a >= spdf_count && j_a < spdfg_count) {
-            //G functions
-            C(j,i) = eigenvecs[j+8]; j++;
-            C(j,i) = eigenvecs[j+5]; j++;
-            C(j,i) = eigenvecs[j+2]; j++;
-            C(j,i) = eigenvecs[j-1]; j++;
-            C(j,i) = eigenvecs[j-4]; j++;
-            C(j,i) = eigenvecs[j-4]; j++;
-            C(j,i) = eigenvecs[j-3]; j++;
-            C(j,i) = eigenvecs[j-2]; j++;
-            C(j,i) = eigenvecs[j-1];           
-          }
-        }
-      }
-      else {
-        //TODO cartesian f,g
-        for(size_t j=0;j<N;j++) {
-          const size_t j_a = j%spdfg_count; //for each atom
-
-          if(j_a < s_count) //S functions
-            C(j,i) = eigenvecs[j];
-          else if(j_a >= s_count && j_a < sp_count) //P functions
-            C(j,i) = eigenvecs[j];
-          else if(j_a >= sp_count && j_a < spd_count) {
-            //D functions
-            C(j,i) = eigenvecs[j];          j++;
-            C(j,i) = eigenvecs[j+2]*sqrt_3; j++;
-            C(j,i) = eigenvecs[j+2]*sqrt_3; j++;
-            C(j,i) = eigenvecs[j-2];        j++;
-            C(j,i) = eigenvecs[j+1]*sqrt_3; j++;
-            C(j,i) = eigenvecs[j-3];        
-          }
-          else if(j_a >= spd_count && j_a < spdf_count) {
-            //F functions
-            C(j,i) = eigenvecs[j];                 j++;
-            C(j,i) = eigenvecs[j+3]*sqrt_5;        j++;
-            C(j,i) = eigenvecs[j+3]*sqrt_5;        j++;
-            C(j,i) = eigenvecs[j  ]*sqrt_5;        j++;
-            C(j,i) = eigenvecs[j+5]*sqrt_5*sqrt_3; j++;
-            C(j,i) = eigenvecs[j+1]*sqrt_5;        j++;
-            C(j,i) = eigenvecs[j-5];               j++;
-            C(j,i) = eigenvecs[j+1]*sqrt_5;        j++;
-            C(j,i) = eigenvecs[j-1]*sqrt_5;        j++;
-            C(j,i) = eigenvecs[j-7];
-          }
-          else if(j_a >= spdf_count && j_a < spdfg_count) {
-            //G functions
-            C(j,i) = eigenvecs[j];                 j++;
-            C(j,i) = eigenvecs[j+2]*sqrt_7;        j++;
-            C(j,i) = eigenvecs[j+2]*sqrt_7;        j++;
-            C(j,i) = eigenvecs[j+6]*sqrt_753;      j++;
-            C(j,i) = eigenvecs[j+8]*sqrt_7*sqrt_5; j++;
-            C(j,i) = eigenvecs[j+5]*sqrt_753;      j++;
-            C(j,i) = eigenvecs[j-1]*sqrt_7;        j++;
-            C(j,i) = eigenvecs[j+6]*sqrt_7*sqrt_5; j++;
-            C(j,i) = eigenvecs[j+6]*sqrt_7*sqrt_5; j++;
-            C(j,i) = eigenvecs[j-2]*sqrt_7;        j++;
-            C(j,i) = eigenvecs[j-9];               j++;
-            C(j,i) = eigenvecs[j-5]*sqrt_7;        j++;
-            C(j,i) = eigenvecs[j-1]*sqrt_753;      j++;
-            C(j,i) = eigenvecs[j-5]*sqrt_7  ;      j++;
-            C(j,i) = eigenvecs[j-12];                  
-          }
-        }        
-      }
-
       mo_end=false;
       i++;
-      //if(i==N-n_lindep) i=i+n_lindep;
     }
 
-    // kb++;
-    // if(i==nmo-n_lindep) mo_end=true;
-    if(i==nmo) mo_end=true;
-    // if(kb==4*nmo) {
-    //   // cout << "Assuming n_lindep = " << nmo-i << endl;
-    //   mo_end=true;
-    // }
-    
+    if(i==Northo) mo_end=true;
   }
+
+  reorder_molden_orbitals<T>(is_spherical, atominfo, eigenvecs, C_alpha, false);
+  //TODO: WIP
+  // if(is_uhf) reorder_molden_orbitals<T>(is_spherical, atominfo, eigenvecs, C_beta);
 
   if(scf_options.scf_type == "rhf") { 
       n_occ_beta = n_occ_alpha;
@@ -320,31 +527,13 @@ std::tuple<int,int,int,int> read_mo(SCFOptions scf_options, std::istream& is, st
       n_vir_beta = N - n_occ_beta;
   }
 
-  // cout << "finished reading molden: n_occ_alpha, n_vir_alpha, n_occ_beta, n_vir_beta = " 
-  //        << n_occ_alpha << "," << n_vir_alpha << "," << n_occ_beta << "," << n_vir_beta << endl;
+  EXPECTS(n_occ_alpha == sys_data.nelectrons_alpha);
+  EXPECTS(n_occ_beta  == sys_data.nelectrons_beta);
+  EXPECTS(n_vir_alpha == Northo - n_occ_alpha);
+  EXPECTS(n_vir_beta  == Northo - n_occ_beta);
 
-  return std::make_tuple(n_occ_alpha,n_vir_alpha,n_occ_beta,n_vir_beta);
-   
-}
-
-template<typename T>
-std::tuple<int,int,int,int> read_molden(SCFOptions scf_options, std::vector<T>& evl_sorted, 
-        Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& C, const size_t natoms) {
-
-  auto is = std::ifstream(scf_options.moldenfile);
-  std::string line;
-  int n_occ_alpha=0, n_occ_beta=0, n_vir_alpha=0, n_vir_beta=0;
-  
-  std::tie(n_occ_alpha,n_occ_beta,n_vir_alpha,n_vir_beta) = read_mo(scf_options,is,evl_sorted,C,natoms);
-
-  // std::cout << "#alpha:" << n_alpha << std::endl;
-  // std::cout << "evl-sorted:" << std::endl;
-  // for (auto x: evl_sorted)
-  // std::cout << x << std::endl;
-  // std::cout << "movecs" << std::endl;
-  // std::cout << C << std::endl;
-
-  return std::make_tuple(n_occ_alpha,n_occ_beta,n_vir_alpha,n_vir_beta);
+  cout << "finished reading molden: n_occ_alpha, n_vir_alpha, n_occ_beta, n_vir_beta = " 
+         << n_occ_alpha << "," << n_vir_alpha << "," << n_occ_beta << "," << n_vir_beta << endl;
 
 }
 

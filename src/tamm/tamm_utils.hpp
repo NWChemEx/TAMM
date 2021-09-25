@@ -62,24 +62,6 @@ double compute_tensor_size(const Tensor<T>& tensor) {
     return size;
 }
 
-template<typename T>
-MPI_Datatype mpi_type(){
-    using std::is_same_v;
-
-    if constexpr(is_same_v<int, T>)
-        return MPI_INT;
-    if constexpr(is_same_v<int64_t, T>)
-        return MPI_INT64_T;        
-    else if constexpr(is_same_v<float, T>)
-        return MPI_FLOAT;
-    else if constexpr(is_same_v<double, T>)
-        return MPI_DOUBLE;
-    else if constexpr(is_same_v<std::complex<float>, T>)
-        return MPI_COMPLEX;
-    else if constexpr(is_same_v<std::complex<double>, T>)
-        return MPI_DOUBLE_COMPLEX;
-}
-
 /**
  * @brief Prints a Tensor object
  *
@@ -422,7 +404,7 @@ TensorType trace(LabeledTensor<TensorType> ltensor) {
         }
     };
     block_for(ec, ltensor, gettrace);
-    MPI_Allreduce(&lsumd, &gsumd, 1, mpi_type<TensorType>(), MPI_SUM, ec.pg().comm());
+    gsumd = ec.pg().allreduce(&lsumd, ReduceOp::sum);
     return gsumd;
 }
 
@@ -465,7 +447,7 @@ TensorType trace_sqr(LabeledTensor<TensorType> ltensor) {
         }
     };
     block_for(ec, ltensor, gettrace);
-    MPI_Allreduce(&lsumd, &gsumd, 1, mpi_type<TensorType>(), MPI_SUM, ec.pg().comm());
+    gsumd = ec.pg().allreduce(&lsumd, ReduceOp::sum);
     return gsumd;
 }
 
@@ -1650,7 +1632,7 @@ TensorType linf_norm(LabeledTensor<TensorType> ltensor) {
 
     gec.pg().barrier();
 
-    MPI_Allreduce(&linfnorm, &glinfnorm, 1, mpi_type<TensorType>(), MPI_MAX, gec.pg().comm());
+    glinfnorm = gec.pg().allreduce(&linfnorm, ReduceOp::max);
     return glinfnorm;
 }
 
@@ -2047,7 +2029,7 @@ TensorType sum(LabeledTensor<TensorType> ltensor) {
 
     gec.pg().barrier();   
  
-    MPI_Allreduce(&lsumsq, &gsumsq, 1, mpi_type<TensorType>(), MPI_SUM, gec.pg().comm());
+    gsumsq = gec.pg().allreduce(&lsumsq, ReduceOp::sum);
     return gsumsq;
 }
 
@@ -2117,7 +2099,7 @@ TensorType norm(LabeledTensor<TensorType> ltensor) {
 
     gec.pg().barrier();
 
-    MPI_Allreduce(&lsumsq, &gsumsq, 1, mpi_type<TensorType>(), MPI_SUM, gec.pg().comm());
+    gsumsq = gec.pg().allreduce(&lsumsq, ReduceOp::sum);
     return std::sqrt(gsumsq);
 }
 
@@ -2465,10 +2447,9 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>>
     };
     block_for(ec, ltensor, getmax);
 
-    MPI_Allreduce(lmax.data(), gmax.data(), 1, MPI_2DOUBLE_PRECISION,
-                  MPI_MAXLOC, ec.pg().comm());
-    MPI_Bcast(maxblockid.data(), 2, MPI_UNSIGNED, gmax[1], ec.pg().comm());
-    MPI_Bcast(bfuv.data(), 2, MPI_UNSIGNED_LONG, gmax[1], ec.pg().comm());
+    ec.pg().allreduce(lmax.data(), gmax.data(), 2, ReduceOp::maxloc);
+    ec.pg().broadcast(maxblockid.data(), nmodes, gmax[1]);
+    ec.pg().broadcast(bfuv.data(), nmodes, gmax[1]);
 
     return std::make_tuple(gmax[0], maxblockid, bfuv);
 }
@@ -2492,7 +2473,7 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>>
     EXPECTS(tensor.num_modes() <= 6);
 
     IndexVector minblockid(nmodes);
-    std::vector<size_t> bfuv(2);
+    std::vector<size_t> bfuv(nmodes);
     std::vector<TensorType> lmin(2, 0);
     std::vector<TensorType> gmin(2, 0);
 
@@ -2637,10 +2618,9 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>>
     };
     block_for(ec, ltensor, getmin);
 
-    MPI_Allreduce(lmin.data(), gmin.data(), 1, MPI_2DOUBLE_PRECISION,
-                  MPI_MINLOC, ec.pg().comm());
-    MPI_Bcast(minblockid.data(), 2, MPI_UNSIGNED, gmin[1], ec.pg().comm());
-    MPI_Bcast(bfuv.data(), 2, MPI_UNSIGNED_LONG, gmin[1], ec.pg().comm());
+    ec.pg().allreduce(lmin.data(), gmin.data(), 2, ReduceOp::minloc);
+    ec.pg().broadcast(minblockid.data(), nmodes, gmin[1]);
+    ec.pg().broadcast(bfuv.data(), nmodes, gmin[1]);
 
     return std::make_tuple(gmin[0], minblockid, bfuv);
 }

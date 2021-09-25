@@ -13,6 +13,7 @@ struct SystemData {
   int  n_occ_beta;
   int  n_vir_beta;
   int  n_lindep;
+  int  ndf;
   int  nbf;
   int  nbf_orig;
   int  nelectrons;

@@ -910,6 +910,27 @@ void ipgen_loop_update(TL* lbuf, const std::vector<int>& lld, TR rscale,
         }
       }
     }
+  } else if (ndim == 5) {
+    for (int i0 = 0, i0doff = 0, i0soff = 0; i0 < unique_label_dims[0];
+         ++i0, i0doff += lld[0], i0soff += rld[0]) {
+      for (int i1 = 0, i1doff = i0doff, i1soff = i0soff;
+           i1 < unique_label_dims[1];
+           ++i1, i1doff += lld[1], i1soff += rld[1]) {
+        for (int i2 = 0, i2doff = i1doff, i2soff = i1soff;
+             i2 < unique_label_dims[2];
+             ++i2, i2doff += lld[2], i2soff += rld[2]) {
+          for (int i3 = 0, i3doff = i2doff, i3soff = i2soff;
+               i3 < unique_label_dims[3];
+               ++i3, i3doff += lld[3], i3soff += rld[3]) {
+            for (int i4 = 0, i4doff = i3doff, i4soff = i3soff;
+               i4 < unique_label_dims[4];
+               ++i4, i4doff += lld[4], i4soff += rld[4]) {                 
+              lbuf[i4doff] += rscale * rbuf[i4soff];
+            }
+          }
+        }
+      }
+    }
   } else {
     NOT_IMPLEMENTED();
   }
@@ -966,6 +987,27 @@ void ipgen_loop_update(TL lscale, TL* lbuf, const std::vector<int>& lld,
                i3 < unique_label_dims[3];
                ++i3, i3doff += lld[3], i3soff += rld[3]) {
             lbuf[i3doff] = lscale * lbuf[i3doff] + rscale * rbuf[i3soff];
+          }
+        }
+      }
+    }
+  } else if (ndim == 5) {
+    for (int i0 = 0, i0doff = 0, i0soff = 0; i0 < unique_label_dims[0];
+         ++i0, i0doff += lld[0], i0soff += rld[0]) {
+      for (int i1 = 0, i1doff = i0doff, i1soff = i0soff;
+           i1 < unique_label_dims[1];
+           ++i1, i1doff += lld[1], i1soff += rld[1]) {
+        for (int i2 = 0, i2doff = i1doff, i2soff = i1soff;
+             i2 < unique_label_dims[2];
+             ++i2, i2doff += lld[2], i2soff += rld[2]) {
+          for (int i3 = 0, i3doff = i2doff, i3soff = i2soff;
+               i3 < unique_label_dims[3];
+               ++i3, i3doff += lld[3], i3soff += rld[3]) {
+            for (int i4 = 0, i4doff = i3doff, i4soff = i3soff;
+               i4 < unique_label_dims[4];
+               ++i4, i4doff += lld[4], i4soff += rld[4]) {                 
+              lbuf[i4doff] = lscale * lbuf[i4doff] + rscale * rbuf[i4soff];
+            }
           }
         }
       }

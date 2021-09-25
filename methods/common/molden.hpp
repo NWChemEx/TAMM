@@ -446,7 +446,7 @@ void read_molden(const SystemData& sys_data, libint2::BasisSet& shells,
   eigenvecs.setZero();
 
   const bool is_spherical = (scf_options.sphcart == "spherical");
-  const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
+  const bool is_uhf = (sys_data.scf_type == SCFType::uhf);
 
   auto atoms = sys_data.options_map.options.atoms;
   const size_t natoms = atoms.size();

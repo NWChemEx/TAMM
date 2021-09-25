@@ -69,9 +69,10 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     auto        rank         = exc.pg().rank();
     const bool  molden_exists = !scf_options.moldenfile.empty();
 
-    // const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
-    // const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
-    // const bool is_rohf = (sys_data.scf_type == sys_data.SCFType::rohf); 
+    const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
+    const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
+    const bool is_ks  = int8_t(sys_data.scf_type & SCFType::_ks);
+    // const bool is_rohf = (sys_data.scf_type == sys_data.SCFType::rohf);
 
     bool molden_file_valid = false;
     if(molden_exists) {
@@ -110,12 +111,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     sys_data.nbf      = N;
     sys_data.nbf_orig = N;
-    sys_data.ediis    = ediis;
-
-    const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
-    const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
-    const bool is_ks  = int8_t(sys_data.scf_type & SCFType::_ks);
-    // const bool is_rohf = (sys_data.scf_type == sys_data.SCFType::rohf);    
+    sys_data.ediis    = ediis; 
 
     /*** =========================== ***/
     /*** Setup GauXC types           ***/

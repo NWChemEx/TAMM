@@ -4065,7 +4065,8 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 		//
 		if (idx_h1 == 0 && idx_h3 == 0) {
 			if (idx_p6 < rng_p4 && idx_h2 < rng_h1) {
-				sm_a[idx_p6 + (idx_h2) * SIZE_TILE_P4] = dev_s1_t1_1[blk_idx_p4 * SIZE_TILE_P4 + idx_p6 + (blk_idx_h1 * SIZE_TILE_H1 + idx_h2) * size_p4];
+				const int smem_idx = max(min(idx_p6 + (idx_h2) * SIZE_TILE_P4, 15), 0);
+				sm_a[smem_idx] = dev_s1_t1_1[blk_idx_p4 * SIZE_TILE_P4 + idx_p6 + (blk_idx_h1 * SIZE_TILE_H1 + idx_h2) * size_p4];
 			}
 		} 
 

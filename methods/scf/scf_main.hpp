@@ -113,30 +113,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     sys_data.nbf_orig = N;
     sys_data.ediis    = ediis; 
 
-    /*** =========================== ***/
-    /*** Setup GauXC types           ***/
-    /*** =========================== ***/
-    auto gauxc_mol   = gauxc_util::make_gauxc_molecule( atoms  );
-    auto gauxc_basis = gauxc_util::make_gauxc_basis   ( shells );
 
-    GauXC::MolGrid 
-      gauxc_molgrid( GauXC::AtomicGridSizeDefault::UltraFineGrid, gauxc_mol );
-    auto gauxc_molmeta = std::make_shared<GauXC::MolMeta>( gauxc_mol );
-    auto gauxc_lb      = std::make_shared<GauXC::LoadBalancer>(exc.pg().comm(),
-      gauxc_mol, gauxc_molgrid, gauxc_basis, gauxc_molmeta
-    );
-
-    std::string xc_string = scf_options.xc_type;
-    std::transform( xc_string.begin(), xc_string.end(), xc_string.begin(), ::toupper );
-    GauXC::functional_type gauxc_func( ExchCXX::Backend::builtin,
-                                       ExchCXX::functional_map.value(xc_string),
-                                       ExchCXX::Spin::Unpolarized );
-    GauXC::XCIntegrator<Matrix> gauxc_integrator( GauXC::ExecutionSpace::Host,
-      exc.pg().comm(), gauxc_func, gauxc_basis, gauxc_lb );
-
-    // TODO
-    //const double xHF = is_ks ? gauxc_func.hyb_exx() : 1.;
-    const double xHF = 1.;
 
 
     std::string out_fp = options_map.options.output_file_prefix+"."+scf_options.basis;
@@ -376,6 +353,31 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       if(rank == 0) std::cout << std::endl << "Time for BLACS setup: " << blacs_time.count() << " secs" << std::endl;
 
     #endif
+
+    /*** =========================== ***/
+    /*** Setup GauXC types           ***/
+    /*** =========================== ***/
+    auto gauxc_mol   = gauxc_util::make_gauxc_molecule( atoms  );
+    auto gauxc_basis = gauxc_util::make_gauxc_basis   ( shells );
+
+    GauXC::MolGrid 
+      gauxc_molgrid( GauXC::AtomicGridSizeDefault::UltraFineGrid, gauxc_mol );
+    auto gauxc_molmeta = std::make_shared<GauXC::MolMeta>( gauxc_mol );
+    auto gauxc_lb      = std::make_shared<GauXC::LoadBalancer>(ec.pg().comm(),
+      gauxc_mol, gauxc_molgrid, gauxc_basis, gauxc_molmeta
+    );
+
+    std::string xc_string = scf_options.xc_type;
+    std::transform( xc_string.begin(), xc_string.end(), xc_string.begin(), ::toupper );
+    GauXC::functional_type gauxc_func( ExchCXX::Backend::builtin,
+                                       ExchCXX::functional_map.value(xc_string),
+                                       ExchCXX::Spin::Unpolarized );
+    GauXC::XCIntegrator<Matrix> gauxc_integrator( GauXC::ExecutionSpace::Host,
+      ec.pg().comm(), gauxc_func, gauxc_basis, gauxc_lb );
+
+    // TODO
+    const double xHF = is_ks ? gauxc_func.hyb_exx() : 1.;
+    // const double xHF = 1.;
 
       TAMMTensors ttensors;
 
@@ -817,7 +819,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
         if(ediis && fabs(rmsd) < ediis_off) ediis = false;
 
-        ehf += enuc;
+        ehf += enuc + gauxc_exc;
         // compute difference with last iteration
         ediff = ehf - ehf_last;
 
@@ -916,7 +918,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       Tensor<TensorType>::deallocate(ttensors.H1     , ttensors.S1      , ttensors.T1         , ttensors.V1,
                                      ttensors.F_alpha_tmp , ttensors.ehf_tmp , ttensors.ehf_tamm   , ttensors.F_alpha,
                                      ttensors.D_tamm , ttensors.D_diff  , ttensors.D_last_tamm,
-                                     ttensors.FD_tamm, ttensors.FDS_tamm);
+                                     ttensors.FD_tamm, ttensors.FDS_tamm, ttensors.VXC);
       
       if(is_uhf) 
         Tensor<TensorType>::deallocate(ttensors.F_beta     , 

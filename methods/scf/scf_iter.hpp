@@ -59,6 +59,9 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       Tensor<TensorType>& D_beta_tamm       = ttensors.D_beta_tamm;
       Tensor<TensorType>& D_last_beta_tamm  = ttensors.D_last_beta_tamm;
       
+      // DFT only
+      Tensor<TensorType>& VXC       = ttensors.VXC;
+
       Scheduler sch{ec};
 
       const int64_t N = sys_data.nbf_orig;
@@ -72,12 +75,14 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       sch
         (F_alpha()  = H1())
         (F_alpha() += F_alpha_tmp())
+        (F_alpha() += VXC())
         .execute();
       
       if(is_uhf) {
         sch
           (F_beta()   = H1())
           (F_beta()  += F_beta_tmp())
+          (F_beta()  += VXC())
           .execute();
       }
 

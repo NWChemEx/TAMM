@@ -635,8 +635,8 @@ double tt_trace(ExecutionContext& ec, Tensor<TensorType>& T1, Tensor<TensorType>
 
 void print_energies(ExecutionContext& ec, TAMMTensors& ttensors, const SystemData& sys_data, bool debug=false){
 
-      const bool is_uhf = (sys_data.scf_type == SCFType::uhf);
-      const bool is_rhf = (sys_data.scf_type == SCFType::rhf);
+    const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
+    const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
       
       double nelectrons = 0.0;
       double kinetic_1e = 0.0;

@@ -727,7 +727,10 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         compute_2bf<TensorType>(ec, sys_data, scf_vars, obs, do_schwarz_screen, shell2bf, SchwarzK,
                                 max_nprim4, shells, ttensors, etensors, is_3c_init, do_density_fitting, xHF);        
 
-        //auto gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator);
+        TensorType gauxc_exc = 0.;
+        if(is_ks) {
+          gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
+        }
 
         // ehf = D * (H1+F1);
         if(is_rhf) {
@@ -748,7 +751,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
             .execute();
         }
 
-        ehf = 0.5*get_scalar(ttensors.ehf_tamm) + enuc; 
+        ehf = 0.5*get_scalar(ttensors.ehf_tamm) + enuc + gauxc_exc;
         if(rank==0) 
           std::cout << std::setprecision(18) << "Total HF energy after restart: " << ehf << std::endl;
       }
@@ -778,7 +781,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
         // build a new Fock matrix
         compute_2bf<TensorType>(ec, sys_data, scf_vars, obs, do_schwarz_screen, shell2bf, SchwarzK,
-                                max_nprim4, shells, ttensors, etensors, is_3c_init, do_density_fitting);
+                                max_nprim4, shells, ttensors, etensors, is_3c_init, do_density_fitting, xHF);
         TensorType gauxc_exc = 0.;
         if(is_ks) {
           gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );

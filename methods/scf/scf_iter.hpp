@@ -1201,7 +1201,7 @@ TensorType compute_xcf( ExecutionContext& ec, TAMMTensors& ttensors,
   auto [EXC, VXC] = xc_integrator.eval_exc_vxc( D );
 
   auto& VXC_tamm = ttensors.VXC;
-  eigen_to_tamm_tensor_acc( VXC_tamm, VXC );
+  eigen_to_tamm_tensor( VXC_tamm, VXC );
   ec.pg().barrier();
 
   return EXC;

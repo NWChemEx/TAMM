@@ -8,7 +8,7 @@ void dev_mem_d(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t
     // size_t size_t3;
     size_t size_t3 = h1d*h2d*h3d*p4d*p5d*p6d;
     t3_d = (double *) getGpuMem(size_t3*sizeof(double));
-    hipMemset(t3_d,0,size_t3*sizeof(double));
+    HIP_SAFE(hipMemset(t3_d,0,size_t3*sizeof(double)));
 }
 //            void
 // dev_mem_d(Integer * h1d, Integer * h2d, Integer * h3d, Integer * p4d, Integer * p5d, Integer * p6d)
@@ -267,7 +267,7 @@ void sd_t_d1_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
   //size_triplesx=h3d*h1d*p6d*p5d*p4d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*p6d*h7d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d1_1_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d1_1_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_triplesx=size_triplesx/nstreams;
   //size_el_block_triplesx=size_block_triplesx/sizeof(double);
@@ -299,9 +299,9 @@ void sd_t_d1_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
     hipLaunchKernelGGL((sd_t_d1_1_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p6ld_triplesx,p5ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   freeGpuMem(t2sub_d);
   freeGpuMem(v2sub_d);
   free(streams);
@@ -552,7 +552,7 @@ void sd_t_d1_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
   //size_triplesx=h3d*h1d*h2d*p5d*p4d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*h2d*h7d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d1_2_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d1_2_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_triplesx=size_triplesx/nstreams;
   //size_el_block_triplesx=size_block_triplesx/sizeof(double);
@@ -564,9 +564,9 @@ void sd_t_d1_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
     HIP_SAFE(hipStreamCreate(&streams[i])) ;
   }
   //HIP_SAFE(
-    hipMemcpy(t2sub_d,t2sub,size_t2sub,hipMemcpyHostToDevice); //);
+  HIP_SAFE(hipMemcpy(t2sub_d,t2sub,size_t2sub,hipMemcpyHostToDevice)); //);
   //HIP_SAFE(  
-    hipMemcpy(v2sub_d,v2sub,size_v2sub,hipMemcpyHostToDevice); //);
+  HIP_SAFE(hipMemcpy(v2sub_d,v2sub,size_v2sub,hipMemcpyHostToDevice)); //);
   h7ld_t2sub=1;
   p4ld_t2sub=h7d;
   p5ld_t2sub=p4d*h7d;
@@ -588,9 +588,9 @@ void sd_t_d1_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
     hipLaunchKernelGGL((sd_t_d1_2_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h2d,h3d,h7d,p4d,p5d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   freeGpuMem(t2sub_d);
   freeGpuMem(v2sub_d);
   free(streams);
@@ -834,7 +834,7 @@ void sd_t_d1_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
   //size_triplesx=h1d*h3d*p5d*p4d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*h7d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d1_3_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d1_3_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_triplesx=size_triplesx/nstreams;
   //size_el_block_triplesx=size_block_triplesx/sizeof(double);
@@ -864,9 +864,9 @@ void sd_t_d1_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
     hipLaunchKernelGGL((sd_t_d1_3_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h3d,h7d,p4d,p5d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   freeGpuMem(t2sub_d);
   freeGpuMem(v2sub_d);
   free(streams);
@@ -1117,7 +1117,7 @@ void sd_t_d1_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
   //size_triplesx=h3d*h1d*p5d*p4d*p6d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*p6d*h7d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d1_4_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d1_4_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_triplesx=size_triplesx/nstreams;
   //size_el_block_triplesx=size_block_triplesx/sizeof(double);
@@ -1149,9 +1149,9 @@ void sd_t_d1_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
     hipLaunchKernelGGL((sd_t_d1_4_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   freeGpuMem(t2sub_d);
   freeGpuMem(v2sub_d);
   free(streams);
@@ -1409,7 +1409,7 @@ void sd_t_d1_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
   //size_triplesx=h3d*h1d*h2d*p5d*p4d*p6d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*h2d*p6d*h7d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d1_5_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d1_5_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_triplesx=size_triplesx/nstreams;
   //size_el_block_triplesx=size_block_triplesx/sizeof(double);
@@ -1443,9 +1443,9 @@ void sd_t_d1_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
     hipLaunchKernelGGL((sd_t_d1_5_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h2d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   freeGpuMem(t2sub_d);
   freeGpuMem(v2sub_d);
   free(streams);
@@ -1696,7 +1696,7 @@ void sd_t_d1_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
   //size_triplesx=h1d*h3d*p5d*p4d*p6d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*p6d*h7d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d1_6_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d1_6_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_triplesx=size_triplesx/nstreams;
   //size_el_block_triplesx=size_block_triplesx/sizeof(double);
@@ -1728,9 +1728,9 @@ void sd_t_d1_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
     hipLaunchKernelGGL((sd_t_d1_6_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p4ld_triplesx,p6ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   freeGpuMem(t2sub_d);
   freeGpuMem(v2sub_d);
   free(streams);
@@ -1981,7 +1981,7 @@ void sd_t_d1_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
   //size_triplesx=h3d*h1d*p5d*p6d*p4d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*p6d*h7d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d1_7_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d1_7_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_triplesx=size_triplesx/nstreams;
   //size_el_block_triplesx=size_block_triplesx/sizeof(double);
@@ -2013,9 +2013,9 @@ void sd_t_d1_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
     hipLaunchKernelGGL((sd_t_d1_7_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   freeGpuMem(t2sub_d);
   freeGpuMem(v2sub_d);
   free(streams);
@@ -2273,7 +2273,7 @@ void sd_t_d1_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
   //size_triplesx=h3d*h1d*h2d*p5d*p6d*p4d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*h2d*p6d*h7d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d1_8_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d1_8_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_triplesx=size_triplesx/nstreams;
   //size_el_block_triplesx=size_block_triplesx/sizeof(double);
@@ -2307,9 +2307,9 @@ void sd_t_d1_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
     hipLaunchKernelGGL((sd_t_d1_8_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h2d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,h2ld_v2sub,p6ld_v2sub,h7ld_v2sub,h3ld_triplesx,h1ld_triplesx,h2ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   freeGpuMem(t2sub_d);
   freeGpuMem(v2sub_d);
   free(streams);
@@ -2560,7 +2560,7 @@ void sd_t_d1_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
   //size_triplesx=h1d*h3d*p5d*p6d*p4d*sizeof(double);
   size_t2sub=h7d*p4d*p5d*h1d*sizeof(double);
   size_v2sub=h3d*p6d*h7d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d1_9_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d1_9_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_triplesx=size_triplesx/nstreams;
   //size_el_block_triplesx=size_block_triplesx/sizeof(double);
@@ -2592,9 +2592,9 @@ void sd_t_d1_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t h7d, size_t p4d, 
     hipLaunchKernelGGL((sd_t_d1_9_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h3d,h7d,p4d,p5d,p6d,h7ld_t2sub,p4ld_t2sub,p5ld_t2sub,h1ld_t2sub,h3ld_v2sub,p6ld_v2sub,h7ld_v2sub,h1ld_triplesx,h3ld_triplesx,p5ld_triplesx,p6ld_triplesx,p4ld_triplesx,t3_d,t2sub_d,v2sub_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   freeGpuMem(t2sub_d);
   freeGpuMem(v2sub_d);
   free(streams);
@@ -2846,7 +2846,7 @@ void sd_t_d2_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
   //size_t3=h3d*h2d*h1d*p6d*p4d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d2_1_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d2_1_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_t3=size_t3/nstreams;
   //size_el_block_t3=size_block_t3/sizeof(double);
@@ -2879,9 +2879,9 @@ void sd_t_d2_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
     hipLaunchKernelGGL((sd_t_d2_1_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h2d,h3d,p4d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   //freeGpuMem(t3d);
   freeGpuMem(t2_d);
   freeGpuMem(v2_d);
@@ -3126,7 +3126,7 @@ void sd_t_d2_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
   //size_t3=h2d*h1d*h3d*p4d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d2_2_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d2_2_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_t3=size_t3/nstreams;
   //size_el_block_t3=size_block_t3/sizeof(double);
@@ -3157,9 +3157,9 @@ void sd_t_d2_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
     hipLaunchKernelGGL((sd_t_d2_2_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h2d,h3d,p4d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   //freeGpuMem(t3d);
   freeGpuMem(t2_d);
   freeGpuMem(v2_d);
@@ -3411,7 +3411,7 @@ void sd_t_d2_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
   //size_t3=h2d*h3d*h1d*p6d*p4d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d2_3_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d2_3_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_t3=size_t3/nstreams;
   //size_el_block_t3=size_block_t3/sizeof(double);
@@ -3444,9 +3444,9 @@ void sd_t_d2_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
     hipLaunchKernelGGL((sd_t_d2_3_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h2d,h3d,p4d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
 //  freeGpuMem(t3_d);
   freeGpuMem(t2_d);
   freeGpuMem(v2_d);
@@ -3705,7 +3705,7 @@ void sd_t_d2_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
   //size_t3=h3d*h2d*h1d*p6d*p4d*p5d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*p5d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d2_4_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d2_4_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_t3=size_t3/nstreams;
   //size_el_block_t3=size_block_t3/sizeof(double);
@@ -3740,9 +3740,9 @@ void sd_t_d2_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
     hipLaunchKernelGGL((sd_t_d2_4_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   //freeGpuMem(t3d);
   freeGpuMem(t2_d);
   freeGpuMem(v2_d);
@@ -3994,7 +3994,7 @@ void sd_t_d2_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
   //size_t3=h2d*h1d*h3d*p4d*p5d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p5d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d2_5_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d2_5_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_t3=size_t3/nstreams;
   //size_el_block_t3=size_block_t3/sizeof(double);
@@ -4027,9 +4027,9 @@ void sd_t_d2_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
     hipLaunchKernelGGL((sd_t_d2_5_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h2d,h3d,p4d,p5d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p5ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   //freeGpuMem(t3d);
   freeGpuMem(t2_d);
   freeGpuMem(v2_d);
@@ -4288,7 +4288,7 @@ void sd_t_d2_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
   //size_t3=h2d*h3d*h1d*p6d*p4d*p5d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*p5d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d2_6_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d2_6_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_t3=size_t3/nstreams;
   //size_el_block_t3=size_block_t3/sizeof(double);
@@ -4323,9 +4323,9 @@ void sd_t_d2_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
     hipLaunchKernelGGL((sd_t_d2_6_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p6ld_t3,p4ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR();
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   //freeGpuMem(t3d);
   freeGpuMem(t2_d);
   freeGpuMem(v2_d);
@@ -4584,7 +4584,7 @@ void sd_t_d2_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
   //size_t3=h3d*h2d*h1d*p4d*p6d*p5d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*p5d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d2_7_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d2_7_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_t3=size_t3/nstreams;
   //size_el_block_t3=size_block_t3/sizeof(double);
@@ -4619,9 +4619,9 @@ void sd_t_d2_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
     hipLaunchKernelGGL((sd_t_d2_7_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h3ld_t3,h2ld_t3,h1ld_t3,p4ld_t3,p6ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   //freeGpuMem(t3d);
   freeGpuMem(t2_d);
   freeGpuMem(v2_d);
@@ -4880,7 +4880,7 @@ void sd_t_d2_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
   //size_t3=h2d*h1d*h3d*p4d*p6d*p5d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*p5d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d2_8_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d2_8_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_t3=size_t3/nstreams;
   //size_el_block_t3=size_block_t3/sizeof(double);
@@ -4915,9 +4915,9 @@ void sd_t_d2_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
     hipLaunchKernelGGL((sd_t_d2_8_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h1ld_t3,h3ld_t3,p4ld_t3,p6ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   //freeGpuMem(t3d);
   freeGpuMem(t2_d);
   freeGpuMem(v2_d);
@@ -5177,7 +5177,7 @@ void sd_t_d2_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
   //size_t3=h2d*h3d*h1d*p4d*p6d*p5d*sizeof(double);
   size_t2=p7d*p4d*h1d*h2d*sizeof(double);
   size_v2=p7d*h3d*p6d*p5d*sizeof(double);
-  hipFuncSetCacheConfig((void *)sd_t_d2_9_kernel, hipFuncCachePreferShared);
+  HIP_SAFE(hipFuncSetCacheConfig((void *)sd_t_d2_9_kernel, hipFuncCachePreferShared));
   nstreams=1;
   //size_block_t3=size_t3/nstreams;
   //size_el_block_t3=size_block_t3/sizeof(double);
@@ -5212,9 +5212,9 @@ void sd_t_d2_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, 
     hipLaunchKernelGGL((sd_t_d2_9_kernel), dim3(dimGrid), dim3(dimBlock), 0, streams[i], h1d,h2d,h3d,p4d,p5d,p6d,p7d,p7ld_t2,p4ld_t2,h1ld_t2,h2ld_t2,p7ld_v2,h3ld_v2,p6ld_v2,p5ld_v2,h2ld_t3,h3ld_t3,h1ld_t3,p4ld_t3,p6ld_t3,p5ld_t3,t3_d,t2_d,v2_d,i,total_x,total_y);
     CHECK_ERR("Kernel execution failed");
   }
-  hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
   for(i=0;i<nstreams;++i){
-    hipStreamDestroy(streams[i]);}
+    HIP_SAFE(hipStreamDestroy(streams[i]));}
   //freeGpuMem(t3d);
   freeGpuMem(t2_d);
   freeGpuMem(v2_d);
@@ -5345,7 +5345,7 @@ void compute_energy(double factor, double* energy, double* eval1, double* eval2,
     dim3 dimBlock(1); //T2*T1);
     dim3 dimGrid(total_block);
     hipLaunchKernelGGL((compute_energy_kernel), dim3(dimGrid), dim3(dimBlock), 0, 0, h1d,h2d,h3d,p4d,p5d,p6d, eval_d1,eval_d2,eval_d3,eval_d4,eval_d5,eval_d6,energy_d, factor, h1d*h2d*p4d*p5d*p6d, t3_d, t3_s_d);
-	hipDeviceSynchronize();
+    HIP_SAFE(hipDeviceSynchronize());
     //CHECK_ERR("Kernel execution failed");
     HIP_SAFE(hipMemcpy(((char *) energy_h) , ((char *) energy_d) , 
     size_energy*total_block*2, hipMemcpyDeviceToHost));
@@ -5393,7 +5393,7 @@ void dev_mem_s(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t
     // size_t size_t3;
     size_t size_t3 = h1d*h2d*h3d*p4d*p5d*p6d;
     t3_s_d = (double *) getGpuMem(size_t3*sizeof(double));
-    hipMemset(t3_s_d,0,size_t3*sizeof(double));
+    HIP_SAFE(hipMemset(t3_s_d,0,size_t3*sizeof(double)));
 }
 
 
@@ -5511,11 +5511,11 @@ sd_t_s1_1_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		stream++;
 	}
 */
-	hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
 
 //	HIP_SAFE(hipMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, hipMemcpyDeviceToHost));
 	for (i = 0; i < nstreams; ++i) {
-		hipStreamDestroy(streams[i]);
+	  HIP_SAFE(hipStreamDestroy(streams[i]));
 	}
 //	freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
@@ -5643,7 +5643,7 @@ sd_t_s1_2_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		}
 		stream++;
 	}*/
-	hipDeviceSynchronize();
+		HIP_SAFE(hipDeviceSynchronize());
 //	HIP_SAFE(hipMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, hipMemcpyDeviceToHost));
 /*
 	for (i = 0; i < nstreams; ++i) {
@@ -5730,11 +5730,11 @@ sd_t_s1_3_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		}
 		stream++;
 	}
-*/	hipDeviceSynchronize();
+*/	HIP_SAFE(hipDeviceSynchronize());
 	//HIP_SAFE(hipMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, hipMemcpyDeviceToHost));
 
 	for (i = 0; i < nstreams; ++i) {
-		hipStreamDestroy(streams[i]);
+	  HIP_SAFE(hipStreamDestroy(streams[i]));
 	}
 //	freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
@@ -5850,7 +5850,7 @@ sd_t_s1_4_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 //	}
 
 
-	hipDeviceSynchronize();
+		HIP_SAFE(hipDeviceSynchronize());
 	/*	HIP_SAFE(hipMemcpy(((char *) t3_p) , ((char *) t3_d) , size_block_t3, hipMemcpyDeviceToHost));
 	printf("Time for Async DeviceToHost %f\n", et-st);
 	stream = 0;
@@ -5997,11 +5997,11 @@ sd_t_s1_5_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		stream++;
 	}
 */
-	hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
 
 	//HIP_SAFE(hipMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, hipMemcpyDeviceToHost));
 	for (i = 0; i < nstreams; ++i) {
-		hipStreamDestroy(streams[i]);
+	  HIP_SAFE(hipStreamDestroy(streams[i]));
 	}
 //	freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
@@ -6129,11 +6129,11 @@ sd_t_s1_6_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		}
 		stream++;
 	}*/
-	hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
 	//HIP_SAFE(hipMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, hipMemcpyDeviceToHost));
 
 	for (i = 0; i < nstreams; ++i) {
-		hipStreamDestroy(streams[i]);
+	  HIP_SAFE(hipStreamDestroy(streams[i]));
 	}
 //	freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
@@ -6267,11 +6267,11 @@ sd_t_s1_7_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		}
 		stream++;
 	}*/
-	hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
 	//HIP_SAFE(hipMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, hipMemcpyDeviceToHost));
 
 	for (i = 0; i < nstreams; ++i) {
-		hipStreamDestroy(streams[i]);
+	  HIP_SAFE(hipStreamDestroy(streams[i]));
 	}
 //	freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
@@ -6398,11 +6398,11 @@ sd_t_s1_8_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		}
 		stream++;
 	}*/
-	hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
 //	HIP_SAFE(hipMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, hipMemcpyDeviceToHost));
 
 	for (i = 0; i < nstreams; ++i) {
-		hipStreamDestroy(streams[i]);
+	  HIP_SAFE(hipStreamDestroy(streams[i]));
 	}
 //	freeGpuMem(t3_d);
 	freeGpuMem(t2_d);
@@ -6490,12 +6490,12 @@ sd_t_s1_9_cuda(size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d, size_
 		}
 		stream++;
 	}*/
-	hipDeviceSynchronize();
+  HIP_SAFE(hipDeviceSynchronize());
 	//HIP_SAFE(hipMemcpy(((char *) t3) , ((char *) t3_s_d) , size_t3, hipMemcpyDeviceToHost));
 
 //  printf("out is %lf\n", t3_p[0]);
 	for (i = 0; i < nstreams; ++i) {
-		hipStreamDestroy(streams[i]);
+	  HIP_SAFE(hipStreamDestroy(streams[i]));
 	}
 	//freeGpuMem(t3_d);
 	freeGpuMem(t2_d);

@@ -77,14 +77,14 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
   bool use_dpcpp = false;
 
 #if defined(USE_CUDA)
-  cudaGetDeviceCount(&dev_count_check);
+  CUDA_SAFE(cudaGetDeviceCount(&dev_count_check));
   if(dev_count_check < iDevice){
     if(nodezero) cout << "ERROR: Please check whether you have " << iDevice <<
       " cuda devices per node. Terminating program..." << endl << endl;
     return std::make_tuple(-999,-999,0,0);
   }
 #elif defined(USE_HIP)
-  hipGetDeviceCount(&dev_count_check);
+  HIP_SAFE(hipGetDeviceCount(&dev_count_check));
   if(dev_count_check < iDevice){
     if(nodezero) cout << "ERROR: Please check whether you have " << iDevice <<
       " hip devices per node. Terminating program..." << endl << endl;

@@ -96,14 +96,12 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   bool nodezero = rank==0;
 
 #if defined(USE_CUDA)
-  int opt_CUDA_TC = checkCudaKernelCompatible(nodezero);
-  if (opt_CUDA_TC == 1) {
+  // int opt_CUDA_TC = checkCudaKernelCompatible(nodezero);
+  #if __CUDA_ARCH__ >= 800
     if(nodezero) cout << "Enabled the fully-fused kernel based on FP64 TC (Third Gen. Tensor Cores)" << endl;
-  } else {
+  #else
     if(nodezero) cout << "Enabled the fully-fused kernel based on FP64" << endl;
-  } 
-#else
-  int opt_CUDA_TC = -1;
+  #endif
 #endif
 
   Index noab=MO("occ").num_tiles();
@@ -354,7 +352,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
             num_task++;
 
           #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-            ccsd_t_fully_fused_none_df_none_task(is_restricted, opt_CUDA_TC, 
+            ccsd_t_fully_fused_none_df_none_task(is_restricted, 
             #if defined(USE_DPCPP)
               syclQue,
             #endif
@@ -491,7 +489,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
               num_task++;
 
               #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-              ccsd_t_fully_fused_none_df_none_task(is_restricted, opt_CUDA_TC, 
+              ccsd_t_fully_fused_none_df_none_task(is_restricted, 
                                                    #if defined(USE_DPCPP)
                                                     syclQue,
                                                    #endif

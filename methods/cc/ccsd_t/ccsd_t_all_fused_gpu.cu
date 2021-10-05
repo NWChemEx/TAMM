@@ -2395,10 +2395,11 @@ void fully_fused_ccsd_t_gpu(cudaStream_t* stream_id, size_t num_blocks,
 // end of (1) Pure FP64
 
 // (2) 3rd. Generation Tensor Cores (FP64)
+#if __CUDA_ARCH__ >= 800
 #include <cooperative_groups/memcpy_async.h>
 #include <cuda/pipeline>
-
 #include "tensor_core_helper.cuh"
+#endif
 
 using namespace std;
 
@@ -2462,6 +2463,7 @@ __device__ inline void zero_shared(double *smem, const int start_row, const int 
 	}
 }
 
+#if __CUDA_ARCH__ >= 800
 
 // fixed (reg_x, reg_y)
 __device__ inline void rt_store_fixed(double* smem, const int idx_x_1, const int idx_x_2, const int idx_y_1, const int idx_y_2, MmaOperandC& op_c) {
@@ -4035,6 +4037,7 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 	}
 #endif
 
+
 	//---------------------------------------------------------------------------- 
 	// 	
 	// 	S (Singles)
@@ -4558,7 +4561,6 @@ void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(int size_noab, int size_nvab,
 	}
 }
 
-
 // #define DEBUG_PRINT_KERNEL_TIME
 /**
  *	@brief the driver of the fully-fused kernel for CCSD(T)
@@ -4673,3 +4675,4 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(cudaStream_t* stream_id, size_t numBlks,
 	// printf ("[%s] (gpu) energy: %.10f, %.10f\n", __func__, *final_energy_4, *final_energy_5);
 }
 // end of (2) 3rd. Generation Tensor Cores (FP64)
+#endif

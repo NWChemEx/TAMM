@@ -25,10 +25,12 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       scalapackpp::BlockCyclicDist2D* blockcyclic_dist,
 #endif
       const int& iter, const SystemData& sys_data, SCFVars& scf_vars,
-      TAMMTensors& ttensors, EigenTensors& etensors, bool ediis, bool scf_restart=false){
+      TAMMTensors& ttensors, EigenTensors& etensors, bool ediis, 
+      GauXC::XCIntegrator<Matrix>& gauxc_integrator, bool scf_restart=false){
 
       const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
       const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
+      const bool is_ks  = int8_t(sys_data.scf_type & SCFType::_ks);
 
       Tensor<TensorType>& H1                = ttensors.H1;
       Tensor<TensorType>& S1                = ttensors.S1;
@@ -75,16 +77,48 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       sch
         (F_alpha()  = H1())
         (F_alpha() += F_alpha_tmp())
-        (F_alpha() += VXC())
         .execute();
       
       if(is_uhf) {
         sch
           (F_beta()   = H1())
           (F_beta()  += F_beta_tmp())
-          (F_beta()  += VXC())
           .execute();
       }
+
+      double ehf = 0.0;
+
+      if(is_rhf) {
+        sch
+          (ehf_tmp(mu,nu)  = H1(mu,nu))
+          (ehf_tmp(mu,nu) += F_alpha(mu,nu))
+          (ehf_tamm()      = 0.5 * D_last_alpha_tamm() * ehf_tmp())
+          .execute();
+      }
+
+      if(is_uhf) {
+        sch
+          (ehf_tmp(mu,nu)  = H1(mu,nu))
+          (ehf_tmp(mu,nu) += F_alpha(mu,nu))
+          (ehf_tamm()      = 0.5 * D_last_alpha_tamm() * ehf_tmp())
+          (ehf_tmp(mu,nu)  = H1(mu,nu))
+          (ehf_tmp(mu,nu) += F_beta(mu,nu))
+          (ehf_tamm()     += 0.5 * D_last_beta_tamm()  * ehf_tmp())
+          .execute();
+      }
+       
+      ehf = get_scalar(ehf_tamm);
+      
+      double gauxc_exc = 0;
+      if(is_ks) {
+        gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
+      }
+
+      ehf += gauxc_exc; ///2.5;
+
+      sch
+        (F_alpha() += VXC())
+        .execute();
 
       Tensor<TensorType> err_mat_alpha_tamm{tAO, tAO};
       Tensor<TensorType> err_mat_beta_tamm{tAO, tAO};
@@ -201,28 +235,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       ec.pg().broadcast(D_alpha.data(), D_alpha.size(), 0 );
       if(is_uhf) ec.pg().broadcast(D_beta.data(), D_beta.size(), 0 );
 
-      double ehf = 0.0;
 
-      if(is_rhf) {
-        sch
-          (ehf_tmp(mu,nu)  = H1(mu,nu))
-          (ehf_tmp(mu,nu) += F_alpha(mu,nu))
-          (ehf_tamm()      = 0.5 * D_last_alpha_tamm() * ehf_tmp())
-          .execute();
-      }
-
-      if(is_uhf) {
-        sch
-          (ehf_tmp(mu,nu)  = H1(mu,nu))
-          (ehf_tmp(mu,nu) += F_alpha(mu,nu))
-          (ehf_tamm()      = 0.5 * D_last_alpha_tamm() * ehf_tmp())
-          (ehf_tmp(mu,nu)  = H1(mu,nu))
-          (ehf_tmp(mu,nu) += F_beta(mu,nu))
-          (ehf_tamm()     += 0.5 * D_last_beta_tamm()  * ehf_tmp())
-          .execute();
-      }
-       
-      ehf = get_scalar(ehf_tamm);
       
       // if(ediis) {
       //   compute_2bf<TensorType>(ec, sys_data, scf_vars, obs, do_schwarz_screen, shell2bf, SchwarzK,
@@ -1156,59 +1169,5 @@ void diis(ExecutionContext& ec, const TiledIndexSpace& tAO, Tensor<TensorType> D
 }
 
 
-namespace gauxc_util {
-
-GauXC::Molecule make_gauxc_molecule( const std::vector<libint2::Atom>& atoms ) {
-  GauXC::Molecule mol; mol.resize( atoms.size() );
-  std::transform( atoms.begin(), atoms.end(), mol.begin(), 
-    []( const libint2::Atom& atom ) {
-      GauXC::Atom gauxc_atom( GauXC::AtomicNumber( atom.atomic_number ),
-                              atom.x, atom.y, atom.z );
-      return gauxc_atom;
-    });
-  return mol;
-}
-
-GauXC::BasisSet<double> make_gauxc_basis( const libint2::BasisSet& basis ) {
-  using shell_t = GauXC::Shell<double>;
-  using prim_t  = typename shell_t::prim_array;
-  using cart_t  = typename shell_t::cart_array;
-
-  GauXC::BasisSet<double> gauxc_basis;
-  for( const auto& shell : basis ) {
-    prim_t prim_array, coeff_array;
-    cart_t origin;
-
-    std::copy( shell.alpha.begin(), shell.alpha.end(), prim_array.begin() );
-    std::copy( shell.contr[0].coeff.begin(), shell.contr[0].coeff.end(),
-               coeff_array.begin() );
-    std::copy( shell.O.begin(), shell.O.end(), origin.begin() );
-
-    gauxc_basis.emplace_back( GauXC::PrimSize( shell.alpha.size() ),
-                              GauXC::AngularMomentum( shell.contr[0].l ),
-                              GauXC::SphericalType( shell.contr[0].pure ),
-                              prim_array, coeff_array, origin, false );
-  }
-  gauxc_basis.generate_shell_to_ao();
-  return gauxc_basis;
-}
-
-template <typename TensorType>
-TensorType compute_xcf( ExecutionContext& ec, TAMMTensors& ttensors, 
-    EigenTensors& etensors, GauXC::XCIntegrator<Matrix>& xc_integrator ) {
-
-  const auto& D = etensors.D;
-  auto [EXC, VXC] = xc_integrator.eval_exc_vxc( D );
-
-  auto& VXC_tamm = ttensors.VXC;
-  eigen_to_tamm_tensor( VXC_tamm, VXC );
-  ec.pg().barrier();
-
-  return EXC;
-
-}
-
-
-}
 
 #endif // TAMM_METHODS_SCF_ITER_HPP_

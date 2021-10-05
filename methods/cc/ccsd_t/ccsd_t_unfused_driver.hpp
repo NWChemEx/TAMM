@@ -93,14 +93,13 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
 #elif defined(USE_DPCPP)
   {
     use_dpcpp = true;
-    sycl::gpu_selector device_selector;
-    sycl::platform platform(device_selector);
+    sycl::platform platform(sycl::gpu_selector{});
     auto const& gpu_devices = platform.get_devices();
     for (auto &gpu_device : gpu_devices) {
       if (gpu_device.is_gpu()) {
-        if (gpu_device.get_info<cl::sycl::info::device::partition_max_sub_devices>() > 0) {
-          auto SubDevicesDomainNuma = gpu_device.create_sub_devices<cl::sycl::info::partition_property::partition_by_affinity_domain>(
-            cl::sycl::info::partition_affinity_domain::numa);
+        if (gpu_device.get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+          auto SubDevicesDomainNuma = gpu_device.create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+            sycl::info::partition_affinity_domain::numa);
           dev_count_check += SubDevicesDomainNuma.size();
         }
         else {

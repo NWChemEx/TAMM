@@ -1,4 +1,17 @@
 
+//*******************************************************
+// Compute intial guess -> D
+// for each iter:
+// 1. 2 body fock procedure -> computes G (combined JK)
+// 2. [EXC, VXC] = xc_integrator.eval_exc_vxc(D)
+// 3. F = H + G
+// 4. F += VXC
+// 5. E = 0.5 * Tr((H+F) * D)
+// 6. E += EXC
+// 7. diagonalize F -> updates D
+// 8. E += enuc, print E
+//*******************************************************
+
 #ifndef TAMM_METHODS_SCF_MAIN_HPP_
 #define TAMM_METHODS_SCF_MAIN_HPP_
 
@@ -112,9 +125,6 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     sys_data.nbf      = N;
     sys_data.nbf_orig = N;
     sys_data.ediis    = ediis; 
-
-
-
 
     std::string out_fp = options_map.options.output_file_prefix+"."+scf_options.basis;
     std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type+"/scf";
@@ -377,6 +387,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     // TODO
     const double xHF = is_ks ? gauxc_func.hyb_exx() : 1.;
+    if (rank == 0) cout << "HF exch = " << xHF << endl;
     // const double xHF = 1.;
 
       TAMMTensors ttensors;
@@ -782,10 +793,6 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         // build a new Fock matrix
         compute_2bf<TensorType>(ec, sys_data, scf_vars, obs, do_schwarz_screen, shell2bf, SchwarzK,
                                 max_nprim4, shells, ttensors, etensors, is_3c_init, do_density_fitting, xHF);
-        TensorType gauxc_exc = 0.;
-        if(is_ks) {
-          gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
-        }
 
         //E_Diis
         if(ediis) {
@@ -818,11 +825,11 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
                         blacs_grid.get(),
                         blockcyclic_dist.get(),
         #endif 
-                        iter, sys_data, scf_vars, ttensors, etensors, ediis, scf_conv);
+                        iter, sys_data, scf_vars, ttensors, etensors, ediis, gauxc_integrator, scf_conv);
 
         if(ediis && fabs(rmsd) < ediis_off) ediis = false;
 
-        ehf += enuc + gauxc_exc;
+        ehf += enuc;
         // compute difference with last iteration
         ediff = ehf - ehf_last;
 

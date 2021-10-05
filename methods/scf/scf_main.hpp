@@ -85,6 +85,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
     const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
     const bool is_ks  = int8_t(sys_data.scf_type & SCFType::_ks);
+    //TODO: Check for uks and terminate if not implemented
     // const bool is_rohf = (sys_data.scf_type == sys_data.SCFType::rohf);
 
     bool molden_file_valid = false;

@@ -1125,7 +1125,8 @@ template <typename TensorType>
 TensorType compute_xcf( ExecutionContext& ec, TAMMTensors& ttensors, 
     EigenTensors& etensors, GauXC::XCIntegrator<Matrix>& xc_integrator ) {
 
-  const auto& D = etensors.D;
+  //TODO:uks not implemented
+  const auto D = 0.5*etensors.D;
   auto [EXC, VXC] = xc_integrator.eval_exc_vxc( D );
 
   // if(ec.pg().rank()==0) cout << "EXC = " << EXC << endl;

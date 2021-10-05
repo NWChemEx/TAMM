@@ -114,8 +114,9 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
       }
 
-      ehf += gauxc_exc; ///2.5;
+      ehf += gauxc_exc;
 
+      //TODO: uks not implemented
       sch
         (F_alpha() += VXC())
         .execute();

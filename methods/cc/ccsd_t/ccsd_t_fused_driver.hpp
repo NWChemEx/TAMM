@@ -97,7 +97,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
 
 #if defined(USE_CUDA)
   // int opt_CUDA_TC = checkCudaKernelCompatible(nodezero);
-  #if __CUDA_ARCH__ >= 800
+  #if defined(USE_NV_TC)
     if(nodezero) cout << "Enabled the fully-fused kernel based on FP64 TC (Third Gen. Tensor Cores)" << endl;
   #else
     if(nodezero) cout << "Enabled the fully-fused kernel based on FP64" << endl;

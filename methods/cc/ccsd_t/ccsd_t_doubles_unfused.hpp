@@ -31,7 +31,7 @@ void jk_ccsd_t_d2_7(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,dou
 void jk_ccsd_t_d2_8(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void jk_ccsd_t_d2_9(size_t,size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 
-#if __CUDA_ARCH__ >= 800
+#if defined(USE_NV_TC)
 void driver_ccsd_t_d1_1(int size_h3, int size_h2, int size_h1, int size_p6, int size_p5, int size_p4, int size_h7, double* host_t3, double* host_t2, double* host_v2);
 void driver_ccsd_t_d1_2(int size_h3, int size_h2, int size_h1, int size_p6, int size_p5, int size_p4, int size_h7, double* host_t3, double* host_t2, double* host_v2);
 void driver_ccsd_t_d1_3(int size_h3, int size_h2, int size_h1, int size_p6, int size_p5, int size_p4, int size_h7, double* host_t3, double* host_t2, double* host_v2);
@@ -318,7 +318,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
         #if defined(USE_CUDA)                  
         else {
           // printf ("[%s] calls jk_ccsd_t_d1_1()\n", __func__);
-        #if __CUDA_ARCH__ >= 800
+        #if defined(USE_NV_TC)
           // void driver_ccsd_t_d1_1(int size_h3, int size_h2, int size_h1, int size_p6, int size_p5, int size_p4, int size_h7, double* host_t3, double* host_t2, double* host_v2) 
           driver_ccsd_t_d1_1((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
@@ -354,7 +354,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);  
           #if defined(USE_CUDA)                  
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d1_2((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[h7b],
@@ -387,7 +387,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);     
         #if defined(USE_CUDA)        
         else {
-        #if __CUDA_ARCH__ >= 800
+        #if defined(USE_NV_TC)
           driver_ccsd_t_d1_3((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[h7b],
@@ -420,7 +420,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);    
         #if defined(USE_CUDA)    
         else {
-        #if __CUDA_ARCH__ >= 800
+        #if defined(USE_NV_TC)
           driver_ccsd_t_d1_4((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[h7b],
@@ -453,7 +453,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                       &a_c[0],&k_a_sort[0],&k_b_sort[0]);         
           #if defined(USE_CUDA)           
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d1_5((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[h7b],
@@ -486,7 +486,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                       &a_c[0],&k_a_sort[0],&k_b_sort[0]);  
           #if defined(USE_CUDA)                
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d1_6((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[h7b],
@@ -519,7 +519,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);  
           #if defined(USE_CUDA)                  
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d1_7((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[h7b],
@@ -552,7 +552,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
           #if defined(USE_CUDA) 
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d1_8((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[h7b],
@@ -585,7 +585,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
           #if defined(USE_CUDA)                
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d1_9((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[h7b],
@@ -783,7 +783,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);     
           #if defined(USE_CUDA)              
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d2_1((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[p7b],
@@ -815,7 +815,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);
           #if defined(USE_CUDA)
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d2_2((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[p7b],
@@ -847,7 +847,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);        
           #if defined(USE_CUDA)           
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d2_3((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[p7b],
@@ -879,7 +879,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);  
           #if defined(USE_CUDA)                  
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d2_4((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[p7b],
@@ -911,7 +911,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);     
           #if defined(USE_CUDA)               
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d2_5((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[p7b],
@@ -943,7 +943,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                       &a_c[0],&k_a_sort[0],&k_b_sort[0]); 
           #if defined(USE_CUDA)                  
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d2_6((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[p7b],
@@ -975,7 +975,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]); 
           #if defined(USE_CUDA)                   
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d2_7((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[p7b],
@@ -1007,7 +1007,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);   
           #if defined(USE_CUDA)                 
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d2_8((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[p7b],
@@ -1039,7 +1039,7 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                     &a_c[0],&k_a_sort[0],&k_b_sort[0]);    
           #if defined(USE_CUDA)      
           else {
-          #if __CUDA_ARCH__ >= 800
+          #if defined(USE_NV_TC)
             driver_ccsd_t_d2_9((int)k_range[t_h3b],(int)k_range[t_h2b],
                     (int)k_range[t_h1b],(int)k_range[t_p6b],
                     (int)k_range[t_p5b],(int)k_range[t_p4b],(int)k_range[p7b],

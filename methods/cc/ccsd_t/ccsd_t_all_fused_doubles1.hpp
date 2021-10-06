@@ -433,10 +433,9 @@ void ccsd_t_data_d1_new(bool is_restricted,
     size_t max_d1_kernels_pertask,
     // 
     size_t size_T_d1_t2, size_t size_T_d1_v2, 
-    // T* T_d1_t2,     T* T_d1_v2, 
     T* df_T_d1_t2,  T* df_T_d1_v2, 
-    // // 
-    // int* df_d1_exec,        int* df_d1_size, 
+    // 
+    int* host_d1_size_h7b, 
     // 
     int* df_simple_d1_size, int* df_simple_d1_exec, 
     int* df_num_d1_enabled, 
@@ -499,6 +498,11 @@ void ccsd_t_data_d1_new(bool is_restricted,
     df_simple_d1_size[4 + (h7b) * 7] = (int)k_range[t_p4b];
     df_simple_d1_size[5 + (h7b) * 7] = (int)k_range[t_p5b];
     df_simple_d1_size[6 + (h7b) * 7] = (int)k_range[t_p6b];
+
+    // 
+    // 
+    // 
+    host_d1_size_h7b[h7b] = (int)k_range[h7b];
   }
 
 
@@ -561,6 +565,7 @@ void ccsd_t_data_d1_new(bool is_restricted,
         df_simple_d1_exec[0 + h7b * 9] = idx_offset;
         // sd_t_d1_exec[0 + (h7b + (ia6) * noab) * 9] = d1b++;
       }
+  
       if (ref_p456_h123 == cur_p456_h213) {
         // df_d1_exec[1 + (h7b + (ia6) * noab) * 9] = d1b++;
         df_simple_d1_exec[1 + h7b * 9] = idx_offset;
@@ -601,7 +606,7 @@ void ccsd_t_data_d1_new(bool is_restricted,
         df_simple_d1_exec[8 + h7b * 9] = idx_offset;
         // sd_t_d1_exec[8 + (h7b + (ia6) * noab) * 9] = d1b++;
       }
-
+    
       // 
       idx_offset++;
     } //h7b
@@ -851,7 +856,7 @@ void ccsd_t_data_d1_info_only(bool is_restricted, const Index noab, const Index 
                               std::vector<T>& k_evl_sorted, std::vector<size_t>& k_range, 
                               size_t t_h1b, size_t t_h2b, size_t t_h3b, 
                               size_t t_p4b, size_t t_p5b, size_t t_p6b,
-                              // 
+                              //
                               int* df_simple_d1_size, int* df_simple_d1_exec,
                               int* num_enabled_kernels, size_t& comm_data_elems)
 {

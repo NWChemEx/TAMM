@@ -3,7 +3,7 @@
 
 void ccsd_t_driver();
 std::string filename;
-bool use_nwc_gpu_kernels = true;
+bool use_nwc_gpu_kernels = false;
 double ccsdt_s1_t1_GetTime = 0;
 double ccsdt_s1_v2_GetTime = 0;
 double ccsdt_d1_t2_GetTime = 0;

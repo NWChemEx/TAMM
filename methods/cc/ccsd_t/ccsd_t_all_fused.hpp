@@ -67,8 +67,11 @@ void fully_fused_ccsd_t_gpu(gpuStream_t* stream_id, size_t num_blocks,
 	//
 	double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b,
 	double* dev_evl_sorted_p4b, double* dev_evl_sorted_p5b, double* dev_evl_sorted_p6b,
-	double* partial_energies,
-	gpuEvent_t done_compute, gpuEvent_t done_copy);
+	double* partial_energies
+  #if defined(USE_CUDA)
+	, gpuEvent_t done_compute, gpuEvent_t done_copy
+  #endif
+  );
 
 #if defined(USE_NV_TC)
 // driver for fully-fused kernel for 3rd gen. tensor core (FP64)

@@ -263,9 +263,11 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   int* df_simple_s1_size = (int*)getHostMem(*syclQue, sizeof(int) * (6));
   int* df_simple_s1_exec = (int*)getHostMem(*syclQue, sizeof(int) * (9));
 
+  int* host_d1_size      = (int*)getHostMem(*syclQue, sizeof(int) * (noab));
   int* df_simple_d1_size = (int*)getHostMem(*syclQue, sizeof(int) * (7 * noab));
   int* df_simple_d1_exec = (int*)getHostMem(*syclQue, sizeof(int) * (9 * noab));
 
+  int* host_d2_size      = (int*)getHostMem(*syclQue, sizeof(int) * (nvab));
   int* df_simple_d2_size = (int*)getHostMem(*syclQue, sizeof(int) * (7 * nvab));
   int* df_simple_d2_exec = (int*)getHostMem(*syclQue, sizeof(int) * (9 * nvab));
 

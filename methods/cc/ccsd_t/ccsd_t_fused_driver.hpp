@@ -30,6 +30,7 @@ void finalizememmodule(
  *  based on 3rd gen. tensor cores or not.
  *  - requirements: (1) arch >= 80 and (2) driver >= 11.2?
  **/
+#if defined(USE_CUDA)
 int checkCudaKernelCompatible(bool r0) {
   int version = 0;
   cudaDeviceProp dP;
@@ -69,6 +70,7 @@ int checkCudaKernelCompatible(bool r0) {
   if (dP.major >= 8 && driver_major >= 11 && driver_minor >= 1) { return 1; } 
   else { return -1; }
 }
+#endif
 
 //
 template<typename T>
@@ -211,8 +213,8 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   energy_l[1] = 0.0;
 
 #if defined(USE_CUDA)
-  gpuStream_t stream;
-  cudaStreamCreate(&stream);
+  // gpuStream_t stream;
+  // cudaStreamCreate(&stream);
   gpuEvent_t done_compute, done_copy;
   cudaEventCreate(&done_compute);
   cudaEventCreate(&done_copy);
@@ -356,7 +358,6 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
             #if defined(USE_DPCPP)
               syclQue,
             #endif
-              stream,
               noab, nvab, rank,
               k_spin,
               k_range,
@@ -396,8 +397,11 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
               #endif
               cache_s1t, cache_s1v,
               cache_d1t, cache_d1v,
-              cache_d2t, cache_d2v,
-              done_compute, done_copy);
+              cache_d2t, cache_d2v
+              #if defined(USE_CUDA)
+              , done_compute, done_copy
+              #endif
+              );
           #else
             total_fused_ccsd_t_cpu<T>(is_restricted, noab, nvab, rank,
               k_spin,
@@ -493,7 +497,6 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                    #if defined(USE_DPCPP)
                                                     syclQue,
                                                    #endif
-                                                   stream,
                                                   noab, nvab, rank,
                                                   k_spin,
                                                   k_range,
@@ -533,8 +536,11 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
                                                   #endif
                                                   cache_s1t, cache_s1v,
                                                   cache_d1t, cache_d1v,
-                                                  cache_d2t, cache_d2v,
-                                                  done_compute, done_copy);
+                                                  cache_d2t, cache_d2v
+                                                  #if defined(USE_CUDA)
+                                                  , done_compute, done_copy
+                                                  #endif
+                                                  );
             #else
             total_fused_ccsd_t_cpu<T>(is_restricted, noab, nvab, rank,
                                                 k_spin,
@@ -577,7 +583,9 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
     }}}}}
   } //end seq h3b
 
+  #if defined(USE_CUDA)
   cudaDeviceSynchronize();
+  #endif
   //
   energy1 = energy_l[0];
   energy2 = energy_l[1];
@@ -586,7 +594,7 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   free(reduceData);
   cudaEventDestroy(done_compute);
   cudaEventDestroy(done_copy);
-  cudaStreamDestroy(stream);
+  // cudaStreamDestroy(stream);
   #endif
 
   //

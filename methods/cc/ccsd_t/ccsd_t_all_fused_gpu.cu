@@ -2395,7 +2395,7 @@ void fully_fused_ccsd_t_gpu(cudaStream_t* stream_id, size_t num_blocks,
 // end of (1) Pure FP64
 
 // (2) 3rd. Generation Tensor Cores (FP64)
-#if __CUDA_ARCH__ >= 800
+#if defined(USE_NV_TC)
 #include <cooperative_groups/memcpy_async.h>
 #include <cuda/pipeline>
 #include "tensor_core_helper.cuh"
@@ -2463,7 +2463,7 @@ __device__ inline void zero_shared(double *smem, const int start_row, const int 
 	}
 }
 
-#if __CUDA_ARCH__ >= 800
+#if defined(USE_NV_TC)
 
 // fixed (reg_x, reg_y)
 __device__ inline void rt_store_fixed(double* smem, const int idx_x_1, const int idx_x_2, const int idx_y_1, const int idx_y_2, MmaOperandC& op_c) {
@@ -4628,36 +4628,34 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(cudaStream_t* stream_id, size_t numBlks,
   cudaEventRecord(start_kernel);
 #endif
 
-	// double host_energies_zero[2] = {0.0, 0.0};
-	// cudaMemcpyAsync(dev_energies, host_energies_zero, sizeof(double) * 2, cudaMemcpyHostToDevice, *stream_id);
+// double host_energies_zero[2] = {0.0, 0.0};
+// cudaMemcpyAsync(dev_energies, host_energies_zero, sizeof(double) * 2, cudaMemcpyHostToDevice, *stream_id);
 
+// 
+// cudaDeviceSetCacheConfig(cudaFuncCachePreferShared);
+// int maxbytes = 98304; // 96 KB
+// int maxbytes = 196608; // 192 KB
+// int maxbytes = 135168; // 132 KB
+// CUCHK(cudaFuncSetAttribute(fused_kernel_d2, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes));
+fully_fused_kernel_ccsd_t_nvidia_tc_fp64<<<gridsize_1, blocksize_1, 2 * NUM_STAGE * 8 * STAGE_OFFSET, *stream_id>>>((int)size_noab, (int)size_nvab, 
 	// 
-	// cudaDeviceSetCacheConfig(cudaFuncCachePreferShared);
-	// int maxbytes = 98304; // 96 KB
-	// int maxbytes = 196608; // 192 KB
-	// int maxbytes = 135168; // 132 KB
-	// CUCHK(cudaFuncSetAttribute(fused_kernel_d2, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes));
-#if 1
-	fully_fused_kernel_ccsd_t_nvidia_tc_fp64<<<gridsize_1, blocksize_1, 2 * NUM_STAGE * 8 * STAGE_OFFSET, *stream_id>>>((int)size_noab, (int)size_nvab, 
-		// 
-		(int)size_max_dim_s1_t1, (int)size_max_dim_s1_v2, 
-		(int)size_max_dim_d1_t2, (int)size_max_dim_d1_v2, 
-		(int)size_max_dim_d2_t2, (int)size_max_dim_d2_v2, 
-		// 
-		dev_s1_t1_all, dev_s1_v2_all, 
-		dev_d1_t2_all, dev_d1_v2_all, 
-		dev_d2_t2_all, dev_d2_v2_all, 
-		// 
-		dev_energies, 
-		dev_evl_sorted_h3b, dev_evl_sorted_h2b, dev_evl_sorted_h1b, 
-		dev_evl_sorted_p6b, dev_evl_sorted_p5b, dev_evl_sorted_p4b, 
-		// 
-    (int)size_h3, (int)size_h2, (int)size_h1, 
-		(int)size_p6, (int)size_p5, (int)size_p4, 
-    CEIL(size_h3, SIZE_TILE_H3), CEIL(size_h2, SIZE_TILE_H2), CEIL(size_h1, SIZE_TILE_H1), 
-		CEIL(size_p6, SIZE_TILE_P6), CEIL(size_p5, SIZE_TILE_P5), CEIL(size_p4, SIZE_TILE_P4));
-	CUCHK(cudaGetLastError());
-#endif
+	(int)size_max_dim_s1_t1, (int)size_max_dim_s1_v2, 
+	(int)size_max_dim_d1_t2, (int)size_max_dim_d1_v2, 
+	(int)size_max_dim_d2_t2, (int)size_max_dim_d2_v2, 
+	// 
+	dev_s1_t1_all, dev_s1_v2_all, 
+	dev_d1_t2_all, dev_d1_v2_all, 
+	dev_d2_t2_all, dev_d2_v2_all, 
+	// 
+	dev_energies, 
+	dev_evl_sorted_h3b, dev_evl_sorted_h2b, dev_evl_sorted_h1b, 
+	dev_evl_sorted_p6b, dev_evl_sorted_p5b, dev_evl_sorted_p4b, 
+	// 
+(int)size_h3, (int)size_h2, (int)size_h1, 
+	(int)size_p6, (int)size_p5, (int)size_p4, 
+CEIL(size_h3, SIZE_TILE_H3), CEIL(size_h2, SIZE_TILE_H2), CEIL(size_h1, SIZE_TILE_H1), 
+	CEIL(size_p6, SIZE_TILE_P6), CEIL(size_p5, SIZE_TILE_P5), CEIL(size_p4, SIZE_TILE_P4));
+CUCHK(cudaGetLastError());
 
 #ifdef DEBUG_PRINT_KERNEL_TIME
   cudaEventRecord(stop_kernel);

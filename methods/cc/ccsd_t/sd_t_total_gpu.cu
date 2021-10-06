@@ -12931,7 +12931,7 @@ void jk_ccsd_t_s1_9(size_t size_h3, size_t size_h2, size_t size_h1, size_t size_
 }
 
 // A100 and cuda 11.1 
-#if __CUDA_ARCH__ >= 800
+#if defined(USE_NV_TC)
 
 #include <cooperative_groups/memcpy_async.h>
 #include <cuda/pipeline> // cuda >= 11.1

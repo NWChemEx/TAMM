@@ -382,7 +382,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
 #endif
 #endif //OPT_KERNEL_TIMING
   
-  #if __CUDA_ARCH__ < 800
+#if !defined(USE_NV_TC)
     // printf ("[%s] called the old kernel\n", __func__);
     fully_fused_ccsd_t_gpu(&stream, num_blocks,
       k_range[t_h1b],k_range[t_h2b],

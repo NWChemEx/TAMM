@@ -31,23 +31,23 @@ std::string check_memory_req(const int nDevices, const int cc_t_ts, const int nb
   std::string errmsg = "";
   
   #if defined(USE_CUDA)
-  cudaGetDeviceCount(&dev_count_check);
+  CUDA_SAFE(cudaGetDeviceCount(&dev_count_check));
   if(dev_count_check < nDevices){
     errmsg = "ERROR: Please check whether you have " + std::to_string(nDevices)
      + " cuda devices per node and set the ngpu option accordingly";
   }
   cudaDeviceProp gpu_properties;
-  cudaGetDeviceProperties(&gpu_properties,0);
+  CUDA_SAFE(cudaGetDeviceProperties(&gpu_properties,0));
   global_gpu_mem = gpu_properties.totalGlobalMem;
 
   #elif defined(USE_HIP)
-  hipGetDeviceCount(&dev_count_check);
+  HIP_SAFE(hipGetDeviceCount(&dev_count_check));
   if(dev_count_check < nDevices){
     errmsg = "ERROR: Please check whether you have " + std::to_string(nDevices)
      + " cuda devices per node and set the ngpu option accordingly";
   }
   hipDeviceProp_t gpu_properties;
-  hipGetDeviceProperties(&gpu_properties,0);
+  HIP_SAFE(hipGetDeviceProperties(&gpu_properties,0));
   global_gpu_mem = gpu_properties.totalGlobalMem;  
 
   #elif defined(USE_DPCPP)
@@ -88,9 +88,9 @@ int device_init(
   /* Set device_id */
   int dev_count_check = 0;
 #if defined(USE_CUDA)
-  cudaGetDeviceCount(&dev_count_check);
+  CUDA_SAFE(cudaGetDeviceCount(&dev_count_check));
 #elif defined(USE_HIP)
-  hipGetDeviceCount(&dev_count_check);
+  HIP_SAFE(hipGetDeviceCount(&dev_count_check));
 #elif defined(USE_DPCPP)
   sycl::platform platform(sycl::gpu_selector{});
   auto const& gpu_devices = platform.get_devices();
@@ -123,10 +123,10 @@ int device_init(
   else {
 #if defined(USE_CUDA)
     // cudaSetDevice(device_id);
-    cudaSetDevice(actual_device_id);
+    CUDA_SAFE(cudaSetDevice(actual_device_id));
 #elif defined(USE_HIP)
     // hipSetDevice(device_id);
-    hipSetDevice(actual_device_id);
+    HIP_SAFE(hipSetDevice(actual_device_id));
 #elif defined(USE_DPCPP)
     *syclQue = iDevice_syclQueue[actual_device_id];
 #endif

@@ -24,9 +24,9 @@ static void clearGpuFreeList(
     for(set<void*>::iterator it2=it->second.begin(); it2!=it->second.end(); ++it2)
     {
 #if defined(USE_CUDA)
-      cudaFree(*it2);
+      CUDA_SAFE( cudaFree(*it2) );
 #elif defined(USE_HIP)
-      hipFree(*it2);
+      HIP_SAFE( hipFree(*it2) );
 #elif defined(USE_DPCPP)
       sycl::free(*it2, syclQueue);
 #endif
@@ -46,9 +46,9 @@ static void clearHostFreeList(
     for(set<void*>::iterator it2=it->second.begin(); it2!=it->second.end(); ++it2)
     {
 #if defined(USE_CUDA)
-      cudaFreeHost(*it2);
+      CUDA_SAFE( cudaFreeHost(*it2) );
 #elif defined(USE_HIP)
-      hipHostFree(*it2);
+      HIP_SAFE( hipHostFree(*it2) );
 #elif defined(USE_DPCPP)
       sycl::free(*it2, syclQueue);
 #else
@@ -274,9 +274,9 @@ void freeHostMem(
   //assert(is_init);
 #ifdef NO_OPT
 #if defined(USE_CUDA)
-  cudaFreeHost(p);
+  CUDA_SAFE(cudaFreeHost(p));
 #elif defined(USE_HIP)
-  hipHostFree(p);
+  HIP_SAFE(hipHostFree(p));
 #elif defined(USE_DPCPP)
   sycl::free(p, syclQueue);
 #else
@@ -301,9 +301,9 @@ void freeGpuMem(
   //assert(is_init);
 #ifdef NO_OPT
 #if defined(USE_CUDA)
-  cudaFree(p);
+  CUDA_SAFE(cudaFree(p));
 #elif defined(USE_HIP)
-  hipFree(p);
+  HIP_SAFE(hipFree(p));
 #elif defined(USE_DPCPP)
   sycl::free(p, syclQueue);
 #endif //NO_OPT

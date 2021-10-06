@@ -155,7 +155,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
 #endif
 
 #ifdef OPT_ALL_TIMING
-#if defined(USE_CUDA) || defined(USE_HIP)
+#if defined(USE_CUDA) //|| defined(USE_HIP)
   gpuEvent_t start_init,               stop_init;
   gpuEvent_t start_fused_kernel,       stop_fused_kernel;
   gpuEvent_t start_pre_processing,     stop_pre_processing;
@@ -185,9 +185,9 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
     gpuStream_t stream;
 #endif
 #if defined(USE_CUDA)
-    cudaStreamCreate(&stream);
+  CUDA_SAFE(cudaStreamCreate(&stream));
 #elif defined(USE_HIP)
-    hipStreamCreate(&stream);
+  HIP_SAFE(hipStreamCreate(&stream));
 #elif defined(USE_DPCPP)
     stream = *syclQue; // abb: does this need std::move(*syclQue) ?
 #endif
@@ -331,20 +331,20 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
   cudaMemcpyAsync(df_dev_d2_v2_all, df_host_pinned_d2_v2, sizeof(double) * (max_dim_d2_v2 * df_num_d2_enabled), cudaMemcpyHostToDevice, stream);
 #elif defined(USE_HIP)
   // this is not pinned memory.
-  hipMemcpyHtoDAsync(dev_evl_sorted_h1b, host_evl_sorted_h1b, sizeof(double) * base_size_h1b, stream);
-  hipMemcpyHtoDAsync(dev_evl_sorted_h2b, host_evl_sorted_h2b, sizeof(double) * base_size_h2b, stream);
-  hipMemcpyHtoDAsync(dev_evl_sorted_h3b, host_evl_sorted_h3b, sizeof(double) * base_size_h3b, stream);
-  hipMemcpyHtoDAsync(dev_evl_sorted_p4b, host_evl_sorted_p4b, sizeof(double) * base_size_p4b, stream);
-  hipMemcpyHtoDAsync(dev_evl_sorted_p5b, host_evl_sorted_p5b, sizeof(double) * base_size_p5b, stream);
-  hipMemcpyHtoDAsync(dev_evl_sorted_p6b, host_evl_sorted_p6b, sizeof(double) * base_size_p6b, stream);
+  HIP_SAFE(hipMemcpyHtoDAsync(dev_evl_sorted_h1b, host_evl_sorted_h1b, sizeof(double) * base_size_h1b, stream));
+  HIP_SAFE(hipMemcpyHtoDAsync(dev_evl_sorted_h2b, host_evl_sorted_h2b, sizeof(double) * base_size_h2b, stream));
+  HIP_SAFE(hipMemcpyHtoDAsync(dev_evl_sorted_h3b, host_evl_sorted_h3b, sizeof(double) * base_size_h3b, stream));
+  HIP_SAFE(hipMemcpyHtoDAsync(dev_evl_sorted_p4b, host_evl_sorted_p4b, sizeof(double) * base_size_p4b, stream));
+  HIP_SAFE(hipMemcpyHtoDAsync(dev_evl_sorted_p5b, host_evl_sorted_p5b, sizeof(double) * base_size_p5b, stream));
+  HIP_SAFE(hipMemcpyHtoDAsync(dev_evl_sorted_p6b, host_evl_sorted_p6b, sizeof(double) * base_size_p6b, stream));
 
   //  new tensors
-  hipMemcpyHtoDAsync(df_dev_s1_t1_all, df_host_pinned_s1_t1, sizeof(double) * (max_dim_s1_t1 * df_num_s1_enabled), stream);
-  hipMemcpyHtoDAsync(df_dev_s1_v2_all, df_host_pinned_s1_v2, sizeof(double) * (max_dim_s1_v2 * df_num_s1_enabled), stream);
-  hipMemcpyHtoDAsync(df_dev_d1_t2_all, df_host_pinned_d1_t2, sizeof(double) * (max_dim_d1_t2 * df_num_d1_enabled), stream);
-  hipMemcpyHtoDAsync(df_dev_d1_v2_all, df_host_pinned_d1_v2, sizeof(double) * (max_dim_d1_v2 * df_num_d1_enabled), stream);
-  hipMemcpyHtoDAsync(df_dev_d2_t2_all, df_host_pinned_d2_t2, sizeof(double) * (max_dim_d2_t2 * df_num_d2_enabled), stream);
-  hipMemcpyHtoDAsync(df_dev_d2_v2_all, df_host_pinned_d2_v2, sizeof(double) * (max_dim_d2_v2 * df_num_d2_enabled), stream);
+  HIP_SAFE(hipMemcpyHtoDAsync(df_dev_s1_t1_all, df_host_pinned_s1_t1, sizeof(double) * (max_dim_s1_t1 * df_num_s1_enabled), stream));
+  HIP_SAFE(hipMemcpyHtoDAsync(df_dev_s1_v2_all, df_host_pinned_s1_v2, sizeof(double) * (max_dim_s1_v2 * df_num_s1_enabled), stream));
+  HIP_SAFE(hipMemcpyHtoDAsync(df_dev_d1_t2_all, df_host_pinned_d1_t2, sizeof(double) * (max_dim_d1_t2 * df_num_d1_enabled), stream));
+  HIP_SAFE(hipMemcpyHtoDAsync(df_dev_d1_v2_all, df_host_pinned_d1_v2, sizeof(double) * (max_dim_d1_v2 * df_num_d1_enabled), stream));
+  HIP_SAFE(hipMemcpyHtoDAsync(df_dev_d2_t2_all, df_host_pinned_d2_t2, sizeof(double) * (max_dim_d2_t2 * df_num_d2_enabled), stream));
+  HIP_SAFE(hipMemcpyHtoDAsync(df_dev_d2_v2_all, df_host_pinned_d2_v2, sizeof(double) * (max_dim_d2_v2 * df_num_d2_enabled), stream));
 #elif defined(USE_DPCPP)
   // this is not pinned memory.
   stream.memcpy(dev_evl_sorted_h1b, host_evl_sorted_h1b, sizeof(double) * base_size_h1b);
@@ -480,22 +480,23 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
   }
 #endif
 
-  //
+#if defined(USE_CUDA)
 #ifdef OPT_ALL_TIMING
-  cudaEventRecord(stop_fused_kernel);
-  cudaEventSynchronize(stop_fused_kernel);
-  cudaEventRecord(start_post_processing);
+  CUDA_SAFE(cudaEventRecord(stop_fused_kernel));
+  CUDA_SAFE(cudaEventSynchronize(stop_fused_kernel));
+  CUDA_SAFE(cudaEventRecord(start_post_processing));
+#endif
 #endif
 
   // 
-#if defined(USE_CUDA) 
-  cudaMemcpyAsync(host_energies, dev_energies, num_blocks * 2 * sizeof(double), cudaMemcpyDeviceToHost, stream);
+#if defined(USE_CUDA)
+  CUDA_SAFE(cudaMemcpyAsync(host_energies, dev_energies, num_blocks * 2 * sizeof(double), cudaMemcpyDeviceToHost, stream));
 #ifndef STREAM_REDUCE
-  cudaDeviceSynchronize();
+  CUDA_SAFE(cudaDeviceSynchronize());
 #endif
 #elif defined(USE_HIP)
-  hipMemcpyHtoDAsync(host_energies, dev_energies, num_blocks * 2 * sizeof(double), stream);
-  hipStreamSynchronize(stream);
+  HIP_SAFE(hipMemcpyHtoDAsync(host_energies, dev_energies, num_blocks * 2 * sizeof(double), stream));
+  HIP_SAFE(hipStreamSynchronize(stream));
 #elif defined(USE_DPCPP)
   stream.memcpy(host_energies, dev_energies, num_blocks * 2 * sizeof(double));
   stream.wait_and_throw();

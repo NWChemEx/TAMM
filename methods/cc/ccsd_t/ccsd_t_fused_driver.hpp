@@ -134,14 +134,14 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   int dev_count_check = 0;
 
 #if defined(USE_CUDA)
-  cudaGetDeviceCount(&dev_count_check);
+  CUDA_SAFE(cudaGetDeviceCount(&dev_count_check));
   if(dev_count_check < nDevices){
     if(nodezero) cout << "ERROR: Please check whether you have " << nDevices <<
       " cuda devices per node. Terminating program..." << endl << endl;
     return std::make_tuple(-999,-999,0,0);
   }
 #elif defined(USE_HIP)
-  hipGetDeviceCount(&dev_count_check);
+  HIP_SAFE(hipGetDeviceCount(&dev_count_check));
   if(dev_count_check < nDevices){
     if(nodezero) cout << "ERROR: Please check whether you have " << nDevices <<
       " hip devices per node. Terminating program..." << endl << endl;

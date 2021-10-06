@@ -2349,14 +2349,14 @@ void fully_fused_ccsd_t_gpu(hipStream_t* stream_id, size_t num_blocks,
     //    
     //    to handle constant memories
     // 
-    hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_s1_size), host_s1_size, sizeof(int) * (6), 0, hipMemcpyHostToDevice, *stream_id);
-    hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_s1_exec), host_s1_exec, sizeof(int) * (9), 0, hipMemcpyHostToDevice, *stream_id);
+    HIP_SAFE(hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_s1_size), host_s1_size, sizeof(int) * (6), 0, hipMemcpyHostToDevice, *stream_id));
+    HIP_SAFE(hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_s1_exec), host_s1_exec, sizeof(int) * (9), 0, hipMemcpyHostToDevice, *stream_id));
 
-    hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_d1_size), host_d1_size, sizeof(int) * (7 * size_noab), 0, hipMemcpyHostToDevice, *stream_id);
-    hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_d1_exec), host_d1_exec, sizeof(int) * (9 * size_noab), 0, hipMemcpyHostToDevice, *stream_id);
+    HIP_SAFE(hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_d1_size), host_d1_size, sizeof(int) * (7 * size_noab), 0, hipMemcpyHostToDevice, *stream_id));
+    HIP_SAFE(hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_d1_exec), host_d1_exec, sizeof(int) * (9 * size_noab), 0, hipMemcpyHostToDevice, *stream_id));
 
-    hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_d2_size), host_d2_size, sizeof(int) * (7 * size_nvab), 0, hipMemcpyHostToDevice, *stream_id);
-    hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_d2_exec), host_d2_exec, sizeof(int) * (9 * size_nvab), 0, hipMemcpyHostToDevice, *stream_id);
+    HIP_SAFE(hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_d2_size), host_d2_size, sizeof(int) * (7 * size_nvab), 0, hipMemcpyHostToDevice, *stream_id));
+    HIP_SAFE(hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_d2_exec), host_d2_exec, sizeof(int) * (9 * size_nvab), 0, hipMemcpyHostToDevice, *stream_id));
 
     // 
     //    Depends on # of Fused Kernel

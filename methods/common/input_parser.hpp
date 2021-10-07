@@ -257,7 +257,9 @@ class CCSDOptions: public Options {
     gf_ndiis             = 10;
     gf_ngmres            = 10;
     gf_maxiter           = 500;
-    gf_eta               = -0.01;       
+    gf_eta               = 0.01;
+    gf_lshift            = 1.0;
+    gf_preconditioning   = false;
     gf_damping_factor    = 1.0;
     // gf_level_shift    = 0;
     gf_nprocs_poi        = 0;
@@ -323,7 +325,8 @@ class CCSDOptions: public Options {
   int    gf_ngmres;  
   int    gf_maxiter;
   double gf_eta;
-  // double gf_level_shift;
+  double gf_lshift;
+  bool   gf_preconditioning;
   int    gf_nprocs_poi;
   double gf_damping_factor;
   // double gf_omega;       
@@ -400,7 +403,8 @@ class CCSDOptions: public Options {
       cout << " gf_ngmres            = " << gf_ngmres         << endl;
       cout << " gf_maxiter           = " << gf_maxiter        << endl;
       cout << " gf_eta               = " << gf_eta            << endl;
-      // cout << " gf_level_shift         = " << gf_level_shift << endl;
+      cout << " gf_lshift            = " << gf_lshift         << endl;
+      cout << " gf_preconditioning   = " << gf_preconditioning<< endl;
       cout << " gf_damping_factor    = " << gf_damping_factor << endl;
       
       // cout << " gf_omega       = " << gf_omega << endl;
@@ -579,6 +583,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     parse_option<int>   (ccsd_options.gf_nprocs_poi       , jgfcc, "gf_nprocs_poi");
     parse_option<double>(ccsd_options.gf_damping_factor   , jgfcc, "gf_damping_factor");
     parse_option<double>(ccsd_options.gf_eta              , jgfcc, "gf_eta");
+    parse_option<double>(ccsd_options.gf_lshift           , jgfcc, "gf_lshift");
+    parse_option<bool>  (ccsd_options.gf_preconditioning  , jgfcc, "gf_preconditioning");
     parse_option<double>(ccsd_options.gf_threshold        , jgfcc, "gf_threshold");
     parse_option<double>(ccsd_options.gf_omega_min_ip     , jgfcc, "gf_omega_min_ip"); 
     parse_option<double>(ccsd_options.gf_omega_max_ip     , jgfcc, "gf_omega_max_ip");  

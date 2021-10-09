@@ -11,15 +11,17 @@
 #include "common/molden.hpp"
 #include "common/json_data.hpp"
 
-#ifdef USE_SCALAPACK
+#if defined(USE_SCALAPACK)
 #include <blacspp/grid.hpp>
 #include <scalapackpp/block_cyclic_matrix.hpp>
 #include <scalapackpp/eigenvalue_problem/sevp.hpp>
 #include <scalapackpp/pblas/gemm.hpp>
 #endif
 
+#if defined(USE_GAUXC)
 #include <gauxc/xc_integrator.hpp>
 #include <gauxc/xc_integrator/impl.hpp>
+#endif
 
 using namespace tamm;
 using std::cerr;
@@ -568,7 +570,7 @@ void scf_restart_test(const ExecutionContext& ec, const SystemData& sys_data, co
                       bool restart, std::string files_prefix) {
     if(!restart) return;
     const auto rank    = ec.pg().rank();
-    const bool is_uhf  = (sys_data.scf_type == SCFType::uhf);
+    const bool is_uhf  = (sys_data.is_unrestricted);
 
     int        rstatus = 1;
 
@@ -597,7 +599,7 @@ void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const s
     const auto rank    = ec.pg().rank();
     const auto N       = sys_data.nbf_orig;
     const auto Northo  = N - sys_data.n_lindep;
-    const bool is_uhf  = (sys_data.scf_type == SCFType::uhf);
+    const bool is_uhf  = sys_data.is_unrestricted;
 
     EXPECTS(Northo == sys_data.nbf);
 
@@ -635,8 +637,8 @@ double tt_trace(ExecutionContext& ec, Tensor<TensorType>& T1, Tensor<TensorType>
 
 void print_energies(ExecutionContext& ec, TAMMTensors& ttensors, const SystemData& sys_data, bool debug=false){
 
-    const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
-    const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
+    const bool is_uhf = sys_data.is_unrestricted;
+    const bool is_rhf = sys_data.is_restricted;
       
       double nelectrons = 0.0;
       double kinetic_1e = 0.0;
@@ -1084,6 +1086,24 @@ std::tuple<std::vector<int>,std::vector<int>,std::vector<int>>
 
 }
 
+#if defined(USE_GAUXC)
+
+template <typename T>
+inline std::ostream& operator<<( std::ostream& os, const GauXC::Shell<T>& sh ) {
+    os << "GauXC::Shell:( O={" << sh.O()[0] << "," << sh.O()[1] << "," << sh.O()[2] << "}" << std::endl;
+    os << "  ";
+    os << " {l=" << sh.l() << ",sph=" << sh.pure() << "}";
+    os << std::endl;
+
+    for(auto i=0ul; i<sh.nprim(); ++i) {
+      os << "  " << sh.alpha()[i];
+      os << " "  << sh.coeff().at(i);
+      os << std::endl;
+    }
+
+    return os;
+}
+
 namespace gauxc_util {
 
 GauXC::Molecule make_gauxc_molecule( const std::vector<libint2::Atom>& atoms ) {
@@ -1139,5 +1159,6 @@ TensorType compute_xcf( ExecutionContext& ec, TAMMTensors& ttensors,
 }
 
 } //namespace gauxc_util
+#endif
 
 #endif // TAMM_METHODS_SCF_COMMON_HPP_

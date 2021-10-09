@@ -37,8 +37,8 @@ void two_index_transform(SystemData sys_data, ExecutionContext& ec, Tensor<Tenso
   auto MO = F_MO.tiled_index_spaces()[0];
   TAMM_GA_SIZE N = MO("all").max_num_indices();
   
-  const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
-  const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
+  const bool is_uhf = sys_data.is_unrestricted;
+  const bool is_rhf = sys_data.is_restricted;
   // const bool is_rohf = scf_options.scf_type == "rohf";
 
   std::string out_fp = sys_data.output_file_prefix+"."+sys_data.options_map.ccsd_options.basis;

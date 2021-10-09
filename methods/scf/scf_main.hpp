@@ -30,22 +30,6 @@
 //#include "scf_iter.hpp"
 #include "scf_taskmap.hpp"
 
-template <typename T>
-inline std::ostream& operator<<( std::ostream& os, const GauXC::Shell<T>& sh ) {
-    os << "GauXC::Shell:( O={" << sh.O()[0] << "," << sh.O()[1] << "," << sh.O()[2] << "}" << std::endl;
-    os << "  ";
-    os << " {l=" << sh.l() << ",sph=" << sh.pure() << "}";
-    os << std::endl;
-
-    for(auto i=0ul; i<sh.nprim(); ++i) {
-      os << "  " << sh.alpha()[i];
-      os << " "  << sh.coeff().at(i);
-      os << std::endl;
-    }
-
-    return os;
-}
-
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -82,11 +66,11 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     auto        rank         = exc.pg().rank();
     const bool  molden_exists = !scf_options.moldenfile.empty();
 
-    const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
-    const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
-    const bool is_ks  = int8_t(sys_data.scf_type & SCFType::_ks);
-    //TODO: Check for uks and terminate if not implemented
-    // const bool is_rohf = (sys_data.scf_type == sys_data.SCFType::rohf);
+    const bool is_uhf = sys_data.is_unrestricted;
+    const bool is_rhf = sys_data.is_restricted;
+    const bool is_ks  = sys_data.is_ks;
+    // const bool is_rohf = sys_data.is_restricted_os;
+    if(is_ks && is_uhf) tamm_terminate("UKS-DFT is currently not supported!");
 
     bool molden_file_valid = false;
     if(molden_exists) {
@@ -294,7 +278,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     #endif
       ProcGroup pg_l = ProcGroup::create_coll(MPI_COMM_SELF);
       ExecutionContext ec_l{pg_l, DistributionKind::nw, MemoryManagerKind::local};
-    #ifdef USE_SCALAPACK
+    #if defined(USE_SCALAPACK)
 
       auto blacs_setup_st = std::chrono::high_resolution_clock::now();
       // Sanity checks
@@ -365,6 +349,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     #endif
 
+    #if defined(USE_GAUXC)
     /*** =========================== ***/
     /*** Setup GauXC types           ***/
     /*** =========================== ***/
@@ -379,6 +364,9 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     );
 
     std::string xc_string = scf_options.xc_type;
+    // TODO: Refactor DFT code path when we eventually enable GauXC by default.
+    // is_ks=false, so we setup, but do not run DFT. 
+    if(xc_string.empty()) xc_string = "pbe0";
     std::transform( xc_string.begin(), xc_string.end(), xc_string.begin(), ::toupper );
     GauXC::functional_type gauxc_func( ExchCXX::Backend::builtin,
                                        ExchCXX::functional_map.value(xc_string),
@@ -389,7 +377,11 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     // TODO
     const double xHF = is_ks ? gauxc_func.hyb_exx() : 1.;
     if (rank == 0) cout << "HF exch = " << xHF << endl;
-    // const double xHF = 1.;
+    #else
+    const double xHF = 1.;
+    #endif
+
+    
 
       TAMMTensors ttensors;
 
@@ -480,7 +472,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
 
       // XXX: Only allocate for DFT
-      Tensor<TensorType>::allocate( &ec, ttensors.VXC );
+      if(is_ks) Tensor<TensorType>::allocate( &ec, ttensors.VXC );
 
       const auto do_schwarz_screen = SchwarzK.cols() != 0 && SchwarzK.rows() != 0;
       // engine precision controls primitive truncation, assume worst-case scenario
@@ -604,7 +596,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           ec.pg().broadcast(etensors.taskmap.data(),etensors.taskmap.size(),0);
 
           compute_initial_guess<TensorType>(ec, 
-                  #ifdef USE_SCALAPACK
+                  #if defined(USE_SCALAPACK)
                         blacs_grid.get(),
                         blockcyclic_dist.get(),
                   #endif 
@@ -740,9 +732,11 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
                                 max_nprim4, shells, ttensors, etensors, is_3c_init, do_density_fitting, xHF);        
 
         TensorType gauxc_exc = 0.;
+        #if defined(USE_GAUXC)
         if(is_ks) {
           gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
         }
+        #endif
 
         // ehf = D * (H1+F1);
         if(is_rhf) {
@@ -822,11 +816,15 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         }
 
         std::tie(ehf,rmsd) = scf_iter_body<TensorType>(ec, 
-        #ifdef USE_SCALAPACK
+        #if defined(USE_SCALAPACK)
                         blacs_grid.get(),
                         blockcyclic_dist.get(),
         #endif 
-                        iter, sys_data, scf_vars, ttensors, etensors, ediis, gauxc_integrator, scf_conv);
+                        iter, sys_data, scf_vars, ttensors, etensors, ediis, 
+                        #if defined(USE_GAUXC)
+                        gauxc_integrator, 
+                        #endif
+                        scf_conv);
 
         if(ediis && fabs(rmsd) < ediis_off) ediis = false;
 
@@ -929,13 +927,15 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       Tensor<TensorType>::deallocate(ttensors.H1     , ttensors.S1      , ttensors.T1         , ttensors.V1,
                                      ttensors.F_alpha_tmp , ttensors.ehf_tmp , ttensors.ehf_tamm   , ttensors.F_alpha,
                                      ttensors.D_tamm , ttensors.D_diff  , ttensors.D_last_tamm,
-                                     ttensors.FD_tamm, ttensors.FDS_tamm, ttensors.VXC);
+                                     ttensors.FD_tamm, ttensors.FDS_tamm);
       
       if(is_uhf) 
         Tensor<TensorType>::deallocate(ttensors.F_beta     , 
                                        ttensors.D_beta_tamm , ttensors.D_last_beta_tamm,
                                        ttensors.F_beta_tmp , ttensors.ehf_beta_tmp    ,
                                        ttensors.FD_beta_tamm, ttensors.FDS_beta_tamm   );
+
+      if(is_ks) Tensor<TensorType>::deallocate(ttensors.VXC);
 
       #if SCF_THROTTLE_RESOURCES
       ec.flush_and_sync();
@@ -944,7 +944,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       ec_l.flush_and_sync();
 
       #if 0
-      #ifdef USE_SCALAPACK
+      #if defined(USE_SCALAPACK)
       // Free up created comms / groups
       MPI_Comm_free( &scalapack_comm );
       MPI_Group_free( &scalapack_group );

@@ -60,7 +60,7 @@ void ccsd_driver() {
     std::string cholfile = files_prefix+".cholcount";
     std::string ccsdstatus = files_prefix+".ccsdstatus";
 
-    const bool is_rhf = (sys_data.scf_type == SCFType::rhf);
+    const bool is_rhf = sys_data.is_restricted;
     
     bool ccsd_restart = ccsd_options.readt || 
         ( (fs::exists(t1file) && fs::exists(t2file)     

@@ -20,17 +20,20 @@ void energy_diis(ExecutionContext& ec, const TiledIndexSpace& tAO, int iter, int
 
 template<typename TensorType>
 std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec, 
-#ifdef USE_SCALAPACK
+#if defined(USE_SCALAPACK)
       blacspp::Grid* blacs_grid,
       scalapackpp::BlockCyclicDist2D* blockcyclic_dist,
 #endif
       const int& iter, const SystemData& sys_data, SCFVars& scf_vars,
-      TAMMTensors& ttensors, EigenTensors& etensors, bool ediis, 
-      GauXC::XCIntegrator<Matrix>& gauxc_integrator, bool scf_restart=false){
+      TAMMTensors& ttensors, EigenTensors& etensors, bool ediis,
+      #if defined(USE_GAUXC)
+      GauXC::XCIntegrator<Matrix>& gauxc_integrator, 
+      #endif
+      bool scf_restart=false){
 
-      const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
-      const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
-      const bool is_ks  = int8_t(sys_data.scf_type & SCFType::_ks);
+      const bool is_uhf = sys_data.is_unrestricted;
+      const bool is_rhf = sys_data.is_restricted;
+      const bool is_ks  = sys_data.is_ks;
 
       Tensor<TensorType>& H1                = ttensors.H1;
       Tensor<TensorType>& S1                = ttensors.S1;
@@ -109,17 +112,27 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
        
       ehf = get_scalar(ehf_tamm);
       
+      #if defined(USE_GAUXC)
       double gauxc_exc = 0;
       if(is_ks) {
+        const auto xcf_start = std::chrono::high_resolution_clock::now();
         gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
+
+        const auto xcf_stop = std::chrono::high_resolution_clock::now();
+        const auto xcf_time =
+        std::chrono::duration_cast<std::chrono::duration<double>>((xcf_stop - xcf_start)).count();
+        if(rank == 0 && debug) std::cout << "xcf:" << xcf_time << "s, ";
       }
 
       ehf += gauxc_exc;
 
       //TODO: uks not implemented
-      sch
-        (F_alpha() += VXC())
-        .execute();
+      if(is_ks) {
+        sch
+          (F_alpha() += VXC())
+          .execute();
+      }
+      #endif
 
       Tensor<TensorType> err_mat_alpha_tamm{tAO, tAO};
       Tensor<TensorType> err_mat_beta_tamm{tAO, tAO};
@@ -196,7 +209,7 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       if(!scf_restart){
 
         scf_diagonalize(ec,sys_data,
-        #ifdef USE_SCALAPACK
+        #if defined(USE_SCALAPACK)
             blacs_grid,
             blockcyclic_dist,
         #endif
@@ -388,8 +401,8 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const SCFVars
 
       using libint2::Operator;
 
-      const bool is_uhf = int8_t(sys_data.scf_type & SCFType::_unrestricted);
-      const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
+      const bool is_uhf = sys_data.is_unrestricted;
+      const bool is_rhf = sys_data.is_restricted;
 
       Matrix& G      = etensors.G;
       Matrix& D      = etensors.D; 

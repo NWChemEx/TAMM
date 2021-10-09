@@ -446,7 +446,7 @@ void read_molden(const SystemData& sys_data, libint2::BasisSet& shells,
   eigenvecs.setZero();
 
   const bool is_spherical = (scf_options.sphcart == "spherical");
-  const bool is_uhf = (sys_data.scf_type == SCFType::uhf);
+  const bool is_uhf = (sys_data.is_unrestricted);
 
   auto atoms = sys_data.options_map.options.atoms;
   const size_t natoms = atoms.size();
@@ -515,7 +515,7 @@ void read_molden(const SystemData& sys_data, libint2::BasisSet& shells,
     if(i==Northo) mo_end=true;
   }
 
-  const bool is_rhf = int8_t(sys_data.scf_type & SCFType::_restricted);
+  const bool is_rhf = sys_data.is_restricted;
   reorder_molden_orbitals<T>(is_spherical, atominfo, eigenvecs, C_alpha, false);
   //TODO: WIP
   // if(is_uhf) reorder_molden_orbitals<T>(is_spherical, atominfo, eigenvecs, C_beta);

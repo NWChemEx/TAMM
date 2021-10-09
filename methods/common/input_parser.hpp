@@ -104,8 +104,8 @@ class SCFOptions: public Options {
       riscf_str      = "JK";
       moldenfile     = "";
       n_lindep       = 0;
-      scf_type       = "rhf";
-      xc_type        = "pbe0";
+      scf_type       = "restricted";
+      xc_type        = ""; //pbe0
       alpha          = 0.7;
       nnodes         = 1;
       writem         = diis_hist;
@@ -164,6 +164,12 @@ class SCFOptions: public Options {
         cout << " moldenfile   = " << moldenfile << endl;    
         //cout << " n_lindep = " << n_lindep << endl;
       }
+      
+      cout << " scf_type     = " << scf_type << endl;
+      if(!xc_type.empty()) {
+        cout << " xc_type      = " << xc_type << endl;  
+      }
+
       if(scalapack_nb>1) 
         cout << " scalapack_nb = " << scalapack_nb << endl;
       if(scalapack_np_row>0) 
@@ -173,9 +179,9 @@ class SCFOptions: public Options {
       print_bool(" restart     ", restart);
       print_bool(" debug       ", debug); 
       if(restart) print_bool(" noscf       ", noscf);
-      print_bool(" ediis       ", ediis);
-      cout << " ediis_off    = " << ediis_off   << endl;  
-      print_bool(" sad         ", sad); 
+      // print_bool(" ediis       ", ediis);
+      // cout << " ediis_off    = " << ediis_off   << endl;  
+      // print_bool(" sad         ", sad); 
       cout << "}" << endl;
     }
 };

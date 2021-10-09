@@ -9,7 +9,7 @@ find_package( CMakeBuild QUIET )
 
 if( NOT ${CMakeBuild_FOUND} )
   if (NOT CMSB_TAG)
-    set(CMSB_TAG 1cc1ec2c1f93c935c66b66272b23788ad152d12c)
+    set(CMSB_TAG 29138ef7f35913345b58a33240e9b3c89de0522b)
     if (ENABLE_DEV_MODE)
       set(CMSB_TAG master)
     endif()
@@ -56,7 +56,7 @@ else()
     list(APPEND TAMM_DEPENDENCIES GlobalArrays)
 endif()
 
-if(ENABLE_DFT OR USE_GAUXC)
+if(USE_GAUXC)
   list(APPEND TAMM_DEPENDENCIES GauXC)
 endif()
 
@@ -65,7 +65,7 @@ set(TAMM_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/)
 set(TAMM_METHODS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/methods/)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set (CMAKE_BUILD_TYPE Release)
+  set (CMAKE_BUILD_TYPE Release)
 endif()
 
 set(CMSB_BASISSET_DIR ${CMAKE_CURRENT_SOURCE_DIR}/methods/basis)

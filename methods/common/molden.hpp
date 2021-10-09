@@ -446,7 +446,7 @@ void read_molden(const SystemData& sys_data, libint2::BasisSet& shells,
   eigenvecs.setZero();
 
   const bool is_spherical = (scf_options.sphcart == "spherical");
-  const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
+  const bool is_uhf = (sys_data.is_unrestricted);
 
   auto atoms = sys_data.options_map.options.atoms;
   const size_t natoms = atoms.size();
@@ -515,25 +515,26 @@ void read_molden(const SystemData& sys_data, libint2::BasisSet& shells,
     if(i==Northo) mo_end=true;
   }
 
+  const bool is_rhf = sys_data.is_restricted;
   reorder_molden_orbitals<T>(is_spherical, atominfo, eigenvecs, C_alpha, false);
   //TODO: WIP
   // if(is_uhf) reorder_molden_orbitals<T>(is_spherical, atominfo, eigenvecs, C_beta);
 
-  if(scf_options.scf_type == "rhf") { 
+  if(is_rhf) { 
       n_occ_beta = n_occ_alpha;
       n_vir_beta = n_vir_alpha;
   }
-  else if(scf_options.scf_type == "rohf") { 
-      n_vir_beta = N - n_occ_beta;
-  }
+  // else if(scf_options.scf_type == "rohf") { 
+  //     n_vir_beta = N - n_occ_beta;
+  // }
+
+  cout << "finished reading molden: n_occ_alpha, n_vir_alpha, n_occ_beta, n_vir_beta = " 
+         << n_occ_alpha << "," << n_vir_alpha << "," << n_occ_beta << "," << n_vir_beta << endl;
 
   EXPECTS(n_occ_alpha == sys_data.nelectrons_alpha);
   EXPECTS(n_occ_beta  == sys_data.nelectrons_beta);
   EXPECTS(n_vir_alpha == Northo - n_occ_alpha);
   EXPECTS(n_vir_beta  == Northo - n_occ_beta);
-
-  cout << "finished reading molden: n_occ_alpha, n_vir_alpha, n_occ_beta, n_vir_beta = " 
-         << n_occ_alpha << "," << n_vir_alpha << "," << n_occ_beta << "," << n_vir_beta << endl;
 
 }
 

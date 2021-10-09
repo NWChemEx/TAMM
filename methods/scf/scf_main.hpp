@@ -1,4 +1,17 @@
 
+//*******************************************************
+// Compute intial guess -> D
+// for each iter:
+// 1. 2 body fock procedure -> computes G (combined JK)
+// 2. [EXC, VXC] = xc_integrator.eval_exc_vxc(D)
+// 3. F = H + G
+// 4. F += VXC
+// 5. E = 0.5 * Tr((H+F) * D)
+// 6. E += EXC
+// 7. diagonalize F -> updates D
+// 8. E += enuc, print E
+//*******************************************************
+
 #ifndef TAMM_METHODS_SCF_MAIN_HPP_
 #define TAMM_METHODS_SCF_MAIN_HPP_
 
@@ -53,9 +66,11 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     auto        rank         = exc.pg().rank();
     const bool  molden_exists = !scf_options.moldenfile.empty();
 
-    const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
-    const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
-    // const bool is_rohf = (sys_data.scf_type == sys_data.SCFType::rohf); 
+    const bool is_uhf = sys_data.is_unrestricted;
+    const bool is_rhf = sys_data.is_restricted;
+    const bool is_ks  = sys_data.is_ks;
+    // const bool is_rohf = sys_data.is_restricted_os;
+    if(is_ks && is_uhf) tamm_terminate("UKS-DFT is currently not supported!");
 
     bool molden_file_valid = false;
     if(molden_exists) {
@@ -94,7 +109,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     sys_data.nbf      = N;
     sys_data.nbf_orig = N;
-    sys_data.ediis    = ediis;   
+    sys_data.ediis    = ediis; 
 
     std::string out_fp = options_map.options.output_file_prefix+"."+scf_options.basis;
     std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type+"/scf";
@@ -263,7 +278,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     #endif
       ProcGroup pg_l = ProcGroup::create_coll(MPI_COMM_SELF);
       ExecutionContext ec_l{pg_l, DistributionKind::nw, MemoryManagerKind::local};
-    #ifdef USE_SCALAPACK
+    #if defined(USE_SCALAPACK)
 
       auto blacs_setup_st = std::chrono::high_resolution_clock::now();
       // Sanity checks
@@ -334,6 +349,40 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     #endif
 
+    #if defined(USE_GAUXC)
+    /*** =========================== ***/
+    /*** Setup GauXC types           ***/
+    /*** =========================== ***/
+    auto gauxc_mol   = gauxc_util::make_gauxc_molecule( atoms  );
+    auto gauxc_basis = gauxc_util::make_gauxc_basis   ( shells );
+
+    GauXC::MolGrid 
+      gauxc_molgrid( GauXC::AtomicGridSizeDefault::UltraFineGrid, gauxc_mol );
+    auto gauxc_molmeta = std::make_shared<GauXC::MolMeta>( gauxc_mol );
+    auto gauxc_lb      = std::make_shared<GauXC::LoadBalancer>(ec.pg().comm(),
+      gauxc_mol, gauxc_molgrid, gauxc_basis, gauxc_molmeta
+    );
+
+    std::string xc_string = scf_options.xc_type;
+    // TODO: Refactor DFT code path when we eventually enable GauXC by default.
+    // is_ks=false, so we setup, but do not run DFT. 
+    if(xc_string.empty()) xc_string = "pbe0";
+    std::transform( xc_string.begin(), xc_string.end(), xc_string.begin(), ::toupper );
+    GauXC::functional_type gauxc_func( ExchCXX::Backend::builtin,
+                                       ExchCXX::functional_map.value(xc_string),
+                                       ExchCXX::Spin::Unpolarized );
+    GauXC::XCIntegrator<Matrix> gauxc_integrator( GauXC::ExecutionSpace::Host,
+      ec.pg().comm(), gauxc_func, gauxc_basis, gauxc_lb );
+
+    // TODO
+    const double xHF = is_ks ? gauxc_func.hyb_exx() : 1.;
+    if (rank == 0) cout << "HF exch = " << xHF << endl;
+    #else
+    const double xHF = 1.;
+    #endif
+
+    
+
       TAMMTensors ttensors;
 
       /*** =========================== ***/
@@ -398,6 +447,9 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       ttensors.FD_tamm     = {tAO, tAO}; 
       ttensors.FDS_tamm    = {tAO, tAO};
 
+      // XXX: Enable only for DFT
+      ttensors.VXC = {tAO, tAO};
+
       if(is_uhf) {
         ttensors.ehf_beta_tmp     = {tAO, tAO};
         ttensors.F_beta           = {tAO, tAO};
@@ -417,6 +469,10 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
                                           ttensors.D_beta_tamm , ttensors.D_last_beta_tamm, 
                                           ttensors.F_beta_tmp , ttensors.ehf_beta_tmp    ,
                                           ttensors.FD_beta_tamm, ttensors.FDS_beta_tamm);
+
+
+      // XXX: Only allocate for DFT
+      if(is_ks) Tensor<TensorType>::allocate( &ec, ttensors.VXC );
 
       const auto do_schwarz_screen = SchwarzK.cols() != 0 && SchwarzK.rows() != 0;
       // engine precision controls primitive truncation, assume worst-case scenario
@@ -540,7 +596,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           ec.pg().broadcast(etensors.taskmap.data(),etensors.taskmap.size(),0);
 
           compute_initial_guess<TensorType>(ec, 
-                  #ifdef USE_SCALAPACK
+                  #if defined(USE_SCALAPACK)
                         blacs_grid.get(),
                         blockcyclic_dist.get(),
                   #endif 
@@ -673,7 +729,15 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         }
         //F1 = H1 + F_alpha_tmp
         compute_2bf<TensorType>(ec, sys_data, scf_vars, obs, do_schwarz_screen, shell2bf, SchwarzK,
-                                max_nprim4, shells, ttensors, etensors, is_3c_init, do_density_fitting);          
+                                max_nprim4, shells, ttensors, etensors, is_3c_init, do_density_fitting, xHF);        
+
+        TensorType gauxc_exc = 0.;
+        #if defined(USE_GAUXC)
+        if(is_ks) {
+          gauxc_exc = gauxc_util::compute_xcf<TensorType>( ec, ttensors, etensors, gauxc_integrator );
+        }
+        #endif
+
         // ehf = D * (H1+F1);
         if(is_rhf) {
           sch
@@ -693,7 +757,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
             .execute();
         }
 
-        ehf = 0.5*get_scalar(ttensors.ehf_tamm) + enuc; 
+        ehf = 0.5*get_scalar(ttensors.ehf_tamm) + enuc + gauxc_exc;
         if(rank==0) 
           std::cout << std::setprecision(18) << "Total HF energy after restart: " << ehf << std::endl;
       }
@@ -723,7 +787,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
         // build a new Fock matrix
         compute_2bf<TensorType>(ec, sys_data, scf_vars, obs, do_schwarz_screen, shell2bf, SchwarzK,
-                                max_nprim4,shells, ttensors, etensors, is_3c_init, do_density_fitting);
+                                max_nprim4, shells, ttensors, etensors, is_3c_init, do_density_fitting, xHF);
 
         //E_Diis
         if(ediis) {
@@ -752,11 +816,15 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         }
 
         std::tie(ehf,rmsd) = scf_iter_body<TensorType>(ec, 
-        #ifdef USE_SCALAPACK
+        #if defined(USE_SCALAPACK)
                         blacs_grid.get(),
                         blockcyclic_dist.get(),
         #endif 
-                        iter, sys_data, scf_vars, ttensors, etensors, ediis, scf_conv);
+                        iter, sys_data, scf_vars, ttensors, etensors, ediis, 
+                        #if defined(USE_GAUXC)
+                        gauxc_integrator, 
+                        #endif
+                        scf_conv);
 
         if(ediis && fabs(rmsd) < ediis_off) ediis = false;
 
@@ -867,6 +935,8 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
                                        ttensors.F_beta_tmp , ttensors.ehf_beta_tmp    ,
                                        ttensors.FD_beta_tamm, ttensors.FDS_beta_tamm   );
 
+      if(is_ks) Tensor<TensorType>::deallocate(ttensors.VXC);
+
       #if SCF_THROTTLE_RESOURCES
       ec.flush_and_sync();
       #endif
@@ -874,7 +944,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       ec_l.flush_and_sync();
 
       #if 0
-      #ifdef USE_SCALAPACK
+      #if defined(USE_SCALAPACK)
       // Free up created comms / groups
       MPI_Comm_free( &scalapack_comm );
       MPI_Group_free( &scalapack_group );

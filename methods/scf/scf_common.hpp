@@ -11,11 +11,16 @@
 #include "common/molden.hpp"
 #include "common/json_data.hpp"
 
-#ifdef USE_SCALAPACK
+#if defined(USE_SCALAPACK)
 #include <blacspp/grid.hpp>
 #include <scalapackpp/block_cyclic_matrix.hpp>
 #include <scalapackpp/eigenvalue_problem/sevp.hpp>
 #include <scalapackpp/pblas/gemm.hpp>
+#endif
+
+#if defined(USE_GAUXC)
+#include <gauxc/xc_integrator.hpp>
+#include <gauxc/xc_integrator/impl.hpp>
 #endif
 
 using namespace tamm;
@@ -115,6 +120,7 @@ struct TAMMTensors {
     Tensor<TensorType> F_beta_tmp;
     // not allocated, shell tiled. tensor structure used to identify shell blocks in compute_2bf
     Tensor<TensorType> F_dummy;
+    Tensor<TensorType> VXC;
 
     Tensor<TensorType> D_tamm;
     Tensor<TensorType> D_beta_tamm;
@@ -564,7 +570,7 @@ void scf_restart_test(const ExecutionContext& ec, const SystemData& sys_data, co
                       bool restart, std::string files_prefix) {
     if(!restart) return;
     const auto rank    = ec.pg().rank();
-    const bool is_uhf  = (sys_data.scf_type == sys_data.SCFType::uhf);
+    const bool is_uhf  = (sys_data.is_unrestricted);
 
     int        rstatus = 1;
 
@@ -593,7 +599,7 @@ void scf_restart(const ExecutionContext& ec, const SystemData& sys_data, const s
     const auto rank    = ec.pg().rank();
     const auto N       = sys_data.nbf_orig;
     const auto Northo  = N - sys_data.n_lindep;
-    const bool is_uhf  = (sys_data.scf_type == sys_data.SCFType::uhf);
+    const bool is_uhf  = sys_data.is_unrestricted;
 
     EXPECTS(Northo == sys_data.nbf);
 
@@ -631,8 +637,8 @@ double tt_trace(ExecutionContext& ec, Tensor<TensorType>& T1, Tensor<TensorType>
 
 void print_energies(ExecutionContext& ec, TAMMTensors& ttensors, const SystemData& sys_data, bool debug=false){
 
-      const bool is_uhf = (sys_data.scf_type == sys_data.SCFType::uhf);
-      const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+    const bool is_uhf = sys_data.is_unrestricted;
+    const bool is_rhf = sys_data.is_restricted;
       
       double nelectrons = 0.0;
       double kinetic_1e = 0.0;
@@ -1079,5 +1085,80 @@ std::tuple<std::vector<int>,std::vector<int>,std::vector<int>>
       return std::make_tuple(s1_all,s2_all,ntasks_all);
 
 }
+
+#if defined(USE_GAUXC)
+
+template <typename T>
+inline std::ostream& operator<<( std::ostream& os, const GauXC::Shell<T>& sh ) {
+    os << "GauXC::Shell:( O={" << sh.O()[0] << "," << sh.O()[1] << "," << sh.O()[2] << "}" << std::endl;
+    os << "  ";
+    os << " {l=" << sh.l() << ",sph=" << sh.pure() << "}";
+    os << std::endl;
+
+    for(auto i=0ul; i<sh.nprim(); ++i) {
+      os << "  " << sh.alpha()[i];
+      os << " "  << sh.coeff().at(i);
+      os << std::endl;
+    }
+
+    return os;
+}
+
+namespace gauxc_util {
+
+GauXC::Molecule make_gauxc_molecule( const std::vector<libint2::Atom>& atoms ) {
+  GauXC::Molecule mol; mol.resize( atoms.size() );
+  std::transform( atoms.begin(), atoms.end(), mol.begin(), 
+    []( const libint2::Atom& atom ) {
+      GauXC::Atom gauxc_atom( GauXC::AtomicNumber( atom.atomic_number ),
+                              atom.x, atom.y, atom.z );
+      return gauxc_atom;
+    });
+  return mol;
+}
+
+GauXC::BasisSet<double> make_gauxc_basis( const libint2::BasisSet& basis ) {
+  using shell_t = GauXC::Shell<double>;
+  using prim_t  = typename shell_t::prim_array;
+  using cart_t  = typename shell_t::cart_array;
+
+  GauXC::BasisSet<double> gauxc_basis;
+  for( const auto& shell : basis ) {
+    prim_t prim_array, coeff_array;
+    cart_t origin;
+
+    std::copy( shell.alpha.begin(), shell.alpha.end(), prim_array.begin() );
+    std::copy( shell.contr[0].coeff.begin(), shell.contr[0].coeff.end(),
+               coeff_array.begin() );
+    std::copy( shell.O.begin(), shell.O.end(), origin.begin() );
+
+    gauxc_basis.emplace_back( GauXC::PrimSize( shell.alpha.size() ),
+                              GauXC::AngularMomentum( shell.contr[0].l ),
+                              GauXC::SphericalType( shell.contr[0].pure ),
+                              prim_array, coeff_array, origin, false );
+  }
+  gauxc_basis.generate_shell_to_ao();
+  return gauxc_basis;
+}
+
+template <typename TensorType>
+TensorType compute_xcf( ExecutionContext& ec, TAMMTensors& ttensors, 
+    EigenTensors& etensors, GauXC::XCIntegrator<Matrix>& xc_integrator ) {
+
+  //TODO:uks not implemented
+  const auto D = 0.5*etensors.D;
+  auto [EXC, VXC] = xc_integrator.eval_exc_vxc( D );
+
+  // if(ec.pg().rank()==0) cout << "EXC = " << EXC << endl;
+
+  auto& VXC_tamm = ttensors.VXC;
+  eigen_to_tamm_tensor( VXC_tamm, VXC );
+  ec.pg().barrier();
+
+  return EXC;
+}
+
+} //namespace gauxc_util
+#endif
 
 #endif // TAMM_METHODS_SCF_COMMON_HPP_

@@ -3,7 +3,7 @@
 
 void ccsd_t_driver();
 std::string filename;
-bool use_nwc_gpu_kernels = false;
+bool use_nwc_gpu_kernels = true;
 double ccsdt_s1_t1_GetTime = 0;
 double ccsdt_s1_v2_GetTime = 0;
 double ccsdt_d1_t2_GetTime = 0;
@@ -96,7 +96,7 @@ void ccsd_t_driver() {
     std::string cholfile = files_prefix+".cholcount";
     std::string ccsdstatus = files_prefix+".ccsdstatus";
 
-    const bool is_rhf = (sys_data.scf_type == sys_data.SCFType::rhf);
+    const bool is_rhf = sys_data.is_restricted;
 
     bool ccsd_restart = ccsd_options.readt || 
         ( (fs::exists(t1file) && fs::exists(t2file)     

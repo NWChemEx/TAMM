@@ -44,8 +44,7 @@
 #define MAX_NOAB		30
 #define MAX_NVAB 		120
 
-using localAcc = sycl::accessor<sycl::cl_double, 2, sycl::access_mode::read_write, sycl::target::local>;
-using constAcc = sycl::accessor<sycl::cl_int, 1, sycl::access_mode::read, sycl::target::constant_buffer>;
+using localAcc = sycl::accessor<double, 2, sycl::access_mode::read_write, sycl::target::local>;
 
 // 64 KB = 65536 bytes = 16384 (int) = 8192 (size_t)
 // 9 * 9 * noab = 81 * noab
@@ -61,9 +60,9 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                           int size_max_dim_d1_t2, int size_max_dim_d1_v2,
                                           int size_max_dim_d2_t2, int size_max_dim_d2_v2,
                                           //
-                                          sycl::device_ptr<double> df_dev_d1_t2_all, sycl::device_ptr<double> df_dev_d1_v2_all,
-                                          sycl::device_ptr<double> df_dev_d2_t2_all, sycl::device_ptr<double> df_dev_d2_v2_all,
-                                          sycl::device_ptr<double> df_dev_s1_t1_all, sycl::device_ptr<double> df_dev_s1_v2_all,
+                                          double* df_dev_d1_t2_all, double* df_dev_d1_v2_all,
+                                          double* df_dev_d2_t2_all, double* df_dev_d2_v2_all,
+                                          double* df_dev_s1_t1_all, double* df_dev_s1_v2_all,
                                           //  energies
                                           double* dev_evl_sorted_h1b,
                                           double* dev_evl_sorted_h2b,
@@ -177,20 +176,12 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     }
 
     //
-    double temp_av;
-    double temp_bv[4];
-    double reg_tile[4][4];
-    double reg_singles[4][4];
+    double temp_av{0};
+    double temp_bv[4] = {0};
+    double reg_tile[4][4] = {{0}};
+    double reg_singles[4][4] = {{0}};
 
     int base_size_h7b, base_size_p7b;
-
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < 4; j++)
-        {
-            reg_tile[i][j]      = 0.0;
-            reg_singles[i][j]   = 0.0;
-        }
-
 
     int energy_str_blk_idx_p4 = str_blk_idx_p4;
     int energy_str_blk_idx_p5 = str_blk_idx_p5;
@@ -2637,67 +2628,64 @@ void fully_fused_ccsd_t_gpu(sycl::queue *stream_id, size_t num_blocks,
     // 	to call the fused kernel for singles, doubles and energies.
     //
     // jk_ccsd_t_fully_fused_kernel_associative
-    stream_id->submit([&](sycl::handler &cgh)
-    {
-        auto const_df_s1_size_acc = const_df_s1_size.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
-        auto const_df_s1_exec_acc = const_df_s1_exec.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
-        auto const_df_d1_size_acc = const_df_d1_size.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
-        auto const_df_d1_exec_acc = const_df_d1_exec.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
-        auto const_df_d2_size_acc = const_df_d2_size.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
-        auto const_df_d2_exec_acc = const_df_d2_exec.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
+    try {
+      stream_id->submit([&](sycl::handler &cgh)
+      {
+	auto const_df_s1_size_acc = const_df_s1_size.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
+	auto const_df_s1_exec_acc = const_df_s1_exec.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
+	auto const_df_d1_size_acc = const_df_d1_size.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
+	auto const_df_d1_exec_acc = const_df_d1_exec.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
+	auto const_df_d2_size_acc = const_df_d2_size.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
+	auto const_df_d2_exec_acc = const_df_d2_exec.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
 
-        // allocate local/shared memory
-        sycl::range<2> sm_a_range(16, 65 /*64 + 1*/);
-        sycl::range<2> sm_b_range(16, 65 /*64 + 1*/);
-        localAcc sm_a_acc(sm_a_range, cgh);
-        localAcc sm_b_acc(sm_b_range, cgh);
+	// allocate local/shared memory
+	sycl::range<2> sm_a_range(16, 65 /*64 + 1*/);
+	sycl::range<2> sm_b_range(16, 65 /*64 + 1*/);
+	localAcc sm_a_acc(sm_a_range, cgh);
+	localAcc sm_b_acc(sm_b_range, cgh);
 
-        auto global_range = gridsize * blocksize;
+	auto global_range = gridsize * blocksize;
 
-        cgh.parallel_for(sycl::nd_range<2>(global_range, blocksize),
-                         [=](sycl::nd_item<2> item)
-        {
-            sycl::device_ptr<double> df_dev_d1_t2_all_USM(df_dev_d1_t2_all);
-            sycl::device_ptr<double> df_dev_d1_v2_all_USM(df_dev_d1_v2_all);
-            sycl::device_ptr<double> df_dev_d2_t2_all_USM(df_dev_d2_t2_all);
-            sycl::device_ptr<double> df_dev_d2_v2_all_USM(df_dev_d2_v2_all);
-            sycl::device_ptr<double> df_dev_s1_t1_all_USM(df_dev_s1_t1_all);
-            sycl::device_ptr<double> df_dev_s1_v2_all_USM(df_dev_s1_v2_all);
-
-            revised_jk_ccsd_t_fully_fused_kernel((sycl::cl_int)size_noab, (sycl::cl_int)size_nvab,
-                                                 (sycl::cl_int)size_max_dim_s1_t1,
-                                                 (sycl::cl_int)size_max_dim_s1_v2,
-                                                 (sycl::cl_int)size_max_dim_d1_t2,
-                                                 (sycl::cl_int)size_max_dim_d1_v2,
-                                                 (sycl::cl_int)size_max_dim_d2_t2,
-                                                 (sycl::cl_int)size_max_dim_d2_v2,
-                                                 df_dev_d1_t2_all_USM, df_dev_d1_v2_all_USM,
-                                                 df_dev_d2_t2_all_USM, df_dev_d2_v2_all_USM,
-                                                 df_dev_s1_t1_all_USM, df_dev_s1_v2_all_USM,
-                                                 dev_evl_sorted_h1b,
-                                                 dev_evl_sorted_h2b,
-                                                 dev_evl_sorted_h3b,
-                                                 dev_evl_sorted_p4b,
-                                                 dev_evl_sorted_p5b,
-                                                 dev_evl_sorted_p6b,
-                                                 partial_energies,
-                                                 CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3),
-                                                 CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2),
-                                                 CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1),
-                                                 CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6),
-                                                 CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5),
-                                                 CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4),
-                                                 (sycl::cl_int)base_size_h1b,
-                                                 (sycl::cl_int)base_size_h2b,
-                                                 (sycl::cl_int)base_size_h3b,
-                                                 (sycl::cl_int)base_size_p4b,
-                                                 (sycl::cl_int)base_size_p5b,
-                                                 (sycl::cl_int)base_size_p6b,
-                                                 item,
-                                                 const_df_s1_size_acc.get_pointer(), const_df_s1_exec_acc.get_pointer(),
-                                                 const_df_d1_size_acc.get_pointer(), const_df_d1_exec_acc.get_pointer(),
-                                                 const_df_d2_size_acc.get_pointer(), const_df_d2_exec_acc.get_pointer(),
-                                                 sm_a_acc, sm_b_acc);
-        });
-    });
+	cgh.parallel_for(sycl::nd_range<2>(global_range, blocksize),
+			 [=](sycl::nd_item<2> item) [[intel::reqd_sub_group_size(8)]]
+			 {
+			   revised_jk_ccsd_t_fully_fused_kernel(size_noab, size_nvab,
+								size_max_dim_s1_t1,
+								size_max_dim_s1_v2,
+								size_max_dim_d1_t2,
+								size_max_dim_d1_v2,
+								size_max_dim_d2_t2,
+								size_max_dim_d2_v2,
+								df_dev_d1_t2_all, df_dev_d1_v2_all,
+								df_dev_d2_t2_all, df_dev_d2_v2_all,
+								df_dev_s1_t1_all, df_dev_s1_v2_all,
+								dev_evl_sorted_h1b,
+								dev_evl_sorted_h2b,
+								dev_evl_sorted_h3b,
+								dev_evl_sorted_p4b,
+								dev_evl_sorted_p5b,
+								dev_evl_sorted_p6b,
+								partial_energies,
+								CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3),
+								CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2),
+								CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1),
+								CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6),
+								CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5),
+								CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4),
+								base_size_h1b,
+								base_size_h2b,
+								base_size_h3b,
+								base_size_p4b,
+								base_size_p5b,
+								base_size_p6b,
+								item,
+								const_df_s1_size_acc.get_pointer(), const_df_s1_exec_acc.get_pointer(),
+								const_df_d1_size_acc.get_pointer(), const_df_d1_exec_acc.get_pointer(),
+								const_df_d2_size_acc.get_pointer(), const_df_d2_exec_acc.get_pointer(),
+								sm_a_acc, sm_b_acc);
+			 });
+      });
+    } catch (const sycl::exception &e) {
+      std::cout << "Caught synchronous SYCL exception:\n" << e.what() << std::endl;
+    }
 }

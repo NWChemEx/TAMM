@@ -53,7 +53,7 @@ static void clearHostFreeList(
       sycl::free(*it2, syclQueue);
 #else
       free(*it2);
-#endif // USE_CUDA
+#endif
     }
   }
   free_list_host.clear();

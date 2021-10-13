@@ -570,6 +570,11 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
 #endif
 	);
 
+  for(auto& syclQ : syclQueues) {
+    delete syclQ;
+    syclQ = nullptr;
+  }
+
   auto cc_t2 = std::chrono::high_resolution_clock::now();
   auto ccsd_t_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();

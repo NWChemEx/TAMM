@@ -104,7 +104,8 @@ class SCFOptions: public Options {
       riscf_str      = "JK";
       moldenfile     = "";
       n_lindep       = 0;
-      scf_type       = "rhf";
+      scf_type       = "restricted";
+      xc_type        = ""; //pbe0
       alpha          = 0.7;
       nnodes         = 1;
       writem         = diis_hist;
@@ -141,6 +142,7 @@ class SCFOptions: public Options {
   int writem; 
   double alpha; //density mixing parameter
   std::string scf_type;
+  std::string xc_type;
 
     void print() {
       std::cout << std::defaultfloat;
@@ -162,6 +164,12 @@ class SCFOptions: public Options {
         cout << " moldenfile   = " << moldenfile << endl;    
         //cout << " n_lindep = " << n_lindep << endl;
       }
+      
+      cout << " scf_type     = " << scf_type << endl;
+      if(!xc_type.empty()) {
+        cout << " xc_type      = " << xc_type << endl;  
+      }
+
       if(scalapack_nb>1) 
         cout << " scalapack_nb = " << scalapack_nb << endl;
       if(scalapack_np_row>0) 
@@ -171,9 +179,9 @@ class SCFOptions: public Options {
       print_bool(" restart     ", restart);
       print_bool(" debug       ", debug); 
       if(restart) print_bool(" noscf       ", noscf);
-      print_bool(" ediis       ", ediis);
-      cout << " ediis_off    = " << ediis_off   << endl;  
-      print_bool(" sad         ", sad); 
+      // print_bool(" ediis       ", ediis);
+      // cout << " ediis_off    = " << ediis_off   << endl;  
+      // print_bool(" sad         ", sad); 
       cout << "}" << endl;
     }
 };
@@ -257,7 +265,9 @@ class CCSDOptions: public Options {
     gf_ndiis             = 10;
     gf_ngmres            = 10;
     gf_maxiter           = 500;
-    gf_eta               = -0.01;       
+    gf_eta               = 0.01;
+    gf_lshift            = 1.0;
+    gf_preconditioning   = false;
     gf_damping_factor    = 1.0;
     // gf_level_shift    = 0;
     gf_nprocs_poi        = 0;
@@ -323,7 +333,8 @@ class CCSDOptions: public Options {
   int    gf_ngmres;  
   int    gf_maxiter;
   double gf_eta;
-  // double gf_level_shift;
+  double gf_lshift;
+  bool   gf_preconditioning;
   int    gf_nprocs_poi;
   double gf_damping_factor;
   // double gf_omega;       
@@ -400,7 +411,8 @@ class CCSDOptions: public Options {
       cout << " gf_ngmres            = " << gf_ngmres         << endl;
       cout << " gf_maxiter           = " << gf_maxiter        << endl;
       cout << " gf_eta               = " << gf_eta            << endl;
-      // cout << " gf_level_shift         = " << gf_level_shift << endl;
+      cout << " gf_lshift            = " << gf_lshift         << endl;
+      cout << " gf_preconditioning   = " << gf_preconditioning<< endl;
       cout << " gf_damping_factor    = " << gf_damping_factor << endl;
       
       // cout << " gf_omega       = " << gf_omega << endl;
@@ -505,6 +517,7 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     parse_option<bool>  (scf_options.debug           , jscf, "debug");
     parse_option<string>(scf_options.moldenfile      , jscf, "moldenfile"); 
     parse_option<string>(scf_options.scf_type        , jscf, "scf_type");
+    parse_option<string>(scf_options.xc_type         , jscf, "xc_type");
     parse_option<int>   (scf_options.n_lindep        , jscf, "n_lindep"); 
     parse_option<int>   (scf_options.scalapack_nb    , jscf, "scalapack_nb");
     parse_option<int>   (scf_options.scalapack_np_row, jscf, "scalapack_np_row");                                                             
@@ -579,6 +592,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     parse_option<int>   (ccsd_options.gf_nprocs_poi       , jgfcc, "gf_nprocs_poi");
     parse_option<double>(ccsd_options.gf_damping_factor   , jgfcc, "gf_damping_factor");
     parse_option<double>(ccsd_options.gf_eta              , jgfcc, "gf_eta");
+    parse_option<double>(ccsd_options.gf_lshift           , jgfcc, "gf_lshift");
+    parse_option<bool>  (ccsd_options.gf_preconditioning  , jgfcc, "gf_preconditioning");
     parse_option<double>(ccsd_options.gf_threshold        , jgfcc, "gf_threshold");
     parse_option<double>(ccsd_options.gf_omega_min_ip     , jgfcc, "gf_omega_min_ip"); 
     parse_option<double>(ccsd_options.gf_omega_max_ip     , jgfcc, "gf_omega_max_ip");  

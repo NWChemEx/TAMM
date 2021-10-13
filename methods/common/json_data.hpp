@@ -26,9 +26,11 @@ struct SystemData {
   int  nvir;
   int  focc;
   bool ediis;
+  bool is_restricted;
+  bool is_unrestricted;
+  bool is_restricted_os;
+  bool is_ks;
 
-  enum SCFType { uhf, rhf, rohf };
-  SCFType scf_type; //1-rhf, 2-uhf, 3-rohf
   std::string scf_type_string; 
   std::string input_molecule;
   std::string output_file_prefix;
@@ -44,6 +46,10 @@ struct SystemData {
   void print() {
     std::cout << std::endl << "----------------------------" << std::endl;
     std::cout << "scf_type = " << scf_type_string << std::endl;
+    if(is_restricted) std::cout << "Closed-Shell SCF" << std::endl;
+    if(is_unrestricted) std::cout << "Open-Shell SCF" << std::endl;
+    if(is_restricted_os) std::cout << "Restricted Open-Shell SCF" << std::endl;
+    if(is_ks) std::cout << "KS-DFT Enabled" << std::endl;
 
     std::cout << "nbf = " << nbf << std::endl;
     std::cout << "nbf_orig = " << nbf_orig << std::endl;
@@ -81,11 +87,14 @@ struct SystemData {
 
   SystemData(OptionsMap options_map_, const std::string scf_type_string)
     : options_map(options_map_), scf_type_string(scf_type_string) {
-      scf_type = SCFType::rhf;
       results =  json::object();
-      if(scf_type_string == "uhf")       { focc = 1; scf_type = SCFType::uhf; }
-      else if(scf_type_string == "rhf")  { focc = 2; scf_type = SCFType::rhf; }
-      else if(scf_type_string == "rohf") { focc = -1; scf_type = SCFType::rohf; }
+      is_unrestricted = false;
+      is_restricted_os = false;
+      is_ks = false;
+      if(scf_type_string      == "restricted")    { focc = 1;  is_restricted = true;      }
+      else if(scf_type_string == "unrestricted")  { focc = 2;  is_unrestricted = true;    }
+      else if(scf_type_string == "restricted_os") { focc = -1; is_restricted_os = true; }
+      if(!options_map_.scf_options.xc_type.empty()) { is_ks = true; }
     }
 
 };

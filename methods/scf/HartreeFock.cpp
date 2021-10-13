@@ -50,7 +50,7 @@ int main( int argc, char* argv[] )
                     = hartree_fock(ec, filename, options_map);
 
     Tensor<T>::deallocate(C_AO,F_AO);
-    if(sys_data.scf_type == sys_data.SCFType::uhf) Tensor<T>::deallocate(C_beta_AO,F_beta_AO);
+    if(sys_data.is_unrestricted) Tensor<T>::deallocate(C_beta_AO,F_beta_AO);
 
     if(rank == 0) {
       sys_data.output_file_prefix = options_map.options.output_file_prefix;

@@ -427,11 +427,10 @@ void ccsd_t_data_d2_new(bool is_restricted,
     size_t max_d2_kernels_pertask,
     // 
     size_t size_T_d2_t2,    size_t size_T_d2_v2, 
-    // T* T_d2_t2,             T* T_d2_v2, 
     T* df_T_d2_t2,          T* df_T_d2_v2, 
     // 
-    // int* df_d2_exec,        int* df_d2_size, 
-    // 
+    int* host_d2_size_p7b,  
+    //
     int* df_simple_d2_size, int* df_simple_d2_exec, 
     int* df_num_d2_enabled, 
     // 
@@ -495,6 +494,11 @@ void ccsd_t_data_d2_new(bool is_restricted,
     df_simple_d2_size[4 + (p7b - noab) * 7] = (int)k_range[t_p5b];
     df_simple_d2_size[5 + (p7b - noab) * 7] = (int)k_range[t_p6b];
     df_simple_d2_size[6 + (p7b - noab) * 7] = (int)k_range[p7b];
+
+    // 
+    // 
+    // 
+    host_d2_size_p7b[p7b - noab] = (int)k_range[p7b];
   }
 
 

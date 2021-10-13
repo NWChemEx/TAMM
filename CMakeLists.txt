@@ -9,7 +9,7 @@ find_package( CMakeBuild QUIET )
 
 if( NOT ${CMakeBuild_FOUND} )
   if (NOT CMSB_TAG)
-    set(CMSB_TAG ac660a07dc00322e13b53b22b0f993bbcf046750)
+    set(CMSB_TAG e2f22032e62802a9111a5299552b7cd9c0b9ee70)
     if (ENABLE_DEV_MODE)
       set(CMSB_TAG master)
     endif()
@@ -65,7 +65,7 @@ set(TAMM_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests/)
 set(TAMM_METHODS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/methods/)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set (CMAKE_BUILD_TYPE Release)
+  set (CMAKE_BUILD_TYPE Release)
 endif()
 
 set(CMSB_BASISSET_DIR ${CMAKE_CURRENT_SOURCE_DIR}/methods/basis)

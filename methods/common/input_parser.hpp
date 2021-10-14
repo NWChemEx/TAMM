@@ -269,7 +269,6 @@ class CCSDOptions: public Options {
     gf_lshift            = 1.0;
     gf_preconditioning   = false;
     gf_damping_factor    = 1.0;
-    // gf_level_shift    = 0;
     gf_nprocs_poi        = 0;
     // gf_omega          = -0.4; //a.u (range min to max)     
     gf_threshold         = 1e-2;  

@@ -88,12 +88,14 @@ struct SystemData {
   SystemData(OptionsMap options_map_, const std::string scf_type_string)
     : options_map(options_map_), scf_type_string(scf_type_string) {
       results =  json::object();
+      is_restricted = false;
       is_unrestricted = false;
       is_restricted_os = false;
       is_ks = false;
       if(scf_type_string      == "restricted")    { focc = 1;  is_restricted = true;      }
       else if(scf_type_string == "unrestricted")  { focc = 2;  is_unrestricted = true;    }
       else if(scf_type_string == "restricted_os") { focc = -1; is_restricted_os = true; }
+      else tamm_terminate("ERROR: unrecognized scf_type [" + scf_type_string + "] provided");
       if(!options_map_.scf_options.xc_type.empty()) { is_ks = true; }
     }
 

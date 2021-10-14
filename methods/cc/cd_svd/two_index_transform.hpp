@@ -39,7 +39,7 @@ void two_index_transform(SystemData sys_data, ExecutionContext& ec, Tensor<Tenso
   
   const bool is_uhf = sys_data.is_unrestricted;
   const bool is_rhf = sys_data.is_restricted;
-  // const bool is_rohf = scf_options.scf_type == "rohf";
+  // const bool is_rohf = sys_data.is_restricted_os;
 
   std::string out_fp = sys_data.output_file_prefix+"."+sys_data.options_map.ccsd_options.basis;
   std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type;

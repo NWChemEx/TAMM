@@ -362,13 +362,13 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
  
     std::vector<T> p_evl_sorted = tamm::diagonal(d_f1);
 
-    auto lambda2 = [&](const IndexVector& blockid, span<T> buf){
-        if(blockid[0] != blockid[1]) {
-            for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
-        }
-    };
+    // auto lambda2 = [&](const IndexVector& blockid, span<T> buf){
+    //     if(blockid[0] != blockid[1]) {
+    //         for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+    //     }
+    // };
 
-    update_tensor(d_f1(),lambda2);
+    // update_tensor(d_f1(),lambda2);
 
  if(rank == 0) {
     std::cout << std::endl << std::endl;
@@ -433,13 +433,13 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
  
     std::vector<T> p_evl_sorted = tamm::diagonal(d_f1);
 
-    auto lambda2 = [&](const IndexVector& blockid, span<T> buf){
-        if(blockid[0] != blockid[1]) {
-            for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
-        }
-    };
+    // auto lambda2 = [&](const IndexVector& blockid, span<T> buf){
+    //     if(blockid[0] != blockid[1]) {
+    //         for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+    //     }
+    // };
 
-    update_tensor(d_f1(),lambda2);
+    // update_tensor(d_f1(),lambda2);
 
  if(rank == 0) {
     std::cout << std::endl << std::endl;

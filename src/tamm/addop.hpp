@@ -651,22 +651,29 @@ void GeneralFlatAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(
     // EXPECTS(pg_lhs.size() == pg_rhs.size());
     // EXPECTS(pg_lhs.size() == pg_ec.size());
 
+    BlockAssignPlan::OpType optype =
+        is_assign ? optype = BlockAssignPlan::OpType::set :
+                    BlockAssignPlan::OpType::update;
+    BlockAssignPlan plan{lhs_lt.labels(), rhs_lt.labels(), optype};
+
     std::vector<Proc> pg_lhs_in_ec = pg_lhs.rank_translate(pg_ec);
     std::vector<Proc> pg_rhs_in_ec = pg_rhs.rank_translate(pg_ec);
 
-    size_t round_robin_counter = 0;
+    Proc round_robin_counter = 0;
+    Proc ec_pg_size = Proc{ec.pg().size()};
+
     for(size_t i = 0; i < pg_lhs_in_ec.size(); i++) {
         Proc assigned_proc;
-        if(pg_lhs_in_ec[i] != Proc{-1}) {
+        if(pg_lhs_in_ec[i] >= Proc{0}) {
             // bias locality to LHS block
             assigned_proc = pg_lhs_in_ec[i];
-        } else if(pg_rhs_in_ec[i] != Proc{-1}) {
+        } else if(pg_rhs_in_ec[i] >= Proc{0}) {
             // if LHS proc not in ec.pg() bias to RHS block
             assigned_proc = pg_rhs_in_ec[i];
         } else {
             // if neither LHS nor RHS proc in ec.pg(), roundrobin to assign to
             // proc in ec.pg()
-            assigned_proc = Proc{round_robin_counter++ % pg_ec.size()};
+            assigned_proc = round_robin_counter++ % ec_pg_size;
         }
 
         if(proc_me_in_ec == assigned_proc) {
@@ -679,6 +686,7 @@ void GeneralFlatAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(
             size_t lhs_size = lhs_tensor.total_buf_size(i);
             size_t rhs_size = rhs_tensor.total_buf_size(i);
             EXPECTS(lhs_size == rhs_size);
+            if(lhs_size <= 0) continue;
             if(proc_me_in_ec == pg_lhs_in_ec[i]) {
                 lhs_buf         = lhs_tensor.access_local_buf();
                 alloced_lhs_buf = false;
@@ -706,10 +714,7 @@ void GeneralFlatAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(
             std::vector<size_t> rhs_dims{rhs_size};
             BlockSpan<T1> lhs_span{lhs_buf, lhs_dims};
             BlockSpan<T2> rhs_span{rhs_buf, rhs_dims};
-            BlockAssignPlan::OpType optype =
-              is_assign ? optype = BlockAssignPlan::OpType::set :
-                          BlockAssignPlan::OpType::update;
-            BlockAssignPlan plan{lhs_lt.labels(), rhs_lt.labels(), optype};
+
             plan.apply(lhs_span, alpha, rhs_span);
             if(proc_me_in_ec != pg_lhs_in_ec[i]) {
                 EXPECTS(lhs_buf != nullptr);
@@ -812,7 +817,8 @@ void GeneralLHSAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(
         if(rhs_alloced) { delete[] rhs_buf; }
     };
 
-    int round_robin = 0;
+    Proc round_robin_counter = 0;
+    Proc ec_pg_size = Proc{ec.pg().size()};
     internal::LabelTranslator translator{merged_use_labels,
                                          merged_alloc_labels};
     for(const auto& blockid : loop_nest) {
@@ -826,15 +832,15 @@ void GeneralLHSAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(
             Proc assigned_proc;
             auto [lhs_proc, lhs_offset] = ldist.locate(l_blockid);
             Proc lhs_owner_in_ec        = proc_lhs_to_ec[lhs_proc.value()];
-            if(lhs_owner_in_ec != Proc{-1}) {
+            if(lhs_owner_in_ec >= Proc{0}) {
                 assigned_proc = lhs_owner_in_ec;
             } else {
                 auto [rhs_proc, rhs_offset] = rdist.locate(r_blockid);
                 Proc rhs_owner_in_ec        = proc_rhs_to_ec[rhs_proc.value()];
-                if(rhs_owner_in_ec != Proc{-1}) {
+                if(rhs_owner_in_ec >= Proc{0}) {
                     assigned_proc = rhs_owner_in_ec;
                 } else {
-                    assigned_proc = round_robin++ % ec.pg().size();
+                    assigned_proc = round_robin_counter++ % ec_pg_size;
                 }
             }
 

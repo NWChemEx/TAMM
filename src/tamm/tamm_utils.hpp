@@ -465,32 +465,41 @@ std::vector<TensorType> diagonal(Tensor<TensorType> tensor) {
 template<typename TensorType>
 std::vector<TensorType> diagonal(LabeledTensor<TensorType> ltensor) {
     ExecutionContext& ec = get_ec(ltensor);
-    Tensor<TensorType> tensor = ltensor.tensor();
-    // Defined only for NxN tensors
-    EXPECTS(tensor.num_modes() == 2);
 
-    LabelLoopNest loop_nest{ltensor.labels()};
-    std::vector<TensorType> dest;
+    std::vector<TensorType> dvec;
+    
+    if(ec.pg().rank() == 0) {
+        Tensor<TensorType> tensor = ltensor.tensor();
+        // Defined only for NxN tensors
+        EXPECTS(tensor.num_modes() == 2);
 
-    for(const IndexVector& bid : loop_nest) {
-        const IndexVector blockid = internal::translate_blockid(bid, ltensor);
+        LabelLoopNest loop_nest{ltensor.labels()};
 
-        if(blockid[0] == blockid[1]) {
-            const TAMM_SIZE size = tensor.block_size(blockid);
-            std::vector<TensorType> buf(size);
-            tensor.get(blockid, buf);
-            auto block_dims   = tensor.block_dims(blockid);
-            auto block_offset = tensor.block_offsets(blockid);
-            auto dim          = block_dims[0];
-            auto offset       = block_offset[0];
-            size_t i          = 0;
-            for(auto p = offset; p < offset + dim; p++, i++) {
-                dest.push_back(buf[i * dim + i]);
+        for(const IndexVector& bid : loop_nest) {
+            const IndexVector blockid = internal::translate_blockid(bid, ltensor);
+
+            if(blockid[0] == blockid[1]) {
+                const TAMM_SIZE size = tensor.block_size(blockid);
+                std::vector<TensorType> buf(size);
+                tensor.get(blockid, buf);
+                auto block_dims   = tensor.block_dims(blockid);
+                auto block_offset = tensor.block_offsets(blockid);
+                auto dim          = block_dims[0];
+                auto offset       = block_offset[0];
+                size_t i          = 0;
+                for(auto p = offset; p < offset + dim; p++, i++) {
+                    dvec.push_back(buf[i * dim + i]);
+                }
             }
         }
     }
 
-    return dest;
+    int dsize = (int) dvec.size();
+    ec.pg().broadcast(&dsize, 0);
+    if(ec.pg().rank() != 0) dvec.resize(dsize); 
+    ec.pg().broadcast(dvec.data(), dsize, 0);
+
+    return dvec;
 }
 
 /**

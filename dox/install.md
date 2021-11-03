@@ -91,18 +91,12 @@ make install
 ## Build instructions for Summit using ESSL
 
 ```
-module load gcc/8.3.0
-module load cmake/3.18.2
-module load essl/6.1.0-2
-module load cuda/10.1.105
+module load gcc
+module load cmake/3.21.3
+module load essl/6.3.0
+module load cuda
 ```
 
-```
-The following paths may need to be adjusted if the modules change:
-
-```
-
-### To enable CUDA build, add `-DUSE_CUDA=ON`
 
 ```
 cd $TAMM_SRC/build
@@ -110,8 +104,8 @@ cd $TAMM_SRC/build
 CC=gcc CXX=g++ FC=gfortran cmake \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
 -DBLIS_CONFIG=power9 \
--DLINALG_VENDOR=IBMESSL \
--DLINALG_PREFIX=/sw/summit/essl/6.1.0-2/essl/6.1 ..
+-DLINALG_VENDOR=IBMESSL -DUSE_CUDA=ON \
+-DLINALG_PREFIX=/sw/summit/essl/6.3.0/essl/6.3 ..
 
 make -j3
 make install
@@ -126,11 +120,8 @@ module swap gcc/8.3.0
 module swap craype/2.5.18
 module swap cray-mpich/7.7.6 (OR) module load openmpi
 module unload cmake
-module load cmake/3.18.2
+module load cmake/3.21.3
 module load cuda/10.1.168
-```
-
-```
 export CRAYPE_LINK_TYPE=dynamic
 ```
 
@@ -147,16 +138,34 @@ make -j3
 make install
 ```
 
+## Build instructions for Perlmutter
+
+```
+module load PrgEnv-gnu
+module load cpe-cuda
+module load gcc/9.3.0
+module load cuda
+module load cmake
+export CRAYPE_LINK_TYPE=dynamic
+```
+
+```
+cd $TAMM_SRC/build
+
+cmake -DUSE_CUDA=ON -DBLIS_CONFIG=generic -DUSE_CRAYSHASTA=ON \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
+
+make -j3
+make install
+```
+
 ## Build instructions for Theta
 
 ```
-module unload darshan xalt perftools-base
-module swap PrgEnv-intel PrgEnv-gnu
-module unload darshan xalt perftools-base
-module load cmake
-```
-
-```
+module unload PrgEnv-intel/6.0.7
+module load PrgEnv-gnu/6.0.7
+module unload cmake
+module load cmake/3.20.4
 export CRAYPE_LINK_TYPE=dynamic
 ```
 
@@ -170,6 +179,7 @@ CC=cc CXX=CC FC=ftn cmake -DLINALG_VENDOR=IntelMKL \
 make -j3
 make install
 ```
+
 ## Build DPCPP code path using Intel OneAPI SDK
 
 - `MPI:` Only tested using `MPICH`.

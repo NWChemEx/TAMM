@@ -39,6 +39,10 @@ void ccsd_e_os(/* ExecutionContext &ec, */
 		"de()                        +=  0.5 * _a03_aa(h4_oa, p1_va, cind) * chol3d_aa_ov(h4_oa, p1_va, cind)")
     (de()                        +=  0.5 * _a03_bb(h4_ob, p1_vb, cind) * chol3d_bb_ov(h4_ob, p1_vb, cind), 
 		"de()                        +=  0.5 * _a03_bb(h4_ob, p1_vb, cind) * chol3d_bb_ov(h4_ob, p1_vb, cind)")
+    (de()                        +=  1.0 * t1_aa(p1_va, h3_oa) * f1_aa_ov(h3_oa, p1_va),
+    "de()                        +=  1.0 * t1_aa(p1_va, h3_oa) * f1_aa_ov(h3_oa, p1_va)") // NEW TERM
+    (de()                        +=  1.0 * t1_bb(p1_vb, h3_ob) * f1_bb_ov(h3_ob, p1_vb),
+    "de()                        +=  1.0 * t1_bb(p1_vb, h3_ob) * f1_bb_ov(h3_ob, p1_vb)") // NEW TERM
     ;
 
 }
@@ -79,10 +83,18 @@ void ccsd_t1_os(/* ExecutionContext& ec,  */
 			 "_a03_bb_vo(p1_vb, h1_ob, cind)  = -1.0 * t2_abab(p3_va, p1_vb, h2_oa, h1_ob) * chol3d_aa_ov(h2_oa, p3_va, cind)") // o2v2m
        (_a03_bb_vo(p1_vb, h1_ob, cind) +=  1.0 * t2_bbbb(p1_vb, p3_vb, h2_ob, h1_ob) * chol3d_bb_ov(h2_ob, p3_vb, cind), 
 			 "_a03_bb_vo(p1_vb, h1_ob, cind) +=  1.0 * t2_bbbb(p1_vb, p3_vb, h2_ob, h1_ob) * chol3d_bb_ov(h2_ob, p3_vb, cind)") // o2v2m
-       (_a04_aa(h2_oa, h1_oa)           =  1.0 * chol3d_aa_ov(h2_oa, p1_va, cind) * _a03_aa_vo(p1_va, h1_oa, cind), 
-			 "_a04_aa(h2_oa, h1_oa)           =  1.0 * chol3d_aa_ov(h2_oa, p1_va, cind) * _a03_aa_vo(p1_va, h1_oa, cind)")      // o2vm
-       (_a04_bb(h2_ob, h1_ob)           =  1.0 * chol3d_bb_ov(h2_ob, p1_vb, cind) * _a03_bb_vo(p1_vb, h1_ob, cind), 
-			 "_a04_bb(h2_ob, h1_ob)           =  1.0 * chol3d_bb_ov(h2_ob, p1_vb, cind) * _a03_bb_vo(p1_vb, h1_ob, cind)")      // o2vm
+       (_a04_aa(h2_oa, h1_oa)           = -1.0 * f1_aa_oo(h2_oa, h1_oa), 
+			 "_a04_aa(h2_oa, h1_oa)           = -1.0 * f1_aa_oo(h2_oa, h1_oa)") // MOVED TERM
+       (_a04_bb(h2_ob, h1_ob)           = -1.0 * f1_bb_oo(h2_ob, h1_ob), 
+			 "_a04_bb(h2_ob, h1_ob)           = -1.0 * f1_bb_oo(h2_ob, h1_ob)") // MOVED TERM
+       (_a04_aa(h2_oa, h1_oa)          +=  1.0 * chol3d_aa_ov(h2_oa, p1_va, cind) * _a03_aa_vo(p1_va, h1_oa, cind), 
+			 "_a04_aa(h2_oa, h1_oa)          +=  1.0 * chol3d_aa_ov(h2_oa, p1_va, cind) * _a03_aa_vo(p1_va, h1_oa, cind)")      // o2vm
+       (_a04_bb(h2_ob, h1_ob)          +=  1.0 * chol3d_bb_ov(h2_ob, p1_vb, cind) * _a03_bb_vo(p1_vb, h1_ob, cind), 
+			 "_a04_bb(h2_ob, h1_ob)          +=  1.0 * chol3d_bb_ov(h2_ob, p1_vb, cind) * _a03_bb_vo(p1_vb, h1_ob, cind)")      // o2vm
+       (_a04_aa(h2_oa, h1_oa)          += -1.0 * t1_aa(p1_va, h1_oa) * f1_aa_ov(h2_oa, p1_va), 
+			 "_a04_aa(h2_oa, h1_oa)          += -1.0 * t1_aa(p1_va, h1_oa) * f1_aa_ov(h2_oa, p1_va)") // NEW TERM
+       (_a04_bb(h2_ob, h1_ob)          += -1.0 * t1_bb(p1_vb, h1_ob) * f1_bb_ov(h2_ob, p1_vb), 
+			 "_a04_bb(h2_ob, h1_ob)          += -1.0 * t1_bb(p1_vb, h1_ob) * f1_bb_ov(h2_ob, p1_vb)") // NEW TERM
        (i0_aa(p2_va, h1_oa)            +=  1.0 * t1_aa(p2_va, h2_oa) * _a04_aa(h2_oa, h1_oa), 
 			 "i0_aa(p2_va, h1_oa)            +=  1.0 * t1_aa(p2_va, h2_oa) * _a04_aa(h2_oa, h1_oa)")                            // o2v
        (i0_bb(p2_vb, h1_ob)            +=  1.0 * t1_bb(p2_vb, h2_ob) * _a04_bb(h2_ob, h1_ob), 
@@ -95,6 +107,10 @@ void ccsd_t1_os(/* ExecutionContext& ec,  */
 			 "_a05_aa(h2_oa, p1_va)           = -1.0 * chol3d_aa_ov(h3_oa, p1_va, cind) * _a01_aa(h2_oa, h3_oa, cind)")         // o2vm
        (_a05_bb(h2_ob, p1_vb)           = -1.0 * chol3d_bb_ov(h3_ob, p1_vb, cind) * _a01_bb(h2_ob, h3_ob, cind), 
 			 "_a05_bb(h2_ob, p1_vb)           = -1.0 * chol3d_bb_ov(h3_ob, p1_vb, cind) * _a01_bb(h2_ob, h3_ob, cind)")         // o2vm
+       (_a05_aa(h2_oa, p1_va)          +=  1.0 * f1_aa_ov(h2_oa, p1_va), 
+			 "_a05_aa(h2_oa, p1_va)          +=  1.0 * f1_aa_ov(h2_oa, p1_va)") // NEW TERM
+       (_a05_bb(h2_ob, p1_vb)          +=  1.0 * f1_bb_ov(h2_ob, p1_vb), 
+			 "_a05_bb(h2_ob, p1_vb)          +=  1.0 * f1_bb_ov(h2_ob, p1_vb)") // NEW TERM
        (i0_aa(p2_va, h1_oa)            +=  1.0 * t2_aaaa(p1_va, p2_va, h2_oa, h1_oa) * _a05_aa(h2_oa, p1_va), 
 			 "i0_aa(p2_va, h1_oa)            +=  1.0 * t2_aaaa(p1_va, p2_va, h2_oa, h1_oa) * _a05_aa(h2_oa, p1_va)")            // o2v
        (i0_bb(p2_vb, h1_ob)            +=  1.0 * t2_abab(p1_va, p2_vb, h2_oa, h1_ob) * _a05_aa(h2_oa, p1_va), 
@@ -129,14 +145,14 @@ void ccsd_t1_os(/* ExecutionContext& ec,  */
 			 "_a01_bb(h3_ob, h1_ob, cind)    +=  1.0 * chol3d_bb_oo(h3_ob, h1_ob, cind)")                                       // o2m        
        (i0_aa(p2_va, h1_oa)            +=  1.0 * _a01_aa(h3_oa, h1_oa, cind) * _a03_aa_vo(p2_va, h3_oa, cind), 
 			 "i0_aa(p2_va, h1_oa)            +=  1.0 * _a01_aa(h3_oa, h1_oa, cind) * _a03_aa_vo(p2_va, h3_oa, cind)")           // o2vm
-       (i0_aa(p2_va, h1_oa)            += -1.0 * t1_aa(p2_va, h7_oa) * f1_aa_oo(h7_oa, h1_oa), 
-			 "i0_aa(p2_va, h1_oa)            += -1.0 * t1_aa(p2_va, h7_oa) * f1_aa_oo(h7_oa, h1_oa)")                           // o2v
+      //  (i0_aa(p2_va, h1_oa)            += -1.0 * t1_aa(p2_va, h7_oa) * f1_aa_oo(h7_oa, h1_oa), 
+			//  "i0_aa(p2_va, h1_oa)            += -1.0 * t1_aa(p2_va, h7_oa) * f1_aa_oo(h7_oa, h1_oa)") // MOVED ABOVE                           // o2v
        (i0_aa(p2_va, h1_oa)            +=  1.0 * t1_aa(p3_va, h1_oa) * f1_aa_vv(p2_va, p3_va), 
 			 "i0_aa(p2_va, h1_oa)            +=  1.0 * t1_aa(p3_va, h1_oa) * f1_aa_vv(p2_va, p3_va)")                           // ov2
        (i0_bb(p2_vb, h1_ob)            +=  1.0 * _a01_bb(h3_ob, h1_ob, cind) * _a03_bb_vo(p2_vb, h3_ob, cind), 
 			 "i0_bb(p2_vb, h1_ob)            +=  1.0 * _a01_bb(h3_ob, h1_ob, cind) * _a03_bb_vo(p2_vb, h3_ob, cind)")           // o2vm
-       (i0_bb(p2_vb, h1_ob)            += -1.0 * t1_bb(p2_vb, h7_ob) * f1_bb_oo(h7_ob, h1_ob), 
-			 "i0_bb(p2_vb, h1_ob)            += -1.0 * t1_bb(p2_vb, h7_ob) * f1_bb_oo(h7_ob, h1_ob)")                           // o2v
+      //  (i0_bb(p2_vb, h1_ob)            += -1.0 * t1_bb(p2_vb, h7_ob) * f1_bb_oo(h7_ob, h1_ob), 
+			//  "i0_bb(p2_vb, h1_ob)            += -1.0 * t1_bb(p2_vb, h7_ob) * f1_bb_oo(h7_ob, h1_ob)") // MOVED ABOVE                          // o2v
        (i0_bb(p2_vb, h1_ob)            +=  1.0 * t1_bb(p3_vb, h1_ob) * f1_bb_vv(p2_vb, p3_vb), 
 			 "i0_bb(p2_vb, h1_ob)            +=  1.0 * t1_bb(p3_vb, h1_ob) * f1_bb_vv(p2_vb, p3_vb)")                           // ov2
        ;
@@ -307,6 +323,10 @@ void ccsd_t2_os(/* ExecutionContext& ec, */
 			  "_a001_aa(p4_va, p1_va)                 += -1.0   * f1_aa_vv(p4_va, p1_va)")
         (_a001_bb(p4_vb, p1_vb)                 += -1.0   * f1_bb_vv(p4_vb, p1_vb), 
 			  "_a001_bb(p4_vb, p1_vb)                 += -1.0   * f1_bb_vv(p4_vb, p1_vb)")
+        (_a001_aa(p4_va, p1_va)                 +=  1.0   * t1_aa(p4_va, h1_oa) * f1_aa_ov(h1_oa, p1_va), 
+			  "_a001_aa(p4_va, p1_va)                 +=  1.0   * t1_aa(p4_va, h1_oa) * f1_aa_ov(h1_oa, p1_va)") // NEW TERM
+        (_a001_bb(p4_vb, p1_vb)                 +=  1.0   * t1_bb(p4_vb, h1_ob) * f1_bb_ov(h1_ob, p1_vb), 
+			  "_a001_bb(p4_vb, p1_vb)                 +=  1.0   * t1_bb(p4_vb, h1_ob) * f1_bb_ov(h1_ob, p1_vb)") // NEW TERM
         (_a006_aa(h9_oa, h1_oa)                 +=  1.0   * f1_aa_oo(h9_oa, h1_oa), 
 			  "_a006_aa(h9_oa, h1_oa)                 +=  1.0   * f1_aa_oo(h9_oa, h1_oa)")
         (_a006_bb(h9_ob, h1_ob)                 +=  1.0   * f1_bb_oo(h9_ob, h1_ob), 

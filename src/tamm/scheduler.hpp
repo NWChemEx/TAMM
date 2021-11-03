@@ -461,53 +461,53 @@ public:
     }
 
 
-template<typename TensorType>
-inline void exact_copy(Tensor<TensorType>& dst, const Tensor<TensorType>& src,
-                       bool is_assign = false, TensorType scale = TensorType{1},
-                       const IndexVector& perm = {}) {
+// template<typename TensorType>
+// inline void exact_copy(Tensor<TensorType>& dst, const Tensor<TensorType>& src,
+//                        bool is_assign = false, TensorType scale = TensorType{1},
+//                        const IndexVector& perm = {}) {
 
-    // auto lambda = [&](const IndexVector& itval) {
-    //     IndexVector src_id = itval;
-    //     for(size_t i = 0; i < perm.size(); i++) { src_id[i] = itval[perm[i]]; }
-    //     size_t size = dst.block_size(itval);
-    //     std::vector<TensorType> buf(size);
-    //     src.get(src_id, buf);
-    //     TensorType {1};
-    //     if(scale != TensorType{1}) {
-    //         for(size_t i = 0; i < size; i++) { 
-    //             buf[i] *= scale; 
-    //         }
-    //     }
-    //     if(is_assign)
-    //         dst.put(itval, buf);
-    //     else
-    //         dst.add(itval, buf);
-    // };
+//     // auto lambda = [&](const IndexVector& itval) {
+//     //     IndexVector src_id = itval;
+//     //     for(size_t i = 0; i < perm.size(); i++) { src_id[i] = itval[perm[i]]; }
+//     //     size_t size = dst.block_size(itval);
+//     //     std::vector<TensorType> buf(size);
+//     //     src.get(src_id, buf);
+//     //     TensorType {1};
+//     //     if(scale != TensorType{1}) {
+//     //         for(size_t i = 0; i < size; i++) { 
+//     //             buf[i] *= scale; 
+//     //         }
+//     //     }
+//     //     if(is_assign)
+//     //         dst.put(itval, buf);
+//     //     else
+//     //         dst.add(itval, buf);
+//     // };
 
-    PermVector perm_to_dest{perm.begin(), perm.end()};
-    TensorType lscale = is_assign ? TensorType{0} : TensorType{1};
+//     PermVector perm_to_dest{perm.begin(), perm.end()};
+//     TensorType lscale = is_assign ? TensorType{0} : TensorType{1};
 
-    auto lambda_hptt = [&](const IndexVector& itval) {
-        IndexVector src_id = itval;
-        size_t dst_size = dst.block_size(itval);
-        std::vector<TensorType> src_buf(dst_size);
-        src.get(src_id, src_buf);
-        std::vector<TensorType> dest_buf(dst_size);
+//     auto lambda_hptt = [&](const IndexVector& itval) {
+//         IndexVector src_id = itval;
+//         size_t dst_size = dst.block_size(itval);
+//         std::vector<TensorType> src_buf(dst_size);
+//         src.get(src_id, src_buf);
+//         std::vector<TensorType> dest_buf(dst_size);
         
 
-        blockops::hptt::index_permute_hptt(lscale, dest_buf.data(), scale,
-                                           src_buf.data(), perm_to_dest,
-                                           src.block_dims(src_id));
+//         blockops::hptt::index_permute_hptt(lscale, dest_buf.data(), scale,
+//                                            src_buf.data(), perm_to_dest,
+//                                            src.block_dims(src_id));
         
-        if(is_assign)
-            dst.put(itval, dest_buf);
-        else
-            dst.add(itval, dest_buf);
-    };
+//         if(is_assign)
+//             dst.put(itval, dest_buf);
+//         else
+//             dst.add(itval, dest_buf);
+//     };
 
-    auto ec = dst.execution_context();
-    block_for(*ec, dst(), lambda_hptt);
-}
+//     auto ec = dst.execution_context();
+//     block_for(*ec, dst(), lambda_hptt);
+// }
     
 
 private:

@@ -888,6 +888,28 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         }        
       }
 
+      if(is_ks) { //or rohf
+        sch(ttensors.F_alpha_tmp() = 0).execute();
+        if(is_uhf) sch(ttensors.F_beta_tmp() = 0).execute();
+
+        // build a new Fock matrix
+        compute_2bf<TensorType>(ec, sys_data, scf_vars, obs, do_schwarz_screen, shell2bf, SchwarzK,
+                                max_nprim4, shells, ttensors, etensors, is_3c_init, do_density_fitting, 1.0);
+
+        sch
+          (ttensors.F_alpha()  = ttensors.H1())
+          (ttensors.F_alpha() += ttensors.F_alpha_tmp())
+          .execute();
+        
+        if(is_uhf) {
+          sch
+            (ttensors.F_beta()   = ttensors.H1())
+            (ttensors.F_beta()  += ttensors.F_beta_tmp())
+            .execute();
+        }
+
+      }
+
       for (auto x: ttensors.ehf_tamm_hist)  Tensor<TensorType>::deallocate(x);
       
       for (auto x: ttensors.diis_hist)      Tensor<TensorType>::deallocate(x);

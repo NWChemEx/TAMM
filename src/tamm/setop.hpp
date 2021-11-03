@@ -441,25 +441,31 @@ void GeneralFlatPlan<T, LabeledTensorT>::apply(
     Scalar alpha   = setop.alpha();
     auto is_assign = setop.is_assign();
 
-    ProcGroup pg_lhs   = setop.lhs().tensor().execution_context()->pg();
+    ProcGroup pg_lhs   = lhs_tensor.execution_context()->pg();
     ProcGroup pg_ec    = ec.pg();
     Proc proc_me_in_ec = ec.pg().rank();
 
     // EXPECTS(pg_lhs.size() == pg_ec.size());
 
+    BlockSetPlan::OpType optype            = is_assign ?
+                                    optype = BlockSetPlan::OpType::set :
+                                    BlockSetPlan::OpType::update;
+    BlockSetPlan plan{lhs_lt.labels(), optype};
+
     std::vector<Proc> pg_lhs_in_ec = pg_lhs.rank_translate(pg_ec);
 
-    size_t round_robin_counter = 0;
+    Proc round_robin_counter = 0;
+    Proc ec_pg_size = Proc{ec.pg().size()};
 
     for(size_t i = 0; i < pg_lhs_in_ec.size(); i++) {
         Proc assigned_proc;
-        if(pg_lhs_in_ec[i] != Proc{-1}) {
+        if(pg_lhs_in_ec[i] >= Proc{0}) {
             // bias locality to LHS block
             assigned_proc = pg_lhs_in_ec[i];
         } else {
             // if LHS proc is not in ec.pg(), roundrobin to assign to
             // proc in ec.pg()
-            assigned_proc = Proc{round_robin_counter++ % pg_ec.size()};
+            assigned_proc = round_robin_counter++ % ec_pg_size;
         }
 
         if(proc_me_in_ec == assigned_proc) {
@@ -468,6 +474,7 @@ void GeneralFlatPlan<T, LabeledTensorT>::apply(
 
             /// get total buffer size for a given Proc
             size_t lhs_size = lhs_tensor.total_buf_size(i);
+            if(lhs_size <= 0) continue;
             if(proc_me_in_ec == pg_lhs_in_ec[i]) {
                 lhs_buf         = lhs_tensor.access_local_buf();
                 alloced_lhs_buf = false;
@@ -484,10 +491,6 @@ void GeneralFlatPlan<T, LabeledTensorT>::apply(
 
             BlockSpan<LHS_ElType> lhs_span{lhs_buf, lhs_dims};
 
-            BlockSetPlan::OpType optype            = is_assign ?
-                                            optype = BlockSetPlan::OpType::set :
-                                            BlockSetPlan::OpType::update;
-            BlockSetPlan plan{lhs_lt.labels(), optype};
             plan.apply(lhs_span, alpha);
             if(proc_me_in_ec != pg_lhs_in_ec[i]) {
                 EXPECTS(lhs_buf != nullptr);
@@ -559,7 +562,8 @@ void GeneralLHSPlan<T, LabeledTensorT>::apply(
         if(lhs_alloced) { delete[] lhs_buf; }
     };
 
-    int round_robin = 0;
+    Proc round_robin_counter = 0;
+    Proc ec_pg_size = Proc{ec.pg().size()};
     internal::LabelTranslator translator{lhs_lt.labels(),
                                          lhs_tensor().labels()};
     for(const auto& blockid : loop_nest) {
@@ -569,10 +573,10 @@ void GeneralLHSPlan<T, LabeledTensorT>::apply(
             Proc assigned_proc;
             auto [lhs_proc, lhs_offset] = ldist.locate(translated_blockid);
             Proc lhs_owner_in_ec        = proc_lhs_to_ec[lhs_proc.value()];
-            if(lhs_owner_in_ec != Proc{-1}) {
+            if(lhs_owner_in_ec >= Proc{0}) {
                 assigned_proc = lhs_owner_in_ec;
             } else {
-                assigned_proc = round_robin++ % ec.pg().size();
+                assigned_proc = round_robin_counter++ % ec_pg_size;
             }
 
             if(assigned_proc == proc_me_in_ec) { lambda(translated_blockid); }

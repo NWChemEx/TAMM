@@ -225,6 +225,8 @@ class CCSDOptions: public Options {
     ndiis          = 5;
     lshift         = 0;
     ccsd_maxiter   = 50;
+    freeze_core    = 0;
+    freeze_virtual = 0;
     balance_tiles  = true;
     profile_ccsd   = false;
 
@@ -300,6 +302,8 @@ class CCSDOptions: public Options {
   double threshold;
 
   int    ccsd_maxiter;
+  int    freeze_core;
+  int    freeze_virtual;
   std::string ext_data_path;
 
   //CCSD(T)
@@ -368,6 +372,8 @@ class CCSDOptions: public Options {
     cout << " threshold            = " << threshold        << endl;
     cout << " tilesize             = " << tilesize         << endl;
     cout << " ccsd_maxiter         = " << ccsd_maxiter     << endl;
+    cout << " freeze_core          = " << freeze_core      << endl;
+    cout << " freeze_virtual       = " << freeze_virtual   << endl;
     cout << " itilesize            = " << itilesize        << endl;
     if(lshift != 0) 
       cout << " lshift               = " << lshift           << endl;    
@@ -537,6 +543,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     json jcc = jinput["CC"];
     parse_option<int>   (ccsd_options.ndiis         , jcc, "ndiis");  
     parse_option<int>   (ccsd_options.ccsd_maxiter  , jcc, "ccsd_maxiter");
+    parse_option<int>   (ccsd_options.freeze_core   , jcc, "freeze_core");
+    parse_option<int>   (ccsd_options.freeze_virtual, jcc, "freeze_virtual");
     parse_option<double>(ccsd_options.lshift        , jcc, "lshift"); 
     parse_option<double>(ccsd_options.printtol      , jcc, "printtol"); 
     parse_option<double>(ccsd_options.threshold     , jcc, "threshold"); 

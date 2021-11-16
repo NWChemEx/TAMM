@@ -53,17 +53,15 @@ std::string check_memory_req(const int nDevices, const int cc_t_ts, const int nb
   #elif defined(USE_DPCPP)
   {
     sycl::platform platform(sycl::gpu_selector{});
-    auto const& gpu_devices = platform.get_devices();
+    auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
     for (int i = 0; i < gpu_devices.size(); i++) {
-      if (gpu_devices[i].is_gpu()) {
-        if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
-            sycl::info::partition_affinity_domain::numa);
-          dev_count_check += SubDevicesDomainNuma.size();
-        }
-        else {
-          dev_count_check++;
-        }
+      if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+        auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+                                                                                                                                    sycl::info::partition_affinity_domain::numa);
+        dev_count_check += SubDevicesDomainNuma.size();
+      }
+      else {
+        dev_count_check++;
       }
     }
     if(dev_count_check < nDevices){
@@ -120,17 +118,15 @@ int device_init(
   HIP_SAFE(hipGetDeviceCount(&dev_count_check));
 #elif defined(USE_DPCPP)
   sycl::platform platform(sycl::gpu_selector{});
-  auto const& gpu_devices = platform.get_devices();
+  auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
   for (const auto &dev : gpu_devices) {
-    if (dev.is_gpu()) {
-      if(dev.get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-        auto SubDevicesDomainNuma = dev.create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
-          sycl::info::partition_affinity_domain::numa);
-        dev_count_check += SubDevicesDomainNuma.size();
-      }
-      else {
-        dev_count_check++;
-      }
+    if(dev.get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+      auto SubDevicesDomainNuma = dev.create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+                                                                                                                       sycl::info::partition_affinity_domain::numa);
+      dev_count_check += SubDevicesDomainNuma.size();
+    }
+    else {
+      dev_count_check++;
     }
   }
 #endif

@@ -123,6 +123,9 @@ void ccsd_driver() {
     auto cc_t1 = std::chrono::high_resolution_clock::now();
 
     ExecutionHW ex_hw = ExecutionHW::CPU;
+    #ifdef USE_DPCPP
+    ex_hw = ExecutionHW::GPU;
+    #endif
     #ifdef USE_TALSH
     ex_hw = ExecutionHW::GPU;
     const bool has_gpu = ec.has_gpu();

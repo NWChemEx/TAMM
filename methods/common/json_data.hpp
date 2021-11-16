@@ -74,14 +74,12 @@ struct SystemData {
   }
 
   void update() {
-      n_frozen_core = 0;
-      n_frozen_virtual = 0;
       EXPECTS(nbf == n_occ_alpha + n_vir_alpha); //lin-deps
-      EXPECTS(nbf_orig == n_occ_alpha + n_vir_alpha + n_lindep);      
+      // EXPECTS(nbf_orig == n_occ_alpha + n_vir_alpha + n_lindep + n_frozen_core + n_frozen_virtual);      
       nocc = n_occ_alpha + n_occ_beta;
       nvir = n_vir_alpha + n_vir_beta;
-      EXPECTS(nelectrons == n_occ_alpha + n_occ_beta);
-      EXPECTS(nelectrons == nelectrons_alpha+nelectrons_beta);
+      // EXPECTS(nelectrons == n_occ_alpha + n_occ_beta);
+      // EXPECTS(nelectrons == nelectrons_alpha+nelectrons_beta);
       nmo = n_occ_alpha + n_vir_alpha + n_occ_beta + n_vir_beta; //lin-deps
   }
 

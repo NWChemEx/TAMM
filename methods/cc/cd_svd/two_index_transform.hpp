@@ -17,17 +17,8 @@ void two_index_transform(SystemData sys_data, ExecutionContext& ec, Tensor<Tenso
   const TAMM_GA_SIZE n_vir_beta     = sys_data.n_vir_beta;
   const TAMM_GA_SIZE northo         = sys_data.nbf;
   const TAMM_GA_SIZE nao            = sys_data.nbf_orig;
-  // const TAMM_GA_SIZE freeze_core    = sys_data.n_frozen_core;
-  // const TAMM_GA_SIZE freeze_virtual = sys_data.n_frozen_virtual;
-  // const TAMM_GA_SIZE n_lindep       = sys_data.n_lindep;
 
   auto rank = ec.pg().rank();
-
-  // auto n_occ_alpha_eff = n_occ_alpha - freeze_core;
-  // auto n_vir_alpha_eff = n_vir_alpha - freeze_virtual;
-  // auto n_occ_beta_eff  = n_occ_beta  - freeze_core;
-  // auto n_vir_beta_eff  = n_vir_beta  - freeze_virtual;
-  // auto n_occ_eff       = n_occ_alpha_eff + n_occ_beta_eff;
 
   //
   // 2-index transform

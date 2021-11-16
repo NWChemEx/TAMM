@@ -1743,25 +1743,24 @@ void write_to_disk_hdf5(Eigen::Tensor<T, N, Eigen::RowMajor> eigen_tensor,
   hid_t file_id =
       H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   
-  
-  std::array<long, N> dims = eigen_tensor.dimensions();
   T *buf = eigen_tensor.data();
 
   hid_t dataspace_id;
+  auto dims = eigen_tensor.dimensions();
 
   if (write1D) {
     hsize_t total_size = 1;
-    for (const auto &dim : eigen_tensor.dimensions()) {
-      total_size *= dim;
+    for (int i=0; i<N; i++) {
+      total_size *= dims[i];
     }
     dataspace_id = H5Screate_simple(1, &total_size, NULL);
   } else {
-    std::vector<hsize_t> dims;
-    for (const auto &dim : eigen_tensor.dimensions()) {
-      dims.push_back(dim);
+    std::vector<hsize_t> hdims;
+    for (int i=0; i<N; i++) {
+      hdims.push_back(dims[i]);
     }
     int rank = eigen_tensor.NumDimensions;
-    dataspace_id = H5Screate_simple(rank, dims.data(), NULL);
+    dataspace_id = H5Screate_simple(rank, hdims.data(), NULL);
   }
 
   hid_t dataset_id = H5Dcreate(file_id, "data", get_hdf5_dt<T>(), dataspace_id,
@@ -1790,14 +1789,17 @@ void write_to_disk_hdf5(Tensor<T> tensor, std::string filename,
   std::string outputfile = filename + ".data";
   hid_t file_id =
       H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-  std::array<long, N> dims;
 
+  // Eigen::Tensor<T, N, Eigen::RowMajor> eigen_tensor = tamm_to_eigen_tensor<T,N>(tensor);
+  std::array<Eigen::Index, N> dims;
   const auto &tindices = tensor.tiled_index_spaces();
   for (int i = 0; i < N; i++) {
     dims[i] = tindices[i].max_num_indices();
   }
-  Eigen::Tensor<T, N, Eigen::RowMajor> eigen_tensor(dims);
+  Eigen::Tensor<T, N, Eigen::RowMajor> eigen_tensor;
+  eigen_tensor = eigen_tensor.reshape(dims);
   eigen_tensor.setZero();
+
   tamm_to_eigen_tensor(tensor, eigen_tensor);
   T *buf = eigen_tensor.data();
 
@@ -1805,17 +1807,17 @@ void write_to_disk_hdf5(Tensor<T> tensor, std::string filename,
 
   if (write1D) {
     hsize_t total_size = 1;
-    for (const auto &dim : eigen_tensor.dimensions()) {
-      total_size *= dim;
+    for (int i=0; i<N; i++) {
+      total_size *= dims[i];
     }
     dataspace_id = H5Screate_simple(1, &total_size, NULL);
   } else {
-    std::vector<hsize_t> dims;
-    for (const auto &dim : eigen_tensor.dimensions()) {
-      dims.push_back(dim);
+    std::vector<hsize_t> hdims;
+    for (int i=0; i<N; i++) {
+      hdims.push_back(dims[i]);
     }
     int rank = eigen_tensor.NumDimensions;
-    dataspace_id = H5Screate_simple(rank, dims.data(), NULL);
+    dataspace_id = H5Screate_simple(rank, hdims.data(), NULL);
   }
 
   hid_t dataset_id = H5Dcreate(file_id, "data", get_hdf5_dt<T>(), dataspace_id,

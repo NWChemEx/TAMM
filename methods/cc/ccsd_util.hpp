@@ -244,112 +244,6 @@ std::pair<double,double> rest_cs(ExecutionContext& ec,
     return {residual, energy};
 }
 
-std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(SystemData sys_data, bool triples=false) {
-  
-    // TAMM_SIZE nao = sys_data.nbf;
-    TAMM_SIZE n_occ_alpha = sys_data.n_occ_alpha;
-    TAMM_SIZE n_occ_beta = sys_data.n_occ_beta;
-    TAMM_SIZE freeze_core = sys_data.n_frozen_core;
-    TAMM_SIZE freeze_virtual = sys_data.n_frozen_virtual;
-
-    Tile tce_tile = sys_data.options_map.ccsd_options.tilesize;
-    bool balance_tiles = sys_data.options_map.ccsd_options.balance_tiles;
-    if(!triples) {
-      if ((tce_tile < static_cast<Tile>(sys_data.nbf/10) || tce_tile < 50 || tce_tile > 100) && !sys_data.options_map.ccsd_options.force_tilesize) {
-        tce_tile = static_cast<Tile>(sys_data.nbf/10);
-        if(tce_tile < 50) tce_tile = 50; //50 is the default tilesize for CCSD.
-        if(tce_tile > 100) tce_tile = 100; //100 is the max tilesize for CCSD.
-        if(GA_Nodeid()==0) std::cout << std::endl << "Resetting CCSD tilesize to: " << tce_tile << std::endl;
-      }
-    }
-    else {
-      balance_tiles = false;
-      tce_tile = sys_data.options_map.ccsd_options.ccsdt_tilesize;
-    }
-
-    TAMM_SIZE nmo = sys_data.nmo;
-    TAMM_SIZE n_vir_alpha = sys_data.n_vir_alpha;
-    TAMM_SIZE n_vir_beta = sys_data.n_vir_beta;
-    TAMM_SIZE nocc = sys_data.nocc;
-    // TAMM_SIZE nvab = n_vir_alpha+n_vir_beta;
-
-    // std::cout << "n_occ_alpha,nao === " << n_occ_alpha << ":" << nao << std::endl;
-    std::vector<TAMM_SIZE> sizes = {n_occ_alpha - freeze_core, n_occ_beta - freeze_core,
-             n_vir_alpha - freeze_virtual, n_vir_beta - freeze_virtual};
-
-    const TAMM_SIZE total_orbitals = nmo - 2 * freeze_core - 2 * freeze_virtual;
-    
-    // cout << "total orb = " <<total_orbitals << endl;
-    // cout << "oab = " << n_occ_alpha << endl;
-    // cout << "vab = " << ov_beta << endl;
-
-    // Construction of tiled index space MO
-    IndexSpace MO_IS{range(0, total_orbitals),
-                    {
-                     {"occ", {range(0, nocc)}},
-                     {"occ_alpha", {range(0, n_occ_alpha)}},
-                     {"occ_beta", {range(n_occ_alpha, nocc)}},
-                     {"virt", {range(nocc, total_orbitals)}},
-                     {"virt_alpha", {range(nocc,nocc+n_vir_alpha)}},
-                     {"virt_beta", {range(nocc+n_vir_alpha, total_orbitals)}},                     
-                    },
-                     { 
-                      {Spin{1}, {range(0, n_occ_alpha), range(nocc,nocc+n_vir_alpha)}},
-                      {Spin{2}, {range(n_occ_alpha, nocc), range(nocc+n_vir_alpha, total_orbitals)}} 
-                     }
-                     };
-
-    std::vector<Tile> mo_tiles;
-    
-    if(!balance_tiles) {
-      tamm::Tile est_nt = n_occ_alpha/tce_tile;
-      tamm::Tile last_tile = n_occ_alpha%tce_tile;
-      for (tamm::Tile x=0;x<est_nt;x++)mo_tiles.push_back(tce_tile);
-      if(last_tile>0) mo_tiles.push_back(last_tile);
-      est_nt = n_occ_beta/tce_tile;
-      last_tile = n_occ_beta%tce_tile;
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
-      if(last_tile>0) mo_tiles.push_back(last_tile);
-
-      est_nt = n_vir_alpha/tce_tile;
-      last_tile = n_vir_alpha%tce_tile;
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
-      if(last_tile>0) mo_tiles.push_back(last_tile);
-      est_nt = n_vir_beta/tce_tile;
-      last_tile = n_vir_beta%tce_tile;    
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
-      if(last_tile>0) mo_tiles.push_back(last_tile);
-    }
-    else {
-      tamm::Tile est_nt = static_cast<tamm::Tile>(std::ceil(1.0 * n_occ_alpha / tce_tile));
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(n_occ_alpha / est_nt + (x<(n_occ_alpha % est_nt)));
-
-      est_nt = static_cast<tamm::Tile>(std::ceil(1.0 * n_occ_beta / tce_tile));
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(n_occ_beta / est_nt + (x<(n_occ_beta % est_nt)));
-
-      est_nt = static_cast<tamm::Tile>(std::ceil(1.0 * n_vir_alpha / tce_tile));
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(n_vir_alpha / est_nt + (x<(n_vir_alpha % est_nt)));
-
-      est_nt = static_cast<tamm::Tile>(std::ceil(1.0 * n_vir_beta / tce_tile));
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(n_vir_beta / est_nt + (x<(n_vir_beta % est_nt)));
-    }
-
-    // cout << "mo-tiles=" << mo_tiles << endl;
-
-    // IndexSpace MO_IS{range(0, total_orbitals),
-    //                 {{"occ", {range(0, n_occ_alpha+ov_beta)}}, //0-7
-    //                  {"virt", {range(total_orbitals/2, total_orbitals)}}, //7-14
-    //                  {"alpha", {range(0, n_occ_alpha),range(n_occ_alpha+ov_beta,2*n_occ_alpha+ov_beta)}}, //0-5,7-12
-    //                  {"beta", {range(n_occ_alpha,n_occ_alpha+ov_beta), range(2*n_occ_alpha+ov_beta,total_orbitals)}} //5-7,12-14   
-    //                  }};
-
-    // const unsigned int ova = static_cast<unsigned int>(n_occ_alpha);
-    // const unsigned int ovb = static_cast<unsigned int>(ov_beta);
-    TiledIndexSpace MO{MO_IS, mo_tiles}; //{ova,ova,ovb,ovb}};
-
-    return std::make_tuple(MO,total_orbitals);
-}
-
 template<typename T>
 std::tuple<std::vector<T>,Tensor<T>,Tensor<T>,Tensor<T>,Tensor<T>,
 std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>>
@@ -749,6 +643,10 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
 
     auto itile_size = sys_data.options_map.ccsd_options.itilesize;
 
+    sys_data.n_frozen_core    = sys_data.options_map.ccsd_options.freeze_core;
+    sys_data.n_frozen_virtual = sys_data.options_map.ccsd_options.freeze_virtual;
+    bool do_freeze = sys_data.n_frozen_core > 0 || sys_data.n_frozen_virtual > 0;
+
     if(!readv2) {
       two_index_transform(sys_data, ec, C_AO, F_AO, C_beta_AO,F_beta_AO, d_f1, lcao, is_dlpno);
       if(!is_dlpno) cholVpr = cd_svd_ga(sys_data, ec, MO, AO, chol_count, max_cvecs, shells, lcao);
@@ -762,9 +660,12 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
 
       if(rank==0) cout << "Number of cholesky vectors to be read = " << chol_count << endl;
 
+      if(!is_dlpno) update_sysdata(sys_data, MO);
+
       IndexSpace chol_is{range(0,chol_count)};
       TiledIndexSpace CI{chol_is,static_cast<tamm::Tile>(itile_size)}; 
 
+      TiledIndexSpace N = MO("all");
       cholVpr = {{N,N,CI},{SpinPosition::upper,SpinPosition::lower,SpinPosition::ignore}};
       if(!is_dlpno) Tensor<TensorType>::allocate(&ec, cholVpr);
       // Scheduler{ec}(cholVpr()=0).execute();
@@ -787,6 +688,21 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
     sys_data.results["output"]["CD"]["n_cholesky_vectors"] = chol_count;
 
     if(rank == 0) sys_data.print();
+
+    if(do_freeze) {
+      TiledIndexSpace N_eff = MO("all");
+      Tensor<T> d_f1_new{{N_eff,N_eff},{1,1}};      
+      Tensor<T>::allocate(&ec,d_f1_new);
+      if(rank==0) {
+        Matrix f1_eig     = tamm_to_eigen_matrix(d_f1);
+        Matrix f1_new_eig = reshape_mo_matrix(sys_data,f1_eig);
+        eigen_to_tamm_tensor(d_f1_new,f1_new_eig);
+        f1_new_eig.resize(0,0);
+      }
+      Tensor<T>::deallocate(d_f1);
+      d_f1 = d_f1_new;
+    }
+
 
     return std::make_tuple(cholVpr, d_f1, lcao, chol_count, max_cvecs, CI);
 }

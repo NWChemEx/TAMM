@@ -16,7 +16,7 @@ auto sycl_asynchandler = [] (sycl::exception_list exceptions) {
             std::rethrow_exception(e);
         } catch (sycl::exception const& ex) {
             std::cout << "Caught asynchronous SYCL exception:" << std::endl
-            << ex.what() << ", SYCL code: " << ex.code() << std::endl;
+            << ex.what() << ", SYCL code: " << ex.get_cl_code() << std::endl;
         }
     }
 };
@@ -62,18 +62,16 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 
 #if defined(USE_DPCPP)
   sycl::platform platform(sycl::gpu_selector{});
-  auto const& gpu_devices = platform.get_devices();
+  auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
   for (int i = 0; i < gpu_devices.size(); i++) {
-    if (gpu_devices[i].is_gpu()) {
-       if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
-           sycl::info::partition_affinity_domain::numa);
-	        ngpu_ += SubDevicesDomainNuma.size();
-       }
-       else {
-          ngpu_++;
-       }
-     }
+    if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+      auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+																  sycl::info::partition_affinity_domain::numa);
+      ngpu_ += SubDevicesDomainNuma.size();
+    }
+    else {
+      ngpu_++;
+    }
   }
 
   dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
@@ -90,20 +88,19 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     exit(0);
   }  
   for (int i = 0; i < gpu_devices.size(); i++) {
-    if (gpu_devices[i].is_gpu()) {
-       if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-         auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
-           sycl::info::partition_affinity_domain::numa);
-         for (const auto &tile : SubDevicesDomainNuma) {
-           vec_syclQue.push_back( new sycl::queue(tile, sycl_asynchandler,
-                                                  sycl::property_list{sycl::property::queue::in_order{}}) );
-         }
-       }
-       else {
-         vec_syclQue.push_back( new sycl::queue(gpu_devices[i], sycl_asynchandler,
-                                                sycl::property_list{sycl::property::queue::in_order{}}) );
-       }
-     }
+    if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+      auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+      for (const auto &tile : SubDevicesDomainNuma) {
+        vec_syclQue.push_back( new sycl::queue(tile,
+                                               sycl_asynchandler,
+                                               sycl::property_list{sycl::property::queue::in_order{}}) );
+      }
+    }
+    else {
+      vec_syclQue.push_back( new sycl::queue(gpu_devices[i],
+                                             sycl_asynchandler,
+                                             sycl::property_list{sycl::property::queue::in_order{}}) );
+    }
   }
 #endif // USE_DPCPP
   // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);

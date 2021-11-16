@@ -108,7 +108,7 @@ void block_multiply(bool &isgpuOp,
             bouter_dims.push_back(cdims[i]);
             N *= static_cast<int>(cdims[i].value());
         } else {
-            UNREACHABLE();
+            // UNREACHABLE();
         }
     }
 
@@ -212,15 +212,18 @@ void block_multiply(bool &isgpuOp,
     assign<T3>(binter_buf.data(), binter_dims, binter_labels, T3{1}, bbuf, bdims,
            blabels, true);
 #ifdef USE_DPCPP
-    T2* ainter_buf_dev = sycl::malloc_device<T2>(ainter_buf.size(), *dev_queue);
-    T3* binter_buf_dev = sycl::malloc_device<T3>(binter_buf.size(), *dev_queue);
-    T1* cinter_buf_dev = sycl::malloc_device<T1>(cinter_buf.size(), *dev_queue);
+  T2* ainter_buf_dev; T3* binter_buf_dev;  T1* cinter_buf_dev;
+  if(hw == ExecutionHW::GPU) {
+    ainter_buf_dev = sycl::malloc_device<T2>(ainter_buf.size(), *dev_queue);
+    binter_buf_dev = sycl::malloc_device<T3>(binter_buf.size(), *dev_queue);
+    cinter_buf_dev = sycl::malloc_device<T1>(cinter_buf.size(), *dev_queue);
 
     // host-->device copy
     dev_queue->memcpy(ainter_buf_dev, ainter_buf.data(), ainter_buf.size()*sizeof(T2));
     dev_queue->memcpy(binter_buf_dev, binter_buf.data(), binter_buf.size()*sizeof(T3));
     dev_queue->memcpy(cinter_buf_dev, cinter_buf.data(), cinter_buf.size()*sizeof(T1));
     dev_queue->wait();
+  }
 #endif
 
     // dgemm
@@ -229,6 +232,7 @@ void block_multiply(bool &isgpuOp,
           for(size_t bri = 0; bri < BR; bri++) {
               for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
+if(hw == ExecutionHW::GPU) {
 		auto event_gemm = oneapi::mkl::blas::row_major::gemm(*dev_queue,
 								     oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
 								     M, N, K,
@@ -241,6 +245,16 @@ void block_multiply(bool &isgpuOp,
 								     cinter_buf_dev + i * cbatch_ld,
 								     cinter_ld);
 		event_gemm.wait();
+}
+else {
+                    blas::gemm(blas::Layout::RowMajor, 
+                    transA, transB, M, N, K, alpha,
+                    ainter_buf.data() + ari * areduce_ld + i * abatch_ld,
+                    ainter_ld,
+                    binter_buf.data() + bri * breduce_ld + i * bbatch_ld,
+                    binter_ld, beta, cinter_buf.data() + i * cbatch_ld,
+                    cinter_ld);
+}
 #else
                   blas::gemm(blas::Layout::RowMajor, 
                     transA, transB, M, N, K, alpha,
@@ -255,8 +269,10 @@ void block_multiply(bool &isgpuOp,
       }
 #ifdef USE_DPCPP
       // device-->host copy
+      if(hw == ExecutionHW::GPU) {
       auto d2h_cinter = dev_queue->memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size()*sizeof(T1));
       d2h_cinter.wait();
+      }
 #endif
     }
     #ifdef USE_BLIS
@@ -501,9 +517,11 @@ void block_multiply(bool &isgpuOp,
     // C[0]="<<cinter_buf[0]<<"\n";
 
 #ifdef USE_DPCPP
+if(hw == ExecutionHW::GPU) {
     sycl::free(ainter_buf_dev, *dev_queue);
     sycl::free(binter_buf_dev, *dev_queue);
     sycl::free(cinter_buf_dev, *dev_queue);
+}
 #endif
 
     assign<T1>(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims,

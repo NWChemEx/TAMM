@@ -578,7 +578,7 @@ std::tuple<double,double> cd_ccsd_os_driver(SystemData& sys_data, ExecutionConte
            (_a004_abab(p1_va, p2_vb, h4_oa, h3_ob) = 1.0 * chol3d_aa_vo(p1_va, h4_oa, cind) * chol3d_bb_vo(p2_vb, h3_ob, cind))
            (_a004_bbbb(p1_vb, p2_vb, h4_ob, h3_ob) = 1.0 * chol3d_bb_vo(p1_vb, h4_ob, cind) * chol3d_bb_vo(p2_vb, h3_ob, cind));
 
-        #ifdef USE_TALSH
+        #if defined(USE_TALSH) || defined(USE_DPCPP)
           sch.execute(ExecutionHW::GPU);
         #else
           sch.execute();
@@ -621,7 +621,7 @@ std::tuple<double,double> cd_ccsd_os_driver(SystemData& sys_data, ExecutionConte
               (d_r2(p3_va, p4_vb, h2_oa, h1_ob)  = r2_abab(p3_va, p4_vb, h2_oa, h1_ob))
               ;
 
-            #ifdef USE_TALSH
+            #if defined(USE_TALSH) || defined(USE_DPCPP)
               sch.execute(ExecutionHW::GPU, profile);
             #else
               sch.execute(ExecutionHW::CPU, profile);
@@ -718,7 +718,7 @@ std::tuple<double,double> cd_ccsd_os_driver(SystemData& sys_data, ExecutionConte
 
       ccsd_e_os(/* ec,  */sch, MO, CI, d_e);
 
-      #ifdef USE_TALSH
+      #if defined(USE_TALSH) || defined(USE_DPCPP)
         sch.execute(ExecutionHW::GPU, profile);
       #else
         sch.execute(ExecutionHW::CPU, profile);

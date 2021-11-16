@@ -120,12 +120,13 @@ void patch_copy(std::vector<T>& sbuf,
 template<typename T, int ndim>
 Eigen::Tensor<T, ndim, Eigen::RowMajor> tamm_to_eigen_tensor(
     const tamm::Tensor<T>& tensor) {
-    std::array<long, ndim> dims;
+    std::array<Eigen::Index, ndim> dims;
     const auto& tindices = tensor.tiled_index_spaces();
     for(int i = 0; i < ndim; i++) {
         dims[i] = tindices[i].index_space().num_indices();
     }
-    Eigen::Tensor<T, ndim, Eigen::RowMajor> etensor(dims);
+    Eigen::Tensor<T, ndim, Eigen::RowMajor> etensor;
+    etensor = etensor.reshape(dims);
     etensor.setZero();
 
     for(const auto& blockid : tensor.loop_nest()) {

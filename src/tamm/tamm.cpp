@@ -42,9 +42,9 @@ void initialize(int argc, char *argv[]) {
     GA_Initialize();
     (void)ProcGroup::self_ga_pgroup(true);
   }
-  if (!MA_initialized()) {
-    MA_init(MT_DBL, 8000000, 20000000);
-  }
+  // if (!MA_initialized()) {
+  //   MA_init(MT_DBL, 8000000, 20000000);
+  // }
 }
 
 void finalize() {

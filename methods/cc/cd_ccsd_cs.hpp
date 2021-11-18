@@ -353,7 +353,7 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData& sys_data, ExecutionConte
             .exact_copy(_a004_abab(p1_va, p1_vb, h3_oa, h3_ob), _a004_aaaa(p1_va, p1_vb, h3_oa, h3_ob))
             ;
 
-        #ifdef USE_TALSH
+        #if defined(USE_TALSH) || defined(USE_DPCPP)
             sch.execute(ExecutionHW::GPU);
         #else
             sch.execute();
@@ -378,7 +378,7 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData& sys_data, ExecutionConte
             ccsd_t1_cs(/* ec,  */sch, MO, CI, r1_aa, t1_aa, t2_abab);
             ccsd_t2_cs(/* ec,  */sch, MO, CI, r2_abab, t1_aa, t2_abab);
 
-            #ifdef USE_TALSH
+            #if defined(USE_TALSH) || defined(USE_DPCPP)
               sch.execute(ExecutionHW::GPU, profile);
             #else
               sch.execute(ExecutionHW::CPU, profile);
@@ -438,7 +438,7 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData& sys_data, ExecutionConte
     else {
         ccsd_e_cs(/* ec,  */sch, MO, CI, d_e, t1_aa, t2_abab);
 
-        #ifdef USE_TALSH
+        #if defined(USE_TALSH) || defined(USE_DPCPP)
           sch.execute(ExecutionHW::GPU, profile);
         #else
           sch.execute(ExecutionHW::CPU, profile);

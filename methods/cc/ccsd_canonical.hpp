@@ -352,7 +352,7 @@ std::tuple<double,double> ccsd_spin_driver(SystemData sys_data, ExecutionContext
         ccsd_t1(sch, MO, d_r1, d_t1, d_t2, d_f1, d_v2);
         ccsd_t2(sch, MO, d_r2, d_t1, d_t2, d_f1, d_v2);
 
-        #ifdef USE_TALSH
+        #if defined(USE_TALSH) || defined(USE_DPCPP)
           sch.execute(ExecutionHW::GPU, profile);
         #else
           sch.execute(ExecutionHW::CPU, profile);
@@ -405,7 +405,7 @@ std::tuple<double,double> ccsd_spin_driver(SystemData sys_data, ExecutionContext
   else {
     ccsd_e(sch, MO, d_e, d_t1, d_t2, d_f1, d_v2);
 
-    #ifdef USE_TALSH
+    #if defined(USE_TALSH) || defined(USE_DPCPP)
         sch.execute(ExecutionHW::GPU, profile);
     #else
         sch.execute(ExecutionHW::CPU, profile);

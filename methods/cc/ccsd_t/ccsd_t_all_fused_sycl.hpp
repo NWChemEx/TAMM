@@ -122,59 +122,26 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     //
     int rng_h3, rng_h2, rng_h1, rng_p6, rng_p5, rng_p4;
     int energy_rng_h3, energy_rng_h2, energy_rng_h1, energy_rng_p6, energy_rng_p5, energy_rng_p4;
-    if ((base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3)
-    {
-        energy_rng_h3 = FUSION_SIZE_SLICE_1_H3;
-    }
-    else
-    {
-        energy_rng_h3 = base_size_h3b % FUSION_SIZE_SLICE_1_H3;
-    }
 
-    if ((base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2)
-    {
-        energy_rng_h2 = FUSION_SIZE_SLICE_1_H2;
-    }
-    else
-    {
-        energy_rng_h2 = base_size_h2b % FUSION_SIZE_SLICE_1_H2;
-    }
+    energy_rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3,
+                                  FUSION_SIZE_SLICE_1_H3,
+                                  int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
+    energy_rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2,
+                                  FUSION_SIZE_SLICE_1_H2,
+                                  int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
+    energy_rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1,
+                                  FUSION_SIZE_SLICE_1_H1,
+                                  int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
 
-    if ((base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1)
-    {
-        energy_rng_h1 = FUSION_SIZE_SLICE_1_H1;
-    }
-    else
-    {
-        energy_rng_h1 = base_size_h1b % FUSION_SIZE_SLICE_1_H1;
-    }
-
-    if ((base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6)
-    {
-        energy_rng_p6 = FUSION_SIZE_SLICE_1_P6;
-    }
-    else
-    {
-        energy_rng_p6 = base_size_p6b % FUSION_SIZE_SLICE_1_P6;
-    }
-
-    if ((base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5)
-    {
-        energy_rng_p5 = FUSION_SIZE_SLICE_1_P5;
-    }
-    else
-    {
-        energy_rng_p5 = base_size_p5b % FUSION_SIZE_SLICE_1_P5;
-    }
-
-    if ((base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4)
-    {
-        energy_rng_p4 = FUSION_SIZE_SLICE_1_P4;
-    }
-    else
-    {
-        energy_rng_p4 = base_size_p4b % FUSION_SIZE_SLICE_1_P4;
-    }
+    energy_rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6,
+                                  FUSION_SIZE_SLICE_1_P6,
+                                  int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
+    energy_rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5,
+                                  FUSION_SIZE_SLICE_1_P5,
+                                  int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
+    energy_rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4,
+                                  FUSION_SIZE_SLICE_1_P4,
+                                  int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
 
     //
     double temp_av{0};
@@ -249,35 +216,25 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         str_blk_idx_p4 	= blk_idx_p4b * FUSION_SIZE_SLICE_1_P4;
 
         // 	(4) rng_h/p*
-        if ((base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3)
-            rng_h3 = FUSION_SIZE_SLICE_1_H3;
-        else
-            rng_h3 = base_size_h3b % FUSION_SIZE_SLICE_1_H3;
+        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3,
+                               FUSION_SIZE_SLICE_1_H3,
+                               int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
+        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2,
+                               FUSION_SIZE_SLICE_1_H2,
+                               int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
+        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1,
+                               FUSION_SIZE_SLICE_1_H1,
+                               int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
 
-        if ((base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2)
-            rng_h2 = FUSION_SIZE_SLICE_1_H2;
-        else
-            rng_h2 = base_size_h2b % FUSION_SIZE_SLICE_1_H2;
-
-        if ((base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1)
-            rng_h1 = FUSION_SIZE_SLICE_1_H1;
-        else
-            rng_h1 = base_size_h1b % FUSION_SIZE_SLICE_1_H1;
-
-        if ((base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6)
-            rng_p6 = FUSION_SIZE_SLICE_1_P6;
-        else
-            rng_p6 = base_size_p6b % FUSION_SIZE_SLICE_1_P6;
-
-        if ((base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5)
-            rng_p5 = FUSION_SIZE_SLICE_1_P5;
-        else
-            rng_p5 = base_size_p5b % FUSION_SIZE_SLICE_1_P5;
-
-        if ((base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4)
-            rng_p4 = FUSION_SIZE_SLICE_1_P4;
-        else
-            rng_p4 = base_size_p4b % FUSION_SIZE_SLICE_1_P4;
+        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6,
+                               FUSION_SIZE_SLICE_1_P6,
+                               int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
+        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5,
+                               FUSION_SIZE_SLICE_1_P5,
+                               int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
+        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4,
+                               FUSION_SIZE_SLICE_1_P4,
+                               int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
 
         //  sd1_1
         if (flag_d1_1 >= 0)
@@ -286,7 +243,6 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d1_t2 = df_dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_1;
             double* tmp_dev_d1_v2 = df_dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_1;
 
-            //
             internal_upperbound = 0;
 #pragma unroll 1
             for (int l = 0; l < base_size_h7b; l+= FUSION_SIZE_INT_UNIT)
@@ -298,7 +254,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_p4 && idx_h1 < rng_h1 &&
-                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound) {
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
                         sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
@@ -309,6 +265,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                           base_size_h7b +
                                           (threadIdx_x + l)];
                     }
+		}
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h3 && idx_h2 < rng_h2 &&
@@ -382,7 +339,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h3 && idx_h2 < rng_h1 &&
-                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound) {
                     for (int ll = 0; ll < rng_p6; ll++)
                     {
                         sm_b[threadIdx_y][threadIdx_x + ll * FUSION_SIZE_TB_2_X] =
@@ -393,6 +350,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                            base_size_h1b) *
                                           base_size_h3b];
                     }
+		}
                 sycl::group_barrier( thread_block );
 
                 // Cross-Product: -1
@@ -436,7 +394,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_p4 && idx_h1 < rng_h3 &&
-                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound) {
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
                         sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
@@ -447,10 +405,11 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                           base_size_h7b +
                                           (threadIdx_x + l)];
                     }
+		}
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h2 && idx_h2 < rng_h1 &&
-                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound)
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound) {
                     for (int ll = 0; ll < rng_p6; ll++)
                     {
                         sm_b[threadIdx_y][threadIdx_x + ll * FUSION_SIZE_TB_2_X] =
@@ -461,6 +420,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                             base_size_h1b) *
                                            base_size_h2b)];
                     }
+		}
                 sycl::group_barrier( thread_block );
 
                 // Cross-Product: -1
@@ -538,35 +498,25 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         str_blk_idx_p4 	= blk_idx_p4b * FUSION_SIZE_SLICE_1_P4;
 
         // 	(4) rng_h/p*
-        if ((base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3)
-            rng_h3 = FUSION_SIZE_SLICE_1_H3;
-        else
-            rng_h3 = base_size_h3b % FUSION_SIZE_SLICE_1_H3;
+        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3,
+                               FUSION_SIZE_SLICE_1_H3,
+                               int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
+        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2,
+                               FUSION_SIZE_SLICE_1_H2,
+                               int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
+        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1,
+                               FUSION_SIZE_SLICE_1_H1,
+                               int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
 
-        if ((base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2)
-            rng_h2 = FUSION_SIZE_SLICE_1_H2;
-        else
-            rng_h2 = base_size_h2b % FUSION_SIZE_SLICE_1_H2;
-
-        if ((base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1)
-            rng_h1 = FUSION_SIZE_SLICE_1_H1;
-        else
-            rng_h1 = base_size_h1b % FUSION_SIZE_SLICE_1_H1;
-
-        if ((base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6)
-            rng_p6 = FUSION_SIZE_SLICE_1_P6;
-        else
-            rng_p6 = base_size_p6b % FUSION_SIZE_SLICE_1_P6;
-
-        if ((base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5)
-            rng_p5 = FUSION_SIZE_SLICE_1_P5;
-        else
-            rng_p5 = base_size_p5b % FUSION_SIZE_SLICE_1_P5;
-
-        if ((base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4)
-            rng_p4 = FUSION_SIZE_SLICE_1_P4;
-        else
-            rng_p4 = base_size_p4b % FUSION_SIZE_SLICE_1_P4;
+        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6,
+                               FUSION_SIZE_SLICE_1_P6,
+                               int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
+        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5,
+                               FUSION_SIZE_SLICE_1_P5,
+                               int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
+        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4,
+                               FUSION_SIZE_SLICE_1_P4,
+                               int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
 
         //	sd2_7
         if (flag_d2_7 >= 0)
@@ -1026,35 +976,25 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         str_blk_idx_p4 = blk_idx_p4b * FUSION_SIZE_SLICE_1_P4;
 
         // 	(4) rng_h/p*
-        if ((base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3)
-            rng_h3 = FUSION_SIZE_SLICE_1_H3;
-        else
-            rng_h3 = base_size_h3b % FUSION_SIZE_SLICE_1_H3;
+        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3,
+                               FUSION_SIZE_SLICE_1_H3,
+                               int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
+        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2,
+                               FUSION_SIZE_SLICE_1_H2,
+                               int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
+        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1,
+                               FUSION_SIZE_SLICE_1_H1,
+                               int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
 
-        if ((base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2)
-            rng_h2 = FUSION_SIZE_SLICE_1_H2;
-        else
-            rng_h2 = base_size_h2b % FUSION_SIZE_SLICE_1_H2;
-
-        if ((base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1)
-            rng_h1 = FUSION_SIZE_SLICE_1_H1;
-        else
-            rng_h1 = base_size_h1b % FUSION_SIZE_SLICE_1_H1;
-
-        if ((base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6)
-            rng_p6 = FUSION_SIZE_SLICE_1_P6;
-        else
-            rng_p6 = base_size_p6b % FUSION_SIZE_SLICE_1_P6;
-
-        if ((base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5)
-            rng_p5 = FUSION_SIZE_SLICE_1_P5;
-        else
-            rng_p5 = base_size_p5b % FUSION_SIZE_SLICE_1_P5;
-
-        if ((base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4)
-            rng_p4 = FUSION_SIZE_SLICE_1_P4;
-        else
-            rng_p4 = base_size_p4b % FUSION_SIZE_SLICE_1_P4;
+        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6,
+                               FUSION_SIZE_SLICE_1_P6,
+                               int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
+        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5,
+                               FUSION_SIZE_SLICE_1_P5,
+                               int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
+        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4,
+                               FUSION_SIZE_SLICE_1_P4,
+                               int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
 
         // 	sd1_4
         if (flag_d1_4 >= 0)
@@ -1525,35 +1465,25 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         str_blk_idx_p4 	= blk_idx_p4b * FUSION_SIZE_SLICE_1_P4;
 
         // 	(4) rng_h/p*
-        if ((base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3)
-            rng_h3 = FUSION_SIZE_SLICE_1_H3;
-        else
-            rng_h3 = base_size_h3b % FUSION_SIZE_SLICE_1_H3;
+        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3,
+                               FUSION_SIZE_SLICE_1_H3,
+                               int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
+        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2,
+                               FUSION_SIZE_SLICE_1_H2,
+                               int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
+        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1,
+                               FUSION_SIZE_SLICE_1_H1,
+                               int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
 
-        if ((base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2)
-            rng_h2 = FUSION_SIZE_SLICE_1_H2;
-        else
-            rng_h2 = base_size_h2b % FUSION_SIZE_SLICE_1_H2;
-
-        if ((base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1)
-            rng_h1 = FUSION_SIZE_SLICE_1_H1;
-        else
-            rng_h1 = base_size_h1b % FUSION_SIZE_SLICE_1_H1;
-
-        if ((base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6)
-            rng_p6 = FUSION_SIZE_SLICE_1_P6;
-        else
-            rng_p6 = base_size_p6b % FUSION_SIZE_SLICE_1_P6;
-
-        if ((base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5)
-            rng_p5 = FUSION_SIZE_SLICE_1_P5;
-        else
-            rng_p5 = base_size_p5b % FUSION_SIZE_SLICE_1_P5;
-
-        if ((base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4)
-            rng_p4 = FUSION_SIZE_SLICE_1_P4;
-        else
-            rng_p4 = base_size_p4b % FUSION_SIZE_SLICE_1_P4;
+        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6,
+                               FUSION_SIZE_SLICE_1_P6,
+                               int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
+        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5,
+                               FUSION_SIZE_SLICE_1_P5,
+                               int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
+        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4,
+                               FUSION_SIZE_SLICE_1_P4,
+                               int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
 
         //  sd2_1
         if (flag_d2_1 >= 0)
@@ -2022,36 +1952,25 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         str_blk_idx_p4 	= blk_idx_p4b * FUSION_SIZE_SLICE_1_P4;
 
         // 	(4) rng_h/p*
-        if ((base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3)
-            rng_h3 = FUSION_SIZE_SLICE_1_H3;
-        else
-            rng_h3 = base_size_h3b % FUSION_SIZE_SLICE_1_H3;
+        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3,
+                               FUSION_SIZE_SLICE_1_H3,
+                               int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
+        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2,
+                               FUSION_SIZE_SLICE_1_H2,
+                               int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
+        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1,
+                               FUSION_SIZE_SLICE_1_H1,
+                               int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
 
-        if ((base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2)
-            rng_h2 = FUSION_SIZE_SLICE_1_H2;
-        else
-            rng_h2 = base_size_h2b % FUSION_SIZE_SLICE_1_H2;
-
-        if ((base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1)
-            rng_h1 = FUSION_SIZE_SLICE_1_H1;
-        else
-            rng_h1 = base_size_h1b % FUSION_SIZE_SLICE_1_H1;
-
-        if ((base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6)
-            rng_p6 = FUSION_SIZE_SLICE_1_P6;
-        else
-            rng_p6 = base_size_p6b % FUSION_SIZE_SLICE_1_P6;
-
-        if ((base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5)
-            rng_p5 = FUSION_SIZE_SLICE_1_P5;
-        else
-            rng_p5 = base_size_p5b % FUSION_SIZE_SLICE_1_P5;
-
-        if ((base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4)
-            rng_p4 = FUSION_SIZE_SLICE_1_P4;
-        else
-            rng_p4 = base_size_p4b % FUSION_SIZE_SLICE_1_P4;
-
+        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6,
+                               FUSION_SIZE_SLICE_1_P6,
+                               int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
+        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5,
+                               FUSION_SIZE_SLICE_1_P5,
+                               int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
+        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4,
+                               FUSION_SIZE_SLICE_1_P4,
+                               int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
 
         // 	flags
         int flag_s1_1 = const_df_s1_exec[0];
@@ -2575,8 +2494,8 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
       for (int i = 0; i < 16; i++)
 	for (int j = 0; j < 16; j++)
 	{
-	  final_energy_1 += sm_a[j][i];
-	  final_energy_2 += sm_b[j][i];
+	  final_energy_1 += sm_a[i][j];
+	  final_energy_2 += sm_b[i][j];
 	}
 
       reduced_energy[blockIdx_x] = final_energy_1;

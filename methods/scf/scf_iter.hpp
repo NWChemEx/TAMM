@@ -20,10 +20,7 @@ void energy_diis(ExecutionContext& ec, const TiledIndexSpace& tAO, int iter, int
 
 template<typename TensorType>
 std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec, 
-#if defined(USE_SCALAPACK)
-      blacspp::Grid* blacs_grid,
-      scalapackpp::BlockCyclicDist2D* blockcyclic_dist,
-#endif
+      ScalapackInfo& scalapack_info,
       const int& iter, const SystemData& sys_data, SCFVars& scf_vars,
       TAMMTensors& ttensors, EigenTensors& etensors, bool ediis,
       #if defined(USE_GAUXC)
@@ -41,8 +38,6 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       Tensor<TensorType>& ehf_tmp           = ttensors.ehf_tmp;
       Tensor<TensorType>& ehf_tamm          = ttensors.ehf_tamm; 
 
-      Matrix& X_a         = etensors.X;
-      Matrix& F_alpha_eig = etensors.F;
       Matrix& C_alpha     = etensors.C; 
       Matrix& D_alpha     = etensors.D;
       Matrix& C_occ       = etensors.C_occ; 
@@ -53,8 +48,6 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
       Tensor<TensorType>& D_alpha_tamm      = ttensors.D_tamm;
       Tensor<TensorType>& D_last_alpha_tamm = ttensors.D_last_tamm;
       
-      Matrix& X_b         = etensors.X_beta;
-      Matrix& F_beta_eig  = etensors.F_beta;
       Matrix& C_beta      = etensors.C_beta; 
       Matrix& D_beta      = etensors.D_beta;      
       Tensor<TensorType>& F_beta            = ttensors.F_beta;
@@ -197,38 +190,30 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         }
       }
       
-      if( rank == 0 ) {
-        tamm_to_eigen_tensor(F_alpha, F_alpha_eig);
-        if(is_uhf) {
-          tamm_to_eigen_tensor(F_beta, F_beta_eig);
-        }
-      }
       
-      auto do_t1 = std::chrono::high_resolution_clock::now();
 
       if(!scf_restart){
+        auto do_t1 = std::chrono::high_resolution_clock::now();
 
-        scf_diagonalize(ec,sys_data,
-        #if defined(USE_SCALAPACK)
-            blacs_grid,
-            blockcyclic_dist,
-        #endif
-        ttensors,etensors);
+        scf_diagonalize<TensorType>(sch, sys_data, scalapack_info, ttensors, etensors);
 
         // compute density
         if( rank == 0 ) {
           if(is_rhf) {
             C_occ   = C_alpha.leftCols(sys_data.nelectrons_alpha);
             D_alpha = 2.0 * C_occ * C_occ.transpose();
-            X_a     = C_alpha;
+            // X_a     = C_alpha;
+            eigen_to_tamm_tensor(ttensors.X_alpha, C_alpha);
           }
           if(is_uhf) {
             C_occ   = C_alpha.leftCols(sys_data.nelectrons_alpha);
             D_alpha = C_occ * C_occ.transpose();
-            X_a     = C_alpha;
+            // X_a     = C_alpha;
             C_occ   = C_beta.leftCols(sys_data.nelectrons_beta);
             D_beta  = C_occ * C_occ.transpose();
-            X_b     = C_beta;
+            // X_b     = C_beta;
+            eigen_to_tamm_tensor(ttensors.X_alpha, C_alpha);
+            eigen_to_tamm_tensor(ttensors.X_beta, C_beta);
           }
         }
 
@@ -236,8 +221,8 @@ std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec,
         auto do_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "eigen_solve:" << do_time << "s, " << std::endl; 
-      }//end scf_restart 
+        if(rank == 0 && debug) std::cout << std::fixed << std::setprecision(2) << "diagonalize: " << do_time << "s, " << std::endl; 
+      } // end scf_restart 
 
       if(rank == 0) {
         eigen_to_tamm_tensor(D_alpha_tamm,D_alpha);
@@ -600,7 +585,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const SCFVars
         do_time =
         std::chrono::duration_cast<std::chrono::duration<double>>((do_t2 - do_t1)).count();
 
-        if(rank == 0 && debug) std::cout << "2BF:" << do_time << "s, ";
+        if(rank == 0 && debug) std::cout << std::fixed << std::setprecision(2) << "Fock build: " << do_time << "s, ";
         
         eigen_to_tamm_tensor_acc(F_alpha_tmp, G);
         if(is_uhf) eigen_to_tamm_tensor_acc(F_beta_tmp, G_beta);

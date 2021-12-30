@@ -396,120 +396,172 @@ void compute_1body_ints(ExecutionContext& ec, const SCFVars& scf_vars, Tensor<Te
 
 }
 
+template<typename TensorType>
 void scf_diagonalize(
-  ExecutionContext& ec, const SystemData& sys_data,
-  #if defined(USE_SCALAPACK)
-        blacspp::Grid* blacs_grid,
-        scalapackpp::BlockCyclicDist2D* blockcyclic_dist,
-  #endif
+  Scheduler& sch, const SystemData& sys_data,
+  ScalapackInfo& scalapack_info,
   TAMMTensors& ttensors, EigenTensors& etensors
   ) {
+
+      auto rank  = sch.ec().pg().rank();
+      // const bool debug      = sys_data.options_map.scf_options.debug && rank==0;
 
       // solve F C = e S C by (conditioned) transformation to F' C' = e C',
       // where
       // F' = X.transpose() . F . X; the original C is obtained as C = X . C'
 
-      auto rank  = ec.pg().rank();
-      Matrix& X_a     = etensors.X;
-      Matrix& F_alpha = etensors.F;
+      // Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_alpha(X_a.transpose() * F_alpha * X_a);
+      // C_alpha = X_a * eig_solver_alpha.eigenvectors();
+      // Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_beta( X_b.transpose() * F_beta  * X_b);
+      // C_beta  = X_b * eig_solver_beta.eigenvectors();      
+
       Matrix& C_alpha = etensors.C;
-      Matrix& X_b     = etensors.X_beta;
-      Matrix& F_beta  = etensors.F_beta;
       Matrix& C_beta  = etensors.C_beta; 
 
       const int64_t N = sys_data.nbf_orig;
       const bool is_uhf = sys_data.is_unrestricted;
-      const bool is_rhf = sys_data.is_restricted;
+      // const bool is_rhf = sys_data.is_restricted;
 
       #if defined(USE_SCALAPACK)
-        const auto& grid = *blacs_grid;
-        const auto  mb   = blockcyclic_dist->mb();
-        const auto Northo = sys_data.nbf;
+
+      if(scalapack_info.comm != MPI_COMM_NULL) {
+
+        blacspp::Grid* blacs_grid = scalapack_info.blacs_grid.get();
+        scalapackpp::BlockCyclicDist2D* blockcyclic_dist = scalapack_info.blockcyclic_dist.get();
+
+        auto desc_lambda = [&](const int64_t M, const int64_t N) {
+            auto [M_loc, N_loc] = (*blockcyclic_dist).get_local_dims( M, N );
+            return (*blockcyclic_dist).descinit_noerror( M, N, M_loc );        
+        };
+
+        const auto& grid   = *blacs_grid;
+        const auto  mb     = blockcyclic_dist->mb();
+        const auto  Northo = sys_data.nbf;
+
         if( grid.ipr() >= 0 and grid.ipc() >= 0 ) {
-          // std::cout << "IN SCALAPACK " << rank << std::endl; 
           // TODO: Optimize intermediates here
           scalapackpp::BlockCyclicMatrix<double> 
-            Fa_sca  ( grid, N,      N,      mb, mb ),
-            Xa_sca  ( grid, Northo, N,      mb, mb ), // Xa is row-major
+            // Fa_sca  ( grid, N,      N,      mb, mb ),
+            // Xa_sca  ( grid, Northo, N,      mb, mb ), // Xa is row-major
             Fp_sca  ( grid, Northo, Northo, mb, mb ),
             Ca_sca  ( grid, Northo, Northo, mb, mb ),
             TMP1_sca( grid, N,      Northo, mb, mb ),
             TMP2_sca( grid, Northo, N,      mb, mb );
 
-          // Scatter Fock / X alpha from root
-          Fa_sca.scatter_to( N,      N, F_alpha.data(), N,      0, 0 ); 
-          Xa_sca.scatter_to( Northo, N, X_a.data(),     Northo, 0, 0 );
+          auto desc_Fa = desc_lambda(N,N);
+          auto desc_Xa = desc_lambda(Northo,N);
+
+          tamm::to_block_cyclic_tensor(ttensors.F_alpha, ttensors.F_BC);
+          scalapack_info.pg.barrier();
+
+          auto Fa_tamm_lptr = ttensors.F_BC.access_local_buf();
+          auto Xa_tamm_lptr = ttensors.X_alpha.access_local_buf();
 
           // Compute TMP = F * X -> F * X**T (b/c row-major)
+          // scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::Trans,
+                              // 1., Fa_sca, Xa_sca, 0., TMP1_sca );
           scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::Trans,
-                              1., Fa_sca, Xa_sca, 0., TMP1_sca );
+                              TMP1_sca.m(), TMP1_sca.n(), desc_Fa[3], 1.,
+                              Fa_tamm_lptr, 1, 1, desc_Fa,
+                              Xa_tamm_lptr, 1, 1, desc_Xa, 
+                              0., 
+                              TMP1_sca.data(), 1, 1, TMP1_sca.desc() );
 
           // Compute Fp = X**T * TMP -> X * TMP (b/c row-major)
+          // scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans,
+                              // 1., Xa_sca, TMP1_sca, 0., Fp_sca );
           scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans,
-                              1., Xa_sca, TMP1_sca, 0., Fp_sca );
-
+                              Fp_sca.m(), Fp_sca.n(), desc_Xa[3], 1.,
+                              Xa_tamm_lptr, 1, 1, desc_Xa,
+                              TMP1_sca.data(), 1, 1, TMP1_sca.desc(),
+                              0., 
+                              Fp_sca.data(), 1, 1, Fp_sca.desc() );
           // Solve EVP
-          std::vector<double> eps_a( Northo );
-          scalapackpp::hereigd( scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
-                                Fp_sca, eps_a.data(), Ca_sca );
+          std::vector<TensorType> eps_a( Northo );
+          // scalapackpp::hereigd( scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
+          //                       Fp_sca, eps_a.data(), Ca_sca );
+          auto info = scalapackpp::hereig(
+                scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
+                Fp_sca.m(), Fp_sca.data(), 1, 1, Fp_sca.desc(),
+                eps_a.data(),
+                Ca_sca.data(), 1, 1, Ca_sca.desc() );
 
           // Backtransform TMP = X * Ca -> TMP**T = Ca**T * X
+          // scalapackpp::pgemm( scalapackpp::Op::Trans, scalapackpp::Op::NoTrans,
+          //                     1., Ca_sca, Xa_sca, 0., TMP2_sca );
           scalapackpp::pgemm( scalapackpp::Op::Trans, scalapackpp::Op::NoTrans,
-                              1., Ca_sca, Xa_sca, 0., TMP2_sca );
+                              TMP2_sca.m(), TMP2_sca.n(), Ca_sca.m(), 1.,
+                              Ca_sca.data(), 1, 1, Ca_sca.desc(),
+                              Xa_tamm_lptr, 1, 1, desc_Xa,
+                              0., TMP2_sca.data(), 1,1, TMP2_sca.desc() );
 
           // Gather results
-          if( rank == 0 ) C_alpha.resize( N, Northo );
+          if( scalapack_info.pg.rank() == 0 ) C_alpha.resize( N, Northo );
           TMP2_sca.gather_from( Northo, N, C_alpha.data(), Northo, 0, 0 );
 
           if(is_uhf) {
-
-            // Scatter Fock / X beta from root
-            Fa_sca.scatter_to( N,      N, F_beta.data(), N,      0, 0 ); 
-            Xa_sca.scatter_to( Northo, N, X_b.data(),    Northo, 0, 0 );
+            tamm::to_block_cyclic_tensor(ttensors.F_beta, ttensors.F_BC);
+            scalapack_info.pg.barrier();
+            Fa_tamm_lptr = ttensors.F_BC.access_local_buf();
+            Xa_tamm_lptr = ttensors.X_beta.access_local_buf();
 
             // Compute TMP = F * X -> F * X**T (b/c row-major)
+            // scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::Trans,
+            //                     1., Fa_sca, Xa_sca, 0., TMP1_sca );
             scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::Trans,
-                                1., Fa_sca, Xa_sca, 0., TMP1_sca );
+                                TMP1_sca.m(), TMP1_sca.n(), desc_Fa[3], 1.,
+                                Fa_tamm_lptr, 1, 1, desc_Fa,
+                                Xa_tamm_lptr, 1, 1, desc_Xa, 
+                                0., 
+                                TMP1_sca.data(), 1, 1, TMP1_sca.desc() );
 
             // Compute Fp = X**T * TMP -> X * TMP (b/c row-major)
+            // scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans,
+            //                     1., Xa_sca, TMP1_sca, 0., Fp_sca );
             scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans,
-                                1., Xa_sca, TMP1_sca, 0., Fp_sca );
+                                Fp_sca.m(), Fp_sca.n(), desc_Xa[3], 1.,
+                                Xa_tamm_lptr, 1, 1, desc_Xa,
+                                TMP1_sca.data(), 1, 1, TMP1_sca.desc(),
+                                0., 
+                                Fp_sca.data(), 1, 1, Fp_sca.desc() );
 
             // Solve EVP
             std::vector<double> eps_a( Northo );
-            scalapackpp::hereigd( scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
-                                  Fp_sca, eps_a.data(), Ca_sca );
+            // scalapackpp::hereigd( scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
+            //                       Fp_sca, eps_a.data(), Ca_sca );
+            auto info = scalapackpp::hereig(
+                  scalapackpp::Job::Vec, scalapackpp::Uplo::Lower,
+                  Fp_sca.m(), Fp_sca.data(), 1, 1, Fp_sca.desc(),
+                  eps_a.data(),
+                  Ca_sca.data(), 1, 1, Ca_sca.desc() );            
 
             // Backtransform TMP = X * Cb -> TMP**T = Cb**T * X
+            // scalapackpp::pgemm( scalapackpp::Op::Trans, scalapackpp::Op::NoTrans,
+            //                     1., Ca_sca, Xa_sca, 0., TMP2_sca );
             scalapackpp::pgemm( scalapackpp::Op::Trans, scalapackpp::Op::NoTrans,
-                                1., Ca_sca, Xa_sca, 0., TMP2_sca );
+                                TMP2_sca.m(), TMP2_sca.n(), Ca_sca.m(), 1.,
+                                Ca_sca.data(), 1, 1, Ca_sca.desc(),
+                                Xa_tamm_lptr, 1, 1, desc_Xa,
+                                0., TMP2_sca.data(), 1,1, TMP2_sca.desc() );
 
             // Gather results
-            if( rank == 0 ) C_beta.resize( N, Northo );
+            if( scalapack_info.pg.rank() == 0 ) C_beta.resize( N, Northo );
             TMP2_sca.gather_from( Northo, N, C_beta.data(), Northo, 0, 0 );
           
           }
+
         } // rank participates in ScaLAPACK call
+      }
 
-      #elif defined(EIGEN_DIAG)
-
-        if(is_rhf) {
-          Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_alpha(X_a.transpose() * F_alpha * X_a);
-          C_alpha = X_a * eig_solver_alpha.eigenvectors();
-        }
-        if(is_uhf) {
-          Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_alpha(X_a.transpose() * F_alpha * X_a);
-          C_alpha = X_a * eig_solver_alpha.eigenvectors();
-          Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_beta( X_b.transpose() * F_beta  * X_b);
-          C_beta  = X_b * eig_solver_beta.eigenvectors();      
-        }
 
       #else
     
-        if(is_rhf) {
           const int64_t Northo_a = sys_data.nbf; //X_a.cols();
+          //TODO: avoid eigen Fp
           if( rank == 0 ) {
-            Matrix Fp = F_alpha; // XXX: Can F be destroyed?
+            //alpha
+            Matrix Fp  = tamm_to_eigen_matrix(ttensors.F_alpha);
+            Matrix X_a = tamm_to_eigen_matrix(ttensors.X_alpha);
             C_alpha.resize(N,Northo_a);
             blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, N, Northo_a, N,
                                 1., Fp.data(), N, X_a.data(), Northo_a, 
@@ -523,33 +575,14 @@ void scf_diagonalize(
                                 1., Fp.data(), Northo_a, X_a.data(), Northo_a, 
                                 0., C_alpha.data(), Northo_a );
           } 
-          // else C_alpha.resize( N, Northo_a );
-
-          // if( ec.pg().size() > 1 )
-          // ec.pg().broadcast( C_alpha.data(), C_alpha.size(), 0 );
-        }
 
         if(is_uhf) {
-          const int64_t Northo_a = sys_data.nbf; //X_a.cols();
           const int64_t Northo_b = sys_data.nbf; //X_b.cols();
           if( rank == 0 ) {
-            //alpha
-            Matrix Fp = F_alpha; 
-            C_alpha.resize(N,Northo_a);
-            blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, N, Northo_a, N,
-                                1., Fp.data(), N, X_a.data(), Northo_a, 
-                                0., C_alpha.data(), N );
-            blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, Northo_a, Northo_a, N,
-                                1., X_a.data(), Northo_a, C_alpha.data(), N, 
-                                0., Fp.data(), Northo_a );
-            std::vector<double> eps_a(Northo_a);
-            lapack::syevd( lapack::Job::Vec, lapack::Uplo::Lower, Northo_a, Fp.data(), Northo_a, eps_a.data() );
-            blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, Northo_a, N, Northo_a, 
-                                1., Fp.data(), Northo_a, X_a.data(), Northo_a, 
-                                0., C_alpha.data(), Northo_a );
             //beta
-            Fp = F_beta; 
+            Matrix Fp = tamm_to_eigen_matrix(ttensors.F_beta);
             C_beta.resize(N,Northo_b);
+            Matrix X_b = tamm_to_eigen_matrix(ttensors.X_beta);
             blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, N, Northo_b, N,
                                 1., Fp.data(), N, X_b.data(), Northo_b, 
                                 0., C_beta.data(), N );
@@ -562,15 +595,6 @@ void scf_diagonalize(
                                 1., Fp.data(), Northo_b, X_b.data(), Northo_b, 
                                 0., C_beta.data(), Northo_b );
           } 
-          // else {
-          //   C_alpha.resize(N, Northo_a);
-          //   C_beta.resize(N, Northo_b);
-          // }
-        
-          // if( ec.pg().size() > 1 ) {
-          //   ec.pg().broadcast( C_alpha.data(), C_alpha.size(), 0 );
-          //   ec.pg().broadcast( C_beta.data(),  C_beta.size(),  0 );
-          // }
         }
 
       #endif
@@ -579,10 +603,7 @@ void scf_diagonalize(
 
 template<typename TensorType>
 void compute_initial_guess(ExecutionContext& ec, 
-#if defined(USE_SCALAPACK)
-      blacspp::Grid* blacs_grid,
-      scalapackpp::BlockCyclicDist2D* blockcyclic_dist,
-#endif
+    ScalapackInfo& scalapack_info,
     SystemData& sys_data, SCFVars& scf_vars,
     const std::vector<libint2::Atom>& atoms, const libint2::BasisSet& shells,
     const std::string& basis, bool is_spherical, EigenTensors& etensors,
@@ -590,6 +611,7 @@ void compute_initial_guess(ExecutionContext& ec,
 
     auto ig1 = std::chrono::high_resolution_clock::now();
 
+    Scheduler sch{ec};
     const bool is_uhf = sys_data.is_unrestricted;
     const bool is_rhf = sys_data.is_restricted;
 
@@ -599,13 +621,13 @@ void compute_initial_guess(ExecutionContext& ec,
     const bool debug      = sys_data.options_map.scf_options.debug;
 
     // const Matrix& H   = etensors.H; 
-    // const Matrix& X_a = etensors.X;
-    // const Matrix& X_b = etensors.X_beta;
     Matrix& C_a       = etensors.C;
     Matrix& C_b       = etensors.C_beta;
     Matrix& D_a       = etensors.D;
     Matrix& D_b       = etensors.D_beta;
     Matrix& C_occ_a   = etensors.C_occ;
+    Matrix& G_a       = etensors.G;
+    Matrix& G_b       = etensors.G_beta;
 
     // compute guess in minimal basis
     Matrix D_minbs_a;
@@ -632,12 +654,6 @@ void compute_initial_guess(ExecutionContext& ec,
     if(rank == 0) std::cout << std::endl << 
       "Projecting minimal basis SOAD onto basis set specified (" << basis << ")" << endl;
     
-    Matrix Ft_a, Ft_b;
-    if(rank == 0) {
-      Ft_a = Matrix::Zero(N,N);
-      tamm_to_eigen_tensor(ttensors.H1, Ft_a);
-      if(is_uhf) Ft_b = Ft_a;
-    }
 
     double precision = std::numeric_limits<double>::epsilon();
     // double precision = std::min(sys_data.options_map.scf_options.tol_int, 1e-3 * sys_data.options_map.scf_options.conve);
@@ -646,14 +662,7 @@ void compute_initial_guess(ExecutionContext& ec,
     const libint2::BasisSet& obs  = shells;
     const libint2::BasisSet& D_bs = minbs;
 
-    Matrix G_a = Matrix::Zero(N,N);
-    Matrix G_b;
-    if(is_uhf) G_b = Matrix::Zero(N,N);
     Tensor<TensorType> F_dummy{scf_vars.tAOt, scf_vars.tAOt}; //not allocated
-    Tensor<TensorType> F1tmp1_a{scf_vars.tAO, scf_vars.tAO};
-    Tensor<TensorType> F1tmp1_b{scf_vars.tAO, scf_vars.tAO};
-    Tensor<TensorType>::allocate(&ec, F1tmp1_a);
-    if(is_uhf) Tensor<TensorType>::allocate(&ec,F1tmp1_b);
 
     auto do_t1 = std::chrono::high_resolution_clock::now();
 
@@ -812,76 +821,59 @@ void compute_initial_guess(ExecutionContext& ec,
 
     if(rank == 0 && debug) std::cout << "Time to compute Fock Matrix: " << do_time << " secs" << std::endl;
 
-    if(is_rhf) {
+    D_minbs_a.resize(0,0);
+    if(is_uhf) D_minbs_b.resize(0,0);
+
+    {
       //symmetrize the result
       Matrix Gt_a = 0.5 * (G_a + G_a.transpose());
       G_a = Gt_a;
       Gt_a.resize(0,0);
-      Scheduler{ec}
-        (F1tmp1_a() = 0).execute();
-      eigen_to_tamm_tensor_acc(F1tmp1_a,G_a);
+      sch
+        (ttensors.F_alpha_tmp() = 0).execute();
+      eigen_to_tamm_tensor_acc(ttensors.F_alpha_tmp,G_a);
       ec.pg().barrier();
-      if(rank == 0) {
-        tamm_to_eigen_tensor(F1tmp1_a,G_a);
-        Ft_a += G_a;
-      }
-    } 
+      // G_a.resize(0,0);
+    }
     if(is_uhf) {
-      Matrix Gt_a = 0.5 * (G_a + G_a.transpose());
       Matrix Gt_b = 0.5 * (G_b + G_b.transpose());
-      G_a = Gt_a;
       G_b = Gt_b;
-      Gt_a.resize(0,0);
       Gt_b.resize(0,0);
-      Scheduler{ec}
-        (F1tmp1_a() = 0)
-        (F1tmp1_b() = 0).execute();
-      eigen_to_tamm_tensor_acc(F1tmp1_a,G_a);
-      eigen_to_tamm_tensor_acc(F1tmp1_b,G_b);
+      sch
+        (ttensors.F_beta_tmp() = 0).execute();
+      eigen_to_tamm_tensor_acc(ttensors.F_beta_tmp,G_b);
       ec.pg().barrier();
-      if(rank == 0) {
-        tamm_to_eigen_tensor(F1tmp1_a,G_a);
-        tamm_to_eigen_tensor(F1tmp1_b,G_b);
-        Ft_a += G_a;
-        Ft_b += G_b;
-      }
-    } 
-
-    G_a.resize(0,0);
-    D_minbs_a.resize(0,0);
-    Tensor<TensorType>::deallocate(F1tmp1_a);
-
-    if(is_uhf) {
-      G_b.resize(0,0); 
-      D_minbs_b.resize(0,0);
-      Tensor<TensorType>::deallocate(F1tmp1_b);
+      // G_b.resize(0,0);
     }
 
-    //allocated only on rank 0
-    etensors.F = Ft_a;
-    if(is_uhf) etensors.F_beta = Ft_b;
-
-    scf_diagonalize(ec,sys_data,
-    #if defined(USE_SCALAPACK)
-          blacs_grid,
-          blockcyclic_dist,
-    #endif
-    ttensors,etensors);
-
-    // compute density
-    if( rank == 0 ) {
-      if(is_rhf) {
-        C_occ_a = C_a.leftCols(sys_data.nelectrons_alpha); 
-        D_a = 2.0 * C_occ_a * C_occ_a.transpose();
-      }
+      sch
+        (ttensors.F_alpha()  = ttensors.H1())
+        (ttensors.F_alpha() += ttensors.F_alpha_tmp());
+      
       if(is_uhf) {
-        C_occ_a = C_a.leftCols(sys_data.nelectrons_alpha); 
-        auto C_occ_b = C_b.leftCols(sys_data.nelectrons_beta);
-        D_a = C_occ_a * C_occ_a.transpose();
-        D_b = C_occ_b * C_occ_b.transpose();
+        sch
+          (ttensors.F_beta()   = ttensors.H1())
+          (ttensors.F_beta()  += ttensors.F_beta_tmp());
       }
+      sch.execute();
+
+      scf_diagonalize<TensorType>(sch, sys_data, scalapack_info, ttensors, etensors);
+
+      // compute density
+      if(rank == 0) {
+        if(is_rhf) {
+          C_occ_a = C_a.leftCols(sys_data.nelectrons_alpha);
+          D_a     = 2.0 * C_occ_a * C_occ_a.transpose();
+        }
+        if(is_uhf) {
+          C_occ_a      = C_a.leftCols(sys_data.nelectrons_alpha);
+          auto C_occ_b = C_b.leftCols(sys_data.nelectrons_beta);
+          D_a          = C_occ_a * C_occ_a.transpose();
+          D_b          = C_occ_b * C_occ_b.transpose();
+        }
     }
 
+    ec.pg().barrier();
     auto ig2 = std::chrono::high_resolution_clock::now();
     auto igtime =
       std::chrono::duration_cast<std::chrono::duration<double>>((ig2 - ig1)).count();

@@ -41,6 +41,7 @@
         "scf_type": "restricted",
         "xc_type": "pbe0",
         "debug": false,
+        "restart_size": 2000,
         "scalapack_nb": 1,
         "scalapack_np_row": 0,
         "scalapack_np_col": 0,

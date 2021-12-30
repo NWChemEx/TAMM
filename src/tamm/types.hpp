@@ -88,6 +88,7 @@ using IntLabelVec = std::vector<IntLabel>;
 
 using SizeVec = std::vector<Size>;
 using ProcGrid = std::vector<Proc>;
+using ProcList = std::vector<int>;
 
 enum class AllocationStatus { invalid, created, attached, deallocated, orphaned };
 

@@ -38,6 +38,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
   ngpu_ = 0;
   has_gpu_ = false;
+  exhw_ = ExecutionHW::CPU;
   ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
   // nnodes_ = {GA_Cluster_nnodes()};
   nnodes_ = pg.size().value() / ranks_pn_;
@@ -47,7 +48,10 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   assert(!errc);
   dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
   if (ngpu_ == 1) dev_id_ = 0;
-  if ((pg.rank().value() % ranks_pn_) < ngpu_) has_gpu_ = true;
+  if ((pg.rank().value() % ranks_pn_) < ngpu_) {
+    has_gpu_ = true;
+    exhw_ = ExecutionHW::GPU;
+  }
   if(ranks_pn_ > ngpu_) {
     if(pg.rank()==0) {
       std::string msg = "#ranks per node(" + std::to_string(ranks_pn_) + 
@@ -76,7 +80,10 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 
   dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
   if (ngpu_ == 1) dev_id_ = 0;
-  if ((pg.rank().value() % ranks_pn_) < ngpu_) has_gpu_ = true;
+  if ((pg.rank().value() % ranks_pn_) < ngpu_) {
+    has_gpu_ = true;
+    exhw_ = ExecutionHW::GPU;
+  }
   if(ranks_pn_ > ngpu_) {
     if(pg.rank()==0) {
       std::string msg = "#ranks per node(" + std::to_string(ranks_pn_) + 

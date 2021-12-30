@@ -751,7 +751,7 @@ public:
               ) {
                 if constexpr(std::is_same_v<TensorElType1,TensorElType2>
                             && std::is_same_v<TensorElType1,TensorElType3>
-                            && !internal::is_complex_v<TensorElType1>
+                            // && !internal::is_complex_v<TensorElType1>
                             ) {
                     execute_bufacc(ec, hw);
                 }
@@ -1063,8 +1063,8 @@ public:
                     th_b2 = new tensor_handle();
                     th_c2 = new tensor_handle();
 
-                    *th_c = gpu_mult->gpu_block(cdims_sz.size(), tal_cdims, dev_id);
-                    *th_c2 = gpu_mult->gpu_block(cdims_sz.size(), tal_cdims, dev_id);
+                    *th_c = gpu_mult->gpu_block<TensorElType1>(cdims_sz.size(), tal_cdims, dev_id);
+                    *th_c2 = gpu_mult->gpu_block<TensorElType1>(cdims_sz.size(), tal_cdims, dev_id);
 
                     ab1 = new AddBuf<TensorElType1>{isgpu, tt1, th_c, th_a, th_b,
                                         ctensor, {}, translated_cblockid};

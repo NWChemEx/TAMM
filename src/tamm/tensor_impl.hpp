@@ -258,14 +258,17 @@ public:
         EXPECTS(buf_size >= 0);
         mpb_ = memory_manager->alloc_coll(eltype, buf_size);
 #else
-            auto eltype = tensor_element_type<T>();
-            mpb_        = memory_manager->alloc_coll_balanced(
-              eltype, distribution_->max_proc_buf_size());
+      auto eltype = tensor_element_type<T>();
+      if (proc_list_.size() > 0)
+        mpb_ = memory_manager->alloc_coll_balanced(eltype, distribution_->max_proc_buf_size(), proc_list_);
+      else
+        mpb_ = memory_manager->alloc_coll_balanced(eltype, distribution_->max_proc_buf_size());
+
 #endif
-            EXPECTS(mpb_ != nullptr);
-            ec_->register_for_dealloc(mpb_);
-            update_status(AllocationStatus::created);
-        }
+        EXPECTS(mpb_ != nullptr);
+        ec_->register_for_dealloc(mpb_);
+        update_status(AllocationStatus::created);
+      }
     }
 
     virtual const Distribution &distribution() const {
@@ -486,11 +489,21 @@ public:
     bool is_allocated() const {
       return (allocation_status_== AllocationStatus::created);
     }
+
+    void set_proc_list(const ProcList& proc_list) {
+      proc_list_ = proc_list;
+    }
+
+    virtual bool is_block_cyclic() {
+      return false;
+    }
+
 protected:
     std::shared_ptr<Distribution>
       distribution_; /**< shared pointer to associated Distribution */
     MemoryRegion* mpb_ =
       nullptr; /**< Raw pointer memory region (default null) */
+    ProcList proc_list_ = {};
 
 }; // TensorImpl
 
@@ -657,13 +670,15 @@ protected:
 template<typename T>
 class DenseTensorImpl : public TensorImpl<T> {
 public:
-    using TensorImpl<T>::TenorBase::setKind;
     using TensorImpl<T>::TensorBase::ec_;
+    using TensorImpl<T>::TensorBase::setKind;
+    using TensorImpl<T>::TensorBase::block_indices_;
     using TensorImpl<T>::TensorBase::allocation_status_;
 
     using TensorImpl<T>::block_size;
     using TensorImpl<T>::block_dims;
     using TensorImpl<T>::block_offsets;
+    using TensorImpl<T>::distribution_;
     using TensorImpl<T>::TensorBase::tindices;
     using TensorImpl<T>::TensorBase::num_modes;
     using TensorImpl<T>::TensorBase::update_status;
@@ -685,10 +700,10 @@ public:
      * @param [in] lambda a function for constructing the Tensor
      */
     DenseTensorImpl(const TiledIndexSpaceVec& tis_vec, const ProcGrid proc_grid,
-                    const bool scalapack_distribution = false) :
-      TensorImpl<T>(tis_vec),
+                    const bool is_block_cyclic = false) :
+      TensorImpl<T>{tis_vec},
       proc_grid_{proc_grid},
-      scalapack_distribution_{scalapack_distribution} {
+      is_block_cyclic_{is_block_cyclic} {
         // check no dependences
         // for(auto& tis : tis_vec) { EXPECTS(!tis.is_dependent()); }
 
@@ -697,10 +712,10 @@ public:
     }
 
     DenseTensorImpl(const IndexLabelVec& til_vec, const ProcGrid proc_grid,
-                    const bool scalapack_distribution = false) :
-      TensorImpl<T>(til_vec),
+                    const bool is_block_cyclic = false) :
+      TensorImpl<T>{til_vec},
       proc_grid_{proc_grid},
-      scalapack_distribution_{scalapack_distribution} {
+      is_block_cyclic_{is_block_cyclic} {
         // check no dependences
         // check index spaces are dense
         // for(auto& til : til_vec) { EXPECTS(!til.is_dependent()); }
@@ -711,6 +726,11 @@ public:
     ~DenseTensorImpl() {
         // EXPECTS(allocation_status_ == AllocationStatus::deallocated ||
         //         allocation_status_ == AllocationStatus::invalid);
+    }
+
+    const Distribution &distribution() const override {
+      // return ref_tensor_.distribution();
+      return *distribution_.get();
     }
 
     void deallocate() {
@@ -725,6 +745,15 @@ public:
         ga_             = NGA_Create_handle();
         const int ndims = num_modes();
 
+        auto defd                  = ec->get_default_distribution();
+        Distribution* distribution = ec->distribution(
+          defd->get_tensor_base(), defd->get_dist_proc()); // defd->kind());
+        EXPECTS(distribution != nullptr);
+        if(!proc_grid_.empty()) distribution->set_proc_grid(proc_grid_);
+        distribution_ = std::shared_ptr<Distribution>(
+          distribution->clone(this, ec->pg().size()));
+        proc_grid_ = distribution_->proc_grid();
+
         auto tis_dims = tindices();
         std::vector<int64_t> dims;
         for(auto tis : tis_dims)
@@ -732,26 +761,16 @@ public:
 
         NGA_Set_data64(ga_, ndims, &dims[0], ga_eltype_);
 
-        const bool is_irreg_tis1 = !tis_dims[0].input_tile_sizes().empty();
-        const bool is_irreg_tis2 = !tis_dims[1].input_tile_sizes().empty();
-        // std::cout << "#dims 0,1 = " << dims[0] << "," << dims[1] <<
-        // std::endl;
+        std::vector<bool> is_irreg_tis(ndims,false);
+        for(int i = 0; i < ndims; i++) is_irreg_tis[i] = !tis_dims[i].input_tile_sizes().empty();
 
-        if(scalapack_distribution_) {
+        if(is_block_cyclic_) {
             // EXPECTS(ndims == 2);
             std::vector<int64_t> bsize(2);
             std::vector<int64_t> pgrid(2);
             {
-                // TODO: grid_factor doesnt work
-                if(proc_grid_.empty()) {
-                    int idx, idy;
-                    grid_factor((*ec).pg().size().value(), &idx, &idy);
-                    proc_grid_.push_back(idx);
-                    proc_grid_.push_back(idy);
-                }
-
                 // Cannot provide list of irreg tile sizes
-                EXPECTS(!is_irreg_tis1 && !is_irreg_tis2);
+                EXPECTS(!is_irreg_tis[0] && !is_irreg_tis[1]);
 
                 bsize[0] = tis_dims[0].input_tile_size();
                 bsize[1] = tis_dims[1].input_tile_size();
@@ -760,48 +779,34 @@ public:
                 pgrid[1] = proc_grid_[1].value();
             }
             // blocks_ = block sizes for scalapack distribution
-            GA_Set_block_cyclic_proc_grid64(ga_, &bsize[0], &pgrid[0]);
+            NGA_Set_block_cyclic_proc_grid64(ga_, &bsize[0], &pgrid[0]);
         } else {
             // only needed when irreg tile sizes are provided
-            if(is_irreg_tis1 || is_irreg_tis2) {
-                std::vector<Tile> tiles1 =
-                  is_irreg_tis1 ?
-                    tis_dims[0].input_tile_sizes() :
-                    std::vector<Tile>{tis_dims[0].input_tile_size()};
-                std::vector<Tile> tiles2 =
-                  is_irreg_tis2 ?
-                    tis_dims[1].input_tile_sizes() :
-                    std::vector<Tile>{tis_dims[1].input_tile_size()};
+            const bool is_irreg_tens = std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; });
+            if(is_irreg_tens) {
+                std::vector<std::vector<Tile>> tiles(ndims);
+                for(int i = 0; i < ndims; i++) {
+                  tiles[i] = is_irreg_tis[i] ? tis_dims[i].input_tile_sizes()
+                                             : std::vector<Tile>{tis_dims[i].input_tile_size()};
+                }
 
                 int64_t size_map;
                 int64_t nblock[ndims];
 
-                int nranks = (*ec).pg().size().value();
-                int ranks_list[nranks];
-                for(int i = 0; i < nranks; i++) ranks_list[i] = i;
-
-                int idx, idy;
-                grid_factor((*ec).pg().size().value(), &idx, &idy);
-
-                nblock[0] = is_irreg_tis1 ?
-                              tiles1.size() :
-                              std::ceil(dims[0] * 1.0 / tiles1[0]);
-                nblock[1] = is_irreg_tis2 ?
-                              tiles2.size() :
-                              std::ceil(dims[1] * 1.0 / tiles2[0]);
+                for(int i = 0; i < ndims; i++) {
+                  nblock[i] = is_irreg_tis[i] ?
+                              tiles[i].size() :
+                              std::ceil(dims[i] * 1.0 / tiles[i][0]);
+                }
 
                 // int max_t1 = is_irreg_tis1? *max_element(tiles1.begin(),
                 // tiles1.end()) : tiles1[0]; int max_t2 = is_irreg_tis2?
                 // *max_element(tiles2.begin(), tiles2.end()) : tiles2[0]; int
                 // new_t1 = std::ceil(nblock[0]/idx)*max_t1; int new_t2 =
                 // std::ceil(nblock[1]/idy)*max_t2;
-                nblock[0] = (int64_t)idx;
-                nblock[1] = (int64_t)idy;
+                for(int i = 0; i < ndims; i++) nblock[i] = (int64_t)proc_grid_[i].value();
 
-                size_map = nblock[0] + nblock[1];
-
-                // std::cout << "#blocks 0,1 = " << nblock[0] << "," <<
-                // nblock[1] << std::endl;
+                size_map = std::accumulate(nblock, nblock+ndims, (int64_t)0);
 
                 // create map
                 std::vector<int64_t> k_map(size_map);
@@ -809,7 +814,7 @@ public:
                     auto mi = 0;
                     for(auto idim = 0; idim < ndims; idim++) {
                         auto size_blk =
-                          std::ceil(1.0 * dims[idim] / nblock[idim]);
+                          (dims[idim] / nblock[idim]);
                         // regular tile size
                         for(auto i = 0; i < nblock[idim]; i++) {
                             k_map[mi] = size_blk * i;
@@ -818,15 +823,15 @@ public:
                     }
                     // k_map[mi] = 0;
                 }
-                GA_Set_irreg_distr64(ga_, &k_map[0], nblock);
+                NGA_Set_irreg_distr64(ga_, &k_map[0], nblock);
             } else {
-                // fixed tilesize for both dims
-                int64_t chunk[2] = {tis_dims[0].input_tile_size(),
-                                    tis_dims[1].input_tile_size()};
+                // fixed tilesize for all dims
+                int64_t chunk[ndims];
+                for(int i = 0; i < ndims; i++) chunk[i] = tis_dims[i].input_tile_size();
                 GA_Set_chunk64(ga_, chunk);
             }
         }
-        GA_Set_pgroup(ga_, ec->pg().ga_pg());
+        NGA_Set_pgroup(ga_, ec->pg().ga_pg());
         NGA_Allocate(ga_);
         update_status(AllocationStatus::created);
     }
@@ -874,7 +879,9 @@ public:
                   reinterpret_cast<void*>(buff_span.data()), &ld[0], alpha);
     }
 
-    int ga_handle() { return ga_; }
+    int ga_handle() override { return ga_; }
+
+    bool is_block_cyclic() override { return is_block_cyclic_; }
 
     /// @todo Should this be GA_Nodeid() or GA_Proup_nodeid(GA_Get_pgroup(ga_))
     T* access_local_buf() override {
@@ -906,7 +913,9 @@ public:
 
     /// @todo implement accordingly
     int64_t size() const override {
-        NOT_IMPLEMENTED();
+      int64_t res = 1;
+      for(const auto& tis: block_indices_) { res *= tis.max_num_indices(); }
+      return res;
     }
 
 protected:
@@ -930,18 +939,13 @@ protected:
     std::vector<int64_t> compute_ld(const IndexVector& blockid) const {
         std::vector<size_t> bdims = block_dims(blockid);
         std::vector<int64_t> retv(bdims.size() - 1, 1);
-        size_t ri = 0;
-        for(size_t i = bdims.size() - 1; i > 0; i--) {
-            retv[ri] = (int64_t)bdims[i];
-            ri++;
-        }
+        for(size_t i = 1; i < bdims.size(); i++) retv[i-1] = (int64_t) (bdims[i]);
         return retv;
     }
 
     int ga_;
     ProcGrid proc_grid_;
-    // true only when a ProcGrid is explicity passed to Tensor constructor
-    bool scalapack_distribution_ = false;
+    bool is_block_cyclic_ = false;
 
     // constants for NGA_Acc call
     float sp_alpha          = 1.0;
@@ -951,73 +955,6 @@ protected:
 
     int ga_eltype_ = to_ga_eltype(tensor_element_type<T>());
 
-    /**
-     * Factor p processors into 2D processor grid of dimensions px, py
-     */
-    void grid_factor(int p, int* idx, int* idy) {
-        int i, j;
-        const int MAX_FACTOR = 512;
-        int ip, ifac, pmax, prime[MAX_FACTOR];
-        int fac[MAX_FACTOR];
-        int ix, iy, ichk;
-
-        i = 1;
-        /**
-         *   factor p completely
-         *   first, find all prime numbers, besides 1, less than or equal to
-         *   the square root of p
-         */
-        ip   = (int)(sqrt((double)p)) + 1;
-        pmax = 0;
-        for(i = 2; i <= ip; i++) {
-            ichk = 1;
-            for(j = 0; j < pmax; j++) {
-                if(i % prime[j] == 0) {
-                    ichk = 0;
-                    break;
-                }
-            }
-            if(ichk) {
-                pmax = pmax + 1;
-                if(pmax > MAX_FACTOR) printf("Overflow in grid_factor\n");
-                prime[pmax - 1] = i;
-            }
-        }
-        /**
-         *   find all prime factors of p
-         */
-        ip   = p;
-        ifac = 0;
-        for(i = 0; i < pmax; i++) {
-            while(ip % prime[i] == 0) {
-                ifac          = ifac + 1;
-                fac[ifac - 1] = prime[i];
-                ip            = ip / prime[i];
-            }
-        }
-        /**
-         *  p is prime
-         */
-        if(ifac == 0) {
-            ifac++;
-            fac[0] = p;
-        }
-        /**
-         *    find two factors of p of approximately the
-         *    same size
-         */
-        *idx = 1;
-        *idy = 1;
-        for(i = ifac - 1; i >= 0; i--) {
-            ix = *idx;
-            iy = *idy;
-            if(ix <= iy) {
-                *idx = fac[i] * (*idx);
-            } else {
-                *idy = fac[i] * (*idy);
-            }
-        }
-    }
 
 }; // class DenseTensorImpl
 

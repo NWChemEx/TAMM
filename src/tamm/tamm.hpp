@@ -37,6 +37,7 @@
 namespace tamm {
 void initialize(int argc, char *argv[]);
 void finalize();
+void tamm_terminate(std::string msg);
 }
 
 #endif // TAMM_TAMM_H_

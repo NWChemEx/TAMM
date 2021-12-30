@@ -46,11 +46,12 @@ int main( int argc, char* argv[] )
 
     auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-    auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, AO_opt, AO_tis,scf_conv]  
-                    = hartree_fock(ec, filename, options_map);
+    auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO,
+          AO_opt, AO_tis, scf_conv] = hartree_fock(ec, filename, options_map);
 
-    Tensor<T>::deallocate(C_AO,F_AO);
-    if(sys_data.is_unrestricted) Tensor<T>::deallocate(C_beta_AO,F_beta_AO);
+    Tensor<T>::deallocate(C_AO, F_AO);
+    if(sys_data.is_ks) Tensor<T>::deallocate(vxc_tamm);
+    if(sys_data.is_unrestricted) Tensor<T>::deallocate(C_beta_AO, F_beta_AO);
 
     if(rank == 0) {
       sys_data.output_file_prefix = options_map.options.output_file_prefix;

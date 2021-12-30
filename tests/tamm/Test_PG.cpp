@@ -13,57 +13,48 @@ using T = double;
 void test_pg(int dim, int nproc) {
 
     ProcGroup gpg = ProcGroup::create_coll(GA_MPI_Comm());
-    ExecutionContext gec{gpg, DistributionKind::dense, MemoryManagerKind::ga};
+    ExecutionContext gec{gpg, DistributionKind::nw, MemoryManagerKind::ga};
 
     auto rank = gec.pg().rank();
 
-    auto subranks=nproc;
-    int ranks[subranks];
-    for (int i = 0; i < subranks; i++) ranks[i] = i;
+    auto world_comm = gec.pg().comm();
+    MPI_Group world_group;
+    MPI_Comm_group(world_comm,&world_group);
 
-    if(subranks < GA_Nnodes()) {
-        auto world_comm = gec.pg().comm();
-        MPI_Group world_group;
-        MPI_Comm_group(world_comm,&world_group);
-        MPI_Group subgroup;
-        MPI_Group_incl(world_group,subranks,ranks,&subgroup);
-        MPI_Comm subcomm;
-        MPI_Comm_create(world_comm,subgroup,&subcomm);
+    auto ppn = GA_Cluster_nprocs(0);
+    if(rank==0) std::cout << "ppn=" << ppn << std::endl;
 
-        if (rank < subranks)  {
-            int hrank;
-            EXPECTS(subcomm != MPI_COMM_NULL);
-            MPI_Comm_rank(subcomm,&hrank);
-            EXPECTS(rank==hrank);
+    int lranks[ppn];
+    for(int i = 0; i < ppn; i++) lranks[i] = i;
+    MPI_Group lgroup;
+    MPI_Comm_group(world_comm, &lgroup);
+    MPI_Group hf_lgroup;
+    MPI_Group_incl(lgroup, ppn, lranks, &hf_lgroup);
+    MPI_Comm subcomm;
+    MPI_Comm_create(world_comm, hf_lgroup, &subcomm);
 
-            ProcGroup pg = ProcGroup::create_coll(subcomm);
-            ExecutionContext ec{pg, DistributionKind::dense,
-                                MemoryManagerKind::ga};
 
-            TiledIndexSpace tis1{IndexSpace{range(dim)}, 40};
+    TiledIndexSpace AO{IndexSpace{range(5)},5};
+    Tensor<double> tens1{{AO, AO}};
 
-            auto [i, j, k] = tis1.labels<3>("all");
+    if(subcomm != MPI_COMM_NULL){
+      ProcGroup        pg_m = ProcGroup::create_coll(subcomm);
+      ExecutionContext ec_m{pg_m, DistributionKind::nw, MemoryManagerKind::ga};
+      Scheduler        sch{ec_m};
 
-            Tensor<T> A{i, k};
-            Tensor<T> B{k, j};
-            Tensor<T> C{i, j};
+      sch.allocate(tens1)(tens1() = 4.0).execute();
 
-            Scheduler{ec}.allocate(A, B, C)(A() = 21.0)(B() = 2.0)(C() = 0.0).deallocate(A,B,C).execute();
+      if(ec_m.pg().rank() == 0) {
+        double* tptr = tens1.access_local_buf();
+        auto    ts   = tens1.local_buf_size();
+        if(ec_m.pg().rank() == 0) std::cout << "ts = " << ts << "\n";
+        // for (int i=0;i<ts;i++) cout << tptr[i] << ",";
+        // cout << "\n";
+      }
 
-            ec.flush_and_sync();
-        }
-        // MPI_Group_free(&world_group);
-        // MPI_Group_free(&subgroup);
-        // MPI_Comm_free(&world_comm);
+      Tensor<T>::deallocate(tens1);
     }
-
-    gec.pg().barrier();
-
-    TiledIndexSpace AO{IndexSpace{range(20)},2};
-    Tensor<double> T0{AO, AO};
-    T0.allocate(&gec);
-    Tensor<T>::deallocate(T0);
-    gec.flush_and_sync();
+    // gec.flush_and_sync();
 }
 
 // TEST_CASE("/* Test case for replicated C */") {

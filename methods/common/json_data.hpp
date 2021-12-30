@@ -8,37 +8,37 @@ namespace fs = std::filesystem;
 
 struct SystemData {
   OptionsMap options_map;  
-  int  n_occ_alpha;
-  int  n_vir_alpha;
-  int  n_occ_beta;
-  int  n_vir_beta;
+  int  n_occ_alpha{};
+  int  n_vir_alpha{};
+  int  n_occ_beta{};
+  int  n_vir_beta{};
   int  n_lindep;
-  int  ndf;
-  int  nbf;
-  int  nbf_orig;
-  int  nelectrons;
-  int  nelectrons_alpha;
-  int  nelectrons_beta;  
-  int  n_frozen_core;
-  int  n_frozen_virtual;
-  int  nmo;
-  int  nocc;
-  int  nvir;
-  int  focc;
-  bool ediis;
-  bool is_restricted;
-  bool is_unrestricted;
-  bool is_restricted_os;
-  bool is_ks;
+  int  ndf{};
+  int  nbf{};
+  int  nbf_orig{};
+  int  nelectrons{};
+  int  nelectrons_alpha{};
+  int  nelectrons_beta{};
+  int  n_frozen_core{};
+  int  n_frozen_virtual{};
+  int  nmo{};
+  int  nocc{};
+  int  nvir{};
+  int  focc{};
+  bool ediis{};
+  bool is_restricted{};
+  bool is_unrestricted{};
+  bool is_restricted_os{};
+  bool is_ks{};
 
   std::string scf_type_string; 
   std::string input_molecule;
   std::string output_file_prefix;
 
   //output data
-  double scf_energy;
-  int num_chol_vectors;
-  double ccsd_corr_energy;
+  double scf_energy{};
+  int num_chol_vectors{};
+  double ccsd_corr_energy{};
 
   // json data
   json results;
@@ -103,6 +103,23 @@ void check_json(std::string filename){
   std::string get_ext = fs::path(filename).extension();
   const bool is_json = (get_ext == ".json");
   if(!is_json) tamm_terminate("ERROR: Input file provided [" + filename + "] must be a json file");
+}
+
+json json_from_file(std::string jfile) {
+  json jdata;
+  check_json(jfile);
+
+  auto                  is = std::ifstream(jfile);
+  json_sax_no_exception jsax(jdata);
+  bool                  parse_result = json::sax_parse(is, &jsax);
+  if(!parse_result) tamm_terminate("Error parsing file: " + jfile);
+
+  return jdata;
+}
+
+void json_to_file(json jdata, std::string jfile) {
+  std::ofstream res_file(jfile);
+  res_file << std::setw(2) << jdata << std::endl;
 }
 
 std::string getfilename(std::string filename){

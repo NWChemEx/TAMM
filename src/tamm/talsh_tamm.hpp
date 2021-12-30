@@ -133,19 +133,42 @@ class TALSH {
     //EXPECTS(!errc);
   }
 
+  template<typename T>
  tensor_handle gpu_block(int rank,
                          const int dims[],
                          int dev_num,
                          void *buf = nullptr) {
+
+    using std::is_same_v; 
+
     tensor_handle tens;
     int errc;
     errc = talshTensorClean(&tens);
     //EXPECTS(!errc);
-    errc = talshTensorConstruct(&tens, R8,
+
+    if constexpr(ti_internal::is_complex_v<T>) {
+      //TODO: check complex double/float
+      // if constexpr(is_same_v<T,std::complex<double>) {}      
+        errc = talshTensorConstruct(&tens, C8,
                                 rank, dims,
                                 // talshFlatDevId(DEV_HOST,0),
                                 talshFlatDevId(DEV_NVIDIA_GPU,dev_num),
                                 buf);
+    }
+    else if constexpr(is_same_v<T,double>) {
+        errc = talshTensorConstruct(&tens, R8,
+                                rank, dims,
+                                // talshFlatDevId(DEV_HOST,0),
+                                talshFlatDevId(DEV_NVIDIA_GPU,dev_num),
+                                buf);
+    }
+    else if constexpr(is_same_v<T,float>) {
+        errc = talshTensorConstruct(&tens, R4,
+                                rank, dims,
+                                // talshFlatDevId(DEV_HOST,0),
+                                talshFlatDevId(DEV_NVIDIA_GPU,dev_num),
+                                buf);
+    }      
     //EXPECTS(!errc);
     // set_block(tens, init_val); //initialize
     // errc = talshTensorPlace(&tens, 

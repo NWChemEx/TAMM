@@ -15,6 +15,7 @@
 
 // #define IO_ISIRREG 1
 // #define TU_SG true
+#define TU_SG_IO true
 
 namespace tamm {
 
@@ -322,6 +323,62 @@ void update_tensor(LabeledTensor<T> labeled_tensor, Func lambda) {
 }
 
 /**
+ * @brief Update a value at a given coordinate in a tensor
+ * TODO: update local buf directly to avoid get/put
+ */
+template<typename T>
+void update_tensor_val(LabeledTensor<T> ltensor, std::vector<size_t> coord, T val) {
+
+    Tensor<T> tensor = ltensor.tensor();
+    const size_t ndims = tensor.num_modes();
+    EXPECTS(ndims == coord.size());
+
+    if ((tensor.execution_context())->pg().rank() == 0) {
+        LabelLoopNest loop_nest{ltensor.labels()};
+
+        for(auto it : tensor.loop_nest()) {
+            auto blockid   = internal::translate_blockid(it, ltensor);
+            if(!tensor.is_non_zero(blockid)) continue;
+            auto block_dims = tensor.block_dims(blockid);
+            auto block_offset = tensor.block_offsets(blockid);
+            // std::cout << "blockid: " << blockid << ", ";
+            // std::cout << "block_offsets: " << block_offset << ", ";
+            // std::cout << "bdims: " << block_dims << ", size: " << tensor.block_size(blockid) << std::endl;
+            
+            bool vc = true;
+            for (size_t x=0;x<ndims;x++) {
+                if(!( 
+                    (coord[x] >= block_offset[x]) && (coord[x] < (block_offset[x] + block_dims[x]))
+                   ) )
+                 vc = vc && false;
+            }
+            if(vc) {
+                TAMM_SIZE size = tensor.block_size(blockid);
+
+                std::vector<T> buf(size);
+                TAMM_SIZE val_pos = 0;
+                for (size_t x=0;x<ndims;x++) {
+                    TAMM_SIZE rd = coord[x] - block_offset[x];
+                    for (size_t y=x+1;y<ndims;y++) rd *= block_dims[y];
+                    val_pos += rd;
+                }
+ 
+                tensor.get(blockid, buf);
+                buf[val_pos] = val;
+                tensor.put(blockid, buf);
+                break;
+            }
+        }
+    }
+    (tensor.execution_context())->pg().barrier();
+}
+
+template<typename T>
+void update_tensor_val(Tensor<T>& tensor, std::vector<size_t> coord, T val) {
+    update_tensor_val(tensor(),coord,val);
+}
+
+/**
  * @brief Update input LabeledTensor object with a lambda function
  *
  * @tparam T template type for Tensor element type
@@ -619,9 +676,13 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor) {
 
   for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
 
+  int ga_pg_default = GA_Pgroup_get_default();
+  GA_Pgroup_set_default(ec.pg().ga_pg());
+
   auto ga_eltype = to_ga_eltype(tensor_element_type<TensorType>());
   int ga_tens = NGA_Create64(ga_eltype,ndims,&dims[0],const_cast<char*>("iotemp"),&chnks[0]);
   //GA_Zero(ga_tens);
+  GA_Pgroup_set_default(ga_pg_default);
 
     //convert tamm tensor to GA
     auto tamm_ga_lambda = [&](const IndexVector& bid){
@@ -702,7 +763,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
     auto io_t1 = std::chrono::high_resolution_clock::now();
     int rank = gec.pg().rank().value();
 
-    #ifdef TU_SG
+    #ifdef TU_SG_IO
     MPI_Comm io_comm;
     auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm,nagg_hint);
     #else
@@ -715,17 +776,17 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
     const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
     if(rank == 0 && profile) std::cout << "write to disk using: " << nppn << std::endl;
 
-    int64_t tensor_size;
-    int ndim=1,itype;
+    int64_t tensor_dims[7] = {1,1,1,1,1,1,1};
+    int ndim{1},itype{};
     ga_tens = tensor.ga_handle();
-    NGA_Inquire64(ga_tens,&itype,&ndim,&tensor_size);
+    NGA_Inquire64(ga_tens,&itype,&ndim,tensor_dims);
 
-    // tensor_size = 1;
-    // for(auto tis: tensor.tiled_index_spaces()) tensor_size = tensor_size * (tis.index_space().num_indices());
+    // if ndim=2, this is an nD GA and assumed to be dense.
+    int64_t tensor_size = std::accumulate(tensor_dims, tensor_dims+ndim, (int64_t)1, std::multiplies<int64_t>());
 
     hid_t hdf5_dt = get_hdf5_dt<TensorType>();
 
-    #ifdef TU_SG
+    #ifdef TU_SG_IO
     if(io_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup::create_coll(io_comm);
         ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
@@ -884,7 +945,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
         H5Sclose(dataspace);
         H5Fclose(file_identifier);
 
-    #ifdef TU_SG
+    #ifdef TU_SG_IO
         ec.flush_and_sync();
         //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&io_comm);
@@ -1150,7 +1211,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
     auto io_t1 = std::chrono::high_resolution_clock::now();
     int rank = gec.pg().rank().value();
 
-    #ifdef TU_SG
+    #ifdef TU_SG_IO
     MPI_Comm io_comm;
     auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm,nagg_hint);
     #else
@@ -1178,7 +1239,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
 
     auto tensor_back = tensor;
 
-    #ifdef TU_SG
+    #ifdef TU_SG_IO
     if(io_comm != MPI_COMM_NULL) {
         ProcGroup pg = ProcGroup::create_coll(io_comm);
         ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
@@ -1340,7 +1401,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
         H5Dclose(dataset);
         H5Fclose(file_identifier);
 
-    #ifdef TU_SG
+    #ifdef TU_SG_IO
         ec.flush_and_sync();
         //MemoryManagerGA::destroy_coll(mgr);
         MPI_Comm_free(&io_comm);
@@ -2716,38 +2777,101 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>>
     return std::make_tuple(gmin[0], minblockid, bfuv);
 }
 
-// following is when tamm tensor is a 2D GA irreg 
-// template<typename TensorType>
-// Tensor<TensorType> to_block_cyclic_tensor(ProcGrid pg, Tensor<TensorType> tensor)
-// {
-//     EXPECTS(tensor.num_modes() == 2);
-//     LabeledTensor<TensorType> ltensor = tensor();
-//     ExecutionContext& ec = get_ec(ltensor);
+// regular 2D tamm tensor to block-cyclic tamm tensor
+template<typename TensorType>
+void to_block_cyclic_tensor(Tensor<TensorType> tensor, Tensor<TensorType> bc_tensor)
+{
+    int ndims = tensor.num_modes();
+    EXPECTS(ndims == 2);
+    EXPECTS(bc_tensor.is_block_cyclic());
+    auto ga_tens = bc_tensor.ga_handle();
 
-//     auto tis = tensor.tiled_index_spaces();
-//     const bool is_irreg_tis1 = !tis[0].input_tile_sizes().empty();
-//     const bool is_irreg_tis2 = !tis[1].input_tile_sizes().empty();
-    
-//     std::vector<Tile> tiles1 = 
-//         is_irreg_tis1? tis_dims[0].input_tile_sizes() 
-//       : std::vector<Tile>{tis_dims[0].input_tile_size()};
-//     std::vector<Tile> tiles2 = 
-//         is_irreg_tis2? tis_dims[1].input_tile_sizes() 
-//       : std::vector<Tile>{tis_dims[1].input_tile_size()};
-//     //Choose tile size based on tile sizes of regular tensor
-//     //TODO: Can user provide tilesize for block-cylic tensor?
-//     Tile max_t1 = is_irreg_tis1? *max_element(tiles1.begin(), tiles1.end()) : tiles1[0];
-//     Tile max_t2 = is_irreg_tis2? *max_element(tiles2.begin(), tiles2.end()) : tiles2[0];
+    //bc_tensor might be on a smaller process group
+    ExecutionContext& ec = get_ec(bc_tensor());
 
-//     TiledIndexSpace t1{range(tis[0].index_space().num_indices()),max_t1};
-//     TiledIndexSpace t2{range(tis[1].index_space().num_indices()),max_t2};
-//     Tensor<TensorType> bc_tensor{pg,{t1,t2}};
-//     Tensor<TensorType>::allocate(&ec,bc_tensor);
-//     GA_Copy(tensor.ga_handle(),bc_tensor.ga_handle());
 
-//     //caller is responsible for deallocating bc_tensor
-//     return bc_tensor;
-// }
+    auto tamm_bc_lambda = [&](const IndexVector& bid){
+        const IndexVector blockid =
+        internal::translate_blockid(bid, tensor());
+
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+
+        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+        
+        std::vector<int64_t> lo(ndims),hi(ndims),ld(ndims-1);
+
+        for(size_t i=0;i<ndims;i++) lo[i]   = cd_ncast<size_t>(block_offset[i]);
+        for(size_t i=0;i<ndims;i++) hi[i]   = cd_ncast<size_t>(block_offset[i] + block_dims[i]-1);
+        for(size_t i=1;i<ndims;i++) ld[i-1] = cd_ncast<size_t>(block_dims[i]);
+
+        std::vector<TensorType> sbuf(dsize);
+        tensor.get(blockid, sbuf);
+        NGA_Put64(ga_tens,&lo[0],&hi[0],&sbuf[0],&ld[0]);
+    };
+
+    block_for(ec, tensor(), tamm_bc_lambda);    
+
+}
+
+template<typename TensorType>
+void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> tensor)
+{
+  const auto ndims = bc_tensor.num_modes();
+  EXPECTS(ndims == 2);
+  EXPECTS(bc_tensor.is_block_cyclic());
+  EXPECTS(bc_tensor.kind() == TensorBase::TensorKind::dense);
+  EXPECTS(bc_tensor.distribution().kind() == DistributionKind::dense);
+
+  auto ga_tens = bc_tensor.ga_handle();
+
+  // bc_tensor might be on a smaller process group
+  ExecutionContext& ec = get_ec(bc_tensor());
+
+  auto tamm_bc_lambda = [&](const IndexVector& bid) {
+    const IndexVector blockid = internal::translate_blockid(bid, tensor());
+
+    auto block_dims   = tensor.block_dims(blockid);
+    auto block_offset = tensor.block_offsets(blockid);
+
+    const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+
+    std::vector<int64_t> lo(ndims), hi(ndims), ld(ndims - 1);
+
+    for(size_t i = 0; i < ndims; i++) lo[i] = cd_ncast<size_t>(block_offset[i]);
+    for(size_t i = 0; i < ndims; i++) hi[i] = cd_ncast<size_t>(block_offset[i] + block_dims[i] - 1);
+    for(size_t i = 1; i < ndims; i++) ld[i - 1] = cd_ncast<size_t>(block_dims[i]);
+
+    std::vector<TensorType> sbuf(dsize);
+    NGA_Get64(ga_tens, &lo[0], &hi[0], &sbuf[0], &ld[0]);
+    tensor.put(blockid, sbuf);
+  };
+
+  block_for(ec, tensor(), tamm_bc_lambda);
+}
+
+template<typename TensorType>
+Tensor<TensorType> from_block_cyclic_tensor(Tensor<TensorType> bc_tensor) {
+  //TiledIndexSpaceVec tis_vec={}, bool is_dense=true) 
+  
+  const int ndims = bc_tensor.num_modes();
+  EXPECTS(ndims == 2);
+  EXPECTS(bc_tensor.is_block_cyclic());
+  EXPECTS(bc_tensor.kind() == TensorBase::TensorKind::dense);
+  EXPECTS(bc_tensor.distribution().kind() == DistributionKind::dense);
+  
+//   if(!tis_vec.empty()) EXPECTS(tis_vec.size() == ndims);
+//   else tis_vec = bc_tensor.tiled_index_spaces();
+
+  ExecutionContext& ec  = get_ec(bc_tensor());
+  // this routine works only when the tiled index spaces are exactly the same 
+  Tensor<TensorType> tensor{bc_tensor.tiled_index_spaces()};
+  /*if(is_dense)*/ tensor.set_dense();
+  Tensor<TensorType>::allocate(&ec,tensor);
+  from_block_cyclic_tensor(bc_tensor, tensor);
+
+  return tensor;
+}
 
 template<typename TensorType>
 std::tuple<TensorType*,int64_t> access_local_block_cyclic_buffer(Tensor<TensorType> tensor) 
@@ -2761,105 +2885,92 @@ std::tuple<TensorType*,int64_t> access_local_block_cyclic_buffer(Tensor<TensorTy
    return std::make_tuple(lbufptr,lbufsize);
 }
 
-
+// permute a given tensor (TODO: does not work correctly for >=3D dense tensors)
 template<typename TensorType>
-Tensor<TensorType> to_block_cyclic_tensor(Tensor<TensorType> tensor, ProcGrid pg, std::vector<int64_t> tilesizes)
-{
-    EXPECTS(tensor.num_modes() == 2);
-    LabeledTensor<TensorType> ltensor = tensor();
-    ExecutionContext& ec = get_ec(ltensor);
-
+Tensor<TensorType> permute_tensor(Tensor<TensorType> tensor, std::vector<int> permute) {
     auto tis = tensor.tiled_index_spaces();
-    const bool is_irreg_tis1 = !tis[0].input_tile_sizes().empty();
-    const bool is_irreg_tis2 = !tis[1].input_tile_sizes().empty();
-    
-    std::vector<Tile> tiles1 = 
-        is_irreg_tis1? tis[0].input_tile_sizes() 
-      : std::vector<Tile>{tis[0].input_tile_size()};
-    std::vector<Tile> tiles2 = 
-        is_irreg_tis2? tis[1].input_tile_sizes() 
-      : std::vector<Tile>{tis[1].input_tile_size()};
+    int ndims = tis.size();
+    EXPECTS(!permute.empty() && ndims == permute.size());
+    EXPECTS(std::all_of(permute.begin(), permute.end(), [&](int i){ return i>=0 && i<ndims; }));
 
-    //Choose tile size based on tile sizes of regular tensor
-    //TODO: Can user provide tilesize for block-cylic tensor?
-    Tile max_t1 = is_irreg_tis1? *max_element(tiles1.begin(), tiles1.end()) : tiles1[0];
-    Tile max_t2 = is_irreg_tis2? *max_element(tiles2.begin(), tiles2.end()) : tiles2[0];
+    std::vector<TiledIndexLabel> til(ndims), ptil(ndims);
+    for (int i = 0; i < ndims; i++) til[i]  = tis[i].label("all");
+    for (int i = 0; i < ndims; i++) ptil[i] = til[permute[i]];
 
-    if(!tilesizes.empty()) {
-        EXPECTS(tilesizes.size() == 2);
-        max_t1 = static_cast<Tile>(tilesizes[0]);
-        max_t2 = static_cast<Tile>(tilesizes[1]);
-    }
-    
-    TiledIndexSpace t1{range(tis[0].index_space().num_indices()),max_t1};
-    TiledIndexSpace t2{range(tis[1].index_space().num_indices()),max_t2};
-    Tensor<TensorType> bc_tensor{pg,{t1,t2}};
-    Tensor<TensorType>::allocate(&ec,bc_tensor);
-    int bc_tensor_gah = bc_tensor.ga_handle();
+    Tensor<TensorType> ptensor{ptil};
+    if(tensor.kind() == TensorBase::TensorKind::dense) ptensor.set_dense();
+    ExecutionContext& ec = get_ec(tensor());
+    Scheduler{ec}.allocate(ptensor)
+    (ptensor(ptil) = tensor(til)).execute();
 
-    //convert regular 2D tamm tensor to block cyclic tamm tensor
-    auto copy_to_bc = [&](const IndexVector& bid){
-        const IndexVector blockid =
-        internal::translate_blockid(bid, ltensor);
-
-        auto block_dims   = tensor.block_dims(blockid);
-        auto block_offset = tensor.block_offsets(blockid);
-
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-
-        int64_t lo[2] = {cd_ncast<size_t>(block_offset[0]), 
-                         cd_ncast<size_t>(block_offset[1])};
-        int64_t hi[2] = {cd_ncast<size_t>(block_offset[0] + block_dims[0]-1), 
-                         cd_ncast<size_t>(block_offset[1] + block_dims[1]-1)};
-        int64_t ld = cd_ncast<size_t>(block_dims[1]);
-
-        std::vector<TensorType> sbuf(dsize);
-        tensor.get(blockid, sbuf);
-
-        NGA_Put64(bc_tensor_gah,lo,hi,&sbuf[0],&ld);
-
-    };
-
-    block_for(ec, ltensor, copy_to_bc);
-
-    //caller is responsible for deallocating
-    return bc_tensor;
+    return ptensor; // caller responsible for dellocating this tensor
 }
 
+// Extract block of a dense tensor given by [lo, hi)
 template<typename TensorType>
-void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> tensor)
-{
-    EXPECTS(tensor.num_modes() == 2 && bc_tensor.num_modes() == 2);
+Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> lo, std::vector<int64_t> hi, std::vector<int> permute={}) {
+    
+    const int ndims = tensor.num_modes();
+    EXPECTS(tensor.kind() == TensorBase::TensorKind::dense);
+    EXPECTS(tensor.distribution().kind() == DistributionKind::dense);
+
+    auto tis = tensor.tiled_index_spaces();
+
+    for(int i = 0; i < ndims; i++) {
+      EXPECTS(hi[i] <= tis[i].index_space().num_indices() && lo[i] >= 0);
+      // tamm_terminate("invalid ranges specified to tensor_block");
+    }
+
     LabeledTensor<TensorType> ltensor = tensor();
     ExecutionContext& ec = get_ec(ltensor);
+    std::vector<bool> is_irreg_tis(ndims,false);
+    for(int i = 0; i < ndims; i++) is_irreg_tis[i] = !tis[i].input_tile_sizes().empty();
 
-    int bc_handle = bc_tensor.ga_handle();
+    std::vector<std::vector<Tile>> tiles(ndims);
+    for(int i = 0; i < ndims; i++) {
+      tiles[i] = is_irreg_tis[i] ? tis[i].input_tile_sizes()
+                                 : std::vector<Tile>{tis[i].input_tile_size()};
+    }
 
-    // convert a block cyclic tamm tensor to regular 2D tamm tensor
-    auto copy_from_bc = [&](const IndexVector& bid){
-        const IndexVector blockid =
-        internal::translate_blockid(bid, ltensor);
+    std::vector<Tile> max_ts(ndims);
+    for(int i = 0; i < ndims; i++)
+      max_ts[i] = is_irreg_tis[i] ? *max_element(tiles[i].begin(), tiles[i].end()) : tiles[i][0];
 
-        auto block_dims   = tensor.block_dims(blockid);
-        auto block_offset = tensor.block_offsets(blockid);
+    TiledIndexSpaceVec btis(ndims);
+    for(int i = 0; i < ndims; i++) btis[i] = TiledIndexSpace{range(hi[i] - lo[i]), max_ts[i]};
 
-        const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
+    Tensor<TensorType> btensor{btis};
+    btensor.set_dense();
+    Tensor<TensorType>::allocate(&ec,btensor);
+    int btensor_gah = btensor.ga_handle();
+    int tensor_gah  = tensor.ga_handle();
 
-        int64_t lo[2] = {cd_ncast<size_t>(block_offset[0]), 
-                         cd_ncast<size_t>(block_offset[1])};
-        int64_t hi[2] = {cd_ncast<size_t>(block_offset[0] + block_dims[0]-1), 
-                         cd_ncast<size_t>(block_offset[1] + block_dims[1]-1)};
-        int64_t ld = cd_ncast<size_t>(block_dims[1]);
+    char ctrans = 'N';
 
-        std::vector<TensorType> sbuf(dsize);
-        NGA_Get64(bc_handle,lo,hi,&sbuf[0],&ld);
+    int64_t lo_src[ndims], hi_src[ndims], lo_dst[ndims], hi_dst[ndims];
+    for(int i = 0; i < ndims; i++) {
+      lo_src[i] = lo[i];
+      hi_src[i] = hi[i] - 1;
+    }
+    for(int i = 0; i < ndims; i++) {
+      lo_dst[i] = 0;
+      hi_dst[i] = hi_src[i] - lo_src[i];
+    }
 
-        tensor.put(blockid, sbuf);
+    int ga_pg_default = GA_Pgroup_get_default();
+    GA_Pgroup_set_default(ec.pg().ga_pg());
+    
+    NGA_Copy_patch64(ctrans, tensor_gah, lo_src, hi_src, btensor_gah, lo_dst, hi_dst);
 
-    };
+    GA_Pgroup_set_default(ga_pg_default);
 
-    block_for(ec, ltensor, copy_from_bc);
+    Tensor<TensorType> pbtensor = btensor;
+    if(!permute.empty()) {
+      pbtensor = permute_tensor<TensorType>(btensor, permute);
+      Tensor<TensorType>::deallocate(btensor);
+    }
 
+    return pbtensor; // caller responsible for dellocating this tensor
 }
 
 inline TiledIndexLabel compose_lbl(const TiledIndexLabel& lhs,

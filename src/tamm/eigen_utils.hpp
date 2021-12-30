@@ -26,6 +26,21 @@ void patch_copy(std::vector<T>& sbuf,
 
 template<typename T>
 void patch_copy(std::vector<T>& sbuf,
+                Eigen::Matrix<T, 1, Eigen::Dynamic>& etensor,
+                const std::vector<size_t>& block_dims,
+                const std::vector<size_t>& block_offset, bool t2e = true) {
+    size_t c = 0;
+    for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0];
+        i++, c++) {
+        if(t2e)
+            etensor(i) = sbuf[c];
+        else
+            sbuf[c] = etensor(i);
+    }
+}
+
+template<typename T>
+void patch_copy(std::vector<T>& sbuf,
                 Eigen::Tensor<T, 1, Eigen::RowMajor>& etensor,
                 const std::vector<size_t>& block_dims,
                 const std::vector<size_t>& block_offset, bool t2e = true) {
@@ -117,6 +132,15 @@ void patch_copy(std::vector<T>& sbuf,
     }
 }
 
+Matrix eigen_tensor_to_matrix(Tensor2D &eig_tensor) {
+  Matrix eig_mat(eig_tensor.dimensions()[0], eig_tensor.dimensions()[1]);
+  eig_mat.setZero();
+  for (int i = 0; i < eig_mat.rows(); i++)
+    for (int j = 0; j < eig_mat.cols(); j++)
+      eig_mat(i, j) = eig_tensor(i, j);
+  return eig_mat;
+}
+
 template<typename T, int ndim>
 Eigen::Tensor<T, ndim, Eigen::RowMajor> tamm_to_eigen_tensor(
     const tamm::Tensor<T>& tensor) {
@@ -159,6 +183,21 @@ Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> tamm_to_eigen_
     return etensor;
 }
 
+// 1D case
+template<typename T>
+void tamm_to_eigen_tensor(
+  const tamm::Tensor<T>& tensor,
+  Eigen::Matrix<T, 1, Eigen::Dynamic>& etensor) {
+    for(const auto& blockid : tensor.loop_nest()) {
+        const tamm::TAMM_SIZE size = tensor.block_size(blockid);
+        std::vector<T> buf(size);
+        tensor.get(blockid, buf);
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+        patch_copy<T>(buf, etensor, block_dims, block_offset, true);
+    }
+}
+
 template<typename T>
 void tamm_to_eigen_tensor(
   const tamm::Tensor<T>& tensor,
@@ -189,6 +228,22 @@ void tamm_to_eigen_tensor(const tamm::Tensor<T>& tensor,
 template<typename T, int ndim>
 void eigen_to_tamm_tensor(tamm::Tensor<T>& tensor,
                           Eigen::Tensor<T, ndim, Eigen::RowMajor>& etensor) {
+    for(const auto& blockid : tensor.loop_nest()) {
+        const tamm::TAMM_SIZE size = tensor.block_size(blockid);
+        std::vector<T> buf(size);
+        // tensor.get(blockid, buf);
+        auto block_dims   = tensor.block_dims(blockid);
+        auto block_offset = tensor.block_offsets(blockid);
+        patch_copy<T>(buf, etensor, block_dims, block_offset, false);
+        tensor.put(blockid, buf);
+    }
+}
+
+// 1D case
+template<typename T>
+void eigen_to_tamm_tensor(
+  tamm::Tensor<T>& tensor,
+  Eigen::Matrix<T, 1, Eigen::Dynamic>& etensor) {
     for(const auto& blockid : tensor.loop_nest()) {
         const tamm::TAMM_SIZE size = tensor.block_size(blockid);
         std::vector<T> buf(size);

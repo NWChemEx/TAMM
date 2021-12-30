@@ -87,7 +87,8 @@ class MemoryManager {
    * @return Allocated memory region
    */
   virtual MemoryRegion* alloc_coll_balanced(ElementType eltype,
-                                            Size max_nelements) = 0;
+                                            Size max_nelements,
+                                            ProcList proc_list = {}) = 0;
 
   /**
    * @brief Attach a memory region to the process group.

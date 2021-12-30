@@ -16,6 +16,71 @@ using namespace tamm;
   // };
 
 template<typename T>
+struct V2Tensors {
+  Tensor<T> v2ijab; //hhpp
+  Tensor<T> v2iajb; //hphp
+  Tensor<T> v2ijka; //hhhp
+  Tensor<T> v2ijkl; //hhhh
+  Tensor<T> v2iabc; //hppp
+  Tensor<T> v2abcd; //pppp
+
+  std::string v2ijab_file,v2iajb_file,v2ijka_file,v2ijkl_file,v2iabc_file,v2abcd_file;
+
+  void deallocate() {
+    Tensor<T>::deallocate(v2ijab,v2iajb,v2ijka,v2ijkl,v2iabc,v2abcd);
+  }
+
+  void allocate(ExecutionContext& ec, const TiledIndexSpace& MO) {
+    auto [h1,h2,h3,h4] = MO.labels<4>("occ");
+    auto [p1,p2,p3,p4] = MO.labels<4>("virt");
+
+    v2ijkl = Tensor<T>{{h1,h2,h3,h4},{2,2}};
+    v2ijka = Tensor<T>{{h1,h2,h3,p1},{2,2}};
+    v2iajb = Tensor<T>{{h1,p1,h2,p2},{2,2}};
+    v2ijab = Tensor<T>{{h1,h2,p1,p2},{2,2}};
+    v2iabc = Tensor<T>{{h1,p1,p2,p3},{2,2}};
+    v2abcd = Tensor<T>{{p1,p2,p3,p4},{2,2}};
+    Tensor<T>::allocate(&ec,v2ijab,v2iajb,v2ijka,v2ijkl,v2iabc,v2abcd);
+  }
+
+  void set_file_prefix(const std::string& fprefix){
+    v2ijab_file = fprefix+".v2ijab";
+    v2iajb_file = fprefix+".v2iajb";
+    v2ijka_file = fprefix+".v2ijka";
+    v2ijkl_file = fprefix+".v2ijkl";
+    v2iabc_file = fprefix+".v2iabc";
+    v2abcd_file = fprefix+".v2abcd";
+  }
+
+  void write_to_disk(const std::string& fprefix){
+    set_file_prefix(fprefix);
+    tamm::write_to_disk(v2ijab,v2ijab_file);
+    tamm::write_to_disk(v2iajb,v2iajb_file);
+    tamm::write_to_disk(v2ijka,v2ijka_file);
+    tamm::write_to_disk(v2ijkl,v2ijkl_file);
+    tamm::write_to_disk(v2iabc,v2iabc_file);
+    tamm::write_to_disk(v2abcd,v2abcd_file);
+  }
+
+  void read_from_disk(const std::string& fprefix){
+    set_file_prefix(fprefix);
+    tamm::read_from_disk(v2ijab,v2ijab_file);
+    tamm::read_from_disk(v2iajb,v2iajb_file);
+    tamm::read_from_disk(v2ijka,v2ijka_file);
+    tamm::read_from_disk(v2ijkl,v2ijkl_file);
+    tamm::read_from_disk(v2iabc,v2iabc_file);
+    tamm::read_from_disk(v2abcd,v2abcd_file);
+  }
+
+  bool exist_on_disk(const std::string& fprefix) {
+    set_file_prefix(fprefix);
+    return ( fs::exists(v2ijab_file) && fs::exists(v2iajb_file) &&
+             fs::exists(v2ijka_file) && fs::exists(v2ijkl_file) &&
+             fs::exists(v2iabc_file) && fs::exists(v2abcd_file) );
+  }
+};
+
+template<typename T>
 void setup_full_t1t2(ExecutionContext& ec, const TiledIndexSpace& MO,
   Tensor<T>& dt1_full, Tensor<T>& dt2_full) {
 
@@ -493,11 +558,11 @@ setupLambdaTensors(ExecutionContext& ec, TiledIndexSpace& MO, size_t ndiis) {
   if(rank == 0) {
     std::cout << std::endl << std::endl;
     std::cout << " Lambda CCSD iterations" << std::endl;
-    std::cout << std::string(44, '-') << std::endl;
+    std::cout << std::string(45, '-') << std::endl;
     std::cout <<
         " Iter          Residuum          Cpu    Wall"
               << std::endl;
-    std::cout << std::string(44, '-') << std::endl;
+    std::cout << std::string(45, '-') << std::endl;
   }
 
   std::vector<Tensor<T>> d_r1s,d_r2s,d_y1s, d_y2s;
@@ -515,6 +580,37 @@ setupLambdaTensors(ExecutionContext& ec, TiledIndexSpace& MO, size_t ndiis) {
 
 }
 
+
+template<typename T>
+V2Tensors<T> setupV2Tensors(ExecutionContext& ec, Tensor<T> cholVpr, ExecutionHW ex_hw = ExecutionHW::CPU) {
+  TiledIndexSpace MO    = cholVpr.tiled_index_spaces()[0]; // MO
+  TiledIndexSpace CI    = cholVpr.tiled_index_spaces()[2]; // CI
+  auto [cind]           = CI.labels<1>("all");
+  auto [h1, h2, h3, h4] = MO.labels<4>("occ");
+  auto [p1, p2, p3, p4] = MO.labels<4>("virt");
+
+  V2Tensors<T> v2tensors;
+  v2tensors.allocate(ec, MO);
+
+  // clang-format off
+  Scheduler{ec}
+  ( v2tensors.v2ijkl(h1,h2,h3,h4)      =   1.0 * cholVpr(h1,h3,cind) * cholVpr(h2,h4,cind) )
+  ( v2tensors.v2ijkl(h1,h2,h3,h4)     +=  -1.0 * cholVpr(h1,h4,cind) * cholVpr(h2,h3,cind) )
+  ( v2tensors.v2ijka(h1,h2,h3,p1)      =   1.0 * cholVpr(h1,h3,cind) * cholVpr(h2,p1,cind) )
+  ( v2tensors.v2ijka(h1,h2,h3,p1)     +=  -1.0 * cholVpr(h2,h3,cind) * cholVpr(h1,p1,cind) )
+  ( v2tensors.v2iajb(h1,p1,h2,p2)      =   1.0 * cholVpr(h1,h2,cind) * cholVpr(p1,p2,cind) )
+  ( v2tensors.v2iajb(h1,p1,h2,p2)     +=  -1.0 * cholVpr(h1,p2,cind) * cholVpr(h2,p1,cind) )
+  ( v2tensors.v2ijab(h1,h2,p1,p2)      =   1.0 * cholVpr(h1,p1,cind) * cholVpr(h2,p2,cind) )
+  ( v2tensors.v2ijab(h1,h2,p1,p2)     +=  -1.0 * cholVpr(h1,p2,cind) * cholVpr(h2,p1,cind) )
+  ( v2tensors.v2iabc(h1,p1,p2,p3)      =   1.0 * cholVpr(h1,p2,cind) * cholVpr(p1,p3,cind) )
+  ( v2tensors.v2iabc(h1,p1,p2,p3)     +=  -1.0 * cholVpr(h1,p3,cind) * cholVpr(p1,p2,cind) )
+  ( v2tensors.v2abcd(p1,p2,p3,p4)      =   1.0 * cholVpr(p1,p3,cind) * cholVpr(p2,p4,cind) )
+  ( v2tensors.v2abcd(p1,p2,p3,p4)     +=  -1.0 * cholVpr(p1,p4,cind) * cholVpr(p2,p3,cind) )
+  .execute(ex_hw);
+  // clang-format on
+
+  return v2tensors;
+}
 
 template<typename T>
 Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI,
@@ -647,9 +743,14 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
     sys_data.n_frozen_virtual = sys_data.options_map.ccsd_options.freeze_virtual;
     bool do_freeze = sys_data.n_frozen_core > 0 || sys_data.n_frozen_virtual > 0;
 
+    std::string out_fp = sys_data.output_file_prefix+"."+sys_data.options_map.ccsd_options.basis;
+    std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type;
+    std::string lcaofile = files_dir+"/"+out_fp+".lcao";
+
     if(!readv2) {
       two_index_transform(sys_data, ec, C_AO, F_AO, C_beta_AO,F_beta_AO, d_f1, lcao, is_dlpno);
       if(!is_dlpno) cholVpr = cd_svd_ga(sys_data, ec, MO, AO, chol_count, max_cvecs, shells, lcao);
+      write_to_disk<TensorType>(lcao,lcaofile);
     }
     else{
       std::ifstream in(cholfile, std::ios::in);
@@ -669,6 +770,7 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
       cholVpr = {{N,N,CI},{SpinPosition::upper,SpinPosition::lower,SpinPosition::ignore}};
       if(!is_dlpno) Tensor<TensorType>::allocate(&ec, cholVpr);
       // Scheduler{ec}(cholVpr()=0).execute();
+      read_from_disk(lcao,lcaofile);
     }
 
     auto hf_t2        = std::chrono::high_resolution_clock::now();

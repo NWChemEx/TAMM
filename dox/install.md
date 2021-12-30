@@ -136,6 +136,7 @@ module unload cmake
 module load cmake/3.21.3
 module load cuda/10.1.168
 export CRAYPE_LINK_TYPE=dynamic
+export HDF5_USE_FILE_LOCKING="FALSE"
 ```
 
 ### To enable CUDA build, add `-DUSE_CUDA=ON`

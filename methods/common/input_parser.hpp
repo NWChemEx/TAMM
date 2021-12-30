@@ -8,6 +8,10 @@
 #include <iostream>
 #include <regex>
 
+#include "tamm/tamm.hpp"
+#include "tamm/eigen_utils.hpp"
+
+using namespace tamm;
 
 // Libint Gaussian integrals library
 #include <libint2.hpp>
@@ -49,6 +53,7 @@ class Options {
       geom_units = "bohr";
       sphcart = "spherical";
       output_file_prefix = "";
+      ext_data_path = "";
     }
 
     bool debug;
@@ -58,6 +63,7 @@ class Options {
     std::string sphcart;
     std::string geom_units;
     std::string output_file_prefix;
+    std::string ext_data_path;
     std::vector<libint2::Atom> atoms;
 
     void print() {
@@ -94,6 +100,7 @@ class SCFOptions: public Options {
       diis_hist      = 10;
       AO_tilesize    = 30;
       dfAO_tilesize  = 50;
+      restart_size   = 2000;
       restart        = false;
       noscf          = false;
       ediis          = false;
@@ -109,7 +116,7 @@ class SCFOptions: public Options {
       alpha          = 0.7;
       nnodes         = 1;
       writem         = diis_hist;
-      scalapack_nb   = 1;
+      scalapack_nb   = 64;
       scalapack_np_row   = 0;
       scalapack_np_col   = 0;      
     }
@@ -130,6 +137,7 @@ class SCFOptions: public Options {
   double ediis_off;
   bool   sad;
   bool   force_tilesize;
+  int    restart_size; //read/write orthogonalizer, schwarz, etc matrices when N>=restart_size
   int    scalapack_nb;
   int    riscf;
   int    nnodes;
@@ -157,7 +165,7 @@ class SCFOptions: public Options {
       cout << " convd        = " << convd        << endl;
       cout << " diis_hist    = " << diis_hist    << endl;
       cout << " AO_tilesize  = " << AO_tilesize  << endl;  
-      cout << " writem       = " << writem       << endl;  
+      cout << " writem       = " << writem       << endl;
       if(alpha != 0.7) 
         cout << " alpha        = " << alpha << endl;
       if(!moldenfile.empty()) {
@@ -176,6 +184,7 @@ class SCFOptions: public Options {
         cout << " scalapack_np_row = " << scalapack_np_row << endl;
       if(scalapack_np_col>0) 
         cout << " scalapack_np_col = " << scalapack_np_col << endl;
+      cout << " restart_size = " << restart_size << endl;
       print_bool(" restart     ", restart);
       print_bool(" debug       ", debug); 
       if(restart) print_bool(" noscf       ", noscf);
@@ -210,6 +219,66 @@ class CDOptions: public Options {
     print_bool(" debug           ", debug);   
     cout << "}" << endl; 
   }
+};
+
+class GWOptions: public Options {
+
+  public:
+    GWOptions() = default;
+    GWOptions(Options o): Options(o)
+    {
+      cdbasis   = "";
+      ngl       = 200;
+      noqpa     = 1;
+      noqpb     = 1;
+      nvqpa     = 0;
+      nvqpb     = 0;
+      ieta      = 0.01;
+      evgw      = false;
+      evgw0     = false;
+      core      = false;
+      maxnewton = 15;
+      maxev     = 0;
+      minres    = false;
+      method    = "sdgw";
+    }
+
+    int    ngl;       // Number of Gauss-Legendre quadrature points
+    int    noqpa;     // Number of Occupied QP energies ALPHA spi
+    int    noqpb;     // Number of Occupied QP energies BETA spin
+    int    nvqpa;     // Number of Virtual QP energies ALPHA spin
+    int    nvqpb;     // Number of Virtual QP energies BETA spin
+    double ieta;      // Imaginary infinitesimal value
+    bool   evgw;      // Do an evGW self-consistent calculation
+    bool   evgw0;     // Do an evGW_0 self-consistent calculation
+    bool   core;      // If true, start counting from the core
+    int    maxnewton; // Maximum number of Newton steps per QP
+    int    maxev;     // Maximum number of evGW or evGW_0 cycles
+    bool   minres;    // Use MINRES solver
+    string method;    // Method to use [cdgw,sdgw]
+    string cdbasis;   // Name of the CD basis set
+
+    void   print() {
+      std::cout << std::defaultfloat;
+      cout << endl << "GW Options" << endl;
+      cout << "{" << endl;
+      cout << " ngl       = " << ngl << endl;
+      cout << " noqpa     = " << noqpa << endl;
+      cout << " noqpb     = " << noqpb << endl;
+      cout << " nvqpa     = " << nvqpa << endl;
+      cout << " nvqpb     = " << nvqpb << endl;
+      cout << " ieta      = " << ieta << endl;
+      cout << " maxnewton = " << maxnewton << endl;
+      cout << " maxev     = " << maxev << endl;
+      cout << " method    = " << method << endl;
+      cout << " cdbasis   = " << cdbasis << endl;
+      print_bool(" evgw     ", evgw);
+      print_bool(" evgw0    ", evgw0);
+      print_bool(" core     ", core);
+      print_bool(" minres   ", minres);
+      print_bool(" debug    ", debug);
+      cout << "}" << endl;
+    }
 };
 
 class CCSDOptions: public Options {
@@ -252,8 +321,9 @@ class CCSDOptions: public Options {
     ngpu           = 0;
     ccsdt_tilesize = 28;
 
-    eom_nroots     = 0;
+    eom_nroots     = 1;
     eom_threshold  = 1e-6;
+    eom_type       = "right";
     eom_microiter  = o.maxiter;
 
     gf_ip          = true;
@@ -304,7 +374,6 @@ class CCSDOptions: public Options {
   int    ccsd_maxiter;
   int    freeze_core;
   int    freeze_virtual;
-  std::string ext_data_path;
 
   //CCSD(T)
   int    ngpu;
@@ -328,6 +397,7 @@ class CCSDOptions: public Options {
   //EOM
   int    eom_nroots;
   int    eom_microiter;
+  string eom_type;
   double eom_threshold;
 
   //GF
@@ -460,18 +530,17 @@ class OptionsMap
     Options options;
     SCFOptions scf_options;
     CDOptions cd_options;
+    GWOptions gw_options;
     CCSDOptions ccsd_options;
 };
 
-void tamm_terminate(std::string msg) {
-    if(GA_Nodeid()==0) std::cout << msg << " ... terminating program." << endl << endl;
-    GA_Terminate();
-    MPI_Finalize();
-    exit(0);
-}
-
 void to_upper(std::string& str) { std::transform(str.begin(), str.end(), str.begin(), ::toupper); }
 void to_lower(std::string& str) { std::transform(str.begin(), str.end(), str.begin(), ::tolower); }
+string str_upper(std::string str) {
+  string ustr = str;
+  std::transform(ustr.begin(), ustr.end(), ustr.begin(), ::toupper);
+  return ustr;
+}
 
 template<typename T>
 void parse_option(T& val, json j, string key, bool optional=true)
@@ -483,7 +552,7 @@ void parse_option(T& val, json j, string key, bool optional=true)
 }
 
 
-std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput) {
+std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(json& jinput) {
 
     Options options;
     parse_option<string>(options.basis             , jinput["basis"]   , "basisset",false);
@@ -496,8 +565,10 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
 
     SCFOptions  scf_options(options);
     CDOptions   cd_options(options);
+    GWOptions   gw_options(options);
     CCSDOptions ccsd_options(options);
 
+    // clang-format off
     //SCF
     json jscf = jinput["SCF"];
     parse_option<int>   (scf_options.charge          , jscf, "charge");
@@ -524,9 +595,11 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     parse_option<string>(scf_options.scf_type        , jscf, "scf_type");
     parse_option<string>(scf_options.xc_type         , jscf, "xc_type");
     parse_option<int>   (scf_options.n_lindep        , jscf, "n_lindep"); 
+    parse_option<int>   (scf_options.restart_size    , jscf, "restart_size");
     parse_option<int>   (scf_options.scalapack_nb    , jscf, "scalapack_nb");
     parse_option<int>   (scf_options.scalapack_np_row, jscf, "scalapack_np_row");                                                             
     parse_option<int>   (scf_options.scalapack_np_col, jscf, "scalapack_np_col");
+    parse_option<string>(scf_options.ext_data_path   , jscf, "ext_data_path"); 
     
     std::string riscf_str;
     parse_option<string>(riscf_str, jscf, "riscf");
@@ -538,6 +611,30 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     parse_option<bool>  (cd_options.debug           , jcd, "debug");    
     parse_option<double>(cd_options.diagtol         , jcd, "diagtol");
     parse_option<int>   (cd_options.max_cvecs_factor, jcd, "max_cvecs");    
+    parse_option<string>(cd_options.ext_data_path   , jcd, "ext_data_path");  
+
+    //GW
+    json jgw = jinput["GW"];
+    parse_option<bool>  (gw_options.debug,     jgw, "debug");
+    parse_option<int>   (gw_options.ngl,       jgw, "ngl");
+    parse_option<int>   (gw_options.noqpa,     jgw, "noqpa");
+    parse_option<int>   (gw_options.noqpb,     jgw, "noqpb");
+    parse_option<int>   (gw_options.nvqpa,     jgw, "nvqpa");
+    parse_option<int>   (gw_options.nvqpb,     jgw, "nvqpb");
+    parse_option<double>(gw_options.ieta,      jgw, "ieta");
+    parse_option<bool>  (gw_options.evgw,      jgw, "evgw");
+    parse_option<bool>  (gw_options.evgw0,     jgw, "evgw0");
+    parse_option<bool>  (gw_options.core,      jgw, "core");
+    parse_option<int>   (gw_options.maxev,     jgw, "maxev");
+    parse_option<bool>  (gw_options.minres,    jgw, "minres");
+    parse_option<int>   (gw_options.maxnewton, jgw, "maxnewton");
+    parse_option<string>(gw_options.method,    jgw, "method");
+    parse_option<string>(gw_options.cdbasis,   jgw, "cdbasis");
+    parse_option<string>(gw_options.ext_data_path, jgw, "ext_data_path");
+
+    std::vector<string> gwlist{"cdgw", "sdgw", "CDGW", "SDGW"};
+    if (std::find(std::begin(gwlist), std::end(gwlist), string(gw_options.method)) == std::end(gwlist))
+      tamm_terminate ("GW error: method can only be one of [sdgw,cdgw]");
 
     //CC
     json jcc = jinput["CC"];
@@ -583,7 +680,11 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     json jeomccsd = jcc["EOMCCSD"];
     parse_option<int>   (ccsd_options.eom_nroots   , jeomccsd, "eom_nroots");   
     parse_option<int>   (ccsd_options.eom_microiter, jeomccsd, "eom_microiter");                                              
-    parse_option<double>(ccsd_options.eom_threshold, jeomccsd, "eom_threshold");                 
+    parse_option<string>(ccsd_options.eom_type     , jeomccsd, "eom_type");
+    parse_option<double>(ccsd_options.eom_threshold, jeomccsd, "eom_threshold");   
+    std::vector<string> etlist{"right", "left", "RIGHT", "LEFT"};
+    if (std::find(std::begin(etlist), std::end(etlist), string(ccsd_options.eom_type)) == std::end(etlist))
+      tamm_terminate ("EOMCC error: eom type can only be one of [left,right]");
     
     json jgfcc = jcc["GFCCSD"];
     parse_option<bool>(ccsd_options.gf_ip      , jgfcc, "gf_ip"); 
@@ -629,7 +730,8 @@ std::tuple<Options, SCFOptions, CDOptions, CCSDOptions> parse_json(json& jinput)
     // scf_options.print();
     // ccsd_options.print();
 
-    return std::make_tuple(options, scf_options, cd_options, ccsd_options);
+    return std::make_tuple(options, scf_options, cd_options, gw_options, ccsd_options);
+    // clang-format on
 
 }
 
@@ -700,7 +802,7 @@ inline std::tuple<OptionsMap, json>
         atoms[i].z = z;
     }
 
-    auto [options, scf_options, cd_options, ccsd_options] = parse_json(jinput);    
+    auto [options, scf_options, cd_options, gw_options, ccsd_options] = parse_json(jinput);    
 
     json jgeom_bohr;
     bool nw_units_bohr = true;
@@ -744,6 +846,7 @@ inline std::tuple<OptionsMap, json>
     options_map.options.atoms = atoms;
     options_map.scf_options = scf_options;
     options_map.cd_options = cd_options;
+    options_map.gw_options = gw_options;
 
     if(ccsd_options.eom_microiter < ccsd_options.maxiter &&
        ccsd_options.eom_microiter == options.maxiter) 

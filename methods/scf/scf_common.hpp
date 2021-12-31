@@ -4,9 +4,6 @@
 
 #include <cctype>
 
-#include "tamm/tamm.hpp"
-#include "tamm/eigen_utils.hpp"
-
 #include "common/misc.hpp"
 #include "common/molden.hpp"
 #include "common/json_data.hpp"
@@ -36,6 +33,8 @@ using shellpair_data_t = std::vector<std::vector<std::shared_ptr<libint2::ShellP
 
 const auto max_engine_precision = std::numeric_limits<double>::epsilon() / 1e10;
 
+Tensor<TensorType> vxc_tamm; //TODO: cleanup
+
 struct SCFVars {
   // diis
   int idiis  = 0;
@@ -43,10 +42,14 @@ struct SCFVars {
   bool switch_diis=false;
 
   // AO spaces
-  tamm::TiledIndexSpace tAO, tAOt; //tAO_ld
+  tamm::TiledIndexSpace tAO, tAO_ortho, tAOt; //tAO_ld
   std::vector<tamm::Tile> AO_tiles;
   std::vector<tamm::Tile> AO_opttiles;
   std::vector<size_t> shell_tile_map;
+
+  // AO spaces for BC representation
+  tamm::TiledIndexSpace tN_bc;
+  tamm::TiledIndexSpace tNortho_bc;
   
   // AO labels
   // tamm::TiledIndexLabel mu_ld, nu_ld;
@@ -87,10 +90,8 @@ void compute_1body_ints(ExecutionContext& ec, const SCFVars&, Tensor<TensorType>
       std::vector<libint2::Atom>& atoms, libint2::BasisSet& shells, libint2::Operator otype);
 
 struct EigenTensors {
-  // Matrix H,S;
-  Matrix F,C,C_occ,X; //only rank 0 allocates F{a,b}, C_occ, C{a,b}, X{a,b}
-  Matrix F_beta,C_beta,X_beta;
-  Matrix G,D;
+  Matrix C,C_beta,C_occ; // only rank 0 allocates C_occ, C{a,b}
+  Matrix G,D,VXC;
   Matrix G_beta,D_beta;
   Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> taskmap;
 };
@@ -114,10 +115,13 @@ struct TAMMTensors {
     Tensor<TensorType> S1; //overlap ints
     Tensor<TensorType> T1; //kinetic ints
     Tensor<TensorType> V1; //nuclear ints
-    Tensor<TensorType> F_alpha; // = H1+F_alpha_tmp
+    Tensor<TensorType> X_alpha;
+    Tensor<TensorType> X_beta;
+    Tensor<TensorType> F_alpha; // H1+F_alpha_tmp
     Tensor<TensorType> F_beta;
     Tensor<TensorType> F_alpha_tmp; // computed via call to compute_2bf(...)
     Tensor<TensorType> F_beta_tmp;
+    Tensor<TensorType> F_BC; // block-cyclic Fock matrix used in the scalapack code path
     // not allocated, shell tiled. tensor structure used to identify shell blocks in compute_2bf
     Tensor<TensorType> F_dummy;
     Tensor<TensorType> VXC;
@@ -148,6 +152,22 @@ struct DFFockEngine {
 
 };
 
+#if defined(USE_SCALAPACK)
+  struct ScalapackInfo {
+    int64_t npr{},npc{},scalapack_nranks{};
+    bool use_scalapack{true};
+    MPI_Comm               comm;
+    tamm::ProcGroup        pg;
+    tamm::ExecutionContext ec;
+    std::unique_ptr<blacspp::Grid> blacs_grid;
+    std::unique_ptr<scalapackpp::BlockCyclicDist2D> blockcyclic_dist;
+  };
+#else 
+  struct ScalapackInfo {
+    bool use_scalapack{false};
+  };
+#endif
+
 Matrix compute_soad(const std::vector<libint2::Atom> &atoms);
 
 // computes norm of shell-blocks of A
@@ -159,19 +179,15 @@ compute_shellpairs(const libint2::BasisSet& bs1,
                    double threshold = 1e-16);
 
 template <libint2::Operator Kernel = libint2::Operator::coulomb>
-Matrix compute_schwarz_ints(
+Matrix compute_schwarz_ints(ExecutionContext& ec, const SCFVars& scf_vars,
     const libint2::BasisSet& bs1, const libint2::BasisSet& bs2 = libint2::BasisSet(),
     bool use_2norm = false,  // use infty norm by default
     typename libint2::operator_traits<Kernel>::oper_params_type params =
         libint2::operator_traits<Kernel>::default_params());      
 
-// returns {X,X^{-1},S_condition_number_after_conditioning}, where
-// X is the generalized square-root-inverse such that X.transpose() * S * X = I
-// columns of Xinv is the basis conditioned such that
-// the condition number of its metric (Xinv.transpose . Xinv) <
-// S_condition_number_threshold
-std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
-  ExecutionContext& ec, SystemData& sys_data, tamm::Tensor<double>& S);
+std::tuple<size_t, double, double> gensqrtinv(
+    ExecutionContext& ec, SystemData& sys_data, SCFVars& scf_vars, ScalapackInfo& scalapack_info,
+    TAMMTensors& ttensors, bool symmetric = false, double threshold=1e-5);
 
 template <class T> T &unconst_cast(const T &v) { return const_cast<T &>(v); }
 
@@ -394,19 +410,46 @@ void t2e_hf_helper(const ExecutionContext& ec, tamm::Tensor<T>& ttensor,Matrix& 
     // if(rank == 0) std::cout << std::endl << "Time for tamm to eigen " << pstr << " : " << hf_time << " secs" << endl;
 }
 
-std::tuple<int,int,int,int> get_hf_nranks(const size_t N) {
+std::tuple<int,int,int,int,int,int> get_hf_nranks(SCFOptions scf_options, const size_t N) {
 
-    // auto nranks = GA_Nnodes();
-    auto nnodes = GA_Cluster_nnodes();
-    auto ppn = GA_Cluster_nprocs(0);
+  // auto nranks = GA_Nnodes();
+  auto nnodes = GA_Cluster_nnodes();
+  auto ppn    = GA_Cluster_nprocs(0);
 
-    int hf_guessranks = std::ceil(0.3*N);
-    int hf_nnodes = hf_guessranks/ppn;
-    if(hf_guessranks%ppn>0 || hf_nnodes==0) hf_nnodes++;
-    if(hf_nnodes > nnodes) hf_nnodes = nnodes;
-    int hf_nranks = hf_nnodes * ppn;
+  int hf_guessranks = std::ceil(0.3 * N);
+  int hf_nnodes     = hf_guessranks / ppn;
+  if(hf_guessranks % ppn > 0 || hf_nnodes == 0) hf_nnodes++;
+  if(hf_nnodes > nnodes) hf_nnodes = nnodes;
+  int hf_nranks = hf_nnodes * ppn;
 
-    return std::make_tuple(nnodes,hf_nnodes,ppn,hf_nranks);
+  if(scf_options.nnodes > nnodes) {
+    const std::string errmsg = "ERROR: nnodes (" + std::to_string(scf_options.nnodes) +
+                                ") provided is greater than the number of nodes (" +
+                                std::to_string(nnodes) + ") available!";
+    tamm_terminate(errmsg);
+  }
+
+  if(scf_options.nnodes > hf_nnodes) {
+    hf_nnodes = scf_options.nnodes;
+    hf_nranks = hf_nnodes * ppn;
+  }
+
+  #if defined(USE_SCALAPACK)
+    // Find nearest square
+    int sca_nranks = std::ceil(N / 25);
+    if(sca_nranks>hf_nranks) sca_nranks = hf_nranks;
+    sca_nranks     = std::pow(std::floor(std::sqrt(sca_nranks)), 2);
+    if(sca_nranks == 0) sca_nranks=1;
+    int sca_nnodes = sca_nranks / ppn;
+    if(sca_nranks % ppn > 0 || sca_nnodes == 0) sca_nnodes++;
+    if(sca_nnodes > nnodes) sca_nnodes = nnodes;
+    // if(sca_nnodes == 1) ppn = sca_nranks; // single node case
+  #else 
+    int sca_nnodes = hf_nnodes;
+    int sca_nranks = hf_nranks;
+  #endif
+
+  return std::make_tuple(nnodes, hf_nnodes, ppn, hf_nranks, sca_nnodes, sca_nranks);
 }
 
 void compute_shellpair_list(const ExecutionContext& ec, const libint2::BasisSet& shells, SCFVars& scf_vars){
@@ -503,34 +546,52 @@ std::tuple<std::vector<size_t>, std::vector<Tile>, std::vector<Tile>>
     return std::make_tuple(shell_tile_map,AO_tiles,AO_opttiles);
 }
 
+// returns {X,X^{-1},S_condition_number_after_conditioning}, where
+// X is the generalized square-root-inverse such that X.transpose() * S * X = I
+// columns of Xinv is the basis conditioned such that
+// the condition number of its metric (Xinv.transpose . Xinv) <
+// S_condition_number_threshold
+void compute_orthogonalizer(ExecutionContext& ec, SystemData& sys_data, SCFVars& scf_vars,
+                              ScalapackInfo& scalapack_info, TAMMTensors& ttensors) {
+  auto hf_t1 = std::chrono::high_resolution_clock::now();
+  auto rank  = ec.pg().rank();
 
-Matrix compute_orthogonalizer(ExecutionContext& ec, SystemData& sys_data, TAMMTensors& ttensors) {
-    
-    auto hf_t1 = std::chrono::high_resolution_clock::now();
-    auto rank = ec.pg().rank(); 
+  // compute orthogonalizer X such that X.transpose() . S . X = I
+  double XtX_condition_number; // condition number of "re-conditioned"
+                               // overlap obtained as Xinv.transpose() . Xinv
+  // by default assume can manage to compute with condition number of S <= 1/eps
+  // this is probably too optimistic, but in well-behaved cases even 10^11 is OK
+  size_t obs_rank;
+  double S_condition_number;
+  double S_condition_number_threshold = sys_data.options_map.scf_options.tol_lindep;
 
-    // compute orthogonalizer X such that X.transpose() . S . X = I
-    //TODO: Xinv not used
-    Matrix X, Xinv;
-    double XtX_condition_number;  // condition number of "re-conditioned"
-                                  // overlap obtained as Xinv.transpose() . Xinv
-    // one should think of columns of Xinv as the conditioned basis
-    // Re: name ... cond # (Xinv.transpose() . Xinv) = cond # (X.transpose() . X)
-    // by default assume can manage to compute with condition number of S <= 1/eps
-    // this is probably too optimistic, but in well-behaved cases even 10^11 is OK
-    std::tie(X, Xinv, XtX_condition_number) =
-        conditioning_orthogonalizer(ec, sys_data, ttensors.S1);
+  std::tie(obs_rank, S_condition_number, XtX_condition_number) =
+      gensqrtinv(ec, sys_data, scf_vars, scalapack_info, ttensors, false, S_condition_number_threshold);
+  // auto obs_nbf_omitted = (long)(sys_data.nbf_orig) - (long)obs_rank;
+  // std::cout << "overlap condition number = " << S_condition_number;
+  // if (obs_nbf_omitted > 0){
+  //   if(ec.pg().rank()==0) std::cout << " (dropped " << obs_nbf_omitted << " "
+  //             << (obs_nbf_omitted > 1 ? "fns" : "fn") << " to reduce to "
+  //             << XtX_condition_number << ")";
+  // }
+  // if(ec.pg().rank()==0) std::cout << endl;
 
-    // TODO Redeclare TAMM S1 with new dims?
-    auto hf_t2   = std::chrono::high_resolution_clock::now();
-    auto hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+  // FIXME: UNCOMMENT?
+  // if (obs_nbf_omitted > 0) {
+  //   Matrix should_be_I = X.transpose() * S * X;
+  //   Matrix I = Matrix::Identity(should_be_I.rows(), should_be_I.cols());
+  //   if(ec.pg().rank()==0) std::cout << std::endl << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
+  //             << " (should be 0)" << endl;
+  // }
 
-    if(rank == 0) std::cout << "Time for computing orthogonalizer: " << hf_time << " secs" << endl << endl;
+  // TODO: Redeclare TAMM S1 with new dims?
+  auto hf_t2   = std::chrono::high_resolution_clock::now();
+  auto hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
 
-    return X;
+  if(rank == 0)
+    std::cout << std::fixed << std::setprecision(2) << "Time for computing orthogonalizer: " << hf_time << " secs" << endl << endl;
 
 }
-
 
 template<typename TensorType> 
 void compute_hamiltonian(ExecutionContext& ec, const SCFVars& scf_vars,
@@ -556,7 +617,9 @@ void compute_hamiltonian(ExecutionContext& ec, const SCFVars& scf_vars,
     compute_1body_ints(ec,scf_vars,ttensors.V1,atoms,shells,Operator::nuclear);
     auto hf_t2   = std::chrono::high_resolution_clock::now();
     auto hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << std::endl << "Time for computing 1-e integrals T, V, S: " << hf_time << " secs" << endl;
+    if(rank == 0)
+      std::cout << std::fixed << std::setprecision(2) << std::endl
+                << "Time for computing 1-e integrals T, V, S: " << hf_time << " secs" << endl;
 
     // Core Hamiltonian = T + V
     Scheduler{ec}
@@ -686,97 +749,127 @@ void print_energies(ExecutionContext& ec, TAMMTensors& ttensors, const SystemDat
 // cols are transformed basis ("orthogonal" AO)
 //
 // A is conditioned to max_condition_number
-std::tuple<Matrix, Matrix, size_t, double, double, int64_t> gensqrtinv(
-    ExecutionContext& ec, tamm::Tensor<double> S, bool symmetric = false,
-    double threshold=1e-5) {
+std::tuple<size_t, double, double> gensqrtinv(
+    ExecutionContext& ec, SystemData& sys_data, SCFVars& scf_vars, ScalapackInfo& scalapack_info,
+    TAMMTensors& ttensors, bool symmetric, double threshold) {
 
-  using T = double;
+  using T = TensorType;
 
-#ifdef SCALAPACK
-  Eigen::SelfAdjointEigenSolver<Matrix> eig_solver(S);
-  auto U = eig_solver.eigenvectors();
-  auto s = eig_solver.eigenvalues();
-  auto s_max = s.maxCoeff();
-  auto condition_number = std::min(
-      s_max / std::max(s.minCoeff(), std::numeric_limits<double>::min()),
-      1.0 / std::numeric_limits<double>::epsilon());
-  // auto threshold = s_max / max_condition_number;
-  long n = s.rows();
-  long n_cond = 0;
-  for (long i = n - 1; i >= 0; --i) {
-    if (s(i) >= threshold) {
-      ++n_cond;
-    } else
-      i = 0;  // skip rest since eigenvalues are in ascending order
-  }
-
-  auto sigma = s.bottomRows(n_cond);
-  auto result_condition_number = sigma.maxCoeff() / sigma.minCoeff();
-  auto sigma_sqrt = sigma.array().sqrt().matrix().asDiagonal();
-  auto sigma_invsqrt = sigma.array().sqrt().inverse().matrix().asDiagonal();
-
-  // make canonical X/Xinv
-  auto U_cond = U.block(0, n - n_cond, n, n_cond);
-  Matrix X = U_cond * sigma_invsqrt;
-  Matrix Xinv = U_cond * sigma_sqrt;
-  // convert to symmetric, if needed
-  if (symmetric) {
-    X = X * U_cond.transpose();
-    Xinv = Xinv * U_cond.transpose();
-  }
-#else
-
+  Scheduler sch{ec};
   // auto world = ec.pg().comm();
   int world_rank = ec.pg().rank().value();
   int world_size = ec.pg().size().value();
 
-  int64_t n_cond;
-  double condition_number, result_condition_number;
-  Matrix X, Xinv;
+  int64_t n_cond{}, n_illcond{};
+  double condition_number{}, result_condition_number{};
+  const int64_t N = sys_data.nbf_orig;
 
-  const int64_t N = S.tiled_index_spaces()[0].index_space().num_indices(); //S.rows();
-  int64_t n_illcond = 0;
+  //TODO: avoid eigen matrices
+  Matrix X,V;
+  std::vector<T> eps(N);
+
+  #if defined(USE_SCALAPACK)
+  Tensor<T> V_sca;
+  if(scalapack_info.comm != MPI_COMM_NULL) {
+  blacspp::Grid*                  blacs_grid       = scalapack_info.blacs_grid.get();
+  const auto&                     grid             = *blacs_grid;
+  scalapackpp::BlockCyclicDist2D* blockcyclic_dist = scalapack_info.blockcyclic_dist.get();
+  const auto                      mb               = blockcyclic_dist->mb();
+
+  TiledIndexSpace    tN_bc{IndexSpace{range(sys_data.nbf_orig)}, mb};
+  Tensor<T> S_BC{tN_bc, tN_bc};
+  V_sca = {tN_bc, tN_bc};
+  S_BC.set_block_cyclic({scalapack_info.npr, scalapack_info.npc});
+  V_sca.set_block_cyclic({scalapack_info.npr, scalapack_info.npc});
+  Tensor<T>::allocate(&scalapack_info.ec, S_BC, V_sca);
+
+  tamm::to_block_cyclic_tensor(ttensors.S1, S_BC);
+
+  auto desc_lambda = [&](const int64_t M, const int64_t N) {
+      auto [M_loc, N_loc] = (*blockcyclic_dist).get_local_dims( M, N );
+      return (*blockcyclic_dist).descinit_noerror( M, N, M_loc );        
+  };
+
+  if(grid.ipr() >= 0 and grid.ipc() >= 0) {
+    auto                              desc_S = desc_lambda(N, N);
+    auto                              desc_V = desc_lambda(N, N);
+    // scalapackpp::BlockCyclicMatrix<T> V_sca(grid, N, N, mb, mb);
+
+    auto info = scalapackpp::hereig(scalapackpp::Job::Vec, scalapackpp::Uplo::Lower, desc_S[2],
+                                    S_BC.access_local_buf(), 1, 1, desc_S, eps.data(), 
+                                    V_sca.access_local_buf(), 1, 1, desc_V);
+
+    // Gather results
+    // if( scalapack_info.pg.rank() == 0 ) V.resize(N,N);
+    // V_sca.gather_from( N, N, V.data(), N, 0, 0 );
+  }
+
+  Tensor<T>::deallocate(S_BC);
+  }
+   
+  #else
 
   if( world_rank == 0 ) {
-    // Eigendecompose S -> VsV**T
-    Matrix V(N,N);
-    tamm_to_eigen_tensor(S,V);
-    T* Vbuf = V.data();
+    // Eigen decompose S -> VsV**T
+    V.resize(N,N);
+    tamm_to_eigen_tensor(ttensors.S1,V);
+    lapack::syevd( lapack::Job::Vec, lapack::Uplo::Lower, N, V.data(), N, eps.data() );
+  }
 
-    std::vector<double> s(N);
-    lapack::syevd( lapack::Job::Vec, lapack::Uplo::Lower, N, Vbuf, N, s.data() );
+  #endif
 
+  std::vector<T>::iterator first_above_thresh;
+  if( world_rank == 0 ) {
     // condition_number = std::min(
-    //   s.back() / std::max( s.front(), std::numeric_limits<double>::min() ),
+    //   eps.back() / std::max( eps.front(), std::numeric_limits<double>::min() ),
     //   1.       / std::numeric_limits<double>::epsilon()
     // );
 
-    // const auto threshold = s.back() / max_condition_number;
-    auto first_above_thresh = std::find_if( s.begin(), s.end(), [&](const auto& x){ return x >= threshold; } );
-    result_condition_number = s.back() / *first_above_thresh;
+    // const auto threshold = eps.back() / max_condition_number;
+    first_above_thresh = std::find_if( eps.begin(), eps.end(), [&](const auto& x){ return x >= threshold; } );
+    result_condition_number = eps.back() / *first_above_thresh;
 
-    n_illcond = std::distance( s.begin(), first_above_thresh );
+    n_illcond = std::distance( eps.begin(), first_above_thresh );
     n_cond    = N - n_illcond;
 
     if(n_illcond > 0) {
       std::cout << std::endl << "WARNING: Found " << n_illcond << " linear dependencies" << std::endl;
-      cout << "First eigen value above tol_lindep = " << *first_above_thresh << endl;
+      cout << std::defaultfloat << "First eigen value above tol_lindep = " << *first_above_thresh << endl;
       std::cout << "The overlap matrix has " << n_illcond << " vectors deemed linearly dependent with eigenvalues:" << std::endl;
       
-      for( int64_t i = 0; i < n_illcond; i++ ) cout << std::defaultfloat << i+1 << ": " << s[i] << endl;
+      for( int64_t i = 0; i < n_illcond; i++ ) cout << std::defaultfloat << i+1 << ": " << eps[i] << endl;
     }
+  }
 
+  if( world_size > 1 ) {
+    // TODO: Should buffer this
+    ec.pg().broadcast( &n_cond,                  0 );
+    ec.pg().broadcast( &n_illcond,               0 );
+    // ec.pg().broadcast( &condition_number,        0 );
+    ec.pg().broadcast( &result_condition_number, 0 );
+  }
+
+  #if defined(USE_SCALAPACK)
+  if(scalapack_info.comm != MPI_COMM_NULL) {
+    Tensor<T> V_t = from_block_cyclic_tensor(V_sca);
+    Tensor<T> X_t = tensor_block(V_t, {n_illcond,0}, {N,N}, {1,0});
+    if( scalapack_info.pg.rank() == 0 ) X = tamm_to_eigen_matrix<T>(X_t);
+    Tensor<T>::deallocate(V_sca, V_t, X_t);
+  }
+  #else
+  if( world_rank == 0 ) {
     // auto* V_cond = Vbuf + n_illcond * N;
     Matrix V_cond = V.block(n_illcond, 0, N-n_illcond, N);
     V.resize(0,0);
     X.resize( N, n_cond ); // Xinv.resize( N, n_cond );
-    // X.setZero(N,N); Xinv.setZero( N, N );
     // Matrix V_cond(n_cond,N);
     // V_cond = Eigen::Map<Matrix>(Vbuf + n_illcond * N,n_cond,N);
     X = V_cond.transpose();
-    // Xinv = X;
     V_cond.resize(0,0);
+  }
+  #endif
 
+  if( world_rank == 0 ) {
     // Form canonical X/Xinv
     for( auto i = 0; i < n_cond; ++i ) {
 
@@ -792,78 +885,55 @@ std::tuple<Matrix, Matrix, size_t, double, double, int64_t> gensqrtinv(
     }  
 
     if( symmetric ) {
-
       assert( not symmetric );
-
-  /*
+      /*
       // X is row major, thus we need to form X**T = V_cond * X**T
       Matrix TMP = X;
       X.resize( N, N );
       blas::gemm( blas::Op::NoTrans, blas::Op::NoTrans, N, N, n_cond, 1., V_cond, N, TMP.data(), n_cond, 0., X.data(), N );
-  */
-
+      */
     }
   } // compute on root 
 
-
-  if( world_size > 1 ) {
-
-    // TODO: Should buffer this
-    ec.pg().broadcast( &n_cond,                  0 );
-    ec.pg().broadcast( &n_illcond,               0 );
-    ec.pg().broadcast( &condition_number,        0 );
-    ec.pg().broadcast( &result_condition_number, 0 );
-
-    // if( world_rank != 0 ) {
-    //   X.resize( N, n_cond ); //Xinv.resize(N, n_cond);
-    //   // X.setZero(N,N); Xinv.setZero(N,N);
-    // }
-
-    // ec.pg().broadcast( X.data(),    X.size(),    0 );
-    // ec.pg().broadcast( Xinv.data(), Xinv.size(), 0 );
-  }
-
-  // tAO_ld = TiledIndexSpace{IndexSpace(range(0, n_cond)), final_AO_tilesize};
-  // Tensor<T> X{tAO, tAO_ld};
-
-#endif
-  return std::make_tuple(X, Xinv, size_t(n_cond), condition_number,
-                         result_condition_number, n_illcond);
-}
-
-std::tuple<Matrix, Matrix, double> conditioning_orthogonalizer(
-  ExecutionContext& ec, SystemData& sys_data, tamm::Tensor<double>& S) {
-  size_t obs_rank;
-  double S_condition_number;
-  double XtX_condition_number;
-  Matrix X, Xinv;
-  int64_t n_illcond;
-  double S_condition_number_threshold = sys_data.options_map.scf_options.tol_lindep;
-
-  // assert(S.rows() == S.cols());
-
-  std::tie(X, Xinv, obs_rank, S_condition_number, XtX_condition_number, n_illcond) =
-      gensqrtinv(ec, S, false, S_condition_number_threshold);
-  auto obs_nbf_omitted = (long)(S.tiled_index_spaces()[0].index_space().num_indices()) - (long)obs_rank;
-  // std::cout << "overlap condition number = " << S_condition_number;
-  // if (obs_nbf_omitted > 0){
-  //   if(GA_Nodeid()==0) std::cout << " (dropped " << obs_nbf_omitted << " "
-  //             << (obs_nbf_omitted > 1 ? "fns" : "fn") << " to reduce to "
-  //             << XtX_condition_number << ")";
-  // }
-  // if(GA_Nodeid()==0) std::cout << endl;
-
-  // FIXME:UNCOMMENT
-  // if (obs_nbf_omitted > 0) {
-  //   Matrix should_be_I = X.transpose() * S * X;
-  //   Matrix I = Matrix::Identity(should_be_I.rows(), should_be_I.cols());
-  //   if(ec.pg().rank()==0) std::cout << std::endl << "||X^t * S * X - I||_2 = " << (should_be_I - I).norm()
-  //             << " (should be 0)" << endl;
-  // }
-
   sys_data.n_lindep = n_illcond;
+  sys_data.nbf = sys_data.nbf_orig - sys_data.n_lindep;
 
-  return std::make_tuple(X, Xinv, XtX_condition_number);
+  const bool is_uhf  = (sys_data.is_unrestricted);
+  scf_vars.tAO_ortho = TiledIndexSpace{IndexSpace{range(0, (size_t)(sys_data.nbf))},
+                                       sys_data.options_map.scf_options.AO_tilesize};
+
+  #if defined(USE_SCALAPACK)
+  if(scalapack_info.comm != MPI_COMM_NULL) {
+    const auto _mb      = (scalapack_info.blockcyclic_dist.get())->mb();
+    scf_vars.tN_bc      = TiledIndexSpace{IndexSpace{range(sys_data.nbf_orig)}, _mb};
+    scf_vars.tNortho_bc = TiledIndexSpace{IndexSpace{range(sys_data.nbf)}, _mb};
+    ttensors.X_alpha    = {scf_vars.tN_bc, scf_vars.tNortho_bc};
+    ttensors.X_alpha.set_block_cyclic({scalapack_info.npr, scalapack_info.npc});
+    Tensor<TensorType>::allocate(&scalapack_info.ec, ttensors.X_alpha);
+    if(is_uhf) {
+      ttensors.X_beta = {scf_vars.tN_bc, scf_vars.tNortho_bc};
+      ttensors.X_beta.set_block_cyclic({scalapack_info.npr, scalapack_info.npc});
+      Tensor<TensorType>::allocate(&scalapack_info.ec, ttensors.X_beta);
+    }
+  }
+  #else
+    ttensors.X_alpha = {scf_vars.tAO, scf_vars.tAO_ortho};
+    sch.allocate(ttensors.X_alpha).execute();
+    if(is_uhf) {
+      ttensors.X_beta = {scf_vars.tAO, scf_vars.tAO_ortho};
+      sch.allocate(ttensors.X_beta).execute();
+    }
+  #endif
+
+  
+  if(world_rank == 0) eigen_to_tamm_tensor(ttensors.X_alpha, X);
+  if(is_uhf)
+    if(world_rank == 0) eigen_to_tamm_tensor(ttensors.X_beta, X); // X_beta=X_alpha here
+
+  ec.pg().barrier();
+
+  return std::make_tuple(size_t(n_cond), condition_number,
+                         result_condition_number);
 }
 
 std::tuple<shellpair_list_t,shellpair_data_t>
@@ -948,7 +1018,7 @@ compute_shellpairs(const libint2::BasisSet& bs1,
 }
 
 template <libint2::Operator Kernel>
-Matrix compute_schwarz_ints(
+Matrix compute_schwarz_ints(ExecutionContext& ec, const SCFVars& scf_vars,
     const libint2::BasisSet& bs1, const libint2::BasisSet& _bs2, bool use_2norm,
     typename libint2::operator_traits<Kernel>::oper_params_type params) {
 
@@ -956,11 +1026,14 @@ Matrix compute_schwarz_ints(
   using libint2::Engine;
   using libint2::BraKet;
 
+  auto hf_t1 = std::chrono::high_resolution_clock::now();
+
   const BasisSet& bs2 = (_bs2.empty() ? bs1 : _bs2);
   const auto nsh1 = bs1.size();
   const auto nsh2 = bs2.size();
   const auto bs1_equiv_bs2 = (&bs1 == &bs2);
 
+  EXPECTS(nsh1 == nsh2);
   Matrix K = Matrix::Zero(nsh1, nsh2);
 
   // construct the 2-electron repulsion integrals engine
@@ -969,47 +1042,67 @@ Matrix compute_schwarz_ints(
   Engine engine = Engine(Kernel, std::max(bs1.max_nprim(), bs2.max_nprim()),
                       std::max(bs1.max_l(), bs2.max_l()), 0, epsilon, params);
 
-    // if(GA_Nodeid()==0) {
-    //   std::cout << "computing Schwarz bound prerequisites (kernel=" 
-    //         << (int)Kernel << ") ... ";
-    // }
+  auto& buf = engine.results();
 
-    // libint2::Timers<1> timer;
-    // timer.set_now_overhead(25);
-    // timer.start(0);
-  
-    const auto& buf = engine.results();
+  const std::vector<Tile>&   AO_tiles       = scf_vars.AO_tiles;
+  const std::vector<size_t>& shell_tile_map = scf_vars.shell_tile_map;
+
+  TiledIndexSpace    tnsh{IndexSpace{range(0, nsh1)}, std::ceil(nsh1 * 0.05)};
+  Tensor<TensorType> schwarz{scf_vars.tAO, scf_vars.tAO};
+  Tensor<TensorType> schwarz_mat{tnsh, tnsh};
+  Tensor<TensorType>::allocate(&ec, schwarz_mat);
+
+  auto compute_schwarz_matrix = [&](const IndexVector& blockid) {
+    auto bi0 = blockid[0];
+    auto bi1 = blockid[1];
 
     // loop over permutationally-unique set of shells
-    for (size_t s1 = 0l, s12 = 0l; s1 != nsh1; ++s1) {
-      auto n1 = bs1[s1].size();  // number of basis functions in this shell
+    auto                  s1range_end   = shell_tile_map[bi0];
+    decltype(s1range_end) s1range_start = 0l;
+    if(bi0 > 0) s1range_start = shell_tile_map[bi0-1] + 1;
 
-      auto s2_max = bs1_equiv_bs2 ? s1 : nsh2 - 1;
-      for (decltype(s1) s2 = 0; s2 <= s2_max; ++s2, ++s12) {
-        // if (s12 % nthreads != thread_id) continue;
+    for(auto s1 = s1range_start; s1 <= s1range_end; ++s1) {
+      auto n1 = bs1[s1].size();
 
-        auto n2 = bs2[s2].size();
+      auto                  s2range_end   = shell_tile_map[bi1];
+      decltype(s2range_end) s2range_start = 0l;
+      if(bi1 > 0) s2range_start = shell_tile_map[bi1-1] + 1;
+
+      for(auto s2 = s2range_start; s2 <= s2range_end; ++s2) {
+        auto n2  = bs2[s2].size();
         auto n12 = n1 * n2;
 
-        engine.compute2<Kernel, BraKet::xx_xx, 0>(bs1[s1], bs2[s2],
-                                                              bs1[s1], bs2[s2]);
-        assert(buf[0] != nullptr &&
-               "to compute Schwarz ints turn off primitive screening");
+        // compute shell pair; return is the pointer to the buffer
+        engine.compute2<Kernel, BraKet::xx_xx, 0>(bs1[s1], bs2[s2], bs1[s1], bs2[s2]);
+
+        EXPECTS(buf[0] != nullptr && "turn off primitive screening to compute Schwarz ints");
 
         // to apply Schwarz inequality to individual integrals must use the diagonal elements
         // to apply it to sets of functions (e.g. shells) use the whole shell-set of ints here
         Eigen::Map<const Matrix> buf_mat(buf[0], n12, n12);
-        auto norm2 = use_2norm ? buf_mat.norm()
-                               : buf_mat.lpNorm<Eigen::Infinity>();
-        K(s1, s2) = std::sqrt(norm2);
-        if (bs1_equiv_bs2) K(s2, s1) = K(s1, s2);
+        auto norm2 = use_2norm ? buf_mat.norm() : buf_mat.lpNorm<Eigen::Infinity>();
+        K(s1, s2)  = std::sqrt(norm2);
+        if(bs1_equiv_bs2) K(s2, s1) = K(s1, s2);
       }
     }
+  };
 
-  // timer.stop(0);
-  // if(GA_Nodeid()==0) 
-  //   std::cout << "done (" << timer.read(0) << " s)" << endl;
- 
+  block_for(ec, schwarz(), compute_schwarz_matrix); 
+  ec.pg().barrier();
+
+  eigen_to_tamm_tensor_acc(schwarz_mat,K);
+  ec.pg().barrier();
+  K.resize(0,0);
+
+  K = tamm_to_eigen_matrix<TensorType>(schwarz_mat);
+  Tensor<TensorType>::deallocate(schwarz_mat);
+
+  auto hf_t2   = std::chrono::high_resolution_clock::now();
+  auto hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+  if(ec.pg().rank() == 0)
+    std::cout << std::fixed << std::setprecision(2)
+              << "Time to compute schwarz matrix: " << hf_time << " secs" << endl;   
+
   return K;
 }
 

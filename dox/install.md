@@ -51,6 +51,8 @@ mkdir build && cd build
 
 * **[Default build using BLIS and NETLIB LAPACK](install.md#default-build-using-blis-and-netlib-lapack)**
 
+* **[Default build on MACOS](install.md#default-build-on-macos)**
+
 * **[Build using Intel MKL](install.md#build-using-intel-mkl)**
 
 * **[Build instructions for Summit using ESSL](install.md#build-instructions-for-summit-using-essl)**
@@ -68,6 +70,17 @@ mkdir build && cd build
 ```
 cd $TAMM_SRC/build 
 CC=gcc CXX=g++ FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
+
+make -j3
+make install
+```
+## Default build on MACOS
+
+### NOTE: We only support building with GNU compilers on `MACOS`. They can be installed using brew as detailed [here](CMake_Build_Notes.md#on-mac-osx).
+
+```
+cd $TAMM_SRC/build 
+CC=gcc-10 CXX=g++-10 FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
 make -j3
 make install
@@ -123,6 +136,7 @@ module unload cmake
 module load cmake/3.21.3
 module load cuda/10.1.168
 export CRAYPE_LINK_TYPE=dynamic
+export HDF5_USE_FILE_LOCKING="FALSE"
 ```
 
 ### To enable CUDA build, add `-DUSE_CUDA=ON`

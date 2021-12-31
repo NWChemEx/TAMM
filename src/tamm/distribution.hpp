@@ -1,5 +1,5 @@
-#ifndef TAMM_DISTRIBUTION_H_
-#define TAMM_DISTRIBUTION_H_
+#ifndef TAMM_DISTRIBUTION_HPP_
+#define TAMM_DISTRIBUTION_HPP_
 
 #include "ga/ga.h"
 #include <map>
@@ -138,6 +138,10 @@ public:
 
     void set_hash(size_t hash) { hash_ = hash; }
 
+    void set_proc_grid(std::vector<Proc> pg) { proc_grid_ = pg; }
+
+    std::vector<Proc> proc_grid() const { return proc_grid_; }
+
     /**
      * @brief Construct a new Distribution object using a TensorBase object and
      * number of processes
@@ -177,6 +181,8 @@ protected:
     DistributionKind kind_; /**< Distribution kind */
 
     size_t hash_;
+
+    std::vector<Proc> proc_grid_; /**< Processor grid */
 
 }; // class Distribution
 
@@ -225,7 +231,7 @@ public:
             }
           });
         }
-EXPECTS(hash_.size() > 0);
+        EXPECTS(hash_.size() > 0);
 
         std::sort(hash_.begin(), hash_.end(),
                   [](const KeyOffsetPair& lhs, const KeyOffsetPair& rhs) {
@@ -542,7 +548,7 @@ class Distribution_Dense : public Distribution {
    * @param nproc Number of ranks to be distributed into
    */
   Distribution_Dense(const TensorBase* tensor_structure = nullptr,
-                     Proc nproc = Proc{1})
+                     Proc nproc = Proc{1}, ProcGrid pg = {})
       : Distribution{tensor_structure, nproc, DistributionKind::dense} {
     EXPECTS(nproc > 0);
     if (tensor_structure == nullptr) {
@@ -551,7 +557,18 @@ class Distribution_Dense : public Distribution {
     EXPECTS(is_valid(tensor_structure, nproc));
     nproc_ = nproc;
     ndim_ = tensor_structure->num_modes();
-    proc_grid_ = compute_proc_grid(tensor_structure, nproc);
+    
+    if(pg.empty()) {
+      if(tensor_structure_->num_modes() == 2) {
+        proc_grid_ = grid_factor(tensor_structure, nproc);
+      }
+      else {
+        //TODO: Fix proc grid for nD tensors?
+        proc_grid_ = compute_proc_grid(tensor_structure, nproc);
+      }
+    }
+    else proc_grid_ = pg;
+    set_proc_grid(proc_grid_);
     max_proc_with_data_ = 1;
     for (const auto& p : proc_grid_) {
       max_proc_with_data_ *= p;
@@ -579,7 +596,7 @@ class Distribution_Dense : public Distribution {
      *  backtraced to ccsd_driver<double> execution_context.h
      *  back traced to main
      */
-    return new Distribution_Dense(tensor_structure, nproc);
+    return new Distribution_Dense(tensor_structure, nproc, proc_grid_);
   }
 
   /**
@@ -609,9 +626,7 @@ class Distribution_Dense : public Distribution {
 
   Size total_size() const override { 
     Size result{0};
-    for(const auto& proc : proc_grid_) {
-      result += buf_size(proc);
-    }
+    for(int i = 0; i < nproc_.value(); i++) { result += buf_size(i); }
     return result;
   }
 
@@ -701,10 +716,97 @@ class Distribution_Dense : public Distribution {
     std::vector<Proc> proc_grid;
     EXPECTS(tensor_structure != nullptr);
     int ndim = tensor_structure->num_modes();
+    const int64_t dim1_size = (tensor_structure->tlabels())[0].tiled_index_space().max_num_indices();
+
     proc_grid = std::vector<Proc>(ndim, 1);
     if (ndim > 0) {
       proc_grid[0] = nproc;
+      if(nproc > dim1_size) proc_grid[0] = dim1_size; 
     }
+    return proc_grid;
+  }
+
+  /**
+   * Factor p processors into 2D processor grid of dimensions px, py
+   */
+  static std::vector<Proc> grid_factor(const TensorBase* tensor_structure, Proc nproc) {
+    int               ndim = tensor_structure->num_modes();
+    std::vector<Proc> proc_grid(ndim, 1);
+    const int64_t     dim1_size =
+      (tensor_structure->tlabels())[0].tiled_index_space().max_num_indices();
+    const int64_t dim2_size =
+      (tensor_structure->tlabels())[1].tiled_index_space().max_num_indices();
+
+    int       i, j, p = nproc.value();
+    int       px, py;
+    int *     idx = &px, *idy = &py;
+    const int MAX_FACTOR = 512;
+    int       ip, ifac, pmax, prime[MAX_FACTOR];
+    int       fac[MAX_FACTOR];
+    int       ix, iy, ichk;
+
+    i = 1;
+    /**
+     *   factor p completely
+     *   first, find all prime numbers, besides 1, less than or equal to
+     *   the square root of p
+     */
+    ip   = (int) (sqrt((double) p)) + 1;
+    pmax = 0;
+    for(i = 2; i <= ip; i++) {
+      ichk = 1;
+      for(j = 0; j < pmax; j++) {
+        if(i % prime[j] == 0) {
+          ichk = 0;
+          break;
+        }
+      }
+      if(ichk) {
+        pmax = pmax + 1;
+        if(pmax > MAX_FACTOR) printf("Overflow in grid_factor\n");
+        prime[pmax - 1] = i;
+      }
+    }
+    /**
+     *   find all prime factors of p
+     */
+    ip   = p;
+    ifac = 0;
+    for(i = 0; i < pmax; i++) {
+      while(ip % prime[i] == 0) {
+        ifac          = ifac + 1;
+        fac[ifac - 1] = prime[i];
+        ip            = ip / prime[i];
+      }
+    }
+    /**
+     *  p is prime
+     */
+    if(ifac == 0) {
+      ifac++;
+      fac[0] = p;
+    }
+    /**
+     *    find two factors of p of approximately the
+     *    same size
+     */
+    *idx = 1;
+    *idy = 1;
+    for(i = ifac - 1; i >= 0; i--) {
+      ix = *idx;
+      iy = *idy;
+      if(ix <= iy) { *idx = fac[i] * (*idx); }
+      else {
+        *idy = fac[i] * (*idy);
+      }
+    }
+
+    proc_grid[0] = *idx;
+    proc_grid[1] = *idy;
+
+    if(proc_grid[0] > dim1_size) proc_grid[0] = dim1_size;
+    if(proc_grid[1] > dim2_size) proc_grid[1] = dim2_size;
+
     return proc_grid;
   }
 
@@ -984,7 +1086,7 @@ class Distribution_Dense : public Distribution {
   std::vector<TiledIndexSpace>
       tiss_; /**< TiledIndexSpace associated with each dimension */
   int ndim_; /**< Number of dimensions in underlying tensor */
-  std::vector<Proc> proc_grid_;  /**< Processor grid */
+  // std::vector<Proc> proc_grid_;  /**< Processor grid */
   Proc max_proc_with_data_;      /**< Max ranks with any data */
   Size max_proc_buf_size_;       /**< Max buffer size on any rank */
   Size max_block_size_;          /**< Max size of a single block */
@@ -1297,25 +1399,6 @@ void loop_nest_exec(BodyFunc&& bfunc, InitFunc&& ifunc, UpdateFunc&& ufunc, std:
   }
 }
 
-// template <typename BodyFunc, typename InitFunc, typename UpdateFunc,
-//           typename... Args>
-// void loop_nest_exec(BodyFunc&& bfunc, InitFunc&& ifunc, UpdateFunc&& ufunc,
-//                     std::vector<Index>& itr, const std::vector<Range>& ranges,
-//                     Args&&... args) {
-//   EXPECTS(itr.size() == ranges.size());
-//   int N = itr.size();
-//   if (N == 1) {
-//     loop_nest_y_1(func, &itr[0], &ranges[0], std::forward<Args>(args)...)();
-//   } else if (N == 2) {
-//     loop_nest_y_2(func, &itr[0], &ranges[0], std::forward<Args>(args)...)();
-//   } else if (N == 3) {
-//     loop_nest_y_3(func, &itr[0], &ranges[0], std::forward<Args>(args)...)();
-//   } else if (N == 4) {
-//     loop_nest_y_4(func, &itr[0], &ranges[0], std::forward<Args>(args)...)();
-//   } else {
-//     NOT_IMPLEMENTED();
-//   }
-// }
 
 template <typename BodyFunc, typename... Args>
 void loop_nest_exec(BodyFunc&& bfunc, std::vector<Index>& itr,
@@ -1379,85 +1462,67 @@ void loop_nest_exec(Func&& func, const LabeledTensorT& lt,
 
   @todo support dense (aka Cartesian) slicing
 */
-template <typename LabeledTensorT, typename T>
-void set_op_execute(const ProcGroup& pg, const LabeledTensorT& lhs, T value,
-                    bool is_assign) {
-  EXPECTS(!is_slicing(lhs));  // dense and no slicing in labels
-  EXPECTS(lhs.tensor().distribution().kind() == DistributionKind::dense); //tensor uses Distribution_Dense
-  //EXPECTS(
-  //    lhs.tensor().execution_context()->pg() ==
-  //        pg);  // tensor allocation proc grid same as op execution proc grid
-  const Distribution_Dense& dd =
-      static_cast<const Distribution_Dense&>(lhs.tensor().distribution());
-  Proc rank = pg.rank();
-  const std::vector<Proc>& grid_rank = dd.proc_rank_to_grid_rank(rank);  
-  const std::vector<Range>& ranges = dd.proc_tile_extents(grid_rank);
-  std::vector<Index> blockid(ranges.size());
-  using LT_eltype = typename LabeledTensorT::element_type;
-  std::vector<LT_eltype> buf(dd.max_block_size(), LT_eltype{value});
-  LT_eltype* lbuf = lhs.tensor().access_local_buf();
-  Offset off = 0;
-  if (is_assign) {
-    loop_nest_exec(
-        ranges,
-        [&]() {
-#if 1
-          auto sz = dd.block_size(blockid);
-          std::copy(buf, buf + sz, &lbuf[off]);
-          off += sz;
-#elif 0
-    // lhs.tensor().put(blockid, buf);
-#else
-          Proc proc;
-          Offset off;
-          std::tie(proc, off) = dd.locate(blockid);
-          std::copy(buf, buf + dd.block_size(blockid), &lbuf[off]);
-#endif
-        },
-        blockid);
-  } else {
-    loop_nest_exec(
-        ranges,
-        [&]() {
-#if 1
-          auto sz = dd.block_size(blockid);
-          for (size_t i = 0; i < dd.block_size(blockid); i++) {
-            lbuf[i] += buf[i];
-          }
-          off += sz;
-#elif 0
-          lhs.tensor().add(blockid, buf);
-#else
-          Proc proc;
-          Offset off;
-          std::tie(proc, off) = dd.locate(blockid);
-          for (size_t i = 0; i < dd.block_size(blockid); i++) {
-            lbuf[off + i] += buf[i];
-          }
-#endif
-        },
-        blockid);
-  }
-}
-//#endif
-
-// template<typename... Args>
-// std::unique_ptr<Distribution> distribution_factory(DistributionKind dkind, Args&&... args)  {
-//   switch(dkind) {
-//     case Distribution::Kind::invalid:
-//       NOT_ALLOWED();
-//       return nullptr;
-//     case Distribution::Kind::dense:
-//       return std::unique_ptr<Distribution>(new Distribution_Dense{std::forward<Args>(args)...});
-//       break;
-//     case Distribution::Kind::nw:
-//       return std::unique_ptr<Distribution>(new Distribution_NW{std::forward<Args>(args)...});
-//       break;
+// template <typename LabeledTensorT, typename T>
+// void set_op_execute(const ProcGroup& pg, const LabeledTensorT& lhs, T value,
+//                     bool is_assign) {
+//   EXPECTS(!is_slicing(lhs));  // dense and no slicing in labels
+//   EXPECTS(lhs.tensor().distribution().kind() == DistributionKind::dense); //tensor uses Distribution_Dense
+//   //EXPECTS(
+//   //    lhs.tensor().execution_context()->pg() ==
+//   //        pg);  // tensor allocation proc grid same as op execution proc grid
+//   const Distribution_Dense& dd =
+//       static_cast<const Distribution_Dense&>(lhs.tensor().distribution());
+//   Proc rank = pg.rank();
+//   const std::vector<Proc>& grid_rank = dd.proc_rank_to_grid_rank(rank);  
+//   const std::vector<Range>& ranges = dd.proc_tile_extents(grid_rank);
+//   std::vector<Index> blockid(ranges.size());
+//   using LT_eltype = typename LabeledTensorT::element_type;
+//   std::vector<LT_eltype> buf(dd.max_block_size(), LT_eltype{value});
+//   LT_eltype* lbuf = lhs.tensor().access_local_buf();
+//   Offset off = 0;
+//   if (is_assign) {
+//     loop_nest_exec(
+//         ranges,
+//         [&]() {
+// #if 1
+//           auto sz = dd.block_size(blockid);
+//           std::copy(buf, buf + sz, &lbuf[off]);
+//           off += sz;
+// #elif 0
+//     // lhs.tensor().put(blockid, buf);
+// #else
+//           Proc proc;
+//           Offset off;
+//           std::tie(proc, off) = dd.locate(blockid);
+//           std::copy(buf, buf + dd.block_size(blockid), &lbuf[off]);
+// #endif
+//         },
+//         blockid);
+//   } else {
+//     loop_nest_exec(
+//         ranges,
+//         [&]() {
+// #if 1
+//           auto sz = dd.block_size(blockid);
+//           for (size_t i = 0; i < dd.block_size(blockid); i++) {
+//             lbuf[i] += buf[i];
+//           }
+//           off += sz;
+// #elif 0
+//           lhs.tensor().add(blockid, buf);
+// #else
+//           Proc proc;
+//           Offset off;
+//           std::tie(proc, off) = dd.locate(blockid);
+//           for (size_t i = 0; i < dd.block_size(blockid); i++) {
+//             lbuf[off + i] += buf[i];
+//           }
+// #endif
+//         },
+//         blockid);
 //   }
-//   UNREACHABLE();
-//   return nullptr;
 // }
 
 } // namespace tamm
 
-#endif // TAMM_DISTRIBUTION_H_
+#endif // TAMM_DISTRIBUTION_HPP_

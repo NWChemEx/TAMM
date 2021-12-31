@@ -42,9 +42,9 @@ void initialize(int argc, char *argv[]) {
     GA_Initialize();
     (void)ProcGroup::self_ga_pgroup(true);
   }
-  if (!MA_initialized()) {
-    MA_init(MT_DBL, 8000000, 20000000);
-  }
+  // if (!MA_initialized()) {
+  //   MA_init(MT_DBL, 8000000, 20000000);
+  // }
 }
 
 void finalize() {
@@ -58,5 +58,11 @@ void finalize() {
   }
 }
 
+void tamm_terminate(std::string msg) {
+  if(GA_Nodeid() == 0) std::cout << msg << " ... terminating program." << std::endl << std::endl;
+  GA_Terminate();
+  MPI_Finalize();
+  exit(0);
+}
 
 } // namespace tamm

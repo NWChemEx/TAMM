@@ -742,13 +742,17 @@ public:
             #endif
 
             if(1 && (lhs_.tensor().is_dense() /* && !lhs_.tensor().has_spin() */) &&
-            (rhs1_.tensor().is_dense() /* && !rhs1_.tensor().has_spin() */) &&
-            (rhs2_.tensor().is_dense() /* && !rhs2_.tensor().has_spin() */) &&
-	       !has_sparse_labels && !lhs_.labels().empty() ) { //&& num_lhs_tiles >= ec.pg().size() ) {
-                // std::cout << "Execute Buffer Accumulate" << std::endl;
+               (rhs1_.tensor().is_dense() /* && !rhs1_.tensor().has_spin() */) &&
+               (rhs2_.tensor().is_dense() /* && !rhs2_.tensor().has_spin() */) &&
+	           !has_sparse_labels && !lhs_.labels().empty() && 
+               lhs_.tensor().execution_context()->pg() == ec.pg() 
+               //    rhs1_.tensor().execution_context()->pg() == ec.pg() && 
+               //    rhs2_.tensor().execution_context()->pg() == ec.pg() 
+              ) {
                 if constexpr(std::is_same_v<TensorElType1,TensorElType2>
                             && std::is_same_v<TensorElType1,TensorElType3>
-                            && !internal::is_complex_v<TensorElType1>) {
+                            // && !internal::is_complex_v<TensorElType1>
+                            ) {
                     execute_bufacc(ec, hw);
                 }
                 else do_work(ec, loop_nest, lambda);
@@ -1059,8 +1063,8 @@ public:
                     th_b2 = new tensor_handle();
                     th_c2 = new tensor_handle();
 
-                    *th_c = gpu_mult->gpu_block(cdims_sz.size(), tal_cdims, dev_id);
-                    *th_c2 = gpu_mult->gpu_block(cdims_sz.size(), tal_cdims, dev_id);
+                    *th_c = gpu_mult->gpu_block<TensorElType1>(cdims_sz.size(), tal_cdims, dev_id);
+                    *th_c2 = gpu_mult->gpu_block<TensorElType1>(cdims_sz.size(), tal_cdims, dev_id);
 
                     ab1 = new AddBuf<TensorElType1>{isgpu, tt1, th_c, th_a, th_b,
                                         ctensor, {}, translated_cblockid};
@@ -1362,8 +1366,9 @@ public:
           Proc me = ec.pg().rank();
 
           for (const auto& lblockid : lhs_loop_nest) {
-            if (lhs_.tensor().is_non_zero(lblockid) &&
-                std::get<0>(ldist.locate(lblockid)) == me) {
+            const auto translated_lblockid = internal::translate_blockid(lblockid, lhs_);
+            if (lhs_.tensor().is_non_zero(translated_lblockid) &&
+                std::get<0>(ldist.locate(translated_lblockid)) == me) {
               lambda(lblockid);
             }
           }

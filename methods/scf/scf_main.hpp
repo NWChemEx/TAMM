@@ -35,107 +35,107 @@ namespace fs = std::filesystem;
 
 #define SCF_THROTTLE_RESOURCES 1
 
-std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, 
-    Tensor<double>, Tensor<double>, Tensor<double>, Tensor<double>, TiledIndexSpace, TiledIndexSpace, bool> 
-    hartree_fock(ExecutionContext &exc, const string filename, OptionsMap options_map) {
+std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>, Tensor<TensorType>,
+           Tensor<TensorType>, Tensor<TensorType>, Tensor<TensorType>, TiledIndexSpace, TiledIndexSpace, bool>
+hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_map) {
 
-    using libint2::Atom;
-    using libint2::Engine;
-    using libint2::Operator;
-    using libint2::Shell;
-    using libint2::BasisSet;
+  using libint2::Atom;
+  using libint2::Engine;
+  using libint2::Operator;
+  using libint2::Shell;
+  using libint2::BasisSet;
 
-    /*** Setup options ***/
+  /*** Setup options ***/
 
-    SystemData sys_data{options_map, options_map.scf_options.scf_type};
-    SCFOptions  scf_options  = sys_data.options_map.scf_options;
+  SystemData sys_data{options_map, options_map.scf_options.scf_type};
+  SCFOptions scf_options = sys_data.options_map.scf_options;
 
-    std::string basis        = scf_options.basis;
-    int         charge       = scf_options.charge;
-    int         multiplicity = scf_options.multiplicity;
-    int         maxiter      = scf_options.maxiter;
-    double      conve        = scf_options.conve;
-    double      convd        = scf_options.convd;
-    bool        debug        = scf_options.debug;
-    bool        ediis        = scf_options.ediis;
-    double      ediis_off    = scf_options.ediis_off;
-    auto        restart      = scf_options.restart;
-    bool        is_spherical = (scf_options.sphcart == "spherical");
-    // bool        sad          = scf_options.sad;
-    auto        iter         = 0;
-    auto        rank         = exc.pg().rank();
-    const bool  molden_exists = !scf_options.moldenfile.empty();
+  std::string basis        = scf_options.basis;
+  int         charge       = scf_options.charge;
+  int         multiplicity = scf_options.multiplicity;
+  int         maxiter      = scf_options.maxiter;
+  double      conve        = scf_options.conve;
+  double      convd        = scf_options.convd;
+  bool        debug        = scf_options.debug;
+  bool        ediis        = scf_options.ediis;
+  double      ediis_off    = scf_options.ediis_off;
+  auto        restart      = scf_options.restart;
+  bool        is_spherical = (scf_options.sphcart == "spherical");
+  // bool        sad          = scf_options.sad;
+  auto       iter          = 0;
+  auto       rank          = exc.pg().rank();
+  const bool molden_exists = !scf_options.moldenfile.empty();
+  const int  restart_size  = scf_options.restart_size;
 
-    const bool is_uhf = sys_data.is_unrestricted;
-    const bool is_rhf = sys_data.is_restricted;
-    const bool is_ks  = sys_data.is_ks;
-    // const bool is_rohf = sys_data.is_restricted_os;
-    if(is_ks && is_uhf) tamm_terminate("UKS-DFT is currently not supported!");
+  const bool is_uhf = sys_data.is_unrestricted;
+  const bool is_rhf = sys_data.is_restricted;
+  const bool is_ks  = sys_data.is_ks;
+  // const bool is_rohf = sys_data.is_restricted_os;
+  if(is_ks && is_uhf) tamm_terminate("UKS-DFT is currently not supported!");
 
-    bool molden_file_valid = false;
-    if(molden_exists) {
-      molden_file_valid = std::filesystem::exists(scf_options.moldenfile);
-      if(!molden_file_valid) tamm_terminate("ERROR: moldenfile provided: " + scf_options.moldenfile + " does not exist");
-      if(!is_spherical) std::cout << "WARNING: molden interface is not tested with sphcart:cartesian" << std::endl;
-      if(!is_rhf) tamm_terminate("ERROR: molden restart is currently only supported for RHF calculations!");
-    }
+  bool molden_file_valid = false;
+  if(molden_exists) {
+    molden_file_valid = std::filesystem::exists(scf_options.moldenfile);
+    if(!molden_file_valid)
+      tamm_terminate("ERROR: moldenfile provided: " + scf_options.moldenfile + " does not exist");
+    if(!is_spherical)
+      std::cout << "WARNING: molden interface is not tested with sphcart:cartesian" << std::endl;
+    if(!is_rhf)
+      tamm_terminate("ERROR: molden restart is currently only supported for RHF calculations!");
+  }
 
-    auto hf_t1 = std::chrono::high_resolution_clock::now();
+  auto hf_t1 = std::chrono::high_resolution_clock::now();
 
-    // Initialize the Libint integrals library
-    libint2::initialize(false);
-    // libint2::Shell::do_enforce_unit_normalization(false);
+  // Initialize the Libint integrals library
+  libint2::initialize(false);
+  // libint2::Shell::do_enforce_unit_normalization(false);
 
-    // Create the basis set
-    std::string basis_set_file = std::string(DATADIR) + "/basis/" + basis + ".g94";
-    
-    int basis_file_exists = 0;
-    if(rank == 0) basis_file_exists = std::filesystem::exists(basis_set_file);
-    exc.pg().broadcast(&basis_file_exists,0);
+  // Create the basis set
+  std::string basis_set_file = std::string(DATADIR) + "/basis/" + basis + ".g94";
 
-    if (!basis_file_exists) tamm_terminate("ERROR: basis set file " + basis_set_file + " does not exist");
+  int basis_file_exists = 0;
+  if(rank == 0) basis_file_exists = std::filesystem::exists(basis_set_file);
+  exc.pg().broadcast(&basis_file_exists, 0);
 
-    // If starting guess is from a molden file, read the geometry.
-    if(molden_file_valid)
-      read_geom_molden(sys_data, sys_data.options_map.options.atoms);
+  if(!basis_file_exists)
+    tamm_terminate("ERROR: basis set file " + basis_set_file + " does not exist");
 
-    auto atoms = sys_data.options_map.options.atoms;
-    libint2::BasisSet shells(std::string(basis), atoms);
-    if(is_spherical) shells.set_pure(true);
-    else shells.set_pure(false);  // use cartesian gaussians
+  // If starting guess is from a molden file, read the geometry.
+  if(molden_file_valid) read_geom_molden(sys_data, sys_data.options_map.options.atoms);
 
-    const size_t N = nbasis(shells);
-    auto nnodes    = GA_Cluster_nnodes();
+  auto              atoms = sys_data.options_map.options.atoms;
+  libint2::BasisSet shells(std::string(basis), atoms);
+  if(is_spherical)
+    shells.set_pure(true);
+  else
+    shells.set_pure(false); // use cartesian gaussians
 
-    sys_data.nbf      = N;
-    sys_data.nbf_orig = N;
-    sys_data.ediis    = ediis; 
+  const size_t N      = nbasis(shells);
+  auto         nnodes = GA_Cluster_nnodes();
 
-    std::string out_fp = options_map.options.output_file_prefix+"."+scf_options.basis;
-    std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type+"/scf";
-    std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
-    if(!fs::exists(files_dir)) fs::create_directories(files_dir);
+  sys_data.nbf      = N;
+  sys_data.nbf_orig = N;
+  sys_data.ediis    = ediis;
 
-    // If using molden file, read the exponents and coefficients and renormalize shells.
-    // This modifies the existing basisset object.
-    if(molden_exists && molden_file_valid) {
-      read_basis_molden(sys_data,shells);
-      renormalize_libint_shells(sys_data,shells);
-      if(is_spherical) shells.set_pure(true);
-      else shells.set_pure(false);  // use cartesian gaussians      
-    }
+  std::string out_fp    = options_map.options.output_file_prefix + "." + scf_options.basis;
+  std::string files_dir = out_fp + "_files/" + sys_data.options_map.scf_options.scf_type + "/scf";
+  std::string files_prefix = /*out_fp;*/ files_dir + "/" + out_fp;
+  if(!fs::exists(files_dir)) fs::create_directories(files_dir);
+
+  // If using molden file, read the exponents and coefficients and renormalize shells.
+  // This modifies the existing basisset object.
+  if(molden_exists && molden_file_valid) {
+    read_basis_molden(sys_data, shells);
+    renormalize_libint_shells(sys_data, shells);
+    if(is_spherical)
+      shells.set_pure(true);
+    else
+      shells.set_pure(false); // use cartesian gaussians
+  }
 
     #if SCF_THROTTLE_RESOURCES
-      auto [t_nnodes,hf_nnodes,ppn,hf_nranks] = get_hf_nranks(N);
-      if (scf_options.nnodes > t_nnodes) {
-        const std::string errmsg = "ERROR: nnodes (" + std::to_string(scf_options.nnodes)
-        + ") provided is greater than the number of nodes (" + std::to_string(t_nnodes) + ") available!";
-        tamm_terminate(errmsg);
-      }
-      if (scf_options.nnodes > hf_nnodes) {
-        hf_nnodes = scf_options.nnodes;
-        hf_nranks = hf_nnodes * ppn;
-      }
+      auto [t_nnodes,hf_nnodes,ppn,hf_nranks,sca_nnodes,sca_nranks] = get_hf_nranks(scf_options,N);
+
       int ranks[hf_nranks];
       for (int i = 0; i < hf_nranks; i++) ranks[i] = i;    
       auto gcomm = exc.pg().comm();
@@ -146,20 +146,24 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       MPI_Comm hf_comm;
       MPI_Comm_create(gcomm,hfgroup,&hf_comm);
 
-      // int lranks[ppn];
-      // for (int i = 0; i < ppn; i++) lranks[i] = i;
-      // MPI_Group lgroup;
-      // MPI_Comm_group(gcomm,&lgroup);
-      // MPI_Group hf_lgroup;
-      // MPI_Group_incl(lgroup,ppn,lranks,&hf_lgroup);
-      // MPI_Comm hf_lcomm;
-      // MPI_Comm_create(gcomm,hf_lgroup,&hf_lcomm);
+      #if defined(USE_SCALAPACK)
+        int lranks[sca_nranks];
+        for(int i = 0; i < sca_nranks; i++) lranks[i] = i;
+        MPI_Group sca_group;
+        MPI_Group_incl(wgroup, sca_nranks, lranks, &sca_group);
+        MPI_Comm scacomm;
+        MPI_Comm_create(gcomm, sca_group, &scacomm);
+      #endif
     #endif
 
     if(rank == 0) {
       cout << std::endl << "Number of nodes, mpi ranks per node provided: " << nnodes << ", " << GA_Cluster_nprocs(0) << endl;
       #if SCF_THROTTLE_RESOURCES
         cout << "Number of nodes, mpi ranks per node used for SCF calculation: " << hf_nnodes << ", " << ppn << endl;
+      #endif
+      #if defined(USE_SCALAPACK)
+        cout << "Number of nodes, mpi ranks per node, total ranks used for Scalapack: " << sca_nnodes
+            << ", " << sca_nranks / sca_nnodes << ", " << sca_nranks << endl;      
       #endif
       scf_options.print();
     }
@@ -199,6 +203,14 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     auto mu = scf_vars.mu, nu = scf_vars.nu, ku = scf_vars.ku;
     auto mup = scf_vars.mup, nup = scf_vars.nup, kup = scf_vars.kup;
+
+    Scheduler schg{exc};
+    // Fock matrices allocated on world group
+    Tensor<TensorType> Fa_global{scf_vars.tAO, scf_vars.tAO};
+    Tensor<TensorType> Fb_global{scf_vars.tAO, scf_vars.tAO};
+    schg.allocate(Fa_global);
+    if(is_uhf) schg.allocate(Fb_global);
+    schg.execute();
 
     // If a fitting basis is provided, perform the necessary setup
     const auto dfbasisname = scf_options.dfbasis;
@@ -243,7 +255,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     auto hf_t2 = std::chrono::high_resolution_clock::now();
     double hf_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << std::endl << "Time for initial setup: " << hf_time << " secs" << endl;
+    if(rank == 0) std::cout << std::fixed << std::setprecision(2) << std::endl << "Time for initial setup: " << hf_time << " secs" << endl;
 
     double ehf = 0.0; // initialize Hartree-Fock energy
 
@@ -263,90 +275,81 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
     #if SCF_THROTTLE_RESOURCES
     if (rank < hf_nranks) {
-      int hrank;
       EXPECTS(hf_comm != MPI_COMM_NULL);
-      MPI_Comm_rank(hf_comm,&hrank);
-      EXPECTS(rank==hrank);
+      ScalapackInfo scalapack_info;
 
       ProcGroup pg = ProcGroup::create_coll(hf_comm);
       ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
-      // ProcGroup pg_m = ProcGroup::create_coll(hf_lcomm);
-      // ExecutionContext ec_m{pg_m, DistributionKind::nw, MemoryManagerKind::ga};
     #else 
       //TODO: Fix - create ec_m, when throttle is disabled
       ExecutionContext& ec = exc;
     #endif
-      ProcGroup pg_l = ProcGroup::create_coll(MPI_COMM_SELF);
-      ExecutionContext ec_l{pg_l, DistributionKind::nw, MemoryManagerKind::local};
+      // ProcGroup pg_l = ProcGroup::create_coll(MPI_COMM_SELF);
+      // ExecutionContext ec_l{pg_l, DistributionKind::nw, MemoryManagerKind::local};
     #if defined(USE_SCALAPACK)
+      scalapack_info.comm = scacomm;
+      if(scacomm != MPI_COMM_NULL) {
 
       auto blacs_setup_st = std::chrono::high_resolution_clock::now();
       // Sanity checks
-      int scalapack_nranks = 
-        scf_options.scalapack_np_row *
-        scf_options.scalapack_np_col;
+      scalapack_info.npr = scf_options.scalapack_np_row;
+      scalapack_info.npc = scf_options.scalapack_np_col;
+      int scalapack_nranks = scalapack_info.npr * scalapack_info.npc;
 
-      // XXX: This should be for hf_comm
-      int world_size;
-      MPI_Comm_size( ec.pg().comm(), &world_size );
+      scalapack_info.pg = ProcGroup::create_coll(scacomm);
+      scalapack_info.ec = ExecutionContext{scalapack_info.pg, DistributionKind::dense, MemoryManagerKind::ga};
+
+      int sca_world_size = scalapack_info.pg.size().value();
 
       // Default to square(ish) grid
       if( scalapack_nranks == 0 ) {
-        int64_t npr = std::sqrt( world_size );
-        int64_t npc = world_size / npr; 
-        while( npr * npc != world_size ) {
+        int64_t npr = std::sqrt( sca_world_size );
+        int64_t npc = sca_world_size / npr; 
+        while( npr * npc != sca_world_size ) {
           npr--;
-          npc = world_size / npr;
+          npc = sca_world_size / npr;
         }
-        scalapack_nranks = world_size;
-        scf_options.scalapack_np_row = npr;
-        scf_options.scalapack_np_col = npc;
+        scalapack_nranks = sca_world_size;
+        scalapack_info.npr = npr;
+        scalapack_info.npc = npc;        
       }
 
-      assert( world_size >= scalapack_nranks );
+      EXPECTS( sca_world_size >= scalapack_nranks );
 
-      if( not scalapack_nranks ) scalapack_nranks = world_size;
+      if( not scalapack_nranks ) scalapack_nranks = sca_world_size;
       std::vector<int64_t> scalapack_ranks( scalapack_nranks );
       std::iota( scalapack_ranks.begin(), scalapack_ranks.end(), 0 );
+      scalapack_info.scalapack_nranks = scalapack_nranks;
 
-      if(rank==0) {
+      if(scalapack_info.pg.rank() == 0) {
         std::cout << "scalapack_nranks = " << scalapack_nranks << std::endl;
-        std::cout << "scalapack_np_row = " << scf_options.scalapack_np_row << std::endl;
-        std::cout << "scalapack_np_col = " << scf_options.scalapack_np_col << std::endl;
+        std::cout << "scalapack_np_row = " << scalapack_info.npr << std::endl;
+        std::cout << "scalapack_np_col = " << scalapack_info.npc << std::endl;
       }
 
-#if 0
-      MPI_Group world_group, scalapack_group;
-      MPI_Comm scalapack_comm;
-      MPI_Comm_group( ec.pg().comm(), &world_group );
-      MPI_Group_incl( world_group, scalapack_nranks, scalapack_ranks.data(), &scalapack_group );
-      MPI_Comm_create( ec.pg().comm(), scalapack_group, &scalapack_comm );
-      
-      std::unique_ptr<blacspp::Grid> blacs_grid = nullptr;
-      std::unique_ptr<scalapackpp::BlockCyclicDist2D> blockcyclic_dist = nullptr;
-      if( scalapack_comm != MPI_COMM_NULL ) {
-        const auto NPR = scf_options.scalapack_np_row;
-        const auto NPC = scf_options.scalapack_np_col;
-        blacs_grid = std::make_unique<blacspp::Grid>( scalapack_comm, NPR, NPC );
-
-        const auto MB = scf_options.scalapack_nb;
-        blockcyclic_dist = std::make_unique<scalapackpp::BlockCyclicDist2D>( 
-          *blacs_grid, MB, MB, 0, 0 );
+      int& mb_ = scf_options.scalapack_nb;
+      if(mb_ > N / scalapack_info.npr) {
+        mb_                                           = N / scalapack_info.npr;
+        sys_data.options_map.scf_options.scalapack_nb = mb_;
+        if(scalapack_info.pg.rank() == 0)
+          std::cout << "WARNING: Resetting scalapack block size (scalapack_nb) to: " << mb_
+                    << std::endl;
       }
-#else
-      auto blacs_grid = std::make_unique<blacspp::Grid>( 
-        ec.pg().comm(), scf_options.scalapack_np_row, scf_options.scalapack_np_col,
-        scalapack_ranks.data(), scf_options.scalapack_np_row );
-      auto blockcyclic_dist = std::make_unique<scalapackpp::BlockCyclicDist2D>( 
-          *blacs_grid, scf_options.scalapack_nb, scf_options.scalapack_nb, 0, 0 );
-#endif
+
+      scalapack_info.blacs_grid =
+        std::make_unique<blacspp::Grid>(scalapack_info.pg.comm(), scalapack_info.npr, scalapack_info.npc,
+                                        scalapack_ranks.data(), scalapack_info.npr);
+      scalapack_info.blockcyclic_dist = std::make_unique<scalapackpp::BlockCyclicDist2D>(
+        *scalapack_info.blacs_grid, mb_, mb_, 0, 0);
 
       auto blacs_setup_en = std::chrono::high_resolution_clock::now();
 
       std::chrono::duration<double> blacs_time = blacs_setup_en - blacs_setup_st;
-      
-      if(rank == 0) std::cout << std::endl << "Time for BLACS setup: " << blacs_time.count() << " secs" << std::endl;
 
+      if(scalapack_info.pg.rank() == 0)
+        std::cout << std::fixed << std::setprecision(2) << std::endl
+                  << "Time for BLACS setup: " << blacs_time.count() << " secs" << std::endl;
+      }
     #endif
 
     #if defined(USE_GAUXC)
@@ -381,9 +384,14 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
     const double xHF = 1.;
     #endif
 
+    ec.pg().barrier();
+
     
+      Scheduler sch{ec};
 
       TAMMTensors ttensors;
+      const TiledIndexSpace& tAO  = scf_vars.tAO;
+      const TiledIndexSpace& tAOt = scf_vars.tAOt;
 
       /*** =========================== ***/
       /*** compute 1-e integrals       ***/
@@ -395,45 +403,97 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       /*** =========================== ***/
 
       std::string ortho_file = files_prefix + ".orthogonalizer";   
-      int  ostatus = 1;
-      if(N > 2000) {
-        if(rank==0) ostatus = fs::exists(ortho_file);
-        // if(ostatus == 0) tamm_terminate("Error reading orthogonalizer: [" + ortho_file + "]");
-        ec.pg().broadcast(&ostatus,0);
-      }
+      std::string ortho_jfile = ortho_file+".json";
 
-      if(rank == 0) etensors.F       = Matrix::Zero(N,N);
-      etensors.D       = Matrix::Zero(N,N);
-      etensors.G       = Matrix::Zero(N,N);
-      if(ostatus && N > 2000) {
+      if(N >= restart_size && fs::exists(ortho_file)) {
         if(rank==0) {
-          etensors.X = read_scf_mat<TensorType>(ortho_file);
-          sys_data.n_lindep = sys_data.nbf_orig - etensors.X.cols();
+          cout << "Reading orthogonalizer from disk ..." << endl << endl;
+          auto jX = json_from_file(ortho_jfile);
+          auto Xdims = jX["ortho_dims"].get<std::vector<int>>();          
+          sys_data.n_lindep = sys_data.nbf_orig - Xdims[1];
         }
         ec.pg().broadcast(&sys_data.n_lindep,0);
+        sys_data.nbf = sys_data.nbf_orig - sys_data.n_lindep; // Compute Northo
+
+        scf_vars.tAO_ortho = TiledIndexSpace{IndexSpace{range(0, (size_t)(sys_data.nbf))},
+                                            sys_data.options_map.scf_options.AO_tilesize};
+
+        #if defined(USE_SCALAPACK)
+        {
+          const auto _mb      = scf_options.scalapack_nb; //(scalapack_info.blockcyclic_dist)->mb();
+          scf_vars.tN_bc      = TiledIndexSpace{IndexSpace{range(sys_data.nbf_orig)}, _mb};
+          scf_vars.tNortho_bc = TiledIndexSpace{IndexSpace{range(sys_data.nbf)}, _mb};
+          if(scacomm != MPI_COMM_NULL) {
+            ttensors.X_alpha    = {scf_vars.tN_bc, scf_vars.tNortho_bc};
+            ttensors.X_alpha.set_block_cyclic({scalapack_info.npr, scalapack_info.npc});
+            Tensor<TensorType>::allocate(&scalapack_info.ec, ttensors.X_alpha);
+            read_from_disk<TensorType>(ttensors.X_alpha,ortho_file);
+            if(is_uhf) {
+              ttensors.X_beta = {scf_vars.tN_bc, scf_vars.tNortho_bc};
+              ttensors.X_beta.set_block_cyclic({scalapack_info.npr, scalapack_info.npc});
+              Tensor<TensorType>::allocate(&scalapack_info.ec, ttensors.X_beta);
+              Scheduler{scalapack_info.ec}(ttensors.X_beta() = ttensors.X_alpha()).execute();
+              // read_from_disk<TensorType>(ttensors.X_beta,ortho_file);
+            }
+          }
+        }
+        #else
+          ttensors.X_alpha = {scf_vars.tAO, scf_vars.tAO_ortho};
+          if(is_uhf) ttensors.X_beta = {scf_vars.tAO, scf_vars.tAO_ortho};
+          sch.allocate(ttensors.X_alpha).execute();
+          if(is_uhf) sch.allocate(ttensors.X_beta).execute();
+          read_from_disk<TensorType>(ttensors.X_alpha,ortho_file);
+          if(is_uhf) read_from_disk<TensorType>(ttensors.X_beta,ortho_file);
+        #endif
       }
       else 
       {
-        etensors.X  = compute_orthogonalizer(ec, sys_data, ttensors);
-        if(rank==0) write_scf_mat<TensorType>(etensors.X, ortho_file);
+        compute_orthogonalizer(ec, sys_data, scf_vars, scalapack_info, ttensors);
+        // sys_data.nbf = sys_data.nbf_orig - sys_data.n_lindep;
+        if(rank == 0) {
+          json jX;
+          jX["ortho_dims"] = {sys_data.nbf_orig, sys_data.nbf};
+          json_to_file(jX,ortho_jfile);
+        }
+        if(N >= restart_size) {
+          #if defined(USE_SCALAPACK)
+            if(scacomm != MPI_COMM_NULL) write_to_disk<TensorType>(ttensors.X_alpha, ortho_file);
+          #else
+            write_to_disk<TensorType>(ttensors.X_alpha, ortho_file);
+          #endif
+        }
       }
+
+      #if defined(USE_SCALAPACK)
+      if(scacomm != MPI_COMM_NULL) {
+        ttensors.F_BC = {scf_vars.tN_bc, scf_vars.tN_bc};
+        ttensors.F_BC.set_block_cyclic({scalapack_info.npr, scalapack_info.npc});
+        Tensor<TensorType>::allocate(&scalapack_info.ec, ttensors.F_BC);
+      }
+      #endif
+
+
+      etensors.D       = Matrix::Zero(N,N);
+      etensors.G       = Matrix::Zero(N,N);
       if(is_uhf) {
-        if(rank == 0) etensors.F_beta  = Matrix::Zero(N,N);
         etensors.D_beta  = Matrix::Zero(N,N);
         etensors.G_beta  = Matrix::Zero(N,N);
-        etensors.X_beta  = etensors.X;
       }
 
-      // Compute Northo
-      sys_data.nbf = sys_data.nbf_orig - sys_data.n_lindep;
-
       // pre-compute data for Schwarz bounds
-      if(rank==0) cout << "pre-compute data for Schwarz bounds" << endl;
-      auto SchwarzK = compute_schwarz_ints<>(shells);
+      std::string schwarz_matfile = files_prefix + ".schwarz";
+      Matrix      SchwarzK;
+      if(N >= restart_size && fs::exists(schwarz_matfile)) {
+        if(rank == 0) cout << "Read Schwarz matrix from disk... " << endl;
+        SchwarzK = read_scf_mat<TensorType>(schwarz_matfile);
+      }
+      else {
+        if(rank == 0) cout << "pre-computing data for Schwarz bounds... " << endl;
+        SchwarzK = compute_schwarz_ints<>(ec, scf_vars, shells);
+        if(rank == 0) write_scf_mat<TensorType>(SchwarzK, schwarz_matfile);
+      }
 
       hf_t1 = std::chrono::high_resolution_clock::now();
-      const TiledIndexSpace& tAO  = scf_vars.tAO;
-      const TiledIndexSpace& tAOt = scf_vars.tAOt;
 
       ttensors.ehf_tamm    = Tensor<TensorType>{};
       ttensors.F_dummy     = {tAOt, tAOt}; //not allocated
@@ -481,16 +541,14 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       auto max_nprim  = obs.max_nprim();
       auto max_nprim4 = max_nprim * max_nprim * max_nprim * max_nprim;
       auto shell2bf   = obs.shell2bf();
-      
-      Scheduler sch{ec};
+
 
       if (restart) {
         scf_restart(ec, sys_data, filename, etensors, files_prefix);
-        if(is_rhf) 
-          etensors.X      = etensors.C;
-        if(is_uhf) {
-          etensors.X      = etensors.C;
-          etensors.X_beta = etensors.C_beta;
+        if(rank == 0){
+          eigen_to_tamm_tensor(ttensors.X_alpha, etensors.C); // Xa = Ca;
+          if(is_uhf) 
+            eigen_to_tamm_tensor(ttensors.X_beta, etensors.C_beta); // Xb = Cb;
         }
       }
       else if(molden_exists) {
@@ -521,17 +579,16 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           }
         }
 
-        if(is_rhf)
-          etensors.X      = etensors.C;
-        if(is_uhf) {
-          etensors.X      = etensors.C;
-          etensors.X_beta = etensors.C_beta;
+        if(rank == 0){
+          eigen_to_tamm_tensor(ttensors.X_alpha, etensors.C); // Xa = Ca;
+          if(is_uhf) 
+            eigen_to_tamm_tensor(ttensors.X_beta, etensors.C_beta); // Xb = Cb;
         }
 
         ec.pg().barrier(); 
       }
       else {
-        // FIXME:UNCOMMENT
+        // TODO: WIP
         #if 0
         if(sad) {
           if(rank==0) cout << "SAD enabled" << endl;
@@ -544,9 +601,10 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
             (ttensors.F_alpha()  = ttensors.H1())
             (ttensors.F_alpha() += ttensors.F_alpha_tmp())
             .execute();
-          tamm_to_eigen_tensor(ttensors.F_alpha,etensors.F);
-          Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_guess_a(etensors.X.transpose() * etensors.F * etensors.X);
-          auto C_alpha = etensors.X * eig_solver_guess_a.eigenvectors();
+          Matrix Fa_eig = tamm_to_eigen_matrix(ttensors.F_alpha);
+          Matrix X_eig  = tamm_to_eigen_matrix(ttensors.X_alpha);
+          Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_guess_a(X_eig.transpose() * Fa_eig * X_eig);
+          auto C_alpha = X_eig * eig_solver_guess_a.eigenvectors();
           auto C_occ_a = C_alpha.leftCols(sys_data.nelectrons_alpha);
           if(is_rhf) 
             etensors.D = 2.0 * C_occ_a * C_occ_a.transpose();
@@ -556,9 +614,9 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
               (ttensors.F_beta()  = ttensors.H1())
               (ttensors.F_beta() += ttensors.F_beta_tmp())
               .execute();
-            tamm_to_eigen_tensor(ttensors.F_beta,etensors.F_beta);
-            Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_guess_b(etensors.X.transpose() * etensors.F_beta * etensors.X);
-            auto C_beta  = etensors.X * eig_solver_guess_b.eigenvectors();
+            Matrix Fb_eig = tamm_to_eigen_matrix(ttensors.F_beta);
+            Eigen::SelfAdjointEigenSolver<Matrix> eig_solver_guess_b(X_eig.transpose() * Fb_eig * X_eig);
+            auto C_beta  = X_eig * eig_solver_guess_b.eigenvectors();
             auto C_occ_b = C_beta.leftCols(sys_data.nelectrons_beta);
             etensors.D_beta = C_occ_b * C_occ_b.transpose();
           }
@@ -595,11 +653,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           if(rank!=0) etensors.taskmap.resize(tmdim+1,tmdim+1);
           ec.pg().broadcast(etensors.taskmap.data(),etensors.taskmap.size(),0);
 
-          compute_initial_guess<TensorType>(ec, 
-                  #if defined(USE_SCALAPACK)
-                        blacs_grid.get(),
-                        blockcyclic_dist.get(),
-                  #endif 
+          compute_initial_guess<TensorType>(ec, scalapack_info,
                   sys_data, scf_vars, atoms, shells, basis, is_spherical,
                   etensors, ttensors, charge, multiplicity);
 
@@ -618,20 +672,14 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
 
       hf_t2   = std::chrono::high_resolution_clock::now();
       hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-      if(rank == 0) std::cout << "Total Time to compute initial guess: " << hf_time << " secs" << endl;
+      if(rank == 0) std::cout << std::fixed << std::setprecision(2) << "Total Time to compute initial guess: " << hf_time << " secs" << endl;
 
-      hf_t1 = std::chrono::high_resolution_clock::now();
       /*** =========================== ***/
       /*** main iterative loop         ***/
       /*** =========================== ***/
       double rmsd          = 1.0;
       double ediff         = 0.0;
       bool   is_conv       = true;
-      
-
-      hf_t2   = std::chrono::high_resolution_clock::now();
-      hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-      if(rank == 0 && debug) std::cout << std::endl << "Time to setup tensors for iterative loop: " << hf_time << " secs" << endl;
 
       if(rank == 0) {
         eigen_to_tamm_tensor(ttensors.D_tamm,etensors.D);
@@ -643,7 +691,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
       ec.pg().broadcast(etensors.D.data(), etensors.D.size(),0);
       if(is_uhf) ec.pg().broadcast(etensors.D_beta.data(), etensors.D_beta.size(),0);
       
-      if(rank == 0 && scf_options.debug) {
+      if(rank == 0 && scf_options.debug && N < restart_size) {
         Matrix S(sys_data.nbf_orig,sys_data.nbf_orig);
         tamm_to_eigen_tensor(ttensors.S1,S);
         if(is_rhf) 
@@ -699,13 +747,9 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
           simpleLoadBal(dummyLoads,ec.pg().size().value());
           tmdim = std::max(dummyLoads.maxS1,dummyLoads.maxS2);
           etensors.taskmap.resize(tmdim+1,tmdim+1);
-          for(int i=0;i<tmdim+1;i++) {
-            for(int j=0;j<tmdim+1;j++) {
-              // value in this array is the rank that executes task i,j
-              // -1 indicates a task i,j that can be skipped
-              etensors.taskmap(i,j) = -1; 
-            }
-          } 
+          // value in this array is the rank that executes task i,j
+          // -1 indicates a task i,j that can be skipped
+          etensors.taskmap.setConstant(-1);
           //cout<<"creating task map"<<endl;
           createTaskMap(etensors.taskmap,dummyLoads);
           //cout<<"task map creation completed"<<endl;
@@ -815,11 +859,7 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
                       ttensors.D_hist, ttensors.fock_hist, ttensors.ehf_tamm_hist);
         }
 
-        std::tie(ehf,rmsd) = scf_iter_body<TensorType>(ec, 
-        #if defined(USE_SCALAPACK)
-                        blacs_grid.get(),
-                        blockcyclic_dist.get(),
-        #endif 
+        std::tie(ehf,rmsd) = scf_iter_body<TensorType>(ec, scalapack_info,
                         iter, sys_data, scf_vars, ttensors, etensors, ediis, 
                         #if defined(USE_GAUXC)
                         gauxc_integrator, 
@@ -942,7 +982,10 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         tamm_terminate("Please check SCF input parameters");
       }
 
-      if(rank == 0) tamm_to_eigen_tensor(ttensors.F_alpha,etensors.F);
+      // copy to fock matrices allocated on world group
+      sch(Fa_global(mu,nu) = ttensors.F_alpha(mu,nu));
+      if(is_uhf) sch(Fb_global(mu,nu) = ttensors.F_beta(mu,nu));
+      sch.execute();
 
       if(do_density_fitting) Tensor<TensorType>::deallocate(ttensors.xyK_tamm, ttensors.C_occ_tamm, ttensors.Zxy_tamm);
 
@@ -952,26 +995,35 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
                                      ttensors.FD_tamm, ttensors.FDS_tamm);
       
       if(is_uhf) 
-        Tensor<TensorType>::deallocate(ttensors.F_beta     , 
+        Tensor<TensorType>::deallocate(ttensors.F_beta,
                                        ttensors.D_beta_tamm , ttensors.D_last_beta_tamm,
                                        ttensors.F_beta_tmp , ttensors.ehf_beta_tmp    ,
                                        ttensors.FD_beta_tamm, ttensors.FDS_beta_tamm   );
 
-      if(is_ks) Tensor<TensorType>::deallocate(ttensors.VXC);
+      if(is_ks) {
+        if(rank==0) etensors.VXC = tamm_to_eigen_matrix(ttensors.VXC);
+        Tensor<TensorType>::deallocate(ttensors.VXC);
+      }
 
       #if SCF_THROTTLE_RESOURCES
       ec.flush_and_sync();
       #endif
 
-      ec_l.flush_and_sync();
 
-      #if 0
       #if defined(USE_SCALAPACK)
+      if(scalapack_info.comm != MPI_COMM_NULL) {
+        Tensor<TensorType>::deallocate(ttensors.F_BC, ttensors.X_alpha);
+        if(is_uhf) Tensor<TensorType>::deallocate(ttensors.X_beta);
+        scalapack_info.ec.flush_and_sync();
+      }
       // Free up created comms / groups
-      MPI_Comm_free( &scalapack_comm );
-      MPI_Group_free( &scalapack_group );
-      MPI_Group_free( &world_group );
-      #endif
+      // MPI_Comm_free( &scalapack_comm );
+      // MPI_Group_free( &scalapack_group );
+      // MPI_Group_free( &world_group );
+      #else
+        sch.deallocate(ttensors.X_alpha);
+        if(is_uhf) sch.deallocate(ttensors.X_beta);
+        sch.execute();
       #endif
     
     #if SCF_THROTTLE_RESOURCES
@@ -1012,26 +1064,24 @@ std::tuple<SystemData, double, libint2::BasisSet, std::vector<size_t>,
         
     Tensor<TensorType> C_alpha_tamm{scf_vars.tAO,tAO_ortho};
     Tensor<TensorType> C_beta_tamm{scf_vars.tAO,tAO_ortho};
-    Tensor<TensorType> F_alpha_tamm{scf_vars.tAO,scf_vars.tAO};
-    Tensor<TensorType> F_beta_tamm{scf_vars.tAO,scf_vars.tAO};
+    vxc_tamm = Tensor<TensorType>{scf_vars.tAO,scf_vars.tAO};
 
-    Tensor<TensorType>::allocate(&exc,C_alpha_tamm,F_alpha_tamm);
-    if(is_uhf)
-      Tensor<TensorType>::allocate(&exc,C_beta_tamm,F_beta_tamm);
+    schg.allocate(C_alpha_tamm);
+    if(is_uhf) schg.allocate(C_beta_tamm);
+    if(is_ks) schg.allocate(vxc_tamm);
+    schg.execute();
 
     if (rank == 0) {
-      eigen_to_tamm_tensor(C_alpha_tamm,etensors.C);
-      eigen_to_tamm_tensor(F_alpha_tamm,etensors.F);
-      if(is_uhf) {
-        eigen_to_tamm_tensor(C_beta_tamm,etensors.C_beta);
-        eigen_to_tamm_tensor(F_beta_tamm,etensors.F_beta);
-      }
+      eigen_to_tamm_tensor(C_alpha_tamm, etensors.C);
+      if(is_uhf) eigen_to_tamm_tensor(C_beta_tamm, etensors.C_beta);
+      if(is_ks) eigen_to_tamm_tensor(vxc_tamm, etensors.VXC);
     }
 
     exc.pg().barrier();
 
-    return std::make_tuple(sys_data, ehf, shells, scf_vars.shell_tile_map, 
-      C_alpha_tamm, F_alpha_tamm, C_beta_tamm, F_beta_tamm, scf_vars.tAO, scf_vars.tAOt, scf_conv);
+    return std::make_tuple(sys_data, ehf, shells, scf_vars.shell_tile_map, C_alpha_tamm,
+                           Fa_global, C_beta_tamm, Fb_global, scf_vars.tAO,
+                           scf_vars.tAOt, scf_conv);
 }
 
 #endif // TAMM_METHODS_SCF_MAIN_HPP_

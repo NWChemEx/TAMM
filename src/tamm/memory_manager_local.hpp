@@ -81,7 +81,8 @@ class MemoryManagerLocal : public MemoryManager {
   }
 
   MemoryRegion* alloc_coll_balanced(ElementType eltype,
-                                    Size nelements) override {
+                                    Size nelements,
+                                    ProcList proc_list = {}) override {
     return alloc_coll(eltype, nelements);
   }
 

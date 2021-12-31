@@ -703,7 +703,7 @@ private:
         auto t_ils = op.get_attribute<AllocLabelsAttribute>().get();
         IndexLabelVec t_ilv(t_ils.begin(), t_ils.end());
         auto t_eltype = op.get_attribute<ElTypeAttribute>().get();
-        auto t_scale = op.coeff();
+        auto t_scale = Scalar{1.0};
 
         bool is_intermediate = t_name.substr(0, 2) == "_T";
         TensorVariant tensor;

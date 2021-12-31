@@ -9,7 +9,7 @@ find_package( CMakeBuild QUIET )
 
 if( NOT ${CMakeBuild_FOUND} )
   if (NOT CMSB_TAG)
-    set(CMSB_TAG e2f22032e62802a9111a5299552b7cd9c0b9ee70)
+    set(CMSB_TAG da1632b9b06cbd988f5d1b91a9249146a2a6712a)
     if (ENABLE_DEV_MODE)
       set(CMSB_TAG master)
     endif()
@@ -30,7 +30,15 @@ endif()
 
 set(CMSB_PROJECTS TAMM)
 
-set(TAMM_DEPENDENCIES NJSON MSGSL DOCTEST Eigen3 LibInt2 HPTT HDF5) # GlobalArrays BLAS LAPACK
+set(TAMM_DEPENDENCIES NJSON MSGSL DOCTEST Eigen3 HPTT HDF5)
+
+if(NOT DEFINED BUILD_METHODS)
+  list(APPEND TAMM_DEPENDENCIES LibInt2)
+else()
+  if(BUILD_METHODS)
+    list(APPEND TAMM_DEPENDENCIES LibInt2)
+  endif()
+endif()
 
 if(USE_CUDA OR USE_HIP) 
    list(APPEND TAMM_DEPENDENCIES TALSH)
@@ -53,7 +61,7 @@ if(USE_GA_AT)
         list(APPEND TAMM_DEPENDENCIES LAPACK BLAS)
     endif()
 else()
-    list(APPEND TAMM_DEPENDENCIES GlobalArrays)
+    list(APPEND TAMM_DEPENDENCIES GlobalArrays) #BLAS LAPACK
 endif()
 
 if(USE_GAUXC)

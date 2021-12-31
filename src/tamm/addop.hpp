@@ -341,7 +341,8 @@ public:
 
         EXPECTS(plan_ != Plan::invalid);
         if(lhs_.tensor().execution_context()->pg() == ec.pg() &&
-           lhs_.tensor().kind() != TensorBase::TensorKind::view) {
+           lhs_.tensor().kind() != TensorBase::TensorKind::view &&
+           lhs_.tensor().kind() != TensorBase::TensorKind::dense ) {
             plan_obj_->apply(*this, ec, hw);
         } else {
             general_plan_obj_->apply(*this, ec, hw);
@@ -776,7 +777,8 @@ void GeneralLHSAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(
         T1* lhs_buf{nullptr};
         bool lhs_alloced{false};
         if(proc_lhs_to_ec[lhs_proc.value()] == proc_me_in_ec &&
-           lhs_tensor.kind() != TensorBase::TensorKind::view) {
+           lhs_tensor.kind() != TensorBase::TensorKind::view &&
+           lhs_tensor.kind() != TensorBase::TensorKind::dense) {
             lhs_buf     = lhs_tensor.access_local_buf() + lhs_offset.value();
             lhs_alloced = false;
         } else {
@@ -793,7 +795,8 @@ void GeneralLHSAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(
         bool rhs_alloced{false};
         if(proc_rhs_to_ec[rhs_proc.value()] == proc_me_in_ec &&
            rhs_tensor.kind() != TensorBase::TensorKind::view && 
-           rhs_tensor.kind() != TensorBase::TensorKind::lambda) {
+           rhs_tensor.kind() != TensorBase::TensorKind::lambda &&
+           rhs_tensor.kind() != TensorBase::TensorKind::dense) {
             rhs_buf     = rhs_tensor.access_local_buf() + rhs_offset.value();
             rhs_alloced = false;
         } else {
@@ -809,7 +812,8 @@ void GeneralLHSAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(
         plan.apply(lhs_span, alpha, rhs_span);
 
         if(proc_me_in_ec != proc_lhs_to_ec[lhs_proc.value()] ||
-           lhs_tensor.kind() == TensorBase::TensorKind::view) {
+           lhs_tensor.kind() == TensorBase::TensorKind::view ||
+           lhs_tensor.kind() == TensorBase::TensorKind::dense) {
             span<T1> lhs_span{lhs_buf, lhs_blocksize};
             lhs_tensor.put(l_blockid, lhs_span);
         }

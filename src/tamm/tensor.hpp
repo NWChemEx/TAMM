@@ -48,11 +48,6 @@ public:
          impl_ = std::make_shared<TensorImpl<T>>(tis_vec);
       //}
     }
-    
-    Tensor(ProcGrid pg, std::vector<TiledIndexSpace> tis_vec) {
-      EXPECTS(tis_vec.size() == 2); 
-      impl_ = std::make_shared<DenseTensorImpl<T>>(tis_vec, pg, true);
-    }
 
     /**
      * @brief Construct a new Tensor object from a vector of TiledIndexLabel
@@ -76,11 +71,6 @@ public:
       // else {
          impl_ = std::make_shared<TensorImpl<T>>(til_vec);
       //}
-    }
-
-    Tensor(ProcGrid pg, std::vector<TiledIndexLabel> til_vec) {
-      EXPECTS(til_vec.size() == 2); 
-      impl_ = std::make_shared<DenseTensorImpl<T>>(til_vec, pg, true);
     }
 
 
@@ -222,11 +212,6 @@ public:
          impl_ = std::make_shared<TensorImpl<T>>(tis);
      //}
     }
-    
-    Tensor(ProcGrid pg, std::initializer_list<TiledIndexSpace> tis) {
-      EXPECTS(tis.size() == 2); 
-      impl_ = std::make_shared<DenseTensorImpl<T>>(tis, pg, true);
-    }
 
     /**
      * @brief Construct a new Tensor object from a set of TiledIndexLabel
@@ -250,11 +235,6 @@ public:
       // else {
          impl_ = std::make_shared<TensorImpl<T>>(lbls);
       //}
-    }
-
-    Tensor(ProcGrid pg, const std::initializer_list<TiledIndexLabel>& lbls) {
-      EXPECTS(lbls.size() == 2); 
-      impl_ = std::make_shared<DenseTensorImpl<T>>(lbls, pg, true);
     }
 
     /**
@@ -551,7 +531,35 @@ public:
       return impl_->size();
     }
 
+    ProcGrid proc_grid() const {
+      return impl_->distribution().proc_grid();
+    }
+
     bool is_allocated() const { return impl_->is_allocated(); }
+
+    bool is_block_cyclic() const { return impl_->is_block_cyclic(); }
+
+    void set_block_cyclic(ProcGrid pg) {
+      EXPECTS(!is_allocated());
+      auto new_tis_vec = tiled_index_spaces();
+      EXPECTS(new_tis_vec.size() == 2);
+      impl_ = std::make_shared<DenseTensorImpl<T>>(new_tis_vec, pg, true);
+    }
+
+    void set_dense(ProcGrid pg={}) {
+      EXPECTS(!is_allocated());
+      impl_ = std::make_shared<DenseTensorImpl<T>>(tiled_index_spaces(), pg, false);
+    }
+
+    template<typename... Args>
+    static void set_dense(Tensor<T>& tensor, Args&... rest) {
+      mark_dense(tensor, rest...);
+    }    
+
+    void set_restricted(ProcList proc_list) {
+      EXPECTS(!is_allocated());
+      impl_->set_proc_list(proc_list);
+    }
 
   private:
     std::shared_ptr<TensorImpl<T>>
@@ -569,6 +577,8 @@ public:
      *
      */
     static void dealloc() {}
+
+    static void mark_dense() {}
 
     /**
      * @brief Static memory allocation method for a set of Tensors
@@ -595,6 +605,14 @@ public:
         tensor.impl_->deallocate();
         dealloc(rest...);
     }
+
+    template<typename... Args>
+    static void mark_dense(Tensor<T>& tensor, Args&... rest) {
+      EXPECTS(!tensor.is_allocated());
+      ProcGrid pg = {};
+      tensor.impl_ = std::make_shared<DenseTensorImpl<T>>(tensor.tiled_index_spaces(), pg, false);
+      mark_dense(rest...);
+    }    
 };
 
 template <typename T>

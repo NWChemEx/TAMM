@@ -16,6 +16,71 @@ using namespace tamm;
   // };
 
 template<typename T>
+struct V2Tensors {
+  Tensor<T> v2ijab; //hhpp
+  Tensor<T> v2iajb; //hphp
+  Tensor<T> v2ijka; //hhhp
+  Tensor<T> v2ijkl; //hhhh
+  Tensor<T> v2iabc; //hppp
+  Tensor<T> v2abcd; //pppp
+
+  std::string v2ijab_file,v2iajb_file,v2ijka_file,v2ijkl_file,v2iabc_file,v2abcd_file;
+
+  void deallocate() {
+    Tensor<T>::deallocate(v2ijab,v2iajb,v2ijka,v2ijkl,v2iabc,v2abcd);
+  }
+
+  void allocate(ExecutionContext& ec, const TiledIndexSpace& MO) {
+    auto [h1,h2,h3,h4] = MO.labels<4>("occ");
+    auto [p1,p2,p3,p4] = MO.labels<4>("virt");
+
+    v2ijkl = Tensor<T>{{h1,h2,h3,h4},{2,2}};
+    v2ijka = Tensor<T>{{h1,h2,h3,p1},{2,2}};
+    v2iajb = Tensor<T>{{h1,p1,h2,p2},{2,2}};
+    v2ijab = Tensor<T>{{h1,h2,p1,p2},{2,2}};
+    v2iabc = Tensor<T>{{h1,p1,p2,p3},{2,2}};
+    v2abcd = Tensor<T>{{p1,p2,p3,p4},{2,2}};
+    Tensor<T>::allocate(&ec,v2ijab,v2iajb,v2ijka,v2ijkl,v2iabc,v2abcd);
+  }
+
+  void set_file_prefix(const std::string& fprefix){
+    v2ijab_file = fprefix+".v2ijab";
+    v2iajb_file = fprefix+".v2iajb";
+    v2ijka_file = fprefix+".v2ijka";
+    v2ijkl_file = fprefix+".v2ijkl";
+    v2iabc_file = fprefix+".v2iabc";
+    v2abcd_file = fprefix+".v2abcd";
+  }
+
+  void write_to_disk(const std::string& fprefix){
+    set_file_prefix(fprefix);
+    tamm::write_to_disk(v2ijab,v2ijab_file);
+    tamm::write_to_disk(v2iajb,v2iajb_file);
+    tamm::write_to_disk(v2ijka,v2ijka_file);
+    tamm::write_to_disk(v2ijkl,v2ijkl_file);
+    tamm::write_to_disk(v2iabc,v2iabc_file);
+    tamm::write_to_disk(v2abcd,v2abcd_file);
+  }
+
+  void read_from_disk(const std::string& fprefix){
+    set_file_prefix(fprefix);
+    tamm::read_from_disk(v2ijab,v2ijab_file);
+    tamm::read_from_disk(v2iajb,v2iajb_file);
+    tamm::read_from_disk(v2ijka,v2ijka_file);
+    tamm::read_from_disk(v2ijkl,v2ijkl_file);
+    tamm::read_from_disk(v2iabc,v2iabc_file);
+    tamm::read_from_disk(v2abcd,v2abcd_file);
+  }
+
+  bool exist_on_disk(const std::string& fprefix) {
+    set_file_prefix(fprefix);
+    return ( fs::exists(v2ijab_file) && fs::exists(v2iajb_file) &&
+             fs::exists(v2ijka_file) && fs::exists(v2ijkl_file) &&
+             fs::exists(v2iabc_file) && fs::exists(v2abcd_file) );
+  }
+};
+
+template<typename T>
 void setup_full_t1t2(ExecutionContext& ec, const TiledIndexSpace& MO,
   Tensor<T>& dt1_full, Tensor<T>& dt2_full) {
 
@@ -242,112 +307,6 @@ std::pair<double,double> rest_cs(ExecutionContext& ec,
       // Tensor<T>::deallocate(d_r1_residual, d_r2_residual);
       
     return {residual, energy};
-}
-
-std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(SystemData sys_data, bool triples=false) {
-  
-    // TAMM_SIZE nao = sys_data.nbf;
-    TAMM_SIZE n_occ_alpha = sys_data.n_occ_alpha;
-    TAMM_SIZE n_occ_beta = sys_data.n_occ_beta;
-    TAMM_SIZE freeze_core = sys_data.n_frozen_core;
-    TAMM_SIZE freeze_virtual = sys_data.n_frozen_virtual;
-
-    Tile tce_tile = sys_data.options_map.ccsd_options.tilesize;
-    bool balance_tiles = sys_data.options_map.ccsd_options.balance_tiles;
-    if(!triples) {
-      if ((tce_tile < static_cast<Tile>(sys_data.nbf/10) || tce_tile < 50 || tce_tile > 100) && !sys_data.options_map.ccsd_options.force_tilesize) {
-        tce_tile = static_cast<Tile>(sys_data.nbf/10);
-        if(tce_tile < 50) tce_tile = 50; //50 is the default tilesize for CCSD.
-        if(tce_tile > 100) tce_tile = 100; //100 is the max tilesize for CCSD.
-        if(GA_Nodeid()==0) std::cout << std::endl << "Resetting CCSD tilesize to: " << tce_tile << std::endl;
-      }
-    }
-    else {
-      balance_tiles = false;
-      tce_tile = sys_data.options_map.ccsd_options.ccsdt_tilesize;
-    }
-
-    TAMM_SIZE nmo = sys_data.nmo;
-    TAMM_SIZE n_vir_alpha = sys_data.n_vir_alpha;
-    TAMM_SIZE n_vir_beta = sys_data.n_vir_beta;
-    TAMM_SIZE nocc = sys_data.nocc;
-    // TAMM_SIZE nvab = n_vir_alpha+n_vir_beta;
-
-    // std::cout << "n_occ_alpha,nao === " << n_occ_alpha << ":" << nao << std::endl;
-    std::vector<TAMM_SIZE> sizes = {n_occ_alpha - freeze_core, n_occ_beta - freeze_core,
-             n_vir_alpha - freeze_virtual, n_vir_beta - freeze_virtual};
-
-    const TAMM_SIZE total_orbitals = nmo - 2 * freeze_core - 2 * freeze_virtual;
-    
-    // cout << "total orb = " <<total_orbitals << endl;
-    // cout << "oab = " << n_occ_alpha << endl;
-    // cout << "vab = " << ov_beta << endl;
-
-    // Construction of tiled index space MO
-    IndexSpace MO_IS{range(0, total_orbitals),
-                    {
-                     {"occ", {range(0, nocc)}},
-                     {"occ_alpha", {range(0, n_occ_alpha)}},
-                     {"occ_beta", {range(n_occ_alpha, nocc)}},
-                     {"virt", {range(nocc, total_orbitals)}},
-                     {"virt_alpha", {range(nocc,nocc+n_vir_alpha)}},
-                     {"virt_beta", {range(nocc+n_vir_alpha, total_orbitals)}},                     
-                    },
-                     { 
-                      {Spin{1}, {range(0, n_occ_alpha), range(nocc,nocc+n_vir_alpha)}},
-                      {Spin{2}, {range(n_occ_alpha, nocc), range(nocc+n_vir_alpha, total_orbitals)}} 
-                     }
-                     };
-
-    std::vector<Tile> mo_tiles;
-    
-    if(!balance_tiles) {
-      tamm::Tile est_nt = n_occ_alpha/tce_tile;
-      tamm::Tile last_tile = n_occ_alpha%tce_tile;
-      for (tamm::Tile x=0;x<est_nt;x++)mo_tiles.push_back(tce_tile);
-      if(last_tile>0) mo_tiles.push_back(last_tile);
-      est_nt = n_occ_beta/tce_tile;
-      last_tile = n_occ_beta%tce_tile;
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
-      if(last_tile>0) mo_tiles.push_back(last_tile);
-
-      est_nt = n_vir_alpha/tce_tile;
-      last_tile = n_vir_alpha%tce_tile;
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
-      if(last_tile>0) mo_tiles.push_back(last_tile);
-      est_nt = n_vir_beta/tce_tile;
-      last_tile = n_vir_beta%tce_tile;    
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(tce_tile);
-      if(last_tile>0) mo_tiles.push_back(last_tile);
-    }
-    else {
-      tamm::Tile est_nt = static_cast<tamm::Tile>(std::ceil(1.0 * n_occ_alpha / tce_tile));
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(n_occ_alpha / est_nt + (x<(n_occ_alpha % est_nt)));
-
-      est_nt = static_cast<tamm::Tile>(std::ceil(1.0 * n_occ_beta / tce_tile));
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(n_occ_beta / est_nt + (x<(n_occ_beta % est_nt)));
-
-      est_nt = static_cast<tamm::Tile>(std::ceil(1.0 * n_vir_alpha / tce_tile));
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(n_vir_alpha / est_nt + (x<(n_vir_alpha % est_nt)));
-
-      est_nt = static_cast<tamm::Tile>(std::ceil(1.0 * n_vir_beta / tce_tile));
-      for (tamm::Tile x=0;x<est_nt;x++) mo_tiles.push_back(n_vir_beta / est_nt + (x<(n_vir_beta % est_nt)));
-    }
-
-    // cout << "mo-tiles=" << mo_tiles << endl;
-
-    // IndexSpace MO_IS{range(0, total_orbitals),
-    //                 {{"occ", {range(0, n_occ_alpha+ov_beta)}}, //0-7
-    //                  {"virt", {range(total_orbitals/2, total_orbitals)}}, //7-14
-    //                  {"alpha", {range(0, n_occ_alpha),range(n_occ_alpha+ov_beta,2*n_occ_alpha+ov_beta)}}, //0-5,7-12
-    //                  {"beta", {range(n_occ_alpha,n_occ_alpha+ov_beta), range(2*n_occ_alpha+ov_beta,total_orbitals)}} //5-7,12-14   
-    //                  }};
-
-    // const unsigned int ova = static_cast<unsigned int>(n_occ_alpha);
-    // const unsigned int ovb = static_cast<unsigned int>(ov_beta);
-    TiledIndexSpace MO{MO_IS, mo_tiles}; //{ova,ova,ovb,ovb}};
-
-    return std::make_tuple(MO,total_orbitals);
 }
 
 template<typename T>
@@ -599,11 +558,11 @@ setupLambdaTensors(ExecutionContext& ec, TiledIndexSpace& MO, size_t ndiis) {
   if(rank == 0) {
     std::cout << std::endl << std::endl;
     std::cout << " Lambda CCSD iterations" << std::endl;
-    std::cout << std::string(44, '-') << std::endl;
+    std::cout << std::string(45, '-') << std::endl;
     std::cout <<
         " Iter          Residuum          Cpu    Wall"
               << std::endl;
-    std::cout << std::string(44, '-') << std::endl;
+    std::cout << std::string(45, '-') << std::endl;
   }
 
   std::vector<Tensor<T>> d_r1s,d_r2s,d_y1s, d_y2s;
@@ -621,6 +580,37 @@ setupLambdaTensors(ExecutionContext& ec, TiledIndexSpace& MO, size_t ndiis) {
 
 }
 
+
+template<typename T>
+V2Tensors<T> setupV2Tensors(ExecutionContext& ec, Tensor<T> cholVpr, ExecutionHW ex_hw = ExecutionHW::CPU) {
+  TiledIndexSpace MO    = cholVpr.tiled_index_spaces()[0]; // MO
+  TiledIndexSpace CI    = cholVpr.tiled_index_spaces()[2]; // CI
+  auto [cind]           = CI.labels<1>("all");
+  auto [h1, h2, h3, h4] = MO.labels<4>("occ");
+  auto [p1, p2, p3, p4] = MO.labels<4>("virt");
+
+  V2Tensors<T> v2tensors;
+  v2tensors.allocate(ec, MO);
+
+  // clang-format off
+  Scheduler{ec}
+  ( v2tensors.v2ijkl(h1,h2,h3,h4)      =   1.0 * cholVpr(h1,h3,cind) * cholVpr(h2,h4,cind) )
+  ( v2tensors.v2ijkl(h1,h2,h3,h4)     +=  -1.0 * cholVpr(h1,h4,cind) * cholVpr(h2,h3,cind) )
+  ( v2tensors.v2ijka(h1,h2,h3,p1)      =   1.0 * cholVpr(h1,h3,cind) * cholVpr(h2,p1,cind) )
+  ( v2tensors.v2ijka(h1,h2,h3,p1)     +=  -1.0 * cholVpr(h2,h3,cind) * cholVpr(h1,p1,cind) )
+  ( v2tensors.v2iajb(h1,p1,h2,p2)      =   1.0 * cholVpr(h1,h2,cind) * cholVpr(p1,p2,cind) )
+  ( v2tensors.v2iajb(h1,p1,h2,p2)     +=  -1.0 * cholVpr(h1,p2,cind) * cholVpr(h2,p1,cind) )
+  ( v2tensors.v2ijab(h1,h2,p1,p2)      =   1.0 * cholVpr(h1,p1,cind) * cholVpr(h2,p2,cind) )
+  ( v2tensors.v2ijab(h1,h2,p1,p2)     +=  -1.0 * cholVpr(h1,p2,cind) * cholVpr(h2,p1,cind) )
+  ( v2tensors.v2iabc(h1,p1,p2,p3)      =   1.0 * cholVpr(h1,p2,cind) * cholVpr(p1,p3,cind) )
+  ( v2tensors.v2iabc(h1,p1,p2,p3)     +=  -1.0 * cholVpr(h1,p3,cind) * cholVpr(p1,p2,cind) )
+  ( v2tensors.v2abcd(p1,p2,p3,p4)      =   1.0 * cholVpr(p1,p3,cind) * cholVpr(p2,p4,cind) )
+  ( v2tensors.v2abcd(p1,p2,p3,p4)     +=  -1.0 * cholVpr(p1,p4,cind) * cholVpr(p2,p3,cind) )
+  .execute(ex_hw);
+  // clang-format on
+
+  return v2tensors;
+}
 
 template<typename T>
 Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI,
@@ -749,9 +739,18 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
 
     auto itile_size = sys_data.options_map.ccsd_options.itilesize;
 
+    sys_data.n_frozen_core    = sys_data.options_map.ccsd_options.freeze_core;
+    sys_data.n_frozen_virtual = sys_data.options_map.ccsd_options.freeze_virtual;
+    bool do_freeze = sys_data.n_frozen_core > 0 || sys_data.n_frozen_virtual > 0;
+
+    std::string out_fp = sys_data.output_file_prefix+"."+sys_data.options_map.ccsd_options.basis;
+    std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type;
+    std::string lcaofile = files_dir+"/"+out_fp+".lcao";
+
     if(!readv2) {
       two_index_transform(sys_data, ec, C_AO, F_AO, C_beta_AO,F_beta_AO, d_f1, lcao, is_dlpno);
       if(!is_dlpno) cholVpr = cd_svd_ga(sys_data, ec, MO, AO, chol_count, max_cvecs, shells, lcao);
+      write_to_disk<TensorType>(lcao,lcaofile);
     }
     else{
       std::ifstream in(cholfile, std::ios::in);
@@ -762,12 +761,16 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
 
       if(rank==0) cout << "Number of cholesky vectors to be read = " << chol_count << endl;
 
+      if(!is_dlpno) update_sysdata(sys_data, MO);
+
       IndexSpace chol_is{range(0,chol_count)};
       TiledIndexSpace CI{chol_is,static_cast<tamm::Tile>(itile_size)}; 
 
+      TiledIndexSpace N = MO("all");
       cholVpr = {{N,N,CI},{SpinPosition::upper,SpinPosition::lower,SpinPosition::ignore}};
       if(!is_dlpno) Tensor<TensorType>::allocate(&ec, cholVpr);
       // Scheduler{ec}(cholVpr()=0).execute();
+      read_from_disk(lcao,lcaofile);
     }
 
     auto hf_t2        = std::chrono::high_resolution_clock::now();
@@ -787,6 +790,21 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
     sys_data.results["output"]["CD"]["n_cholesky_vectors"] = chol_count;
 
     if(rank == 0) sys_data.print();
+
+    if(do_freeze) {
+      TiledIndexSpace N_eff = MO("all");
+      Tensor<T> d_f1_new{{N_eff,N_eff},{1,1}};      
+      Tensor<T>::allocate(&ec,d_f1_new);
+      if(rank==0) {
+        Matrix f1_eig     = tamm_to_eigen_matrix(d_f1);
+        Matrix f1_new_eig = reshape_mo_matrix(sys_data,f1_eig);
+        eigen_to_tamm_tensor(d_f1_new,f1_new_eig);
+        f1_new_eig.resize(0,0);
+      }
+      Tensor<T>::deallocate(d_f1);
+      d_f1 = d_f1_new;
+    }
+
 
     return std::make_tuple(cholVpr, d_f1, lcao, chol_count, max_cvecs, CI);
 }

@@ -17,17 +17,8 @@ void two_index_transform(SystemData sys_data, ExecutionContext& ec, Tensor<Tenso
   const TAMM_GA_SIZE n_vir_beta     = sys_data.n_vir_beta;
   const TAMM_GA_SIZE northo         = sys_data.nbf;
   const TAMM_GA_SIZE nao            = sys_data.nbf_orig;
-  // const TAMM_GA_SIZE freeze_core    = sys_data.n_frozen_core;
-  // const TAMM_GA_SIZE freeze_virtual = sys_data.n_frozen_virtual;
-  // const TAMM_GA_SIZE n_lindep       = sys_data.n_lindep;
 
   auto rank = ec.pg().rank();
-
-  // auto n_occ_alpha_eff = n_occ_alpha - freeze_core;
-  // auto n_vir_alpha_eff = n_vir_alpha - freeze_virtual;
-  // auto n_occ_beta_eff  = n_occ_beta  - freeze_core;
-  // auto n_vir_beta_eff  = n_vir_beta  - freeze_virtual;
-  // auto n_occ_eff       = n_occ_alpha_eff + n_occ_beta_eff;
 
   //
   // 2-index transform
@@ -41,11 +32,6 @@ void two_index_transform(SystemData sys_data, ExecutionContext& ec, Tensor<Tenso
   const bool is_uhf = sys_data.is_unrestricted;
   const bool is_rhf = sys_data.is_restricted;
   // const bool is_rohf = sys_data.is_restricted_os;
-
-  std::string out_fp = sys_data.output_file_prefix+"."+sys_data.options_map.ccsd_options.basis;
-  std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type;
-  std::string files_prefix = /*out_fp;*/ files_dir+"/"+out_fp;
-  std::string lcaofile = files_prefix+".lcao";
 
   Matrix CTiled(nao, N);
 
@@ -111,7 +97,6 @@ void two_index_transform(SystemData sys_data, ExecutionContext& ec, Tensor<Tenso
 
       eigen_to_tamm_tensor(F_MO,F);
       eigen_to_tamm_tensor(lcao,CTiled);
-      write_scf_mat<TensorType>(CTiled,lcaofile);
     }
     else {
       Matrix F_AO_eig,F_MO_eig,C_AO_eig;

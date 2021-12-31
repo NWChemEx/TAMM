@@ -502,7 +502,7 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
   HIP_SAFE(hipStreamSynchronize(stream));
 #elif defined(USE_DPCPP)
   stream.memcpy(host_energies, dev_energies, num_blocks * 2 * sizeof(double));
-  stream.wait_and_throw();
+  stream.ext_oneapi_submit_barrier();
 #endif
 
   //
@@ -559,9 +559,14 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
   freeGpuMem(stream, dev_evl_sorted_p6b);
 #endif
 
-//TODO: destroy stream
+#if defined(USE_CUDA)
+    CUDA_SAFE(cudaStreamDestroy(stream));
+#elif defined(USE_HIP)
+    HIP_SAFE(hipStreamDestroy(stream));
+#elif defined(USE_DPCPP)
+    // DONT delete sycl::queue here, instead done in ccsd_t_fused_driver.hpp
+#endif
 
-  //
 #ifdef OPT_ALL_TIMING
   cudaEventRecord(stop_post_processing);
   cudaEventSynchronize(stop_post_processing);

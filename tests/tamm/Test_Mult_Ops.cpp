@@ -38,6 +38,75 @@ void test_2_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
     if (sch.ec().pg().rank() == 0)
       std::cout << "2-D Tensor contraction with " << N << " indices tiled with "
                 << tilesize << " : " << mult_time << std::endl;
+
+    // 2D dense case
+    // ExecutionContext ec{pg, DistributionKind::dense, MemoryManagerKind::ga};
+    // using Matrix   = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+
+    // TiledIndexSpace AO{IndexSpace{range(N)}, 50};
+    // TiledIndexSpace AO{IndexSpace{range(N)}, {2,2,1}};
+    // auto [mu,nu,ku] = AO.labels<3>("all");
+    // Tensor<T> X1{AO,AO};
+    // Tensor<T> X2{AO,AO};
+    // Tensor<T> X3{AO,AO};
+    // X1.set_dense();
+    // X2.set_dense();
+    // X3.set_dense();
+    // Scheduler{ec}.allocate(X1,X2,X3)
+    // (X2()=3.2)
+    // (X3()=2.4)
+    // (X1(mu,nu) = X2(mu,ku) * X3(ku,nu)).execute();
+    
+    // if(pg.rank()==0) {
+    //   Matrix X1_e(N,N);
+    //   std::cout << "----------------" << std::endl;
+    //   X1_e.setRandom();
+    //   std::cout << X1_e << std::endl;
+    //   eigen_to_tamm_tensor<double>(X1,X1_e);
+    // }
+    // Tensor<T> X1_b = tensor_block(X1, {0,0}, {2,2});
+    // Tensor<T> X1_bp = permute_tensor(X1_b,{1,0});
+
+    // if(pg.rank()==0) {
+    //   std::cout << "----------------" << std::endl;
+    //   Matrix X_eig = tamm_to_eigen_matrix<double>(X1_b);
+    //   std::cout << X_eig << std::endl;
+    //   X_eig = tamm_to_eigen_matrix<double>(X1_bp);
+    //   std::cout << "----------------" << std::endl;
+    //   std::cout << X_eig << std::endl;
+    // }
+
+    // sch.deallocate(X1,X2,X3,X1_b,X1_bp).execute();  
+    // X1 = {AO,AO,AO};
+    // X2 = {AO,AO,AO};
+    // X3 = {AO,AO,AO};
+    // Tensor<T>::set_dense(X1,X2,X3);
+    // sch.allocate(X1,X2,X3).execute();  
+    // sch(X2()=3.2)
+    // (X3()=2.3)
+    // (X1(mu,nu,ku) = X2(mu,nu,lu)* X3(lu,nu,ku)).execute();    
+
+
+    // if(pg.rank()==0) {
+    //   std::cout << "----------------" << std::endl;
+    //   Tensor3D X1_e(N,N,N);
+    //   X1_e.setRandom();
+    //   eigen_to_tamm_tensor<double>(X1,X1_e);
+    //   std::cout << X1_e << std::endl;
+    // }
+
+    // X1_b = tensor_block(X1, {0,0,0}, {2,1,2});
+    // if(pg.rank() == 0) std::cout << "X1_b is BC: " << X1_b.is_block_cyclic() << std::endl;
+    // Tensor<T> X1_bp3 = permute_tensor(X1_b,{2,0,1});
+    // if(pg.rank()==0) {
+    //   std::cout << "----------------" << std::endl;
+    //   Tensor3D X_eig = tamm_to_eigen_tensor<double,3>(X1_b);
+    //   std::cout << X_eig << std::endl; 
+    //   std::cout << "----------------" << std::endl;
+    //   X_eig = tamm_to_eigen_tensor<double,3>(X1_bp3);
+    //   std::cout << X_eig.dimensions() << std::endl;       
+    //   std::cout << X_eig << std::endl;       
+    // }           
 }
 
 template <typename T>

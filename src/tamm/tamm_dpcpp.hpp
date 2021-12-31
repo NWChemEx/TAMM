@@ -2,5 +2,5 @@
 
 #include <CL/sycl.hpp>
 #include "oneapi/mkl.hpp"
-using namespace sycl::ONEAPI;
+using namespace sycl::ext::oneapi;
 #endif

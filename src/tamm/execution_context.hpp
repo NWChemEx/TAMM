@@ -322,6 +322,8 @@ public:
 
     bool has_gpu() const { return has_gpu_; }
 
+    ExecutionHW exhw() const { return exhw_; }
+
     int num_nodes() const { return nnodes_; }
     int ppn() const { return ranks_pn_; }
 
@@ -391,6 +393,7 @@ private:
     int ranks_pn_;
     bool has_gpu_;
     int dev_id_=-1;
+    ExecutionHW exhw_;
 #if defined(USE_DPCPP)
     std::vector<sycl::queue*> vec_syclQue;
 #endif

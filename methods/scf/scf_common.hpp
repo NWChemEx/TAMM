@@ -1047,7 +1047,7 @@ Matrix compute_schwarz_ints(ExecutionContext& ec, const SCFVars& scf_vars,
   const std::vector<Tile>&   AO_tiles       = scf_vars.AO_tiles;
   const std::vector<size_t>& shell_tile_map = scf_vars.shell_tile_map;
 
-  TiledIndexSpace    tnsh{IndexSpace{range(0, nsh1)}, std::ceil(nsh1 * 0.05)};
+  TiledIndexSpace    tnsh{IndexSpace{range(0, nsh1)}, static_cast<Tile>(std::ceil(nsh1 * 0.05))};
   Tensor<TensorType> schwarz{scf_vars.tAO, scf_vars.tAO};
   Tensor<TensorType> schwarz_mat{tnsh, tnsh};
   Tensor<TensorType>::allocate(&ec, schwarz_mat);

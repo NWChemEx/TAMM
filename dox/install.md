@@ -131,10 +131,11 @@ module unload PrgEnv-intel/6.0.5
 module load PrgEnv-gnu/6.0.5
 module swap gcc/8.3.0 
 module swap craype/2.5.18
-module swap cray-mpich/7.7.6 (OR) module load openmpi
+module swap cray-mpich/7.7.6
 module unload cmake
 module load cmake/3.21.3
-module load cuda/10.1.168
+module load cgpu
+module load cuda
 export CRAYPE_LINK_TYPE=dynamic
 export HDF5_USE_FILE_LOCKING="FALSE"
 ```
@@ -156,9 +157,9 @@ make install
 
 ```
 module load PrgEnv-gnu
+module load cudatoolkit
 module load cpe-cuda
 module load gcc/9.3.0
-module load cuda
 module load cmake
 export CRAYPE_LINK_TYPE=dynamic
 ```

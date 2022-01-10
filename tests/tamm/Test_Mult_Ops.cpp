@@ -269,6 +269,9 @@ int main(int argc, char* argv[]) {
 
   if(is_size < tile_size) tile_size = is_size;
 
+  ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
+
   ExecutionHW ex_hw = ExecutionHW::CPU;
   #ifdef USE_DPCPP
   ex_hw = ExecutionHW::GPU;
@@ -277,11 +280,8 @@ int main(int argc, char* argv[]) {
   ex_hw = ExecutionHW::GPU;
   const bool has_gpu = ec.has_gpu();
   TALSH talsh_instance;
-  if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
+  if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),ec.pg().rank().value());
   #endif
-
-  ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-  ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   Scheduler sch{ec};
 

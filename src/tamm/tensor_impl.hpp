@@ -1203,6 +1203,265 @@ protected:
   CopyFunc put_func_;
   Tensor<T> ref_tensor_;
 }; // class ViewTensorImpl
+
+template <typename T> class TensorUnitTiled : public TensorImpl<T> {
+public:
+  using TensorImpl<T>::mpb_;
+  using TensorImpl<T>::distribution_;
+  using TensorImpl<T>::update_status; 
+  using TensorImpl<T>::is_allocated;
+
+
+
+  using TensorImpl<T>::TensorBase::ec_;
+  using TensorImpl<T>::TensorBase::setKind;
+  using TensorImpl<T>::TensorBase::allocation_status_; 
+  using TensorImpl<T>::TensorBase::is_non_zero;
+  using TensorImpl<T>::TensorBase::block_size;
+
+
+  // Ctors
+  TensorUnitTiled() = default;
+
+  TensorUnitTiled(const Tensor<T>& opt_tensor, size_t unit_tis_count):
+    TensorImpl<T>{construct_new_tis(opt_tensor, unit_tis_count)}, tensor_opt_{opt_tensor} {
+    setKind(TensorBase::TensorKind::unit_view);
+    if (tensor_opt_.is_allocated()) {
+      allocate(tensor_opt_.execution_context());
+    }
+  }
+
+  // Copy/Move Ctors and Assignment Operators
+  TensorUnitTiled(TensorUnitTiled &&) = default;
+  TensorUnitTiled(const TensorUnitTiled &) = delete;
+  TensorUnitTiled &operator=(TensorUnitTiled &&) = default;
+  TensorUnitTiled &operator=(const TensorUnitTiled &) = delete;
+
+  // Dtor
+  ~TensorUnitTiled() = default;
+
+  /**
+   * @brief Virtual method implementation for deallocating a unit tiled view tensor
+   * @todo Decide on the actual behavior - no action is done for now
+   */
+  void deallocate() override {
+    EXPECTS(allocation_status_ == AllocationStatus::created);
+    EXPECTS(mpb_);
+    // ec_->unregister_for_dealloc(mpb_);
+    // mpb_->dealloc_coll();
+    // delete mpb_;
+    // mpb_ = nullptr;
+    // update_status(AllocationStatus::deallocated);
+  }
+
+  /**
+   * @brief Virtual method implementation for allocating a unit tiled view tensor using an
+   * ExecutionContext
+   * 
+   * @param [in] ec ExecutionContext to be used for allocation
+   *
+   */
+  void allocate(ExecutionContext* ec) override {
+    EXPECTS(tensor_opt_.is_allocated());
+
+    if(!is_allocated()) {
+      auto          defd         = ec->get_default_distribution();
+      Distribution* distribution = ec->distribution(defd->get_tensor_base(), defd->get_dist_proc());
+      MemoryManager* memory_manager = ec->memory_manager();
+      EXPECTS(distribution != nullptr);
+      EXPECTS(memory_manager != nullptr);
+      ec_ = ec;
+
+      distribution_ =
+        std::shared_ptr<Distribution>(new UnitTileDistribution(this, &tensor_opt_.distribution()));
+
+      EXPECTS(distribution_ != nullptr);
+
+      auto eltype = tensor_element_type<T>();
+      mpb_        = tensor_opt_.memory_region();
+      EXPECTS(mpb_ != nullptr);
+      update_status(AllocationStatus::created);
+    }
+  }
+
+  const Distribution &distribution() const override {
+    return *distribution_.get();
+  }
+
+  // // Tensor Accessors
+  // /**
+  //  * @brief Tensor accessor method for getting values from a set of
+  //  * indices to specified memory span
+  //  *
+  //  * @tparam T type of the values hold on the tensor object
+  //  * @param [in] idx_vec a vector of indices to fetch the values
+  //  * @param [in] buff_span memory span where to put the fetched values
+  //  */
+
+  // void get(const IndexVector &idx_vec, span<T> buff_span) const override {
+  //   EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+  //   if(!is_non_zero(idx_vec)) {
+  //       Size size = block_size(idx_vec);
+  //       EXPECTS(size <= buff_span.size());
+  //       for(size_t i = 0; i < size; i++) { buff_span[i] = (T)0; }
+  //       return;
+  //   }
+
+  //   Proc proc;
+  //   Offset offset;
+  //   std::tie(proc, offset) = distribution_->locate(idx_vec);
+  //   Size size              = block_size(idx_vec);
+  //   EXPECTS(size <= buff_span.size());
+  //   mpb_->mgr().get(*mpb_, proc, offset, Size{size}, buff_span.data());
+  // }
+
+  //   /**
+  //    * @brief Tensor accessor method for getting values in nonblocking fashion
+  //    * from a set of indices to specified memory span
+  //    *
+  //    * @tparam T type of the values hold on the tensor object
+  //    * @param [in] idx_vec a vector of indices to fetch the values
+  //    * @param [in] buff_span memory span where to put the fetched values
+  //    */
+
+  //   virtual void nb_get(const IndexVector& idx_vec, span<T> buff_span,
+  //                       DataCommunicationHandlePtr data_comm_handle) const {
+  //       EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+  //       if(!is_non_zero(idx_vec)) {
+  //           Size size = block_size(idx_vec);
+  //           EXPECTS(size <= buff_span.size());
+  //           for(size_t i = 0; i < size; i++) { buff_span[i] = (T)0; }
+  //           return;
+  //       }
+
+  //       Proc proc;
+  //       Offset offset;
+  //       std::tie(proc, offset) = distribution_->locate(idx_vec);
+  //       Size size              = block_size(idx_vec);
+  //       EXPECTS(size <= buff_span.size());
+  //       mpb_->mgr().nb_get(*mpb_, proc, offset, Size{size}, buff_span.data(),
+  //                          data_comm_handle);
+  //   }
+
+  //   /**
+  //    * @brief Tensor accessor method for putting values to a set of indices
+  //    * with the specified memory span
+  //    *
+  //    * @tparam T type of the values hold on the tensor object
+  //    * @param [in] idx_vec a vector of indices to put the values
+  //    * @param [in] buff_span buff_span memory span for the values to put
+  //    */
+
+  //   virtual void put(const IndexVector& idx_vec, span<T> buff_span) {
+  //       EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+  //       if(!is_non_zero(idx_vec)) { return; }
+
+  //       Proc proc;
+  //       Offset offset;
+  //       std::tie(proc, offset) = distribution_->locate(idx_vec);
+  //       Size size              = block_size(idx_vec);
+  //       EXPECTS(size <= buff_span.size());
+  //       mpb_->mgr().put(*mpb_, proc, offset, Size{size}, buff_span.data());
+  //   }
+
+  //   /**
+  //    * @brief Tensor accessor method for putting values in nonblocking fashion
+  //    * to a set of indices with the specified memory span
+  //    *
+  //    * @tparam T type of the values hold on the tensor object
+  //    * @param [in] idx_vec a vector of indices to put the values
+  //    * @param [in] buff_span buff_span memory span for the values to put
+  //    */
+
+  //   virtual void nb_put(const IndexVector& idx_vec, span<T> buff_span,
+  //                       DataCommunicationHandlePtr data_comm_handle) {
+  //       EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+  //       if(!is_non_zero(idx_vec)) { return; }
+
+  //       Proc proc;
+  //       Offset offset;
+  //       std::tie(proc, offset) = distribution_->locate(idx_vec);
+  //       Size size              = block_size(idx_vec);
+  //       EXPECTS(size <= buff_span.size());
+  //       mpb_->mgr().nb_put(*mpb_, proc, offset, Size{size}, buff_span.data(),
+  //                          data_comm_handle);
+  //   }
+
+  //   /**
+  //    * @brief Tensor accessor method for adding svalues to a set of indices
+  //    * with the specified memory span
+  //    *
+  //    * @tparam T type of the values hold on the tensor object
+  //    * @param [in] idx_vec a vector of indices to put the values
+  //    * @param [in] buff_span buff_span memory span for the values to put
+  //    */
+
+  //   virtual void add(const IndexVector& idx_vec, span<T> buff_span) {
+  //       EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+  //       if(!is_non_zero(idx_vec)) { return; }
+
+  //       Proc proc;
+  //       Offset offset;
+  //       std::tie(proc, offset) = distribution_->locate(idx_vec);
+  //       Size size              = block_size(idx_vec);
+  //       EXPECTS(size <= buff_span.size());
+  //       mpb_->mgr().add(*mpb_, proc, offset, Size{size}, buff_span.data());
+  //   }
+
+  //   /**
+  //    * @brief Tensor accessor method for adding svalues in nonblocking fashion
+  //    * to a set of indices with the specified memory span
+  //    *
+  //    * @tparam T type of the values hold on the tensor object
+  //    * @param [in] idx_vec a vector of indices to put the values
+  //    * @param [in] buff_span buff_span memory span for the values to put
+  //    */
+
+  //   virtual void nb_add(const IndexVector& idx_vec, span<T> buff_span,
+  //                       DataCommunicationHandlePtr data_comm_handle) {
+  //       EXPECTS(allocation_status_ != AllocationStatus::invalid);
+
+  //       if(!is_non_zero(idx_vec)) { return; }
+
+  //       Proc proc;
+  //       Offset offset;
+  //       std::tie(proc, offset) = distribution_->locate(idx_vec);
+  //       Size size              = block_size(idx_vec);
+  //       EXPECTS(size <= buff_span.size());
+  //       mpb_->mgr().nb_add(*mpb_, proc, offset, Size{size}, buff_span.data(),
+  //                          data_comm_handle);
+  //   }
+
+private:
+  Tensor<T> tensor_opt_;
+
+  TiledIndexSpaceVec construct_new_tis(const Tensor<T>& opt_tensor, size_t unit_tis_count) const {
+    TiledIndexSpaceVec result_tis_list = opt_tensor.tiled_index_spaces();
+
+    for (size_t i = 0; i < unit_tis_count; i++) {
+      // get opt tiled index space 
+      TiledIndexSpace orig_tis = result_tis_list[i];
+
+      // construct unit tiled index space
+      TiledIndexSpace unit_tis{orig_tis.index_space()};
+      
+      // update resulting tis list
+      result_tis_list[i] = unit_tis;
+    }
+    
+    return result_tis_list;
+  }
+
+
+  bool is_unit_tiled(const TiledIndexSpace& tis) {
+    return (tis.num_tiles() == tis.index_space().num_indices());
+  }
+}; // class TensorUnitTiled
 } // namespace tamm
 
 #endif // TENSOR_IMPL_HPP_

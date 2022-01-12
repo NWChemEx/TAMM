@@ -127,6 +127,13 @@ make install
 ## Build instructions for Cori
 
 ```
+export CRAYPE_LINK_TYPE=dynamic
+export HDF5_USE_FILE_LOCKING="FALSE"
+```
+
+### CPU only build
+
+```
 module unload PrgEnv-intel/6.0.5
 module load PrgEnv-gnu/6.0.5
 module swap gcc/8.3.0 
@@ -134,20 +141,30 @@ module swap craype/2.5.18
 module swap cray-mpich/7.7.6
 module unload cmake
 module load cmake/3.21.3
-module load cgpu
-module load cuda
-export CRAYPE_LINK_TYPE=dynamic
-export HDF5_USE_FILE_LOCKING="FALSE"
 ```
-
-### To enable CUDA build, add `-DUSE_CUDA=ON`
 
 ```
 cd $TAMM_SRC/build
 
 CC=cc CXX=CC FC=ftn cmake -DLINALG_VENDOR=IntelMKL \
 -DLINALG_PREFIX=/opt/intel/mkl \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH -H$TAMM_SRC
+
+make -j3
+make install
+```
+
+### GPU build
+
+```
+module purge && module load cgpu cuda gcc openmpi cmake/3.21.3
+```
+
+```
+cd $TAMM_SRC/build
+
+CC=gcc CXX=g++ FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
+-DUSE_CUDA=ON -DNV_GPU_ARCH=70 -H$TAMM_SRC
 
 make -j3
 make install

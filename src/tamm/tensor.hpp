@@ -73,6 +73,8 @@ public:
       //}
     }
 
+    Tensor(const Tensor<T>& opt_tensor, size_t unit_tis_count):
+      impl_{std::make_shared<TensorUnitTiled<T>>(opt_tensor, unit_tis_count)} {}
 
     // SpinTensor Constructors
     /**

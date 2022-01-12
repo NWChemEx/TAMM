@@ -105,7 +105,8 @@ enum class DistributionKind {
   nw,
   dense,
   simple_round_robin,
-  view
+  view,
+  unit_tile
 };
 
 enum class MemoryManagerKind {

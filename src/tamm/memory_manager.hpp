@@ -488,6 +488,9 @@ class MemoryRegion {
 
   template <typename T>
   friend class TensorImpl;
+
+  template <typename T>
+  friend class TensorImplUnitTile;
 }; // class MemoryRegion
 
 /**

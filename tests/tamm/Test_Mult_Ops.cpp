@@ -6,7 +6,7 @@
 using namespace tamm;
 
 template<typename T>
-void test_2_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
+void test_2_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_hw, bool profile) {
     TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
 
     auto [i, j, k] = tis1.labels<3>("all");
@@ -15,19 +15,12 @@ void test_2_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
     Tensor<T> B{k, j};
     Tensor<T> C{i, j};
 
-    // sch.allocate(A, B, C).execute();
-    // sch(A() = 21.0)(B() = 2.0)(C() = 0.0).execute();
-    sch.allocate(A).execute();
+    sch.allocate(A, B, C).execute();
+    sch(A() = 21.0)(B() = 2.0)(C() = 0.0).execute();
 
-    std::vector<Index> itr;
-    const Distribution_Dense& dd =
-        static_cast<const Distribution_Dense&>(A.distribution());
-    // dd.iterate(
-    //     {0, 0}, [&]() { std::cout << "itr=" << itr << "\n"; }, itr);
     const auto timer_start = std::chrono::high_resolution_clock::now();
-    sch(A() = 21.0).execute();
 
-    // sch(C(j, i) += A(i, k) * B(k, j)).execute();
+    sch(C(j, i) += A(i, k) * B(k, j)).execute(ex_hw, profile);
 
     const auto timer_end = std::chrono::high_resolution_clock::now();
 
@@ -38,6 +31,8 @@ void test_2_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
     if (sch.ec().pg().rank() == 0)
       std::cout << "2-D Tensor contraction with " << N << " indices tiled with "
                 << tilesize << " : " << mult_time << std::endl;
+    
+    sch.deallocate(A, B, C).execute();
 
     // 2D dense case
     // ExecutionContext ec{pg, DistributionKind::dense, MemoryManagerKind::ga};
@@ -107,10 +102,39 @@ void test_2_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
     //   std::cout << X_eig.dimensions() << std::endl;       
     //   std::cout << X_eig << std::endl;       
     // }           
+
+    // std::random_device rd;
+    // std::mt19937                     e2(rd());
+    // std::uniform_real_distribution<> dist(0, 25);
+    // double* fptr = F_BC.access_local_buf();
+    // for(int i=0;i<F_BC.local_buf_size();i++)
+    //  fptr[i] = dist(e2);
+    
+    // std::cout << "rank " << scalapack_info.pg.rank().value() << std::endl;
+    // for(int i=0;i<F_BC.local_buf_size();i++) {
+    //  if(i%11==0) std::cout << "\n";
+    //  std::cout << fptr[i] << "\t";
+    // }
+    // std::cout << "\n";
+
+    // // print_tensor(F_BC);
+    // // if(scalapack_info.pg.rank() == 0) print_tensor(F_BC);
+    // Tensor<T> F1 = from_block_cyclic_tensor(F_BC);
+    // if(scalapack_info.pg.rank() == 0) std::cout << "f1 pg = " << F1.proc_grid()[0].value() << "," << F1.proc_grid()[1].value() << "\n";
+    // if(scalapack_info.pg.rank() == 0) print_tensor(F1);
+    // // eigen_to_tamm_tensor<double>(F1,X1_e);
+
+    // Tensor<T> X1_bp3 = tensor_block(F1, {8,0}, {11,11}, {1,0});
+    // if(scalapack_info.pg.rank() == 0) {
+    //   std::cout << X1_e << "\n";
+    //   std::cout << std::string(16,'-') << "\n";
+    //   X1_e = tamm_to_eigen_matrix<double>(X1_bp3);
+    //   std::cout << X1_e << "\n";
+    // }
 }
 
 template <typename T>
-void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
+void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_hw, bool profile) {
   TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
 
   auto [i, j, k, l, m] = tis1.labels<5>("all");
@@ -123,7 +147,7 @@ void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
 
   const auto timer_start = std::chrono::high_resolution_clock::now();
 
-  sch(C(j, i, k) += A(i, j, l) * B(l, m, k)).execute();
+  sch(C(j, i, k) += A(i, j, l) * B(l, m, k)).execute(ex_hw, profile);
 
   const auto timer_end = std::chrono::high_resolution_clock::now();
 
@@ -134,10 +158,12 @@ void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
   if (sch.ec().pg().rank() == 0)
     std::cout << "3-D Tensor contraction with " << N << " indices tiled with "
               << tilesize << " : " << mult_time << std::endl;
+
+  sch.deallocate(A, B, C).execute();
 }
 
 template <typename T>
-void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
+void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_hw, bool profile) {
   TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
 
   auto [i, j, k, l, m, o] = tis1.labels<6>("all");
@@ -150,8 +176,8 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
 
   const auto timer_start = std::chrono::high_resolution_clock::now();
 
-  sch.exact_copy(A(i, j, m, o), B(m, o, k, l))
-  (C(j, i, k, l) += A(i, j, m, o) * B(m, o, k, l)).execute();
+  sch//.exact_copy(A(i, j, m, o), B(m, o, k, l))
+  (C(j, i, k, l) += A(i, j, m, o) * B(m, o, k, l)).execute(ex_hw, profile);
 
   const auto timer_end = std::chrono::high_resolution_clock::now();
 
@@ -162,10 +188,12 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize) {
   if (sch.ec().pg().rank() == 0)
     std::cout << "4-D Tensor contraction with " << N << " indices tiled with "
               << tilesize << " : " << mult_time << std::endl;
+
+  sch.deallocate(A, B, C).execute();
 }
 
 template <typename T>
-void test_4_dim_mult_op_last_unit(Scheduler& sch, size_t N, Tile tilesize) {
+void test_4_dim_mult_op_last_unit(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_hw, bool profile) {
   TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
   size_t size = N / 10 > 0 ? N / 10 : 1;
   TiledIndexSpace tis2{IndexSpace{range(size)}};
@@ -181,7 +209,7 @@ void test_4_dim_mult_op_last_unit(Scheduler& sch, size_t N, Tile tilesize) {
 
   const auto timer_start = std::chrono::high_resolution_clock::now();
 
-  sch(C(j, i, k, o) += A(m, o) * B(i, j, k, m)).execute();
+  sch(C(j, i, k, o) += A(m, o) * B(i, j, k, m)).execute(ex_hw, profile);
 
   const auto timer_end = std::chrono::high_resolution_clock::now();
 
@@ -196,7 +224,7 @@ void test_4_dim_mult_op_last_unit(Scheduler& sch, size_t N, Tile tilesize) {
 }
 
 template <typename T>
-void test_4_dim_mult_op_first_unit(Scheduler& sch, size_t N, Tile tilesize) {
+void test_4_dim_mult_op_first_unit(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_hw, bool profile) {
   TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
   size_t size = N / 10 > 0 ? N / 10 : 1;
   TiledIndexSpace tis2{IndexSpace{range(size)}};
@@ -214,7 +242,7 @@ void test_4_dim_mult_op_first_unit(Scheduler& sch, size_t N, Tile tilesize) {
 
   const auto timer_start = std::chrono::high_resolution_clock::now();
 
-  sch(C(m, i) += A(m, t1) * B(t1, i)).execute();
+  sch(C(m, i) += A(m, t1) * B(t1, i)).execute(ex_hw, profile);
 
   const auto timer_end = std::chrono::high_resolution_clock::now();
 
@@ -229,118 +257,59 @@ void test_4_dim_mult_op_first_unit(Scheduler& sch, size_t N, Tile tilesize) {
 }
 
 int main(int argc, char* argv[]) {
-  if (argc < 3) {
-    std::cout << "Please provide an index space size and tile size!\n";
-    return 0;
-  }
-
-  size_t is_size = atoi(argv[1]);
-  Tile tile_size = atoi(argv[2]);
-
-  if (is_size < tile_size) {
-    std::cout << "Tile size should be less then index space size" << std::endl;
-    return 1;
-  }
 
   tamm::initialize(argc, argv);
 
-  int mpi_rank;
-  MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
-#ifdef USE_TALSH
-  TALSH talsh_instance;
-  talsh_instance.initialize(mpi_rank);
-#endif
+  if(argc < 3) {
+    tamm_terminate("Please provide an index space size and tile size");
+  }
+
+  size_t is_size   = atoi(argv[1]);
+  Tile   tile_size = atoi(argv[2]);
+
+  if(is_size < tile_size) tile_size = is_size;
 
   ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
+  ExecutionHW ex_hw = ExecutionHW::CPU;
+  #ifdef USE_DPCPP
+  ex_hw = ExecutionHW::GPU;
+  #endif
+  #ifdef USE_TALSH
+  ex_hw = ExecutionHW::GPU;
+  const bool has_gpu = ec.has_gpu();
+  TALSH talsh_instance;
+  if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),ec.pg().rank().value());
+  #endif
+
   Scheduler sch{ec};
 
-  int O = 30; //292/2;
-  int V = 103; //1183/2;
-  int tilesize = tile_size;
-  std::cerr<<"tilesize="<<tilesize<<"\n";
-  std::vector<Tile> tilesizes_o, tilesizes_v;
-  int64_t ntiles_o = static_cast<int64_t>(std::ceil(1.0 * O / tilesize));
-  int64_t ntiles_v = static_cast<int64_t>(std::ceil(1.0 * V / tilesize));
-  Size ctr = 0;
-  for(int i=0; i<ntiles_o; i++) {
-    tilesizes_o.push_back(O / ntiles_o + (i<(O % ntiles_o)));
-    ctr += tilesizes_o.back();
+  if(ec.pg().rank() == 0) std::cout << "tilesize = " << tile_size << std::endl;
+
+  const bool profile = true;
+  test_2_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
+  test_3_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
+  test_4_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
+  // test_4_dim_mult_op_last_unit<double>(sch, is_size, tile_size);
+  // test_4_dim_mult_op_first_unit<double>(sch, is_size, tile_size);
+
+  #ifdef USE_TALSH
+  //talshStats();
+  if(has_gpu) talsh_instance.shutdown();
+  #endif
+
+  if(profile) {
+    std::string profile_csv = "multops_profile.csv";
+    std::ofstream pds(profile_csv, std::ios::out);
+    if(!pds) std::cerr << "Error opening file " << profile_csv << std::endl;
+    std::string header = "ID;Level;OP;total_op_time_min;total_op_time_max;total_op_time_avg;";
+    header += "get_time_min;get_time_max;get_time_avg;gemm_time_min;";
+    header += "gemm_time_max;gemm_time_avg;acc_time_min;acc_time_max;acc_time_avg";
+    pds << header << std::endl;
+    pds << ec.get_profile_data().str() << std::endl;
+    pds.close();
   }
-  EXPECTS(ctr == O);
-  ctr = 0;
-  for (int i = 0; i < ntiles_v; i++) {
-    tilesizes_v.push_back(V / ntiles_v + (i < (V % ntiles_v)));
-    ctr += tilesizes_v.back();
-  }
-  EXPECTS(ctr == V);
-  TiledIndexSpace tis_o{IndexSpace{range(O)}, static_cast<tamm::Tile>(tilesize)};
-  TiledIndexSpace tis_v{IndexSpace{range(V)}, static_cast<tamm::Tile>(tilesize)};
-  TiledIndexSpace tis_o_balanced{IndexSpace{range(O)}, tilesizes_o};
-  TiledIndexSpace tis_v_balanced{IndexSpace{range(V)}, tilesizes_v};
-
-  auto [i, j, k, l] = tis_o.labels<4>("all");
-  auto [a, b, c, d] = tis_v.labels<4>("all");
-
-  auto [i1, j1, k1, l1] = tis_o_balanced.labels<4>("all");
-  auto [a1, b1, c1, d1] = tis_v_balanced.labels<4>("all");
-
-  {
-    using T = double;
-    Tensor<std::complex<T>> A1{i,j,a,b,k};
-    std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";    
-    sch.allocate(A1).execute();
-    std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
-    sch.deallocate(A1).execute();
-    std::cout << "5d test works \n";
-
-    Tensor<T> A{i, j, a, b};
-
-    sch.allocate(A).execute();
-
-    Size min_block_size = 1000000000l, max_block_size = 0;
-    for (const auto& blockid : A.loop_nest()) {
-      if (A.is_non_zero(blockid)) {
-        Size sz = A.block_size(blockid);
-        min_block_size = std::min(min_block_size, sz);
-        max_block_size = std::max(max_block_size, sz);
-      }
-    }
-    std::cout << "min block size = " << min_block_size << "\n"
-              << "max block size = " << max_block_size << "\n";
-  }
-  {
-    using T = double;
-    Tensor<T> A{i1, j1, a1, b1};
-
-    sch.allocate(A).execute();
-
-    Size min_block_size = 1000000000l, max_block_size = 0;
-    for (const auto& blockid : A.loop_nest()) {
-      if (A.is_non_zero(blockid)) {
-        Size sz = A.block_size(blockid);
-        min_block_size = std::min(min_block_size, sz);
-        max_block_size = std::max(max_block_size, sz);
-      }
-    }
-    std::cout << "min block size = " << min_block_size << "\n"
-              << "max block size = " << max_block_size << "\n";
-  }
-
-//#if 0
-  test_2_dim_mult_op<double>(sch, is_size, tile_size);
-  test_3_dim_mult_op<double>(sch, is_size, tile_size);
-  test_4_dim_mult_op<double>(sch, is_size, tile_size);
-#if 0
-  test_4_dim_mult_op_last_unit<double>(sch, is_size, tile_size);
-  test_4_dim_mult_op_first_unit<double>(sch, is_size, tile_size);
-#endif
-  std::cout << "multOpDgemmTime=" << multOpDgemmTime << "\n";
-
-#ifdef USE_TALSH
-  talsh_instance.shutdown();
-#endif
 
   tamm::finalize();
 

@@ -36,7 +36,7 @@ std::tuple<int, int, int, int, int, int> sca_get_subgroup_info(const size_t N) {
   int hf_nranks = hf_nnodes * ppn;
 
   // Find nearest square
-  int sca_nranks = std::ceil(N / 25);
+  int sca_nranks = std::ceil(N/10);
   if(sca_nranks>hf_nranks) sca_nranks = hf_nranks;
   sca_nranks     = std::pow(std::floor(std::sqrt(sca_nranks)), 2);
   if(sca_nranks == 0) sca_nranks = 1;
@@ -94,7 +94,7 @@ void test_evp(size_t N, size_t mb) {
     ScalapackInfo scalapack_info;
 
     ProcGroup        pg = ProcGroup::create_coll(hf_comm);
-    ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
+    ExecutionContext ec{pg, DistributionKind::dense, MemoryManagerKind::ga};
 
     TiledIndexSpace AO_sca{IndexSpace{range(N)}, mb};
 
@@ -243,7 +243,7 @@ void test_evp(size_t N, size_t mb) {
 int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);
 
-  size_t N = 100, mb = 128;
+  size_t N = 100, mb = 32;
 #if defined(USE_SCALAPACK)
   if(argc >= 2) N = std::atoi(argv[1]);
   if(argc == 3) mb = std::atoi(argv[2]);

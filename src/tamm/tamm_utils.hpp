@@ -561,6 +561,49 @@ std::vector<TensorType> diagonal(LabeledTensor<TensorType> ltensor) {
 }
 
 /**
+ * @brief method for updating the diagonal values in a Tensor
+ *
+ * @warning only defined for NxN tensors
+ */
+template<typename TensorType>
+void update_diagonal(Tensor<TensorType> tensor, const std::vector<TensorType>& dvec) {
+    update_diagonal(tensor(),dvec);
+}
+
+template<typename TensorType>
+void update_diagonal(LabeledTensor<TensorType> ltensor, const std::vector<TensorType>& dvec) {
+    ExecutionContext& ec = get_ec(ltensor);
+
+    if(ec.pg().rank() == 0) {
+        Tensor<TensorType> tensor = ltensor.tensor();
+        // Defined only for NxN tensors
+        EXPECTS(tensor.num_modes() == 2);
+
+        LabelLoopNest loop_nest{ltensor.labels()};
+
+        for(const IndexVector& bid : loop_nest) {
+            const IndexVector blockid = internal::translate_blockid(bid, ltensor);
+
+            if(blockid[0] == blockid[1]) {
+                const TAMM_SIZE size = tensor.block_size(blockid);
+                std::vector<TensorType> buf(size);
+                tensor.get(blockid, buf);
+                auto block_dims   = tensor.block_dims(blockid);
+                auto block_offset = tensor.block_offsets(blockid);
+                auto dim          = block_dims[0];
+                auto offset       = block_offset[0];
+                size_t i          = 0;
+                for(auto p = offset; p < offset + dim; p++, i++) {
+                    buf[i * dim + i] += dvec[p];
+                }
+                tensor.put(blockid,buf);
+            }
+        }
+    }
+
+}
+
+/**
  * @brief uses a function to fill in elements of a tensor
  *
  * @tparam TensorType the type of the elements in the tensor
@@ -1169,6 +1212,22 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor, int ga_tens) {
 
     // NGA_Destroy(ga_tens);
 }
+
+
+template<typename TensorType>
+Tensor<TensorType> redistribute_tensor(Tensor<TensorType> stensor, TiledIndexSpaceVec tis) {
+    ExecutionContext& ec = get_ec(stensor());
+    // int rank = ec.pg().rank().value();
+    int wmn_ga = tamm_to_ga(ec,stensor);
+    // sch.deallocate(wmn).execute();
+    Tensor<TensorType> dtensor{tis};
+    Tensor<TensorType>::allocate(&ec,dtensor);
+    ga_to_tamm(ec,dtensor,wmn_ga);
+    NGA_Destroy(wmn_ga);
+
+    return dtensor;
+}
+
 
 /**
  * @brief retile a tamm tensor 

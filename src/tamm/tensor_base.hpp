@@ -66,7 +66,8 @@ public:
         dense,
         lambda,
         normal,
-        view
+        view,
+        unit_view
     };
 
     // Ctors

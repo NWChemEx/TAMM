@@ -126,7 +126,7 @@ public:
       return kind_;
     }
 
-    const TensorBase* get_tensor_base() {
+    const TensorBase* get_tensor_base() const {
       return tensor_structure_;
     }
 
@@ -1145,6 +1145,113 @@ class ViewDistribution : public Distribution {
   Func map_func_;
 
 }; // class ViewDistribution
+
+class UnitTileDistribution: public Distribution {
+public:
+
+  // Ctors
+  UnitTileDistribution(const TensorBase* tensor_structure, const Distribution* ref_dist):
+    Distribution(tensor_structure, ref_dist->get_dist_proc(), DistributionKind::view), ref_dist_{
+                                                                                         ref_dist} {
+    initialize_tile_information();
+  }
+
+  // Dtor
+  ~UnitTileDistribution() = default;
+
+  std::pair<Proc, Offset> locate(const IndexVector& blockid) const override {
+    const auto& opt_blockid = translate_blockid(blockid);
+    auto [proc, offset]     = ref_dist_->locate(opt_blockid);
+
+    Offset translated_offset = translate_offset(blockid, offset);
+
+    return {proc, translated_offset};
+  }
+
+  Size buf_size(Proc proc) const override { return ref_dist_->buf_size(proc); }
+
+  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const { NOT_ALLOWED(); }
+
+  Size max_proc_buf_size() const override { return ref_dist_->max_proc_buf_size(); }
+
+  Size max_block_size() const override { return ref_dist_->max_block_size(); }
+
+  Size total_size() const override { return ref_dist_->total_size(); }
+
+  size_t compute_hash() const { return ref_dist_->compute_hash(); }
+
+  IndexVector translate_blockid(const IndexVector& blockid) const {
+    IndexVector translated_blockid = blockid;
+
+    for(size_t i = 0; i < unit_tiled_dims_.size(); i++) {
+      translated_blockid[unit_tiled_dims_[i]] = blockid[i] / opt_tile_sizes_[unit_tiled_dims_[i]];
+    }
+
+    return translated_blockid;
+  }
+
+  Offset translate_offset(const IndexVector& blockid, Offset offset) const {
+    auto unit_tiled_tensor = get_tensor_base();
+    size_t num_modes = unit_tiled_tensor->num_modes();
+    auto unit_dims = unit_tiled_tensor->block_dims(blockid);
+
+    std::vector<Offset> dim_offsets(num_modes);
+    if(num_modes > 0) { dim_offsets[num_modes - 1] = 1; }
+    for(int i = num_modes - 2; i >= 0; i--) {
+      dim_offsets[i] = dim_offsets[i + 1] * unit_dims[i + 1];
+    }
+    
+    size_t local_offset = 0;
+
+    for (size_t i = 0; i < unit_tiled_dims_.size(); i++) {
+      local_offset += (blockid[i] % opt_tile_sizes_[unit_tiled_dims_[i]]) * dim_offsets[i].value();
+    }
+    
+    local_offset += offset.value();
+
+    return Offset{local_offset};
+  }
+
+  void initialize_tile_information() {
+    auto unit_tiled_tensor = get_tensor_base();
+    auto opt_tiled_tensor  = ref_dist_->get_tensor_base();
+
+    auto unit_tis_list = unit_tiled_tensor->tiled_index_spaces();
+    for(size_t i = 0; i < unit_tis_list.size(); i++) {
+      auto tis = unit_tis_list[i];
+      if(tis.num_tiles() == tis.index_space().num_indices()) { unit_tiled_dims_.push_back(i); }
+    }
+    // There should be at least one unit tiled dim
+    EXPECTS(unit_tiled_dims_.size() > 0);
+    auto check_cond = [&]() -> bool {
+      for(size_t i = 0; i < unit_tiled_dims_.size(); i++) {
+        if(unit_tiled_dims_[i] != i) return false;
+      }
+      return true;
+    };
+    // The unit tiled dims only allowed to be on the leftmost dims
+    EXPECTS(check_cond());
+
+    auto opt_tis_list = opt_tiled_tensor->tiled_index_spaces();
+
+    // EXPECTS(opt_tis_list.size() > unit_tiled_dims_.size());
+
+    for(size_t i = 0; i < unit_tiled_dims_.size(); i++) {
+      if (opt_tis_list[unit_tiled_dims_[i]].input_tile_sizes().empty())
+        opt_tile_sizes_.push_back(opt_tis_list[unit_tiled_dims_[i]].input_tile_size());
+      else 
+        opt_tile_sizes_.push_back(opt_tis_list[unit_tiled_dims_[i]].input_tile_sizes()[unit_tiled_dims_[i]]);
+
+    }
+  }
+
+protected:
+  const Distribution* ref_dist_;
+  std::vector<size_t>    unit_tiled_dims_;
+  std::vector<Tile>      opt_tile_sizes_;
+
+
+}; // class UnitTileDistribution
 
 //#if 0
 template <int N, typename BodyFunc, typename InitFunc, typename UpdateFunc,

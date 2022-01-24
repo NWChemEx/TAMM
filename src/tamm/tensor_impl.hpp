@@ -1,6 +1,5 @@
 
-#ifndef TAMM_TENSOR_IMPL_HPP_
-#define TAMM_TENSOR_IMPL_HPP_
+#pragma once
 
 #include "ga/ga.h"
 #include "tamm/distribution.hpp"
@@ -678,6 +677,7 @@ public:
     using TensorImpl<T>::block_size;
     using TensorImpl<T>::block_dims;
     using TensorImpl<T>::block_offsets;
+    using TensorImpl<T>::proc_list_;
     using TensorImpl<T>::distribution_;
     using TensorImpl<T>::TensorBase::tindices;
     using TensorImpl<T>::TensorBase::num_modes;
@@ -734,7 +734,9 @@ public:
     }
 
     void deallocate() {
+        EXPECTS(allocation_status_ == AllocationStatus::created);
         NGA_Destroy(ga_);
+        ga_ = -1;
         update_status(AllocationStatus::deallocated);
     }
 
@@ -763,6 +765,13 @@ public:
 
         std::vector<bool> is_irreg_tis(ndims,false);
         for(int i = 0; i < ndims; i++) is_irreg_tis[i] = !tis_dims[i].input_tile_sizes().empty();
+
+        if (proc_list_.size() > 0 ) {
+          int nproc = proc_list_.size();
+          int proclist_c[nproc]; 
+          std::copy(proc_list_.begin(), proc_list_.end(), proclist_c);
+          GA_Set_restricted(ga_, proclist_c, nproc);
+        }
 
         if(is_block_cyclic_) {
             // EXPECTS(ndims == 2);
@@ -833,10 +842,12 @@ public:
         }
         NGA_Set_pgroup(ga_, ec->pg().ga_pg());
         NGA_Allocate(ga_);
+        distribution_->set_ga_handle(ga_);
         update_status(AllocationStatus::created);
     }
 
     void get(const IndexVector& blockid, span<T> buff_span) const {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
         std::vector<int64_t> lo = compute_lo(blockid);
         std::vector<int64_t> hi = compute_hi(blockid);
         std::vector<int64_t> ld = compute_ld(blockid);
@@ -845,6 +856,7 @@ public:
     }
 
     void put(const IndexVector& blockid, span<T> buff_span) {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
         std::vector<int64_t> lo = compute_lo(blockid);
         std::vector<int64_t> hi = compute_hi(blockid);
         std::vector<int64_t> ld = compute_ld(blockid);
@@ -854,6 +866,7 @@ public:
     }
 
     void add(const IndexVector& blockid, span<T> buff_span) {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
         std::vector<int64_t> lo = compute_lo(blockid);
         std::vector<int64_t> hi = compute_hi(blockid);
         std::vector<int64_t> ld = compute_ld(blockid);
@@ -885,6 +898,7 @@ public:
 
     /// @todo Should this be GA_Nodeid() or GA_Proup_nodeid(GA_Get_pgroup(ga_))
     T* access_local_buf() override {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
         T* ptr;
         int64_t len;
         NGA_Access_block_segment64(ga_, GA_Pgroup_nodeid(GA_Get_pgroup(ga_)),
@@ -894,6 +908,7 @@ public:
 
     /// @todo Should this be GA_Nodeid() or GA_Proup_nodeid(GA_Get_pgroup(ga_))
     const T* access_local_buf() const override {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
         T* ptr;
         int64_t len;
         NGA_Access_block_segment64(ga_, GA_Pgroup_nodeid(GA_Get_pgroup(ga_)),
@@ -903,6 +918,7 @@ public:
 
     /// @todo Check for a GA method to get the local buf size?
     size_t local_buf_size() const override {
+        EXPECTS(allocation_status_ != AllocationStatus::invalid);
         T* ptr;
         int64_t len;
         NGA_Access_block_segment64(ga_, GA_Pgroup_nodeid(GA_Get_pgroup(ga_)),
@@ -913,6 +929,7 @@ public:
 
     /// @todo implement accordingly
     int64_t size() const override {
+      EXPECTS(allocation_status_ != AllocationStatus::invalid);
       int64_t res = 1;
       for(const auto& tis: block_indices_) { res *= tis.max_num_indices(); }
       return res;
@@ -1463,5 +1480,3 @@ private:
   }
 }; // class TensorUnitTiled
 } // namespace tamm
-
-#endif // TENSOR_IMPL_HPP_

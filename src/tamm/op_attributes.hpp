@@ -1,5 +1,4 @@
-#ifndef TAMM_OP_ATTRIBUTES_HPP_
-#define TAMM_OP_ATTRIBUTES_HPP_
+#pragma once
 
 #include "tamm/interfaces.hpp"
 #include "tamm/scalar.hpp"
@@ -392,4 +391,3 @@ class OpMemCostAttribute
 } // namespace new_ops
 } // namespace tamm
 
-#endif // TAMM_OP_ATTRIBUTES_HPP_

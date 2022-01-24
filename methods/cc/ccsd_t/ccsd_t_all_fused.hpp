@@ -1,5 +1,4 @@
-#ifndef CCSD_T_ALL_FUSED_HPP_
-#define CCSD_T_ALL_FUSED_HPP_
+#pragma once
 
 #include "fused_common.hpp"
 #if defined(USE_DPCPP)
@@ -598,4 +597,3 @@ void ccsd_t_fully_fused_none_df_none_task(bool is_restricted,
 #endif
 }
 
-#endif //CCSD_T_ALL_FUSED_HPP_

@@ -1,5 +1,4 @@
-#ifndef TAMM_UTILS_PERM_HPP_
-#define TAMM_UTILS_PERM_HPP_
+#pragma once
 
 #include <vector>
 
@@ -100,5 +99,3 @@ std::vector<T> unique_entries(const std::vector<T>& input_vec) {
 }
 
 }  // namespace tamm::internal
-
-#endif  // TAMM_UTILS_HPP_

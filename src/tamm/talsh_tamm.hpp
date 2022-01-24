@@ -1,5 +1,4 @@
-#ifndef TAMM_TALSH_HPP_
-#define TAMM_TALSH_HPP_
+#pragma once
 
 #include <iostream>
 // #include <cassert>
@@ -300,5 +299,3 @@ class TALSH {
   //   }
 
 }; //class TALSH
-
-#endif // TAMM_TALSH_HPP_

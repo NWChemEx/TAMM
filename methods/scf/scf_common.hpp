@@ -1,6 +1,5 @@
 
-#ifndef TAMM_METHODS_SCF_COMMON_HPP_
-#define TAMM_METHODS_SCF_COMMON_HPP_
+#pragma once
 
 #include <cctype>
 
@@ -1253,5 +1252,3 @@ TensorType compute_xcf( ExecutionContext& ec, TAMMTensors& ttensors,
 
 } //namespace gauxc_util
 #endif
-
-#endif // TAMM_METHODS_SCF_COMMON_HPP_

@@ -1,5 +1,4 @@
-#ifndef TAMM_UTILS_ITERTION_HPP_
-#define TAMM_UTILS_ITERTION_HPP_
+#pragma once
 
 #include <vector>
 
@@ -23,4 +22,4 @@ bool cartesian_iteration(std::vector<T>& itr, const std::vector<T>& end) {
 
 }  // namespace tamm::internal
 
-#endif  // TAMM_UTILS_ITERTION_HPP_
+

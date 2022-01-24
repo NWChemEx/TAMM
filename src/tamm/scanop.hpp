@@ -1,5 +1,4 @@
-#ifndef TAMM_SCANOP_H_
-#define TAMM_SCANOP_H_
+#pragma once
 
 #include <memory>
 #include <vector>
@@ -134,5 +133,3 @@ protected:
     Func func_;
 };
 } // namespace tamm
-
-#endif // TAMM_SCANOP_H_

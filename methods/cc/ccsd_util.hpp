@@ -1,5 +1,4 @@
-#ifndef METHODS_CCSD_UTIL_HPP_
-#define METHODS_CCSD_UTIL_HPP_
+#pragma once
 
 // #include "cd_svd.hpp"
 #include "cd_svd/cd_svd_ga.hpp"
@@ -54,22 +53,17 @@ struct V2Tensors {
 
   void write_to_disk(const std::string& fprefix){
     set_file_prefix(fprefix);
-    tamm::write_to_disk(v2ijab,v2ijab_file);
-    tamm::write_to_disk(v2iajb,v2iajb_file);
-    tamm::write_to_disk(v2ijka,v2ijka_file);
-    tamm::write_to_disk(v2ijkl,v2ijkl_file);
-    tamm::write_to_disk(v2iabc,v2iabc_file);
-    tamm::write_to_disk(v2abcd,v2abcd_file);
+    //TODO: Assume all on same ec for now
+    ExecutionContext& ec = get_ec(v2ijab());
+    tamm::write_to_disk_group<T>(ec,{v2ijab,v2iajb,v2ijka,v2ijkl,v2iabc,v2abcd},
+    {v2ijab_file,v2iajb_file,v2ijka_file,v2ijkl_file,v2iabc_file,v2abcd_file});
   }
 
   void read_from_disk(const std::string& fprefix){
     set_file_prefix(fprefix);
-    tamm::read_from_disk(v2ijab,v2ijab_file);
-    tamm::read_from_disk(v2iajb,v2iajb_file);
-    tamm::read_from_disk(v2ijka,v2ijka_file);
-    tamm::read_from_disk(v2ijkl,v2ijkl_file);
-    tamm::read_from_disk(v2iabc,v2iabc_file);
-    tamm::read_from_disk(v2abcd,v2abcd_file);
+    ExecutionContext& ec = get_ec(v2ijab());
+    tamm::read_from_disk_group<T>(ec,{v2ijab,v2iajb,v2ijka,v2ijkl,v2iabc,v2abcd},
+    {v2ijab_file,v2iajb_file,v2ijka_file,v2ijkl_file,v2iabc_file,v2abcd_file});
   }
 
   bool exist_on_disk(const std::string& fprefix) {
@@ -808,5 +802,3 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
 
     return std::make_tuple(cholVpr, d_f1, lcao, chol_count, max_cvecs, CI);
 }
-
-#endif //METHODS_CCSD_UTIL_HPP_

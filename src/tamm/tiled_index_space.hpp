@@ -1,5 +1,4 @@
-#ifndef TAMM_TILED_INDEX_SPACE_HPP_
-#define TAMM_TILED_INDEX_SPACE_HPP_
+#pragma once
 
 #include "tamm/index_space.hpp"
 #include "tamm/symbol.hpp"
@@ -2060,5 +2059,3 @@ auto TiledIndexSpace::labels_impl(std::string id, Label start,
 }
 
 } // namespace tamm
-
-#endif // TAMM_TILED_INDEX_SPACE_HPP_

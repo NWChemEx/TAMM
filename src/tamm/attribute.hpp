@@ -1,5 +1,4 @@
-#ifndef TAMM_ATTRIBUTE_HPP_
-#define TAMM_ATTRIBUTE_HPP_
+#pragma once
 
 #include "tamm/range.hpp"
 #include "tamm/types.hpp"
@@ -157,6 +156,6 @@ struct hash<tamm::SpatialAttribute> {
         return result;
     }
 };
+
 } // namespace std
 
-#endif // TAMM_ATTRIBUTE_HPP_

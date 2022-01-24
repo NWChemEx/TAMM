@@ -1,6 +1,5 @@
 
-#ifndef TAMM_CUDAMEMSET_HPP_
-#define TAMM_CUDAMEMSET_HPP_
+#pragma once
 
 #ifndef NO_GPU
 // #include <cuda.h>
@@ -12,5 +11,3 @@ int cudaMemsetAny(double*, double, size_t, int=0);
 int cudaMemsetAny(float*, float, size_t, int=0);
 
 #endif
-
-#endif //TAMM_CUDAMEMSET_HPP_

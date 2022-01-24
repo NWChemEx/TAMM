@@ -1,5 +1,4 @@
-#ifndef TAMM_OP_VISITORS_HPP_
-#define TAMM_OP_VISITORS_HPP_
+#pragma once
 
 #include "tamm/op_dag.hpp"
 #include "tamm/tiled_index_space.hpp"
@@ -2160,5 +2159,3 @@ private:
 
 } // namespace new_ops
 } // namespace tamm
-
-#endif // TAMM_OP_VISITORS_HPP_ 

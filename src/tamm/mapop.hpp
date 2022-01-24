@@ -1,5 +1,4 @@
-#ifndef TAMM_MAPOP_H_
-#define TAMM_MAPOP_H_
+#pragma once
 
 #include <algorithm>
 #include <chrono>
@@ -204,4 +203,3 @@ protected:
 };
 } 
 
-#endif //TAMM_MAPOP_H_

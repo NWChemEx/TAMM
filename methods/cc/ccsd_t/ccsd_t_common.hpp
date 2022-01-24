@@ -1,5 +1,4 @@
-#ifndef CCSD_T_COMMON_HPP_
-#define CCSD_T_COMMON_HPP_
+#pragma once
 
 #ifdef USE_CUDA
 #include <cuda.h>
@@ -85,5 +84,3 @@ struct hostEnergyReduceData_t {
   size_t num_blocks;
   double factor;
 };
-
-#endif /*CCSD_T_COMMON_HPP_*/

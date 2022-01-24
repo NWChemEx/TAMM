@@ -1,5 +1,4 @@
-#ifndef TAMM_INDEX_LOOP_NEST_HPP_
-#define TAMM_INDEX_LOOP_NEST_HPP_
+#pragma once
 
 #include "tamm/errors.hpp"
 #include "tamm/tiled_index_space.hpp"
@@ -711,4 +710,3 @@ inline IndexLoopNest loop_spec(Args... args) {
 
 } // namespace tamm
 
-#endif // TAMM_INDEX_LOOP_NEST_HPP_

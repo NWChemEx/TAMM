@@ -1,7 +1,6 @@
 // Copyright 2018 Pacific Northwest National Laboratory
 
-#ifndef TAMM_WORK_HPP_
-#define TAMM_WORK_HPP_
+#pragma once
 
 #include "tamm/atomic_counter.hpp"
 #include "tamm/labeled_tensor.hpp"
@@ -123,5 +122,3 @@ void block_for(ExecutionContext& ec, LabeledTensor<T> ltc, Lambda func,
 }
 
 } // namespace tamm
-
-#endif // TAMM_WORK_HPP_

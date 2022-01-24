@@ -98,8 +98,8 @@ void read_write(Tensor<T> tensor, std::string tstring) {
 
   write_to_disk(tensor,hdf5_str,tammio,profileio);
   read_from_disk(tensor,hdf5_str,tammio,{},profileio);
-  write_to_disk_mpiio(tensor,mpiio_str,tammio,profileio);
-  read_from_disk_mpiio(tensor,mpiio_str,tammio,{},profileio);
+  // write_to_disk_mpiio(tensor,mpiio_str,tammio,profileio);
+  // read_from_disk_mpiio(tensor,mpiio_str,tammio,{},profileio);
 }
 
 template <typename T>

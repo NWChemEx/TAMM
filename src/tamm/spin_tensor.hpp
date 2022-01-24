@@ -1,5 +1,4 @@
-#ifndef TAMM_SPIN_TENSOR_HPP_
-#define TAMM_SPIN_TENSOR_HPP_
+#pragma once
 
 #include "tamm/tensor_impl.hpp"
 
@@ -210,5 +209,3 @@ private:
 }; // class SpinTensor
 
 } // namespace tamm
-
-#endif // TAMM_SPIN_TENSOR_HPP_

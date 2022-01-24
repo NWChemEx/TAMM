@@ -1,5 +1,4 @@
-#ifndef TAMM_DIIS_HPP_
-#define TAMM_DIIS_HPP_
+#pragma once
 
 #include "ga/ga.h"
 #include "tamm/tamm.hpp"
@@ -421,5 +420,3 @@ inline void diis(ExecutionContext& ec,
 }
 
 } // namespace tamm
-
-#endif // TAMM_DIIS_HPP_

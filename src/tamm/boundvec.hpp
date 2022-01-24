@@ -1,7 +1,6 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMM_BOUNDVEC_HPP_
-#define TAMM_BOUNDVEC_HPP_
+#pragma once
 
 #include <array>
 #include <iosfwd>
@@ -321,4 +320,3 @@ inline std::ostream& operator<<(std::ostream& os, const BoundVec<T, maxsize>& bv
 
 } // namespace tamm
 
-#endif // TAMM_BOUNDVEC_HPP_

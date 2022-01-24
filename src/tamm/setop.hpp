@@ -1,5 +1,4 @@
-#ifndef TAMM_SETOP_H_
-#define TAMM_SETOP_H_
+#pragma once
 
 #define SETOP_LOCALIZE_LHS
 
@@ -585,5 +584,3 @@ void GeneralLHSPlan<T, LabeledTensorT>::apply(
 }
 
 } // namespace tamm::internal
-
-#endif // TAMM_SETOP_H_

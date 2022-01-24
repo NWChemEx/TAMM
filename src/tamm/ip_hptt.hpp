@@ -1,5 +1,4 @@
-#ifndef TAMM_IP_HPTT_HPP_
-#define TAMM_IP_HPTT_HPP_
+#pragma once
 
 #include <set>
 
@@ -65,5 +64,3 @@ void index_permute_hptt(T lscale, T* lbuf, T rscale, const T* rbuf,
 }
 
 }  // namespace tamm::blockops::hptt
-
-#endif  // TAMM_IP_HPTT_HPP_

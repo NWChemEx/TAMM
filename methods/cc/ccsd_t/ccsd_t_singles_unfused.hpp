@@ -1,6 +1,5 @@
 
-#ifndef CCSD_T_SINGLES_UNFUSED_HPP_
-#define CCSD_T_SINGLES_UNFUSED_HPP_
+#pragma once
 
 #include "tamm/tamm.hpp"
 // using namespace tamm;
@@ -461,4 +460,3 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
 
 } //end ccsd_t_singles
 
-#endif //CCSD_T_SINGLES_UNFUSED_HPP_

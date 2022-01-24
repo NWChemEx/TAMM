@@ -1,5 +1,4 @@
-#ifndef TAMM_TENSOR_HPP_
-#define TAMM_TENSOR_HPP_
+#pragma once
 
 #include "tamm/tensor_impl.hpp"
 #include "tamm/symbol.hpp"
@@ -656,5 +655,3 @@ template<typename T>
 IndexedTensor(Tensor<T>, IndexVector) -> IndexedTensor<T>;
 
 } // namespace tamm
-
-#endif // TENSOR_HPP_

@@ -1,5 +1,4 @@
-#ifndef CCSD_T_ALL_FUSED_DOUBLES1_HPP_
-#define CCSD_T_ALL_FUSED_DOUBLES1_HPP_
+#pragma once
 
 #include "tamm/tamm.hpp"
 // using namespace tamm;
@@ -1047,5 +1046,3 @@ void ccsd_t_data_d1_info_only(bool is_restricted, const Index noab, const Index 
     } //h7b
   }  // end ia6  
 } // ccsd_t_data_s1_info_only
-
-#endif //CCSD_T_ALL_FUSED_DOUBLES1_HPP_

@@ -1,5 +1,4 @@
-#ifndef TAMM_OP_DAG_HPP_
-#define TAMM_OP_DAG_HPP_
+#pragma once
 
 #include <algorithm>
 #include <cassert>
@@ -636,5 +635,3 @@ LabeledTensor<T>::operator new_ops::LTOp() const {
 
 ///////////////
 } // namespace tamm
-
-#endif // TAMM_OP_DAG_HPP_

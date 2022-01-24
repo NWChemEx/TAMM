@@ -1,5 +1,4 @@
-#ifndef CCSD_T_ALL_FUSED_CPU_HPP_
-#define CCSD_T_ALL_FUSED_CPU_HPP_
+#pragma once
 
 #include "fused_common.hpp"
 
@@ -567,4 +566,3 @@ void total_fused_ccsd_t_cpu(bool is_restricted, const Index noab, const Index nv
     // printf ("========================================================================================\n");
 }
 
-#endif //CCSD_T_ALL_FUSED_CPU_HPP_

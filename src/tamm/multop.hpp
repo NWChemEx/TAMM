@@ -1,5 +1,4 @@
-#ifndef TAMM_MULTOP_H_
-#define TAMM_MULTOP_H_
+#pragma once
 
 //#define MULTOP_PARTIAL_PARALLELIZE_RHS
 
@@ -1717,4 +1716,4 @@ void GeneralLHSMultPlan<T, LabeledTensorT1, LabeledTensorT2,
                                                 ExecutionHW hw) {}
 
 } // namespace tamm::internal
-#endif // TAMM_MULTOP_H
+

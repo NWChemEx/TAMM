@@ -1,5 +1,4 @@
-#ifndef TAMM_SCALAR_HPP_
-#define TAMM_SCALAR_HPP_
+#pragma once
 
 #include <complex>
 #include <iostream>
@@ -395,5 +394,3 @@ inline Scalar operator/(T v, const Scalar& v1) {
 }
 
 } // namespace tamm
-
-#endif // TAMM_SCALAR_HPP_

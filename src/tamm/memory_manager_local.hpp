@@ -1,5 +1,4 @@
-#ifndef TAMM_MEMORY_MANAGER_LOCAL_H_
-#define TAMM_MEMORY_MANAGER_LOCAL_H_
+#pragma once
 
 #include <iosfwd>
 
@@ -289,5 +288,3 @@ private:
 }; // class MemoryManagerLocal
 
 }  // namespace tamm
-
-#endif // TAMM_MEMORY_MANAGER_LOCAL_H_

@@ -1,5 +1,4 @@
-#ifndef TAMM_DAG_IMPL_HPP_
-#define TAMM_DAG_IMPL_HPP_
+#pragma once
 
 #include "tamm/ops.hpp"
 #include "tamm/types.hpp"
@@ -146,4 +145,3 @@ static DAGImpl<Func, Args...> make_dag(Func func, Args... args) {
 
 } // namespace tamm
 
-#endif // TAMM_DAG_IMPL_HPP_

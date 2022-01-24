@@ -1,5 +1,6 @@
 /*------------------------------------------hybrid execution------------*/
 /* $Id$ */
+
 #include <assert.h>
 ///#define NUM_DEVICES 1
 static long long device_id=-1;

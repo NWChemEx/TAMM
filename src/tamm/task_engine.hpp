@@ -1,5 +1,4 @@
-#ifndef TAMM_TASK_ENGINE_HPP_
-#define TAMM_TASK_ENGINE_HPP_
+#pragma once
 
 class TaskEngine {
     public:
@@ -37,5 +36,3 @@ class TaskEngine {
         std::mutex ready_queue_mutex;
         void computeDependencies(Task *x);
 };
-
-#endif // TAMM_TASK_ENGINE_HPP_

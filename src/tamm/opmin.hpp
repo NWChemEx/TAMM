@@ -1,5 +1,4 @@
-#ifndef TAMM_OPMIN_HPP_
-#define TAMM_OPMIN_HPP_
+#pragma once
 
 #include <algorithm>
 #include <cassert>
@@ -820,5 +819,3 @@ protected:
 //   return 0;
 // }
 
-
-#endif // TAMM_OPMIN_HPP_

@@ -1,6 +1,5 @@
 
-#ifndef TAMM_TWO_INDEX_TRANSFORM_HPP_
-#define TAMM_TWO_INDEX_TRANSFORM_HPP_
+#pragma once
 
 #include "tamm/eigen_utils.hpp"
 using namespace tamm;
@@ -123,5 +122,3 @@ void two_index_transform(SystemData sys_data, ExecutionContext& ec, Tensor<Tenso
     cout << std::endl << "-----------------------------------------------------" << endl;
   }
 }
-
-#endif //TAMM_TWO_INDEX_TRANSFORM_HPP_

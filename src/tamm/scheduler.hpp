@@ -1,5 +1,4 @@
-#ifndef TAMM_SCHEDULER_HPP_
-#define TAMM_SCHEDULER_HPP_
+#pragma once
 
 #include <set>
 
@@ -532,5 +531,3 @@ private:
 }; // class Scheduler
 
 } // namespace tamm
-
-#endif // TAMM_SCHEDULER_HPP_

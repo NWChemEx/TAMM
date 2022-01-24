@@ -1,6 +1,5 @@
 
-#ifndef TAMM_METHODS_SCF_TASKMAP_HPP_
-#define TAMM_METHODS_SCF_TASKMAP_HPP_
+#pragma once
 
 #include "scf_iter.hpp"
 
@@ -157,4 +156,3 @@ void createTaskMap(Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic, Eigen::Row
    }
 
 }
-#endif

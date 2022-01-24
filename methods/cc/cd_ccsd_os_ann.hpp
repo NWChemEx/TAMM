@@ -1,4 +1,4 @@
-
+#pragma once
 
 #include "cd_ccsd_cs_ann.hpp"
 

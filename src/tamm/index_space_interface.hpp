@@ -1,5 +1,4 @@
-#ifndef TAMM_INDEX_SPACE_INTERFACE_HPP_
-#define TAMM_INDEX_SPACE_INTERFACE_HPP_
+#pragma once
 
 #include "tamm/index_space.hpp"
 #include "tamm/types.hpp"
@@ -1166,4 +1165,3 @@ protected:
 
 } // namespace tamm
 
-#endif // TAMM_INDEX_SPACE_INTERFACE_HPP_

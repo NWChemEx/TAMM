@@ -1,5 +1,4 @@
-#ifndef TAMM_INTERFACES_HPP_
-#define TAMM_INTERFACES_HPP_
+#pragma once
 
 namespace tamm {
 namespace new_ops {
@@ -93,5 +92,3 @@ public:
 
 } // namespace new_ops
 } // namespace tamm
-
-#endif // TAMM_INTERFACES_HPP_

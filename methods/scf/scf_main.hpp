@@ -12,8 +12,7 @@
 // 8. E += enuc, print E
 //*******************************************************
 
-#ifndef TAMM_METHODS_SCF_MAIN_HPP_
-#define TAMM_METHODS_SCF_MAIN_HPP_
+#pragma once
 
 // standard C++ headers
 #include <cassert>
@@ -1083,6 +1082,4 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
                            Fa_global, C_beta_tamm, Fb_global, scf_vars.tAO,
                            scf_vars.tAOt, scf_conv);
 }
-
-#endif // TAMM_METHODS_SCF_MAIN_HPP_
 

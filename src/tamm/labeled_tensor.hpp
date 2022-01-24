@@ -1,5 +1,4 @@
-#ifndef TAMM_LABELED_TENSOR_HPP_
-#define TAMM_LABELED_TENSOR_HPP_
+#pragma once
 
 // #include "tamm/ops.hpp"
 #include "tamm/tensor.hpp"
@@ -297,4 +296,3 @@ inline std::tuple<LabeledTensor<T1>, LabeledTensor<T2>> operator*(
 }
 
 } // namespace tamm
-#endif // LABELED_TENSOR_HPP_

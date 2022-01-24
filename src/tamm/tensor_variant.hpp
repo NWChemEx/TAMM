@@ -1,5 +1,4 @@
-#ifndef TAMM_TENSOR_VARIANT_HPP_
-#define TAMM_TENSOR_VARIANT_HPP_
+#pragma once
 
 #include "tamm/scalar.hpp"
 #include "tamm/scheduler.hpp"
@@ -199,5 +198,3 @@ private : TensorType value_;
 };
 
 } // namespace tamm
-
-#endif // TAMM_TENSOR_VARIANT_HPP_

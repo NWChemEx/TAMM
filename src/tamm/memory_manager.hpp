@@ -1,5 +1,4 @@
-#ifndef TAMM_MEMORY_MANAGER_H_
-#define TAMM_MEMORY_MANAGER_H_
+#pragma once
 
 #include <iosfwd>
 
@@ -556,5 +555,3 @@ class MemoryRegionImpl : public MemoryRegion {
 
 #include "tamm/memory_manager_local.hpp"
 #include "tamm/memory_manager_ga.hpp"
-
-#endif // TAMM_MEMORY_MANAGER_H_

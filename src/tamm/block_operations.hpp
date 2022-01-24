@@ -1,5 +1,4 @@
-#ifndef TAMM_BLOCK_OPERATIONS_H_
-#define TAMM_BLOCK_OPERATIONS_H_
+#pragma once
 
 #include <algorithm>
 // // #include <chrono>
@@ -256,4 +255,3 @@ namespace tamm::internal {
 
 } // namespace internal
 
-#endif // TAMM_BLOCK_OPERATIONS_H_

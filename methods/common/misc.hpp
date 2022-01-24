@@ -1,6 +1,5 @@
 
-#ifndef METHODS_MISC_HPP_
-#define METHODS_MISC_HPP_
+#pragma once
 
 #include <iostream>
 // Libint Gaussian integrals library
@@ -115,5 +114,3 @@ struct BasisSetMap {
   std::vector<size_t> first_shell_atom; 
 
 };
-
-#endif // METHODS_MISC_HPP_

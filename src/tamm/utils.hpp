@@ -1,5 +1,4 @@
-#ifndef TAMM_UTILS_HPP_
-#define TAMM_UTILS_HPP_
+#pragma once
 
 #include "tamm/perm.hpp"
 #include "tamm/tiled_index_space.hpp"
@@ -777,5 +776,3 @@ inline std::vector<std::string> split_string(std::string str, char delim) {
 } // namespace internal
 
 } // namespace tamm
-
-#endif // TAMM_UTILS_HPP_

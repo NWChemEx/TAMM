@@ -1,5 +1,4 @@
-#ifndef TAMM_LABEL_TRANSLATOR_H_
-#define TAMM_LABEL_TRANSLATOR_H_
+#pragma once
 
 #include "tamm/tiled_index_space.hpp"
 #include "tamm/utils.hpp"
@@ -159,4 +158,4 @@ private:
 
 } // namespace tamm::internal
 
-#endif // TAMM_LABEL_TRANSLATOR_H_
+#pragma once

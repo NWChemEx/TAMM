@@ -1,7 +1,6 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMM_TYPES_HPP_
-#define TAMM_TYPES_HPP_
+#pragma once
 
 #include "tamm/boundvec.hpp"
 #include "tamm/errors.hpp"
@@ -400,4 +399,3 @@ using TranslateFunc = std::function<Index(Index id)>;
 
 } // namespace tamm
 
-#endif // TAMM_TYPES_HPP_

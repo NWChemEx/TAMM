@@ -1,5 +1,4 @@
-#ifndef TAMM_PROC_GROUP_H_
-#define TAMM_PROC_GROUP_H_
+#pragma once
 
 #include <pthread.h>
 #include <cassert>
@@ -572,5 +571,3 @@ void destroy_coll() {
 #endif
 
 }  // namespace tamm
-
-#endif  // TAMM_PROC_GROUP_H_

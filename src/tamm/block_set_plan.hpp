@@ -1,5 +1,4 @@
-#ifndef TAMM_BLOCK_SET_PLAN_HPP_
-#define TAMM_BLOCK_SET_PLAN_HPP_
+#pragma once
 
 #include <set>
 #include <vector>
@@ -151,4 +150,3 @@ private:
 
 } // namespace tamm
 
-#endif // TAMM_BLOCK_SET_PLAN_HPP_

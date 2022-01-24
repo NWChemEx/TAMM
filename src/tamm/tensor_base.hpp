@@ -1,5 +1,4 @@
-#ifndef TAMM_TENSOR_BASE_HPP_
-#define TAMM_TENSOR_BASE_HPP_
+#pragma once
 
 #include "tamm/errors.hpp"
 // #include "tamm/execution_context.hpp"
@@ -438,5 +437,3 @@ inline bool operator<(const TensorBase& lhs, const TensorBase& rhs) {
 }
 
 } // namespace tamm
-
-#endif // TAMM_TENSOR_BASE_HPP_

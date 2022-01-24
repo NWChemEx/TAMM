@@ -1,5 +1,4 @@
-#ifndef TAMM_INDEX_SPACE_HPP_
-#define TAMM_INDEX_SPACE_HPP_
+#pragma once
 
 #include "tamm/attribute.hpp"
 #include "tamm/range.hpp"
@@ -489,4 +488,3 @@ protected:
 
 } // namespace tamm
 
-#endif // TAMM_INDEX_SPACE_HPP_

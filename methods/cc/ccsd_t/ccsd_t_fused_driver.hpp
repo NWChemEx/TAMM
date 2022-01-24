@@ -1,5 +1,4 @@
-#ifndef CCSD_T_FUSED_HPP_
-#define CCSD_T_FUSED_HPP_
+#pragma once
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   #include "ccsd_t_all_fused.hpp"
@@ -795,4 +794,3 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
                                 k_spin,k_range,k_offset,
                                 k_evl_sorted);
 }
-#endif //CCSD_T_FUSED_HPP_

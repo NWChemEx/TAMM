@@ -1,6 +1,5 @@
 
-#ifndef TAMM_METHODS_INPUT_PARSER_HPP_
-#define TAMM_METHODS_INPUT_PARSER_HPP_
+#pragma once
 
 #include <cctype>
 #include <string>
@@ -293,6 +292,7 @@ class CCSDOptions: public Options {
     itilesize      = 1000;
     ndiis          = 5;
     lshift         = 0;
+    nactive        = 0;
     ccsd_maxiter   = 50;
     freeze_core    = 0;
     freeze_virtual = 0;
@@ -332,6 +332,7 @@ class CCSDOptions: public Options {
     gf_cs          = true;
     gf_restart     = false;
     gf_itriples    = false;
+    gf_profile     = false;
 
     gf_p_oi_range        = 0; //1-number of occupied, 2-all MOs
     gf_ndiis             = 10;
@@ -365,12 +366,13 @@ class CCSDOptions: public Options {
   int    ndiis;
   int    writet_iter;
   bool   readt, writet, writev, gf_restart, gf_ip, gf_ea, gf_os, gf_cs, 
-         gf_itriples, balance_tiles, computeTData;
+         gf_itriples, gf_profile, balance_tiles, computeTData;
   bool   profile_ccsd;
   double lshift;
   double printtol;
   double threshold;
 
+  int    nactive;
   int    ccsd_maxiter;
   int    freeze_core;
   int    freeze_virtual;
@@ -441,6 +443,8 @@ class CCSDOptions: public Options {
     cout << " printtol             = " << printtol         << endl;
     cout << " threshold            = " << threshold        << endl;
     cout << " tilesize             = " << tilesize         << endl;
+    if(nactive > 0)
+    cout << " nactive              = " << nactive          << endl;
     cout << " ccsd_maxiter         = " << ccsd_maxiter     << endl;
     cout << " freeze_core          = " << freeze_core      << endl;
     cout << " freeze_virtual       = " << freeze_virtual   << endl;
@@ -480,7 +484,8 @@ class CCSDOptions: public Options {
       print_bool(" gf_ea               ", gf_ea); 
       print_bool(" gf_os               ", gf_os); 
       print_bool(" gf_cs               ", gf_cs); 
-      print_bool(" gf_restart          ", gf_restart);     
+      print_bool(" gf_restart          ", gf_restart); 
+      print_bool(" gf_profile          ", gf_profile);    
       print_bool(" gf_itriples         ", gf_itriples);       
       cout << " gf_ndiis             = " << gf_ndiis          << endl;
       cout << " gf_ngmres            = " << gf_ngmres         << endl;
@@ -638,7 +643,8 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
 
     //CC
     json jcc = jinput["CC"];
-    parse_option<int>   (ccsd_options.ndiis         , jcc, "ndiis");  
+    parse_option<int>   (ccsd_options.ndiis         , jcc, "ndiis");
+    parse_option<int>   (ccsd_options.nactive       , jcc, "nactive");
     parse_option<int>   (ccsd_options.ccsd_maxiter  , jcc, "ccsd_maxiter");
     parse_option<int>   (ccsd_options.freeze_core   , jcc, "freeze_core");
     parse_option<int>   (ccsd_options.freeze_virtual, jcc, "freeze_virtual");
@@ -691,7 +697,8 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
     parse_option<bool>(ccsd_options.gf_ea      , jgfcc, "gf_ea"); 
     parse_option<bool>(ccsd_options.gf_os      , jgfcc, "gf_os"); 
     parse_option<bool>(ccsd_options.gf_cs      , jgfcc, "gf_cs"); 
-    parse_option<bool>(ccsd_options.gf_restart , jgfcc, "gf_restart"); 
+    parse_option<bool>(ccsd_options.gf_restart , jgfcc, "gf_restart");
+    parse_option<bool>(ccsd_options.gf_profile , jgfcc, "gf_profile");
     parse_option<bool>(ccsd_options.gf_itriples, jgfcc, "gf_itriples");
 
     parse_option<int>   (ccsd_options.gf_ndiis            , jgfcc, "gf_ndiis");
@@ -856,6 +863,3 @@ inline std::tuple<OptionsMap, json>
 
     return std::make_tuple(options_map, jinput);
 }
-
-
-#endif // TAMM_METHODS_INPUT_PARSER_HPP_

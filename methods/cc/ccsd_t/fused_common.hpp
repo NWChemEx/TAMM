@@ -1,5 +1,4 @@
-#ifndef CCSD_T_ALL_FUSED_COMMON_HPP_
-#define CCSD_T_ALL_FUSED_COMMON_HPP_
+#pragma once
 
 #include "ccsd_t_common.hpp"
 #include "ccsd_t_all_fused_singles.hpp"
@@ -238,5 +237,3 @@ void helper_calculate_num_ops(const Index noab, const Index nvab,
   total_num_ops_d1 += num_ops_d1;
   total_num_ops_d2 += num_ops_d2;
 }
-
-#endif //CCSD_T_ALL_FUSED_COMMON_HPP_

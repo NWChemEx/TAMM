@@ -1,5 +1,4 @@
-#ifndef TAMM_BLOCK_LAMBDA_PLAN_HPP_
-#define TAMM_BLOCK_LAMBDA_PLAN_HPP_
+#pragma once
 
 #include "tamm/blockops_cpu.hpp"
 #include "tamm/types.hpp"
@@ -102,4 +101,3 @@ void block_lambda(Func&& func, LabeledBlockSpan<double>& arg1,
 
 }  // namespace tamm
 
-#endif  // TAMM_BLOCK_LAMBDA_PLAN_HPP_

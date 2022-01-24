@@ -1,5 +1,4 @@
-#ifndef TAMM_DISTRIBUTION_HPP_
-#define TAMM_DISTRIBUTION_HPP_
+#pragma once
 
 #include "ga/ga.h"
 #include <map>
@@ -13,6 +12,7 @@
 #include "tamm/utils.hpp"
 #include "tamm/types.hpp"
 #include "tamm/proc_group.hpp"
+#include "tamm/proc_grid.hpp"
 
 template<typename T>
 std::ostream& operator <<(std::ostream& os, const std::vector<T>& vec) {
@@ -138,6 +138,8 @@ public:
 
     void set_hash(size_t hash) { hash_ = hash; }
 
+    void set_ga_handle(int ga_handle) { ga_ = ga_handle; }
+
     void set_proc_grid(std::vector<Proc> pg) { proc_grid_ = pg; }
 
     std::vector<Proc> proc_grid() const { return proc_grid_; }
@@ -181,6 +183,8 @@ protected:
     DistributionKind kind_; /**< Distribution kind */
 
     size_t hash_;
+
+    int ga_ = -1; /**< The GA handle */
 
     std::vector<Proc> proc_grid_; /**< Processor grid */
 
@@ -536,7 +540,7 @@ class Distribution_SimpleRoundRobin : public Distribution {
 
 /**
  * @brief Dense distribution logic for dense multidimensional tensors.
- * Currently, it supports blocked distribution of tensora 's blocks.
+ * Currently, it supports blocked distribution of tensor blocks.
  *
  */
 class Distribution_Dense : public Distribution {
@@ -559,13 +563,14 @@ class Distribution_Dense : public Distribution {
     ndim_ = tensor_structure->num_modes();
     
     if(pg.empty()) {
-      if(tensor_structure_->num_modes() == 2) {
-        proc_grid_ = grid_factor(tensor_structure, nproc);
-      }
-      else {
-        //TODO: Fix proc grid for nD tensors?
-        proc_grid_ = compute_proc_grid(tensor_structure, nproc);
-      }
+      std::vector<Proc> proc_grid;
+      EXPECTS(tensor_structure != nullptr);
+      const int64_t ndims = tensor_structure->num_modes();
+      std::vector<int64_t> ardims;
+      for(int i = 0; i < ndims; i++)
+        ardims.push_back(tensor_structure->tlabels()[i].tiled_index_space().max_num_indices());
+      auto pgrid = internal::compute_proc_grid(ndims, ardims, nproc.value(), 0.0, 0);
+      for(auto x: pgrid) proc_grid_.push_back(x);
     }
     else proc_grid_ = pg;
     set_proc_grid(proc_grid_);
@@ -574,7 +579,24 @@ class Distribution_Dense : public Distribution {
       max_proc_with_data_ *= p;
     }
     tiss_ = tensor_structure->tiled_index_spaces();
-    init_index_partition(tensor_structure);
+
+    max_proc_buf_size_ = 1;
+    // TODO: Implement
+    // for (int i = 0; i < ndim_; i++) {
+    //   Size dim = 0;
+    //   for (size_t j = 0; j + 1 < part_offsets_[i].size(); j++) {
+    //     dim = std::max(dim, part_offsets_[i][j + 1] - part_offsets_[i][j]);
+    //   }
+    //   max_proc_buf_size_ *= dim;
+    // }
+    max_block_size_ = 1;
+    for (int i = 0; i < ndim_; i++) {
+      size_t dim = 0;
+      for (size_t j = 0; j < tiss_[i].num_tiles(); j++) {
+        dim = std::max(dim, tiss_[i].tile_size(j));
+      }
+      max_block_size_ *= dim;
+    }
 
     set_hash(compute_hash());
   }
@@ -606,18 +628,14 @@ class Distribution_Dense : public Distribution {
    * @return Size
    */
   Size buf_size(Proc proc) const override {
-    EXPECTS(proc >= 0);
-    EXPECTS(proc < nproc_);
-    if (proc >= max_proc_with_data_) {
-      return {0};
-    }
-    const std::vector<Proc>& grid_rank = proc_rank_to_grid_rank(proc);
-    const std::vector<Offset>& pbuf_extents = proc_buf_extents(grid_rank);
-    Size result = 1;
-    for (const auto& e : pbuf_extents) {
-      result *= e;
-    }
-    return result;
+    NOT_ALLOWED();
+    // EXPECTS(proc >= 0);
+    // EXPECTS(proc < nproc_);
+    // if (proc >= max_proc_with_data_) {
+    //   return {0};
+    // }
+    // Size result = 1;
+    // return result;
   }
 
   Size max_proc_buf_size() const override { return max_proc_buf_size_; }
@@ -625,58 +643,9 @@ class Distribution_Dense : public Distribution {
   Size max_block_size() const override { return max_block_size_; }
 
   Size total_size() const override { 
-    Size result{0};
-    for(int i = 0; i < nproc_.value(); i++) { result += buf_size(i); }
-    return result;
-  }
-
-  // template <typename Func>
-  // void iterate(const std::vector<Proc>& grid_rank, Func&& func,
-  //              std::vector<Index>& itr) const {
-  //   EXPECTS(grid_rank.size() == ndim_);
-  //   for (int i = 0; i < ndim_; i++) {
-  //     EXPECTS(grid_rank[i] >= 0 && grid_rank[i] < proc_grid_[i]);
-  //   }
-  //   std::vector<Range> ranges;
-  //   for (int i = 0; i < ndim_; i++) {
-  //     ranges.push_back(
-  //         Range{index_part_offsets_[i][grid_rank[i].value()],
-  //               index_part_offsets_[i][1+grid_rank[i].value()], 1});
-  //   }
-  //   itr.clear();
-  //   itr.resize(ndim_);
-  //   loop_nest_exec(ranges, func, itr);
-  // }
-
-  std::vector<Range> proc_tile_extents(const std::vector<Proc>& grid_rank) const {
-    std::vector<Range> ranges(ndim_);
-    for (int i = 0; i < ndim_; i++) {
-      ranges[i] = Range{index_part_offsets_[i][grid_rank[i].value()],
-                        index_part_offsets_[i][1 + grid_rank[i].value()], 1};
-    }
-    return ranges;
-  }
-
-    /**
-   * @brief Compute the position of a given @param proc in the process grid.
-   * This call is only valid for ranks that have data allocated to them. If the
-   * process grid excludes @param proc, this call should not be called.
-   *
-   * @param proc rank to be located
-   * @return std::vector<Proc> Grid rank for @param proc
-   *
-   * @pre proc>=0 && proc < max_proc_with_data()
-   */
-  std::vector<Proc> proc_rank_to_grid_rank(Proc proc) const {
-    EXPECTS(proc >= 0 && proc < max_proc_with_data_);
-    std::vector<Proc> result(ndim_);
-    Proc rest = proc;
-    for (int i = ndim_ - 1; i >= 0; i--) {
-      result[i] = rest % proc_grid_[i];
-      rest /= proc_grid_[i];
-    }
-    if (ndim_ > 0) {
-      result[0] = rest;
+    Size result{1};
+    for (size_t i = 0; i < ndim_; i++) {
+      result *= tiss_[i].max_num_indices();
     }
     return result;
   }
@@ -692,178 +661,7 @@ class Distribution_Dense : public Distribution {
    */
   Size block_size(const IndexVector& blockid) const {
     EXPECTS(blockid.size() == static_cast<uint64_t>(ndim_));
-    Size result = 1;
-    for (int i = 0; i < ndim_; i++) {
-      result *= tiss_[i].tile_size(blockid[i]);
-    }
-    return result;
-  }
-
-  //private:
-  /**
-   * @brief Compute an effective processor grid for the given number of ranks.
-   * Note that not all ranks provided might be used.
-   *
-   * @param tensor_structure Tensor for which the grid is to be computed
-   * @param nproc Number of ranks available
-   * @return std::vector<Proc> The processor grid
-   *
-   * @post Product of the grid size along all dimensions is less than @param
-   * nproc
-   */
-  static std::vector<Proc> compute_proc_grid(const TensorBase* tensor_structure,
-                                             Proc nproc) {
-    std::vector<Proc> proc_grid;
-    EXPECTS(tensor_structure != nullptr);
-    int ndim = tensor_structure->num_modes();
-    const int64_t dim1_size = (tensor_structure->tlabels())[0].tiled_index_space().max_num_indices();
-
-    proc_grid = std::vector<Proc>(ndim, 1);
-    if (ndim > 0) {
-      proc_grid[0] = nproc;
-      if(nproc > dim1_size) proc_grid[0] = dim1_size; 
-    }
-    return proc_grid;
-  }
-
-  /**
-   * Factor p processors into 2D processor grid of dimensions px, py
-   */
-  static std::vector<Proc> grid_factor(const TensorBase* tensor_structure, Proc nproc) {
-    int               ndim = tensor_structure->num_modes();
-    std::vector<Proc> proc_grid(ndim, 1);
-    const int64_t     dim1_size =
-      (tensor_structure->tlabels())[0].tiled_index_space().max_num_indices();
-    const int64_t dim2_size =
-      (tensor_structure->tlabels())[1].tiled_index_space().max_num_indices();
-
-    int       i, j, p = nproc.value();
-    int       px, py;
-    int *     idx = &px, *idy = &py;
-    const int MAX_FACTOR = 512;
-    int       ip, ifac, pmax, prime[MAX_FACTOR];
-    int       fac[MAX_FACTOR];
-    int       ix, iy, ichk;
-
-    i = 1;
-    /**
-     *   factor p completely
-     *   first, find all prime numbers, besides 1, less than or equal to
-     *   the square root of p
-     */
-    ip   = (int) (sqrt((double) p)) + 1;
-    pmax = 0;
-    for(i = 2; i <= ip; i++) {
-      ichk = 1;
-      for(j = 0; j < pmax; j++) {
-        if(i % prime[j] == 0) {
-          ichk = 0;
-          break;
-        }
-      }
-      if(ichk) {
-        pmax = pmax + 1;
-        if(pmax > MAX_FACTOR) printf("Overflow in grid_factor\n");
-        prime[pmax - 1] = i;
-      }
-    }
-    /**
-     *   find all prime factors of p
-     */
-    ip   = p;
-    ifac = 0;
-    for(i = 0; i < pmax; i++) {
-      while(ip % prime[i] == 0) {
-        ifac          = ifac + 1;
-        fac[ifac - 1] = prime[i];
-        ip            = ip / prime[i];
-      }
-    }
-    /**
-     *  p is prime
-     */
-    if(ifac == 0) {
-      ifac++;
-      fac[0] = p;
-    }
-    /**
-     *    find two factors of p of approximately the
-     *    same size
-     */
-    *idx = 1;
-    *idy = 1;
-    for(i = ifac - 1; i >= 0; i--) {
-      ix = *idx;
-      iy = *idy;
-      if(ix <= iy) { *idx = fac[i] * (*idx); }
-      else {
-        *idy = fac[i] * (*idy);
-      }
-    }
-
-    proc_grid[0] = *idx;
-    proc_grid[1] = *idy;
-
-    if(proc_grid[0] > dim1_size) proc_grid[0] = dim1_size;
-    if(proc_grid[1] > dim2_size) proc_grid[1] = dim2_size;
-
-    return proc_grid;
-  }
-
-  /**
-   * @brief Initialize the tensor structure (complete object construction)
-   *
-   * @param tensor_structure Tensoe structure to be used in extracting
-   * iformation for initialization
-   */
-  void init_index_partition(const TensorBase* tensor_structure) {
-    int ndim = tensor_structure->num_modes();
-    const std::vector<TiledIndexLabel>& tlabels = tensor_structure->tlabels();
-
-    EXPECTS(proc_grid_.size() == static_cast<uint64_t>(ndim));
-    for (int i = 0; i < ndim; i++) {
-      const TiledIndexSpace& tis = tlabels[i].tiled_index_space();
-      num_tiles_.push_back(tis.num_tiles());
-      extents_.push_back(tis.index_space().num_indices());
-
-      Offset off = (extents_[i].value() + proc_grid_[i].value() - 1) /
-                   proc_grid_[i].value();
-      const IndexVector& tile_offsets = tis.tile_offsets();
-      index_part_offsets_.push_back({});
-      index_part_offsets_.back().push_back(0);
-      part_offsets_.push_back({});
-      part_offsets_.back().push_back(0);
-      auto pptr = tile_offsets.begin();
-      for (int p = 0; p < proc_grid_[i] - 1; p++) {
-        pptr = std::lower_bound(pptr, tile_offsets.end(), off * (p + 1));
-        auto tile_part = Index(pptr - tile_offsets.begin());
-        if(pptr != tile_offsets.end()) {
-          part_offsets_.back().push_back(tile_offsets[tile_part]);
-          index_part_offsets_.back().push_back(tile_part);
-        } else {
-          part_offsets_.back().push_back(extents_[i]);
-          index_part_offsets_.back().push_back(num_tiles_[i]);
-        }
-      }
-      index_part_offsets_.back().push_back(num_tiles_[i]);
-      part_offsets_.back().push_back(extents_[i]);
-    }
-    max_proc_buf_size_ = 1;
-    for (int i = 0; i < ndim_; i++) {
-      Size dim = 0;
-      for (size_t j = 0; j + 1 < part_offsets_[i].size(); j++) {
-        dim = std::max(dim, part_offsets_[i][j + 1] - part_offsets_[i][j]);
-      }
-      max_proc_buf_size_ *= dim;
-    }
-    max_block_size_ = 1;
-    for (int i = 0; i < ndim_; i++) {
-      size_t dim = 0;
-      for (size_t j = 0; j < tiss_[i].num_tiles(); j++) {
-        dim = std::max(dim, tiss_[i].tile_size(j));
-      }
-      max_block_size_ *= dim;
-    }
+    return Size{tensor_structure_->block_size(blockid)};
   }
 
   /**
@@ -886,94 +684,6 @@ class Distribution_Dense : public Distribution {
     return true;
   }
 
-
-  /**
-   * @brief Convert grid rank of a process to the process rank.
-   *
-   * @param grid_rank Grid rank of the process
-   * @return Proc linearized rank for the given @param grid_rank
-   *
-   * @pre grid_rank.size() == ndim_
-   */
-  Proc grid_rank_to_proc_rank(const std::vector<Proc>& grid_rank) const {
-    Proc result = 0;
-    EXPECTS(static_cast<uint64_t>(ndim_) == grid_rank.size());
-    if (ndim_ > 0) {
-      result += grid_rank[0];
-    }
-    for (int i = 1; i < ndim_; i++) {
-      result = result * proc_grid_[i] + grid_rank[i];
-    }
-    return result;
-  }
-
-  /**
-   * @brief Extent of buffer along dimension @param dim for rank @param
-   * grid_rank on the process grid
-   *
-   * @param dim Dimension being considered
-   * @param grid_rank Rank of process in the process grid along dimension @param
-   * dim
-   * @return Offset Buffer extent along dimension @param dim
-   *
-   * @pre dim>=0 && dim < ndim_
-   * @pre grid_rank>=0 && grid_rank < proc_grid_[dim]
-   */
-  Offset proc_buf_extent_for_grid_rank(int dim, Proc grid_rank) const {
-    EXPECTS(dim >= 0 && dim < ndim_);
-    EXPECTS(grid_rank >= 0 && grid_rank < proc_grid_[dim]);
-    return part_offsets_[dim][grid_rank.value() + 1] -
-           part_offsets_[dim][grid_rank.value()];
-  }
-
-  /**
-   * @brief Extent of buffer along dimension each dimension for rank with a
-   * given position in the process grid
-   *
-   * @param grid_rank Position of rank in the process grid
-   * @return std::vector<Offset> Extent along all dimensions
-   *
-   * @pre grid_rank.size() == ndim_
-   * @pre forall i: grid_rank[i]>=0 && grid_rank[i]<proc_grid_[i]
-   * @post return_value.size() == ndim_
-   */
-  std::vector<Offset> proc_buf_extents(
-      const std::vector<Proc>& grid_rank) const {
-    EXPECTS(grid_rank.size() == static_cast<uint64_t>(ndim_));
-    for (int i = 0; i < ndim_; i++) {
-      EXPECTS(grid_rank[0] >= 0 && grid_rank[i] < proc_grid_[i]);
-    }
-    std::vector<Offset> result(ndim_, 0);
-    for (int i = 0; i < ndim_; i++) {
-      result[i] = proc_buf_extent_for_grid_rank(i, grid_rank[i]);
-    }
-    return result;
-  }
-
-  /**
-   * @brief Offset of given block among all blocks allocated at a given rank
-   * with given grid position. Note that this is logical offset among all blocks
-   * allocated to the given rank.
-   *
-   * @param blockid Index of block being queried
-   * @param grid_rank Grid position of given rank
-   * @return std::vector<Offset> Offset along each dimenion in local process's
-   * logical allocation
-   *
-   * @pre blockid.size() == ndim_
-   * @pre blockid is allocated to grid_rank
-   */
-  std::vector<Offset> proc_buf_block_offset_grid(
-      const IndexVector& blockid, const std::vector<Proc>& grid_rank) const {
-    EXPECTS(blockid.size() == static_cast<uint64_t>(ndim_));
-    std::vector<Offset> result(ndim_);
-    for (int i = 0; i < ndim_; i++) {
-      result[i] = Offset{tiss_[i].tile_offset(blockid[i])} -
-                  part_offsets_[i][grid_rank[i].value()];
-    }
-    return result;
-  }
-
   /**
    * @brief Linearized of given block
    *
@@ -983,56 +693,9 @@ class Distribution_Dense : public Distribution {
    * @pre blockid.size() == ndim_
    * @pre forall i: blockid[i] >= 0 && blockid[i] < num_tiles_[i]
    */
-  Offset block_offset_within_proc(const IndexVector& blockid) const {
-    const std::vector<Size>& bdims = block_dims(blockid);
-    const std::vector<Proc>& grid_rank = block_owner_grid_rank(blockid);
-    const std::vector<Offset>& pbuf_extents = proc_buf_extents(grid_rank);
-    const std::vector<Offset>& pbuf_block_offset =
-        proc_buf_block_offset_grid(blockid, grid_rank);
-    Offset cur_contrib = 1;
-    for (int i = 0; i < ndim_; i++) {
-      cur_contrib *= pbuf_extents[i];
-    }
-    EXPECTS(cur_contrib > 0);
-    Offset result = 0;
-    for (int i = 0; i < ndim_; i++) {
-      result += cur_contrib / pbuf_extents[i] * pbuf_block_offset[i];
-      cur_contrib = cur_contrib / pbuf_extents[i] * bdims[i];
-    }
-    return result;
-  }
+  // Offset block_offset_within_proc(const IndexVector& blockid) const {
+  // }
 
-  /**
-   * @brief Compute the owner grid rank for given block
-   *
-   * @param blockid Index of block to be located
-   * @return std::vector<Proc> Grid rank of process that owns his block
-   */
-  std::vector<Proc> block_owner_grid_rank(const IndexVector& blockid) const {
-    EXPECTS(blockid.size() == static_cast<uint64_t>(ndim_));
-    std::vector<Proc> grid_rank;
-    for (int i = 0; i < ndim_; i++) {
-      EXPECTS(blockid[i] >= 0 && blockid[i] < num_tiles_[i]);
-      auto pptr = std::upper_bound(index_part_offsets_[i].begin(),
-                                   index_part_offsets_[i].end(), blockid[i]);
-      EXPECTS(pptr != index_part_offsets_[i].begin());
-      grid_rank.push_back(Proc(pptr - index_part_offsets_[i].begin() - 1));
-    }
-    return grid_rank;
-  }
-
-  /**
-   * @brief Compute rank of process owning this block
-   *
-   * @param blockid Block index to be located
-   * @return Proc Rank that owns this block
-   *
-   * @pre blockid.size() == ndim_
-   * @pre forall i: blockid[i] >= 0 && blockid[i] < num_tiles_[i]
-   */
-  Proc block_owner(const IndexVector& blockid) const {
-    return grid_rank_to_proc_rank(block_owner_grid_rank(blockid));
-  }
 
   /**
    * @brief Determine the given block's location
@@ -1045,25 +708,16 @@ class Distribution_Dense : public Distribution {
    * @pre forall i: blockid[i] >= 0 && blockid[i] < num_tiles_[i]
    */
   std::pair<Proc, Offset> locate(const IndexVector& blockid) const {
-    return {block_owner(blockid), block_offset_within_proc(blockid)};
-  }
-
-  /**
-   * @brief Dimensions of a given block.
-   *
-   * @param blockid Index of block
-   * @return std::vector<Size> Dimensions of block with id @param blockid
-   *
-   * @pre blockid.size() == ndim_
-   * @pre forall i: blockid[i] >= 0 && blockid[i] < num_tiles_[i]
-   */
-  std::vector<Size> block_dims(const IndexVector& blockid) const {
-    EXPECTS(blockid.size() == static_cast<uint64_t>(ndim_));
-    std::vector<Size> bdims(ndim_);
-    for (size_t i = 0; i < bdims.size(); i++) {
-      bdims[i] = tiss_[i].tile_size(blockid[i]);
-    }
-    return bdims;
+    // return {block_owner(blockid), block_offset_within_proc(blockid)};
+    std::vector<int64_t> lo = compute_lo(blockid);
+    std::vector<int64_t> hi = compute_hi(blockid);
+    // std::vector<int64_t> ld = compute_ld(blockid);
+    EXPECTS(ga_ != -1);
+    int procs[1];
+    int64_t map[14];
+    // int NGA_Locate_region(int g_a, int lo[], int hi[], int map[], int procs[])
+    NGA_Locate_region64(ga_, &lo[0], &hi[0], map, procs);
+    return {Proc{procs[0]}, Offset{-1}};
   }
 
   size_t compute_hash() const override {
@@ -1086,19 +740,37 @@ class Distribution_Dense : public Distribution {
   std::vector<TiledIndexSpace>
       tiss_; /**< TiledIndexSpace associated with each dimension */
   int ndim_; /**< Number of dimensions in underlying tensor */
-  // std::vector<Proc> proc_grid_;  /**< Processor grid */
   Proc max_proc_with_data_;      /**< Max ranks with any data */
   Size max_proc_buf_size_;       /**< Max buffer size on any rank */
   Size max_block_size_;          /**< Max size of a single block */
   std::vector<Index> num_tiles_; /**< Number of tiles along each dimension */
-  std::vector<Offset> extents_;  /**< Number of elements along each dimention */
-  std::vector<std::vector<Index>>
-      index_part_offsets_; /**< Offset (in tile index) partitioned among ranks
-                              along each dimension*/
-  std::vector<std::vector<Offset>>
-      part_offsets_; /**< Offset (in elements) partitioned among ranks along
-                        each dimension */
-};                   // class Distribution_Dense
+
+  protected:
+    std::vector<int64_t> compute_lo(const IndexVector& blockid) const {
+        std::vector<int64_t> retv;
+        std::vector<size_t> off = tensor_structure_->block_offsets(blockid);
+        for(const auto& i : off) { retv.push_back(static_cast<int64_t>(i)); }
+        return retv;
+    }
+
+    std::vector<int64_t> compute_hi(const IndexVector& blockid) const {
+        std::vector<int64_t> retv;
+        std::vector<size_t> boff  =  tensor_structure_->block_offsets(blockid);
+        std::vector<size_t> bdims =  tensor_structure_->block_dims(blockid);
+        for(size_t i = 0; i < boff.size(); i++) {
+            retv.push_back(static_cast<int64_t>(boff[i] + bdims[i] - 1));
+        }
+        return retv;
+    }
+
+    std::vector<int64_t> compute_ld(const IndexVector& blockid) const {
+        std::vector<size_t> bdims =  tensor_structure_->block_dims(blockid);
+        std::vector<int64_t> retv(bdims.size() - 1, 1);
+        for(size_t i = 1; i < bdims.size(); i++) retv[i-1] = (int64_t) (bdims[i]);
+        return retv;
+    }
+                      
+}; // class Distribution_Dense
 
 class ViewDistribution : public Distribution {
   public:
@@ -1163,7 +835,7 @@ public:
     const auto& opt_blockid = translate_blockid(blockid);
     auto [proc, offset]     = ref_dist_->locate(opt_blockid);
 
-    Offset translated_offset = translate_offset(blockid, offset);
+    Offset translated_offset = translate_offset(blockid, opt_blockid, offset);
 
     return {proc, translated_offset};
   }
@@ -1184,33 +856,46 @@ public:
     IndexVector translated_blockid = blockid;
 
     for(size_t i = 0; i < unit_tiled_dims_.size(); i++) {
-      translated_blockid[unit_tiled_dims_[i]] = blockid[i] / opt_tile_sizes_[unit_tiled_dims_[i]];
+      size_t index = unit_tiled_dims_[i];
+      auto tile_offsets = opt_tile_offsets_[index];
+      int new_id = find_tile(blockid[index], index);
+      EXPECTS(new_id > -1);
+      translated_blockid[index] = new_id;
     }
 
     return translated_blockid;
   }
 
-  Offset translate_offset(const IndexVector& blockid, Offset offset) const {
-    auto unit_tiled_tensor = get_tensor_base();
-    size_t num_modes = unit_tiled_tensor->num_modes();
-    auto unit_dims = unit_tiled_tensor->block_dims(blockid);
+  Offset translate_offset(const IndexVector& blockid, const IndexVector& ref_blockid,  Offset offset) const {
+    auto ret_tensor = ref_dist_->get_tensor_base();
+    size_t num_modes = ret_tensor->num_modes();
+    auto ref_dims = ret_tensor->block_dims(ref_blockid);
 
     std::vector<Offset> dim_offsets(num_modes);
     if(num_modes > 0) { dim_offsets[num_modes - 1] = 1; }
     for(int i = num_modes - 2; i >= 0; i--) {
-      dim_offsets[i] = dim_offsets[i + 1] * unit_dims[i + 1];
+      dim_offsets[i] = dim_offsets[i + 1] * ref_dims[i + 1];
     }
-    
+
     size_t local_offset = 0;
 
     for (size_t i = 0; i < unit_tiled_dims_.size(); i++) {
-      local_offset += (blockid[i] % opt_tile_sizes_[unit_tiled_dims_[i]]) * dim_offsets[i].value();
+      size_t index = unit_tiled_dims_[i];
+      int remaining_offset = find_remaining_offset(blockid[index], index);
+      EXPECTS(remaining_offset > -1);
+      local_offset += remaining_offset * dim_offsets[index].value();
     }
     
     local_offset += offset.value();
 
     return Offset{local_offset};
   }
+
+protected:
+  const Distribution*            ref_dist_;
+  std::vector<size_t>            unit_tiled_dims_;
+  std::vector<std::vector<Tile>> opt_tile_offsets_;
+
 
   void initialize_tile_information() {
     auto unit_tiled_tensor = get_tensor_base();
@@ -1234,26 +919,38 @@ public:
 
     auto opt_tis_list = opt_tiled_tensor->tiled_index_spaces();
 
-    // EXPECTS(opt_tis_list.size() > unit_tiled_dims_.size());
-
+    std::vector<Tile> tile_sizes;
     for(size_t i = 0; i < unit_tiled_dims_.size(); i++) {
-      if (opt_tis_list[unit_tiled_dims_[i]].input_tile_sizes().empty())
-        opt_tile_sizes_.push_back(opt_tis_list[unit_tiled_dims_[i]].input_tile_size());
-      else 
-        opt_tile_sizes_.push_back(opt_tis_list[unit_tiled_dims_[i]].input_tile_sizes()[unit_tiled_dims_[i]]);
-
+      opt_tile_offsets_.push_back(opt_tis_list[unit_tiled_dims_[i]].tile_offsets());
     }
   }
 
-protected:
-  const Distribution* ref_dist_;
-  std::vector<size_t>    unit_tiled_dims_;
-  std::vector<Tile>      opt_tile_sizes_;
+  int find_tile(Index blockid, size_t dim_index) const {
+    auto offsets = opt_tile_offsets_[dim_index];
 
+    for (size_t i = 0; i < offsets.size() - 1; i++) {
+      if (blockid >= offsets[i] && blockid < offsets[i+1]) {
+        return i;
+      }
+    }
 
+    return -1;
+  }
+
+  int find_remaining_offset(Index blockid, size_t dim_index) const {
+    auto offsets = opt_tile_offsets_[dim_index];
+
+    for (size_t i = 0; i < offsets.size() - 1; i++) {
+      if (blockid >= offsets[i] && blockid < offsets[i+1])
+        return blockid - offsets[i];
+    }
+
+    return -1;
+  }
+  
 }; // class UnitTileDistribution
 
-//#if 0
+#if 0
 template <int N, typename BodyFunc, typename InitFunc, typename UpdateFunc,
           typename... Args>
 class LoopY;
@@ -1554,82 +1251,7 @@ void loop_nest_exec(Func&& func, const LabeledTensorT& lt,
   auto noop = [](){};
   loop_nest_exec(func, noop, noop, lt, itr, std::forward<Args>(args)...);
 }
-
-/*
-  [DONE] @todo Implement lhs.tensor().is_dense_distribution()
-
-  [DONE] @todo Allocate buf once (max buf size). Also put needs to works with
-  larger buffer sizes
-
-  [DONE] @todo Tensor access local buf directly instead of put/acc
-
-  @todo An efficient put path (only cheap EXPECTS checks) and do put
-
-  [DONE?] @todo Efficient way of determine offset of blockid in proc local buf
-
-  @todo support dense (aka Cartesian) slicing
-*/
-// template <typename LabeledTensorT, typename T>
-// void set_op_execute(const ProcGroup& pg, const LabeledTensorT& lhs, T value,
-//                     bool is_assign) {
-//   EXPECTS(!is_slicing(lhs));  // dense and no slicing in labels
-//   EXPECTS(lhs.tensor().distribution().kind() == DistributionKind::dense); //tensor uses Distribution_Dense
-//   //EXPECTS(
-//   //    lhs.tensor().execution_context()->pg() ==
-//   //        pg);  // tensor allocation proc grid same as op execution proc grid
-//   const Distribution_Dense& dd =
-//       static_cast<const Distribution_Dense&>(lhs.tensor().distribution());
-//   Proc rank = pg.rank();
-//   const std::vector<Proc>& grid_rank = dd.proc_rank_to_grid_rank(rank);  
-//   const std::vector<Range>& ranges = dd.proc_tile_extents(grid_rank);
-//   std::vector<Index> blockid(ranges.size());
-//   using LT_eltype = typename LabeledTensorT::element_type;
-//   std::vector<LT_eltype> buf(dd.max_block_size(), LT_eltype{value});
-//   LT_eltype* lbuf = lhs.tensor().access_local_buf();
-//   Offset off = 0;
-//   if (is_assign) {
-//     loop_nest_exec(
-//         ranges,
-//         [&]() {
-// #if 1
-//           auto sz = dd.block_size(blockid);
-//           std::copy(buf, buf + sz, &lbuf[off]);
-//           off += sz;
-// #elif 0
-//     // lhs.tensor().put(blockid, buf);
-// #else
-//           Proc proc;
-//           Offset off;
-//           std::tie(proc, off) = dd.locate(blockid);
-//           std::copy(buf, buf + dd.block_size(blockid), &lbuf[off]);
-// #endif
-//         },
-//         blockid);
-//   } else {
-//     loop_nest_exec(
-//         ranges,
-//         [&]() {
-// #if 1
-//           auto sz = dd.block_size(blockid);
-//           for (size_t i = 0; i < dd.block_size(blockid); i++) {
-//             lbuf[i] += buf[i];
-//           }
-//           off += sz;
-// #elif 0
-//           lhs.tensor().add(blockid, buf);
-// #else
-//           Proc proc;
-//           Offset off;
-//           std::tie(proc, off) = dd.locate(blockid);
-//           for (size_t i = 0; i < dd.block_size(blockid); i++) {
-//             lbuf[off + i] += buf[i];
-//           }
-// #endif
-//         },
-//         blockid);
-//   }
-// }
+#endif
 
 } // namespace tamm
 
-#endif // TAMM_DISTRIBUTION_HPP_

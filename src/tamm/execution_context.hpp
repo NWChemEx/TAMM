@@ -1,5 +1,4 @@
-#ifndef TAMM_EXECUTION_CONTEXT_H_
-#define TAMM_EXECUTION_CONTEXT_H_
+#pragma once
 
 #include "tamm/proc_group.hpp"
 //#include "tamm/tensor_impl.hpp"
@@ -406,4 +405,3 @@ private:
 
 } // namespace tamm
 
-#endif // TAMM_EXECUTION_CONTEXT_H_

@@ -1,5 +1,5 @@
-#ifndef TAMM_BLOCK_SPAN_HPP_
-#define TAMM_BLOCK_SPAN_HPP_
+#pragma once
+
 #include "tamm/scalar.hpp"
 #include "tamm/types.hpp"
 
@@ -53,5 +53,3 @@ class BlockSpan {
   size_t num_elements_;
 };  // class BlockSpan
 }  // namespace tamm
-
-#endif  // TAMM_BLOCK_SPAN_HPP_

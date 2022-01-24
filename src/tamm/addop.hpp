@@ -1,5 +1,4 @@
-#ifndef TAMM_ADDOP_H_
-#define TAMM_ADDOP_H_
+#pragma once
 
 #define ADDOP_LOCALIZE_LHS
 
@@ -855,5 +854,3 @@ void GeneralLHSAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(
 
 } // namespace tamm::internal
 
-
-#endif // TAMM_ADDOP_H_

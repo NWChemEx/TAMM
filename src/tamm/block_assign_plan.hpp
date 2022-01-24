@@ -1,5 +1,4 @@
-#ifndef TAMM_BLOCK_ASSIGN_PLAN_HPP_
-#define TAMM_BLOCK_ASSIGN_PLAN_HPP_
+#pragma once
 
 #include <vector>
 
@@ -325,7 +324,7 @@ private:
             plan_ = Plan::invalid;
             return;
         }
-        ip_plan_.perm_ = internal::perm_compute(lhs_labels, rhs_labels);
+        ip_plan_.perm_ = internal::perm_compute(rhs_labels, lhs_labels);
     }
 
     template<typename T>
@@ -426,4 +425,3 @@ void block_assign(BlockSpan<double>& lhs, const std::vector<int>& lhs_labels,
 
 } // namespace tamm
 
-#endif // TAMM_BLOCK_ASSIGN_PLAN_HPP_

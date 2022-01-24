@@ -1,6 +1,5 @@
 
-#ifndef TAMM_METHODS_SCF_ITER_HPP_
-#define TAMM_METHODS_SCF_ITER_HPP_
+#pragma once
 
 #include "scf_guess.hpp"
 
@@ -1166,7 +1165,3 @@ void diis(ExecutionContext& ec, const TiledIndexSpace& tAO, Tensor<TensorType> D
   sch.execute();
 
 }
-
-
-
-#endif // TAMM_METHODS_SCF_ITER_HPP_

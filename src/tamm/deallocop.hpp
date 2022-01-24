@@ -1,5 +1,4 @@
-#ifndef TAMM_DEALLOC_OP_
-#define TAMM_DEALLOC_OP_
+#pragma once
 
 #include <algorithm>
 #include <chrono>
@@ -55,5 +54,3 @@ protected:
     
 }; // class AllocOp
 }  // namespace tamm
-
-#endif // TAMM_DEALLOC_OP_

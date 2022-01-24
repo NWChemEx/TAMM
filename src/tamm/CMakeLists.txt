@@ -20,6 +20,7 @@ set(TAMM_INCLUDES
     types.hpp
     errors.hpp 
     strong_num.hpp
+    proc_grid.hpp
     boundvec.hpp
     index_space.hpp
     tiled_index_space.hpp

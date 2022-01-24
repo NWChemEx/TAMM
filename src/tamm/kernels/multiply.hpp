@@ -1,5 +1,4 @@
-#ifndef TAMM_MULTIPLY_HPP_
-#define TAMM_MULTIPLY_HPP_
+#pragma once
 
 #include "tamm/errors.hpp"
 #include "tamm/types.hpp"
@@ -851,5 +850,3 @@ void block_multiply(bool &isgpuOp,
 } // namespace kernels
 
 } // namespace tamm
-
-#endif // TAMM_MULTIPLY_HPP_

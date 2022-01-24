@@ -1,5 +1,4 @@
-#ifndef TAMM_BLOCK_MULT_PLAN_H_
-#define TAMM_BLOCK_MULT_PLAN_H_
+#pragma once
 
 #include "tamm/block_assign_plan.hpp"
 #include "tamm/block_span.hpp"
@@ -911,5 +910,3 @@ private:
 }; // class BlockMultPlan
 } // namespace tamm
 
-
-#endif // TAMM_BLOCK_MULT_PLAN_H_

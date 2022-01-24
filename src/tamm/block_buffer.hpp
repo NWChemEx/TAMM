@@ -1,5 +1,4 @@
-#ifndef TAMM_BLOCK_BUFFER_HPP_
-#define TAMM_BLOCK_BUFFER_HPP_
+#pragma once
 
 #include "tamm/types.hpp"
 #include "tamm/tensor.hpp"
@@ -112,4 +111,3 @@ inline auto& operator<<(Stream& os, BlockBuffer<T> bf) {
 
 } // namespace tamm
 
-#endif

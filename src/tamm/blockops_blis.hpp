@@ -1,5 +1,4 @@
-#ifndef TAMM_BLIS_OPS_HPP_
-#define TAMM_BLIS_OPS_HPP_
+#pragma once
 
 #include "tamm/block_span.hpp"
 #include "tamm/types.hpp"
@@ -166,4 +165,3 @@ void prep_rhs_buffer(const BlockSpan<T2>& rhs, std::vector<T1>& new_rhs) {
 
 } // namespace tamm::blockops::blis
 
-#endif // TAMM_BLIS_OPS_HPP_

@@ -1,6 +1,5 @@
 
-#ifndef METHODS_MOLDEN_HPP_
-#define METHODS_MOLDEN_HPP_
+#pragma once
 
 #include <iostream>
 #include "json_data.hpp"
@@ -537,5 +536,3 @@ void read_molden(const SystemData& sys_data, libint2::BasisSet& shells,
   EXPECTS(n_vir_beta  == Northo - n_occ_beta);
 
 }
-
-#endif // METHODS_MOLDEN_HPP_

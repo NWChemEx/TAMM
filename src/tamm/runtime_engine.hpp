@@ -1,5 +1,4 @@
-#ifndef TAMM_RUNTIME_ENGINE_HPP_
-#define TAMM_RUNTIME_ENGINE_HPP_
+#pragma once
 
 #include <type_traits>
 
@@ -277,6 +276,3 @@ inline RuntimeEngine* ExecutionContext::runtime_ptr()
 }
 
 } // namespace tamm
-
-
-#endif // TAMM_RUNTIME_ENGINE_HPP_

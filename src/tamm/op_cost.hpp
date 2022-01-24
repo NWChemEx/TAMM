@@ -1,5 +1,4 @@
-#ifndef TAMM_OP_COST_H_
-#define TAMM_OP_COST_H_
+#pragma once
 
 #include <algorithm>
 #include <cmath>
@@ -150,4 +149,3 @@ inline OpCostOrder compare(const OpCostExpr& oce1, const OpCostExpr& oce2,
 
 }  // namespace tamm
 
-#endif  // TAMM_OP_COST_H_

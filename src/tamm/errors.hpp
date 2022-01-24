@@ -1,5 +1,4 @@
-#ifndef TAMM_ERRORS_HPP_
-#define TAMM_ERRORS_HPP_
+#pragma once
 
 #include <cassert>
 #include <iostream>
@@ -66,4 +65,3 @@ namespace tamm {
 
 } // namespace tamm
 
-#endif // TAMM_ERRORS_HPP_

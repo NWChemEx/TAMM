@@ -1,5 +1,4 @@
-#ifndef CCSD_T_ALL_FUSED_SINGLES_HPP_
-#define CCSD_T_ALL_FUSED_SINGLES_HPP_
+#pragma once
 
 #include "tamm/tamm.hpp"
 // using namespace tamm;
@@ -929,5 +928,3 @@ void ccsd_t_data_s1_info_only(bool is_restricted, const Index noab, const Index 
 
   // printf ("[%s] s1: %d\n", __func__, idx_new_offset);
 } // ccsd_t_data_s1
-
-#endif //CCSD_T_ALL_FUSED_SINGLES_HPP_

@@ -1,7 +1,6 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMM_STRONGNUM_HPP_
-#define TAMM_STRONGNUM_HPP_
+#pragma once
 
 #include <functional>
 #include <iosfwd>
@@ -345,5 +344,3 @@ inline std::istream& operator>>(std::istream& is, StrongNum<S, T>& s) {
 }
 
 } // namespace tamm
-
-#endif // TAMM_STRONGNUM_HPP_

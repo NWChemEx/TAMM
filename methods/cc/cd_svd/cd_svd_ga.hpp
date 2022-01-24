@@ -1,6 +1,5 @@
 
-#ifndef TAMM_CD_SVD_GA_HPP_
-#define TAMM_CD_SVD_GA_HPP_
+#pragma once
 
 #include "scf/scf_main.hpp"
 #include "tamm/eigen_utils.hpp"
@@ -95,10 +94,12 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(SystemData sys_data, bool triple
                      {"virt_beta", {range(nocc+n_vir_alpha, total_orbitals)}},
                      {"virt_alpha_int", {range(nocc,nocc+nactv)}},
                      {"virt_beta_int", {range(nocc+n_vir_alpha, nocc+nactv+n_vir_alpha)}},
+                     {"virt_int", {range(nocc,nocc+nactv), range(nocc+n_vir_alpha, nocc+nactv+n_vir_alpha)}},
                      {"virt_alpha_ext", {range(nocc+nactv,nocc+n_vir_alpha)}},
                      {"virt_beta_ext", {range(nocc+nactv+n_vir_alpha, total_orbitals)}},
+                     {"virt_ext", {range(nocc+nactv,nocc+n_vir_alpha), range(nocc+nactv+n_vir_alpha, total_orbitals)}},
                     },
-                     { 
+                     {
                       {Spin{1}, {range(0, n_occ_alpha), range(nocc,nocc+n_vir_alpha)}},
                       {Spin{2}, {range(n_occ_alpha, nocc), range(nocc+n_vir_alpha, total_orbitals)}} 
                      }
@@ -819,4 +820,3 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   return CholVpr_tamm;
 }
 
-#endif //TAMM_CD_SVD_HPP_

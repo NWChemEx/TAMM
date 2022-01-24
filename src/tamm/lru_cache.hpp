@@ -1,5 +1,4 @@
-#ifndef TAMM_LRU_CACHE_HPP_
-#define TAMM_LRU_CACHE_HPP_
+#pragma once
 
 #include <map>
 #include <iostream>
@@ -94,5 +93,3 @@ class LRUCache {
   std::map<uint32_t, uint32_t> reuse_distance_histogram_;
 };  // class LRUCache
 }  // namespace tamm
-
-#endif  // TAMM_LRU_CACHE_HPP_

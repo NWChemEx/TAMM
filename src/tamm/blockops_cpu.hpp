@@ -1,5 +1,4 @@
-#ifndef TAMM_BLOCKOPS_CPU_HPP_
-#define TAMM_BLOCKOPS_CPU_HPP_
+#pragma once
 
 #include <array>
 #include <set>
@@ -1203,5 +1202,3 @@ class IpGenLoopBuilder {
 };  // struct IpGenLoopBuilder
 
 }  // namespace tamm::blockops::cpu
-
-#endif  // TAMM_BLOCKOPS_CPU_HPP_

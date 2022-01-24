@@ -1,5 +1,4 @@
-#ifndef TAMM_OP_EXECUTOR_HPP_
-#define TAMM_OP_EXECUTOR_HPP_
+#pragma once
 
 #include "tamm/op_visitors.hpp"
 #include "tamm/scheduler.hpp"
@@ -702,5 +701,3 @@ protected:
     SymbolTable& symbol_table_;
 }; // class OpExecutor
 } // namespace tamm
-
-#endif // TAMM_OP_EXECUTOR_HPP_

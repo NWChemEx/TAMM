@@ -1,6 +1,5 @@
 
-#ifndef CCSD_T_UNFUSED_HPP_
-#define CCSD_T_UNFUSED_HPP_
+#pragma once
 
 #if defined(USE_CUDA) || defined(USE_HIP)
 #if defined(USE_HIP)
@@ -316,5 +315,3 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
       return std::make_tuple(energy1, energy2, ccsd_t_time, total_t_time);
 
 }
-
-#endif //CCSD_T_UNFUSED_HPP_

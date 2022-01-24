@@ -1,5 +1,4 @@
-#ifndef TAMM_OP_BASE_H_
-#define TAMM_OP_BASE_H_
+#pragma once
 
 #include <memory>
 #include <vector>
@@ -42,4 +41,3 @@ class OpList : public std::vector<std::shared_ptr<Op>> {
 };  // OpList
 
 }  // namespace tamm
-#endif  // TAMM_OP_BASE_H_

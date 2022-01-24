@@ -1,5 +1,4 @@
-#ifndef TAMM_MEMORY_MANAGER_GA_H_
-#define TAMM_MEMORY_MANAGER_GA_H_
+#pragma once
 
 #include "tamm/memory_manager.hpp"
 #include "armci.h"
@@ -392,5 +391,3 @@ class MemoryManagerGA : public MemoryManager {
 };  // class MemoryManagerGA
 
 }  // namespace tamm
-
-#endif // TAMM_MEMORY_MANAGER_GA_H_

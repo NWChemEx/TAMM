@@ -1,6 +1,5 @@
 
-#ifndef CCSD_T_DOUBLES_UNFUSED_HPP_
-#define CCSD_T_DOUBLES_UNFUSED_HPP_
+#pragma once
 
 // using namespace tamm;
 extern double ccsdt_d1_t2_GetTime;
@@ -586,4 +585,3 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
   #endif
 } //end double_gpu_driver
 
-#endif //CCSD_T_DOUBLES_UNFUSED_HPP_

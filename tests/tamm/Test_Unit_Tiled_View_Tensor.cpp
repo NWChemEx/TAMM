@@ -282,8 +282,36 @@ void test_unit_tiled_view_tensor(ExecutionContext& ec, size_t size, size_t tile_
   auto t1_ut_l1 = t1_utis.label();
 
   sch(tmp(h3) = t1_ut(t1_ut_l1,h2) * t2(h2,h3)).execute();
+  
+  const std::vector<Tile> ao_tiles = {1,3};
+  TiledIndexSpace AO{IndexSpace{range(4)}, ao_tiles};
 
+  Tensor<double> T{AO, AO};
 
+  sch.allocate(T).execute();
+
+  random_ip(T);
+
+  print_tensor(T);
+
+  Tensor<double> T_ut{T, 2};
+  Tensor<double> tmp2{};
+  sch.allocate(tmp2).execute();
+
+  for(int i = 0; i < 4; i++) {
+    for(int j = 0; j < 4; j++) {
+      TiledIndexSpace tis1{T_ut.tiled_index_spaces()[0], range(i, i + 1)};
+      TiledIndexSpace tis2{T_ut.tiled_index_spaces()[1], range(j, j + 1)};
+      auto            l1 = tis1.label();
+      auto            l2 = tis2.label();
+
+      sch(tmp2() = T_ut(l1, l2)).execute();
+      auto val = get_scalar(tmp2);
+      if(ec.pg().rank() == 0)
+        std::cout << i << " " << j << " "  << val << std::endl;
+    }
+  }
+  
   std::cout << "Finished tests!" << "\n";
 
 }

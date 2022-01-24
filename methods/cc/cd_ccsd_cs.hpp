@@ -1,3 +1,5 @@
+#pragma once
+
 #include "diis.hpp"
 #include "ccsd_util.hpp"
 #include "ga/macdecls.h"

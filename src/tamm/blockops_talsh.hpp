@@ -1,5 +1,4 @@
-#ifndef TAMM_BLOCKOPS_TALSH_HPP_
-#define TAMM_BLOCKOPS_TALSH_HPP_
+#pragma once
 
 #include <array>
 #include <set>
@@ -55,8 +54,5 @@ void block_mult_talsh(tensor_handle& th_c, tensor_handle& th_a, tensor_handle& t
               rscale, copy_ctrl, is_assign); 
 }
 
-
-
 }  // namespace tamm::blockops::talsh
 
-#endif  // TAMM_BLOCKOPS_TALSH_HPP_

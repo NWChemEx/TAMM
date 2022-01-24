@@ -2,6 +2,9 @@
   To-Do:  #1. 2D Grid 
   #2. Optimized Memory
 */
+
+#pragma once
+
 #include "ccsd_t_common.hpp"
 #include <stdio.h>
 #include <stdlib.h>

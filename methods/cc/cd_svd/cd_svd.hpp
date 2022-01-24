@@ -1,6 +1,5 @@
 
-#ifndef TAMM_CD_SVD_HPP_
-#define TAMM_CD_SVD_HPP_
+#pragma once
 
 #include "scf/scf_main.hpp"
 #include "tamm/eigen_utils.hpp"
@@ -623,5 +622,3 @@ Tensor<TensorType> cd_svd(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIndex
 
   return CholVpr_tamm;
 }
-
-#endif //TAMM_CD_SVD_HPP_

@@ -1,5 +1,4 @@
-#ifndef TAMM_RANGE_HPP_
-#define TAMM_RANGE_HPP_
+#pragma once
 
 #include "tamm/types.hpp"
 #include <algorithm>
@@ -233,5 +232,3 @@ struct hash<tamm::Range> {
     }
 };
 }
-
-#endif // TAMM_RANGE_HPP_

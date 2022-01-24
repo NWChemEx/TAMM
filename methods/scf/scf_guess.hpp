@@ -1,5 +1,4 @@
-#ifndef TAMM_METHODS_SCF_GUESS_HPP_
-#define TAMM_METHODS_SCF_GUESS_HPP_
+#pragma once
 
 #include "scf_common.hpp"
 
@@ -1491,4 +1490,3 @@ std::tuple<std::vector<int>,std::vector<int>,std::vector<int>>
 
 }
 
-#endif //TAMM_METHODS_SCF_GUESS_HPP_

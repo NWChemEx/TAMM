@@ -1,5 +1,4 @@
-#ifndef TAMM_METHODS_COMMON_RESULTS_HPP_
-#define TAMM_METHODS_COMMON_RESULTS_HPP_
+#pragma once
 
 #include "input_parser.hpp"
 
@@ -209,5 +208,3 @@ void write_json_data(SystemData& sys_data, const std::string module){
   std::ofstream res_file(json_file);
   res_file << std::setw(2) << results << std::endl;
 }
-
-#endif //TAMM_METHODS_COMMON_RESULTS_HPP_

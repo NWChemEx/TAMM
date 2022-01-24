@@ -1,5 +1,4 @@
-#ifndef TAMM_OPS_HPP_
-#define TAMM_OPS_HPP_
+#pragma once
 
 #include "tamm/op_base.hpp"
 
@@ -212,4 +211,3 @@ constexpr auto LabeledTensor<T>::make_op(T1&& rhs, const bool is_assign,
 
 }  // namespace tamm
 
-#endif // TAMM_OPS_HPP_

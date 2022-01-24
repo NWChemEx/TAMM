@@ -1,5 +1,4 @@
-#ifndef TAMM_KERNELS_ASSIGN_H_
-#define TAMM_KERNELS_ASSIGN_H_
+#pragma once
 
 #include "tamm/errors.hpp"
 #include "tamm/types.hpp"
@@ -534,4 +533,3 @@ void assign(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale,
 
 } // namespace tamm
 
-#endif // TAMM_KERNELS_ASSIGN_H_

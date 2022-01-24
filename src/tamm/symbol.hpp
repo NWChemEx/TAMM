@@ -1,7 +1,6 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 
-#ifndef TAMM_SYMBOL_HPP_
-#define TAMM_SYMBOL_HPP_
+#pragma once
 
 #include <memory>
 #include <map>
@@ -74,4 +73,3 @@ void register_symbols(std::map<void*, std::string>& symbol_table,
   tamm::register_symbols(map_, #__VA_ARGS__, \
                          __VA_ARGS__)
 
-#endif  // TAMM_SYMBOL_HPP_

@@ -331,7 +331,7 @@ public:
                         const AttributeToRangeMap<Spatial>& spatial) :
       indices_{indices},
       named_ranges_{named_ranges},
-      named_subspaces_{construct_subspaces(named_ranges)},
+      named_subspaces_{construct_subspaces(named_ranges, spin)},
       spin_{construct_spin(spin)},
       spatial_{construct_spatial(spatial)} {
         EXPECTS(has_duplicate<IndexVector>(indices_));
@@ -441,21 +441,44 @@ protected:
      * @returns std::map<std::string, IndexSpace> returns the map from
      *                                           strings to subspaces
      */
-    std::map<std::string, IndexSpace> construct_subspaces(
-      const NameToRangeMap& in_map) {
-        std::map<std::string, IndexSpace> ret;
-        for(auto& kv : in_map) {
-            std::string name         = kv.first;
-            IndexVector temp_indices = {};
-            for(auto& range : kv.second) {
-                for(auto& i : construct_index_vector(range)) {
-                    temp_indices.push_back(indices_[i]);
-                }
-            }
-            ret.insert({name, IndexSpace{temp_indices}});
-        }
+    std::map<std::string, IndexSpace> construct_subspaces(const NameToRangeMap&            in_map,
+                                                          const AttributeToRangeMap<Spin>& spin) {
+      std::map<std::string, IndexSpace> ret;
 
-        return ret;
+      for(auto& kv: in_map) {
+        AttributeToRangeMap<Spin> temp_attr;
+        std::string         name         = kv.first;
+        IndexVector         temp_indices = {};
+       
+        for(auto& range: kv.second) { 
+          int prev_hi = temp_indices.size();
+          for(auto& [attr, range_vec]: spin) {
+            std::vector<Range> temp_vec;
+
+            for(const auto& spin_range: range_vec) {              
+              if(spin_range.overlap_with(range)) {
+                auto new_lo = std::max(spin_range.lo(), range.lo());
+                auto new_hi = std::min(spin_range.hi(), range.hi());
+
+                Range new_range{new_lo - range.lo() + prev_hi, new_hi - range.lo() + prev_hi,
+                                spin_range.step()};
+                
+                temp_vec.push_back(new_range); 
+              }
+            }
+
+            if (!temp_vec.empty()){
+              temp_attr.insert({attr, temp_vec});
+            }
+          }
+          for(auto& i: construct_index_vector(range)) { temp_indices.push_back(indices_[i]); }
+        } 
+
+        ret.insert({name, IndexSpace{temp_indices, {}, temp_attr}});
+   
+      }
+
+      return ret;
     }
 
     /**

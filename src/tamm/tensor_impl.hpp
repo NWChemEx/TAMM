@@ -792,15 +792,26 @@ public:
         } else {
             // only needed when irreg tile sizes are provided
             const bool is_irreg_tens = std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; });
+            #if 0
             if(is_irreg_tens) {
-                std::vector<std::vector<Tile>> tiles(ndims);
+                std::vector<std::vector<Tile>> new_tiles(ndims);
                 for(int i = 0; i < ndims; i++) {
-                  tiles[i] = is_irreg_tis[i] ? tis_dims[i].input_tile_sizes()
+                  new_tiles[i] = is_irreg_tis[i] ? tis_dims[i].input_tile_sizes()
                                              : std::vector<Tile>{tis_dims[i].input_tile_size()};
                 }
 
                 int64_t size_map;
                 int64_t nblock[ndims];
+                std::vector<std::vector<Tile>> tiles(ndims);
+
+                for(int i = 0; i < new_tiles.size(); i++) {
+                  int64_t dimc = 0;
+                  for(int j = 0; j < new_tiles[i].size(); j++) {
+                    tiles[i].push_back(new_tiles[i][j]);
+                    dimc += new_tiles[i][j];
+                    if(dimc >= dims[i]) break;
+                  }
+                }
 
                 for(int i = 0; i < ndims; i++) {
                   nblock[i] = is_irreg_tis[i] ?
@@ -813,7 +824,8 @@ public:
                 // *max_element(tiles2.begin(), tiles2.end()) : tiles2[0]; int
                 // new_t1 = std::ceil(nblock[0]/idx)*max_t1; int new_t2 =
                 // std::ceil(nblock[1]/idy)*max_t2;
-                for(int i = 0; i < ndims; i++) nblock[i] = (int64_t)proc_grid_[i].value();
+
+                // for(int i = 0; i < ndims; i++) nblock[i] = (int64_t)proc_grid_[i].value();
 
                 size_map = std::accumulate(nblock, nblock+ndims, (int64_t)0);
 
@@ -833,10 +845,15 @@ public:
                     // k_map[mi] = 0;
                 }
                 NGA_Set_irreg_distr64(ga_, &k_map[0], nblock);
-            } else {
+            } else
+            #endif
+            {
                 // fixed tilesize for all dims
                 int64_t chunk[ndims];
-                for(int i = 0; i < ndims; i++) chunk[i] = tis_dims[i].input_tile_size();
+                // for(int i = 0; i < ndims; i++) chunk[i] = tis_dims[i].input_tile_size();
+                for(int i = 0; i < ndims; i++) {
+                  chunk[i] = is_irreg_tis[i] ? tis_dims[i].input_tile_sizes()[0] : tis_dims[i].input_tile_size();
+                }
                 GA_Set_chunk64(ga_, chunk);
             }
         }

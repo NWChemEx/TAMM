@@ -92,6 +92,16 @@ public:
     }
 
     /**
+     * @brief 
+     * 
+     * @param [in] range 
+     * @returns 
+     */
+    bool overlap_with(Range range) const {
+      return (range.step() == step_ && std::max(range.lo(),lo_) < std::min(range.hi(), hi_));
+    }
+
+    /**
      * @brief Method for checking disjointness of two ranges
      *
      * @param [in] rhs input range for checking disjointedness
@@ -134,6 +144,12 @@ public:
             }
         }
         return true;
+    }
+
+    std::string to_string() const {
+      std::stringstream result_ss;
+      result_ss << "lo:\t" << lo_ << "\thi:\t" << hi_ << "\tstep\t" << step_;
+      return result_ss.str();
     }
 
 protected:

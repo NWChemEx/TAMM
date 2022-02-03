@@ -144,7 +144,7 @@ public:
             spin_mask.push_back(SpinPosition::lower);
         }
 
-        for(size_t i = 0; i < upper; i++) {
+        for(size_t i = 0; i < ignore; i++) {
             spin_mask.push_back(SpinPosition::ignore);
         }
 
@@ -186,7 +186,7 @@ public:
             spin_mask.push_back(SpinPosition::lower);
         }
 
-        for(size_t i = 0; i < upper; i++) {
+        for(size_t i = 0; i < ignore; i++) {
             spin_mask.push_back(SpinPosition::ignore);
         }
 
@@ -496,6 +496,7 @@ public:
     virtual bool is_block_cyclic() {
       return false;
     }
+    
 
 protected:
     std::shared_ptr<Distribution>
@@ -792,7 +793,6 @@ public:
         } else {
             // only needed when irreg tile sizes are provided
             const bool is_irreg_tens = std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; });
-            #if 0
             if(is_irreg_tens) {
                 std::vector<std::vector<Tile>> new_tiles(ndims);
                 for(int i = 0; i < ndims; i++) {
@@ -801,8 +801,11 @@ public:
                 }
 
                 int64_t size_map;
+                int64_t pgrid[ndims];
                 int64_t nblock[ndims];
                 std::vector<std::vector<Tile>> tiles(ndims);
+
+                for(int i = 0; i < ndims; i++) pgrid[i] = proc_grid_[i].value();
 
                 for(int i = 0; i < new_tiles.size(); i++) {
                   int64_t dimc = 0;
@@ -817,15 +820,13 @@ public:
                   nblock[i] = is_irreg_tis[i] ?
                               tiles[i].size() :
                               std::ceil(dims[i] * 1.0 / tiles[i][0]);
+                  // assert nblock[i] >= pgrid[i], if not, restrict ga to subset of procs
+                  if(pgrid[i] > nblock[i]) {
+                    pgrid[i]      = nblock[i];
+                    proc_grid_[i] = nblock[i];
+                  }
                 }
-
-                // int max_t1 = is_irreg_tis1? *max_element(tiles1.begin(),
-                // tiles1.end()) : tiles1[0]; int max_t2 = is_irreg_tis2?
-                // *max_element(tiles2.begin(), tiles2.end()) : tiles2[0]; int
-                // new_t1 = std::ceil(nblock[0]/idx)*max_t1; int new_t2 =
-                // std::ceil(nblock[1]/idy)*max_t2;
-
-                // for(int i = 0; i < ndims; i++) nblock[i] = (int64_t)proc_grid_[i].value();
+                distribution->set_proc_grid(proc_grid_);
 
                 size_map = std::accumulate(nblock, nblock+ndims, (int64_t)0);
 
@@ -842,18 +843,12 @@ public:
                             mi++;
                         }
                     }
-                    // k_map[mi] = 0;
                 }
-                NGA_Set_irreg_distr64(ga_, &k_map[0], nblock);
-            } else
-            #endif
-            {
+                NGA_Set_tiled_irreg_proc_grid64(ga_, &k_map[0], nblock, pgrid);
+            } else {
                 // fixed tilesize for all dims
                 int64_t chunk[ndims];
-                // for(int i = 0; i < ndims; i++) chunk[i] = tis_dims[i].input_tile_size();
-                for(int i = 0; i < ndims; i++) {
-                  chunk[i] = is_irreg_tis[i] ? tis_dims[i].input_tile_sizes()[0] : tis_dims[i].input_tile_size();
-                }
+                for(int i = 0; i < ndims; i++) chunk[i] = tis_dims[i].input_tile_size();
                 GA_Set_chunk64(ga_, chunk);
             }
         }

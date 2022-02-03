@@ -701,6 +701,11 @@ private:
         auto t_name = op.get_attribute<NameAttribute>().get();
         auto t_ils = op.get_attribute<AllocLabelsAttribute>().get();
         IndexLabelVec t_ilv(t_ils.begin(), t_ils.end());
+
+        std::sort(t_ilv.begin(), t_ilv.end(), [](TiledIndexLabel a, TiledIndexLabel b) {
+          return static_cast<int>(a.spin_pos()) < static_cast<int>(b.spin_pos());
+        });
+
         auto t_eltype = op.get_attribute<ElTypeAttribute>().get();
         auto t_scale = Scalar{1.0};
 

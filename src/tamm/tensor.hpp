@@ -562,6 +562,10 @@ public:
       impl_->set_proc_list(proc_list);
     }
 
+    SpinMask spin_mask() const {
+      return impl_->spin_mask();
+    }
+
   private:
     std::shared_ptr<TensorImpl<T>>
       impl_; /**< Shared pointer to the implementation object */

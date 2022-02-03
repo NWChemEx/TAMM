@@ -329,6 +329,9 @@ public:
         return (upper_total == lower_total);
     }
 
+    SpinMask spin_mask() const {
+      return spin_mask_;
+    }
 
     void add_update(const TensorUpdate& new_update) ;// {
     //   updates_.push_back(new_update);

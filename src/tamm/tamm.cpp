@@ -60,8 +60,7 @@ void finalize() {
 
 void tamm_terminate(std::string msg) {
   if(GA_Nodeid() == 0) std::cout << msg << " ... terminating program." << std::endl << std::endl;
-  GA_Terminate();
-  MPI_Finalize();
+  tamm::finalize();
   exit(0);
 }
 

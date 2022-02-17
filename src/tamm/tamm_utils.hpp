@@ -1274,12 +1274,13 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor, int ga_tens) {
 
 
 template<typename TensorType>
-Tensor<TensorType> redistribute_tensor(Tensor<TensorType> stensor, TiledIndexSpaceVec tis) {
+Tensor<TensorType> redistribute_tensor(Tensor<TensorType> stensor, TiledIndexSpaceVec tis, std::vector<size_t> spins={}) {
     ExecutionContext& ec = get_ec(stensor());
     // int rank = ec.pg().rank().value();
     int wmn_ga = tamm_to_ga(ec,stensor);
     // sch.deallocate(wmn).execute();
     Tensor<TensorType> dtensor{tis};
+    if(spins.size()>0) dtensor = Tensor<TensorType>{tis,spins};
     Tensor<TensorType>::allocate(&ec,dtensor);
     ga_to_tamm(ec,dtensor,wmn_ga);
     NGA_Destroy(wmn_ga);

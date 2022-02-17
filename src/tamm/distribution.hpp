@@ -711,13 +711,55 @@ class Distribution_Dense : public Distribution {
     // return {block_owner(blockid), block_offset_within_proc(blockid)};
     std::vector<int64_t> lo = compute_lo(blockid);
     std::vector<int64_t> hi = compute_hi(blockid);
-    // std::vector<int64_t> ld = compute_ld(blockid);
-    EXPECTS(ga_ != -1);
+    // EXPECTS(ga_ != -1);
     int procs[1];
     int64_t map[14];
-    // int NGA_Locate_region(int g_a, int lo[], int hi[], int map[], int procs[])
     NGA_Locate_region64(ga_, &lo[0], &hi[0], map, procs);
-    return {Proc{procs[0]}, Offset{-1}};
+
+    std::ptrdiff_t off = -1;
+
+    // TODO: Fix
+    #if 0
+    const auto nproc = GA_Pgroup_nnodes(ga_);
+    if(GA_Nodeid()==(int)procs[0]%nproc) 
+    {
+      void* sptr = nullptr;
+      void* lptr = nullptr;
+      int64_t len;
+      int64_t ld_c[lo.size() - 1];
+      std::vector<int64_t> ld = compute_ld(blockid);
+      std::copy(ld.begin(), ld.end(), ld_c);
+
+      NGA_Access_block_segment64(ga_, procs[0]%nproc, &sptr, &len);
+      NGA_Access_block64(ga_, procs[0], &lptr, ld_c);
+      EXPECTS(sptr != nullptr && lptr != nullptr);
+
+      int     ga_type;
+      int     ndim;
+      int64_t dims[7];
+      NGA_Inquire64(ga_, &ga_type, &ndim, dims);
+
+      switch(ga_type) {
+        case C_FLOAT:
+          off = static_cast<float*>(lptr) - static_cast<float*>(sptr);
+          break;
+        case C_DBL:
+          off = static_cast<double*>(lptr) - static_cast<double*>(sptr);
+          break;
+        case C_SCPL:
+          off = static_cast<std::complex<float>*>(lptr) -
+                static_cast<std::complex<float>*>(sptr);
+          break;
+        case C_DCPL:
+          off = static_cast<std::complex<double>*>(lptr) -
+                static_cast<std::complex<double>*>(sptr);
+          break;
+        default: UNREACHABLE();
+      }
+    }
+    #endif
+
+    return {Proc{procs[0]}, Offset{off}};
   }
 
   size_t compute_hash() const override {

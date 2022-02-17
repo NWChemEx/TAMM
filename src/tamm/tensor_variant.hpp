@@ -17,13 +17,7 @@ public:
 
     TensorVariant(TensorType value) : value_{value} {}
 
-    TensorVariant(ElType eltype, const IndexLabelVec& ilv) {
-      if(has_spin(ilv)) {
-        init_spin_tensor(eltype, ilv);
-      } else {
-        init_tensor(eltype, ilv);
-      }
-    }
+    TensorVariant(ElType eltype, const IndexLabelVec& ilv) { init_tensor(eltype, ilv); }
 
     void init_tensor(ElType eltype, const IndexLabelVec& ilv) {
       switch(eltype) {
@@ -43,44 +37,6 @@ public:
       }
     }
 
-    void init_spin_tensor(ElType eltype, const IndexLabelVec& ilv) {
-      SpinMask spin_mask;
-
-      bool has_even_dimension = ilv.size() % 2 == 0 ? true : false;
-
-      EXPECTS(has_even_dimension);
-
-      int mid_point = ilv.size() / 2;
-      for(const auto& label : ilv) {
-        if(label.tiled_index_space().has_spin()) {
-          if(spin_mask.size() < mid_point) {
-            spin_mask.push_back(SpinPosition::upper);
-          } else {
-            spin_mask.push_back(SpinPosition::lower);
-          }
-        } else {
-          // current assumption is all TIS has spin
-          UNREACHABLE();
-          // spin_mask.push_back(SpinPosition::ignore);
-        }
-      }
-
-      switch(eltype) {
-        case ElType::inv: value_ = Tensor<double>{ilv, spin_mask}; break;
-        // case ElType::i32: value_ = Tensor<int>{ilv, spin_mask}; break;
-        // case ElType::i64: value_ = Tensor<int64_t>{ilv, spin_mask}; break;
-        // case ElType::fp32: value_ = Tensor<float>{ilv, spin_mask}; break;
-        case ElType::fp64:
-          value_ = Tensor<double>{ilv, spin_mask};
-          break;
-          // case ElType::cfp32:
-          //     value_ = Tensor<std::complex<float>>{ilv, spin_mask};
-          //     break;
-          // case ElType::cfp64:
-          //     value_ = Tensor<std::complex<double>>{ilv, spin_mask};
-          //     break;
-      }
-    }
 
     TensorVariant(const TensorVariant&)  = default;
     TensorVariant(TensorVariant&& other) = default;

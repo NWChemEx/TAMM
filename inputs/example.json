@@ -63,6 +63,7 @@
         "lshift": 0,
         "ndiis": 5,
         "ccsd_maxiter": 50,
+        "pcore"  : 0,
         "nactive": 0,
         "freeze_core": 0,
         "freeze_virtual": 0,

@@ -492,33 +492,37 @@ public:
         }
     }
 
-    void print_op_binarized(const new_ops::LTOp& lhs_ltop, const std::unique_ptr<new_ops::Op>& in_op,
-                            bool is_update = true) {
-
-      auto canonicalized_ops =
-          new_ops::CanonicalizeVisitor::canonicalize_ops(*in_op);
+    void print_op_binarized(const new_ops::LTOp&                lhs_ltop,
+                            const std::unique_ptr<new_ops::Op>& in_op, bool use_opmin = false) {
+      auto canonicalized_ops = new_ops::CanonicalizeVisitor::canonicalize_ops(*in_op);
 
       bool use_old_lhs = (canonicalized_ops.size() == 1);
-      for (size_t i = 0; i < canonicalized_ops.size(); i++) {
-        auto &op_lbl_pair = canonicalized_ops[i];
-        std::unique_ptr<new_ops::Op> op = std::move(op_lbl_pair.first);
-        auto label_pair = op_lbl_pair.second;
-        std::map<std::string, TensorVariant> inter_tensors;
-        std::vector<new_ops::BinarizedOp> binops;
-        auto lhs_labels = lhs_ltop.labels();
+      for(size_t i = 0; i < canonicalized_ops.size(); i++) {
+        auto&                        op_lbl_pair = canonicalized_ops[i];
+        std::unique_ptr<new_ops::Op> op          = std::move(op_lbl_pair.first);
+        std::unique_ptr<new_ops::Op> optree      = op->clone();
+        optree->set_attribute<new_ops::NeededLabelsAttribute>(lhs_ltop.labels());
+        if(use_opmin) {
+          new_ops::LTOp new_ltop{lhs_ltop.tensor(), lhs_ltop.labels()};
+          OpMin         opmin{symbol_table_};
 
-        if (!use_old_lhs) {
-          auto it =
-              std::find(lhs_labels.begin(), lhs_labels.end(), label_pair.first);
+          optree = opmin.optimize_all(new_ltop, *optree, true);
+        }
+        auto                                 label_pair = op_lbl_pair.second;
+        std::map<std::string, TensorVariant> inter_tensors;
+        std::vector<new_ops::BinarizedOp>    binops;
+        auto                                 lhs_labels = lhs_ltop.labels();
+
+        if(!use_old_lhs) {
+          auto it = std::find(lhs_labels.begin(), lhs_labels.end(), label_pair.first);
           EXPECTS(it != lhs_labels.end());
-          auto index = std::distance(lhs_labels.begin(), it);
+          auto index        = std::distance(lhs_labels.begin(), it);
           lhs_labels[index] = label_pair.second;
         }
 
         op->set_attribute<new_ops::NeededLabelsAttribute>(lhs_labels);
 
-        binops = new_ops::BinarizeOpsVisitor::binarize_op(*op, symbol_table_);
-
+        binops = new_ops::BinarizeOpsVisitor::binarize_op(*optree, symbol_table_);
 
         // last op will be updated with updates LHS LT
         new_ops::BinarizedOp last_op = binops.back();
@@ -529,13 +533,11 @@ public:
                                     lhs_ltop.tensor_type(),
                                     lhs_ltop.coeff(),
                                     false};
-        last_op.lhs_ = new_lhs;
-        last_op.is_assign_ = !is_update;
+        last_op.lhs_       = new_lhs;
+        last_op.is_assign_ = true;
 
         binops.push_back(last_op);
-        for (const auto &binop : binops) {
-          std::cout << binop.op_string(symbol_table_) << "\n";
-        }
+        for(const auto& binop: binops) { std::cout << binop.op_string(symbol_table_) << "\n"; }
       }
     }
 

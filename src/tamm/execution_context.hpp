@@ -328,6 +328,8 @@ public:
 
     int gpu_devid() const { return dev_id_; }
 
+    bool print() const { return (pg_.rank() == 0); }
+
     std::stringstream& get_profile_data() { return profile_data_; }
 
 #if defined(USE_DPCPP)

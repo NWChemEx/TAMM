@@ -126,6 +126,9 @@ public:
     TensorImpl(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes) :
       TensorBase(t_spaces) {
         // EXPECTS(t_spaces.size() == spin_mask.size());
+        int spin_size_sum = std::accumulate(spin_sizes.begin(), spin_sizes.end(), 0);
+        EXPECTS(t_spaces.size() >= spin_size_sum);
+
         EXPECTS(spin_sizes.size() > 0);
         // for(const auto& tis : t_spaces) { EXPECTS(tis.has_spin()); }
         SpinMask spin_mask;
@@ -165,6 +168,8 @@ public:
     TensorImpl(IndexLabelVec t_labels, std::vector<size_t> spin_sizes) :
       TensorBase(t_labels) {
         // EXPECTS(t_labels.size() == spin_mask.size());
+        int spin_size_sum = std::accumulate(spin_sizes.begin(), spin_sizes.end(), 0);
+        EXPECTS(t_labels.size() >= spin_size_sum);
         EXPECTS(spin_sizes.size() > 0);
         // for(const auto& tlbl : t_labels) {
         //     EXPECTS(tlbl.tiled_index_space().has_spin());
@@ -827,6 +832,13 @@ public:
                   }
                 }
                 distribution->set_proc_grid(proc_grid_);
+
+                {
+                int nproc_restricted = std::accumulate(pgrid, pgrid+ndims, (int)1, std::multiplies<int>());
+                int proclist_c[nproc_restricted]; 
+                std::iota(proclist_c, proclist_c+nproc_restricted, 0);
+                GA_Set_restricted(ga_, proclist_c, nproc_restricted);
+                }
 
                 size_map = std::accumulate(nblock, nblock+ndims, (int64_t)0);
 

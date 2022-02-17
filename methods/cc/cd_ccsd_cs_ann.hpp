@@ -9,40 +9,21 @@ using namespace tamm;
 
 bool debug = false;
 
+using CCEType = double;
+
 TiledIndexSpace o_alpha,v_alpha,o_beta,v_beta;
-Tensor<double> f1_aa_oo    , f1_aa_ov    , f1_aa_vo    , f1_aa_vv    ,
-               f1_bb_oo    , f1_bb_ov    , f1_bb_vo    , f1_bb_vv    ,
-               chol3d_aa_oo, chol3d_aa_ov, chol3d_aa_vo, chol3d_aa_vv,
-               chol3d_bb_oo, chol3d_bb_ov, chol3d_bb_vo, chol3d_bb_vv,
-               t1_aa       , t1_bb       , t2_aaaa     , t2_abab     , t2_bbbb     ,
-               r1_aa       , r1_bb       , r2_aaaa     , r2_abab     , r2_bbbb     ,
-               i0_atmp     , i0_btmp     ,
-               _a004_aaaa  , _a004_abab  , _a004_bbbb  ,
-               _a01        , _a01_aa     , _a01_bb     , 
-               _a02        , _a02_aa     , _a02_bb     ,
-               _a03_aa     , _a03_bb     , _a03_aa_vo  , _a03_bb_vo  ,
-               _a04_aa     , _a04_bb     , 
-               _a05_aa     , _a05_bb     ,
-               _a007       , 
-               _a001_aa    , _a001_bb    , 
-               _a017_aa    , _a017_bb    ,
-               _a006_aa    , _a006_bb    ,  
-               _a008_aa    , _a008_bb    , 
-               _a009_aa    , _a009_bb    ,
-               _a019_aaaa  , _a019_abab  , _a019_abba  , _a019_baba  , _a019_bbbb  ,
-               _a020_aaaa  , _a020_baba  , _a020_abab  , _a020_baab  , _a020_bbbb  , _a020_abba  ,
-               _a021_aa    , _a021_bb    , 
-               _a022_aaaa  , _a022_abab  , _a022_bbbb  ;
 
-Tensor<double> dt1_full, dt2_full;
-Tensor<double> t2_baba, t2_abba, t2_baab, i0_temp, t2_aaaa_temp;
+Tensor<CCEType> dt1_full, dt2_full;
+Tensor<CCEType> _a01V, _a02V, _a007V;
+CCSE_Tensors<CCEType> _a01, _a02, _a03, _a04, _a05, _a06, _a001, _a004,
+                      _a006, _a008, _a009, _a017, _a019, _a020, _a021, _a022;
 
+Tensor<CCEType> i0_temp, t2_aaaa_temp; //CS only
 
 template<typename T>
-void ccsd_e_cs(/* ExecutionContext &ec, */
-            Scheduler& sch,
-            const TiledIndexSpace& MO, const TiledIndexSpace& CI, Tensor<T>& de, 
-            const Tensor<T>& t1_aa, const Tensor<T>& t2_abab) { 
+void ccsd_e_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace& CI,
+               Tensor<T>& de, const Tensor<T>& t1_aa, const Tensor<T>& t2_abab, const Tensor<T>& t2_aaaa,
+               std::vector<CCSE_Tensors<T>>& f1_se, std::vector<CCSE_Tensors<T>>& chol3d_se) { 
 
     auto [cind] = CI.labels<1>("all");
     
@@ -50,6 +31,11 @@ void ccsd_e_cs(/* ExecutionContext &ec, */
     auto [p1_vb]        = v_beta.labels<1>("all");
     auto [h1_oa, h2_oa] = o_alpha.labels<2>("all");
     auto [h1_ob]        = o_beta.labels<1>("all");
+
+    // f1_se     = {f1_oo,f1_ov,f1_vv}
+    // chol3d_se = {chol3d_oo,chol3d_ov,chol3d_vv}
+    auto f1_ov = f1_se[1];
+    auto chol3d_ov = chol3d_se[1];
 
     sch
        (t2_aaaa_temp()=0)
@@ -61,29 +47,28 @@ void ccsd_e_cs(/* ExecutionContext &ec, */
        (t2_aaaa_temp(p1_va,p2_va,h1_oa,h2_oa) +=  1.0 * t2_aaaa(p2_va,p1_va,h2_oa,h1_oa), 
 	   "t2_aaaa_temp(p1_va,p2_va,h1_oa,h2_oa) +=  1.0 * t2_aaaa(p2_va,p1_va,h2_oa,h1_oa)")
 
-       (_a01(cind) = t1_aa(p1_va, h1_oa) * chol3d_aa_ov(h1_oa, p1_va, cind), 
-	   "_a01(cind) = t1_aa(p1_va, h1_oa) * chol3d_aa_ov(h1_oa, p1_va, cind)")
-       (_a02_aa(h1_oa, h2_oa, cind)  = t1_aa(p1_va, h1_oa) * chol3d_aa_ov(h2_oa, p1_va, cind), 
-	   "_a02_aa(h1_oa, h2_oa, cind)  = t1_aa(p1_va, h1_oa) * chol3d_aa_ov(h2_oa, p1_va, cind)")
-       (_a03_aa(h2_oa, p2_va, cind) = t2_aaaa_temp(p2_va, p1_va, h2_oa, h1_oa) * chol3d_aa_ov(h1_oa, p1_va, cind), 
-	   "_a03_aa(h2_oa, p2_va, cind) = t2_aaaa_temp(p2_va, p1_va, h2_oa, h1_oa) * chol3d_aa_ov(h1_oa, p1_va, cind)")
-       (de()  =  2.0 * _a01() * _a01(), 
-	   "de()  =  2.0 * _a01() * _a01()")
-       (de() += -1.0 * _a02_aa(h1_oa, h2_oa, cind) * _a02_aa(h2_oa, h1_oa, cind), 
-	   "de() += -1.0 * _a02_aa(h1_oa, h2_oa, cind) * _a02_aa(h2_oa, h1_oa, cind)")
-       (de() +=  1.0 * _a03_aa(h1_oa, p1_va, cind) * chol3d_aa_ov(h1_oa, p1_va, cind), 
-	   "de() +=  1.0 * _a03_aa(h1_oa, p1_va, cind) * chol3d_aa_ov(h1_oa, p1_va, cind)")
-       (de() +=  2.0 * t1_aa(p1_va, h1_oa) * f1_aa_ov(h1_oa, p1_va),
-       "de() +=  2.0 * t1_aa(p1_va, h1_oa) * f1_aa_ov(h1_oa, p1_va)") // NEW TERM
+       (_a01V(cind) = t1_aa(p1_va, h1_oa) * chol3d_ov("aa")(h1_oa, p1_va, cind), 
+	   "_a01V(cind) = t1_aa(p1_va, h1_oa) * chol3d_ov( aa )(h1_oa, p1_va, cind)")
+       (_a02("aa")(h1_oa, h2_oa, cind)    = t1_aa(p1_va, h1_oa) * chol3d_ov("aa")(h2_oa, p1_va, cind), 
+	   "_a02( aa )(h1_oa, h2_oa, cind)    = t1_aa(p1_va, h1_oa) * chol3d_ov( aa )(h2_oa, p1_va, cind)")
+       (_a03("aa")(h2_oa, p2_va, cind) = t2_aaaa_temp(p2_va, p1_va, h2_oa, h1_oa) * chol3d_ov("aa")(h1_oa, p1_va, cind), 
+	   "_a03( aa )(h2_oa, p2_va, cind) = t2_aaaa_temp(p2_va, p1_va, h2_oa, h1_oa) * chol3d_ov( aa )(h1_oa, p1_va, cind)")
+       (de()  =  2.0 * _a01V() * _a01V(), 
+	   "de()  =  2.0 * _a01V() * _a01V()")
+       (de() += -1.0 * _a02("aa")(h1_oa, h2_oa, cind) * _a02("aa")(h2_oa, h1_oa, cind), 
+	   "de() += -1.0 * _a02( aa )(h1_oa, h2_oa, cind) * _a02( aa )(h2_oa, h1_oa, cind)")
+       (de() +=  1.0 * _a03("aa")(h1_oa, p1_va, cind) * chol3d_ov("aa")(h1_oa, p1_va, cind), 
+	   "de() +=  1.0 * _a03( aa )(h1_oa, p1_va, cind) * chol3d_ov( aa )(h1_oa, p1_va, cind)")
+       (de() +=  2.0 * t1_aa(p1_va, h1_oa) * f1_ov("aa")(h1_oa, p1_va),
+       "de() +=  2.0 * t1_aa(p1_va, h1_oa) * f1_ov( aa )(h1_oa, p1_va)") // NEW TERM
        ;
 
 }
 
 template<typename T>
-void ccsd_t1_cs(/* ExecutionContext& ec,  */
-             Scheduler& sch,
-             const TiledIndexSpace& MO,const TiledIndexSpace& CI, 
-             Tensor<T>& i0_aa, const Tensor<T>& t1_aa, const Tensor<T>& t2_abab) { 
+void ccsd_t1_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace& CI,
+                Tensor<T>& i0_aa, const Tensor<T>& t1_aa, const Tensor<T>& t2_abab,
+                std::vector<CCSE_Tensors<T>>& f1_se, std::vector<CCSE_Tensors<T>>& chol3d_se) {
     
     auto [cind] = CI.labels<1>("all");
     auto [p2] = MO.labels<1>("virt");
@@ -94,60 +79,68 @@ void ccsd_t1_cs(/* ExecutionContext& ec,  */
     auto [h1_oa, h2_oa] = o_alpha.labels<2>("all");
     auto [h1_ob]        = o_beta.labels<1>("all");
 
+    // f1_se     = {f1_oo,f1_ov,f1_vv}
+    // chol3d_se = {chol3d_oo,chol3d_ov,chol3d_vv}
+    auto f1_oo = f1_se[0];
+    auto f1_ov = f1_se[1];
+    auto f1_vv = f1_se[2];
+    auto chol3d_oo = chol3d_se[0];
+    auto chol3d_ov = chol3d_se[1];
+    auto chol3d_vv = chol3d_se[2];
+
     sch
-       (i0_aa(p2_va, h1_oa)             =  1.0 * f1_aa_ov(h1_oa, p2_va), 
-	   "i0_aa(p2_va, h1_oa)             =  1.0 * f1_aa_ov(h1_oa, p2_va)")
-       (_a01_aa(h2_oa, h1_oa, cind)     =  1.0 * t1_aa(p1_va, h1_oa) * chol3d_aa_ov(h2_oa, p1_va, cind), 
-	   "_a01_aa(h2_oa, h1_oa, cind)     =  1.0 * t1_aa(p1_va, h1_oa) * chol3d_aa_ov(h2_oa, p1_va, cind)")                 // ovm
-       (_a02(cind)                      =  2.0 * t1_aa(p1_va, h1_oa) * chol3d_aa_ov(h1_oa, p1_va, cind), 
-	   "_a02(cind)                      =  2.0 * t1_aa(p1_va, h1_oa) * chol3d_aa_ov(h1_oa, p1_va, cind)")                 // ovm
-    //    (_a02(cind)                      =  2.0 * _a01_aa(h1_oa, h1_oa, cind))
-       (_a05_aa(h2_oa, p1_va)           = -1.0 * chol3d_aa_ov(h1_oa, p1_va, cind) * _a01_aa(h2_oa, h1_oa, cind), 
-	   "_a05_aa(h2_oa, p1_va)           = -1.0 * chol3d_aa_ov(h1_oa, p1_va, cind) * _a01_aa(h2_oa, h1_oa, cind)")         // o2vm
-       (_a05_aa(h2_oa, p1_va)          +=  1.0 * f1_aa_ov(h2_oa, p1_va),
-       "_a05_aa(h2_oa, p1_va)          +=  1.0 * f1_aa_ov(h2_oa, p1_va)") // NEW TERM
+       (i0_aa(p2_va, h1_oa)             =  1.0 * f1_ov("aa")(h1_oa, p2_va), 
+	   "i0_aa(p2_va, h1_oa)             =  1.0 * f1_ov( aa )(h1_oa, p2_va)")
+       (_a01("aa")(h2_oa, h1_oa, cind)  =  1.0 * t1_aa(p1_va, h1_oa) * chol3d_ov("aa")(h2_oa, p1_va, cind), 
+	   "_a01( aa )(h2_oa, h1_oa, cind)  =  1.0 * t1_aa(p1_va, h1_oa) * chol3d_ov( aa )(h2_oa, p1_va, cind)")                 // ovm
+       (_a02V(cind)                     =  2.0 * t1_aa(p1_va, h1_oa) * chol3d_ov("aa")(h1_oa, p1_va, cind), 
+	   "_a02V(cind)                     =  2.0 * t1_aa(p1_va, h1_oa) * chol3d_ov( aa )(h1_oa, p1_va, cind)")                 // ovm
+    //    (_a02V(cind)                  =  2.0 * _a01("aa")(h1_oa, h1_oa, cind))
+       (_a05("aa")(h2_oa, p1_va)        = -1.0 * chol3d_ov("aa")(h1_oa, p1_va, cind) * _a01("aa")(h2_oa, h1_oa, cind), 
+	   "_a05( aa )(h2_oa, p1_va)        = -1.0 * chol3d_ov( aa )(h1_oa, p1_va, cind) * _a01( aa )(h2_oa, h1_oa, cind)")      // o2vm
+       (_a05("aa")(h2_oa, p1_va)       +=  1.0 * f1_ov("aa")(h2_oa, p1_va),
+       "_a05( aa )(h2_oa, p1_va)       +=  1.0 * f1_ov( aa )(h2_oa, p1_va)") // NEW TERM
     //    .exact_copy(_a05_bb(h1_ob,p1_vb),_a05_aa(h1_ob,p1_vb))
 
-       (_a03_aa_vo(p1_va, h1_oa, cind)  = -1.0 * t2_aaaa_temp(p1_va, p2_va, h1_oa, h2_oa) * chol3d_aa_ov(h2_oa, p2_va, cind), 
-	   "_a03_aa_vo(p1_va, h1_oa, cind)  = -1.0 * t2_aaaa_temp(p1_va, p2_va, h1_oa, h2_oa) * chol3d_aa_ov(h2_oa, p2_va, cind)") // o2v2m
-       (_a04_aa(h2_oa, h1_oa)           = -1.0 * f1_aa_oo(h2_oa, h1_oa), 
-       "_a04_aa(h2_oa, h1_oa)           = -1.0 * f1_aa_oo(h2_oa, h1_oa)") // MOVED TERM
-       (_a04_aa(h2_oa, h1_oa)          +=  1.0 * chol3d_aa_ov(h2_oa, p1_va, cind) * _a03_aa_vo(p1_va, h1_oa, cind), 
-	   "_a04_aa(h2_oa, h1_oa)          +=  1.0 * chol3d_aa_ov(h2_oa, p1_va, cind) * _a03_aa_vo(p1_va, h1_oa, cind)")      // o2vm
-       (_a04_aa(h2_oa, h1_oa)          += -1.0 * t1_aa(p1_va, h1_oa) * f1_aa_ov(h2_oa, p1_va),
-       "_a04_aa(h2_oa, h1_oa)          += -1.0 * t1_aa(p1_va, h1_oa) * f1_aa_ov(h2_oa, p1_va)") // NEW TERM
-       (i0_aa(p2_va, h1_oa)            +=  1.0 * t1_aa(p2_va, h2_oa) * _a04_aa(h2_oa, h1_oa), 
-	   "i0_aa(p2_va, h1_oa)            +=  1.0 * t1_aa(p2_va, h2_oa) * _a04_aa(h2_oa, h1_oa)")                            // o2v
-       (i0_aa(p1_va, h2_oa)            +=  1.0 * chol3d_aa_ov(h2_oa, p1_va, cind) * _a02(cind), 
-	   "i0_aa(p1_va, h2_oa)            +=  1.0 * chol3d_aa_ov(h2_oa, p1_va, cind) * _a02(cind)")                          // ovm
-       (i0_aa(p1_va, h2_oa)            +=  1.0 * t2_aaaa_temp(p1_va, p2_va, h2_oa, h1_oa) * _a05_aa(h1_oa, p2_va), 
-	   "i0_aa(p1_va, h2_oa)            +=  1.0 * t2_aaaa_temp(p1_va, p2_va, h2_oa, h1_oa) * _a05_aa(h1_oa, p2_va)")
-       (i0_aa(p2_va, h1_oa)            += -1.0 * chol3d_aa_vv(p2_va, p1_va, cind) * _a03_aa_vo(p1_va, h1_oa, cind), 
-	   "i0_aa(p2_va, h1_oa)            += -1.0 * chol3d_aa_vv(p2_va, p1_va, cind) * _a03_aa_vo(p1_va, h1_oa, cind)")      // ov2m
-       (_a03_aa_vo(p2_va, h2_oa, cind) += -1.0 * t1_aa(p1_va, h2_oa) * chol3d_aa_vv(p2_va, p1_va, cind), 
-	   "_a03_aa_vo(p2_va, h2_oa, cind) += -1.0 * t1_aa(p1_va, h2_oa) * chol3d_aa_vv(p2_va, p1_va, cind)")                 // ov2m
-       (i0_aa(p1_va, h2_oa)            += -1.0 * _a03_aa_vo(p1_va, h2_oa, cind) * _a02(cind), 
-	   "i0_aa(p1_va, h2_oa)            += -1.0 * _a03_aa_vo(p1_va, h2_oa, cind) * _a02(cind)")                            // ovm
-       (_a03_aa_vo(p2_va, h1_oa, cind) += -1.0 * t1_aa(p2_va, h1_oa) * _a02(cind), 
-	   "_a03_aa_vo(p2_va, h1_oa, cind) += -1.0 * t1_aa(p2_va, h1_oa) * _a02(cind)")                                       // ovm
-       (_a03_aa_vo(p2_va, h1_oa, cind) +=  1.0 * t1_aa(p2_va, h2_oa) * _a01_aa(h2_oa, h1_oa, cind), 
-	   "_a03_aa_vo(p2_va, h1_oa, cind) +=  1.0 * t1_aa(p2_va, h2_oa) * _a01_aa(h2_oa, h1_oa, cind)")                      // o2vm
-       (_a01_aa(h2_oa, h1_oa, cind)    +=  1.0 * chol3d_aa_oo(h2_oa, h1_oa, cind), 
-	   "_a01_aa(h2_oa, h1_oa, cind)    +=  1.0 * chol3d_aa_oo(h2_oa, h1_oa, cind)")                                       // o2m
-       (i0_aa(p2_va, h1_oa)            +=  1.0 * _a01_aa(h2_oa, h1_oa, cind) * _a03_aa_vo(p2_va, h2_oa, cind), 
-	   "i0_aa(p2_va, h1_oa)            +=  1.0 * _a01_aa(h2_oa, h1_oa, cind) * _a03_aa_vo(p2_va, h2_oa, cind)")           // o2vm
-    //    (i0_aa(p2_va, h1_oa)            += -1.0 * t1_aa(p2_va, h2_oa) * f1_aa_oo(h2_oa, h1_oa), // MOVED ABOVE
-	//    "i0_aa(p2_va, h1_oa)            += -1.0 * t1_aa(p2_va, h2_oa) * f1_aa_oo(h2_oa, h1_oa)")                           // o2v
-       (i0_aa(p2_va, h1_oa)            +=  1.0 * t1_aa(p1_va, h1_oa) * f1_aa_vv(p2_va, p1_va), 
-	   "i0_aa(p2_va, h1_oa)            +=  1.0 * t1_aa(p1_va, h1_oa) * f1_aa_vv(p2_va, p1_va)")                           // ov2
+       (_a06("aa")(p1_va, h1_oa, cind)  = -1.0 * t2_aaaa_temp(p1_va, p2_va, h1_oa, h2_oa) * chol3d_ov("aa")(h2_oa, p2_va, cind), 
+	   "_a06( aa )(p1_va, h1_oa, cind)  = -1.0 * t2_aaaa_temp(p1_va, p2_va, h1_oa, h2_oa) * chol3d_ov( aa )(h2_oa, p2_va, cind)") // o2v2m
+       (_a04("aa")(h2_oa, h1_oa)        = -1.0 * f1_oo("aa")(h2_oa, h1_oa), 
+       "_a04( aa )(h2_oa, h1_oa)        = -1.0 * f1_oo( aa )(h2_oa, h1_oa)") // MOVED TERM
+       (_a04("aa")(h2_oa, h1_oa)       +=  1.0 * chol3d_ov("aa")(h2_oa, p1_va, cind) * _a06("aa")(p1_va, h1_oa, cind), 
+	   "_a04( aa )(h2_oa, h1_oa)       +=  1.0 * chol3d_ov( aa )(h2_oa, p1_va, cind) * _a06( aa )(p1_va, h1_oa, cind)")   // o2vm
+       (_a04("aa")(h2_oa, h1_oa)       += -1.0 * t1_aa(p1_va, h1_oa) * f1_ov("aa")(h2_oa, p1_va),
+       "_a04( aa )(h2_oa, h1_oa)       += -1.0 * t1_aa(p1_va, h1_oa) * f1_ov( aa )(h2_oa, p1_va)") // NEW TERM
+       (i0_aa(p2_va, h1_oa)            +=  1.0 * t1_aa(p2_va, h2_oa) * _a04("aa")(h2_oa, h1_oa), 
+	   "i0_aa(p2_va, h1_oa)            +=  1.0 * t1_aa(p2_va, h2_oa) * _a04( aa )(h2_oa, h1_oa)")                         // o2v
+       (i0_aa(p1_va, h2_oa)            +=  1.0 * chol3d_ov("aa")(h2_oa, p1_va, cind) * _a02V(cind), 
+	   "i0_aa(p1_va, h2_oa)            +=  1.0 * chol3d_ov( aa )(h2_oa, p1_va, cind) * _a02V(cind)")                      // ovm
+       (i0_aa(p1_va, h2_oa)            +=  1.0 * t2_aaaa_temp(p1_va, p2_va, h2_oa, h1_oa) * _a05("aa")(h1_oa, p2_va), 
+	   "i0_aa(p1_va, h2_oa)            +=  1.0 * t2_aaaa_temp(p1_va, p2_va, h2_oa, h1_oa) * _a05( aa )(h1_oa, p2_va)")
+       (i0_aa(p2_va, h1_oa)            += -1.0 * chol3d_vv("aa")(p2_va, p1_va, cind) * _a06("aa")(p1_va, h1_oa, cind), 
+	   "i0_aa(p2_va, h1_oa)            += -1.0 * chol3d_vv( aa )(p2_va, p1_va, cind) * _a06( aa )(p1_va, h1_oa, cind)")   // ov2m
+       (_a06("aa")(p2_va, h2_oa, cind) += -1.0 * t1_aa(p1_va, h2_oa) * chol3d_vv("aa")(p2_va, p1_va, cind), 
+	   "_a06( aa )(p2_va, h2_oa, cind) += -1.0 * t1_aa(p1_va, h2_oa) * chol3d_vv( aa )(p2_va, p1_va, cind)")              // ov2m
+       (i0_aa(p1_va, h2_oa)            += -1.0 * _a06("aa")(p1_va, h2_oa, cind) * _a02V(cind), 
+	   "i0_aa(p1_va, h2_oa)            += -1.0 * _a06( aa )(p1_va, h2_oa, cind) * _a02V(cind)")                           // ovm
+       (_a06("aa")(p2_va, h1_oa, cind) += -1.0 * t1_aa(p2_va, h1_oa) * _a02V(cind), 
+	   "_a06( aa )(p2_va, h1_oa, cind) += -1.0 * t1_aa(p2_va, h1_oa) * _a02V(cind)")                                      // ovm
+       (_a06("aa")(p2_va, h1_oa, cind) +=  1.0 * t1_aa(p2_va, h2_oa) * _a01("aa")(h2_oa, h1_oa, cind), 
+	   "_a06( aa )(p2_va, h1_oa, cind) +=  1.0 * t1_aa(p2_va, h2_oa) * _a01( aa )(h2_oa, h1_oa, cind)")                   // o2vm
+       (_a01("aa")(h2_oa, h1_oa, cind) +=  1.0 * chol3d_oo("aa")(h2_oa, h1_oa, cind), 
+	   "_a01( aa )(h2_oa, h1_oa, cind) +=  1.0 * chol3d_oo( aa )(h2_oa, h1_oa, cind)")                                    // o2m
+       (i0_aa(p2_va, h1_oa)            +=  1.0 * _a01("aa")(h2_oa, h1_oa, cind) * _a06("aa")(p2_va, h2_oa, cind), 
+	   "i0_aa(p2_va, h1_oa)            +=  1.0 * _a01( aa )(h2_oa, h1_oa, cind) * _a06( aa )(p2_va, h2_oa, cind)")        // o2vm
+    // (i0_aa(p2_va, h1_oa)            += -1.0 * t1_aa(p2_va, h2_oa) * f1_oo("aa")(h2_oa, h1_oa), // MOVED ABOVE
+	// "i0_aa(p2_va, h1_oa)            += -1.0 * t1_aa(p2_va, h2_oa) * f1_oo( aa )(h2_oa, h1_oa)")                        // o2v
+       (i0_aa(p2_va, h1_oa)            +=  1.0 * t1_aa(p1_va, h1_oa) * f1_vv("aa")(p2_va, p1_va), 
+	   "i0_aa(p2_va, h1_oa)            +=  1.0 * t1_aa(p1_va, h1_oa) * f1_vv( aa )(p2_va, p1_va)")                        // ov2
        ;
 }
 
 template<typename T>
-void ccsd_t2_cs(/* ExecutionContext& ec, */
-             Scheduler& sch,
-             const TiledIndexSpace& MO,const TiledIndexSpace& CI, 
-             Tensor<T>& i0_abab, const Tensor<T>& t1_aa, Tensor<T>& t2_abab) { 
+void ccsd_t2_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace& CI, 
+                Tensor<T>& i0_abab, const Tensor<T>& t1_aa, Tensor<T>& t2_abab, Tensor<T>& t2_aaaa,
+                std::vector<CCSE_Tensors<T>>& f1_se, std::vector<CCSE_Tensors<T>>& chol3d_se) {
 
     auto [cind] = CI.labels<1>("all");
     auto [p3, p4] = MO.labels<2>("virt");
@@ -158,91 +151,100 @@ void ccsd_t2_cs(/* ExecutionContext& ec, */
     auto [h1_oa, h2_oa, h3_oa] = o_alpha.labels<3>("all");
     auto [h1_ob, h2_ob]        = o_beta.labels<2>("all");
 
+    // f1_se     = {f1_oo,f1_ov,f1_vv}
+    // chol3d_se = {chol3d_oo,chol3d_ov,chol3d_vv}
+    auto f1_oo = f1_se[0];
+    auto f1_ov = f1_se[1];
+    auto f1_vv = f1_se[2];
+    auto chol3d_oo = chol3d_se[0];
+    auto chol3d_ov = chol3d_se[1];
+    auto chol3d_vv = chol3d_se[2];
+
     sch
-        (_a017_aa(p1_va, h2_oa, cind)            = -1.0  * t2_aaaa_temp(p1_va, p2_va, h2_oa, h1_oa) * chol3d_aa_ov(h1_oa, p2_va, cind), 
-		"_a017_aa(p1_va, h2_oa, cind)            = -1.0  * t2_aaaa_temp(p1_va, p2_va, h2_oa, h1_oa) * chol3d_aa_ov(h1_oa, p2_va, cind)")
-        (_a006_aa(h2_oa, h1_oa)                  = -1.0  * chol3d_aa_ov(h2_oa, p2_va, cind) * _a017_aa(p2_va, h1_oa, cind), 
-		"_a006_aa(h2_oa, h1_oa)                  = -1.0  * chol3d_aa_ov(h2_oa, p2_va, cind) * _a017_aa(p2_va, h1_oa, cind)")
-        (_a007(cind)                             =  2.0  * chol3d_aa_ov(h1_oa, p1_va, cind) * t1_aa(p1_va, h1_oa), 
-		"_a007(cind)                             =  2.0  * chol3d_aa_ov(h1_oa, p1_va, cind) * t1_aa(p1_va, h1_oa)")
-        (_a009_aa(h1_oa, h2_oa, cind)            =  1.0  * chol3d_aa_ov(h1_oa, p1_va, cind) * t1_aa(p1_va, h2_oa), 
-		"_a009_aa(h1_oa, h2_oa, cind)            =  1.0  * chol3d_aa_ov(h1_oa, p1_va, cind) * t1_aa(p1_va, h2_oa)")
-        (_a021_aa(p2_va, p1_va, cind)            = -0.5  * chol3d_aa_ov(h1_oa, p1_va, cind) * t1_aa(p2_va, h1_oa), 
-		"_a021_aa(p2_va, p1_va, cind)            = -0.5  * chol3d_aa_ov(h1_oa, p1_va, cind) * t1_aa(p2_va, h1_oa)")
-        (_a021_aa(p2_va, p1_va, cind)           +=  0.5  * chol3d_aa_vv(p2_va, p1_va, cind), 
-		"_a021_aa(p2_va, p1_va, cind)           +=  0.5  * chol3d_aa_vv(p2_va, p1_va, cind)")
-        (_a017_aa(p1_va, h2_oa, cind)           += -2.0  * t1_aa(p2_va, h2_oa) * _a021_aa(p1_va, p2_va, cind), 
-		"_a017_aa(p1_va, h2_oa, cind)           += -2.0  * t1_aa(p2_va, h2_oa) * _a021_aa(p1_va, p2_va, cind)")
-        (_a008_aa(h2_oa, h1_oa, cind)            =  1.0  * _a009_aa(h2_oa, h1_oa, cind), 
-		"_a008_aa(h2_oa, h1_oa, cind)            =  1.0  * _a009_aa(h2_oa, h1_oa, cind)")
-        (_a009_aa(h2_oa, h1_oa, cind)           +=  1.0  * chol3d_aa_oo(h2_oa, h1_oa, cind), 
-		"_a009_aa(h2_oa, h1_oa, cind)           +=  1.0  * chol3d_aa_oo(h2_oa, h1_oa, cind)")
-        .exact_copy(_a009_bb(h2_ob,h1_ob,cind),_a009_aa(h2_ob,h1_ob,cind))
-        .exact_copy(_a021_bb(p2_vb,p1_vb,cind),_a021_aa(p2_vb,p1_vb,cind))
-        (_a001_aa(p1_va, p2_va)                  = -2.0  * _a021_aa(p1_va, p2_va, cind) * _a007(cind), 
-		"_a001_aa(p1_va, p2_va)                  = -2.0  * _a021_aa(p1_va, p2_va, cind) * _a007(cind)")
-        (_a001_aa(p1_va, p2_va)                 += -1.0  * _a017_aa(p1_va, h2_oa, cind) * chol3d_aa_ov(h2_oa, p2_va, cind), 
-		"_a001_aa(p1_va, p2_va)                 += -1.0  * _a017_aa(p1_va, h2_oa, cind) * chol3d_aa_ov(h2_oa, p2_va, cind)")
-        (_a006_aa(h2_oa, h1_oa)                 +=  1.0  * _a009_aa(h2_oa, h1_oa, cind) * _a007(cind), 
-		"_a006_aa(h2_oa, h1_oa)                 +=  1.0  * _a009_aa(h2_oa, h1_oa, cind) * _a007(cind)")
-        (_a006_aa(h3_oa, h1_oa)                 += -1.0  * _a009_aa(h2_oa, h1_oa, cind) * _a008_aa(h3_oa, h2_oa, cind), 
-		"_a006_aa(h3_oa, h1_oa)                 += -1.0  * _a009_aa(h2_oa, h1_oa, cind) * _a008_aa(h3_oa, h2_oa, cind)")
-        (_a019_abab(h2_oa, h1_ob, h1_oa, h2_ob)  =  0.25 * _a009_aa(h2_oa, h1_oa, cind) * _a009_bb(h1_ob, h2_ob, cind), 
-		"_a019_abab(h2_oa, h1_ob, h1_oa, h2_ob)  =  0.25 * _a009_aa(h2_oa, h1_oa, cind) * _a009_bb(h1_ob, h2_ob, cind)")
-        (_a020_aaaa(p2_va, h2_oa, p1_va, h1_oa)  = -2.0  * _a009_aa(h2_oa, h1_oa, cind) * _a021_aa(p2_va, p1_va, cind), 
-		"_a020_aaaa(p2_va, h2_oa, p1_va, h1_oa)  = -2.0  * _a009_aa(h2_oa, h1_oa, cind) * _a021_aa(p2_va, p1_va, cind)")
-        .exact_copy(_a020_baba(p2_vb, h2_oa, p1_vb, h1_oa),_a020_aaaa(p2_vb, h2_oa, p1_vb, h1_oa))
-        (_a020_aaaa(p1_va, h3_oa, p3_va, h2_oa) +=  0.5  * _a004_aaaa(p2_va, p3_va, h3_oa, h1_oa) * t2_aaaa(p1_va,p2_va,h1_oa,h2_oa), 
-		"_a020_aaaa(p1_va, h3_oa, p3_va, h2_oa) +=  0.5  * _a004_aaaa(p2_va, p3_va, h3_oa, h1_oa) * t2_aaaa(p1_va,p2_va,h1_oa,h2_oa)") 
-        (_a020_baab(p1_vb, h2_oa, p1_va, h2_ob)  = -0.5  * _a004_aaaa(p2_va, p1_va, h2_oa, h1_oa) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob), 
-		"_a020_baab(p1_vb, h2_oa, p1_va, h2_ob)  = -0.5  * _a004_aaaa(p2_va, p1_va, h2_oa, h1_oa) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob)") 
-        (_a020_baba(p1_vb, h1_oa, p2_vb, h2_oa) +=  0.5  * _a004_abab(p1_va, p2_vb, h1_oa, h1_ob) * t2_abab(p1_va,p1_vb,h2_oa,h1_ob), 
-		"_a020_baba(p1_vb, h1_oa, p2_vb, h2_oa) +=  0.5  * _a004_abab(p1_va, p2_vb, h1_oa, h1_ob) * t2_abab(p1_va,p1_vb,h2_oa,h1_ob)")
-        (_a017_aa(p1_va, h2_oa, cind)           +=  1.0  * t1_aa(p1_va, h1_oa) * chol3d_aa_oo(h1_oa, h2_oa, cind), 
-		"_a017_aa(p1_va, h2_oa, cind)           +=  1.0  * t1_aa(p1_va, h1_oa) * chol3d_aa_oo(h1_oa, h2_oa, cind)")
-        (_a017_aa(p1_va, h2_oa, cind)           += -1.0  * chol3d_aa_ov(h2_oa, p1_va, cind), 
-		"_a017_aa(p1_va, h2_oa, cind)           += -1.0  * chol3d_aa_ov(h2_oa, p1_va, cind)")
-        (_a001_aa(p2_va, p1_va)                 += -1.0  * f1_aa_vv(p2_va, p1_va), 
-		"_a001_aa(p2_va, p1_va)                 += -1.0  * f1_aa_vv(p2_va, p1_va)")
-        (_a001_aa(p2_va, p1_va)                 +=  1.0  * t1_aa(p2_va, h1_oa) * f1_aa_ov(h1_oa, p1_va),
-        "_a001_aa(p2_va, p1_va)                 +=  1.0  * t1_aa(p2_va, h1_oa) * f1_aa_ov(h1_oa, p1_va)") // NEW TERM
-        (_a006_aa(h2_oa, h1_oa)                 +=  1.0  * f1_aa_oo(h2_oa, h1_oa), 
-		"_a006_aa(h2_oa, h1_oa)                 +=  1.0  * f1_aa_oo(h2_oa, h1_oa)")
-        (_a006_aa(h2_oa, h1_oa)                 +=  1.0  * t1_aa(p1_va, h1_oa) * f1_aa_ov(h2_oa, p1_va), 
-		"_a006_aa(h2_oa, h1_oa)                 +=  1.0  * t1_aa(p1_va, h1_oa) * f1_aa_ov(h2_oa, p1_va)")
-        .exact_copy(_a017_bb(p1_vb, h1_ob, cind), _a017_aa(p1_vb, h1_ob, cind))
-        .exact_copy(_a006_bb(h1_ob, h2_ob), _a006_aa(h1_ob, h2_ob))
-        .exact_copy(_a001_bb(p1_vb, p2_vb), _a001_aa(p1_vb, p2_vb))
-        .exact_copy(_a021_bb(p1_vb, p2_vb, cind), _a021_aa(p1_vb, p2_vb, cind))
-        .exact_copy(_a020_bbbb(p1_vb, h1_ob, p2_vb, h2_ob), _a020_aaaa(p1_vb, h1_ob, p2_vb, h2_ob))
+        (_a017("aa")(p1_va, h2_oa, cind)         = -1.0  * t2_aaaa_temp(p1_va, p2_va, h2_oa, h1_oa) * chol3d_ov("aa")(h1_oa, p2_va, cind), 
+		"_a017( aa )(p1_va, h2_oa, cind)         = -1.0  * t2_aaaa_temp(p1_va, p2_va, h2_oa, h1_oa) * chol3d_ov( aa )(h1_oa, p2_va, cind)")
+        (_a006("aa")(h2_oa, h1_oa)               = -1.0  * chol3d_ov("aa")(h2_oa, p2_va, cind) * _a017("aa")(p2_va, h1_oa, cind), 
+		"_a006( aa )(h2_oa, h1_oa)               = -1.0  * chol3d_ov( aa )(h2_oa, p2_va, cind) * _a017( aa )(p2_va, h1_oa, cind)")
+        (_a007V(cind)                            =  2.0  * chol3d_ov("aa")(h1_oa, p1_va, cind) * t1_aa(p1_va, h1_oa), 
+		"_a007V(cind)                            =  2.0  * chol3d_ov( aa )(h1_oa, p1_va, cind) * t1_aa(p1_va, h1_oa)")
+        (_a009("aa")(h1_oa, h2_oa, cind)         =  1.0  * chol3d_ov("aa")(h1_oa, p1_va, cind) * t1_aa(p1_va, h2_oa), 
+		"_a009( aa )(h1_oa, h2_oa, cind)         =  1.0  * chol3d_ov( aa )(h1_oa, p1_va, cind) * t1_aa(p1_va, h2_oa)")
+        (_a021("aa")(p2_va, p1_va, cind)         = -0.5  * chol3d_ov("aa")(h1_oa, p1_va, cind) * t1_aa(p2_va, h1_oa), 
+		"_a021( aa )(p2_va, p1_va, cind)         = -0.5  * chol3d_ov( aa )(h1_oa, p1_va, cind) * t1_aa(p2_va, h1_oa)")
+        (_a021("aa")(p2_va, p1_va, cind)        +=  0.5  * chol3d_vv("aa")(p2_va, p1_va, cind), 
+		"_a021( aa )(p2_va, p1_va, cind)        +=  0.5  * chol3d_vv( aa )(p2_va, p1_va, cind)")
+        (_a017("aa")(p1_va, h2_oa, cind)        += -2.0  * t1_aa(p2_va, h2_oa) * _a021("aa")(p1_va, p2_va, cind), 
+		"_a017( aa )(p1_va, h2_oa, cind)        += -2.0  * t1_aa(p2_va, h2_oa) * _a021( aa )(p1_va, p2_va, cind)")
+        (_a008("aa")(h2_oa, h1_oa, cind)         =  1.0  * _a009("aa")(h2_oa, h1_oa, cind), 
+		"_a008( aa )(h2_oa, h1_oa, cind)         =  1.0  * _a009( aa )(h2_oa, h1_oa, cind)")
+        (_a009("aa")(h2_oa, h1_oa, cind)        +=  1.0  * chol3d_oo("aa")(h2_oa, h1_oa, cind), 
+		"_a009( aa )(h2_oa, h1_oa, cind)        +=  1.0  * chol3d_oo( aa )(h2_oa, h1_oa, cind)")
+        .exact_copy(_a009("bb")(h2_ob,h1_ob,cind),_a009("aa")(h2_ob,h1_ob,cind))
+        .exact_copy(_a021("bb")(p2_vb,p1_vb,cind),_a021("aa")(p2_vb,p1_vb,cind))
+        (_a001("aa")(p1_va, p2_va)               = -2.0  * _a021("aa")(p1_va, p2_va, cind) * _a007V(cind), 
+		"_a001( aa )(p1_va, p2_va)               = -2.0  * _a021( aa )(p1_va, p2_va, cind) * _a007V(cind)")
+        (_a001("aa")(p1_va, p2_va)              += -1.0  * _a017("aa")(p1_va, h2_oa, cind) * chol3d_ov("aa")(h2_oa, p2_va, cind), 
+		"_a001( aa )(p1_va, p2_va)              += -1.0  * _a017( aa )(p1_va, h2_oa, cind) * chol3d_ov( aa )(h2_oa, p2_va, cind)")
+        (_a006("aa")(h2_oa, h1_oa)              +=  1.0  * _a009("aa")(h2_oa, h1_oa, cind) * _a007V(cind), 
+		"_a006( aa )(h2_oa, h1_oa)              +=  1.0  * _a009( aa )(h2_oa, h1_oa, cind) * _a007V(cind)")
+        (_a006("aa")(h3_oa, h1_oa)              += -1.0  * _a009("aa")(h2_oa, h1_oa, cind) * _a008("aa")(h3_oa, h2_oa, cind), 
+		"_a006( aa )(h3_oa, h1_oa)              += -1.0  * _a009( aa )(h2_oa, h1_oa, cind) * _a008( aa )(h3_oa, h2_oa, cind)")
+        (_a019("abab")(h2_oa, h1_ob, h1_oa, h2_ob)  =  0.25 * _a009("aa")(h2_oa, h1_oa, cind) * _a009("bb")(h1_ob, h2_ob, cind), 
+		"_a019( abab )(h2_oa, h1_ob, h1_oa, h2_ob)  =  0.25 * _a009( aa )(h2_oa, h1_oa, cind) * _a009( bb )(h1_ob, h2_ob, cind)")
+        (_a020("aaaa")(p2_va, h2_oa, p1_va, h1_oa)  = -2.0  * _a009("aa")(h2_oa, h1_oa, cind) * _a021("aa")(p2_va, p1_va, cind), 
+		"_a020( aaaa )(p2_va, h2_oa, p1_va, h1_oa)  = -2.0  * _a009( aa )(h2_oa, h1_oa, cind) * _a021( aa )(p2_va, p1_va, cind)")
+        .exact_copy(_a020("baba")(p2_vb, h2_oa, p1_vb, h1_oa),_a020("aaaa")(p2_vb, h2_oa, p1_vb, h1_oa))
+        (_a020("aaaa")(p1_va, h3_oa, p3_va, h2_oa) +=  0.5  * _a004("aaaa")(p2_va, p3_va, h3_oa, h1_oa) * t2_aaaa(p1_va,p2_va,h1_oa,h2_oa), 
+		"_a020( aaaa )(p1_va, h3_oa, p3_va, h2_oa) +=  0.5  * _a004( aaaa )(p2_va, p3_va, h3_oa, h1_oa) * t2_aaaa(p1_va,p2_va,h1_oa,h2_oa)") 
+        (_a020("baab")(p1_vb, h2_oa, p1_va, h2_ob)  = -0.5  * _a004("aaaa")(p2_va, p1_va, h2_oa, h1_oa) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob), 
+		"_a020( baab )(p1_vb, h2_oa, p1_va, h2_ob)  = -0.5  * _a004( aaaa )(p2_va, p1_va, h2_oa, h1_oa) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob)") 
+        (_a020("baba")(p1_vb, h1_oa, p2_vb, h2_oa) +=  0.5  * _a004("abab")(p1_va, p2_vb, h1_oa, h1_ob) * t2_abab(p1_va,p1_vb,h2_oa,h1_ob), 
+		"_a020( baba )(p1_vb, h1_oa, p2_vb, h2_oa) +=  0.5  * _a004( abab )(p1_va, p2_vb, h1_oa, h1_ob) * t2_abab(p1_va,p1_vb,h2_oa,h1_ob)")
+        (_a017("aa")(p1_va, h2_oa, cind)           +=  1.0  * t1_aa(p1_va, h1_oa) * chol3d_oo("aa")(h1_oa, h2_oa, cind), 
+		"_a017( aa )(p1_va, h2_oa, cind)           +=  1.0  * t1_aa(p1_va, h1_oa) * chol3d_oo( aa )(h1_oa, h2_oa, cind)")
+        (_a017("aa")(p1_va, h2_oa, cind)           += -1.0  * chol3d_ov("aa")(h2_oa, p1_va, cind), 
+		"_a017( aa )(p1_va, h2_oa, cind)           += -1.0  * chol3d_ov( aa )(h2_oa, p1_va, cind)")
+        (_a001("aa")(p2_va, p1_va)                 += -1.0  * f1_vv("aa")(p2_va, p1_va), 
+		"_a001( aa )(p2_va, p1_va)                 += -1.0  * f1_vv( aa )(p2_va, p1_va)")
+        (_a001("aa")(p2_va, p1_va)                 +=  1.0  * t1_aa(p2_va, h1_oa) * f1_ov("aa")(h1_oa, p1_va),
+        "_a001( aa )(p2_va, p1_va)                 +=  1.0  * t1_aa(p2_va, h1_oa) * f1_ov( aa )(h1_oa, p1_va)") // NEW TERM
+        (_a006("aa")(h2_oa, h1_oa)                 +=  1.0  * f1_oo("aa")(h2_oa, h1_oa), 
+		"_a006( aa )(h2_oa, h1_oa)                 +=  1.0  * f1_oo( aa )(h2_oa, h1_oa)")
+        (_a006("aa")(h2_oa, h1_oa)                 +=  1.0  * t1_aa(p1_va, h1_oa) * f1_ov("aa")(h2_oa, p1_va), 
+		"_a006( aa )(h2_oa, h1_oa)                 +=  1.0  * t1_aa(p1_va, h1_oa) * f1_ov( aa )(h2_oa, p1_va)")
+        .exact_copy(_a017("bb")(p1_vb, h1_ob, cind), _a017("aa")(p1_vb, h1_ob, cind))
+        .exact_copy(_a006("bb")(h1_ob, h2_ob), _a006("aa")(h1_ob, h2_ob))
+        .exact_copy(_a001("bb")(p1_vb, p2_vb), _a001("aa")(p1_vb, p2_vb))
+        .exact_copy(_a021("bb")(p1_vb, p2_vb, cind), _a021("aa")(p1_vb, p2_vb, cind))
+        .exact_copy(_a020("bbbb")(p1_vb, h1_ob, p2_vb, h2_ob), _a020("aaaa")(p1_vb, h1_ob, p2_vb, h2_ob))
         
-        (i0_abab(p1_va, p2_vb, h2_oa, h1_ob)          =  1.0  * _a020_bbbb(p2_vb, h2_ob, p1_vb, h1_ob) * t2_abab(p1_va, p1_vb, h2_oa, h2_ob), 
-		"i0_abab(p1_va, p2_vb, h2_oa, h1_ob)          =  1.0  * _a020_bbbb(p2_vb, h2_ob, p1_vb, h1_ob) * t2_abab(p1_va, p1_vb, h2_oa, h2_ob)")
-        (i0_abab(p2_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020_baab(p1_vb, h1_oa, p1_va, h1_ob) * t2_aaaa(p2_va, p1_va, h2_oa, h1_oa), 
-		"i0_abab(p2_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020_baab(p1_vb, h1_oa, p1_va, h1_ob) * t2_aaaa(p2_va, p1_va, h2_oa, h1_oa)")
-        (i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020_baba(p1_vb, h1_oa, p2_vb, h2_oa) * t2_abab(p1_va, p2_vb, h1_oa, h1_ob), 
-		"i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020_baba(p1_vb, h1_oa, p2_vb, h2_oa) * t2_abab(p1_va, p2_vb, h1_oa, h1_ob)")
+        (i0_abab(p1_va, p2_vb, h2_oa, h1_ob)          =  1.0  * _a020("bbbb")(p2_vb, h2_ob, p1_vb, h1_ob) * t2_abab(p1_va, p1_vb, h2_oa, h2_ob), 
+		"i0_abab(p1_va, p2_vb, h2_oa, h1_ob)          =  1.0  * _a020(bbbb)(p2_vb, h2_ob, p1_vb, h1_ob) * t2_abab(p1_va, p1_vb, h2_oa, h2_ob)")
+        (i0_abab(p2_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020("baab")(p1_vb, h1_oa, p1_va, h1_ob) * t2_aaaa(p2_va, p1_va, h2_oa, h1_oa), 
+		"i0_abab(p2_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020(baab)(p1_vb, h1_oa, p1_va, h1_ob) * t2_aaaa(p2_va, p1_va, h2_oa, h1_oa)")
+        (i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020("baba")(p1_vb, h1_oa, p2_vb, h2_oa) * t2_abab(p1_va, p2_vb, h1_oa, h1_ob), 
+		"i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020(baba)(p1_vb, h1_oa, p2_vb, h2_oa) * t2_abab(p1_va, p2_vb, h1_oa, h1_ob)")
         .exact_copy(i0_temp(p1_vb,p1_va,h2_ob,h1_oa),i0_abab(p1_vb,p1_va,h2_ob,h1_oa))
         (i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * i0_temp(p1_vb, p1_va, h1_ob, h2_oa), 
 		"i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * i0_temp(p1_vb, p1_va, h1_ob, h2_oa)")
-        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  1.0  * _a017_aa(p1_va, h1_oa, cind) * _a017_bb(p1_vb, h2_ob, cind), 
-		"i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  1.0  * _a017_aa(p1_va, h1_oa, cind) * _a017_bb(p1_vb, h2_ob, cind)")
-        (_a022_abab(p1_va,p2_vb,p2_va,p1_vb)     =  1.0  * _a021_aa(p1_va,p2_va,cind) * _a021_bb(p2_vb,p1_vb,cind), 
-		"_a022_abab(p1_va,p2_vb,p2_va,p1_vb)     =  1.0  * _a021_aa(p1_va,p2_va,cind) * _a021_bb(p2_vb,p1_vb,cind)")
-        (i0_abab(p1_va, p2_vb, h1_oa, h2_ob)         +=  4.0  * _a022_abab(p1_va, p2_vb, p2_va, p1_vb) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob), 
-		"i0_abab(p1_va, p2_vb, h1_oa, h2_ob)         +=  4.0  * _a022_abab(p1_va, p2_vb, p2_va, p1_vb) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob)")
-        (_a019_abab(h2_oa, h1_ob, h1_oa, h2_ob) +=  0.25 * _a004_abab(p1_va, p2_vb, h2_oa, h1_ob) * t2_abab(p1_va,p2_vb,h1_oa,h2_ob), 
-		"_a019_abab(h2_oa, h1_ob, h1_oa, h2_ob) +=  0.25 * _a004_abab(p1_va, p2_vb, h2_oa, h1_ob) * t2_abab(p1_va,p2_vb,h1_oa,h2_ob)") 
-        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  4.0  * _a019_abab(h2_oa, h1_ob, h1_oa, h2_ob) * t2_abab(p1_va, p1_vb, h2_oa, h1_ob), 
-		"i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  4.0  * _a019_abab(h2_oa, h1_ob, h1_oa, h2_ob) * t2_abab(p1_va, p1_vb, h2_oa, h1_ob)")
-        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p1_va, p2_vb, h1_oa, h2_ob) * _a001_bb(p1_vb, p2_vb), 
-		"i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p1_va, p2_vb, h1_oa, h2_ob) * _a001_bb(p1_vb, p2_vb)")
-        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p2_va, p1_vb, h1_oa, h2_ob) * _a001_aa(p1_va, p2_va), 
-		"i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p2_va, p1_vb, h1_oa, h2_ob) * _a001_aa(p1_va, p2_va)")
-        (i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         += -1.0  * t2_abab(p1_va, p1_vb, h1_oa, h1_ob) * _a006_aa(h1_oa, h2_oa), 
-		"i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         += -1.0  * t2_abab(p1_va, p1_vb, h1_oa, h1_ob) * _a006_aa(h1_oa, h2_oa)")
-        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p1_va, p1_vb, h1_oa, h1_ob) * _a006_bb(h1_ob, h2_ob), 
-		"i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p1_va, p1_vb, h1_oa, h1_ob) * _a006_bb(h1_ob, h2_ob)")
+        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  1.0  * _a017("aa")(p1_va, h1_oa, cind) * _a017("bb")(p1_vb, h2_ob, cind), 
+		"i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  1.0  * _a017( aa )(p1_va, h1_oa, cind) * _a017( bb )(p1_vb, h2_ob, cind)")
+        (_a022("abab")(p1_va,p2_vb,p2_va,p1_vb)       =  1.0  * _a021("aa")(p1_va,p2_va,cind) * _a021("bb")(p2_vb,p1_vb,cind), 
+		"_a022( abab )(p1_va,p2_vb,p2_va,p1_vb)       =  1.0  * _a021( aa )(p1_va,p2_va,cind) * _a021( bb )(p2_vb,p1_vb,cind)")
+        (i0_abab(p1_va, p2_vb, h1_oa, h2_ob)         +=  4.0  * _a022("abab")(p1_va, p2_vb, p2_va, p1_vb) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob), 
+		"i0_abab(p1_va, p2_vb, h1_oa, h2_ob)         +=  4.0  * _a022( abab )(p1_va, p2_vb, p2_va, p1_vb) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob)")
+        (_a019("abab")(h2_oa, h1_ob, h1_oa, h2_ob)   +=  0.25 * _a004("abab")(p1_va, p2_vb, h2_oa, h1_ob) * t2_abab(p1_va,p2_vb,h1_oa,h2_ob), 
+		"_a019( abab )(h2_oa, h1_ob, h1_oa, h2_ob)   +=  0.25 * _a004( abab )(p1_va, p2_vb, h2_oa, h1_ob) * t2_abab(p1_va,p2_vb,h1_oa,h2_ob)") 
+        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  4.0  * _a019("abab")(h2_oa, h1_ob, h1_oa, h2_ob) * t2_abab(p1_va, p1_vb, h2_oa, h1_ob), 
+		"i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  4.0  * _a019( abab )(h2_oa, h1_ob, h1_oa, h2_ob) * t2_abab(p1_va, p1_vb, h2_oa, h1_ob)")
+        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p1_va, p2_vb, h1_oa, h2_ob) * _a001("bb")(p1_vb, p2_vb), 
+		"i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p1_va, p2_vb, h1_oa, h2_ob) * _a001( bb )(p1_vb, p2_vb)")
+        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p2_va, p1_vb, h1_oa, h2_ob) * _a001("aa")(p1_va, p2_va), 
+		"i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p2_va, p1_vb, h1_oa, h2_ob) * _a001( aa )(p1_va, p2_va)")
+        (i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         += -1.0  * t2_abab(p1_va, p1_vb, h1_oa, h1_ob) * _a006("aa")(h1_oa, h2_oa), 
+		"i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         += -1.0  * t2_abab(p1_va, p1_vb, h1_oa, h1_ob) * _a006( aa )(h1_oa, h2_oa)")
+        (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p1_va, p1_vb, h1_oa, h1_ob) * _a006("bb")(h1_ob, h2_ob), 
+		"i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         += -1.0  * t2_abab(p1_va, p1_vb, h1_oa, h1_ob) * _a006( bb )(h1_ob, h2_ob)")
         ;
 
 }
@@ -299,141 +301,114 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData& sys_data, ExecutionConte
 
     Tensor<T> d_e{};
 
-    t2_aaaa = {{v_alpha,v_alpha,o_alpha,o_alpha},{2,2}};
+    Tensor<T> t2_aaaa = {{v_alpha,v_alpha,o_alpha,o_alpha},{2,2}};
 
-    _a004_aaaa = {{v_alpha,v_alpha,o_alpha,o_alpha},{2,2}};
-    _a004_abab = {{v_alpha,v_beta,o_alpha,o_beta},{2,2}};
+    CCSE_Tensors<T> f1_oo{MO,{O,O},"f1_oo",{"aa","bb"}};
+    CCSE_Tensors<T> f1_ov{MO,{O,V},"f1_ov",{"aa","bb"}};
+    CCSE_Tensors<T> f1_vv{MO,{V,V},"f1_vv",{"aa","bb"}};
+
+    CCSE_Tensors<T> chol3d_oo{MO,{O,O,CI},"chol3d_oo",{"aa","bb"}};
+    CCSE_Tensors<T> chol3d_ov{MO,{O,V,CI},"chol3d_ov",{"aa","bb"}};
+    CCSE_Tensors<T> chol3d_vv{MO,{V,V,CI},"chol3d_vv",{"aa","bb"}};
+
+    std::vector<CCSE_Tensors<T>> f1_se{f1_oo,f1_ov,f1_vv};
+    std::vector<CCSE_Tensors<T>> chol3d_se{chol3d_oo,chol3d_ov,chol3d_vv};
+
+    _a01V = {CI};
+    _a02  = CCSE_Tensors<T>{MO,{O,O,CI},"_a02",{"aa"}};
+    _a03  = CCSE_Tensors<T>{MO,{O,V,CI},"_a03",{"aa"}};
+    _a004 = CCSE_Tensors<T>{MO,{V,V,O,O},"_a004",{"aaaa","abab"}};
     
-    f1_aa_oo = {{o_alpha,o_alpha},{1,1}};
-    f1_aa_ov = {{o_alpha,v_alpha},{1,1}};
-    f1_aa_vv = {{v_alpha,v_alpha},{1,1}};
-
-    f1_bb_oo = {{o_beta,o_beta},{1,1}};
-    f1_bb_ov = {{o_beta,v_beta},{1,1}};
-    f1_bb_vv = {{v_beta,v_beta},{1,1}};
-
-    chol3d_aa_oo = {{o_alpha,o_alpha,CI},{1,1}};
-    chol3d_aa_ov = {{o_alpha,v_alpha,CI},{1,1}};
-    chol3d_aa_vv = {{v_alpha,v_alpha,CI},{1,1}};
-
-    chol3d_bb_oo = {{o_beta,o_beta,CI},{1,1}};
-    chol3d_bb_ov = {{o_beta,v_beta,CI},{1,1}};
-    chol3d_bb_vv = {{v_beta,v_beta,CI},{1,1}};
-
-    _a01 = {CI};
-    _a02_aa = {{o_alpha,o_alpha,CI},{1,1}}; 
-    _a03_aa = {{o_alpha,v_alpha,CI},{1,1}}; 
 
     t2_aaaa_temp = {v_alpha,v_alpha,o_alpha,o_alpha};
     i0_temp = {v_beta,v_alpha,o_beta,o_alpha};
 
     //Intermediates
     //T1
-    _a02 = {CI};
-    _a01_aa = {{o_alpha,o_alpha,CI},{1,1}}; 
-    _a03_aa_vo = {{v_alpha,o_alpha,CI},{1,1}}; 
-    _a04_aa = {{o_alpha,o_alpha},{1,1}}; 
-    _a05_aa = {{o_alpha,v_alpha},{1,1}};    
-    _a05_bb = {{o_beta,v_beta},{1,1}};
-
+    _a02V = {CI};
+    _a01 = CCSE_Tensors<T>{MO,{O,O,CI},"_a01",{"aa"}};
+    _a04 = CCSE_Tensors<T>{MO,{O,O},"_a04",{"aa"}};
+    _a05 = CCSE_Tensors<T>{MO,{O,V},"_a05",{"aa","bb"}};
+    _a06 = CCSE_Tensors<T>{MO,{V,O,CI},"_a06",{"aa"}};
 
     //T2
-    _a007 = {CI};
-    _a017_aa = {{v_alpha,o_alpha,CI},{1,1}};
-    _a017_bb = {{v_beta,o_beta,CI},{1,1}};
-    _a006_aa = {{o_alpha,o_alpha},{1,1}};
-    _a006_bb = {{o_beta,o_beta},{1,1}};
-    _a009_aa = {{o_alpha,o_alpha,CI},{1,1}};
-    _a009_bb = {{o_beta,o_beta,CI},{1,1}};
-    _a021_aa = {{v_alpha,v_alpha,CI},{1,1}};
-    _a021_bb = {{v_beta,v_beta,CI},{1,1}};
-    _a008_aa = {{o_alpha,o_alpha,CI},{1,1}};
-    _a001_aa = {{v_alpha,v_alpha},{1,1}};
-    _a001_bb = {{v_beta,v_beta},{1,1}};
-    _a019_abab = {{o_alpha,o_beta,o_alpha,o_beta},{2,2}};
-    _a020_aaaa = {{v_alpha,o_alpha,v_alpha,o_alpha},{2,2}};
-    _a020_baab = {{v_beta,o_alpha,v_alpha,o_beta},{2,2}};
-    _a020_baba = {{v_beta,o_alpha,v_beta,o_alpha},{2,2}};
-    _a020_bbbb = {{v_beta,o_beta,v_beta,o_beta},{2,2}};
-    _a022_abab = {{v_alpha,v_beta,v_alpha,v_beta},{2,2}};
+    _a007V = {CI};
+    _a001 = CCSE_Tensors<T>{MO,{V,V},"_a001",{"aa","bb"}};
+    _a006 = CCSE_Tensors<T>{MO,{O,O},"_a006",{"aa","bb"}};
+
+    _a008 = CCSE_Tensors<T>{MO,{O,O,CI},"_a008",{"aa"}};
+    _a009 = CCSE_Tensors<T>{MO,{O,O,CI},"_a009",{"aa","bb"}};
+    _a017 = CCSE_Tensors<T>{MO,{V,O,CI},"_a017",{"aa","bb"}};
+    _a021 = CCSE_Tensors<T>{MO,{V,V,CI},"_a021",{"aa","bb"}};
+
+    _a019 = CCSE_Tensors<T>{MO,{O,O,O,O},"_a019",{"abab"}};
+    _a022 = CCSE_Tensors<T>{MO,{V,V,V,V},"_a022",{"abab"}};
+    _a020 = CCSE_Tensors<T>{MO,{V,O,V,O},"_a020",{"aaaa","baba","baab","bbbb"}};
 
         
-    double total_ccsd_mem = sum_tensor_sizes(t1_aa,t2_abab,d_f1,r1_aa,r2_abab,cv3d,
-        t2_aaaa, f1_aa_oo, f1_aa_ov, f1_aa_vv, f1_bb_oo, f1_bb_ov, f1_bb_vv,
-        chol3d_aa_oo, chol3d_aa_ov, chol3d_aa_vv,
-        chol3d_bb_oo, chol3d_bb_ov, chol3d_bb_vv,
-        _a004_aaaa,_a004_abab,
-        d_e,i0_temp,t2_aaaa_temp,_a01,_a02_aa,_a03_aa);
+    double total_ccsd_mem = sum_tensor_sizes(t1_aa,t2_aaaa,t2_abab,d_f1,r1_aa,r2_abab,
+                                            cv3d,d_e,i0_temp,t2_aaaa_temp,_a01V)
+        + CCSE_Tensors<T>::sum_tensor_sizes_list(f1_oo,f1_ov,f1_vv,chol3d_oo,chol3d_ov,chol3d_vv)
+        + CCSE_Tensors<T>::sum_tensor_sizes_list(_a02,_a03);
 
     for(size_t ri=0;ri<d_r1s.size();ri++)
         total_ccsd_mem += sum_tensor_sizes(d_r1s[ri],d_r2s[ri],d_t1s[ri],d_t2s[ri]);
 
     //Intermediates
-    double total_ccsd_mem_tmp = sum_tensor_sizes(_a02, _a01_aa,_a03_aa_vo,_a04_aa,_a05_aa,_a05_bb,
-        _a007,_a001_aa,_a001_bb,_a017_aa,_a017_bb,
-        _a006_aa,_a006_bb,_a009_aa,_a009_bb,_a021_aa,_a021_bb,_a008_aa,
-        _a019_abab,_a020_aaaa,_a020_baba,
-        _a020_baab,_a020_bbbb,_a022_abab);
+    double total_ccsd_mem_tmp = sum_tensor_sizes(_a02V, _a007V)
+            + CCSE_Tensors<T>::sum_tensor_sizes_list(_a01,_a04,_a05,_a06,_a001,
+                        _a004,_a006,_a008,_a009,_a017,_a019,_a020,_a021,_a022);
 
     if(!ccsd_restart) total_ccsd_mem += total_ccsd_mem_tmp;
 
-    if(ec.pg().rank()==0) {
-        std::cout << "Total CPU memory required for Closed Shell Cholesky CCSD calculation: " 
-            << std::setprecision(5) << total_ccsd_mem << " GiB" << std::endl << std::endl;
+    if(ec.print()) {
+        std::cout << std::endl << "Total CPU memory required for Closed Shell Cholesky CCSD calculation: " 
+                  << std::setprecision(5) << total_ccsd_mem << " GiB" << std::endl;
     }
 
+    print_ccsd_header(ec.print());
+
     Scheduler sch{ec};
-    sch.allocate(t2_aaaa,  
-                f1_aa_oo, f1_aa_ov, f1_aa_vv, f1_bb_oo, f1_bb_ov, f1_bb_vv,
-                chol3d_aa_oo, chol3d_aa_ov, chol3d_aa_vv,
-                chol3d_bb_oo, chol3d_bb_ov, chol3d_bb_vv);
-    sch.allocate(_a004_aaaa,_a004_abab);
-    sch.allocate(d_e,i0_temp,t2_aaaa_temp,_a01,_a02_aa,_a03_aa);
+    ExecutionHW exhw = ec.exhw();
+
+    sch.allocate(t2_aaaa);
+    sch.allocate(d_e,i0_temp,t2_aaaa_temp,_a01V);
+    CCSE_Tensors<T>::allocate_list(sch,f1_oo,f1_ov,f1_vv,chol3d_oo,chol3d_ov,chol3d_vv);
+    CCSE_Tensors<T>::allocate_list(sch,_a02,_a03);
 
     sch
-        (chol3d_aa_oo(h3_oa,h4_oa,cind) = cv3d(h3_oa,h4_oa,cind))
-        (chol3d_aa_ov(h3_oa,p2_va,cind) = cv3d(h3_oa,p2_va,cind))
-        (chol3d_aa_vv(p1_va,p2_va,cind) = cv3d(p1_va,p2_va,cind))
-        (chol3d_bb_oo(h3_ob,h4_ob,cind) = cv3d(h3_ob,h4_ob,cind))
-        (chol3d_bb_ov(h3_ob,p1_vb,cind) = cv3d(h3_ob,p1_vb,cind))
-        (chol3d_bb_vv(p1_vb,p2_vb,cind) = cv3d(p1_vb,p2_vb,cind))
+        (chol3d_oo("aa")(h3_oa,h4_oa,cind) = cv3d(h3_oa,h4_oa,cind))
+        (chol3d_ov("aa")(h3_oa,p2_va,cind) = cv3d(h3_oa,p2_va,cind))
+        (chol3d_vv("aa")(p1_va,p2_va,cind) = cv3d(p1_va,p2_va,cind))
+        (chol3d_oo("bb")(h3_ob,h4_ob,cind) = cv3d(h3_ob,h4_ob,cind))
+        (chol3d_ov("bb")(h3_ob,p1_vb,cind) = cv3d(h3_ob,p1_vb,cind))
+        (chol3d_vv("bb")(p1_vb,p2_vb,cind) = cv3d(p1_vb,p2_vb,cind))
 
-        (f1_aa_oo(h3_oa,h4_oa) = d_f1(h3_oa,h4_oa))
-        (f1_aa_ov(h3_oa,p2_va) = d_f1(h3_oa,p2_va))
-        (f1_aa_vv(p1_va,p2_va) = d_f1(p1_va,p2_va))
-        (f1_bb_oo(h3_ob,h4_ob) = d_f1(h3_ob,h4_ob))
-        (f1_bb_ov(h3_ob,p1_vb) = d_f1(h3_ob,p1_vb))
-        (f1_bb_vv(p1_vb,p2_vb) = d_f1(p1_vb,p2_vb));
+        (f1_oo("aa")(h3_oa,h4_oa) = d_f1(h3_oa,h4_oa))
+        (f1_ov("aa")(h3_oa,p2_va) = d_f1(h3_oa,p2_va))
+        (f1_vv("aa")(p1_va,p2_va) = d_f1(p1_va,p2_va))
+        (f1_oo("bb")(h3_ob,h4_ob) = d_f1(h3_ob,h4_ob))
+        (f1_ov("bb")(h3_ob,p1_vb) = d_f1(h3_ob,p1_vb))
+        (f1_vv("bb")(p1_vb,p2_vb) = d_f1(p1_vb,p2_vb));
+    
+    sch.execute();
 
     if(!ccsd_restart) {
 
-        { //allocate all intermediates 
-
-        sch.allocate(_a02, _a01_aa,_a03_aa_vo,_a04_aa,_a05_aa,_a05_bb); //T1
-        
-        //T2
-        sch.allocate(_a007,_a001_aa,_a001_bb,_a017_aa,_a017_bb,
-        _a006_aa,_a006_bb,_a009_aa,_a009_bb,_a021_aa,_a021_bb,_a008_aa,
-        _a019_abab,_a020_aaaa,_a020_baba,
-        _a020_baab,_a020_bbbb,_a022_abab
-        );
-
+        //allocate all intermediates
+        sch.allocate(_a02V,_a007V); 
+        CCSE_Tensors<T>::allocate_list(sch,_a004,_a01,_a04,_a05,_a06,
+            _a001,_a006,_a008,_a009,_a017,_a019,_a020,_a021,_a022);
         sch.execute();
-
-        }
 
         sch
             (r1_aa() = 0)
             (r2_abab() = 0)
-            (_a004_aaaa(p1_va, p2_va, h4_oa, h3_oa) = 1.0 * chol3d_aa_ov(h4_oa, p1_va, cind) * chol3d_aa_ov(h3_oa, p2_va, cind))
-            .exact_copy(_a004_abab(p1_va, p1_vb, h3_oa, h3_ob), _a004_aaaa(p1_va, p1_vb, h3_oa, h3_ob))
+            (_a004("aaaa")(p1_va, p2_va, h4_oa, h3_oa) = 1.0 * chol3d_ov("aa")(h4_oa, p1_va, cind) * chol3d_ov("aa")(h3_oa, p2_va, cind))
+            .exact_copy(_a004("abab")(p1_va, p1_vb, h3_oa, h3_ob), _a004("aaaa")(p1_va, p1_vb, h3_oa, h3_ob))
             ;
 
-        #if defined(USE_TALSH) || defined(USE_DPCPP)
-            sch.execute(ExecutionHW::GPU);
-        #else
-            sch.execute();
-        #endif
+        sch.execute(exhw);
 
         Tensor<T> d_r1_residual{}, d_r2_residual{};
         Tensor<T>::allocate(&ec,d_r1_residual, d_r2_residual);
@@ -450,15 +425,11 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData& sys_data, ExecutionConte
                ((d_t2s[off])()  = t2_abab())
                .execute();
 
-            ccsd_e_cs(/* ec,  */sch, MO, CI, d_e, t1_aa, t2_abab);
-            ccsd_t1_cs(/* ec,  */sch, MO, CI, r1_aa, t1_aa, t2_abab);
-            ccsd_t2_cs(/* ec,  */sch, MO, CI, r2_abab, t1_aa, t2_abab);
+            ccsd_e_cs(sch, MO, CI, d_e, t1_aa, t2_abab, t2_aaaa, f1_se, chol3d_se);
+            ccsd_t1_cs(sch, MO, CI, r1_aa, t1_aa, t2_abab, f1_se, chol3d_se);
+            ccsd_t2_cs(sch, MO, CI, r2_abab, t1_aa, t2_abab, t2_aaaa, f1_se, chol3d_se);
 
-            #if defined(USE_TALSH) || defined(USE_DPCPP)
-              sch.execute(ExecutionHW::GPU, profile);
-            #else
-              sch.execute(ExecutionHW::CPU, profile);
-            #endif
+            sch.execute(exhw, profile);
 
             std::tie(residual, energy) = rest_cs(ec, MO, r1_aa, r2_abab, t1_aa, t2_abab,
                                             d_e, d_r1_residual, d_r2_residual, p_evl_sorted,
@@ -514,23 +485,15 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData& sys_data, ExecutionConte
     }
 
     //deallocate all intermediates 
-    sch.deallocate(_a02, _a01_aa,_a03_aa_vo,_a04_aa,_a05_aa,_a05_bb);
-    sch.deallocate(_a007,_a001_aa,_a001_bb,_a017_aa,_a017_bb,
-        _a006_aa,_a006_bb,_a009_aa,_a009_bb,_a021_aa,_a021_bb,_a008_aa,
-        _a019_abab,_a020_aaaa,_a020_baba,
-        _a020_baab,_a020_bbbb,_a022_abab 
-        ); //t2
-    sch.deallocate(d_r1_residual, d_r2_residual);
+    sch.deallocate(_a02V,_a007V,d_r1_residual, d_r2_residual); 
+    CCSE_Tensors<T>::deallocate_list(sch,_a004,_a01,_a04,_a05,_a06,_a001,_a006,
+                                    _a008,_a009,_a017,_a019,_a020,_a021,_a022);
 
     } //no restart
     else {
-        ccsd_e_cs(/* ec,  */sch, MO, CI, d_e, t1_aa, t2_abab);
+        ccsd_e_cs(sch, MO, CI, d_e, t1_aa, t2_abab, t2_aaaa, f1_se, chol3d_se);
 
-        #if defined(USE_TALSH) || defined(USE_DPCPP)
-          sch.execute(ExecutionHW::GPU, profile);
-        #else
-          sch.execute(ExecutionHW::CPU, profile);
-        #endif
+        sch.execute(exhw, profile);
 
         energy = get_scalar(d_e);
         residual = 0.0;
@@ -545,26 +508,26 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData& sys_data, ExecutionConte
         write_json_data(sys_data,"CCSD");
     }
 
-    sch.deallocate(i0_temp,t2_aaaa_temp,_a01,_a02_aa,_a03_aa);
-    sch.deallocate(d_e,_a004_aaaa,_a004_abab);
+    sch.deallocate(d_e,i0_temp,t2_aaaa_temp,_a01V); 
+    CCSE_Tensors<T>::deallocate_list(sch,_a02,_a03);
+    CCSE_Tensors<T>::deallocate_list(sch,f1_oo,f1_ov,f1_vv,chol3d_oo,chol3d_ov,chol3d_vv);
+    sch.execute();
 
-    sch.deallocate(f1_aa_oo, f1_aa_ov, f1_aa_vv, f1_bb_oo, f1_bb_ov, f1_bb_vv,
-                    chol3d_aa_oo, chol3d_aa_ov, chol3d_aa_vv,
-                    chol3d_bb_oo, chol3d_bb_ov, chol3d_bb_vv).execute();
 
     if(computeTData) {
         Tensor<T> d_t1 = dt1_full;
         Tensor<T> d_t2 = dt2_full;
 
-        IndexVector perm1 = {1,0,3,2};
-        IndexVector perm2 = {0,1,3,2};
-        IndexVector perm3 = {1,0,2,3};
+        // IndexVector perm1 = {1,0,3,2};
+        // IndexVector perm2 = {0,1,3,2};
+        // IndexVector perm3 = {1,0,2,3};
 
-        t1_bb    = Tensor<T>{{v_beta,o_beta}                 ,{1,1}};
-        t2_bbbb  = Tensor<T>{{v_beta,v_beta, o_beta,o_beta}  ,{2,2}};
-        t2_baba  = Tensor<T>{{v_beta,v_alpha,o_beta,o_alpha} ,{2,2}};
-        t2_abba  = Tensor<T>{{v_alpha,v_beta,o_beta,o_alpha} ,{2,2}};
-        t2_baab  = Tensor<T>{{v_beta,v_alpha,o_alpha,o_beta} ,{2,2}};
+        // t1_aa, t1_bb, t2_aaaa, t2_abab, t2_bbbb,t2_baba, t2_abba, t2_baab
+        Tensor<T> t1_bb  {v_beta,o_beta                };
+        Tensor<T> t2_bbbb{v_beta,v_beta, o_beta,o_beta };
+        Tensor<T> t2_baba{v_beta,v_alpha,o_beta,o_alpha};
+        Tensor<T> t2_abba{v_alpha,v_beta,o_beta,o_alpha};
+        Tensor<T> t2_baab{v_beta,v_alpha,o_alpha,o_beta};
 
         sch.allocate(t1_bb,t2_bbbb,t2_baba,t2_abba,t2_baab)
         .exact_copy(t1_bb(p1_vb,h3_ob),  t1_aa(p1_vb,h3_ob))

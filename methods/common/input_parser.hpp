@@ -292,6 +292,7 @@ class CCSDOptions: public Options {
     itilesize      = 1000;
     ndiis          = 5;
     lshift         = 0;
+    pcore          = 0;
     nactive        = 0;
     ccsd_maxiter   = 50;
     freeze_core    = 0;
@@ -373,6 +374,7 @@ class CCSDOptions: public Options {
   double threshold;
 
   int    nactive;
+  int    pcore; //TD-CC pth core orbital
   int    ccsd_maxiter;
   int    freeze_core;
   int    freeze_virtual;
@@ -445,6 +447,8 @@ class CCSDOptions: public Options {
     cout << " tilesize             = " << tilesize         << endl;
     if(nactive > 0)
     cout << " nactive              = " << nactive          << endl;
+    if(pcore > 0)
+    cout << " pcore                = " << pcore            << endl;
     cout << " ccsd_maxiter         = " << ccsd_maxiter     << endl;
     cout << " freeze_core          = " << freeze_core      << endl;
     cout << " freeze_virtual       = " << freeze_virtual   << endl;
@@ -644,6 +648,7 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
     //CC
     json jcc = jinput["CC"];
     parse_option<int>   (ccsd_options.ndiis         , jcc, "ndiis");
+    parse_option<int>   (ccsd_options.pcore         , jcc, "pcore");
     parse_option<int>   (ccsd_options.nactive       , jcc, "nactive");
     parse_option<int>   (ccsd_options.ccsd_maxiter  , jcc, "ccsd_maxiter");
     parse_option<int>   (ccsd_options.freeze_core   , jcc, "freeze_core");

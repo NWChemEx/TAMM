@@ -1,18 +1,12 @@
 #pragma once
 
-// #include "cd_svd.hpp"
-#include "cd_svd/cd_svd_ga.hpp"
-#include "cd_svd/two_index_transform.hpp"
-#include "ga/macdecls.h"
-#include "ga/ga-mpi.h"
+#include "ccse_tensors.hpp"
 
-using namespace tamm;
-
-  // auto lambdar2 = [](const IndexVector& blockid, span<double> buf){
-  //     if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
-  //         for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
-  //     }
-  // };
+// auto lambdar2 = [](const IndexVector& blockid, span<double> buf){
+//     if((blockid[0] > blockid[1]) || (blockid[2] > blockid[3])) {
+//         for(auto i = 0U; i < buf.size(); i++) buf[i] = 0; 
+//     }
+// };
 
 template<typename T>
 struct V2Tensors {
@@ -303,6 +297,18 @@ std::pair<double,double> rest_cs(ExecutionContext& ec,
     return {residual, energy};
 }
 
+void print_ccsd_header(const bool do_print) {
+  if(do_print) {
+    std::cout << std::endl << std::endl;
+    std::cout << " CCSD iterations" << std::endl;
+    std::cout << std::string(66, '-') << std::endl;
+    std::cout <<
+        " Iter          Residuum       Correlation     Cpu    Wall    V2*C2"
+              << std::endl;
+    std::cout << std::string(66, '-') << std::endl;
+  }
+}
+
 template<typename T>
 std::tuple<std::vector<T>,Tensor<T>,Tensor<T>,Tensor<T>,Tensor<T>,
 std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>>
@@ -322,16 +328,6 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
     // };
 
     // update_tensor(d_f1(),lambda2);
-
- if(rank == 0) {
-    std::cout << std::endl << std::endl;
-    std::cout << " CCSD iterations" << std::endl;
-    std::cout << std::string(66, '-') << std::endl;
-    std::cout <<
-        " Iter          Residuum       Correlation     Cpu    Wall    V2*C2"
-              << std::endl;
-    std::cout << std::string(66, '-') << std::endl;
-  }
    
   std::vector<Tensor<T>> d_r1s, d_r2s, d_t1s, d_t2s;
   Tensor<T> d_r1{{V,O},{1,1}};
@@ -394,16 +390,6 @@ std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector<Tensor<T>>,std::vector
 
     // update_tensor(d_f1(),lambda2);
 
- if(rank == 0) {
-    std::cout << std::endl << std::endl;
-    std::cout << " CCSD iterations" << std::endl;
-    std::cout << std::string(66, '-') << std::endl;
-    std::cout <<
-        " Iter          Residuum       Correlation     Cpu    Wall    V2*C2"
-              << std::endl;
-    std::cout << std::string(66, '-') << std::endl;
-  }
-   
   std::vector<Tensor<T>> d_r1s, d_r2s, d_t1s, d_t2s;
   Tensor<T> d_r1{{v_alpha,o_alpha},{1,1}};
   Tensor<T> d_r2{{v_alpha,v_beta,o_alpha,o_beta},{2,2}};

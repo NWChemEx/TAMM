@@ -19,6 +19,7 @@ class CCSE_Tensors {
   std::map<std::string, Tensor<T>> tmap;
   std::vector<Tensor<T>> allocated_tensors;
   std::string tname;
+  bool is_mo_3d{}; // true only when all dims of a 3D tensor are MO
 
   std::vector<std::string> get_tensor_files(const std::string& fprefix){
     std::vector<std::string> tensor_files;
@@ -30,6 +31,8 @@ class CCSE_Tensors {
   }
 
   public:
+
+  std::vector<std::string> vblocks;
 
   void deallocate() {
     ExecutionContext& ec = get_ec(allocated_tensors[0]());
@@ -63,12 +66,12 @@ class CCSE_Tensors {
 
     TiledIndexSpaceVec btis;
     for (size_t x = 0; x < ndims; x++) {
-      //assuming only 3rd dim is the independent space here
-      if(ndims == 3 && x == 2) { btis.push_back(tis[x]); continue; }
+      // assuming only 3D tensor has an independent index space
       if(tis[x] == O) 
         btype[x] == 0 ? btis.push_back(o_alpha): btis.push_back(o_beta);
       else if(tis[x] == V) 
         btype[x] == 0 ? btis.push_back(v_alpha): btis.push_back(v_beta);
+      else if(ndims == 3 && !is_mo_3d) { btis.push_back(tis[x]); }
     }
 
     return btis;
@@ -94,32 +97,40 @@ class CCSE_Tensors {
 
   CCSE_Tensors(const TiledIndexSpace& MO, TiledIndexSpaceVec tis, std::string tensor_name, std::vector<std::string> blocks) {
     tname = tensor_name;
+    vblocks = blocks;
+
     const auto ndims = tis.size();
     std::string err_msg = "Error in tensor [" + tname + "] declaration";
     if(ndims < 2 || ndims > 4) tamm_terminate(err_msg + ": Only 2,3,4D tensors are allowed");
 
+    is_mo_3d = true;
+    const TiledIndexSpace &O = MO("occ");
+    const TiledIndexSpace &V = MO("virt");
+    for (size_t x = 0; x < tis.size(); x++) {
+      if(tis[x] != O && tis[x] != V) {
+        if(ndims == 3) is_mo_3d = false; // assuming only 3D tensors have an independent index space
+        else tamm_terminate(err_msg + ": Only O,V tiled index spaces can be specified");
+      }
+    }
+
     std::vector<std::string> allowed_blocks = {"aa","bb"};
-    if(ndims == 4) allowed_blocks = {"aaaa","abab","bbbb","abba","baab","baba"};
+    if(ndims == 3 && is_mo_3d) allowed_blocks = {"aaa","baa","abb","bbb"};
+    else if(ndims == 4) allowed_blocks = {"aaaa","abab","bbbb","abba","baab","baba"};
 
     if(blocks.size() == 0) tamm_terminate(err_msg + ": Please specify the tensor blocks to be allocated");
 
     for (auto x: blocks)  {
       if (std::find(allowed_blocks.begin(), allowed_blocks.end(), x) == allowed_blocks.end()) {
-        if(ndims == 2 || ndims == 3) tamm_terminate(err_msg + ": Invalid block [" + x + "] specified, allowed blocks are [aa|bb]");
+        if(ndims == 2 || (ndims == 3 && !is_mo_3d)) tamm_terminate(err_msg + ": Invalid block [" + x + "] specified, allowed blocks are [aa|bb]");
+        else if (ndims == 3 && is_mo_3d) tamm_terminate(err_msg + ": Invalid block [" + x + "] specified, allowed blocks are [aaa|baa|abb|bbb]");
         else tamm_terminate(err_msg + ": Invalid block [" + x +
                         "] specified, allowed blocks are [aaaa|abab|bbbb|abba|baab|baba]");
       }
     }
 
-    const TiledIndexSpace &O = MO("occ");
-    const TiledIndexSpace &V = MO("virt");
-    for (size_t x = 0; x < tis.size(); x++) {
-      if(ndims == 3 && x == 2) continue; //assuming only 3rd dim is the independent space here
-      if(tis[x] != O && tis[x] != V) tamm_terminate(err_msg + ": Only O,V tiled index spaces can be specified");
-    }
     
     //a=0,b=1
-    if(ndims == 2 || ndims == 3) {
+    if(ndims == 2 || (ndims == 3 && !is_mo_3d)) {
       if (std::find(blocks.begin(), blocks.end(), "aa") != blocks.end()) {
         Tensor<T> aa{construct_tis(MO,tis,{0,0})};
         tmap["aa"] = aa;
@@ -129,6 +140,28 @@ class CCSE_Tensors {
         Tensor<T> bb{construct_tis(MO,tis,{1,1})};
         tmap["bb"] = bb;
         allocated_tensors.push_back(bb);
+      }
+    }
+    else if (ndims == 3 && is_mo_3d) {
+      if (std::find(blocks.begin(), blocks.end(), "aaa") != blocks.end()) {
+        Tensor<T> aaa{construct_tis(MO,tis,{0,0,0})};
+        tmap["aaa"] = aaa;
+        allocated_tensors.push_back(aaa);
+      }
+      if (std::find(blocks.begin(), blocks.end(), "baa") != blocks.end()) {
+        Tensor<T> baa{construct_tis(MO,tis,{1,0,0})};
+        tmap["baa"] = baa;
+        allocated_tensors.push_back(baa);
+      }
+      if (std::find(blocks.begin(), blocks.end(), "abb") != blocks.end()) {
+        Tensor<T> abb{construct_tis(MO,tis,{0,1,1})};
+        tmap["abb"] = abb;
+        allocated_tensors.push_back(abb);
+      }
+      if (std::find(blocks.begin(), blocks.end(), "bbb") != blocks.end()) {
+        Tensor<T> bbb{construct_tis(MO,tis,{1,1,1})};
+        tmap["bbb"] = bbb;
+        allocated_tensors.push_back(bbb);
       }
     }
     else {
@@ -214,7 +247,29 @@ class CCSE_Tensors {
   template<typename... Args>
   static auto sum_tensor_sizes_list(Args&... ccsetensor) {
     return (ccsetensor.sum_tensor_sizes() + ...);
-  } 
+  }
+
+  static void copy(Scheduler& sch, CCSE_Tensors<T>& src, CCSE_Tensors<T>& dest, bool update=false) {
+    for (auto x: src.vblocks) {
+      if(update) sch(dest(x)() += src(x)());
+      else sch(dest(x)() = src(x)());
+    }
+  }
+
+  static void initialize_list(Scheduler& sch, T value) {}
+
+  template<typename... Args>
+  static void initialize_list(Scheduler& sch, T value, CCSE_Tensors<T>& ccset, Args&... rest) {
+    for (auto x: ccset.vblocks) {
+      sch(ccset(x)() = value);
+    }
+    initialize_list(sch, value, rest...);
+  }
+
+  template<typename... Args>
+  static void initialize(Scheduler& sch, T value, CCSE_Tensors<T>& ccset, Args&... rest) {
+    initialize_list(sch, value, ccset, rest...);
+  }  
 
 };
 

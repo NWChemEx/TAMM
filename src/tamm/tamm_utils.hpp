@@ -3264,7 +3264,7 @@ Tensor<TensorType> to_dense_tensor(ExecutionContext& ec_dense, Tensor<TensorType
  * @param [in] tensor input Tensor object
  */
 template<typename T>
-void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<size_t>)> func, std::string filename="") {
+void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<size_t>)> func, std::string filename="", bool append=false) {
 
     auto lt = tensor();
     int ndims = tensor.num_modes();
@@ -3339,7 +3339,9 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
       }
 
       if(!filename.empty()) {
-        std::ofstream tos(filename + ".txt", std::ios::out);
+        std::ofstream tos;
+        if (append) tos.open(filename + ".txt", std::ios::app);
+        else tos.open(filename + ".txt", std::ios::out);
         if(!tos) std::cerr << "Error opening file " << filename << std::endl;
         tos << tstring.str() << std::endl;
         tos.close();

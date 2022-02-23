@@ -292,7 +292,6 @@ class CCSDOptions: public Options {
     itilesize      = 1000;
     ndiis          = 5;
     lshift         = 0;
-    pcore          = 0;
     nactive        = 0;
     ccsd_maxiter   = 50;
     freeze_core    = 0;
@@ -326,6 +325,12 @@ class CCSDOptions: public Options {
     eom_threshold  = 1e-6;
     eom_type       = "right";
     eom_microiter  = o.maxiter;
+
+    pcore          = 0;
+    ntimesteps     = 10;
+    rt_microiter   = 20;
+    rt_multiplier  = 0.5;
+    rt_step_size   = 0.025;
 
     gf_ip          = true;
     gf_ea          = false;
@@ -374,10 +379,16 @@ class CCSDOptions: public Options {
   double threshold;
 
   int    nactive;
-  int    pcore; //TD-CC pth core orbital
   int    ccsd_maxiter;
   int    freeze_core;
   int    freeze_virtual;
+
+  //TD-CC
+  int    pcore;  // pth core orbital
+  int    ntimesteps; // number of time steps
+  int    rt_microiter;
+  double rt_step_size;
+  double rt_multiplier;
 
   //CCSD(T)
   int    ngpu;
@@ -648,7 +659,6 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
     //CC
     json jcc = jinput["CC"];
     parse_option<int>   (ccsd_options.ndiis         , jcc, "ndiis");
-    parse_option<int>   (ccsd_options.pcore         , jcc, "pcore");
     parse_option<int>   (ccsd_options.nactive       , jcc, "nactive");
     parse_option<int>   (ccsd_options.ccsd_maxiter  , jcc, "ccsd_maxiter");
     parse_option<int>   (ccsd_options.freeze_core   , jcc, "freeze_core");
@@ -668,6 +678,13 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
     parse_option<bool>  (ccsd_options.force_tilesize, jcc, "force_tilesize");     
     parse_option<string>(ccsd_options.ext_data_path , jcc, "ext_data_path");   
     parse_option<bool>  (ccsd_options.computeTData  , jcc, "computeTData");
+
+    //TD-CC
+    parse_option<int>   (ccsd_options.pcore        , jcc, "pcore");
+    parse_option<int>   (ccsd_options.ntimesteps   , jcc, "ntimesteps");
+    parse_option<int>   (ccsd_options.rt_microiter , jcc, "rt_microiter");
+    parse_option<double>(ccsd_options.rt_step_size , jcc, "rt_step_size");
+    parse_option<double>(ccsd_options.rt_multiplier, jcc, "rt_multiplier");
 
     json jdlpno = jcc["DLPNO"];
     parse_option<int>   (ccsd_options.max_pnos     , jdlpno, "max_pnos");

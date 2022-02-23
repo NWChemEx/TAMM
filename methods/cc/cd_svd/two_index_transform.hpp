@@ -120,27 +120,26 @@ void two_index_transform(SystemData sys_data, ExecutionContext& ec, Tensor<Tenso
           auto evl_sorted = F.diagonal();
           std::vector<TensorType> eval(N);
           for(int i = 0; i < N; i++) eval[i] = evl_sorted(i);
-          evl_sorted *= 0;
 
           // move col pcore of occ-alpha block to the last col of occ-alpha block
           // move col pcore of occ-beta block to the first col of virt-beta block
-          for(int i = 0; i < n_occ_alpha - 1; i++) evl_sorted(i) = eval[i + 1];
+          for(int i = pcore; i < n_occ_alpha - 1; i++) evl_sorted(i) = eval[i + 1];
           evl_sorted[n_occ_alpha - 1] = eval[pcore];
 
-          for(int i = n_occ_alpha; i < nocc; i++) evl_sorted(i) = eval[i + 1];
+          for(int i = n_occ_alpha+pcore; i < nocc; i++) evl_sorted(i) = eval[i + 1];
           for(int i = nocc; i < nocc + n_vir_alpha; i++) evl_sorted(i) = eval[i + 1];
 
-          evl_sorted[nocc + n_vir_alpha] = eval[n_occ_alpha];
+          evl_sorted[nocc + n_vir_alpha] = eval[n_occ_alpha+pcore];
           for(int i = nocc + n_vir_alpha + 1; i < N; i++) evl_sorted(i) = eval[i];
 
           Matrix lcao_new = CTiled;
-          for(int i = 0; i < n_occ_alpha - 1; i++) lcao_new.col(i) = CTiled.col(i + 1);
+          for(int i = pcore; i < n_occ_alpha - 1; i++) lcao_new.col(i) = CTiled.col(i + 1);
           lcao_new.col(n_occ_alpha - 1) = CTiled.col(pcore);
 
-          for(int i = n_occ_alpha; i < nocc; i++) lcao_new.col(i) = CTiled.col(i + 1);
+          for(int i = n_occ_alpha+pcore; i < nocc; i++) lcao_new.col(i) = CTiled.col(i + 1);
           for(int i = nocc; i < nocc + n_vir_alpha; i++) lcao_new.col(i) = CTiled.col(i + 1);
 
-          lcao_new.col(nocc + n_vir_alpha) = CTiled.col(n_occ_alpha);
+          lcao_new.col(nocc + n_vir_alpha) = CTiled.col(n_occ_alpha+pcore);
           for(int i = nocc + n_vir_alpha + 1; i < N; i++) lcao_new.col(i) = CTiled.col(i);
 
           CTiled = lcao_new;

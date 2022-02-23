@@ -17,7 +17,7 @@ Choose Build Options
 ```
 -DUSE_CUDA=ON (OFF by default)  
 -DCUDA_MAXREGCOUNT=128 (64 by default)
--DNV_GPU_ARCH=70 (GPU arch is detected automatically, only set this option if need to override)
+-DGPU_ARCH=70 (GPU arch is detected automatically, only set this option if need to override)
 ```
 ### Optionally build with cuTensor support when USE_CUDA=ON  
 ```
@@ -164,7 +164,7 @@ module purge && module load cgpu cuda gcc openmpi cmake/3.21.3
 cd $TAMM_SRC/build
 
 CC=gcc CXX=g++ FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
--DUSE_CUDA=ON -DNV_GPU_ARCH=70 -H$TAMM_SRC
+-DUSE_CUDA=ON -DGPU_ARCH=70 -H$TAMM_SRC
 
 make -j3
 make install

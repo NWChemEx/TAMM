@@ -2207,7 +2207,7 @@ void fully_fused_ccsd_t_gpu(sycl::queue *stream_id, size_t num_blocks,
 	auto global_range = gridsize * blocksize;
 
 	cgh.parallel_for(sycl::nd_range<2>(global_range, blocksize),
-			 [=](sycl::nd_item<2> item) [[intel::reqd_sub_group_size(8)]]
+			 [=](sycl::nd_item<2> item) [[intel::reqd_sub_group_size(16)]]
 			 {
 			   revised_jk_ccsd_t_fully_fused_kernel(size_noab, size_nvab,
 								size_max_dim_s1_t1,

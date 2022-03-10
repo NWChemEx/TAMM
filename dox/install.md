@@ -57,6 +57,8 @@ mkdir build && cd build
 
 * **[Build instructions for Summit using ESSL](install.md#build-instructions-for-summit-using-essl)**
 
+* **[Build instructions for Crusher](install.md#build-instructions-for-crusher)**
+
 * **[Build instructions for Cori](install.md#build-instructions-for-cori)**
 
 * **[Build instructions for Theta](install.md#build-instructions-for-theta)**
@@ -119,6 +121,30 @@ CC=gcc CXX=g++ FC=gfortran cmake \
 -DBLIS_CONFIG=power9 \
 -DLINALG_VENDOR=IBMESSL -DUSE_CUDA=ON \
 -DLINALG_PREFIX=/sw/summit/essl/6.3.0/essl/6.3 ..
+
+make -j3
+make install
+```
+
+## Build instructions for Crusher
+
+```
+module load cmake
+module load craype-accel-amd-gfx90a
+module load PrgEnv-amd
+module load rocm
+module unload cray-libsci
+export CRAYPE_LINK_TYPE=dynamic
+```
+
+```
+cd $TAMM_SRC/build
+
+CC=cc CXX=CC FC=ftn cmake \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
+-DGPU_ARCH=gfx90a \
+-DUSE_OPENMP=OFF -DUSE_HIP=ON -DROCM_ROOT=$ROCM_PATH \
+-DGCCROOT=/opt/cray/pe/gcc/10.3.0/snos ..
 
 make -j3
 make install

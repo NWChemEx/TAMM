@@ -419,7 +419,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
 
         #if defined(USE_SCALAPACK)
         {
-          const auto _mb      = scf_options.scalapack_nb; //(scalapack_info.blockcyclic_dist)->mb();
+          const tamm::Tile _mb= scf_options.scalapack_nb; //(scalapack_info.blockcyclic_dist)->mb();
           scf_vars.tN_bc      = TiledIndexSpace{IndexSpace{range(sys_data.nbf_orig)}, _mb};
           scf_vars.tNortho_bc = TiledIndexSpace{IndexSpace{range(sys_data.nbf)}, _mb};
           if(scacomm != MPI_COMM_NULL) {

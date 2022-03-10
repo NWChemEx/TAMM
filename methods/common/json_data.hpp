@@ -72,14 +72,15 @@ struct SystemData {
     std::cout << "----------------------------" << std::endl;
   }
 
-  void update() {
+  void update(bool spin_orbital=true) {
       EXPECTS(nbf == n_occ_alpha + n_vir_alpha); //lin-deps
       // EXPECTS(nbf_orig == n_occ_alpha + n_vir_alpha + n_lindep + n_frozen_core + n_frozen_virtual);      
       nocc = n_occ_alpha + n_occ_beta;
       nvir = n_vir_alpha + n_vir_beta;
       // EXPECTS(nelectrons == n_occ_alpha + n_occ_beta);
       // EXPECTS(nelectrons == nelectrons_alpha+nelectrons_beta);
-      nmo = n_occ_alpha + n_vir_alpha + n_occ_beta + n_vir_beta; //lin-deps
+      if(spin_orbital) nmo = n_occ_alpha + n_vir_alpha + n_occ_beta + n_vir_beta; //lin-deps
+      else nmo = n_occ_alpha + n_vir_alpha;
   }
 
   SystemData(OptionsMap options_map_, const std::string scf_type_string)

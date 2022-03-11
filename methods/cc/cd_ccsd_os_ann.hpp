@@ -737,7 +737,7 @@ std::tuple<double,double> cd_ccsd_os_driver(SystemData& sys_data, ExecutionConte
             diis<T>(ec, rs, ts, next_t);
         }
 
-        if(profile) {
+        if(profile && ec.print()) {
           std::string profile_csv = out_fp + "_profile.csv";
           std::ofstream pds(profile_csv, std::ios::out);
           if(!pds) std::cerr << "Error opening file " << profile_csv << std::endl;

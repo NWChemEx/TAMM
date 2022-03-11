@@ -299,7 +299,7 @@ int main(int argc, char* argv[]) {
   if(has_gpu) talsh_instance.shutdown();
   #endif
 
-  if(profile) {
+  if(profile && ec.print()) {
     std::string profile_csv = "multops_profile.csv";
     std::ofstream pds(profile_csv, std::ios::out);
     if(!pds) std::cerr << "Error opening file " << profile_csv << std::endl;

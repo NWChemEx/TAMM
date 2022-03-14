@@ -277,7 +277,7 @@ Running the code
 `export TAMM_EXE=$TAMM_SRC/build/methods_stage/$TAMM_INSTALL_PATH/methods/CD_CCSD`  
 
 - CCSD(T)   
-`export TAMM_EXE=$TAMM_SRC/build/methods_stage/$TAMM_INSTALL_PATH/methods/CCSD_T_Fused`
+`export TAMM_EXE=$TAMM_SRC/build/methods_stage/$TAMM_INSTALL_PATH/methods/CCSD_T`
 
 ### General run:
 ```

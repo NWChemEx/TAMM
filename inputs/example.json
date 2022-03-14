@@ -82,6 +82,7 @@
     
         "CCSD(T)": {
           "ngpu": 0,
+          "skip_ccsd": false,
           "ccsdt_tilesize": 28
         },
     

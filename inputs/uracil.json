@@ -36,6 +36,7 @@
     "writet": true,
     "CCSD(T)": {
       "ngpu": 1,
+      "skip_ccsd": false,
       "ccsdt_tilesize": 40
     }
   }

@@ -29,6 +29,12 @@ int main( int argc, char* argv[] )
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     auto rank = ec.pg().rank();
 
+    auto current_time = std::chrono::system_clock::now();
+    auto current_time_t = std::chrono::system_clock::to_time_t(current_time);
+    auto cur_local_time = localtime(&current_time_t);
+
+    if(rank == 0) cout << endl << "Date: " << std::put_time(cur_local_time, "%c") << endl << endl;
+
     // read geometry from a json file 
     json jinput;
     check_json(filename);

@@ -319,8 +319,8 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   int num_task = 0;
   if(!seq_h3b) {
     if(rank==0) {
-      std::cout << "456123 parallel 6d loop variant" << std::endl;
-      std::cout << "tile142563,kernel,memcpy,data,total" << std::endl;
+      std::cout << "456123 parallel 6d loop variant" << std::endl << std::endl;
+      // std::cout << "tile142563,kernel,memcpy,data,total" << std::endl;
     }
     for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {
     for (size_t t_p5b = t_p4b; t_p5b < noab + nvab; t_p5b++) {
@@ -443,8 +443,8 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
   { //seq h3b loop
     #if 1
     if(rank==0) {
-      std::cout << "14256-seq3 loop variant" << std::endl;
-      std::cout << "tile142563,kernel,memcpy,data,total" << std::endl;
+      std::cout << "14256-seq3 loop variant" << std::endl << std::endl;
+      // std::cout << "tile142563,kernel,memcpy,data,total" << std::endl;
     }
     for (size_t t_h1b = 0; t_h1b < noab; t_h1b++) { //
     for (size_t t_p4b = noab; t_p4b < noab + nvab; t_p4b++) {

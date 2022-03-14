@@ -48,9 +48,11 @@ void ccsd_t_driver() {
     auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, AO_opt, AO_tis,scf_conv]  
                     = hartree_fock_driver<T>(ec,filename);
 
+    CCSDOptions& ccsd_options = sys_data.options_map.ccsd_options;
+
     #if defined(USE_CUDA) || defined(USE_HIP) //|| defined(USE_DPCPP)
-        CCSDOptions cc_opt = sys_data.options_map.ccsd_options;
-        std::string t_errmsg = check_memory_req(cc_opt.ngpu,cc_opt.ccsdt_tilesize,sys_data.nbf);
+        if(ccsd_options.ngpu == 0) ccsd_options.ngpu = ec.num_gpu();
+        std::string t_errmsg = check_memory_req(ccsd_options.ngpu,ccsd_options.ccsdt_tilesize,sys_data.nbf);
         if(!t_errmsg.empty()) tamm_terminate(t_errmsg);
     #endif
 
@@ -80,11 +82,11 @@ void ccsd_t_driver() {
     Scheduler sub_sch{*sub_ec};
 
     //force writet on
-    sys_data.options_map.ccsd_options.writet = true;
-    sys_data.options_map.ccsd_options.computeTData = true;
+    ccsd_options.writet = true;
+    ccsd_options.computeTData = true;
 
-    CCSDOptions& ccsd_options = sys_data.options_map.ccsd_options;
     debug = ccsd_options.debug;
+    bool skip_ccsd = ccsd_options.skip_ccsd;
     if(rank == 0) ccsd_options.print();
 
     if(rank==0) cout << endl << "#occupied, #virtual = " << sys_data.nocc << ", " << sys_data.nvir << endl;
@@ -100,25 +102,46 @@ void ccsd_t_driver() {
     std::string v2file = files_prefix+".cholv2";
     std::string cholfile = files_prefix+".cholcount";
     std::string ccsdstatus = files_prefix+".ccsdstatus";
+    std::string fullV2file = files_prefix+".fullV2";
 
     const bool is_rhf = sys_data.is_restricted;
+    bool  computeTData = ccsd_options.computeTData; 
 
     bool ccsd_restart = ccsd_options.readt || 
         ( (fs::exists(t1file) && fs::exists(t2file)     
         && fs::exists(f1file) && fs::exists(v2file)) );
 
+    ExecutionHW ex_hw = ExecutionHW::CPU;
+    #ifdef USE_DPCPP
+    ex_hw = ExecutionHW::GPU;
+    #endif    
+    #ifdef USE_TALSH_T
+    ex_hw = ExecutionHW::GPU;
+    const bool has_gpu = ec.has_gpu();
+    TALSH talsh_instance;
+    if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
+    #endif
+
+    TiledIndexSpace N = MO("all");
+
+    Tensor<T> cholVpr, d_t1, d_t2, d_f1, lcao;
+    TAMM_SIZE chol_count; tamm::Tile max_cvecs; 
+    TiledIndexSpace CI;
+
+    std::vector<T> p_evl_sorted;
+    double residual=0, corr_energy=0;
+
+    if(!skip_ccsd) {
+
     //deallocates F_AO, C_AO
-    auto [cholVpr,d_f1,lcao,chol_count, max_cvecs, CI] = cd_svd_ga_driver<T>
+    std::tie (cholVpr,d_f1,lcao,chol_count, max_cvecs, CI) = cd_svd_ga_driver<T>
                         (sys_data, ec, MO, AO_opt, C_AO, F_AO, C_beta_AO, F_beta_AO, shells, shell_tile_map,
                                 ccsd_restart, cholfile);
     free_tensors(lcao);
 
     if(ccsd_options.writev) ccsd_options.writet = true;
 
-    TiledIndexSpace N = MO("all");
-
-    std::vector<T> p_evl_sorted;
-    Tensor<T> d_r1, d_r2, d_t1, d_t2;
+    Tensor<T> d_r1, d_r2;
     std::vector<Tensor<T>> d_r1s, d_r2s, d_t1s, d_t2s;
 
     if(is_rhf) 
@@ -163,24 +186,12 @@ void ccsd_t_driver() {
 
     auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-    ExecutionHW ex_hw = ExecutionHW::CPU;
-    #ifdef USE_DPCPP
-    ex_hw = ExecutionHW::GPU;
-    #endif    
-    #ifdef USE_TALSH_T
-    ex_hw = ExecutionHW::GPU;
-    const bool has_gpu = ec.has_gpu();
-    TALSH talsh_instance;
-    if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
-    #endif
 
     ccsd_restart = ccsd_restart && fs::exists(ccsdstatus) && scf_conv;
 
-    std::string fullV2file = files_prefix+".fullV2";
     t1file = files_prefix+".fullT1amp";
     t2file = files_prefix+".fullT2amp";
 
-    bool  computeTData = ccsd_options.computeTData; 
     if(ccsd_options.writev) 
         computeTData = computeTData && !fs::exists(fullV2file) 
                 && !fs::exists(t1file) && !fs::exists(t2file);
@@ -188,7 +199,6 @@ void ccsd_t_driver() {
     if(computeTData && is_rhf) 
       setup_full_t1t2(ec,MO,dt1_full,dt2_full);
 
-    double residual=0, corr_energy=0;
 
     if(is_rhf) {
       if(ccsd_restart) {
@@ -290,24 +300,33 @@ void ccsd_t_driver() {
     if(is_rhf) free_tensors(d_t1, d_t2);
     ec.flush_and_sync();
 
+    } 
+    else { //skip ccsd
+        d_f1 = {{N,N},{1,1}};
+        Tensor<T>::allocate(&ec,d_f1);
+    }
+
     bool  ccsd_t_restart = fs::exists(t1file) && fs::exists(t2file) &&
                            fs::exists(f1file) && fs::exists(fullV2file);
 
-    Tensor<T> d_v2{{N,N,N,N},{2,2}};
-    
     auto [MO1,total_orbitals1] = setupMOIS(sys_data,true);
     TiledIndexSpace N1 = MO1("all");
     TiledIndexSpace O1 = MO1("occ");
     TiledIndexSpace V1 = MO1("virt");
 
+    Tensor<T> d_v2{{N,N,N,N},{2,2}};
     // Tensor<T> t_d_f1{{N1,N1},{1,1}};
     Tensor<T> t_d_t1{{V1,O1},{1,1}};
     Tensor<T> t_d_t2{{V1,V1,O1,O1},{2,2}};
     Tensor<T> t_d_v2{{N1,N1,N1,N1},{2,2}};
 
-    T ccsd_t_mem = sum_tensor_sizes(d_f1,d_v2,t_d_t1,t_d_t2,t_d_v2);
-    if(is_rhf) ccsd_t_mem += sum_tensor_sizes(dt1_full,dt2_full);
-    else ccsd_t_mem += sum_tensor_sizes(d_t1,d_t2);
+    T ccsd_t_mem{};
+    if(skip_ccsd) ccsd_t_mem = sum_tensor_sizes(d_f1,t_d_t1,t_d_t2,t_d_v2);
+    else {
+        ccsd_t_mem = sum_tensor_sizes(d_f1,d_v2,t_d_t1,t_d_t2,t_d_v2);
+        if(is_rhf) ccsd_t_mem += sum_tensor_sizes(dt1_full,dt2_full);
+        else ccsd_t_mem += sum_tensor_sizes(d_t1,d_t2);
+    }
     const double Osize = MO("occ").max_num_indices()*8/(1024*1024*1024.0);
     const double Vsize = MO("virt").max_num_indices()*8/(1024*1024*1024.0);
     const double Nsize = N.max_num_indices()*8/(1024*1024*1024.0);
@@ -320,7 +339,7 @@ void ccsd_t_driver() {
         std::cout << std::string(70, '-') << std::endl;
     }
 
-    if(computeTData) {
+    if(computeTData && !skip_ccsd) {
         d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, ex_hw);
         if(ccsd_options.writev) {
           write_to_disk(d_v2,fullV2file,true);
@@ -328,12 +347,14 @@ void ccsd_t_driver() {
         }
     }
 
-    free_tensors(cholVpr);
+
+    if(!skip_ccsd) free_tensors(cholVpr);
 
     #ifdef USE_TALSH_T
     //talshStats();
     if(has_gpu) talsh_instance.shutdown();
-    #endif  
+    #endif
+
 
     double energy1=0, energy2=0;
 
@@ -344,7 +365,7 @@ void ccsd_t_driver() {
 
     Tensor<T>::allocate(&ec,t_d_t1,t_d_t2,t_d_v2);
 
-    if(!ccsd_t_restart) {
+    if(!ccsd_t_restart && !skip_ccsd) {
         if(!is_rhf) {
           dt1_full = d_t1;
           dt2_full = d_t2;
@@ -389,18 +410,18 @@ void ccsd_t_driver() {
           free_tensors(d_v2);
         }        
     }
-    else if(ccsd_options.writev) {
+    else if(ccsd_options.writev && !skip_ccsd) {
         // read_from_disk(t_d_f1,f1file);
         read_from_disk(t_d_t1,t1file);
         read_from_disk(t_d_t2,t2file);
         read_from_disk(t_d_v2,fullV2file);
     }
 
-    if(!is_rhf) free_tensors(d_t1, d_t2);
+    if(!is_rhf && !skip_ccsd) free_tensors(d_t1, d_t2);
 
     p_evl_sorted = tamm::diagonal(d_f1);
 
-    cc_t1 = std::chrono::high_resolution_clock::now();
+    // cc_t1 = std::chrono::high_resolution_clock::now();
 
     Index noab=MO1("occ").num_tiles();
     Index nvab=MO1("virt").num_tiles();
@@ -442,7 +463,7 @@ void ccsd_t_driver() {
     energy1 = ec.pg().reduce(&energy1, ReduceOp::sum, 0);
     energy2 = ec.pg().reduce(&energy2, ReduceOp::sum, 0);
 
-    if (rank==0 && energy1!=-999){
+    if (rank==0 && !skip_ccsd) {
 
         std::cout.precision(15);
         cout << "CCSD[T] correction energy / hartree  = " << energy1 << endl;
@@ -452,8 +473,16 @@ void ccsd_t_driver() {
         cout << "CCSD(T) correction energy / hartree  = " << energy2 << endl;
         cout << "CCSD(T) correlation energy / hartree = " << corr_energy + energy2 << endl;
         cout << "CCSD(T) total energy / hartree       = " << hf_energy + corr_energy + energy2 << endl;
-    
+
+        sys_data.results["output"]["CCSD(T)"]["[T]Energies"]["correction"] =  energy1;
+        sys_data.results["output"]["CCSD(T)"]["[T]Energies"]["correlation"] =  corr_energy + energy1;
+        sys_data.results["output"]["CCSD(T)"]["[T]Energies"]["total"] =  hf_energy + corr_energy + energy1;
+        sys_data.results["output"]["CCSD(T)"]["(T)Energies"]["correction"] =  energy1;
+        sys_data.results["output"]["CCSD(T)"]["(T)Energies"]["correlation"] =  corr_energy + energy1;
+        sys_data.results["output"]["CCSD(T)"]["(T)Energies"]["total"] =  hf_energy + corr_energy + energy1;
     }
+
+
 
     long double total_num_ops = 0;  
     //
@@ -492,9 +521,17 @@ void ccsd_t_driver() {
     }
     ccsd_t_time = comm_stats("CCSD(T) Avg. Work Time", ccsd_t_time);
     if(rank == 0) {
+      const double n_gflops = total_num_ops / (total_t_time * 1e9);
+      const double load_imb = (1.0 - ccsd_t_time / total_t_time);
       std::cout << std::scientific << "   -> Total Number of Operations: " << total_num_ops << std::endl;
-      std::cout << std::fixed << "   -> GFLOPS: " << total_num_ops / (total_t_time * 1e9) << std::endl;
-      std::cout << std::fixed << "   -> Load imbalance: " << (1.0 - ccsd_t_time / total_t_time) << std::endl;
+      std::cout << std::fixed << "   -> GFLOPS: " << n_gflops << std::endl;
+      std::cout << std::fixed << "   -> Load imbalance: " << load_imb << std::endl;
+
+      sys_data.results["output"]["CCSD(T)"]["Peformance"]["TotalTime"] =  total_t_time;
+      sys_data.results["output"]["CCSD(T)"]["Peformance"]["TotalNumOps"] =  total_num_ops;
+      sys_data.results["output"]["CCSD(T)"]["Peformance"]["GFLOPS"] =  n_gflops;
+      sys_data.results["output"]["CCSD(T)"]["Peformance"]["LoadImbalance"] =  total_t_time;
+      write_json_data(sys_data,"CCSD_T");
     }
 
     comm_stats("S1-T1 GetTime", ccsdt_s1_t1_GetTime);

@@ -319,6 +319,7 @@ class CCSDOptions: public Options {
     TCutDOPre      = 3e-2;
 
     ngpu           = 0;
+    skip_ccsd      = false;
     ccsdt_tilesize = 28;
 
     eom_nroots     = 1;
@@ -392,6 +393,7 @@ class CCSDOptions: public Options {
 
   //CCSD(T)
   int    ngpu;
+  bool   skip_ccsd;
   int    ccsdt_tilesize;
 
   //DLPNO
@@ -702,7 +704,8 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
     parse_option<std::vector<int>>(ccsd_options.doubles_opt_eqns, jdlpno, "doubles_opt_eqns");
 
     json jccsd_t = jcc["CCSD(T)"];
-    parse_option<int>(ccsd_options.ngpu          , jccsd_t, "ngpu"); 
+    parse_option<int>(ccsd_options.ngpu          , jccsd_t, "ngpu");
+    parse_option<bool>(ccsd_options.skip_ccsd    , jccsd_t, "skip_ccsd");
     parse_option<int>(ccsd_options.ccsdt_tilesize, jccsd_t, "ccsdt_tilesize");    
 
     json jeomccsd = jcc["EOMCCSD"];
@@ -859,11 +862,14 @@ inline std::tuple<OptionsMap, json>
     }
 
     if(GA_Nodeid()==0){
+
+      jinput.erase(std::remove(jinput.begin(), jinput.end(), nullptr), jinput.end());
+
       std::cout << jinput.dump(2) << std::endl;
-      if(!nw_units_bohr) {
-        std::cout << "Geometry in bohr as follows:" << std::endl;
-        std::cout << jgeom_bohr.dump(2) << std::endl;
-      }
+      // if(!nw_units_bohr) {
+      //   std::cout << "Geometry in bohr as follows:" << std::endl;
+      //   std::cout << jgeom_bohr.dump(2) << std::endl;
+      // }
       options.print();
       // scf_options.print();
       // cd_options.print();

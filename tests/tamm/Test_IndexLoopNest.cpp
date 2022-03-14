@@ -6,7 +6,7 @@
 
 using namespace tamm;
 
-template<typename T>
+/*template<typename T>
 std::ostream&
 operator << (std::ostream& os, const std::vector<T>& vec) {
   os<<"[";
@@ -15,7 +15,7 @@ operator << (std::ostream& os, const std::vector<T>& vec) {
   }
   os<<"]"<<std::endl;
   return os;
-}
+}*/
 
 TEST_CASE("Zero-dimensional index loop nest with index bound constructor") {
   IndexLoopNest iln{};

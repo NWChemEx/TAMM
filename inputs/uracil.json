@@ -1,7 +1,7 @@
 {
   "geometry": {
     "coordinates": [
-      "N            .034130    -.986909     .000000",
+      "N            .034130    -.986909     .100000",
       "N          -1.173397     .981920     .000000",
       "C          -1.218805    -.408164     .000000",
       "C           -.007302    1.702153     .000000",
@@ -17,15 +17,27 @@
     "units": "angstrom"
   },
   "basis": {
-    "basisset": "sto-3g",
+    "basisset": "cc-pvdz",
     "sphcart": "spherical"
   },
   "SCF": {
-    "tilesize": 30,
+    "tol_int": 1e-16,
+    "tol_lindep": 1e-06,
+    "conve": 1e-8,
+    "convd": 1e-7,    
+    "charge": 0,
+    "multiplicity": 1,
+    "scf_type": "restricted",
     "restart": false
   },
   "CC": {
-    "tilesize": 40,
-    "balance_tiles": true
+    "threshold": 1e-6,
+    "ccsd_maxiter": 50,
+    "writet": true,
+    "CCSD(T)": {
+      "ngpu": 1,
+      "skip_ccsd": false,
+      "ccsdt_tilesize": 40
+    }
   }
 }

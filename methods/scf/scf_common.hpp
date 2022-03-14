@@ -773,7 +773,7 @@ std::tuple<size_t, double, double> gensqrtinv(
   blacspp::Grid*                  blacs_grid       = scalapack_info.blacs_grid.get();
   const auto&                     grid             = *blacs_grid;
   scalapackpp::BlockCyclicDist2D* blockcyclic_dist = scalapack_info.blockcyclic_dist.get();
-  const auto                      mb               = blockcyclic_dist->mb();
+  const tamm::Tile                mb               = blockcyclic_dist->mb();
 
   TiledIndexSpace    tN_bc{IndexSpace{range(sys_data.nbf_orig)}, mb};
   Tensor<T> S_BC{tN_bc, tN_bc};
@@ -903,7 +903,7 @@ std::tuple<size_t, double, double> gensqrtinv(
 
   #if defined(USE_SCALAPACK)
   if(scalapack_info.comm != MPI_COMM_NULL) {
-    const auto _mb      = (scalapack_info.blockcyclic_dist.get())->mb();
+    const tamm::Tile _mb= (scalapack_info.blockcyclic_dist.get())->mb();
     scf_vars.tN_bc      = TiledIndexSpace{IndexSpace{range(sys_data.nbf_orig)}, _mb};
     scf_vars.tNortho_bc = TiledIndexSpace{IndexSpace{range(sys_data.nbf)}, _mb};
     ttensors.X_alpha    = {scf_vars.tN_bc, scf_vars.tNortho_bc};

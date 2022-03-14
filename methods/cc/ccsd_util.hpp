@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ctime>
 #include "ccse_tensors.hpp"
 
 // auto lambdar2 = [](const IndexVector& blockid, span<double> buf){
@@ -424,6 +425,13 @@ std::tuple<SystemData, double,
     hartree_fock_driver(ExecutionContext &ec, const string filename) {
 
     auto rank = ec.pg().rank();
+
+    auto current_time = std::chrono::system_clock::now();
+    auto current_time_t = std::chrono::system_clock::to_time_t(current_time);
+    auto cur_local_time = localtime(&current_time_t);
+
+    if(rank == 0) cout << endl << "Date: " << std::put_time(cur_local_time, "%c") << endl << endl;
+
     double hf_energy{0.0};
     libint2::BasisSet shells;
     Tensor<T> C_AO, C_beta_AO;

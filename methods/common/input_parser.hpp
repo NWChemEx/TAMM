@@ -288,7 +288,7 @@ class CCSDOptions: public Options {
     printtol       = 0.05;
     threshold      = 1e-6;
     force_tilesize = false;
-    tilesize       = 50;
+    tilesize       = 40;
     itilesize      = 1000;
     ndiis          = 5;
     lshift         = 0;

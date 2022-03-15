@@ -477,9 +477,9 @@ void ccsd_t_driver() {
         sys_data.results["output"]["CCSD(T)"]["[T]Energies"]["correction"] =  energy1;
         sys_data.results["output"]["CCSD(T)"]["[T]Energies"]["correlation"] =  corr_energy + energy1;
         sys_data.results["output"]["CCSD(T)"]["[T]Energies"]["total"] =  hf_energy + corr_energy + energy1;
-        sys_data.results["output"]["CCSD(T)"]["(T)Energies"]["correction"] =  energy1;
-        sys_data.results["output"]["CCSD(T)"]["(T)Energies"]["correlation"] =  corr_energy + energy1;
-        sys_data.results["output"]["CCSD(T)"]["(T)Energies"]["total"] =  hf_energy + corr_energy + energy1;
+        sys_data.results["output"]["CCSD(T)"]["(T)Energies"]["correction"] =  energy2;
+        sys_data.results["output"]["CCSD(T)"]["(T)Energies"]["correlation"] =  corr_energy + energy2;
+        sys_data.results["output"]["CCSD(T)"]["(T)Energies"]["total"] =  hf_energy + corr_energy + energy2;
     }
 
 

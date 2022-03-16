@@ -583,6 +583,10 @@ ccsd_t_fused_driver_new(SystemData& sys_data, ExecutionContext& ec,
 
   #if defined(USE_CUDA)
   cudaDeviceSynchronize();
+  #elif defined(USE_HIP)
+  hipDeviceSynchronize();
+  #elif defined(USE_DPCPP)
+  syclQue->wait();
   #endif
   //
   energy1 = energy_l[0];

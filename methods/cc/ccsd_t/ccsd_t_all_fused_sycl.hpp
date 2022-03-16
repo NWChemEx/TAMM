@@ -1,3 +1,5 @@
+#pragma once
+
 #include "ccsd_t_common.hpp"
 
 //

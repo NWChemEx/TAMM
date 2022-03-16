@@ -51,7 +51,9 @@ for ref_file in ref_files:
     ref_ccsd_energy = ref_data["output"]["CCSD"]["final_energy"]["correlation"]
     cur_ccsd_energy = cur_data["output"]["CCSD"]["final_energy"]["correlation"]
 
-    if not isclose(ref_scf_energy, cur_scf_energy):
+    scf_threshold = ref_data["input"]["SCF"]["conve"]
+
+    if not isclose(ref_scf_energy, cur_scf_energy, scf_threshold):
         print("ERROR: SCF energy does not match. reference: " + str(ref_scf_energy) + ", current: " + str(cur_scf_energy))
         sys.exit(1)
 

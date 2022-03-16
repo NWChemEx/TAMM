@@ -1,5 +1,3 @@
-#pragma once
-
 #include "ccsd_t_common.hpp"
 
 //
@@ -46,8 +44,7 @@
 #define MAX_NOAB		30
 #define MAX_NVAB 		120
 
-using localAcc  = sycl::accessor<double, 2, sycl::access_mode::read_write, sycl::target::local>;
-using local_ptr = sycl::multi_ptr<double, sycl::access::address_space::local_space>;
+using localAcc = sycl::accessor<double, 2, sycl::access_mode::read_write, sycl::target::local>;
 
 // 64 KB = 65536 bytes = 16384 (int) = 8192 (size_t)
 // 9 * 9 * noab = 81 * noab
@@ -126,31 +123,18 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
     int rng_h3, rng_h2, rng_h1, rng_p6, rng_p5, rng_p4;
     int energy_rng_h3, energy_rng_h2, energy_rng_h1, energy_rng_p6, energy_rng_p5, energy_rng_p4;
 
-    energy_rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3,
-                                  FUSION_SIZE_SLICE_1_H3,
-                                  int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
-    energy_rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2,
-                                  FUSION_SIZE_SLICE_1_H2,
-                                  int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
-    energy_rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1,
-                                  FUSION_SIZE_SLICE_1_H1,
-                                  int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
-
-    energy_rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6,
-                                  FUSION_SIZE_SLICE_1_P6,
-                                  int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
-    energy_rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5,
-                                  FUSION_SIZE_SLICE_1_P5,
-                                  int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
-    energy_rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4,
-                                  FUSION_SIZE_SLICE_1_P4,
-                                  int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
+    energy_rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3, FUSION_SIZE_SLICE_1_H3, int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
+    energy_rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2, FUSION_SIZE_SLICE_1_H2, int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
+    energy_rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1, FUSION_SIZE_SLICE_1_H1, int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
+    energy_rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6, FUSION_SIZE_SLICE_1_P6, int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
+    energy_rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5, FUSION_SIZE_SLICE_1_P5, int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
+    energy_rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4, FUSION_SIZE_SLICE_1_P4, int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
 
     //
-    sycl::vec<double, 4> temp_av;
-    sycl::vec<double, 4> temp_bv;
-    sycl::vec<double, 4> reg_tile[4];
-    sycl::vec<double, 4> reg_singles[4];
+    double temp_av{0};
+    double temp_bv[4] = {0};
+    double reg_tile[4][4] = {{0}};
+    double reg_singles[4][4] = {{0}};
 
     int base_size_h7b, base_size_p7b;
 
@@ -219,29 +203,12 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         str_blk_idx_p4 	= blk_idx_p4b * FUSION_SIZE_SLICE_1_P4;
 
         // 	(4) rng_h/p*
-        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3,
-                               FUSION_SIZE_SLICE_1_H3,
-                               int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
-
-        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2,
-                               FUSION_SIZE_SLICE_1_H2,
-                               int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
-
-        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1,
-                               FUSION_SIZE_SLICE_1_H1,
-                               int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
-
-        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6,
-                               FUSION_SIZE_SLICE_1_P6,
-                               int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
-
-        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5,
-                               FUSION_SIZE_SLICE_1_P5,
-                               int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
-
-        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4,
-                               FUSION_SIZE_SLICE_1_P4,
-                               int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
+        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3, FUSION_SIZE_SLICE_1_H3, int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
+        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2, FUSION_SIZE_SLICE_1_H2, int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
+        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1, FUSION_SIZE_SLICE_1_H1, int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
+        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6, FUSION_SIZE_SLICE_1_P6, int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
+        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5, FUSION_SIZE_SLICE_1_P5, int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
+        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4, FUSION_SIZE_SLICE_1_P4, int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
 
         //  sd1_1
         if (flag_d1_1 >= 0)
@@ -250,6 +217,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             double* tmp_dev_d1_t2 = df_dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_1;
             double* tmp_dev_d1_v2 = df_dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_1;
 
+            //
             internal_upperbound = 0;
 #pragma unroll 1
             for (int l = 0; l < base_size_h7b; l+= FUSION_SIZE_INT_UNIT)
@@ -261,7 +229,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_p4 && idx_h1 < rng_h1 &&
-                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound) {
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
                         sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
@@ -272,7 +240,6 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                           base_size_h7b +
                                           (threadIdx_x + l)];
                     }
-		}
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h3 && idx_h2 < rng_h2 &&
@@ -294,12 +261,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h3 + (idx_h2) * FUSION_SIZE_SLICE_2_H3]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6]) ));
-                    reg_tile[0] -= (temp_av * temp_bv.s0());
-                    reg_tile[1] -= (temp_av * temp_bv.s1());
-                    reg_tile[2] -= (temp_av * temp_bv.s2());
-                    reg_tile[3] -= (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_b[ll][idx_h3 + (idx_h2) * FUSION_SIZE_SLICE_2_H3 + 0];
+                    temp_bv[1] = sm_b[ll][idx_h3 + (idx_h2) * FUSION_SIZE_SLICE_2_H3 + 16];
+                    temp_bv[2] = sm_b[ll][idx_h3 + (idx_h2) * FUSION_SIZE_SLICE_2_H3 + 32];
+                    temp_bv[3] = sm_b[ll][idx_h3 + (idx_h2) * FUSION_SIZE_SLICE_2_H3 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_a[ll][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6 + (xx * 16)];
+
+                        reg_tile[0][xx] -= temp_av * temp_bv[0];
+                        reg_tile[1][xx] -= temp_av * temp_bv[1];
+                        reg_tile[2][xx] -= temp_av * temp_bv[2];
+                        reg_tile[3][xx] -= temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -338,7 +313,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h3 && idx_h2 < rng_h1 &&
-                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound) {
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p6; ll++)
                     {
                         sm_b[threadIdx_y][threadIdx_x + ll * FUSION_SIZE_TB_2_X] =
@@ -349,19 +324,26 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                            base_size_h1b) *
                                           base_size_h3b];
                     }
-		}
                 sycl::group_barrier( thread_block );
 
                 // Cross-Product: -1
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h3 + (idx_h1) * FUSION_SIZE_SLICE_2_H3]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_2_P4]) ));
-                    reg_tile[0] += (temp_av * temp_bv.s0());
-                    reg_tile[1] += (temp_av * temp_bv.s1());
-                    reg_tile[2] += (temp_av * temp_bv.s2());
-                    reg_tile[3] += (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_b[ll][idx_h3 + (idx_h1) * FUSION_SIZE_SLICE_2_H3 + 0];
+                    temp_bv[1] = sm_b[ll][idx_h3 + (idx_h1) * FUSION_SIZE_SLICE_2_H3 + 16];
+                    temp_bv[2] = sm_b[ll][idx_h3 + (idx_h1) * FUSION_SIZE_SLICE_2_H3 + 32];
+                    temp_bv[3] = sm_b[ll][idx_h3 + (idx_h1) * FUSION_SIZE_SLICE_2_H3 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_a[ll][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_2_P4 + (xx * 16)];
+
+                        reg_tile[0][xx] += temp_av * temp_bv[0];
+                        reg_tile[1][xx] += temp_av * temp_bv[1];
+                        reg_tile[2][xx] += temp_av * temp_bv[2];
+                        reg_tile[3][xx] += temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -385,7 +367,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Load Input Tensor to Shared Memory: 16:16
                 // # of size_internal Indices: 1
                 if (idx_p6 < rng_p4 && idx_h1 < rng_h3 &&
-                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound) {
+                    threadIdx_x < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p5; ll++)
                     {
                         sm_a[threadIdx_x][threadIdx_y + ll * FUSION_SIZE_TB_2_Y] =
@@ -396,11 +378,10 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                           base_size_h7b +
                                           (threadIdx_x + l)];
                     }
-		}
 
                 // Load Input Tensor to Shared Memory
                 if (idx_h3 < rng_h2 && idx_h2 < rng_h1 &&
-                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound) {
+                    threadIdx_y < FUSION_SIZE_INT_UNIT - internal_upperbound)
                     for (int ll = 0; ll < rng_p6; ll++)
                     {
                         sm_b[threadIdx_y][threadIdx_x + ll * FUSION_SIZE_TB_2_X] =
@@ -411,19 +392,26 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                                             base_size_h1b) *
                                            base_size_h2b)];
                     }
-		}
                 sycl::group_barrier( thread_block );
 
                 // Cross-Product: -1
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h2 + (idx_h1) * FUSION_SIZE_SLICE_2_H2]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_2_P4]) ));
-                    reg_tile[0] -= (temp_av * temp_bv.s0());
-                    reg_tile[1] -= (temp_av * temp_bv.s1());
-                    reg_tile[2] -= (temp_av * temp_bv.s2());
-                    reg_tile[3] -= (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_b[ll][idx_h2 + (idx_h1) * FUSION_SIZE_SLICE_2_H2 + 0];
+                    temp_bv[1] = sm_b[ll][idx_h2 + (idx_h1) * FUSION_SIZE_SLICE_2_H2 + 16];
+                    temp_bv[2] = sm_b[ll][idx_h2 + (idx_h1) * FUSION_SIZE_SLICE_2_H2 + 32];
+                    temp_bv[3] = sm_b[ll][idx_h2 + (idx_h1) * FUSION_SIZE_SLICE_2_H2 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_a[ll][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_2_P4 + (xx * 16)];
+
+                        reg_tile[0][xx] -= temp_av * temp_bv[0];
+                        reg_tile[1][xx] -= temp_av * temp_bv[1];
+                        reg_tile[2][xx] -= temp_av * temp_bv[2];
+                        reg_tile[3][xx] -= temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -481,25 +469,12 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         str_blk_idx_p4 	= blk_idx_p4b * FUSION_SIZE_SLICE_1_P4;
 
         // 	(4) rng_h/p*
-        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3,
-                               FUSION_SIZE_SLICE_1_H3,
-                               int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
-        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2,
-                               FUSION_SIZE_SLICE_1_H2,
-                               int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
-        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1,
-                               FUSION_SIZE_SLICE_1_H1,
-                               int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
-
-        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6,
-                               FUSION_SIZE_SLICE_1_P6,
-                               int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
-        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5,
-                               FUSION_SIZE_SLICE_1_P5,
-                               int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
-        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4,
-                               FUSION_SIZE_SLICE_1_P4,
-                               int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
+        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3, FUSION_SIZE_SLICE_1_H3, int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
+        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2, FUSION_SIZE_SLICE_1_H2, int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
+        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1, FUSION_SIZE_SLICE_1_H1, int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
+        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6, FUSION_SIZE_SLICE_1_P6, int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
+        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5, FUSION_SIZE_SLICE_1_P5, int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
+        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4, FUSION_SIZE_SLICE_1_P4, int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
 
         //	sd2_7
         if (flag_d2_7 >= 0)
@@ -551,12 +526,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_h1 + (idx_h2) * FUSION_SIZE_SLICE_2_H1]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h3 + (idx_p6) * FUSION_SIZE_SLICE_2_H3]) ));
-                    reg_tile[0] -= (temp_av * temp_bv.s0());
-                    reg_tile[1] -= (temp_av * temp_bv.s1());
-                    reg_tile[2] -= (temp_av * temp_bv.s2());
-                    reg_tile[3] -= (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_a[ll][idx_h1 + (idx_h2) * FUSION_SIZE_SLICE_2_H1 + 0];
+                    temp_bv[1] = sm_a[ll][idx_h1 + (idx_h2) * FUSION_SIZE_SLICE_2_H1 + 16];
+                    temp_bv[2] = sm_a[ll][idx_h1 + (idx_h2) * FUSION_SIZE_SLICE_2_H1 + 32];
+                    temp_bv[3] = sm_a[ll][idx_h1 + (idx_h2) * FUSION_SIZE_SLICE_2_H1 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_b[ll][idx_h3 + (idx_p6) * FUSION_SIZE_SLICE_2_H3 + (xx * 16)];
+
+                        reg_tile[0][xx] -= temp_av * temp_bv[0];
+                        reg_tile[1][xx] -= temp_av * temp_bv[1];
+                        reg_tile[2][xx] -= temp_av * temp_bv[2];
+                        reg_tile[3][xx] -= temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -612,12 +595,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_h2 + (idx_h3) * FUSION_SIZE_SLICE_2_H2]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h1 + (idx_p6) * FUSION_SIZE_SLICE_2_H1]) ));
-                    reg_tile[0] -= (temp_av * temp_bv.s0());
-                    reg_tile[1] -= (temp_av * temp_bv.s1());
-                    reg_tile[2] -= (temp_av * temp_bv.s2());
-                    reg_tile[3] -= (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_a[ll][idx_h2 + (idx_h3) * FUSION_SIZE_SLICE_2_H2 + 0];
+                    temp_bv[1] = sm_a[ll][idx_h2 + (idx_h3) * FUSION_SIZE_SLICE_2_H2 + 16];
+                    temp_bv[2] = sm_a[ll][idx_h2 + (idx_h3) * FUSION_SIZE_SLICE_2_H2 + 32];
+                    temp_bv[3] = sm_a[ll][idx_h2 + (idx_h3) * FUSION_SIZE_SLICE_2_H2 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_b[ll][idx_h1 + (idx_p6) * FUSION_SIZE_SLICE_2_H1 + (xx * 16)];
+
+                        reg_tile[0][xx] -= temp_av * temp_bv[0];
+                        reg_tile[1][xx] -= temp_av * temp_bv[1];
+                        reg_tile[2][xx] -= temp_av * temp_bv[2];
+                        reg_tile[3][xx] -= temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -673,90 +664,219 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_h1 + (idx_h3) * FUSION_SIZE_SLICE_2_H1]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_2_H2]) ));
-		    reg_tile[0] += (temp_av * temp_bv.s0());
-		    reg_tile[1] += (temp_av * temp_bv.s1());
-		    reg_tile[2] += (temp_av * temp_bv.s2());
-		    reg_tile[3] += (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_a[ll][idx_h1 + (idx_h3) * FUSION_SIZE_SLICE_2_H1 + 0];
+                    temp_bv[1] = sm_a[ll][idx_h1 + (idx_h3) * FUSION_SIZE_SLICE_2_H1 + 16];
+                    temp_bv[2] = sm_a[ll][idx_h1 + (idx_h3) * FUSION_SIZE_SLICE_2_H1 + 32];
+                    temp_bv[3] = sm_a[ll][idx_h1 + (idx_h3) * FUSION_SIZE_SLICE_2_H1 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_b[ll][idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_2_H2 + (xx * 16)];
+
+                        reg_tile[0][xx] += temp_av * temp_bv[0];
+                        reg_tile[1][xx] += temp_av * temp_bv[1];
+                        reg_tile[2][xx] += temp_av * temp_bv[2];
+                        reg_tile[3][xx] += temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
         }
     }
 
+    //
     //  Register Transpose (top - bottom)
+    //
     {
         if (threadIdx_y < 4) // 0, 1, 2, 3
         {
-            // sm_a[16][64] <-- (4 x 16) x (4 x 4) = (16 x 64)            'y''x'
-            reg_tile[0].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[0 + threadIdx_y * 4][threadIdx_x]) ));
-            reg_tile[1].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[1 + threadIdx_y * 4][threadIdx_x]) ));
-            reg_tile[2].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[2 + threadIdx_y * 4][threadIdx_x]) ));
-            reg_tile[3].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[3 + threadIdx_y * 4][threadIdx_x]) ));
+            // sm_a[16][64] <-- (4 x 16) x (4 x 4) = (16 x 64)		  'y''x'
+            sm_a[0 + threadIdx_y * 4][threadIdx_x] = reg_tile[0][0];
+            sm_a[1 + threadIdx_y * 4][threadIdx_x] = reg_tile[1][0];
+            sm_a[2 + threadIdx_y * 4][threadIdx_x] = reg_tile[2][0];
+            sm_a[3 + threadIdx_y * 4][threadIdx_x] = reg_tile[3][0];
+
+            sm_a[0 + threadIdx_y * 4][threadIdx_x + 16] = reg_tile[0][1];
+            sm_a[1 + threadIdx_y * 4][threadIdx_x + 16] = reg_tile[1][1];
+            sm_a[2 + threadIdx_y * 4][threadIdx_x + 16] = reg_tile[2][1];
+            sm_a[3 + threadIdx_y * 4][threadIdx_x + 16] = reg_tile[3][1];
+
+            sm_a[0 + threadIdx_y * 4][threadIdx_x + 32] = reg_tile[0][2];
+            sm_a[1 + threadIdx_y * 4][threadIdx_x + 32] = reg_tile[1][2];
+            sm_a[2 + threadIdx_y * 4][threadIdx_x + 32] = reg_tile[2][2];
+            sm_a[3 + threadIdx_y * 4][threadIdx_x + 32] = reg_tile[3][2];
+
+            sm_a[0 + threadIdx_y * 4][threadIdx_x + 48] = reg_tile[0][3];
+            sm_a[1 + threadIdx_y * 4][threadIdx_x + 48] = reg_tile[1][3];
+            sm_a[2 + threadIdx_y * 4][threadIdx_x + 48] = reg_tile[2][3];
+            sm_a[3 + threadIdx_y * 4][threadIdx_x + 48] = reg_tile[3][3];
         }
 
         if (threadIdx_y >= 4 && threadIdx_y < 8) // 4, 5, 6, 7
         {
-            reg_tile[0].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[0 + (threadIdx_y - 4) * 4][threadIdx_x]) ));
-            reg_tile[1].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[1 + (threadIdx_y - 4) * 4][threadIdx_x]) ));
-            reg_tile[2].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[2 + (threadIdx_y - 4) * 4][threadIdx_x]) ));
-            reg_tile[3].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[3 + (threadIdx_y - 4) * 4][threadIdx_x]) ));
+            sm_b[0 + (threadIdx_y - 4) * 4][threadIdx_x] = reg_tile[0][0];
+            sm_b[1 + (threadIdx_y - 4) * 4][threadIdx_x] = reg_tile[1][0];
+            sm_b[2 + (threadIdx_y - 4) * 4][threadIdx_x] = reg_tile[2][0];
+            sm_b[3 + (threadIdx_y - 4) * 4][threadIdx_x] = reg_tile[3][0];
+
+            sm_b[0 + (threadIdx_y - 4) * 4][threadIdx_x + 16] = reg_tile[0][1];
+            sm_b[1 + (threadIdx_y - 4) * 4][threadIdx_x + 16] = reg_tile[1][1];
+            sm_b[2 + (threadIdx_y - 4) * 4][threadIdx_x + 16] = reg_tile[2][1];
+            sm_b[3 + (threadIdx_y - 4) * 4][threadIdx_x + 16] = reg_tile[3][1];
+
+            sm_b[0 + (threadIdx_y - 4) * 4][threadIdx_x + 32] = reg_tile[0][2];
+            sm_b[1 + (threadIdx_y - 4) * 4][threadIdx_x + 32] = reg_tile[1][2];
+            sm_b[2 + (threadIdx_y - 4) * 4][threadIdx_x + 32] = reg_tile[2][2];
+            sm_b[3 + (threadIdx_y - 4) * 4][threadIdx_x + 32] = reg_tile[3][2];
+
+            sm_b[0 + (threadIdx_y - 4) * 4][threadIdx_x + 48] = reg_tile[0][3];
+            sm_b[1 + (threadIdx_y - 4) * 4][threadIdx_x + 48] = reg_tile[1][3];
+            sm_b[2 + (threadIdx_y - 4) * 4][threadIdx_x + 48] = reg_tile[2][3];
+            sm_b[3 + (threadIdx_y - 4) * 4][threadIdx_x + 48] = reg_tile[3][3];
         }
         sycl::group_barrier( thread_block );
 
         if (threadIdx_y < 4) // 0, 1, 2, 3
         {
-            reg_tile[0].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[threadIdx_y + 0][threadIdx_x]) ));
-            reg_tile[1].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[threadIdx_y + 4][threadIdx_x]) ));
-            reg_tile[2].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[threadIdx_y + 8][threadIdx_x]) ));
-            reg_tile[3].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[threadIdx_y + 12][threadIdx_x]) ));
+            reg_tile[0][0] = sm_a[threadIdx_y + 0][(threadIdx_x)];
+            reg_tile[1][0] = sm_a[threadIdx_y + 4][(threadIdx_x)];
+            reg_tile[2][0] = sm_a[threadIdx_y + 8][(threadIdx_x)];
+            reg_tile[3][0] = sm_a[threadIdx_y + 12][(threadIdx_x)];
+
+            reg_tile[0][1] = sm_a[threadIdx_y + 0][(threadIdx_x) + 16];
+            reg_tile[1][1] = sm_a[threadIdx_y + 4][(threadIdx_x) + 16];
+            reg_tile[2][1] = sm_a[threadIdx_y + 8][(threadIdx_x) + 16];
+            reg_tile[3][1] = sm_a[threadIdx_y + 12][(threadIdx_x) + 16];
+
+            reg_tile[0][2] = sm_a[threadIdx_y + 0][(threadIdx_x) + 32];
+            reg_tile[1][2] = sm_a[threadIdx_y + 4][(threadIdx_x) + 32];
+            reg_tile[2][2] = sm_a[threadIdx_y + 8][(threadIdx_x) + 32];
+            reg_tile[3][2] = sm_a[threadIdx_y + 12][(threadIdx_x) + 32];
+
+            reg_tile[0][3] = sm_a[threadIdx_y + 0][(threadIdx_x) + 48];
+            reg_tile[1][3] = sm_a[threadIdx_y + 4][(threadIdx_x) + 48];
+            reg_tile[2][3] = sm_a[threadIdx_y + 8][(threadIdx_x) + 48];
+            reg_tile[3][3] = sm_a[threadIdx_y + 12][(threadIdx_x) + 48];
         }
 
         if (threadIdx_y >= 4 && threadIdx_y < 8) // 4, 5, 6, 7
         {
-            reg_tile[0].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[(threadIdx_y - 4) + 0][threadIdx_x]) ));
-            reg_tile[1].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[(threadIdx_y - 4) + 4][threadIdx_x]) ));
-            reg_tile[2].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[(threadIdx_y - 4) + 8][threadIdx_x]) ));
-            reg_tile[3].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[(threadIdx_y - 4) + 12][threadIdx_x]) ));
+            reg_tile[0][0] = sm_b[(threadIdx_y - 4) + 0][(threadIdx_x)];
+            reg_tile[1][0] = sm_b[(threadIdx_y - 4) + 4][(threadIdx_x)];
+            reg_tile[2][0] = sm_b[(threadIdx_y - 4) + 8][(threadIdx_x)];
+            reg_tile[3][0] = sm_b[(threadIdx_y - 4) + 12][(threadIdx_x)];
+
+            reg_tile[0][1] = sm_b[(threadIdx_y - 4) + 0][(threadIdx_x) + 16];
+            reg_tile[1][1] = sm_b[(threadIdx_y - 4) + 4][(threadIdx_x) + 16];
+            reg_tile[2][1] = sm_b[(threadIdx_y - 4) + 8][(threadIdx_x) + 16];
+            reg_tile[3][1] = sm_b[(threadIdx_y - 4) + 12][(threadIdx_x) + 16];
+
+            reg_tile[0][2] = sm_b[(threadIdx_y - 4) + 0][(threadIdx_x) + 32];
+            reg_tile[1][2] = sm_b[(threadIdx_y - 4) + 4][(threadIdx_x) + 32];
+            reg_tile[2][2] = sm_b[(threadIdx_y - 4) + 8][(threadIdx_x) + 32];
+            reg_tile[3][2] = sm_b[(threadIdx_y - 4) + 12][(threadIdx_x) + 32];
+
+            reg_tile[0][3] = sm_b[(threadIdx_y - 4) + 0][(threadIdx_x) + 48];
+            reg_tile[1][3] = sm_b[(threadIdx_y - 4) + 4][(threadIdx_x) + 48];
+            reg_tile[2][3] = sm_b[(threadIdx_y - 4) + 8][(threadIdx_x) + 48];
+            reg_tile[3][3] = sm_b[(threadIdx_y - 4) + 12][(threadIdx_x) + 48];
         }
         sycl::group_barrier( thread_block );
 
         if (threadIdx_y >= 8 && threadIdx_y < 12) // 8, 9, 10, 11
         {
-            reg_tile[0].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[0 + (threadIdx_y - 8) * 4][threadIdx_x]) ));
-            reg_tile[1].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[1 + (threadIdx_y - 8) * 4][threadIdx_x]) ));
-            reg_tile[2].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[2 + (threadIdx_y - 8) * 4][threadIdx_x]) ));
-            reg_tile[3].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[3 + (threadIdx_y - 8) * 4][threadIdx_x]) ));
+            sm_a[0 + (threadIdx_y - 8) * 4][threadIdx_x] = reg_tile[0][0];
+            sm_a[1 + (threadIdx_y - 8) * 4][threadIdx_x] = reg_tile[1][0];
+            sm_a[2 + (threadIdx_y - 8) * 4][threadIdx_x] = reg_tile[2][0];
+            sm_a[3 + (threadIdx_y - 8) * 4][threadIdx_x] = reg_tile[3][0];
+
+            sm_a[0 + (threadIdx_y - 8) * 4][threadIdx_x + 16] = reg_tile[0][1];
+            sm_a[1 + (threadIdx_y - 8) * 4][threadIdx_x + 16] = reg_tile[1][1];
+            sm_a[2 + (threadIdx_y - 8) * 4][threadIdx_x + 16] = reg_tile[2][1];
+            sm_a[3 + (threadIdx_y - 8) * 4][threadIdx_x + 16] = reg_tile[3][1];
+
+            sm_a[0 + (threadIdx_y - 8) * 4][threadIdx_x + 32] = reg_tile[0][2];
+            sm_a[1 + (threadIdx_y - 8) * 4][threadIdx_x + 32] = reg_tile[1][2];
+            sm_a[2 + (threadIdx_y - 8) * 4][threadIdx_x + 32] = reg_tile[2][2];
+            sm_a[3 + (threadIdx_y - 8) * 4][threadIdx_x + 32] = reg_tile[3][2];
+
+            sm_a[0 + (threadIdx_y - 8) * 4][threadIdx_x + 48] = reg_tile[0][3];
+            sm_a[1 + (threadIdx_y - 8) * 4][threadIdx_x + 48] = reg_tile[1][3];
+            sm_a[2 + (threadIdx_y - 8) * 4][threadIdx_x + 48] = reg_tile[2][3];
+            sm_a[3 + (threadIdx_y - 8) * 4][threadIdx_x + 48] = reg_tile[3][3];
         }
 
         if (threadIdx_y >= 12) // 12, 13, 14, 15
         {
-            reg_tile[0].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[0 + (threadIdx_y - 12) * 4][threadIdx_x]) ));
-            reg_tile[1].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[1 + (threadIdx_y - 12) * 4][threadIdx_x]) ));
-            reg_tile[2].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[2 + (threadIdx_y - 12) * 4][threadIdx_x]) ));
-            reg_tile[3].store<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[3 + (threadIdx_y - 12) * 4][threadIdx_x]) ));
+            sm_b[0 + (threadIdx_y - 12) * 4][threadIdx_x] = reg_tile[0][0];
+            sm_b[1 + (threadIdx_y - 12) * 4][threadIdx_x] = reg_tile[1][0];
+            sm_b[2 + (threadIdx_y - 12) * 4][threadIdx_x] = reg_tile[2][0];
+            sm_b[3 + (threadIdx_y - 12) * 4][threadIdx_x] = reg_tile[3][0];
+
+            sm_b[0 + (threadIdx_y - 12) * 4][threadIdx_x + 16] = reg_tile[0][1];
+            sm_b[1 + (threadIdx_y - 12) * 4][threadIdx_x + 16] = reg_tile[1][1];
+            sm_b[2 + (threadIdx_y - 12) * 4][threadIdx_x + 16] = reg_tile[2][1];
+            sm_b[3 + (threadIdx_y - 12) * 4][threadIdx_x + 16] = reg_tile[3][1];
+
+            sm_b[0 + (threadIdx_y - 12) * 4][threadIdx_x + 32] = reg_tile[0][2];
+            sm_b[1 + (threadIdx_y - 12) * 4][threadIdx_x + 32] = reg_tile[1][2];
+            sm_b[2 + (threadIdx_y - 12) * 4][threadIdx_x + 32] = reg_tile[2][2];
+            sm_b[3 + (threadIdx_y - 12) * 4][threadIdx_x + 32] = reg_tile[3][2];
+
+            sm_b[0 + (threadIdx_y - 12) * 4][threadIdx_x + 48] = reg_tile[0][3];
+            sm_b[1 + (threadIdx_y - 12) * 4][threadIdx_x + 48] = reg_tile[1][3];
+            sm_b[2 + (threadIdx_y - 12) * 4][threadIdx_x + 48] = reg_tile[2][3];
+            sm_b[3 + (threadIdx_y - 12) * 4][threadIdx_x + 48] = reg_tile[3][3];
         }
         sycl::group_barrier( thread_block );
 
         if (threadIdx_y >= 8 && threadIdx_y < 12) // 8, 9, 10, 11
         {
-            reg_tile[0].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[(threadIdx_y - 8) + 0][threadIdx_x]) ));
-            reg_tile[1].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[(threadIdx_y - 8) + 4][threadIdx_x]) ));
-            reg_tile[2].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[(threadIdx_y - 8) + 8][threadIdx_x]) ));
-            reg_tile[3].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[(threadIdx_y - 8) + 12][threadIdx_x]) ));
+            reg_tile[0][0] = sm_a[(threadIdx_y - 8) + 0][(threadIdx_x)];
+            reg_tile[1][0] = sm_a[(threadIdx_y - 8) + 4][(threadIdx_x)];
+            reg_tile[2][0] = sm_a[(threadIdx_y - 8) + 8][(threadIdx_x)];
+            reg_tile[3][0] = sm_a[(threadIdx_y - 8) + 12][(threadIdx_x)];
+
+            reg_tile[0][1] = sm_a[(threadIdx_y - 8) + 0][(threadIdx_x) + 16];
+            reg_tile[1][1] = sm_a[(threadIdx_y - 8) + 4][(threadIdx_x) + 16];
+            reg_tile[2][1] = sm_a[(threadIdx_y - 8) + 8][(threadIdx_x) + 16];
+            reg_tile[3][1] = sm_a[(threadIdx_y - 8) + 12][(threadIdx_x) + 16];
+
+            reg_tile[0][2] = sm_a[(threadIdx_y - 8) + 0][(threadIdx_x) + 32];
+            reg_tile[1][2] = sm_a[(threadIdx_y - 8) + 4][(threadIdx_x) + 32];
+            reg_tile[2][2] = sm_a[(threadIdx_y - 8) + 8][(threadIdx_x) + 32];
+            reg_tile[3][2] = sm_a[(threadIdx_y - 8) + 12][(threadIdx_x) + 32];
+
+            reg_tile[0][3] = sm_a[(threadIdx_y - 8) + 0][(threadIdx_x) + 48];
+            reg_tile[1][3] = sm_a[(threadIdx_y - 8) + 4][(threadIdx_x) + 48];
+            reg_tile[2][3] = sm_a[(threadIdx_y - 8) + 8][(threadIdx_x) + 48];
+            reg_tile[3][3] = sm_a[(threadIdx_y - 8) + 12][(threadIdx_x) + 48];
         }
 
         if (threadIdx_y >= 12) // 12, 13, 14, 15
         {
-            reg_tile[0].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[(threadIdx_y - 12) + 0][threadIdx_x]) ));
-            reg_tile[1].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[(threadIdx_y - 12) + 4][threadIdx_x]) ));
-            reg_tile[2].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[(threadIdx_y - 12) + 8][threadIdx_x]) ));
-            reg_tile[3].load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[(threadIdx_y - 12) + 12][threadIdx_x]) ));
+            reg_tile[0][0] = sm_b[(threadIdx_y - 12) + 0][(threadIdx_x)];
+            reg_tile[1][0] = sm_b[(threadIdx_y - 12) + 4][(threadIdx_x)];
+            reg_tile[2][0] = sm_b[(threadIdx_y - 12) + 8][(threadIdx_x)];
+            reg_tile[3][0] = sm_b[(threadIdx_y - 12) + 12][(threadIdx_x)];
+
+            reg_tile[0][1] = sm_b[(threadIdx_y - 12) + 0][(threadIdx_x) + 16];
+            reg_tile[1][1] = sm_b[(threadIdx_y - 12) + 4][(threadIdx_x) + 16];
+            reg_tile[2][1] = sm_b[(threadIdx_y - 12) + 8][(threadIdx_x) + 16];
+            reg_tile[3][1] = sm_b[(threadIdx_y - 12) + 12][(threadIdx_x) + 16];
+
+            reg_tile[0][2] = sm_b[(threadIdx_y - 12) + 0][(threadIdx_x) + 32];
+            reg_tile[1][2] = sm_b[(threadIdx_y - 12) + 4][(threadIdx_x) + 32];
+            reg_tile[2][2] = sm_b[(threadIdx_y - 12) + 8][(threadIdx_x) + 32];
+            reg_tile[3][2] = sm_b[(threadIdx_y - 12) + 12][(threadIdx_x) + 32];
+
+            reg_tile[0][3] = sm_b[(threadIdx_y - 12) + 0][(threadIdx_x) + 48];
+            reg_tile[1][3] = sm_b[(threadIdx_y - 12) + 4][(threadIdx_x) + 48];
+            reg_tile[2][3] = sm_b[(threadIdx_y - 12) + 8][(threadIdx_x) + 48];
+            reg_tile[3][3] = sm_b[(threadIdx_y - 12) + 12][(threadIdx_x) + 48];
         }
         sycl::group_barrier( thread_block );
-    }
-    //  End of Register Transpose
+    }   // 	End of Register Transpose
 
     //
     // 	based on "noab"
@@ -814,25 +934,12 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         str_blk_idx_p4 = blk_idx_p4b * FUSION_SIZE_SLICE_1_P4;
 
         // 	(4) rng_h/p*
-        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3,
-                               FUSION_SIZE_SLICE_1_H3,
-                               int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
-        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2,
-                               FUSION_SIZE_SLICE_1_H2,
-                               int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
-        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1,
-                               FUSION_SIZE_SLICE_1_H1,
-                               int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
-
-        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6,
-                               FUSION_SIZE_SLICE_1_P6,
-                               int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
-        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5,
-                               FUSION_SIZE_SLICE_1_P5,
-                               int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
-        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4,
-                               FUSION_SIZE_SLICE_1_P4,
-                               int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
+        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3, FUSION_SIZE_SLICE_1_H3, int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
+        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2, FUSION_SIZE_SLICE_1_H2, int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
+        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1, FUSION_SIZE_SLICE_1_H1, int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
+        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6, FUSION_SIZE_SLICE_1_P6, int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
+        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5, FUSION_SIZE_SLICE_1_P5, int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
+        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4, FUSION_SIZE_SLICE_1_P4, int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
 
         // 	sd1_4
         if (flag_d1_4 >= 0)
@@ -883,12 +990,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h3 + (idx_h2) * FUSION_SIZE_SLICE_1_H3]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6]) ));
-                    reg_tile[0] -= (temp_av * temp_bv.s0());
-                    reg_tile[1] -= (temp_av * temp_bv.s1());
-                    reg_tile[2] -= (temp_av * temp_bv.s2());
-                    reg_tile[3] -= (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_b[ll][idx_h3 + (idx_h2) * FUSION_SIZE_SLICE_1_H3 + 0];
+                    temp_bv[1] = sm_b[ll][idx_h3 + (idx_h2) * FUSION_SIZE_SLICE_1_H3 + 16];
+                    temp_bv[2] = sm_b[ll][idx_h3 + (idx_h2) * FUSION_SIZE_SLICE_1_H3 + 32];
+                    temp_bv[3] = sm_b[ll][idx_h3 + (idx_h2) * FUSION_SIZE_SLICE_1_H3 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_a[ll][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6 + (xx * 16)];
+
+                        reg_tile[0][xx] -= temp_av * temp_bv[0];
+                        reg_tile[1][xx] -= temp_av * temp_bv[1];
+                        reg_tile[2][xx] -= temp_av * temp_bv[2];
+                        reg_tile[3][xx] -= temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -944,12 +1059,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h3 + (idx_h1) * FUSION_SIZE_SLICE_1_H3]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6]) ));
-                    reg_tile[0] += (temp_av * temp_bv.s0());
-                    reg_tile[1] += (temp_av * temp_bv.s1());
-                    reg_tile[2] += (temp_av * temp_bv.s2());
-                    reg_tile[3] += (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_b[ll][idx_h3 + (idx_h1) * FUSION_SIZE_SLICE_1_H3 + 0];
+                    temp_bv[1] = sm_b[ll][idx_h3 + (idx_h1) * FUSION_SIZE_SLICE_1_H3 + 16];
+                    temp_bv[2] = sm_b[ll][idx_h3 + (idx_h1) * FUSION_SIZE_SLICE_1_H3 + 32];
+                    temp_bv[3] = sm_b[ll][idx_h3 + (idx_h1) * FUSION_SIZE_SLICE_1_H3 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_a[ll][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6 + (xx * 16)];
+
+                        reg_tile[0][xx] += temp_av * temp_bv[0];
+                        reg_tile[1][xx] += temp_av * temp_bv[1];
+                        reg_tile[2][xx] += temp_av * temp_bv[2];
+                        reg_tile[3][xx] += temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -1005,12 +1128,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h2 + (idx_h1) * FUSION_SIZE_SLICE_1_H2]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6]) ));
-                    reg_tile[0] -= (temp_av * temp_bv.s0());
-                    reg_tile[1] -= (temp_av * temp_bv.s1());
-                    reg_tile[2] -= (temp_av * temp_bv.s2());
-                    reg_tile[3] -= (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_b[ll][idx_h2 + (idx_h1) * FUSION_SIZE_SLICE_1_H2 + 0];
+                    temp_bv[1] = sm_b[ll][idx_h2 + (idx_h1) * FUSION_SIZE_SLICE_1_H2 + 16];
+                    temp_bv[2] = sm_b[ll][idx_h2 + (idx_h1) * FUSION_SIZE_SLICE_1_H2 + 32];
+                    temp_bv[3] = sm_b[ll][idx_h2 + (idx_h1) * FUSION_SIZE_SLICE_1_H2 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_a[ll][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6 + (xx * 16)];
+
+                        reg_tile[0][xx] -= temp_av * temp_bv[0];
+                        reg_tile[1][xx] -= temp_av * temp_bv[1];
+                        reg_tile[2][xx] -= temp_av * temp_bv[2];
+                        reg_tile[3][xx] -= temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -1065,12 +1196,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h3 + (idx_h2) * FUSION_SIZE_SLICE_1_H3]) ));
-                    reg_tile[0] += (temp_av * temp_bv.s0());
-                    reg_tile[1] += (temp_av * temp_bv.s1());
-                    reg_tile[2] += (temp_av * temp_bv.s2());
-                    reg_tile[3] += (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_a[ll][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6 + 0];
+                    temp_bv[1] = sm_a[ll][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6 + 16];
+                    temp_bv[2] = sm_a[ll][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6 + 32];
+                    temp_bv[3] = sm_a[ll][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_b[ll][idx_h3 + (idx_h2) * FUSION_SIZE_SLICE_1_H3 + (xx * 16)];
+
+                        reg_tile[0][xx] += temp_av * temp_bv[0];
+                        reg_tile[1][xx] += temp_av * temp_bv[1];
+                        reg_tile[2][xx] += temp_av * temp_bv[2];
+                        reg_tile[3][xx] += temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -1127,12 +1266,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h3 + (idx_h1) * FUSION_SIZE_SLICE_1_H3]) ));
-                    reg_tile[0] -= (temp_av * temp_bv.s0());
-                    reg_tile[1] -= (temp_av * temp_bv.s1());
-                    reg_tile[2] -= (temp_av * temp_bv.s2());
-                    reg_tile[3] -= (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_a[ll][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6 + 0];
+                    temp_bv[1] = sm_a[ll][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6 + 16];
+                    temp_bv[2] = sm_a[ll][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6 + 32];
+                    temp_bv[3] = sm_a[ll][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_b[ll][idx_h3 + (idx_h1) * FUSION_SIZE_SLICE_1_H3 + (xx * 16)];
+
+                        reg_tile[0][xx] -= temp_av * temp_bv[0];
+                        reg_tile[1][xx] -= temp_av * temp_bv[1];
+                        reg_tile[2][xx] -= temp_av * temp_bv[2];
+                        reg_tile[3][xx] -= temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -1189,12 +1336,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h2 + (idx_h1) * FUSION_SIZE_SLICE_1_H2]) ));
-                    reg_tile[0] += (temp_av * temp_bv.s0());
-                    reg_tile[1] += (temp_av * temp_bv.s1());
-                    reg_tile[2] += (temp_av * temp_bv.s2());
-                    reg_tile[3] += (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_a[ll][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6 + 0];
+                    temp_bv[1] = sm_a[ll][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6 + 16];
+                    temp_bv[2] = sm_a[ll][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6 + 32];
+                    temp_bv[3] = sm_a[ll][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_b[ll][idx_h2 + (idx_h1) * FUSION_SIZE_SLICE_1_H2 + (xx * 16)];
+
+                        reg_tile[0][xx] += temp_av * temp_bv[0];
+                        reg_tile[1][xx] += temp_av * temp_bv[1];
+                        reg_tile[2][xx] += temp_av * temp_bv[2];
+                        reg_tile[3][xx] += temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -1255,25 +1410,12 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         str_blk_idx_p4 	= blk_idx_p4b * FUSION_SIZE_SLICE_1_P4;
 
         // 	(4) rng_h/p*
-        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3,
-                               FUSION_SIZE_SLICE_1_H3,
-                               int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
-        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2,
-                               FUSION_SIZE_SLICE_1_H2,
-                               int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
-        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1,
-                               FUSION_SIZE_SLICE_1_H1,
-                               int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
-
-        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6,
-                               FUSION_SIZE_SLICE_1_P6,
-                               int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
-        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5,
-                               FUSION_SIZE_SLICE_1_P5,
-                               int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
-        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4,
-                               FUSION_SIZE_SLICE_1_P4,
-                               int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
+        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3, FUSION_SIZE_SLICE_1_H3, int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
+        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2, FUSION_SIZE_SLICE_1_H2, int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
+        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1, FUSION_SIZE_SLICE_1_H1, int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
+        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6, FUSION_SIZE_SLICE_1_P6, int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
+        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5, FUSION_SIZE_SLICE_1_P5, int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
+        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4, FUSION_SIZE_SLICE_1_P4, int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
 
         //  sd2_1
         if (flag_d2_1 >= 0)
@@ -1327,12 +1469,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_h1 + (idx_h2) * FUSION_SIZE_SLICE_1_H1]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h3 + (idx_p6) * FUSION_SIZE_SLICE_1_H3]) ));
-                    reg_tile[0] -= (temp_av * temp_bv.s0());
-                    reg_tile[1] -= (temp_av * temp_bv.s1());
-                    reg_tile[2] -= (temp_av * temp_bv.s2());
-                    reg_tile[3] -= (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_a[ll][idx_h1 + (idx_h2) * FUSION_SIZE_SLICE_1_H1 + 0];
+                    temp_bv[1] = sm_a[ll][idx_h1 + (idx_h2) * FUSION_SIZE_SLICE_1_H1 + 16];
+                    temp_bv[2] = sm_a[ll][idx_h1 + (idx_h2) * FUSION_SIZE_SLICE_1_H1 + 32];
+                    temp_bv[3] = sm_a[ll][idx_h1 + (idx_h2) * FUSION_SIZE_SLICE_1_H1 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_b[ll][idx_h3 + (idx_p6) * FUSION_SIZE_SLICE_1_H3 + (xx * 16)];
+
+                        reg_tile[0][xx] -= temp_av * temp_bv[0];
+                        reg_tile[1][xx] -= temp_av * temp_bv[1];
+                        reg_tile[2][xx] -= temp_av * temp_bv[2];
+                        reg_tile[3][xx] -= temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -1389,12 +1539,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_h2 + (idx_h3) * FUSION_SIZE_SLICE_1_H2]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h1 + (idx_p6) * FUSION_SIZE_SLICE_1_H1]) ));
-                    reg_tile[0] -= (temp_av * temp_bv.s0());
-                    reg_tile[1] -= (temp_av * temp_bv.s1());
-                    reg_tile[2] -= (temp_av * temp_bv.s2());
-                    reg_tile[3] -= (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_a[ll][idx_h2 + (idx_h3) * FUSION_SIZE_SLICE_1_H2 + 0];
+                    temp_bv[1] = sm_a[ll][idx_h2 + (idx_h3) * FUSION_SIZE_SLICE_1_H2 + 16];
+                    temp_bv[2] = sm_a[ll][idx_h2 + (idx_h3) * FUSION_SIZE_SLICE_1_H2 + 32];
+                    temp_bv[3] = sm_a[ll][idx_h2 + (idx_h3) * FUSION_SIZE_SLICE_1_H2 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_b[ll][idx_h1 + (idx_p6) * FUSION_SIZE_SLICE_1_H1 + (xx * 16)];
+
+                        reg_tile[0][xx] -= temp_av * temp_bv[0];
+                        reg_tile[1][xx] -= temp_av * temp_bv[1];
+                        reg_tile[2][xx] -= temp_av * temp_bv[2];
+                        reg_tile[3][xx] -= temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -1451,12 +1609,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_h1 + (idx_h3) * FUSION_SIZE_SLICE_1_H1]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H2]) ));
-                    reg_tile[0] += (temp_av * temp_bv.s0());
-                    reg_tile[1] += (temp_av * temp_bv.s1());
-                    reg_tile[2] += (temp_av * temp_bv.s2());
-                    reg_tile[3] += (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_a[ll][idx_h1 + (idx_h3) * FUSION_SIZE_SLICE_1_H1 + 0];
+                    temp_bv[1] = sm_a[ll][idx_h1 + (idx_h3) * FUSION_SIZE_SLICE_1_H1 + 16];
+                    temp_bv[2] = sm_a[ll][idx_h1 + (idx_h3) * FUSION_SIZE_SLICE_1_H1 + 32];
+                    temp_bv[3] = sm_a[ll][idx_h1 + (idx_h3) * FUSION_SIZE_SLICE_1_H1 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_b[ll][idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H2 + (xx * 16)];
+
+                        reg_tile[0][xx] += temp_av * temp_bv[0];
+                        reg_tile[1][xx] += temp_av * temp_bv[1];
+                        reg_tile[2][xx] += temp_av * temp_bv[2];
+                        reg_tile[3][xx] += temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -1513,12 +1679,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h3 + (idx_p6) * FUSION_SIZE_SLICE_1_H1]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_h1 + (idx_h2) * FUSION_SIZE_SLICE_1_H1]) ));
-                    reg_tile[0] += (temp_av * temp_bv.s0());
-                    reg_tile[1] += (temp_av * temp_bv.s1());
-                    reg_tile[2] += (temp_av * temp_bv.s2());
-                    reg_tile[3] += (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_b[ll][idx_h3 + (idx_p6) * FUSION_SIZE_SLICE_1_H1 + 0];
+                    temp_bv[1] = sm_b[ll][idx_h3 + (idx_p6) * FUSION_SIZE_SLICE_1_H1 + 16];
+                    temp_bv[2] = sm_b[ll][idx_h3 + (idx_p6) * FUSION_SIZE_SLICE_1_H1 + 32];
+                    temp_bv[3] = sm_b[ll][idx_h3 + (idx_p6) * FUSION_SIZE_SLICE_1_H1 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_a[ll][idx_h1 + (idx_h2) * FUSION_SIZE_SLICE_1_H1 + (xx * 16)];
+
+                        reg_tile[0][xx] += temp_av * temp_bv[0];
+                        reg_tile[1][xx] += temp_av * temp_bv[1];
+                        reg_tile[2][xx] += temp_av * temp_bv[2];
+                        reg_tile[3][xx] += temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -1575,12 +1749,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h1 + (idx_p6) * FUSION_SIZE_SLICE_1_H1]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_h2 + (idx_h3) * FUSION_SIZE_SLICE_1_H2]) ));
-                    reg_tile[0] += (temp_av * temp_bv.s0());
-                    reg_tile[1] += (temp_av * temp_bv.s1());
-                    reg_tile[2] += (temp_av * temp_bv.s2());
-                    reg_tile[3] += (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_b[ll][idx_h1 + (idx_p6) * FUSION_SIZE_SLICE_1_H1 + 0];
+                    temp_bv[1] = sm_b[ll][idx_h1 + (idx_p6) * FUSION_SIZE_SLICE_1_H1 + 16];
+                    temp_bv[2] = sm_b[ll][idx_h1 + (idx_p6) * FUSION_SIZE_SLICE_1_H1 + 32];
+                    temp_bv[3] = sm_b[ll][idx_h1 + (idx_p6) * FUSION_SIZE_SLICE_1_H1 + 48];
+
+                    for (int xx = 0 ; xx < 4; xx++)
+                    {
+                        temp_av = sm_a[ll][idx_h2 + (idx_h3) * FUSION_SIZE_SLICE_1_H2 + (xx * 16)];
+
+                        reg_tile[0][xx] += temp_av * temp_bv[0];
+                        reg_tile[1][xx] += temp_av * temp_bv[1];
+                        reg_tile[2][xx] += temp_av * temp_bv[2];
+                        reg_tile[3][xx] += temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -1637,12 +1819,20 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                 // Part: Generalized Threads
                 for (int ll = 0; ll < FUSION_SIZE_INT_UNIT - internal_upperbound; ll++)
                 {
-                    temp_bv.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_b[ll][idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H2]) ));
-                    temp_av.load<sycl::access::address_space::local_space>(16, local_ptr( &(sm_a[ll][idx_h1 + (idx_h3) * FUSION_SIZE_SLICE_1_H1]) ));
-                    reg_tile[0] -= (temp_av * temp_bv.s0());
-                    reg_tile[1] -= (temp_av * temp_bv.s1());
-                    reg_tile[2] -= (temp_av * temp_bv.s2());
-                    reg_tile[3] -= (temp_av * temp_bv.s3());
+                    temp_bv[0] = sm_b[ll][idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H2 + 0];
+                    temp_bv[1] = sm_b[ll][idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H2 + 16];
+                    temp_bv[2] = sm_b[ll][idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H2 + 32];
+                    temp_bv[3] = sm_b[ll][idx_h2 + (idx_p6) * FUSION_SIZE_SLICE_1_H2 + 48];
+
+                    for (int xx = 0; xx < 4; xx++)	// 4 -> rng_p4: Local Transactions...
+                    {
+                        temp_av = sm_a[ll][idx_h1 + (idx_h3) * FUSION_SIZE_SLICE_1_H1 + (xx * 16)];
+
+                        reg_tile[0][xx] -= temp_av * temp_bv[0];
+                        reg_tile[1][xx] -= temp_av * temp_bv[1];
+                        reg_tile[2][xx] -= temp_av * temp_bv[2];
+                        reg_tile[3][xx] -= temp_av * temp_bv[3];
+                    }
                 }
                 sycl::group_barrier( thread_block );
             }
@@ -1694,25 +1884,12 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
         str_blk_idx_p4 	= blk_idx_p4b * FUSION_SIZE_SLICE_1_P4;
 
         // 	(4) rng_h/p*
-        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3,
-                               FUSION_SIZE_SLICE_1_H3,
-                               int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
-        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2,
-                               FUSION_SIZE_SLICE_1_H2,
-                               int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
-        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1,
-                               FUSION_SIZE_SLICE_1_H1,
-                               int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
-
-        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6,
-                               FUSION_SIZE_SLICE_1_P6,
-                               int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
-        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5,
-                               FUSION_SIZE_SLICE_1_P5,
-                               int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
-        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4,
-                               FUSION_SIZE_SLICE_1_P4,
-                               int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
+        rng_h3 = sycl::select( base_size_h3b % FUSION_SIZE_SLICE_1_H3, FUSION_SIZE_SLICE_1_H3, int( (base_size_h3b - (str_blk_idx_h3)) >= FUSION_SIZE_SLICE_1_H3 ) );
+        rng_h2 = sycl::select( base_size_h2b % FUSION_SIZE_SLICE_1_H2, FUSION_SIZE_SLICE_1_H2, int( (base_size_h2b - (str_blk_idx_h2)) >= FUSION_SIZE_SLICE_1_H2 ) );
+        rng_h1 = sycl::select( base_size_h1b % FUSION_SIZE_SLICE_1_H1, FUSION_SIZE_SLICE_1_H1, int( (base_size_h1b - (str_blk_idx_h1)) >= FUSION_SIZE_SLICE_1_H1 ) );
+        rng_p6 = sycl::select( base_size_p6b % FUSION_SIZE_SLICE_1_P6, FUSION_SIZE_SLICE_1_P6, int( (base_size_p6b - (str_blk_idx_p6)) >= FUSION_SIZE_SLICE_1_P6 ) );
+        rng_p5 = sycl::select( base_size_p5b % FUSION_SIZE_SLICE_1_P5, FUSION_SIZE_SLICE_1_P5, int( (base_size_p5b - (str_blk_idx_p5)) >= FUSION_SIZE_SLICE_1_P5 ) );
+        rng_p4 = sycl::select( base_size_p4b % FUSION_SIZE_SLICE_1_P4, FUSION_SIZE_SLICE_1_P4, int( (base_size_p4b - (str_blk_idx_p4)) >= FUSION_SIZE_SLICE_1_P4 ) );
 
         // 	flags
         int flag_s1_1 = const_df_s1_exec[0];
@@ -1742,23 +1919,40 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             sycl::group_barrier( thread_block );
 
             //  "p4"
-            temp_av.s0() = sm_a[0][0 + (idx_h1) * 4];
-            temp_av.s1() = sm_a[0][1 + (idx_h1) * 4];
-            temp_av.s2() = sm_a[0][2 + (idx_h1) * 4];
-            temp_av.s3() = sm_a[0][3 + (idx_h1) * 4];
+            temp_av = sm_a[0][0 + (idx_h1) * 4];
 
             //  "p5"
-            temp_bv.s0() = sm_b[0][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
-            temp_bv.s1() = sm_b[1][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
-            temp_bv.s2() = sm_b[2][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
-            temp_bv.s3() = sm_b[3][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
+            temp_bv[0] = sm_b[0][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
+            temp_bv[1] = sm_b[1][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
+            temp_bv[2] = sm_b[2][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
+            temp_bv[3] = sm_b[3][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
 
             //  "p4 x p5"
-            reg_singles[0] += (temp_av.s0() * temp_bv);
-            reg_singles[1] += (temp_av.s1() * temp_bv);
-            reg_singles[2] += (temp_av.s2() * temp_bv);
-            reg_singles[3] += (temp_av.s3() * temp_bv);
+            reg_singles[0][0] += temp_av * temp_bv[0];
+            reg_singles[0][1] += temp_av * temp_bv[1];
+            reg_singles[0][2] += temp_av * temp_bv[2];
+            reg_singles[0][3] += temp_av * temp_bv[3];
 
+            temp_av = sm_a[0][1 + (idx_h1) * 4];
+
+            reg_singles[1][0] += temp_av * temp_bv[0];
+            reg_singles[1][1] += temp_av * temp_bv[1];
+            reg_singles[1][2] += temp_av * temp_bv[2];
+            reg_singles[1][3] += temp_av * temp_bv[3];
+
+            temp_av = sm_a[0][2 + (idx_h1) * 4];
+
+            reg_singles[2][0] += temp_av * temp_bv[0];
+            reg_singles[2][1] += temp_av * temp_bv[1];
+            reg_singles[2][2] += temp_av * temp_bv[2];
+            reg_singles[2][3] += temp_av * temp_bv[3];
+
+            temp_av = sm_a[0][3 + (idx_h1) * 4];
+
+            reg_singles[3][0] += temp_av * temp_bv[0];
+            reg_singles[3][1] += temp_av * temp_bv[1];
+            reg_singles[3][2] += temp_av * temp_bv[2];
+            reg_singles[3][3] += temp_av * temp_bv[3];
             sycl::group_barrier( thread_block );
         }
 
@@ -1779,23 +1973,40 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             sycl::group_barrier( thread_block );
 
             //  "p4"
-            temp_av.s0() = sm_a[0][0 + (idx_h2) * 4];
-            temp_av.s1() = sm_a[0][1 + (idx_h2) * 4];
-            temp_av.s2() = sm_a[0][2 + (idx_h2) * 4];
-            temp_av.s3() = sm_a[0][3 + (idx_h2) * 4];
+            temp_av = sm_a[0][0 + (idx_h2) * 4];
 
             //  "p5"
-            temp_bv.s0() = sm_b[0][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
-            temp_bv.s1() = sm_b[1][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
-            temp_bv.s2() = sm_b[2][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
-            temp_bv.s3() = sm_b[3][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[0] = sm_b[0][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[1] = sm_b[1][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[2] = sm_b[2][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[3] = sm_b[3][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
 
             //  "p4 x p5"
-            reg_singles[0] -= (temp_av.s0() * temp_bv);
-            reg_singles[1] -= (temp_av.s1() * temp_bv);
-            reg_singles[2] -= (temp_av.s2() * temp_bv);
-            reg_singles[3] -= (temp_av.s3() * temp_bv);
+            reg_singles[0][0] -= temp_av * temp_bv[0];
+            reg_singles[0][1] -= temp_av * temp_bv[1];
+            reg_singles[0][2] -= temp_av * temp_bv[2];
+            reg_singles[0][3] -= temp_av * temp_bv[3];
 
+            temp_av = sm_a[0][1 + (idx_h2) * 4];
+
+            reg_singles[1][0] -= temp_av * temp_bv[0];
+            reg_singles[1][1] -= temp_av * temp_bv[1];
+            reg_singles[1][2] -= temp_av * temp_bv[2];
+            reg_singles[1][3] -= temp_av * temp_bv[3];
+
+            temp_av = sm_a[0][2 + (idx_h2) * 4];
+
+            reg_singles[2][0] -= temp_av * temp_bv[0];
+            reg_singles[2][1] -= temp_av * temp_bv[1];
+            reg_singles[2][2] -= temp_av * temp_bv[2];
+            reg_singles[2][3] -= temp_av * temp_bv[3];
+
+            temp_av = sm_a[0][3 + (idx_h2) * 4];
+
+            reg_singles[3][0] -= temp_av * temp_bv[0];
+            reg_singles[3][1] -= temp_av * temp_bv[1];
+            reg_singles[3][2] -= temp_av * temp_bv[2];
+            reg_singles[3][3] -= temp_av * temp_bv[3];
             sycl::group_barrier( thread_block );
         }
 
@@ -1816,23 +2027,40 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             sycl::group_barrier( thread_block );
 
             //  "p4"
-            temp_av.s0() = sm_a[0][0 + (idx_h3) * 4];
-            temp_av.s1() = sm_a[0][1 + (idx_h3) * 4];
-            temp_av.s2() = sm_a[0][2 + (idx_h3) * 4];
-            temp_av.s3() = sm_a[0][3 + (idx_h3) * 4];
+            temp_av = sm_a[0][0 + (idx_h3) * 4];
 
             //  "p5"
-            temp_bv.s0() = sm_b[0][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
-            temp_bv.s1() = sm_b[1][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
-            temp_bv.s2() = sm_b[2][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
-            temp_bv.s3() = sm_b[3][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[0] = sm_b[0][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[1] = sm_b[1][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[2] = sm_b[2][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[3] = sm_b[3][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
 
             //  "p4 x p5"
-            reg_singles[0] += (temp_av.s0() * temp_bv);
-            reg_singles[1] += (temp_av.s1() * temp_bv);
-            reg_singles[2] += (temp_av.s2() * temp_bv);
-            reg_singles[3] += (temp_av.s3() * temp_bv);
+            reg_singles[0][0] += temp_av * temp_bv[0];
+            reg_singles[0][1] += temp_av * temp_bv[1];
+            reg_singles[0][2] += temp_av * temp_bv[2];
+            reg_singles[0][3] += temp_av * temp_bv[3];
 
+            temp_av = sm_a[0][1 + (idx_h3) * 4];
+
+            reg_singles[1][0] += temp_av * temp_bv[0];
+            reg_singles[1][1] += temp_av * temp_bv[1];
+            reg_singles[1][2] += temp_av * temp_bv[2];
+            reg_singles[1][3] += temp_av * temp_bv[3];
+
+            temp_av = sm_a[0][2 + (idx_h3) * 4];
+
+            reg_singles[2][0] += temp_av * temp_bv[0];
+            reg_singles[2][1] += temp_av * temp_bv[1];
+            reg_singles[2][2] += temp_av * temp_bv[2];
+            reg_singles[2][3] += temp_av * temp_bv[3];
+
+            temp_av = sm_a[0][3 + (idx_h3) * 4];
+
+            reg_singles[3][0] += temp_av * temp_bv[0];
+            reg_singles[3][1] += temp_av * temp_bv[1];
+            reg_singles[3][2] += temp_av * temp_bv[2];
+            reg_singles[3][3] += temp_av * temp_bv[3];
             sycl::group_barrier( thread_block );
         }
 
@@ -1852,23 +2080,40 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             sycl::group_barrier( thread_block );
 
             //  "p5"
-            temp_av.s0() = sm_a[0][0 + (idx_h1) * 4];
-            temp_av.s1() = sm_a[0][1 + (idx_h1) * 4];
-            temp_av.s2() = sm_a[0][2 + (idx_h1) * 4];
-            temp_av.s3() = sm_a[0][3 + (idx_h1) * 4];
+            temp_av = sm_a[0][0 + (idx_h1) * 4];
 
             //  "p4"
-            temp_bv.s0() = sm_b[0][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
-            temp_bv.s1() = sm_b[1][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
-            temp_bv.s2() = sm_b[2][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
-            temp_bv.s3() = sm_b[3][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
+            temp_bv[0] = sm_b[0][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
+            temp_bv[1] = sm_b[1][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
+            temp_bv[2] = sm_b[2][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
+            temp_bv[3] = sm_b[3][idx_h3 + (idx_h2 + (idx_p6) * 4) * 4];
 
             //  "p4 x p5"
-            reg_singles[0] -= (temp_av * temp_bv.s0());
-            reg_singles[1] -= (temp_av * temp_bv.s1());
-            reg_singles[2] -= (temp_av * temp_bv.s2());
-            reg_singles[3] -= (temp_av * temp_bv.s3());
+            reg_singles[0][0] -= temp_av * temp_bv[0];
+            reg_singles[1][0] -= temp_av * temp_bv[1];
+            reg_singles[2][0] -= temp_av * temp_bv[2];
+            reg_singles[3][0] -= temp_av * temp_bv[3];
 
+            temp_av = sm_a[0][1 + (idx_h1) * 4];
+
+            reg_singles[0][1] -= temp_av * temp_bv[0];
+            reg_singles[1][1] -= temp_av * temp_bv[1];
+            reg_singles[2][1] -= temp_av * temp_bv[2];
+            reg_singles[3][1] -= temp_av * temp_bv[3];
+
+            temp_av = sm_a[0][2 + (idx_h1) * 4];
+
+            reg_singles[0][2] -= temp_av * temp_bv[0];
+            reg_singles[1][2] -= temp_av * temp_bv[1];
+            reg_singles[2][2] -= temp_av * temp_bv[2];
+            reg_singles[3][2] -= temp_av * temp_bv[3];
+
+            temp_av = sm_a[0][3 + (idx_h1) * 4];
+
+            reg_singles[0][3] -= temp_av * temp_bv[0];
+            reg_singles[1][3] -= temp_av * temp_bv[1];
+            reg_singles[2][3] -= temp_av * temp_bv[2];
+            reg_singles[3][3] -= temp_av * temp_bv[3];
             sycl::group_barrier( thread_block );
         }
 
@@ -1889,23 +2134,40 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             sycl::group_barrier( thread_block );
 
             //  "p5"
-            temp_av.s0() = sm_a[0][0 + (idx_h2) * 4];
-            temp_av.s1() = sm_a[0][1 + (idx_h2) * 4];
-            temp_av.s2() = sm_a[0][2 + (idx_h2) * 4];
-            temp_av.s3() = sm_a[0][3 + (idx_h2) * 4];
+            temp_av = sm_a[0][0 + (idx_h2) * 4];
 
             //  "p4"
-            temp_bv.s0() = sm_b[0][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
-            temp_bv.s1() = sm_b[1][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
-            temp_bv.s2() = sm_b[2][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
-            temp_bv.s3() = sm_b[3][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[0] = sm_b[0][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[1] = sm_b[1][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[2] = sm_b[2][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[3] = sm_b[3][idx_h3 + (idx_h1 + (idx_p6) * 4) * 4];
 
             //  "p4 x p5"
-            reg_singles[0] += (temp_av * temp_bv.s0());
-            reg_singles[1] += (temp_av * temp_bv.s1());
-            reg_singles[2] += (temp_av * temp_bv.s2());
-            reg_singles[3] += (temp_av * temp_bv.s3());
+            reg_singles[0][0] += temp_av * temp_bv[0];
+            reg_singles[1][0] += temp_av * temp_bv[1];
+            reg_singles[2][0] += temp_av * temp_bv[2];
+            reg_singles[3][0] += temp_av * temp_bv[3];
 
+            temp_av = sm_a[0][1 + (idx_h2) * 4];
+
+            reg_singles[0][1] += temp_av * temp_bv[0];
+            reg_singles[1][1] += temp_av * temp_bv[1];
+            reg_singles[2][1] += temp_av * temp_bv[2];
+            reg_singles[3][1] += temp_av * temp_bv[3];
+
+            temp_av = sm_a[0][2 + (idx_h2) * 4];
+
+            reg_singles[0][2] += temp_av * temp_bv[0];
+            reg_singles[1][2] += temp_av * temp_bv[1];
+            reg_singles[2][2] += temp_av * temp_bv[2];
+            reg_singles[3][2] += temp_av * temp_bv[3];
+
+            temp_av = sm_a[0][3 + (idx_h2) * 4];
+
+            reg_singles[0][3] += temp_av * temp_bv[0];
+            reg_singles[1][3] += temp_av * temp_bv[1];
+            reg_singles[2][3] += temp_av * temp_bv[2];
+            reg_singles[3][3] += temp_av * temp_bv[3];
             sycl::group_barrier( thread_block );
         }
 
@@ -1926,23 +2188,40 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             sycl::group_barrier( thread_block );
 
             //  "p5"
-            temp_av.s0() = sm_a[0][0 + (idx_h3) * FUSION_SIZE_SLICE_1_P5];
-            temp_av.s1() = sm_a[0][1 + (idx_h3) * FUSION_SIZE_SLICE_1_P5];
-            temp_av.s2() = sm_a[0][2 + (idx_h3) * FUSION_SIZE_SLICE_1_P5];
-            temp_av.s3() = sm_a[0][3 + (idx_h3) * FUSION_SIZE_SLICE_1_P5];
+            temp_av = sm_a[0][0 + (idx_h3) * FUSION_SIZE_SLICE_1_P5];
 
             //  "p4"
-            temp_bv.s0() = sm_b[0][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
-            temp_bv.s1() = sm_b[1][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
-            temp_bv.s2() = sm_b[2][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
-            temp_bv.s3() = sm_b[3][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[0] = sm_b[0][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[1] = sm_b[1][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[2] = sm_b[2][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
+            temp_bv[3] = sm_b[3][idx_h2 + (idx_h1 + (idx_p6) * 4) * 4];
 
             //  "p4 x p5"
-            reg_singles[0] -= (temp_av * temp_bv.s0());
-            reg_singles[1] -= (temp_av * temp_bv.s1());
-            reg_singles[2] -= (temp_av * temp_bv.s2());
-            reg_singles[3] -= (temp_av * temp_bv.s3());
+            reg_singles[0][0] -= temp_av * temp_bv[0];
+            reg_singles[1][0] -= temp_av * temp_bv[1];
+            reg_singles[2][0] -= temp_av * temp_bv[2];
+            reg_singles[3][0] -= temp_av * temp_bv[3];
 
+            temp_av = sm_a[0][1 + (idx_h3) * FUSION_SIZE_SLICE_1_P5];
+
+            reg_singles[0][1] -= temp_av * temp_bv[0];
+            reg_singles[1][1] -= temp_av * temp_bv[1];
+            reg_singles[2][1] -= temp_av * temp_bv[2];
+            reg_singles[3][1] -= temp_av * temp_bv[3];
+
+            temp_av = sm_a[0][2 + (idx_h3) * FUSION_SIZE_SLICE_1_P5];
+
+            reg_singles[0][2] -= temp_av * temp_bv[0];
+            reg_singles[1][2] -= temp_av * temp_bv[1];
+            reg_singles[2][2] -= temp_av * temp_bv[2];
+            reg_singles[3][2] -= temp_av * temp_bv[3];
+
+            temp_av = sm_a[0][3 + (idx_h3) * FUSION_SIZE_SLICE_1_P5];
+
+            reg_singles[0][3] -= temp_av * temp_bv[0];
+            reg_singles[1][3] -= temp_av * temp_bv[1];
+            reg_singles[2][3] -= temp_av * temp_bv[2];
+            reg_singles[3][3] -= temp_av * temp_bv[3];
             sycl::group_barrier( thread_block );
         }
 
@@ -1963,25 +2242,25 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             sycl::group_barrier( thread_block );
 
             //  "p4" x "p5"
-            reg_singles[0].s0() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h2 + (0) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[0].s1() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h2 + (1) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[0].s2() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h2 + (2) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[0].s3() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h2 + (3) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[0][0] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h2 + (0) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[0][1] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h2 + (1) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[0][2] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h2 + (2) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[0][3] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h2 + (3) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
 
-            reg_singles[1].s0() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h2 + (0) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[1].s1() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h2 + (1) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[1].s2() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h2 + (2) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[1].s3() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h2 + (3) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[1][0] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h2 + (0) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[1][1] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h2 + (1) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[1][2] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h2 + (2) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[1][3] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h2 + (3) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
 
-            reg_singles[2].s0() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h2 + (0) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[2].s1() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h2 + (1) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[2].s2() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h2 + (2) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[2].s3() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h2 + (3) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[2][0] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h2 + (0) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[2][1] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h2 + (1) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[2][2] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h2 + (2) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[2][3] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h2 + (3) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
 
-            reg_singles[3].s0() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h2 + (0) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[3].s1() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h2 + (1) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[3].s2() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h2 + (2) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[3].s3() += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h2 + (3) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[3][0] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h2 + (0) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[3][1] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h2 + (1) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[3][2] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h2 + (2) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[3][3] += sm_a[0][idx_p6 + (idx_h1) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h2 + (3) * FUSION_SIZE_SLICE_1_H2) * FUSION_SIZE_SLICE_1_H3];
             sycl::group_barrier( thread_block );
         }
 
@@ -2002,25 +2281,25 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             sycl::group_barrier( thread_block );
 
             //  "p4" x "p5"
-            reg_singles[0].s0() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[0].s1() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[0].s2() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[0].s3() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[0][0] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[0][1] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[0][2] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[0][3] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h3 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
 
-            reg_singles[1].s0() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[1].s1() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[1].s2() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[1].s3() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[1][0] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[1][1] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[1][2] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[1][3] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h3 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
 
-            reg_singles[2].s0() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[2].s1() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[2].s2() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[2].s3() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[2][0] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[2][1] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[2][2] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[2][3] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h3 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
 
-            reg_singles[3].s0() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[3].s1() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[3].s2() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
-            reg_singles[3].s3() -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[3][0] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[3][1] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[3][2] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
+            reg_singles[3][3] -= sm_a[0][idx_p6 + (idx_h2) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h3 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H3];
             sycl::group_barrier( thread_block );
         }
 
@@ -2041,25 +2320,25 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
             sycl::group_barrier( thread_block );
 
             //  "p4" x "p5"
-            reg_singles[0].s0() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h2 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            reg_singles[0].s1() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h2 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            reg_singles[0].s2() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h2 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            reg_singles[0].s3() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h2 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[0][0] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h2 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[0][1] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h2 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[0][2] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h2 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[0][3] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[0][idx_h2 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
 
-            reg_singles[1].s0() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h2 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            reg_singles[1].s1() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h2 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            reg_singles[1].s2() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h2 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            reg_singles[1].s3() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h2 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[1][0] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h2 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[1][1] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h2 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[1][2] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h2 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[1][3] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[1][idx_h2 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
 
-            reg_singles[2].s0() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h2 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            reg_singles[2].s1() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h2 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            reg_singles[2].s2() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h2 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            reg_singles[2].s3() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h2 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[2][0] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h2 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[2][1] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h2 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[2][2] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h2 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[2][3] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[2][idx_h2 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
 
-            reg_singles[3].s0() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h2 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            reg_singles[3].s1() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h2 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            reg_singles[3].s2() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h2 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
-            reg_singles[3].s3() += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h2 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[3][0] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h2 + (idx_h1 + (0) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[3][1] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h2 + (idx_h1 + (1) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[3][2] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h2 + (idx_h1 + (2) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
+            reg_singles[3][3] += sm_a[0][idx_p6 + (idx_h3) * FUSION_SIZE_SLICE_1_P6] * sm_b[3][idx_h2 + (idx_h1 + (3) * FUSION_SIZE_SLICE_1_H1) * FUSION_SIZE_SLICE_1_H2];
             sycl::group_barrier( thread_block );
         }
     }
@@ -2079,8 +2358,8 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
                     // double inner_factor = partial_inner_factor - const_df_evl_sorted_p5b[i + (energy_str_blk_idx_p5)] - const_df_evl_sorted_p4b[j + (energy_str_blk_idx_p4)];
 
                     //
-                    energy_1 += (reg_tile[i][j] * reg_tile[i][j]) / inner_factor;
-                    energy_2 += (reg_tile[i][j] * (reg_tile[i][j] + reg_singles[i][j])) / inner_factor;
+                    energy_1 += (reg_tile[j][i] * reg_tile[j][i]) / inner_factor;
+                    energy_2 += (reg_tile[j][i] * (reg_tile[j][i] + reg_singles[j][i])) / inner_factor;
                 }
             }
         }
@@ -2134,8 +2413,8 @@ void revised_jk_ccsd_t_fully_fused_kernel(int size_noab, int size_nvab,
       for (int i = 0; i < 16; i++)
 	for (int j = 0; j < 16; j++)
 	{
-	  final_energy_1 += sm_a[i][j];
-	  final_energy_2 += sm_b[i][j];
+	  final_energy_1 += sm_a[j][i];
+	  final_energy_2 += sm_b[j][i];
 	}
 
       reduced_energy[blockIdx_x] = final_energy_1;
@@ -2207,7 +2486,7 @@ void fully_fused_ccsd_t_gpu(sycl::queue *stream_id, size_t num_blocks,
 	auto global_range = gridsize * blocksize;
 
 	cgh.parallel_for(sycl::nd_range<2>(global_range, blocksize),
-			 [=](sycl::nd_item<2> item) [[intel::reqd_sub_group_size(16)]]
+			 [=](sycl::nd_item<2> item) [[intel::reqd_sub_group_size(8)]]
 			 {
 			   revised_jk_ccsd_t_fully_fused_kernel(size_noab, size_nvab,
 								size_max_dim_s1_t1,

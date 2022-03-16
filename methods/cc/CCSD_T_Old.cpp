@@ -51,7 +51,7 @@ void ccsd_t_driver() {
 
     CCSDOptions& ccsd_options = sys_data.options_map.ccsd_options;
 
-    #if defined(USE_CUDA) || defined(USE_HIP) //|| defined(USE_DPCPP)
+    #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         if(ccsd_options.ngpu == 0) ccsd_options.ngpu = ec.num_gpu();
         // std::string t_errmsg = check_memory_req(ccsd_options.ngpu,ccsd_options.ccsdt_tilesize,sys_data.nbf);
         // if(!t_errmsg.empty()) tamm_terminate(t_errmsg);

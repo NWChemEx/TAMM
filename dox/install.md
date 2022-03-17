@@ -271,13 +271,13 @@ make install
 Running the code
 =====================
 - SCF  
-`export TAMM_EXE=$TAMM_SRC/build/methods_stage/$TAMM_INSTALL_PATH/methods/HartreeFock`  
+`export TAMM_EXE=$TAMM_INSTALL_PATH/bin/HartreeFock`  
 
 - CCSD  
-`export TAMM_EXE=$TAMM_SRC/build/methods_stage/$TAMM_INSTALL_PATH/methods/CD_CCSD`  
+`export TAMM_EXE=$TAMM_INSTALL_PATH/bin/CD_CCSD`  
 
 - CCSD(T)   
-`export TAMM_EXE=$TAMM_SRC/build/methods_stage/$TAMM_INSTALL_PATH/methods/CCSD_T`
+`export TAMM_EXE=$TAMM_INSTALL_PATH/bin/CCSD_T`
 
 ### General run:
 ```

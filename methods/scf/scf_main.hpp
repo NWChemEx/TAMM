@@ -889,8 +889,8 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
           if(!scf_conv) std::cout << ' ' << std::setw(12)  << rmsd << ' ';
           std::cout << ' ' << std::setw(10) << std::fixed << std::setprecision(1) << loop_time << ' ' << endl;
 
-          sys_data.results["output"]["SCF"]["iter"][std::to_string(iter)]["data"] = { {"energy", ehf}, {"e_diff", ediff}, {"rmsd", rmsd} };
-          sys_data.results["output"]["SCF"]["iter"][std::to_string(iter)]["profile"] = { {"total_time", loop_time} };
+          sys_data.results["output"]["SCF"]["iter"][std::to_string(iter)] = { {"energy", ehf}, {"e_diff", ediff}, {"rmsd", rmsd} };
+          sys_data.results["output"]["SCF"]["iter"][std::to_string(iter)]["performance"] = { {"total_time", loop_time} };
 
         }
 

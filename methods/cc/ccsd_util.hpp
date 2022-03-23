@@ -179,8 +179,8 @@ void iteration_print(SystemData& sys_data, const ProcGroup& pg, int iter, double
     std::cout << std::string(5, ' ') << time;
     std::cout << std::string(5, ' ') << "0.0" << std::endl;
 
-    sys_data.results["output"]["CCSD"]["iter"][std::to_string(iter+1)]["data"] = { {"residual", residual}, {"correlation", energy} };
-    sys_data.results["output"]["CCSD"]["iter"][std::to_string(iter+1)]["profile"] = { {"total_time", time} };
+    sys_data.results["output"]["CCSD"]["iter"][std::to_string(iter+1)] = { {"residual", residual}, {"correlation", energy} };
+    sys_data.results["output"]["CCSD"]["iter"][std::to_string(iter+1)]["performance"] = { {"total_time", time} };
   }
 }
 

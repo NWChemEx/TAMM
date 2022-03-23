@@ -3257,6 +3257,30 @@ Tensor<TensorType> to_dense_tensor(ExecutionContext& ec_dense, Tensor<TensorType
     return btensor; // caller responsible for dellocating this tensor
 }
 
+// Extract a single value specified by index_id from a dense tensor.
+template<typename TensorType>
+TensorType get_tensor_element(Tensor<TensorType> tensor, std::vector<int64_t> index_id) {
+
+    const int ndims = tensor.num_modes();
+    EXPECTS(tensor.kind() == TensorBase::TensorKind::dense);
+    // EXPECTS(tensor.distribution().kind() == DistributionKind::dense);
+
+    std::vector<int64_t> ld(ndims - 1, 1);
+
+    int64_t lo[ndims];
+    int64_t hi[ndims];
+
+    for(int i = 0; i < ndims; i++) {
+        lo[i] = index_id[i];
+        hi[i] = index_id[i];
+    }
+
+    TensorType val{};
+    NGA_Get64(tensor.ga_handle(), &lo[0], &hi[0], &val, &ld[0]);
+    return val;
+};
+
+
 /**
  * @brief Prints a dense Tensor object
  *

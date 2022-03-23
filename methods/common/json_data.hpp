@@ -162,9 +162,10 @@ void write_json_data(SystemData& sys_data, const std::string module){
     results["input"]["CD"]["max_cvecs_factor"] = cd.max_cvecs_factor;
   }
 
+  results["input"]["CCSD"]["threshold"] = ccsd.threshold;
+
   if(module == "CCSD") {
     //CCSD options
-    results["input"]["CCSD"]["threshold"] = ccsd.threshold;
     results["input"]["CCSD"]["tilesize"] = ccsd.tilesize;
     results["input"]["CCSD"]["itilesize"] = ccsd.itilesize;
     // results["input"]["CCSD"]["ngpu"] = ccsd.ngpu;
@@ -181,6 +182,28 @@ void write_json_data(SystemData& sys_data, const std::string module){
     results["input"]["CCSD(T)"]["skip_ccsd"] = ccsd.skip_ccsd;
     results["input"]["CCSD(T)"]["ccsdt_tilesize"] = ccsd.ccsdt_tilesize;
   }  
+
+  if(module == "DUCC") {
+    //DUCC options
+    results["input"]["DUCC"]["nactive"]      = ccsd.nactive;
+  }
+  
+  if(module == "EOMCCSD") {
+    //EOMCCSD options
+    results["input"]["EOMCCSD"]["eom_type"]      = ccsd.eom_type;
+    results["input"]["EOMCCSD"]["eom_nroots"]    = ccsd.eom_nroots;
+    results["input"]["EOMCCSD"]["eom_microiter"] = ccsd.eom_microiter;
+    results["input"]["EOMCCSD"]["eom_threshold"] = ccsd.eom_threshold;
+  }
+
+  if(module == "RT-EOMCCS" || module == "RT-EOMCCSD") {
+    //RT-EOMCC options
+    results["input"]["RT-EOMCC"]["pcore"]         = ccsd.pcore;
+    results["input"]["RT-EOMCC"]["ntimesteps"]    = ccsd.ntimesteps;
+    results["input"]["RT-EOMCC"]["rt_microiter"]  = ccsd.rt_microiter;
+    results["input"]["RT-EOMCC"]["rt_step_size"]  = ccsd.rt_step_size;
+    results["input"]["RT-EOMCC"]["rt_multiplier"] = ccsd.rt_multiplier;
+  }
 
   if(module == "GFCCSD") {
     //GFCCSD options
@@ -202,7 +225,8 @@ void write_json_data(SystemData& sys_data, const std::string module){
   to_lower(l_module);
 
   std::string out_fp = sys_data.output_file_prefix+"."+sys_data.options_map.ccsd_options.basis;
-  std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type;
+  std::string files_dir = out_fp+"_files/"+sys_data.options_map.scf_options.scf_type+"/json";
+  if(!fs::exists(files_dir)) fs::create_directories(files_dir);
   std::string files_prefix = files_dir+"/"+out_fp;  
   std::string json_file = files_prefix+"."+l_module+".json";
   bool json_exists = std::filesystem::exists(json_file);

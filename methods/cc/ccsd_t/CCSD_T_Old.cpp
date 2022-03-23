@@ -323,19 +323,23 @@ void ccsd_t_driver() {
     Tensor<T> t_d_cv2{{N1,N1,CI},{1,1}};
 
     T ccsd_t_mem{};
-    if(skip_ccsd) ccsd_t_mem = sum_tensor_sizes(d_f1,t_d_t1,t_d_t2,t_d_v2);
-    else {
-        ccsd_t_mem = sum_tensor_sizes(d_f1,t_d_t1,t_d_t2,t_d_v2);
-        auto initial_ccsd_t_mem = sum_tensor_sizes(d_f1,t_d_v2,t_d_v2,t_d_cv2);
-        ccsd_t_mem = std::max(ccsd_t_mem, initial_ccsd_t_mem);
+    const double gib = (1024*1024*1024.0);
+    const double Osize = MO("occ").max_num_indices();
+    const double Vsize = MO("virt").max_num_indices();
+    // const double Nsize = N.max_num_indices();
+    // const double cind_size = CI.max_num_indices();
+
+    ccsd_t_mem = sum_tensor_sizes(d_f1,t_d_t1,t_d_t2,t_d_v2);
+    if(!skip_ccsd) {
+        // auto v2_setup_mem = sum_tensor_sizes(d_f1,t_d_v2,t_d_cv2);
+        // auto cv2_retile = (Nsize*Nsize*cind_size*8)/gib + sum_tensor_sizes(d_f1,cholVpr,t_d_cv2);
         if(is_rhf) ccsd_t_mem += sum_tensor_sizes(dt1_full,dt2_full);
         else ccsd_t_mem += sum_tensor_sizes(d_t1,d_t2);
+
+        //retiling allocates full GA versions of the tensors.
+        ccsd_t_mem +=  (Osize*Vsize + Vsize*Vsize*Osize*Osize)*8/gib;
     }
-    const double Osize = MO("occ").max_num_indices()*8/(1024*1024*1024.0);
-    const double Vsize = MO("virt").max_num_indices()*8/(1024*1024*1024.0);
-    const double Nsize = N.max_num_indices()*8/(1024*1024*1024.0);
-    //retiling allocates full GA versions of the tensors.
-    ccsd_t_mem +=  (Osize*Vsize + Vsize*Vsize*Osize*Osize + Nsize*Nsize*Nsize*Nsize);
+
 
     if(rank==0) {
         std::cout << std::string(70, '-') << std::endl;

@@ -384,7 +384,7 @@ class CCSDOptions: public Options {
   int    freeze_core;
   int    freeze_virtual;
 
-  //TD-CC
+  //RT-EOMCC
   int    pcore;  // pth core orbital
   int    ntimesteps; // number of time steps
   int    rt_microiter;
@@ -681,12 +681,13 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
     parse_option<string>(ccsd_options.ext_data_path , jcc, "ext_data_path");   
     parse_option<bool>  (ccsd_options.computeTData  , jcc, "computeTData");
 
-    //TD-CC
-    parse_option<int>   (ccsd_options.pcore        , jcc, "pcore");
-    parse_option<int>   (ccsd_options.ntimesteps   , jcc, "ntimesteps");
-    parse_option<int>   (ccsd_options.rt_microiter , jcc, "rt_microiter");
-    parse_option<double>(ccsd_options.rt_step_size , jcc, "rt_step_size");
-    parse_option<double>(ccsd_options.rt_multiplier, jcc, "rt_multiplier");
+    //RT-EOMCC
+    json jrt_eom = jcc["RT-EOMCC"];
+    parse_option<int>   (ccsd_options.pcore        , jrt_eom, "pcore");
+    parse_option<int>   (ccsd_options.ntimesteps   , jrt_eom, "ntimesteps");
+    parse_option<int>   (ccsd_options.rt_microiter , jrt_eom, "rt_microiter");
+    parse_option<double>(ccsd_options.rt_step_size , jrt_eom, "rt_step_size");
+    parse_option<double>(ccsd_options.rt_multiplier, jrt_eom, "rt_multiplier");
 
     json jdlpno = jcc["DLPNO"];
     parse_option<int>   (ccsd_options.max_pnos     , jdlpno, "max_pnos");

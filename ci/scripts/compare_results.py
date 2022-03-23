@@ -28,7 +28,7 @@ ref_files = os.listdir(ref_res_path)
 cur_files = os.listdir(cur_res_path)
 
 
-def check_pt_results(ref_energy,cur_energy,ccsd_threshold,en_str):
+def check_results(ref_energy,cur_energy,ccsd_threshold,en_str):
     if (not isclose(ref_energy, cur_energy, ccsd_threshold)):
         print("ERROR: mismatch in " + en_str + "\nreference: " + str(ref_energy) +
         ", current: " + str(cur_energy))
@@ -36,8 +36,9 @@ def check_pt_results(ref_energy,cur_energy,ccsd_threshold,en_str):
 
 for ref_file in ref_files:
     if ref_file not in cur_files:
-        print("ERROR: " + ref_file + " not available in " + cur_res_path)
-        sys.exit(1)
+        #print("ERROR: " + ref_file + " not available in " + cur_res_path)
+        #sys.exit(1)
+        continue
     
     with open(ref_res_path+"/"+ref_file) as ref_json_file:
         ref_data = json.load(ref_json_file)
@@ -45,49 +46,50 @@ for ref_file in ref_files:
     with open(cur_res_path+"/"+ref_file) as cur_json_file:
         cur_data = json.load(cur_json_file)    
 
+    scf_threshold = ref_data["input"]["SCF"]["conve"]
     ref_scf_energy = ref_data["output"]["SCF"]["final_energy"]
     cur_scf_energy = cur_data["output"]["SCF"]["final_energy"]
-
-    ref_ccsd_energy = ref_data["output"]["CCSD"]["final_energy"]["correlation"]
-    cur_ccsd_energy = cur_data["output"]["CCSD"]["final_energy"]["correlation"]
-
-    scf_threshold = ref_data["input"]["SCF"]["conve"]
 
     if not isclose(ref_scf_energy, cur_scf_energy, scf_threshold):
         print("ERROR: SCF energy does not match. reference: " + str(ref_scf_energy) + ", current: " + str(cur_scf_energy))
         sys.exit(1)
 
     ccsd_threshold = ref_data["input"]["CCSD"]["threshold"]
-    if not isclose(ref_ccsd_energy, cur_ccsd_energy, ccsd_threshold):
-        print("ERROR: CCSD correlation energy does not match. reference: " + str(ref_ccsd_energy) + ", current: " + str(cur_ccsd_energy))
-        sys.exit(1)
+    if "CCSD" in ref_data["output"]:
+        #print("Checking CCSD results")
+        ref_ccsd_energy = ref_data["output"]["CCSD"]["final_energy"]["correlation"]
+        cur_ccsd_energy = cur_data["output"]["CCSD"]["final_energy"]["correlation"]
+        check_results(ref_ccsd_energy,cur_ccsd_energy,ccsd_threshold,"CCSD correlation energy")
 
-    ref_pt_data = ref_data["output"]["CCSD(T)"]
-    cur_pt_data = cur_data["output"]["CCSD(T)"]
 
+    if "CCSD(T)" in ref_data["output"]:
+        print("Checking CCSD(T) results")
+        ref_pt_data = ref_data["output"]["CCSD(T)"]
+        cur_pt_data = cur_data["output"]["CCSD(T)"]
+        
+        ref_correction = ref_pt_data["[T]Energies"]["correction"]
+        cur_correction = cur_pt_data["[T]Energies"]["correction"]
 
-    ref_correction = ref_pt_data["[T]Energies"]["correction"]
-    cur_correction = cur_pt_data["[T]Energies"]["correction"]
+        ref_correlation = ref_pt_data["[T]Energies"]["correlation"]
+        cur_correlation = cur_pt_data["[T]Energies"]["correlation"]
 
-    ref_correlation = ref_pt_data["[T]Energies"]["correlation"]
-    cur_correlation = cur_pt_data["[T]Energies"]["correlation"]
+        ref_total = ref_pt_data["[T]Energies"]["total"]
+        cur_total = cur_pt_data["[T]Energies"]["total"]        
 
-    ref_total = ref_pt_data["[T]Energies"]["total"]
-    cur_total = cur_pt_data["[T]Energies"]["total"]        
+        check_results(ref_correction,cur_correction,ccsd_threshold,"[T] Correction Energy")
+        check_results(ref_correlation,cur_correlation,ccsd_threshold,"[T] Correlation Energy")
+        check_results(ref_total,cur_total,ccsd_threshold,"[T] Total Energy")
 
-    check_pt_results(ref_correction,cur_correction,ccsd_threshold,"[T] Correction Energy")
-    check_pt_results(ref_correlation,cur_correlation,ccsd_threshold,"[T] Correlation Energy")
-    check_pt_results(ref_total,cur_total,ccsd_threshold,"[T] Total Energy")
+        ref_correction = ref_pt_data["(T)Energies"]["correction"]
+        cur_correction = cur_pt_data["(T)Energies"]["correction"]
 
-    ref_correction = ref_pt_data["(T)Energies"]["correction"]
-    cur_correction = cur_pt_data["(T)Energies"]["correction"]
+        ref_correlation = ref_pt_data["(T)Energies"]["correlation"]
+        cur_correlation = cur_pt_data["(T)Energies"]["correlation"]
 
-    ref_correlation = ref_pt_data["(T)Energies"]["correlation"]
-    cur_correlation = cur_pt_data["(T)Energies"]["correlation"]
+        ref_total = ref_pt_data["(T)Energies"]["total"]
+        cur_total = cur_pt_data["(T)Energies"]["total"]           
 
-    ref_total = ref_pt_data["(T)Energies"]["total"]
-    cur_total = cur_pt_data["(T)Energies"]["total"]           
+        check_results(ref_correction,cur_correction,ccsd_threshold,"(T) Correction Energy")
+        check_results(ref_correlation,cur_correlation,ccsd_threshold,"(T) Correlation Energy")
+        check_results(ref_total,cur_total,ccsd_threshold,"(T) Total Energy")
 
-    check_pt_results(ref_correction,cur_correction,ccsd_threshold,"[T] Correction Energy")
-    check_pt_results(ref_correlation,cur_correlation,ccsd_threshold,"[T] Correlation Energy")
-    check_pt_results(ref_total,cur_total,ccsd_threshold,"[T] Total Energy")

@@ -612,16 +612,15 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI
     auto [p,q,r,s] = MO.labels<4>("all");
 
     //Spin here is defined as spin(p)=spin(r) and spin(q)=spin(s) which is not currently not supported by TAMM.
-    Tensor<T> d_a2{{N,N,N,N},{2,2}};
+    // Tensor<T> d_a2{{N,N,N,N},{2,2}};
     //For V2, spin(p)+spin(q) == spin(r)+spin(s)
     Tensor<T> d_v2{{N,N,N,N},{2,2}};
-    Tensor<T>::allocate(&ec,d_a2,d_v2);
+    Tensor<T>::allocate(&ec,d_v2);
 
     auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-    Scheduler{ec}(d_a2(p, q, r, s) = cholVpr(p, r, cindex) * cholVpr(q, s, cindex))
-                 (d_v2(p, q, r, s) = d_a2(p,q,r,s))
-                 (d_v2(p, q, r, s) -= d_a2(p,q,s,r))
+    Scheduler{ec}(d_v2(p, q, r, s)  = cholVpr(p, r, cindex) * cholVpr(q, s, cindex))
+                 (d_v2(p, q, r, s) += -1.0 * cholVpr(p, s, cindex) * cholVpr(q, r, cindex))
                  .execute(hw);
 
     auto cc_t2 = std::chrono::high_resolution_clock::now();
@@ -629,69 +628,8 @@ Tensor<T> setupV2(ExecutionContext& ec, TiledIndexSpace& MO, TiledIndexSpace& CI
         std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
     if(rank == 0) std::cout << std::endl << "Time to reconstruct V2: " << v2_time << " secs" << std::endl;
 
-    Tensor<T>::deallocate(d_a2);
+    // Tensor<T>::deallocate(d_a2);
     return d_v2;
-
- #if 0
-      auto chol_dims = CholVpr.dimensions();
-  auto chol_count = chol_dims[2];
-    auto ndocc = n_occ_alpha;
-    auto n_occ_alpha_freeze = ndocc - freeze_core;
-    auto ov_beta_freeze  = nao - ndocc - freeze_virtual;
-  const int n_alpha = n_occ_alpha_freeze;
-  const int n_beta = ov_beta_freeze;
-  // buf[0] points to the target shell set after every call  to engine.compute()
-  // const auto &buf = engine.results();
-  Matrix spin_t = Matrix::Zero(1, 2 * nao - 2 * freeze_core - 2 * freeze_virtual);
-  Matrix spin_1 = Matrix::Ones(1,n_alpha);
-  Matrix spin_2 = Matrix::Constant(1,n_alpha,2);
-  Matrix spin_3 = Matrix::Constant(1,n_beta,1);
-  Matrix spin_4 = Matrix::Constant(1,n_beta,2);
-  //spin_t << 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 2, 2; - water
-  spin_t.block(0,0,1,n_alpha) = spin_1;
-  spin_t.block(0,n_alpha,1,n_alpha) = spin_2;
-  spin_t.block(0,2*n_alpha,1, n_beta) = spin_3;
-  spin_t.block(0,2*n_alpha+n_beta,1, n_beta) = spin_4;
-
-  const auto v2dim =  2 * nao - 2 * freeze_core - 2 * freeze_virtual;
-    Tensor4D A2(v2dim,v2dim,v2dim,v2dim);
-    A2.setZero();
-    Tensor4D V2(v2dim,v2dim,v2dim,v2dim);
-
-        // Form (pr|qs)
-    for (auto p = 0; p < v2dim; p++) {
-      for (auto r = 0; r < v2dim; r++) {
-        if (spin_t(p) != spin_t(r)) {
-          continue;
-        }
-
-        for (auto q = 0; q < v2dim; q++) {
-          for (auto s = 0; s < v2dim; s++) {
-            if (spin_t(q) != spin_t(s)) {
-              continue;
-            }
-
-            for (auto icount = 0; icount != chol_count; ++icount) {
-              A2(p, r, q, s) += CholVpr(p, r, icount) * CholVpr(q, s, icount);
-              //V2_FromCholV(p, r, q, s) += CholVpr(p, r, icount) * CholVpr(q, s, icount);
-            }
-            //cout << p << " " << r << " " << q << " " << s << " " << V2_unfused(p, r, q, s) << endl << endl;
-          }
-        }
-      }
-    }
-
-
-    for (size_t p = 0; p < v2dim; p++) {
-        for (size_t q = 0; q < v2dim; q++) {
-          for (size_t r = 0; r < v2dim; r++) {
-            for (size_t s = 0; s < v2dim; s++) {
-              V2(p, q, r, s) = A2(p, r, q, s) - A2(p, s, q, r);
-            }
-          }
-        }
-    }
- #endif
 
 }
 

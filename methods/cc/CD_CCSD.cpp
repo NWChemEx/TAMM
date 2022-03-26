@@ -210,85 +210,13 @@ void ccsd_driver() {
         free_vec_tensors(d_r1s, d_r2s, d_t1s, d_t2s);
     }
 
-    if(is_rhf) free_tensors(d_t1, d_t2, d_f1);
-    else free_tensors(d_f1);
-
-    Tensor<T> d_v2;
-    if(computeTData) {
-        d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count, ex_hw);
-        if(ccsd_options.writev) {
-          write_to_disk(d_v2,fullV2file,true);
-          Tensor<T>::deallocate(d_v2);
-        }
-    }
-
-    free_tensors(cholVpr);
+    free_tensors(d_f1, d_t1, d_t2, cholVpr);
+    if(computeTData && is_rhf) free_tensors(dt1_full, dt2_full);
 
     #ifdef USE_TALSH
     //talshStats();
     if(has_gpu) talsh_instance.shutdown();
     #endif
-
-    if(computeTData) {
-        if(!is_rhf) {
-          dt1_full = d_t1;
-          dt2_full = d_t2;
-        }
-        if(rank==0) {
-          cout << endl << "Retile T1,T2,V2 ... " << endl;
-        }
-
-        auto [MO1,total_orbitals1] = setupMOIS(sys_data,true);
-        TiledIndexSpace N1 = MO1("all");
-        TiledIndexSpace O1 = MO1("occ");
-        TiledIndexSpace V1 = MO1("virt");
-
-        // Tensor<T> t_d_f1{{N1,N1},{1,1}};
-        Tensor<T> t_d_t1{{V1,O1},{1,1}};
-        Tensor<T> t_d_t2{{V1,V1,O1,O1},{2,2}};
-        Tensor<T> t_d_v2{{N1,N1,N1,N1},{2,2}};
-        Tensor<T>::allocate(&ec,t_d_t1,t_d_t2,t_d_v2);
-
-        Scheduler{ec}
-        // (t_d_f1() = 0)
-        (t_d_t1() = 0)
-        (t_d_t2() = 0)
-        (t_d_v2() = 0)
-        .execute();
-
-        TiledIndexSpace O = MO("occ");
-        TiledIndexSpace V = MO("virt");
-
-        if(ccsd_options.writev) {
-          // Tensor<T> wd_f1{{N,N},{1,1}};
-          Tensor<T> wd_t1{{V,O},{1,1}};
-          Tensor<T> wd_t2{{V,V,O,O},{2,2}};
-          Tensor<T> wd_v2{{N,N,N,N},{2,2}};
-
-          // read_from_disk(t_d_f1,f1file,false,wd_f1);
-          read_from_disk(t_d_t1,t1file,false,wd_t1);
-          read_from_disk(t_d_t2,t2file,false,wd_t2);
-          read_from_disk(t_d_v2,fullV2file,false,wd_v2);
-
-          ec.pg().barrier();
-          // write_to_disk(t_d_f1,f1file);
-          write_to_disk(t_d_t1,t1file);
-          write_to_disk(t_d_t2,t2file);
-          write_to_disk(t_d_v2,fullV2file);
-        }
-
-        else {
-          retile_tamm_tensor(dt1_full,t_d_t1);
-          retile_tamm_tensor(dt2_full,t_d_t2);
-          if(is_rhf) free_tensors(dt1_full, dt2_full);
-          retile_tamm_tensor(d_v2,t_d_v2,"V2");
-          free_tensors(d_v2);
-        }
-
-        free_tensors(t_d_t1, t_d_t2, t_d_v2);
-    }
-    
-    if(!is_rhf) free_tensors(d_t1, d_t2);
 
     ec.flush_and_sync();
     // delete ec;

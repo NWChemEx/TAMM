@@ -74,6 +74,31 @@ __constant__ int const_df_d2_size[7 * MAX_NVAB];
 __constant__ int const_df_d2_exec[9 * MAX_NVAB];
 
 template<typename T>
+void fully_fused_ccsd_t_gpu(cudaStream_t* stream_id, size_t num_blocks, size_t base_size_h1b,
+                            size_t base_size_h2b, size_t base_size_h3b, size_t base_size_p4b,
+                            size_t base_size_p5b, size_t base_size_p6b,
+                            //
+                            T* df_dev_d1_t2_all, T* df_dev_d1_v2_all, T* df_dev_d2_t2_all,
+                            T* df_dev_d2_v2_all, T* df_dev_s1_t1_all, T* df_dev_s1_v2_all,
+                            //
+                            size_t size_d1_t2_all, size_t size_d1_v2_all, size_t size_d2_t2_all,
+                            size_t size_d2_v2_all, size_t size_s1_t1_all, size_t size_s1_v2_all,
+                            //
+                            int* host_d1_size, int* host_d1_exec, // used
+                            int* host_d2_size, int* host_d2_exec, int* host_s1_size,
+                            int* host_s1_exec,
+                            //
+                            size_t size_noab, size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2,
+                            size_t size_nvab, size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2,
+                            size_t size_max_dim_s1_t1, size_t size_max_dim_s1_v2,
+                            //
+                            T factor,
+                            //
+                            T* dev_evl_sorted_h1b, T* dev_evl_sorted_h2b, T* dev_evl_sorted_h3b,
+                            T* dev_evl_sorted_p4b, T* dev_evl_sorted_p5b, T* dev_evl_sorted_p6b,
+                            T* partial_energies, gpuEvent_t done_compute, gpuEvent_t done_copy);
+
+template<typename T>
 __global__ void revised_jk_ccsd_t_fully_fused_kernel(
   int size_noab, int size_nvab,
   //    common
@@ -2758,19 +2783,20 @@ __device__ inline void rt_load_fixed(double* smem, const int idx_x_1, const int 
 
 //------------------------------------------------------------------------------
 // created by tc_gen_code_Kernel()
+template <typename T>
 __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp64(
   int size_noab, int size_nvab,
   // common
   int size_max_dim_s1_t1, int size_max_dim_s1_v2, int size_max_dim_d1_t2, int size_max_dim_d1_v2,
   int size_max_dim_d2_t2, int size_max_dim_d2_v2,
   //
-  double* __restrict__ dev_s1_t1_all, double* __restrict__ dev_s1_v2_all,
-  double* __restrict__ dev_d1_t2_all, double* __restrict__ dev_d1_v2_all,
-  double* __restrict__ dev_d2_t2_all, double* __restrict__ dev_d2_v2_all,
+  T* __restrict__ dev_s1_t1_all, T* __restrict__ dev_s1_v2_all,
+  T* __restrict__ dev_d1_t2_all, T* __restrict__ dev_d1_v2_all,
+  T* __restrict__ dev_d2_t2_all, T* __restrict__ dev_d2_v2_all,
   //
-  double* dev_energy, const double* dev_evl_sorted_h3b, const double* dev_evl_sorted_h2b,
-  const double* dev_evl_sorted_h1b, const double* dev_evl_sorted_p6b,
-  const double* dev_evl_sorted_p5b, const double* dev_evl_sorted_p4b,
+  T* dev_energy, const T* dev_evl_sorted_h3b, const T* dev_evl_sorted_h2b,
+  const T* dev_evl_sorted_h1b, const T* dev_evl_sorted_p6b,
+  const T* dev_evl_sorted_p5b, const T* dev_evl_sorted_p4b,
   //
   const int size_h3, const int size_h2, const int size_h1, const int size_p6, const int size_p5,
   const int size_p4, const int numBlk_h3, const int numBlk_h2, const int numBlk_h1,
@@ -2779,9 +2805,9 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
   auto block = cooperative_groups::this_thread_block();
   // For Shared Memory,
   const int                lda = 16 + PAD;
-  extern __shared__ double sm_block[];
-  double*                  sm_a = reinterpret_cast<double*>(sm_block) + 0 * STAGE_OFFSET;
-  double*                  sm_b = reinterpret_cast<double*>(sm_block) + NUM_STAGE * STAGE_OFFSET;
+  extern __shared__ T sm_block[];
+  T*                  sm_a = reinterpret_cast<T*>(sm_block) + 0 * STAGE_OFFSET;
+  T*                  sm_b = reinterpret_cast<T*>(sm_block) + NUM_STAGE * STAGE_OFFSET;
 
 #pragma unroll
   for(int i = 0; i < NUM_STAGE; i++) {
@@ -2855,7 +2881,7 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
   // const size_t num_batches = (size_internal + SIZE_UNIT_INT - 1) / SIZE_UNIT_INT;
 
   // TB_X(p4,h3), TB_Y(h1,h2)
-  double partial_inner_factor = 0.0;
+  T partial_inner_factor = 0.0;
   if(idx_p6 < rng_p4 && idx_h2 < rng_h3 && idx_h1 < rng_h1 && idx_h3 < rng_h2)
     partial_inner_factor = dev_evl_sorted_h3b[blk_idx_h3 * SIZE_TILE_H3 + idx_h2] +
                            dev_evl_sorted_h2b[blk_idx_h2 * SIZE_TILE_H2 + idx_h3] +
@@ -2874,8 +2900,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
     if(flag_d2_1 >= 0) {
-      double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_1;
-      double* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_1;
+      T* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_1;
+      T* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_1;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -2950,8 +2976,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
     if(flag_d1_6 >= 0) {
-      double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_6;
-      double* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_6;
+      T* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_6;
+      T* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_6;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -3035,8 +3061,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
     if(flag_d2_2 >= 0) {
-      double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_2;
-      double* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_2;
+      T* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_2;
+      T* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_2;
 
       //
       internal_upperbound = 0;
@@ -3112,8 +3138,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
     if(flag_d1_4 >= 0) {
-      double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_4;
-      double* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_4;
+      T* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_4;
+      T* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_4;
 
       //
       internal_upperbound = 0;
@@ -3199,8 +3225,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
     if(flag_d2_3 >= 0) {
-      double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_3;
-      double* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_3;
+      T* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_3;
+      T* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_3;
 
       //
       internal_upperbound = 0;
@@ -3276,8 +3302,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
     if(flag_d1_5 >= 0) {
-      double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_5;
-      double* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_5;
+      T* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_5;
+      T* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_5;
 
       //
       internal_upperbound = 0;
@@ -3371,8 +3397,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
     if(flag_d2_4 >= 0) {
-      double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_4;
-      double* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_4;
+      T* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_4;
+      T* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_4;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -3447,8 +3473,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
     if(flag_d1_9 >= 0) {
-      double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_9;
-      double* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_9;
+      T* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_9;
+      T* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_9;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -3533,8 +3559,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
     if(flag_d2_5 >= 0) {
-      double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_5;
-      double* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_5;
+      T* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_5;
+      T* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_5;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -3609,8 +3635,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
     if(flag_d1_7 >= 0) {
-      double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_7;
-      double* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_7;
+      T* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_7;
+      T* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_7;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -3695,8 +3721,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
     if(flag_d2_6 >= 0) {
-      double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_6;
-      double* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_6;
+      T* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_6;
+      T* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_6;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -3771,8 +3797,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
     if(flag_d1_8 >= 0) {
-      double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_8;
-      double* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_8;
+      T* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_8;
+      T* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_8;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -3870,8 +3896,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
     if(flag_d2_7 >= 0) {
-      double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_7;
-      double* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_7;
+      T* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_7;
+      T* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_7;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -3947,8 +3973,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
     if(flag_d1_3 >= 0) {
-      double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_3;
-      double* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_3;
+      T* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_3;
+      T* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_3;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -4032,8 +4058,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
     if(flag_d2_8 >= 0) {
-      double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_8;
-      double* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_8;
+      T* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_8;
+      T* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_8;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -4109,8 +4135,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
     if(flag_d1_1 >= 0) {
-      double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_1;
-      double* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_1;
+      T* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_1;
+      T* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_1;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -4194,8 +4220,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_p7 + 3) / 4) * 4;
 
     if(flag_d2_9 >= 0) {
-      double* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_9;
-      double* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_9;
+      T* tmp_dev_d2_t2 = dev_d2_t2_all + size_max_dim_d2_t2 * flag_d2_9;
+      T* tmp_dev_d2_v2 = dev_d2_v2_all + size_max_dim_d2_v2 * flag_d2_9;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -4270,8 +4296,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
     const size_t size_internal_up = ((size_h7 + 3) / 4) * 4;
 
     if(flag_d1_2 >= 0) {
-      double* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_2;
-      double* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_2;
+      T* tmp_dev_d1_t2 = dev_d1_t2_all + size_max_dim_d1_t2 * flag_d1_2;
+      T* tmp_dev_d1_v2 = dev_d1_v2_all + size_max_dim_d1_v2 * flag_d1_2;
 
       internal_upperbound = 0;
 #pragma unroll 1
@@ -4358,8 +4384,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
   //                                                                                                                             t1[ry,h1] * v2[h3,h2,p6,rx]
   //    s1_1: t3[h3,h2,h1,p6,p5,p4] += t1[p4,h1] * v2[h3,h2,p6,p5]
   if(flag_s1_1 >= 0) {
-    double* dev_s1_t1_1 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_1;
-    double* dev_s1_v2_1 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_1;
+    T* dev_s1_t1_1 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_1;
+    T* dev_s1_v2_1 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_1;
 
     //
     if(idx_h1 == 0 && idx_h3 == 0) {
@@ -4440,8 +4466,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
   // s1_2: t3[h3,h2,h1,p6,p5,p4] -= t2[p4,h2] * v2[h3,h1,p6,p5]
   if(flag_s1_2 >= 0) {
     //
-    double* dev_s1_t1_2 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_2;
-    double* dev_s1_v2_2 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_2;
+    T* dev_s1_t1_2 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_2;
+    T* dev_s1_v2_2 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_2;
 
     if(threadIdx.y == 0) {
       if(idx_p6 < rng_p4 && idx_h2 < rng_h2) {
@@ -4522,8 +4548,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
   // s1_3: t3[h3,h2,h1,p6,p5,p4] += t2[p4,h3] * v2[h2,h1,p6,p5]
   if(flag_s1_3 >= 0) {
     //
-    double* dev_s1_t1_3 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_3;
-    double* dev_s1_v2_3 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_3;
+    T* dev_s1_t1_3 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_3;
+    T* dev_s1_v2_3 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_3;
 
     if(threadIdx.y == 0) {
       if(idx_p6 < rng_p4 && idx_h2 < rng_h3) {
@@ -4621,8 +4647,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
 
   // s1_4: t3[h3,h2,h1,p6,p5,p4] -= t2[p5,h1] * v2[h3,h2,p6,p4]
   if(flag_s1_4 >= 0) {
-    double* dev_s1_t1_4 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_4;
-    double* dev_s1_v2_4 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_4;
+    T* dev_s1_t1_4 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_4;
+    T* dev_s1_v2_4 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_4;
 
     if(threadIdx.y == 0) {
       if(idx_p6 < rng_p5 && idx_h2 < rng_h1) {
@@ -4703,8 +4729,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
 
   // s1_5: t3[h3,h2,h1,p6,p5,p4] -= t2[p5,h2] * v2[h3,h1,p6,p4]
   if(flag_s1_5 >= 0) {
-    double* dev_s1_t1_5 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_5;
-    double* dev_s1_v2_5 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_5;
+    T* dev_s1_t1_5 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_5;
+    T* dev_s1_v2_5 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_5;
 
     if(threadIdx.y == 0) {
       if(idx_p6 < rng_p5 && idx_h2 < rng_h2) {
@@ -4785,8 +4811,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
 
   // s1_6: t3[h3,h2,h1,p6,p5,p4] -= t2[p5,h3] * v2[h2,h1,p6,p4]
   if(flag_s1_6 >= 0) {
-    double* dev_s1_t1_6 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_6;
-    double* dev_s1_v2_6 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_6;
+    T* dev_s1_t1_6 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_6;
+    T* dev_s1_v2_6 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_6;
 
     if(threadIdx.y == 0) {
       if(idx_p6 < rng_p5 && idx_h2 < rng_h3) {
@@ -4868,8 +4894,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
 
   // s1_7: t3[h3,h2,h1,p6,p5,p4] -= t2[p6,h1] * v2[h3,h2,p5,p4]
   if(flag_s1_7 >= 0) {
-    double* dev_s1_t1_7 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_7;
-    double* dev_s1_v2_7 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_7;
+    T* dev_s1_t1_7 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_7;
+    T* dev_s1_v2_7 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_7;
 
     if(threadIdx.y == 0) {
       if(idx_p6 < rng_p6 && idx_h2 < rng_h1) {
@@ -4949,8 +4975,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
 
   // s1_8: t3[h3,h2,h1,p6,p5,p4] -= t2[p6,h2] * v2[h3,h1,p5,p4]
   if(flag_s1_8 >= 0) {
-    double* dev_s1_t1_8 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_8;
-    double* dev_s1_v2_8 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_8;
+    T* dev_s1_t1_8 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_8;
+    T* dev_s1_v2_8 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_8;
 
     if(threadIdx.y == 0) {
       if(idx_p6 < rng_p6 && idx_h2 < rng_h2) {
@@ -5036,8 +5062,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
   //                                                                                                                             t1[ry,h3] * v2[h2,h1,rx,p4]
   //    s1_9: t3[h3,h2,h1,p6,p5,p4] -= t1[p6,h3] * v2[h2,h1,p5,p4]
   if(flag_s1_9 >= 0) {
-    double* dev_s1_t1_9 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_9;
-    double* dev_s1_v2_9 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_9;
+    T* dev_s1_t1_9 = dev_s1_t1_all + size_max_dim_s1_t1 * flag_s1_9;
+    T* dev_s1_v2_9 = dev_s1_v2_all + size_max_dim_s1_v2 * flag_s1_9;
 
     if(threadIdx.y == 0) {
       if(idx_p6 < rng_p6 && idx_h2 < rng_h3) {
@@ -5126,8 +5152,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
   //
   //    kernel x(idx_p6,idx_h2), y(idx_h1,idx_h3)
   //
-  double energy_1 = 0.0;
-  double energy_2 = 0.0;
+  T energy_1 = 0.0;
+  T energy_2 = 0.0;
   if(idx_p6 < rng_p4 && idx_h2 < rng_h3 && idx_h1 < rng_h1 && idx_h3 < rng_h2) {
 #pragma unroll 4
     for(int idx_reg_y = 0; idx_reg_y < 4; idx_reg_y++) {
@@ -5136,13 +5162,13 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
         //
         if(idx_reg_y < rng_p6 && idx_reg_x < rng_p5) {
 #if 1
-          double inner_factor = (partial_inner_factor - sm_a[idx_reg_y * 4 + idx_reg_x]);
-          double temp         = op_c.reg[idx_reg_y * 4 + idx_reg_x] / inner_factor;
+          T inner_factor = (partial_inner_factor - sm_a[idx_reg_y * 4 + idx_reg_x]);
+          T temp         = op_c.reg[idx_reg_y * 4 + idx_reg_x] / inner_factor;
           energy_1 += temp * op_c.reg[idx_reg_y * 4 + idx_reg_x];
           energy_2 +=
             temp * (op_c.reg[idx_reg_y * 4 + idx_reg_x] + op_c_s.reg[idx_reg_y * 4 + idx_reg_x]);
 #else
-          double inner_factor = partial_inner_factor -
+          T inner_factor = partial_inner_factor -
                                 dev_evl_sorted_p5b[blk_idx_p5 * SIZE_TILE_P5 + idx_reg_x] -
                                 dev_evl_sorted_p6b[blk_idx_p6 * SIZE_TILE_P6 + idx_reg_y];
           energy_1 += op_c.reg[idx_reg_y * 4 + idx_reg_x] * op_c.reg[idx_reg_y * 4 + idx_reg_x] /
@@ -5176,8 +5202,8 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
   __syncthreads();
 
   //
-  double final_energy_1 = 0.0;
-  double final_energy_2 = 0.0;
+  T final_energy_1 = 0.0;
+  T final_energy_2 = 0.0;
   if(threadIdx.x == 0 && threadIdx.y == 0) {
     for(int i = 0; i < 8; i++) {
       final_energy_1 += sm_a[i];
@@ -5201,12 +5227,13 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
 /**
  *      @brief the driver of the fully-fused kernel for CCSD(T)
  **/
+template <typename T>
 void ccsd_t_fully_fused_nvidia_tc_fp64(
   cudaStream_t* stream_id, size_t numBlks, size_t size_h3, size_t size_h2, size_t size_h1,
   size_t size_p6, size_t size_p5, size_t size_p4,
   //
-  double* dev_s1_t1_all, double* dev_s1_v2_all, double* dev_d1_t2_all, double* dev_d1_v2_all,
-  double* dev_d2_t2_all, double* dev_d2_v2_all,
+  T* dev_s1_t1_all, T* dev_s1_v2_all, T* dev_d1_t2_all, T* dev_d1_v2_all,
+  T* dev_d2_t2_all, T* dev_d2_v2_all,
   //
   int* host_size_d1_h7b, int* host_size_d2_p7b, int* host_exec_s1, int* host_exec_d1,
   int* host_exec_d2,
@@ -5215,9 +5242,9 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(
   size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2, size_t size_max_dim_d2_t2,
   size_t size_max_dim_d2_v2,
   //
-  double factor, double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b,
-  double* dev_evl_sorted_p4b, double* dev_evl_sorted_p5b, double* dev_evl_sorted_p6b,
-  double* dev_energies, gpuEvent_t done_compute, gpuEvent_t done_copy) {
+  T factor, T* dev_evl_sorted_h1b, T* dev_evl_sorted_h2b, T* dev_evl_sorted_h3b,
+  T* dev_evl_sorted_p4b, T* dev_evl_sorted_p5b, T* dev_evl_sorted_p6b,
+  T* dev_energies, gpuEvent_t done_compute, gpuEvent_t done_copy) {
   //
   //    constant memories
   //
@@ -5265,8 +5292,8 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(
   cudaEventRecord(start_kernel);
 #endif
 
-  // double host_energies_zero[2] = {0.0, 0.0};
-  // cudaMemcpyAsync(dev_energies, host_energies_zero, sizeof(double) * 2, cudaMemcpyHostToDevice,
+  // T host_energies_zero[2] = {0.0, 0.0};
+  // cudaMemcpyAsync(dev_energies, host_energies_zero, sizeof(T) * 2, cudaMemcpyHostToDevice,
   // *stream_id);
 
   //
@@ -5276,7 +5303,7 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(
   // int maxbytes = 135168; // 132 KB
   // CUCHK(cudaFuncSetAttribute(fused_kernel_d2, cudaFuncAttributeMaxDynamicSharedMemorySize,
   // maxbytes));
-  fully_fused_kernel_ccsd_t_nvidia_tc_fp64<<<gridsize_1, blocksize_1,
+  fully_fused_kernel_ccsd_t_nvidia_tc_fp64<T><<<gridsize_1, blocksize_1,
                                              2 * NUM_STAGE * 8 * STAGE_OFFSET, *stream_id>>>(
     (int) size_noab, (int) size_nvab,
     //
@@ -5301,8 +5328,8 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(
   printf("[%s] kernel: %f (ms)\n", __func__, kernel_ms);
 #endif
 
-  // double host_energies[2];
-  // CUCHK(cudaMemcpy(host_energies, dev_energies, sizeof(double) * NUM_ENERGY,
+  // T host_energies[2];
+  // CUCHK(cudaMemcpy(host_energies, dev_energies, sizeof(T) * NUM_ENERGY,
   // cudaMemcpyDeviceToHost));
 
   // *final_energy_4 = factor * host_energies[0];
@@ -5310,4 +5337,55 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(
   // printf ("[%s] (gpu) energy: %.10f, %.10f\n", __func__, *final_energy_4, *final_energy_5);
 }
 // end of (2) 3rd. Generation Tensor Cores (FP64)
+
+// explicit template instantiation
+template
+void ccsd_t_fully_fused_nvidia_tc_fp64<double>(
+  cudaStream_t* stream_id, size_t numBlks, size_t size_h3, size_t size_h2, size_t size_h1,
+  size_t size_p6, size_t size_p5, size_t size_p4,
+  //
+  double* dev_s1_t1_all, double* dev_s1_v2_all, double* dev_d1_t2_all, double* dev_d1_v2_all,
+  double* dev_d2_t2_all, double* dev_d2_v2_all,
+  //
+  int* host_size_d1_h7b, int* host_size_d2_p7b, int* host_exec_s1, int* host_exec_d1,
+  int* host_exec_d2,
+  //
+  size_t size_noab, size_t size_nvab, size_t size_max_dim_s1_t1, size_t size_max_dim_s1_v2,
+  size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2, size_t size_max_dim_d2_t2,
+  size_t size_max_dim_d2_v2,
+  //
+  double factor, double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b,
+  double* dev_evl_sorted_p4b, double* dev_evl_sorted_p5b, double* dev_evl_sorted_p6b,
+  double* dev_energies, gpuEvent_t done_compute, gpuEvent_t done_copy);
+
 #endif
+
+
+// explicit template instantiation
+
+template
+void fully_fused_ccsd_t_gpu<double>(
+  gpuStream_t* stream_id, size_t num_blocks, size_t base_size_h1b,
+  size_t base_size_h2b, size_t base_size_h3b, size_t base_size_p4b,
+  size_t base_size_p5b, size_t base_size_p6b,
+  //
+  double* df_dev_d1_t2_all, double* df_dev_d1_v2_all, double* df_dev_d2_t2_all,
+  double* df_dev_d2_v2_all, double* df_dev_s1_t1_all, double* df_dev_s1_v2_all,
+  //
+  size_t size_d1_t2_all, size_t size_d1_v2_all, size_t size_d2_t2_all,
+  size_t size_d2_v2_all, size_t size_s1_t1_all, size_t size_s1_v2_all,
+  //
+  int* host_d1_size, int* host_d1_exec, // used
+  int* host_d2_size, int* host_d2_exec, int* host_s1_size,
+  int* host_s1_exec,
+  //
+  size_t size_noab, size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2,
+  size_t size_nvab, size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2,
+  size_t size_max_dim_s1_t1, size_t size_max_dim_s1_v2,
+  //
+  double factor,
+  //
+  double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b,
+  double* dev_evl_sorted_p4b, double* dev_evl_sorted_p5b, double* dev_evl_sorted_p6b,
+  double* partial_energies,
+  gpuEvent_t done_compute, gpuEvent_t done_copy);

@@ -71,7 +71,7 @@ for ref_file in ref_files:
     ref_scf_energy = ref_data["output"]["SCF"]["final_energy"]
     cur_scf_energy = cur_data["output"]["SCF"]["final_energy"]
 
-    if not isclose(ref_scf_energy, cur_scf_energy, scf_threshold):
+    if not isclose(ref_scf_energy, cur_scf_energy, scf_threshold*10):
         print("ERROR: SCF energy does not match. reference: " + str(ref_scf_energy) + ", current: " + str(cur_scf_energy))
         sys.exit(1)
 

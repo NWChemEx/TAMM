@@ -590,6 +590,12 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
     GWOptions   gw_options(options);
     CCSDOptions ccsd_options(options);
 
+    const std::vector<string> valid_sections{"geometry", "basis", "common", "SCF", "CD", "GW", "CC", "Comments"};
+    for (auto& el : jinput.items()) {
+      if (std::find(valid_sections.begin(), valid_sections.end(), el.key()) == valid_sections.end())
+        tamm_terminate("ERROR: Invalid section [" + el.key() + "] in the input file");
+    }
+
     // clang-format off
     //SCF
     json jscf = jinput["SCF"];
@@ -660,6 +666,15 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
 
     //CC
     json jcc = jinput["CC"];
+    const std::vector<string> valid_ccs{"CCSD(T)", "DLPNO", "EOMCCSD", "RT-EOMCC", "GFCCSD", "Comments",
+    "threshold","force_tilesize","tilesize","itilesize","lshift","ndiis","ccsd_maxiter",
+    "freeze_core","freeze_virtual","printtol","readt","writet","writev","writet_iter",
+    "debug","nactive","profile_ccsd","balance_tiles","ext_data_path","computeTData"};
+    for (auto& el : jcc.items()) {
+      if (std::find(valid_ccs.begin(), valid_ccs.end(), el.key()) == valid_ccs.end())
+        tamm_terminate("ERROR: Invalid CC sub-section [" + el.key() + "] in the input file");            
+    }
+    
     parse_option<int>   (ccsd_options.ndiis         , jcc, "ndiis");
     parse_option<int>   (ccsd_options.nactive       , jcc, "nactive");
     parse_option<int>   (ccsd_options.ccsd_maxiter  , jcc, "ccsd_maxiter");

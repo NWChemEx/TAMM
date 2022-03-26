@@ -5360,9 +5360,6 @@ void ccsd_t_fully_fused_nvidia_tc_fp64<double>(
 
 #endif
 
-
-// explicit template instantiation
-
 template
 void fully_fused_ccsd_t_gpu<double>(
   gpuStream_t* stream_id, size_t num_blocks, size_t base_size_h1b,

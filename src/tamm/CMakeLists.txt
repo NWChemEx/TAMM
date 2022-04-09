@@ -3,14 +3,16 @@ project(TAMM VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For cmsb_add_library
 
 if(USE_CUDA)
-    set(tamm_cuda_SRCS cuda_memory_allocator.cu cudamemset.cu)
-    set(tamm_cuda_INCS cuda_memory_allocator.hpp cudamemset.hpp talsh_tamm.hpp)
+    set(tamm_gpu_SRCS cuda_memory_allocator.cu cudamemset.cu)
+    set(tamm_gpu_INCS cuda_memory_allocator.hpp cudamemset.hpp talsh_tamm.hpp gpuStreams.hpp)
 elseif(USE_HIP)
-    set(tamm_cuda_INCS talsh_tamm.hpp)    
+    set(tamm_gpu_INCS talsh_tamm.hpp gpuStreams.hpp)
+elseif(USE_DPCPP)
+    set(tamm_gpu_INCS gpuStreams.hpp sycl_device.hpp)
 endif()
 
 #Add the current directory's sources to the list
-set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp "${tamm_cuda_SRCS}")
+set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp "${tamm_gpu_SRCS}")
 
 #Add the current directory's header files to the list
 set(TAMM_INCLUDES
@@ -82,7 +84,7 @@ set(TAMM_INCLUDES
     op_base.hpp
     label_translator.hpp
     opmin.hpp
-    "${tamm_cuda_INCS}"
+    "${tamm_gpu_INCS}"
     # spin_tensor.hpp
    )
 

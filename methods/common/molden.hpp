@@ -58,13 +58,13 @@ void reorder_molden_orbitals(const bool is_spherical, std::vector<AtomInfo>& ato
     const T sqrt_753 = sqrt_7*sqrt_5/sqrt_3;
 
     auto col_copy = [&](int tc, int oc, const T scale=1.0) {
-      for(size_t i=0;i<dim1;i++) {
+      for(auto i=0;i<dim1;i++) {
         dmat(i,tc) = scale * smat(i,oc);
       }
     };
   
     if(reorder_rows) {
-      for(size_t i=0;i<dim2;i++) {
+      for(auto i=0;i<dim2;i++) {
         size_t j = 0;
         for(size_t x = 0; x < atominfo.size(); x++) { //loop over atoms
           for(auto s: atominfo[x].shells) { //loop over each shell for given atom
@@ -367,7 +367,7 @@ void read_geom_molden(const SystemData& sys_data, std::vector<libint2::Atom> &at
     std::getline(is, line);
 
   //line at [Atoms]
-  for (int ai=0;ai<atoms.size();ai++) {
+  for (size_t ai=0;ai<atoms.size();ai++) {
     std::getline(is, line);
     std::istringstream iss(line);
     std::vector<std::string> geom{std::istream_iterator<std::string>{iss},
@@ -437,7 +437,7 @@ void read_molden(const SystemData& sys_data, libint2::BasisSet& shells,
   auto scf_options = sys_data.options_map.scf_options;
   auto is = std::ifstream(scf_options.moldenfile);
   std::string line;
-  int n_occ_alpha=0, n_occ_beta=0, n_vir_alpha=0, n_vir_beta=0;
+  size_t n_occ_alpha=0, n_occ_beta=0, n_vir_alpha=0, n_vir_beta=0;
 
   size_t N = C_alpha.rows();
   size_t Northo = C_alpha.cols();

@@ -16,22 +16,10 @@
 
 int check_device(long);
 #if defined(USE_CUDA) || defined(USE_HIP)
-int device_init(long ngpu, int *cuda_device_number);
 void dev_release();
 void finalizememmodule();
 void compute_energy(double factor, double* energy, double* eval1, double* eval2,double* eval3,double* eval4,double* eval5,double* eval6,
 size_t h1d, size_t h2d, size_t h3d, size_t p4d, size_t p5d,size_t p6d, double* host1, double* host2);
-#endif
-
-#if defined(USE_DPCPP)
-void finalizememmodule(
-#if defined(USE_DPCPP)
-		       sycl::queue& syclQueue
-#endif
-		       );
-int device_init(const std::vector<sycl::queue*> iDevice_syclQueue,
-		sycl::queue *syclQue,
-		long ngpu, int *cuda_device_number);
 #endif
 
 template<typename T>
@@ -128,9 +116,6 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
   if(iDevice==0) has_GPU=0;
   // cout << "rank,has_gpu" << rank << "," << has_GPU << endl;
   if(has_GPU == 1){
-#if defined(USE_CUDA) || defined(USE_HIP)
-    device_init(iDevice, &gpu_device_number);
-#endif
     // if(gpu_device_number==30) // QUIT
   }
   if(nodezero) std::cout << "Using " << iDevice << " gpu devices per node" << endl << endl;
@@ -138,9 +123,9 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
 
   //TODO replicate d_t1 L84-89 ccsd_t_gpu.F
 
-    double energy1 = 0.0;
-    double energy2 = 0.0;
-    std::vector<double> energy_l(2);
+    T energy1 = 0.0;
+    T energy2 = 0.0;
+    std::vector<T> energy_l(2);
 
     AtomicCounter* ac = new AtomicCounterGA(ec.pg(), 1);
     ac->allocate(0);
@@ -181,7 +166,6 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                       }
 
                       else {
-                        initmemmodule();
                         #if defined(USE_CUDA) || defined(USE_HIP)
                         dev_mem_s(k_range[t_h1b],k_range[t_h2b],
                                   k_range[t_h3b],k_range[t_p4b],

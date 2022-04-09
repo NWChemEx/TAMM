@@ -50,7 +50,7 @@ class Options {
       basis = "sto-3g";
       dfbasis = "";
       geom_units = "bohr";
-      sphcart = "spherical";
+      gaussian_type = "spherical";
       output_file_prefix = "";
       ext_data_path = "";
     }
@@ -59,11 +59,12 @@ class Options {
     int maxiter;
     std::string basis;
     std::string dfbasis;
-    std::string sphcart;
+    std::string gaussian_type;
     std::string geom_units;
     std::string output_file_prefix;
     std::string ext_data_path;
     std::vector<libint2::Atom> atoms;
+    std::map<int, std::string> atom_basis_map;
 
     void print() {
       std::cout << std::defaultfloat;
@@ -71,7 +72,7 @@ class Options {
       cout << "{" << endl;
       cout << " maxiter    = " << maxiter << endl;
       cout << " basis      = " << basis << " ";
-      cout << sphcart;
+      cout << gaussian_type;
       cout << endl;
       if(!dfbasis.empty()) 
         cout << " dfbasis    = " << dfbasis << endl;       
@@ -150,6 +151,7 @@ class SCFOptions: public Options {
   double alpha; //density mixing parameter
   std::string scf_type;
   std::string xc_type;
+  std::pair<bool, double> mo_vectors_analysis{false,0.15};
 
     void print() {
       std::cout << std::defaultfloat;
@@ -190,6 +192,10 @@ class SCFOptions: public Options {
       // print_bool(" ediis       ", ediis);
       // cout << " ediis_off    = " << ediis_off   << endl;  
       // print_bool(" sad         ", sad); 
+      if(mo_vectors_analysis.first) {
+        cout << " mo_vectors_analysis = [" << mo_vectors_analysis.first;
+        cout << "," << mo_vectors_analysis.second << "]" << endl;
+      }
       cout << "}" << endl;
     }
 };
@@ -330,6 +336,7 @@ class CCSDOptions: public Options {
     pcore          = 0;
     ntimesteps     = 10;
     rt_microiter   = 20;
+    rt_threshold   = 1e-6;
     rt_multiplier  = 0.5;
     rt_step_size   = 0.025;
 
@@ -388,6 +395,7 @@ class CCSDOptions: public Options {
   int    pcore;  // pth core orbital
   int    ntimesteps; // number of time steps
   int    rt_microiter;
+  double rt_threshold;
   double rt_step_size;
   double rt_multiplier;
 
@@ -569,7 +577,7 @@ void parse_option(T& val, json j, string key, bool optional=true)
 {
   if (j.contains(key)) val = j[key].get<T>();
   else if(!optional) {
-    tamm_terminate("ERROR: " + key + " not specified. Please specify the " + key + " option!");
+    tamm_terminate("INPUT FILE ERROR: " + key + " not specified. Please specify the " + key + " option!");
   }
 }
 
@@ -577,26 +585,63 @@ void parse_option(T& val, json j, string key, bool optional=true)
 std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(json& jinput) {
 
     Options options;
-    parse_option<string>(options.basis             , jinput["basis"]   , "basisset",false);
-    parse_option<string>(options.sphcart           , jinput["basis"]   , "sphcart");
-    parse_option<int>   (options.maxiter           , jinput["common"]  , "maxiter");
-    parse_option<bool>  (options.debug             , jinput["common"]  , "debug");
-    parse_option<string>(options.dfbasis           , jinput["basis"]   , "df_basisset");
+
     parse_option<string>(options.geom_units        , jinput["geometry"], "units");
-    parse_option<string>(options.output_file_prefix, jinput["common"]  , "output_file_prefix");
+
+    const std::vector<string> valid_sections{"geometry", "basis", "common", "SCF", "CD", "GW", "CC", "comments"};
+    for (auto& el : jinput.items()) {
+      if (std::find(valid_sections.begin(), valid_sections.end(), el.key()) == valid_sections.end())
+        tamm_terminate("INPUT FILE ERROR: Invalid section [" + el.key() + "] in the input file");
+    }
+
+    // clang-format off
+
+    //basis
+    json jbasis = jinput["basis"];
+    parse_option<string>(options.basis             , jbasis   , "basisset",false);
+    parse_option<string>(options.gaussian_type     , jbasis   , "gaussian_type");
+    parse_option<string>(options.dfbasis           , jbasis   , "df_basisset");
+
+    to_lower(options.basis);
+    const std::vector<string> valid_basis{"comments", "basisset", "gaussian_type", "df_basisset", "atom_basis"};
+    for (auto& el : jbasis.items()) {
+      if (std::find(valid_basis.begin(), valid_basis.end(), el.key()) == valid_basis.end())
+        tamm_terminate("INPUT FILE ERROR: Invalid basis section option [" + el.key() + "] in the input file");
+    }
+    
+    json jatom_basis = jinput["basis"]["atom_basis"];
+    for (auto& [element_symbol, basis_string] : jatom_basis.items()) {
+      int Z = -1;
+      for(const auto& e : libint2::chemistry::get_element_info()) {
+          if(strequal_case(e.symbol, element_symbol)) {
+              Z = e.Z;
+              break;
+          }
+      }
+      if(Z == -1) {
+        tamm_terminate("INPUT FILE ERROR: atom_basis section: element symbol \""
+            + element_symbol + "\" is not recognized");
+      }
+      options.atom_basis_map[Z] = basis_string;
+    }
+
+    //common
+    json jcommon = jinput["common"];
+    parse_option<int>   (options.maxiter           , jcommon, "maxiter");
+    parse_option<bool>  (options.debug             , jcommon, "debug");
+    parse_option<string>(options.output_file_prefix, jcommon, "output_file_prefix");
+    
+    const std::vector<string> valid_common{"comments", "maxiter", "debug", "output_file_prefix"};
+    for (auto& el : jcommon.items()) {
+      if (std::find(valid_common.begin(), valid_common.end(), el.key()) == valid_common.end())
+        tamm_terminate("INPUT FILE ERROR: Invalid common section option [" + el.key() + "] in the input file");
+    }
 
     SCFOptions  scf_options(options);
     CDOptions   cd_options(options);
     GWOptions   gw_options(options);
     CCSDOptions ccsd_options(options);
 
-    const std::vector<string> valid_sections{"geometry", "basis", "common", "SCF", "CD", "GW", "CC", "Comments"};
-    for (auto& el : jinput.items()) {
-      if (std::find(valid_sections.begin(), valid_sections.end(), el.key()) == valid_sections.end())
-        tamm_terminate("ERROR: Invalid section [" + el.key() + "] in the input file");
-    }
-
-    // clang-format off
     //SCF
     json jscf = jinput["SCF"];
     parse_option<int>   (scf_options.charge          , jscf, "charge");
@@ -628,11 +673,22 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
     parse_option<int>   (scf_options.scalapack_np_row, jscf, "scalapack_np_row");                                                             
     parse_option<int>   (scf_options.scalapack_np_col, jscf, "scalapack_np_col");
     parse_option<string>(scf_options.ext_data_path   , jscf, "ext_data_path"); 
+    parse_option<std::pair<bool, double>>(scf_options.mo_vectors_analysis, jscf, "mo_vectors_analysis");
     
     std::string riscf_str;
     parse_option<string>(riscf_str, jscf, "riscf");
     if(riscf_str == "J")         scf_options.riscf = 1;
     else if(riscf_str == "K")    scf_options.riscf = 2;    
+
+    const std::vector<string> valid_scf{"charge", "multiplicity", "lshift", "tol_int",
+     "tol_lindep", "conve", "convd", "diis_hist","force_tilesize","tilesize","df_tilesize",
+     "alpha","writem","nnodes","restart","noscf","ediis","ediis_off","sad","moldenfile",
+     "debug","scf_type","xc_type","n_lindep","restart_size","scalapack_nb","riscf",
+     "scalapack_np_row","scalapack_np_col","ext_data_path","mo_vectors_analysis","comments"};
+    for (auto& el : jscf.items()) {
+      if (std::find(valid_scf.begin(), valid_scf.end(), el.key()) == valid_scf.end())
+        tamm_terminate("INPUT FILE ERROR: Invalid SCF option [" + el.key() + "] in the input file");
+    }
 
     //CD
     json jcd = jinput["CD"];
@@ -640,6 +696,12 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
     parse_option<double>(cd_options.diagtol         , jcd, "diagtol");
     parse_option<int>   (cd_options.max_cvecs_factor, jcd, "max_cvecs");    
     parse_option<string>(cd_options.ext_data_path   , jcd, "ext_data_path");  
+
+    const std::vector<string> valid_cd{"comments","debug","diagtol","max_cvecs","ext_data_path"};
+    for (auto& el : jcd.items()) {
+      if (std::find(valid_cd.begin(), valid_cd.end(), el.key()) == valid_cd.end())
+        tamm_terminate("INPUT FILE ERROR: Invalid CD option [" + el.key() + "] in the input file");            
+    }
 
     //GW
     json jgw = jinput["GW"];
@@ -662,17 +724,17 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
 
     std::vector<string> gwlist{"cdgw", "sdgw", "CDGW", "SDGW"};
     if (std::find(std::begin(gwlist), std::end(gwlist), string(gw_options.method)) == std::end(gwlist))
-      tamm_terminate ("GW error: method can only be one of [sdgw,cdgw]");
+      tamm_terminate ("INPUT FILE ERROR: GW method can only be one of [sdgw,cdgw]");
 
     //CC
     json jcc = jinput["CC"];
-    const std::vector<string> valid_ccs{"CCSD(T)", "DLPNO", "EOMCCSD", "RT-EOMCC", "GFCCSD", "Comments",
+    const std::vector<string> valid_cc{"CCSD(T)", "DLPNO", "EOMCCSD", "RT-EOMCC", "GFCCSD", "comments",
     "threshold","force_tilesize","tilesize","itilesize","lshift","ndiis","ccsd_maxiter",
     "freeze_core","freeze_virtual","printtol","readt","writet","writev","writet_iter",
     "debug","nactive","profile_ccsd","balance_tiles","ext_data_path","computeTData"};
     for (auto& el : jcc.items()) {
-      if (std::find(valid_ccs.begin(), valid_ccs.end(), el.key()) == valid_ccs.end())
-        tamm_terminate("ERROR: Invalid CC sub-section [" + el.key() + "] in the input file");            
+      if (std::find(valid_cc.begin(), valid_cc.end(), el.key()) == valid_cc.end())
+        tamm_terminate("INPUT FILE ERROR: Invalid CC option [" + el.key() + "] in the input file");            
     }
     
     parse_option<int>   (ccsd_options.ndiis         , jcc, "ndiis");
@@ -701,6 +763,7 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
     parse_option<int>   (ccsd_options.pcore        , jrt_eom, "pcore");
     parse_option<int>   (ccsd_options.ntimesteps   , jrt_eom, "ntimesteps");
     parse_option<int>   (ccsd_options.rt_microiter , jrt_eom, "rt_microiter");
+    parse_option<double>(ccsd_options.rt_threshold , jrt_eom, "rt_threshold");
     parse_option<double>(ccsd_options.rt_step_size , jrt_eom, "rt_step_size");
     parse_option<double>(ccsd_options.rt_multiplier, jrt_eom, "rt_multiplier");
 
@@ -731,7 +794,7 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
     parse_option<double>(ccsd_options.eom_threshold, jeomccsd, "eom_threshold");   
     std::vector<string> etlist{"right", "left", "RIGHT", "LEFT"};
     if (std::find(std::begin(etlist), std::end(etlist), string(ccsd_options.eom_type)) == std::end(etlist))
-      tamm_terminate ("EOMCC error: eom type can only be one of [left,right]");
+      tamm_terminate ("INPUT FILE ERROR: EOMCC type can only be one of [left,right]");
     
     json jgfcc = jcc["GFCCSD"];
     parse_option<bool>(ccsd_options.gf_ip      , jgfcc, "gf_ip"); 
@@ -837,10 +900,8 @@ inline std::tuple<OptionsMap, json>
             }
         }
         if(Z == -1) {
-            std::ostringstream oss;
-            oss << "read_dotxyz: element symbol \"" << element_symbol
-                << "\" is not recognized" << std::endl;
-            throw std::runtime_error(oss.str().c_str());
+          tamm_terminate("INPUT FILE ERROR: geometry: element symbol \"" +
+                          element_symbol + "\" is not recognized");
         }
 
         atoms[i].atomic_number = Z;

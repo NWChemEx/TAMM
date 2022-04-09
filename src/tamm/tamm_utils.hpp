@@ -3214,8 +3214,9 @@ inline TensorType invert_tensor(TensorType tens) {
  * @param func function to fill in the tensor with
  */
 template<typename TensorType>
-inline size_t hash_tensor(ExecutionContext* ec, Tensor<TensorType> tensor) {
+inline size_t hash_tensor(Tensor<TensorType> tensor) {
     auto ltensor = tensor();
+    auto ec = tensor.execution_context();
     size_t hash = tensor.num_modes();
     auto lambda = [&](const IndexVector& bid) {
         const IndexVector blockid   = internal::translate_blockid(bid, ltensor);

@@ -309,8 +309,8 @@
   "input": {
     "molecule": {
       "name": "uracil",
-      "basis": "cc-pvdz",
-      "basis_sphcart": "spherical",
+      "basisset": "cc-pvdz",
+      "gaussian_type": "spherical",
       "geometry_units": "angstrom"
     },
     "SCF": {

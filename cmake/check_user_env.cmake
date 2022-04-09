@@ -7,6 +7,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "XL"
         message(FATAL_ERROR "TAMM cannot be currently built with ${CMAKE_CXX_COMPILER_ID} compilers.")
 endif()
 
+if (DEFINED ENV{CONDA_PREFIX}) #VIRTUAL_ENV
+  message(FATAL_ERROR "TAMM cannot be currently built with CONDA. \
+          Please deactivate CONDA environment.")
+endif()
+
 if("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
     if (USE_CUDA)
         message(FATAL_ERROR "TAMM does not support building with GPU support \
@@ -59,6 +64,17 @@ check_compiler_version(CXX PGI 18)
 check_compiler_version(Fortran PGI 18)
 
 find_package(MPI REQUIRED)
+
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+  if(CMAKE_C_COMPILER_VERSION VERSION_EQUAL CMAKE_CXX_COMPILER_VERSION
+    AND CMAKE_C_COMPILER_VERSION VERSION_EQUAL CMAKE_Fortran_COMPILER_VERSION)
+    message(STATUS "Check GNU compiler versions.")
+  else()
+    message(STATUS "GNU C,CXX,Fortran compiler versions do not match")
+    message(FATAL_ERROR "GNU Compiler versions provided: gcc: ${CMAKE_C_COMPILER_VERSION}, 
+    g++: ${CMAKE_CXX_COMPILER_VERSION}, gfortran version: ${CMAKE_Fortran_COMPILER_VERSION}")
+  endif()
+endif()
 
 if(USE_CUDA)
     include(CheckLanguage)

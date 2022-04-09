@@ -31,9 +31,12 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   int errc = talshDeviceCount(DEV_NVIDIA_GPU, &ngpu_);
   assert(!errc);
 #else
+  #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   tamm::getDeviceCount(&ngpu_);
+  #endif
 #endif
 
+#if defined(USE_TALSH) || defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
   if(ngpu_ == 1) dev_id_ = 0;
   if((pg.rank().value() % ranks_pn_) < ngpu_) {
@@ -51,6 +54,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     MPI_Finalize();
     exit(0);
   }
+#endif
 
   // GPUStreamPool as singleton object
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)

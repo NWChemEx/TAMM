@@ -8,17 +8,28 @@
         ],
         "units": "bohr"
     },
-    
-    "basis": {
-        "basisset": "cc-pvdz",
-        "df_basisset": "cc-pv5z-ri",
-        "sphcart": "spherical"
+
+    "comments": {
+      "comment1": "comments are also allowed in all following sections"
     },
 
     "common": {
-        "maxiter": 50,
-        "debug": false,
-        "output_file_prefix": ""
+      "maxiter": 50,
+      "debug": false,
+      "output_file_prefix": "",
+      "comments": {
+        "comment1": "example comment"
+      }  
+    },
+
+    "basis": {
+        "basisset": "cc-pvdz",
+        "df_basisset": "",
+        "gaussian_type": "spherical",
+        "atom_basis": {
+          "H": "cc-pvtz",
+          "O": "aug-cc-pvtz"
+        }
     },
     
     "SCF": {
@@ -46,7 +57,8 @@
         "scalapack_np_row": 0,
         "scalapack_np_col": 0,
         "n_lindep": 0,
-        "moldenfile": ""
+        "moldenfile": "",
+        "mo_vectors_analysis" : [false,0.15]
     },
     
     "CD": {
@@ -86,10 +98,10 @@
         },
     
         "DLPNO": {
-            "localize": false,
-            "skip_dlpno": false,
-            "df_basisset": ""
-        }
+          "localize": false,
+          "skip_dlpno": false,
+          "df_basisset": ""
+      }
     }
     
 }

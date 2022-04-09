@@ -54,7 +54,7 @@
   },
   "basis": {
     "basisset": "sto-3g",
-    "sphcart": "spherical"
+    "gaussian_type": "spherical"
   },
   "SCF": {
     "tilesize": 30,

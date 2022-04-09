@@ -59,7 +59,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
   bool        ediis        = scf_options.ediis;
   double      ediis_off    = scf_options.ediis_off;
   auto        restart      = scf_options.restart;
-  bool        is_spherical = (scf_options.sphcart == "spherical");
+  bool        is_spherical = (scf_options.gaussian_type == "spherical");
   // bool        sad          = scf_options.sad;
   auto       iter          = 0;
   auto       rank          = exc.pg().rank();
@@ -78,7 +78,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     if(!molden_file_valid)
       tamm_terminate("ERROR: moldenfile provided: " + scf_options.moldenfile + " does not exist");
     if(!is_spherical)
-      std::cout << "WARNING: molden interface is not tested with sphcart:cartesian" << std::endl;
+      std::cout << "WARNING: molden interface is not tested with gaussian_type:cartesian" << std::endl;
     if(!is_rhf)
       tamm_terminate("ERROR: molden restart is currently only supported for RHF calculations!");
   }
@@ -102,8 +102,30 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
   // If starting guess is from a molden file, read the geometry.
   if(molden_file_valid) read_geom_molden(sys_data, sys_data.options_map.options.atoms);
 
-  auto              atoms = sys_data.options_map.options.atoms;
-  libint2::BasisSet shells(std::string(basis), atoms);
+  auto atoms          = sys_data.options_map.options.atoms;
+  auto atom_basis_map = sys_data.options_map.options.atom_basis_map;
+
+  libint2::BasisSet shells;
+  {
+    std::vector<libint2::Atom> atoms_list;
+    std::map<int,std::vector<libint2::Atom>> atoms_vec_map;
+
+    for (int i = 0; i < atoms.size(); i++) {
+      const auto Z = atoms[i].atomic_number;
+      Atom x{Z, atoms[i].x, atoms[i].y, atoms[i].z};
+      if(atom_basis_map.find( Z ) != atom_basis_map.end()) 
+        atoms_vec_map[Z].push_back(x);
+      else atoms_list.push_back(x);
+    }
+  
+    if(atoms_list.size()>0) shells = libint2::BasisSet{std::string(basis), atoms_list};
+    for (const auto& avec: atoms_vec_map) {
+      std::string basisset = atom_basis_map[avec.first];
+      libint2::BasisSet ashells(basisset, avec.second);
+      shells.insert(shells.end(),ashells.begin(),ashells.end());
+    }
+  }
+
   if(is_spherical)
     shells.set_pure(true);
   else

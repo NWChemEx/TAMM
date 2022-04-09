@@ -57,7 +57,7 @@ void readLoads(std::vector<NODE_T> &s1_all, std::vector<NODE_T> &s2_all,std::vec
     NODE_T s2;
     VAL_T nTasks;
     
-    for(int i=0;i<s1_all.size();i++)    
+    for(size_t i=0;i<s1_all.size();i++)
     {
         s1 = s1_all[i];
         s2 = s2_all[i];

@@ -74,31 +74,6 @@ __constant__ int const_df_d2_size[7 * MAX_NVAB];
 __constant__ int const_df_d2_exec[9 * MAX_NVAB];
 
 template<typename T>
-void fully_fused_ccsd_t_gpu(cudaStream_t* stream_id, size_t num_blocks, size_t base_size_h1b,
-                            size_t base_size_h2b, size_t base_size_h3b, size_t base_size_p4b,
-                            size_t base_size_p5b, size_t base_size_p6b,
-                            //
-                            T* df_dev_d1_t2_all, T* df_dev_d1_v2_all, T* df_dev_d2_t2_all,
-                            T* df_dev_d2_v2_all, T* df_dev_s1_t1_all, T* df_dev_s1_v2_all,
-                            //
-                            size_t size_d1_t2_all, size_t size_d1_v2_all, size_t size_d2_t2_all,
-                            size_t size_d2_v2_all, size_t size_s1_t1_all, size_t size_s1_v2_all,
-                            //
-                            int* host_d1_size, int* host_d1_exec, // used
-                            int* host_d2_size, int* host_d2_exec, int* host_s1_size,
-                            int* host_s1_exec,
-                            //
-                            size_t size_noab, size_t size_max_dim_d1_t2, size_t size_max_dim_d1_v2,
-                            size_t size_nvab, size_t size_max_dim_d2_t2, size_t size_max_dim_d2_v2,
-                            size_t size_max_dim_s1_t1, size_t size_max_dim_s1_v2,
-                            //
-                            T factor,
-                            //
-                            T* dev_evl_sorted_h1b, T* dev_evl_sorted_h2b, T* dev_evl_sorted_h3b,
-                            T* dev_evl_sorted_p4b, T* dev_evl_sorted_p5b, T* dev_evl_sorted_p6b,
-                            T* partial_energies, gpuEvent_t done_compute, gpuEvent_t done_copy);
-
-template<typename T>
 __global__ void revised_jk_ccsd_t_fully_fused_kernel(
   int size_noab, int size_nvab,
   //    common
@@ -749,7 +724,7 @@ __global__ void revised_jk_ccsd_t_fully_fused_kernel(
   }
 
   //
-  //  Register Rranspose (top - bottom)
+  //  Register Transpose (top - bottom)
   //
   {
     if(threadIdx.y < 4) // 0, 1, 2, 3
@@ -2571,7 +2546,7 @@ __global__ void revised_jk_ccsd_t_fully_fused_kernel(
 }
 
 template<typename T>
-void fully_fused_ccsd_t_gpu(cudaStream_t* stream_id, size_t num_blocks, size_t base_size_h1b,
+void fully_fused_ccsd_t_gpu(gpuStream_t& stream_id, size_t num_blocks, size_t base_size_h1b,
                             size_t base_size_h2b, size_t base_size_h3b, size_t base_size_p4b,
                             size_t base_size_p5b, size_t base_size_p6b,
                             //
@@ -2593,26 +2568,26 @@ void fully_fused_ccsd_t_gpu(cudaStream_t* stream_id, size_t num_blocks, size_t b
                             //
                             T* dev_evl_sorted_h1b, T* dev_evl_sorted_h2b, T* dev_evl_sorted_h3b,
                             T* dev_evl_sorted_p4b, T* dev_evl_sorted_p5b, T* dev_evl_sorted_p6b,
-                            T* partial_energies, gpuEvent_t done_compute, gpuEvent_t done_copy) {
+                            T* partial_energies, gpuEvent_t* done_compute, gpuEvent_t* done_copy) {
   //
   //    to handle constant memories
   //
   cudaMemcpyToSymbolAsync(const_df_s1_size, host_s1_size, sizeof(int) * (6), 0,
-                          cudaMemcpyHostToDevice, *stream_id);
+                          cudaMemcpyHostToDevice, stream_id);
   cudaMemcpyToSymbolAsync(const_df_s1_exec, host_s1_exec, sizeof(int) * (9), 0,
-                          cudaMemcpyHostToDevice, *stream_id);
+                          cudaMemcpyHostToDevice, stream_id);
 
   cudaMemcpyToSymbolAsync(const_df_d1_size, host_d1_size, sizeof(int) * (7 * size_noab), 0,
-                          cudaMemcpyHostToDevice, *stream_id);
+                          cudaMemcpyHostToDevice, stream_id);
   cudaMemcpyToSymbolAsync(const_df_d1_exec, host_d1_exec, sizeof(int) * (9 * size_noab), 0,
-                          cudaMemcpyHostToDevice, *stream_id);
+                          cudaMemcpyHostToDevice, stream_id);
 
   cudaMemcpyToSymbolAsync(const_df_d2_size, host_d2_size, sizeof(int) * (7 * size_nvab), 0,
-                          cudaMemcpyHostToDevice, *stream_id);
+                          cudaMemcpyHostToDevice, stream_id);
   cudaMemcpyToSymbolAsync(const_df_d2_exec, host_d2_exec, sizeof(int) * (9 * size_nvab), 0,
-                          cudaMemcpyHostToDevice, *stream_id);
+                          cudaMemcpyHostToDevice, stream_id);
 
-  cudaEventRecord(done_copy);
+  CUDA_SAFE(cudaEventRecord(*done_copy, stream_id));
 
   //
   //    Depends on # of Fused Kernel
@@ -2648,7 +2623,7 @@ void fully_fused_ccsd_t_gpu(cudaStream_t* stream_id, size_t num_blocks, size_t b
   //    to call the fused kernel for singles, doubles and energies.
   //
   // jk_ccsd_t_fully_fused_kernel_associative
-  revised_jk_ccsd_t_fully_fused_kernel<T><<<gridsize_1, blocksize_1, 0, *stream_id>>>(
+  revised_jk_ccsd_t_fully_fused_kernel<T><<<gridsize_1, blocksize_1, 0, stream_id>>>(
     (int) size_noab, (int) size_nvab,
     //
     (int) size_max_dim_s1_t1, (int) size_max_dim_s1_v2, (int) size_max_dim_d1_t2,
@@ -5229,7 +5204,7 @@ __global__ __launch_bounds__(256, 3) void fully_fused_kernel_ccsd_t_nvidia_tc_fp
  **/
 template <typename T>
 void ccsd_t_fully_fused_nvidia_tc_fp64(
-  cudaStream_t* stream_id, size_t numBlks, size_t size_h3, size_t size_h2, size_t size_h1,
+  gpuStream_t& stream_id, size_t numBlks, size_t size_h3, size_t size_h2, size_t size_h1,
   size_t size_p6, size_t size_p5, size_t size_p4,
   //
   T* dev_s1_t1_all, T* dev_s1_v2_all, T* dev_d1_t2_all, T* dev_d1_v2_all,
@@ -5244,21 +5219,21 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(
   //
   T factor, T* dev_evl_sorted_h1b, T* dev_evl_sorted_h2b, T* dev_evl_sorted_h3b,
   T* dev_evl_sorted_p4b, T* dev_evl_sorted_p5b, T* dev_evl_sorted_p6b,
-  T* dev_energies, gpuEvent_t done_compute, gpuEvent_t done_copy) {
+  T* dev_energies, gpuEvent_t* done_compute, gpuEvent_t* done_copy) {
   //
   //    constant memories
   //
   cudaMemcpyToSymbolAsync(const_d1_h7b, host_size_d1_h7b, sizeof(int) * size_noab, 0,
-                          cudaMemcpyHostToDevice, *stream_id);
+                          cudaMemcpyHostToDevice, stream_id);
   cudaMemcpyToSymbolAsync(const_d2_p7b, host_size_d2_p7b, sizeof(int) * size_nvab, 0,
-                          cudaMemcpyHostToDevice, *stream_id);
+                          cudaMemcpyHostToDevice, stream_id);
 
   cudaMemcpyToSymbolAsync(const_s1_exec, host_exec_s1, sizeof(int) * (9), 0, cudaMemcpyHostToDevice,
-                          *stream_id);
+                          stream_id);
   cudaMemcpyToSymbolAsync(const_d1_exec, host_exec_d1, sizeof(int) * (9 * size_noab), 0,
-                          cudaMemcpyHostToDevice, *stream_id);
+                          cudaMemcpyHostToDevice, stream_id);
   cudaMemcpyToSymbolAsync(const_d2_exec, host_exec_d2, sizeof(int) * (9 * size_nvab), 0,
-                          cudaMemcpyHostToDevice, *stream_id);
+                          cudaMemcpyHostToDevice, stream_id);
 
   // printf ("[new] s1: %d,%d,%d/%d,%d,%d/%d,%d,%d\n", host_exec_s1[0], host_exec_s1[1],
   // host_exec_s1[2], host_exec_s1[3], host_exec_s1[4], host_exec_s1[5], host_exec_s1[6],
@@ -5275,7 +5250,7 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(
   //    host_exec_d2[3 + (i) * 9], host_exec_d2[4 + (i) * 9], host_exec_d2[5 + (i) * 9],
   //    host_exec_d2[6 + (i) * 9], host_exec_d2[7 + (i) * 9], host_exec_d2[8 + (i) * 9]);
   // }
-  cudaEventRecord(done_copy);
+  cudaEventRecord(*done_copy, stream_id);
 
   //
   dim3 gridsize_1(numBlks);
@@ -5294,7 +5269,7 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(
 
   // T host_energies_zero[2] = {0.0, 0.0};
   // cudaMemcpyAsync(dev_energies, host_energies_zero, sizeof(T) * 2, cudaMemcpyHostToDevice,
-  // *stream_id);
+  // stream_id);
 
   //
   // cudaDeviceSetCacheConfig(cudaFuncCachePreferShared);
@@ -5304,7 +5279,7 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(
   // CUCHK(cudaFuncSetAttribute(fused_kernel_d2, cudaFuncAttributeMaxDynamicSharedMemorySize,
   // maxbytes));
   fully_fused_kernel_ccsd_t_nvidia_tc_fp64<T><<<gridsize_1, blocksize_1,
-                                             2 * NUM_STAGE * 8 * STAGE_OFFSET, *stream_id>>>(
+                                             2 * NUM_STAGE * 8 * STAGE_OFFSET, stream_id>>>(
     (int) size_noab, (int) size_nvab,
     //
     (int) size_max_dim_s1_t1, (int) size_max_dim_s1_v2, (int) size_max_dim_d1_t2,
@@ -5341,7 +5316,7 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(
 // explicit template instantiation
 template
 void ccsd_t_fully_fused_nvidia_tc_fp64<double>(
-  cudaStream_t* stream_id, size_t numBlks, size_t size_h3, size_t size_h2, size_t size_h1,
+  gpuStream_t& stream_id, size_t numBlks, size_t size_h3, size_t size_h2, size_t size_h1,
   size_t size_p6, size_t size_p5, size_t size_p4,
   //
   double* dev_s1_t1_all, double* dev_s1_v2_all, double* dev_d1_t2_all, double* dev_d1_v2_all,
@@ -5356,13 +5331,13 @@ void ccsd_t_fully_fused_nvidia_tc_fp64<double>(
   //
   double factor, double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b,
   double* dev_evl_sorted_p4b, double* dev_evl_sorted_p5b, double* dev_evl_sorted_p6b,
-  double* dev_energies, gpuEvent_t done_compute, gpuEvent_t done_copy);
+  double* dev_energies, gpuEvent_t* done_compute, gpuEvent_t* done_copy);
 
-#endif
+#endif //USE_NV_TC
 
 template
 void fully_fused_ccsd_t_gpu<double>(
-  gpuStream_t* stream_id, size_t num_blocks, size_t base_size_h1b,
+  gpuStream_t& stream_id, size_t num_blocks, size_t base_size_h1b,
   size_t base_size_h2b, size_t base_size_h3b, size_t base_size_p4b,
   size_t base_size_p5b, size_t base_size_p6b,
   //
@@ -5385,4 +5360,4 @@ void fully_fused_ccsd_t_gpu<double>(
   double* dev_evl_sorted_h1b, double* dev_evl_sorted_h2b, double* dev_evl_sorted_h3b,
   double* dev_evl_sorted_p4b, double* dev_evl_sorted_p5b, double* dev_evl_sorted_p6b,
   double* partial_energies,
-  gpuEvent_t done_compute, gpuEvent_t done_copy);
+  gpuEvent_t* done_compute, gpuEvent_t* done_copy);

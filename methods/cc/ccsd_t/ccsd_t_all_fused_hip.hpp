@@ -84,13 +84,13 @@ __global__ void revised_jk_ccsd_t_fully_fused_kernel(
   int size_max_dim_s1_t1, int size_max_dim_s1_v2, int size_max_dim_d1_t2, int size_max_dim_d1_v2,
   int size_max_dim_d2_t2, int size_max_dim_d2_v2,
   //
-  T* df_dev_d1_t2_all, T* df_dev_d1_v2_all, T* df_dev_d2_t2_all, T* df_dev_d2_v2_all,
-  T* df_dev_s1_t1_all, T* df_dev_s1_v2_all,
+  T* __restrict__ df_dev_d1_t2_all, T* __restrict__ df_dev_d1_v2_all, T* __restrict__ df_dev_d2_t2_all, T* __restrict__ df_dev_d2_v2_all,
+  T* __restrict__ df_dev_s1_t1_all, T* __restrict__ df_dev_s1_v2_all,
   //  energies
-  const T* dev_evl_sorted_h1b, const T* dev_evl_sorted_h2b, const T* dev_evl_sorted_h3b,
-  const T* dev_evl_sorted_p4b, const T* dev_evl_sorted_p5b, const T* dev_evl_sorted_p6b,
+  const T* __restrict__ dev_evl_sorted_h1b, const T* __restrict__ dev_evl_sorted_h2b, const T* __restrict__ dev_evl_sorted_h3b,
+  const T* __restrict__ dev_evl_sorted_p4b, const T* __restrict__ dev_evl_sorted_p5b, const T* __restrict__ dev_evl_sorted_p6b,
   //    not-fully reduced results
-  T* reduced_energy,
+  T* __restrict__ reduced_energy,
   //  common
   int num_blks_h3b, int num_blks_h2b, int num_blks_h1b, int num_blks_p6b, int num_blks_p5b,
   int num_blks_p4b,
@@ -98,8 +98,8 @@ __global__ void revised_jk_ccsd_t_fully_fused_kernel(
   int base_size_h1b, int base_size_h2b, int base_size_h3b, int base_size_p4b, int base_size_p5b,
   int base_size_p6b) {
   // For Shared Memory,
-  __shared__ T sm_a[16][64 + 1];
-  __shared__ T sm_b[16][64 + 1];
+  __shared__ double sm_a[16][64 + 1];
+  __shared__ double sm_b[16][64 + 1];
 
   int internal_upperbound = 0;
   int internal_offset;
@@ -2505,8 +2505,8 @@ __global__ void revised_jk_ccsd_t_fully_fused_kernel(
   //
   if(idx_h3 < energy_rng_h3 && idx_h2 < energy_rng_h2 && idx_p6 < energy_rng_p6 &&
      idx_h1 < energy_rng_h1) {
-    for(int i = 0; i < FUSION_SIZE_SLICE_1_P5; i++) {
-      for(int j = 0; j < FUSION_SIZE_SLICE_1_P4; j++) {
+    for(int j = 0; j < FUSION_SIZE_SLICE_1_P4; j++) {
+      for(int i = 0; i < FUSION_SIZE_SLICE_1_P5; i++) {
         if(i < energy_rng_p5 && j < energy_rng_p4) {
           //
           T inner_factor = partial_inner_factor - dev_evl_sorted_p5b[i + (energy_str_blk_idx_p5)] -
@@ -2566,10 +2566,8 @@ __global__ void revised_jk_ccsd_t_fully_fused_kernel(
   T final_energy_1 = 0.0;
   T final_energy_2 = 0.0;
   if(threadIdx.x == 0 && threadIdx.y == 0) {
-    // if (blockIdx.x == 0) printf ("[%s] called\n", __func__);
-
-    for(int i = 0; i < 16; i++)
-      for(int j = 0; j < 16; j++) {
+    for(int j = 0; j < 16; j++)
+      for(int i = 0; i < 16; i++) {
         final_energy_1 += sm_a[j][i];
         final_energy_2 += sm_b[j][i];
       }
@@ -2581,7 +2579,7 @@ __global__ void revised_jk_ccsd_t_fully_fused_kernel(
 }
 
 template<typename T>
-void fully_fused_ccsd_t_gpu(hipStream_t* stream_id, size_t num_blocks, size_t base_size_h1b,
+void fully_fused_ccsd_t_gpu(gpuStream_t& stream_id, size_t num_blocks, size_t base_size_h1b,
                             size_t base_size_h2b, size_t base_size_h3b, size_t base_size_p4b,
                             size_t base_size_p5b, size_t base_size_p6b,
                             //
@@ -2608,23 +2606,21 @@ void fully_fused_ccsd_t_gpu(hipStream_t* stream_id, size_t num_blocks, size_t ba
   //    to handle constant memories
   //
   HIP_SAFE(hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_s1_size), host_s1_size, sizeof(int) * (6), 0,
-                                  hipMemcpyHostToDevice, *stream_id));
+                                  hipMemcpyHostToDevice, stream_id));
   HIP_SAFE(hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_s1_exec), host_s1_exec, sizeof(int) * (9), 0,
-                                  hipMemcpyHostToDevice, *stream_id));
-
+                                  hipMemcpyHostToDevice, stream_id));
   HIP_SAFE(hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_d1_size), host_d1_size,
                                   sizeof(int) * (7 * size_noab), 0, hipMemcpyHostToDevice,
-                                  *stream_id));
+                                  stream_id));
   HIP_SAFE(hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_d1_exec), host_d1_exec,
                                   sizeof(int) * (9 * size_noab), 0, hipMemcpyHostToDevice,
-                                  *stream_id));
-
+                                  stream_id));
   HIP_SAFE(hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_d2_size), host_d2_size,
                                   sizeof(int) * (7 * size_nvab), 0, hipMemcpyHostToDevice,
-                                  *stream_id));
+                                  stream_id));
   HIP_SAFE(hipMemcpyToSymbolAsync(HIP_SYMBOL(const_df_d2_exec), host_d2_exec,
                                   sizeof(int) * (9 * size_nvab), 0, hipMemcpyHostToDevice,
-                                  *stream_id));
+                                  stream_id));
 
   //
   //    Depends on # of Fused Kernel
@@ -2638,7 +2634,7 @@ void fully_fused_ccsd_t_gpu(hipStream_t* stream_id, size_t num_blocks, size_t ba
   // jk_ccsd_t_fully_fused_kernel_associative
   hipLaunchKernelGGL(
     HIP_KERNEL_NAME(revised_jk_ccsd_t_fully_fused_kernel<T>), dim3(gridsize_1), dim3(blocksize_1),
-    0, *stream_id, (int) size_noab, (int) size_nvab,
+    0, stream_id, (int) size_noab, (int) size_nvab,
     //
     (int) size_max_dim_s1_t1, (int) size_max_dim_s1_v2, (int) size_max_dim_d1_t2,
     (int) size_max_dim_d1_v2, (int) size_max_dim_d2_t2, (int) size_max_dim_d2_v2,

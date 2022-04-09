@@ -13,11 +13,7 @@ using namespace std;
 static map<size_t,set<void*> > free_list_gpu, free_list_host;
 static map<void *,size_t> live_ptrs_gpu, live_ptrs_host;
 
-static void clearGpuFreeList(
-#ifdef USE_DPCPP
-			     sycl::queue& syclQueue
-#endif
-			     )
+static void clearGpuFreeList()
 {
   for(map<size_t,set<void*> >::iterator it=free_list_gpu.begin(); it!=free_list_gpu.end(); ++it)
   {
@@ -28,18 +24,16 @@ static void clearGpuFreeList(
 #elif defined(USE_HIP)
       HIP_SAFE( hipFree(*it2) );
 #elif defined(USE_DPCPP)
-      sycl::free(*it2, syclQueue);
+      auto& pool = tamm::GPUStreamPool::getInstance();
+      gpuStream_t& stream = pool.getStream();
+      sycl::free(*it2, stream);
 #endif
     }
   }
   free_list_gpu.clear();
 }
 
-static void clearHostFreeList(
-#if defined(USE_DPCPP)
-			      sycl::queue& syclQueue
-#endif
-)
+static void clearHostFreeList()
 {
   for(map<size_t,set<void*> >::iterator it=free_list_host.begin(); it!=free_list_host.end(); ++it)
   {
@@ -50,7 +44,9 @@ static void clearHostFreeList(
 #elif defined(USE_HIP)
       HIP_SAFE( hipHostFree(*it2) );
 #elif defined(USE_DPCPP)
-      sycl::free(*it2, syclQueue);
+      auto& pool = tamm::GPUStreamPool::getInstance();
+      gpuStream_t& stream = pool.getStream();
+      sycl::free(*it2, stream);
 #else
       free(*it2);
 #endif
@@ -61,11 +57,7 @@ static void clearHostFreeList(
 
 static size_t num_resurrections=0;// num_morecore=0;
 
-static void *moreDeviceMem(
-#ifdef USE_DPCPP
-			   sycl::queue& syclQueue,
-#endif
-			   size_t bytes)
+static void *moreDeviceMem(size_t bytes)
 {
   void *ptr=nullptr;
 #if defined(USE_CUDA)
@@ -73,34 +65,31 @@ static void *moreDeviceMem(
 #elif defined(USE_HIP)
   HIP_SAFE(hipMalloc(&ptr, bytes));
 #elif defined(USE_DPCPP)
-  ptr = sycl::malloc_device(bytes, syclQueue);
+  auto& pool = tamm::GPUStreamPool::getInstance();
+  gpuStream_t& stream = pool.getStream();
+  ptr = sycl::malloc_device(bytes, stream);
 #endif
 
   // num_morecore += 1;
   if(ptr==nullptr) {     /*try one more time*/
-#if defined(USE_CUDA)
     clearHostFreeList();
     clearGpuFreeList();
+
+#if defined(USE_CUDA)
     CUDA_SAFE(cudaMalloc(&ptr, bytes));
 #elif defined(USE_HIP)
-    clearHostFreeList();
-    clearGpuFreeList();
     HIP_SAFE(hipMalloc(&ptr, bytes));
 #elif defined(USE_DPCPP)
-    clearHostFreeList(syclQueue);
-    clearGpuFreeList(syclQueue);
-    ptr = sycl::malloc_device(bytes, syclQueue);
+    auto& pool = tamm::GPUStreamPool::getInstance();
+    gpuStream_t& stream = pool.getStream();
+    ptr = sycl::malloc_device(bytes, stream);
 #endif
   }
   assert(ptr!=nullptr); /*We hopefully have a pointer*/
   return ptr;
 }
 
-static void *moreHostMem(
-#ifdef USE_DPCPP
-			 sycl::queue& syclQueue,
-#endif
-			 size_t bytes)
+static void *moreHostMem(size_t bytes)
 {
   void *ptr=nullptr;
   #if defined(USE_CUDA)
@@ -108,24 +97,25 @@ static void *moreHostMem(
   #elif defined(USE_HIP)
     HIP_SAFE(hipHostMalloc(&ptr, bytes));
   #elif defined(USE_DPCPP)
-    ptr = sycl::malloc_host(bytes, syclQueue);
+    auto& pool = tamm::GPUStreamPool::getInstance();
+    gpuStream_t& stream = pool.getStream();
+    ptr = sycl::malloc_host(bytes, stream);
   #else
     ptr = (void *)malloc(bytes);
   #endif
 
   if(ptr==nullptr) {     /*try one more time*/
+    clearHostFreeList();
+    clearGpuFreeList();
+
     #if defined(USE_CUDA)
-        clearHostFreeList();
-        clearGpuFreeList();
         CUDA_SAFE(cudaMallocHost(&ptr, bytes));
     #elif defined(USE_HIP)
-        clearHostFreeList();
-        clearGpuFreeList();
         HIP_SAFE(hipHostMalloc(&ptr, bytes));
     #elif defined(USE_DPCPP)
-        clearHostFreeList(syclQueue);
-        clearGpuFreeList(syclQueue);
-        ptr = sycl::malloc_host(bytes, syclQueue);
+        auto& pool = tamm::GPUStreamPool::getInstance();
+        gpuStream_t& stream = pool.getStream();
+        ptr = sycl::malloc_host(bytes, stream);
     #else
       ptr = (void *)malloc(bytes);
     #endif
@@ -152,17 +142,7 @@ static inline void *resurrect_from_free_list(map<size_t,set<void *> > &free_map,
   return ptr;
 }
 
-void initmemmodule()
-{
-  //is_init=1;
-}
-
-
-void *getGpuMem(
-#ifdef USE_DPCPP
-		sycl::queue& syclQueue,
-#endif
-      size_t bytes)
+void *getGpuMem(size_t bytes)
 {
   //assert(is_init);
   void *ptr=nullptr;
@@ -172,7 +152,9 @@ void *getGpuMem(
 #elif defined(USE_HIP)
   HIP_SAFE(hipMalloc((void **) &ptr, bytes));
 #elif defined(USE_DPCPP)
-  ptr = sycl::malloc_device(bytes, syclQueue);
+  auto& pool = tamm::GPUStreamPool::getInstance();
+  gpuStream_t& stream = pool.getStream();
+  ptr = sycl::malloc_device(bytes, stream);
 #endif
 #else
   if(free_list_gpu.find(bytes)!=free_list_gpu.end())
@@ -196,21 +178,13 @@ void *getGpuMem(
     }
   }
 
-  ptr = moreDeviceMem(
-#ifdef USE_DPCPP
-		      syclQueue,
-#endif
-			bytes);
+  ptr = moreDeviceMem(bytes);
   live_ptrs_gpu[ptr] = bytes;
 #endif // NO_OPT
   return ptr;
 }
 
-void *getHostMem(
-#ifdef USE_DPCPP
-		 sycl::queue& syclQueue,
-#endif
-		 size_t bytes)
+void *getHostMem(size_t bytes)
 {
   //assert(is_init);
   void *ptr=nullptr;
@@ -220,7 +194,9 @@ void *getHostMem(
 #elif defined(USE_HIP)
   HIP_SAFE(hipHostMalloc((void **) &ptr, bytes));
 #elif defined(USE_DPCPP)
-  ptr = sycl::malloc_host(bytes, syclQueue);
+  auto& pool = tamm::GPUStreamPool::getInstance();
+  gpuStream_t& stream = pool.getStream();
+  ptr = sycl::malloc_host(bytes, stream);
 #else //cpu
   ptr = (void *)malloc(bytes);
 #endif
@@ -252,23 +228,14 @@ void *getHostMem(
       }
     }
   }
-  /* cutilSafeCall(cudaMallocHost((void **) &ptr, bytes)); */
 
-  ptr = moreHostMem(
-#ifdef USE_DPCPP
-		    syclQueue,
-#endif
-		    bytes);
+  ptr = moreHostMem(bytes);
   live_ptrs_host[ptr] = bytes;
 #endif // NO_OPT
   return ptr;
 }
 
-void freeHostMem(
-#ifdef USE_DPCPP
-		 sycl::queue& syclQueue,
-#endif
-		 void *p)
+void freeHostMem(void *p)
 {
   size_t bytes;
   //assert(is_init);
@@ -278,7 +245,9 @@ void freeHostMem(
 #elif defined(USE_HIP)
   HIP_SAFE(hipHostFree(p));
 #elif defined(USE_DPCPP)
-  sycl::free(p, syclQueue);
+  auto& pool = tamm::GPUStreamPool::getInstance();
+  gpuStream_t& stream = pool.getStream();
+  sycl::free(p, stream);
 #else
   free(p);
 #endif
@@ -291,21 +260,20 @@ void freeHostMem(
 #endif //NO_OPT
 }
 
-void freeGpuMem(
-#ifdef USE_DPCPP
-		sycl::queue& syclQueue,
-#endif
-		void *p)
+void freeGpuMem(void *p)
 {
   size_t bytes;
   //assert(is_init);
 #ifdef NO_OPT
+
 #if defined(USE_CUDA)
   CUDA_SAFE(cudaFree(p));
 #elif defined(USE_HIP)
   HIP_SAFE(hipFree(p));
 #elif defined(USE_DPCPP)
-  sycl::free(p, syclQueue);
+  auto& pool = tamm::GPUStreamPool::getInstance();
+  gpuStream_t& stream = pool.getStream();
+  sycl::free(p, stream);
 #endif //NO_OPT
 
 #else
@@ -316,32 +284,13 @@ void freeGpuMem(
 #endif
 }
 
-void finalizememmodule(
-#if defined(USE_DPCPP)
-		       sycl::queue& syclQueue
-#endif
-		       )
+void finalizememmodule()
 {
-
-  //assert(is_init);
-  //is_init = 0;
-
   /*there should be no live pointers*/
   assert(live_ptrs_gpu.size()==0);
   assert(live_ptrs_host.size()==0);
 
   /*release all freed pointers*/
-
-  clearGpuFreeList(
-#ifdef USE_DPCPP
-		   syclQueue
-#endif
-		   );
-
-  clearHostFreeList(
-#ifdef USE_DPCPP
-		    syclQueue
-#endif
-		    );
-
+  clearGpuFreeList();
+  clearHostFreeList();
 }

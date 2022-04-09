@@ -113,8 +113,6 @@ void ccsd_t_doubles_unfused(ExecutionContext& ec,
                    int has_gpu,
                    bool is_restricted, bool use_nwc_gpu_kernels) {
 
-    // initmemmodule();
-
     auto rank = ec.pg().rank();
 
     Eigen::Matrix<size_t, 9,6, Eigen::RowMajor> a3;

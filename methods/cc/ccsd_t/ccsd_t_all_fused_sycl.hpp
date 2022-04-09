@@ -54,32 +54,36 @@ using localAcc = sycl::accessor<T, 2, sycl::access_mode::read_write, sycl::targe
 
 //
 // 	|constant memory| = sizeof(int) * {(6 + 9) + ((7 + 9) * MAX_NOAB) + ((7 + 9) * MAX_NVAB)}
-// 										= 4 bytes * (15 + 16 * 20 + 16 * 80) = 8 bytes * (15 + 320 + 1280) = 1615 * 4 bytes =
-// 6460 bytes (6.30 KB)
+// 										= 4 bytes * (15 + 16 * 20 + 16 * 80) = 8 bytes * (15 + 320 + 1280) = 1615 * 4
+// bytes = 6460 bytes (6.30 KB)
 //
 
 template<typename T>
+__attribute__((always_inline))
 void revised_jk_ccsd_t_fully_fused_kernel(
   int size_noab, int size_nvab,
   // 	common
   int size_max_dim_s1_t1, int size_max_dim_s1_v2, int size_max_dim_d1_t2, int size_max_dim_d1_v2,
   int size_max_dim_d2_t2, int size_max_dim_d2_v2,
   //
-  T* df_dev_d1_t2_all, T* df_dev_d1_v2_all, T* df_dev_d2_t2_all, T* df_dev_d2_v2_all,
-  T* df_dev_s1_t1_all, T* df_dev_s1_v2_all,
+  T* __restrict__ df_dev_d1_t2_all, T* __restrict__ df_dev_d1_v2_all,
+  T* __restrict__ df_dev_d2_t2_all, T* __restrict__ df_dev_d2_v2_all,
+  T* __restrict__ df_dev_s1_t1_all, T* __restrict__ df_dev_s1_v2_all,
   //  energies
-  T* dev_evl_sorted_h1b, T* dev_evl_sorted_h2b, T* dev_evl_sorted_h3b, T* dev_evl_sorted_p4b,
-  T* dev_evl_sorted_p5b, T* dev_evl_sorted_p6b,
+  T* __restrict__ dev_evl_sorted_h1b, T* __restrict__ dev_evl_sorted_h2b,
+  T* __restrict__ dev_evl_sorted_h3b, T* __restrict__ dev_evl_sorted_p4b,
+  T* __restrict__ dev_evl_sorted_p5b, T* __restrict__ dev_evl_sorted_p6b,
   // 	not-fully reduced results
-  T* reduced_energy,
+  T* __restrict__ reduced_energy,
   //  common
   int num_blks_h3b, int num_blks_h2b, int num_blks_h1b, int num_blks_p6b, int num_blks_p5b,
   int num_blks_p4b,
   //
   int base_size_h1b, int base_size_h2b, int base_size_h3b, int base_size_p4b, int base_size_p5b,
-  int base_size_p6b, sycl::nd_item<2>& item, int* const_df_s1_size, int* const_df_s1_exec,
-  int* const_df_d1_size, int* const_df_d1_exec, int* const_df_d2_size, int* const_df_d2_exec,
-  localAcc<T> sm_a, localAcc<T> sm_b) {
+  int base_size_p6b, sycl::nd_item<2>& item, const int* __restrict__ const_df_s1_size,
+  const int* __restrict__ const_df_s1_exec, const int* __restrict__ const_df_d1_size,
+  const int* __restrict__ const_df_d1_exec, const int* __restrict__ const_df_d2_size,
+  const int* __restrict__ const_df_d2_exec, localAcc<T> sm_a, localAcc<T> sm_b) {
   sycl::group thread_block = item.get_group();
   size_t      threadIdx_x  = item.get_local_id(1);
   size_t      threadIdx_y  = item.get_local_id(0);
@@ -147,12 +151,6 @@ void revised_jk_ccsd_t_fully_fused_kernel(
   T   eval_h1               = dev_evl_sorted_h1b[str_blk_idx_h1 + idx_h1];
 
   T partial_inner_factor = eval_h3 + eval_h2 + eval_h1 - eval_p6;
-
-  //
-  //  energies
-  //
-  T energy_1 = 0.0;
-  T energy_2 = 0.0;
 
 #pragma unroll 1
   for(int iter_noab = 0; iter_noab < size_noab; iter_noab++) {
@@ -2378,18 +2376,17 @@ void revised_jk_ccsd_t_fully_fused_kernel(
     }
   }
 
-  //
+  //  energies
+  T energy_1 = 0.0;
+  T energy_2 = 0.0;
   if(idx_h3 < energy_rng_h3 && idx_h2 < energy_rng_h2 && idx_p6 < energy_rng_p6 &&
      idx_h1 < energy_rng_h1) {
-    for(int i = 0; i < FUSION_SIZE_SLICE_1_P5; i++) {
-      for(int j = 0; j < FUSION_SIZE_SLICE_1_P4; j++) {
+    for(int j = 0; j < FUSION_SIZE_SLICE_1_P4; j++) {
+      for(int i = 0; i < FUSION_SIZE_SLICE_1_P5; i++) {
         if(i < energy_rng_p5 && j < energy_rng_p4) {
           //
           T inner_factor = partial_inner_factor - dev_evl_sorted_p5b[i + (energy_str_blk_idx_p5)] -
                            dev_evl_sorted_p4b[j + (energy_str_blk_idx_p4)];
-          // T inner_factor = partial_inner_factor - const_df_evl_sorted_p5b[i +
-          // (energy_str_blk_idx_p5)] - const_df_evl_sorted_p4b[j + (energy_str_blk_idx_p4)];
-
           //
           energy_1 += (reg_tile[j][i] * reg_tile[j][i]) / inner_factor;
           energy_2 += (reg_tile[j][i] * (reg_tile[j][i] + reg_singles[j][i])) / inner_factor;
@@ -2420,15 +2417,13 @@ void revised_jk_ccsd_t_fully_fused_kernel(
 
     T final_energy_1 = 0.0;
     T final_energy_2 = 0.0;
-    if (threadIdx_x == 0 && threadIdx_y == 0)
-    {
-        for (int i = 0; i < 8; i++)
-        {
-            final_energy_1 += sm_a[0][i];
-            final_energy_2 += sm_b[0][i];
-        }
-        reduced_energy[blockIdx_x] = final_energy_1;
-        reduced_energy[blockIdx_x + item.get_group_range(1)] = final_energy_2;
+    if (threadIdx_x == 0 && threadIdx_y == 0) {
+      for (int i = 0; i < 8; i++) {
+        final_energy_1 += sm_a[0][i];
+        final_energy_2 += sm_b[0][i];
+      }
+      reduced_energy[blockIdx_x] = final_energy_1;
+      reduced_energy[blockIdx_x + item.get_group_range(1)] = final_energy_2;
     }
 #else
   // sm_a[16][64]
@@ -2440,13 +2435,12 @@ void revised_jk_ccsd_t_fully_fused_kernel(
   T final_energy_1 = 0.0;
   T final_energy_2 = 0.0;
   if(threadIdx_x == 0 && threadIdx_y == 0) {
-    // if (blockIdx.x == 0) printf ("[%s] called\n", __func__);
-
-    for(int i = 0; i < 16; i++)
-      for(int j = 0; j < 16; j++) {
+    for(int j = 0; j < 16; j++) {
+      for(int i = 0; i < 16; i++) {
         final_energy_1 += sm_a[j][i];
         final_energy_2 += sm_b[j][i];
       }
+    }
 
     reduced_energy[blockIdx_x]                           = final_energy_1;
     reduced_energy[blockIdx_x + item.get_group_range(1)] = final_energy_2;
@@ -2455,7 +2449,7 @@ void revised_jk_ccsd_t_fully_fused_kernel(
 }
 
 template<typename T>
-void fully_fused_ccsd_t_gpu(sycl::queue* stream_id, size_t num_blocks, size_t base_size_h1b,
+void fully_fused_ccsd_t_gpu(gpuStream_t& stream_id, size_t num_blocks, size_t base_size_h1b,
                             size_t base_size_h2b, size_t base_size_h3b, size_t base_size_p4b,
                             size_t base_size_p5b, size_t base_size_p6b,
                             //
@@ -2478,71 +2472,39 @@ void fully_fused_ccsd_t_gpu(sycl::queue* stream_id, size_t num_blocks, size_t ba
                             T* dev_evl_sorted_h1b, T* dev_evl_sorted_h2b, T* dev_evl_sorted_h3b,
                             T* dev_evl_sorted_p4b, T* dev_evl_sorted_p5b, T* dev_evl_sorted_p6b,
                             //
-                            T* partial_energies) {
-  // 	to handle constant memories
-  sycl::buffer<int, 1> const_df_s1_size(host_s1_size, sycl::range<1>{6});
-  sycl::buffer<int, 1> const_df_s1_exec(host_s1_exec, sycl::range<1>{9});
-  sycl::buffer<int, 1> const_df_d1_size(host_d1_size, sycl::range<1>{7 * size_noab});
-  sycl::buffer<int, 1> const_df_d1_exec(host_d1_exec, sycl::range<1>{9 * size_noab});
-  sycl::buffer<int, 1> const_df_d2_size(host_d2_size, sycl::range<1>{7 * size_nvab});
-  sycl::buffer<int, 1> const_df_d2_exec(host_d2_exec, sycl::range<1>{9 * size_nvab});
-
-  //
-  // 	Depends on # of Fused Kernel
-  //
-  sycl::range<2> gridsize(1, num_blocks);
-  sycl::range<2> blocksize(FUSION_SIZE_TB_1_Y, FUSION_SIZE_TB_1_X);
-
-  //
+                            T* partial_energies, gpuEvent_t* done_compute, gpuEvent_t* done_copy) {
   // 	to call the fused kernel for singles, doubles and energies.
-  //
   // jk_ccsd_t_fully_fused_kernel_associative
-  try {
-    stream_id->submit([&](sycl::handler& cgh) {
-      auto const_df_s1_size_acc =
-        const_df_s1_size.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
-      auto const_df_s1_exec_acc =
-        const_df_s1_exec.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
-      auto const_df_d1_size_acc =
-        const_df_d1_size.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
-      auto const_df_d1_exec_acc =
-        const_df_d1_exec.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
-      auto const_df_d2_size_acc =
-        const_df_d2_size.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
-      auto const_df_d2_exec_acc =
-        const_df_d2_exec.get_access<sycl::access_mode::read, sycl::target::constant_buffer>(cgh);
 
-      // allocate local/shared memory
-      sycl::range<2> sm_a_range(16, 65 /*64 + 1*/);
-      sycl::range<2> sm_b_range(16, 65 /*64 + 1*/);
-      localAcc<T>    sm_a_acc(sm_a_range, cgh);
-      localAcc<T>    sm_b_acc(sm_b_range, cgh);
+  (*done_compute)[0] = stream_id.submit([&](sycl::handler& cgh) {
+    // allocate local/shared memory
+    sycl::range<2> sm_a_range(16, 65 /*64 + 1*/);
+    sycl::range<2> sm_b_range(16, 65 /*64 + 1*/);
+    localAcc<T>    sm_a_acc(sm_a_range, cgh);
+    localAcc<T>    sm_b_acc(sm_b_range, cgh);
 
-      auto global_range = gridsize * blocksize;
+    // Depends on # of Fused Kernel
+    sycl::range<2> gridsize(1, num_blocks);
+    sycl::range<2> blocksize(FUSION_SIZE_TB_1_Y, FUSION_SIZE_TB_1_X);
+    auto           global_range = gridsize * blocksize;
 
-      cgh.parallel_for(sycl::nd_range<2>(global_range, blocksize),
-                       [=](sycl::nd_item<2> item) [[intel::reqd_sub_group_size(8)]] {
-                         revised_jk_ccsd_t_fully_fused_kernel(
-                           size_noab, size_nvab, size_max_dim_s1_t1, size_max_dim_s1_v2,
-                           size_max_dim_d1_t2, size_max_dim_d1_v2, size_max_dim_d2_t2,
-                           size_max_dim_d2_v2, df_dev_d1_t2_all, df_dev_d1_v2_all, df_dev_d2_t2_all,
-                           df_dev_d2_v2_all, df_dev_s1_t1_all, df_dev_s1_v2_all, dev_evl_sorted_h1b,
-                           dev_evl_sorted_h2b, dev_evl_sorted_h3b, dev_evl_sorted_p4b,
-                           dev_evl_sorted_p5b, dev_evl_sorted_p6b, partial_energies,
-                           CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3),
-                           CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2),
-                           CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1),
-                           CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6),
-                           CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5),
-                           CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4), base_size_h1b,
-                           base_size_h2b, base_size_h3b, base_size_p4b, base_size_p5b,
-                           base_size_p6b, item, const_df_s1_size_acc.get_pointer(),
-                           const_df_s1_exec_acc.get_pointer(), const_df_d1_size_acc.get_pointer(),
-                           const_df_d1_exec_acc.get_pointer(), const_df_d2_size_acc.get_pointer(),
-                           const_df_d2_exec_acc.get_pointer(), sm_a_acc, sm_b_acc);
-                       });
-    });
-  } catch(const sycl::exception& e) {
-    std::cout << "Caught synchronous SYCL exception:\n" << e.what() << std::endl;
-  }
+    cgh.depends_on(*done_copy);
+
+    cgh.parallel_for(
+      sycl::nd_range<2>(global_range, blocksize),
+      [=](sycl::nd_item<2> item) [[intel::reqd_sub_group_size(8)]] {
+        revised_jk_ccsd_t_fully_fused_kernel(
+          size_noab, size_nvab, size_max_dim_s1_t1, size_max_dim_s1_v2, size_max_dim_d1_t2,
+          size_max_dim_d1_v2, size_max_dim_d2_t2, size_max_dim_d2_v2, df_dev_d1_t2_all,
+          df_dev_d1_v2_all, df_dev_d2_t2_all, df_dev_d2_v2_all, df_dev_s1_t1_all, df_dev_s1_v2_all,
+          dev_evl_sorted_h1b, dev_evl_sorted_h2b, dev_evl_sorted_h3b, dev_evl_sorted_p4b,
+          dev_evl_sorted_p5b, dev_evl_sorted_p6b, partial_energies,
+          CEIL(base_size_h3b, FUSION_SIZE_SLICE_1_H3), CEIL(base_size_h2b, FUSION_SIZE_SLICE_1_H2),
+          CEIL(base_size_h1b, FUSION_SIZE_SLICE_1_H1), CEIL(base_size_p6b, FUSION_SIZE_SLICE_1_P6),
+          CEIL(base_size_p5b, FUSION_SIZE_SLICE_1_P5), CEIL(base_size_p4b, FUSION_SIZE_SLICE_1_P4),
+          base_size_h1b, base_size_h2b, base_size_h3b, base_size_p4b, base_size_p5b, base_size_p6b,
+          item, host_s1_size, host_s1_exec, host_d1_size, host_d1_exec, host_d2_size, host_d2_exec,
+          sm_a_acc, sm_b_acc);
+      });
+  });
 }

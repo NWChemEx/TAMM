@@ -4,10 +4,78 @@
 #include "tamm/eigen_utils.hpp"
 using namespace tamm;
 
+template<typename TensorType>
+void print_mo_vectors_analysis(SystemData& sys_data, libint2::BasisSet& shells, 
+  Matrix& C_alpha_eig, Matrix& C_beta_eig,  
+  Matrix& F_MO_alpha, Matrix& F_MO_beta, bool is_rhf)
+{
+  auto vec_analysis = sys_data.options_map.scf_options.mo_vectors_analysis;
+  const bool is_spherical = (sys_data.options_map.scf_options.gaussian_type == "spherical");
+  if(vec_analysis.first) {
+    std::vector<double> occup_alpha(sys_data.nbf,0.0);
+    for (int i = 0; i < sys_data.n_occ_alpha; i++) {
+      occup_alpha[i] = 1.0;
+      if(is_rhf) occup_alpha[i] = 2.0;
+    }
+    std::vector<double> occup_beta(sys_data.nbf,0.0);
+    for (int i = 0; i < sys_data.n_occ_beta; i++)
+      occup_beta[i] = 1.0;
+
+    auto atoms = sys_data.options_map.options.atoms;
+    BasisSetMap bsm = construct_basisset_maps(atoms, shells, is_spherical);
+
+    cout << std::fixed << std::setprecision(6);
+    if(is_rhf) cout << endl << std::string(20, ' ') << "RHF Final Molecular Orbital Analysis" << endl;
+    else cout << endl << std::string(20, ' ') << "UHF Final Alpha Molecular Orbital Analysis" << endl;
+    cout << std::string(20, ' ') << std::string(42, '-') << endl;
+
+    for(auto i = 0; i < sys_data.nbf; i++) {
+      cout << endl << "Vector\t" << i+1 << "  Occ = " 
+          << occup_alpha[i] << "  E = " << F_MO_alpha(i,i) << endl;
+
+      cout << "Bfn. \t Coefficient \t Atom+Function" << endl;  
+      cout << std::string(50, '-') << endl;
+      for(size_t j = 0; j < (size_t)sys_data.nbf_orig; j++) {
+        if(std::fabs(C_alpha_eig(j,i)) >= vec_analysis.second) {
+          auto atom_pos = bsm.bf2atom[j];
+          cout << j+1 << "\t" << C_alpha_eig(j,i) << "\t" 
+            << atom_pos+1 << "  " << bsm.atominfo[atom_pos].symbol 
+            << "  " << bsm.bf_comp[j] 
+            << endl;
+        }
+      }
+    }
+
+    if(!is_rhf){
+      cout  << endl << endl << std::string(20, ' ') << 
+        "UHF Final Beta Molecular Orbital Analysis" << endl;
+      cout << std::string(20, ' ') << std::string(42, '-') << endl;
+
+      for(auto i = 0; i < sys_data.nbf; i++) {
+        cout << endl << "Vector\t" << i+1 << "  Occ = " 
+            << occup_beta[i] << "  E = " << F_MO_beta(i,i) << endl;
+
+        cout << "Bfn. \t Coefficient \t Atom+Function" << endl;  
+        cout << std::string(50, '-') << endl;
+        for(size_t j = 0; j < (size_t)sys_data.nbf_orig; j++) {
+          if(std::fabs(C_beta_eig(j,i)) >= vec_analysis.second) {
+            auto atom_pos = bsm.bf2atom[j];
+            cout << j+1 << "\t" << C_beta_eig(j,i) << "\t" 
+              << atom_pos+1 << "  " << bsm.atominfo[atom_pos].symbol 
+              << "  " << bsm.bf_comp[j] 
+              << endl;
+          }
+        }
+      }             
+    }
+    cout << std::defaultfloat;
+  }
+}
+
 template <typename TensorType>
 void two_index_transform(SystemData sys_data, ExecutionContext& ec, Tensor<TensorType> C_alpha_AO, 
   Tensor<TensorType> F_alpha_AO, Tensor<TensorType> C_beta_AO, Tensor<TensorType> F_beta_AO, 
-  Tensor<TensorType> F_MO, Tensor<TensorType> lcao, bool isdlpno=false) {
+  Tensor<TensorType> F_MO, libint2::BasisSet& shells, Tensor<TensorType> lcao, bool isdlpno=false) {
 
   SCFOptions         scf_options    = sys_data.options_map.scf_options;
   const TAMM_GA_SIZE n_occ_alpha    = sys_data.n_occ_alpha;
@@ -75,6 +143,9 @@ void two_index_transform(SystemData sys_data, ExecutionContext& ec, Tensor<Tenso
       Matrix F_MO_alpha = C_alpha_eig.transpose() * (F_alpha_AO_eig * C_alpha_eig);
       Matrix F_MO_beta = F_MO_alpha;
       if(is_uhf) F_MO_beta = C_beta_eig.transpose() * (F_beta_AO_eig * C_beta_eig);
+
+      print_mo_vectors_analysis<TensorType>(sys_data,shells,C_alpha_eig,
+                                C_beta_eig,F_MO_alpha,F_MO_beta,is_rhf);
 
       Matrix F;
       F.setZero(N,N);

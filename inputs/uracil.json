@@ -18,7 +18,7 @@
   },
   "basis": {
     "basisset": "cc-pvdz",
-    "sphcart": "spherical"
+    "gaussian_type": "spherical"
   },
   "SCF": {
     "tol_int": 1e-16,

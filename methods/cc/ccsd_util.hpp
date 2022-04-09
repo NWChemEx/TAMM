@@ -169,7 +169,8 @@ std::string ccsd_test( int argc, char* argv[] )
     return filename;
 }
 
-void iteration_print(SystemData& sys_data, const ProcGroup& pg, int iter, double residual, double energy, double time) {
+void iteration_print(SystemData& sys_data, const ProcGroup& pg, int iter, double residual, 
+                      double energy, double time, string cmethod="CCSD") {
   if(pg.rank() == 0) {
     std::cout.width(6); std::cout << std::right << iter+1 << "  ";
     std::cout << std::setprecision(13) << residual << "  ";
@@ -179,8 +180,8 @@ void iteration_print(SystemData& sys_data, const ProcGroup& pg, int iter, double
     std::cout << std::string(5, ' ') << time;
     std::cout << std::string(5, ' ') << "0.0" << std::endl;
 
-    sys_data.results["output"]["CCSD"]["iter"][std::to_string(iter+1)] = { {"residual", residual}, {"correlation", energy} };
-    sys_data.results["output"]["CCSD"]["iter"][std::to_string(iter+1)]["performance"] = { {"total_time", time} };
+    sys_data.results["output"][cmethod]["iter"][std::to_string(iter+1)] = { {"residual", residual}, {"correlation", energy} };
+    sys_data.results["output"][cmethod]["iter"][std::to_string(iter+1)]["performance"] = { {"total_time", time} };
   }
 }
 
@@ -674,7 +675,7 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
     std::string lcaofile = files_dir+"/"+out_fp+".lcao";
 
     if(!readv2) {
-      two_index_transform(sys_data, ec, C_AO, F_AO, C_beta_AO,F_beta_AO, d_f1, lcao, is_dlpno);
+      two_index_transform(sys_data, ec, C_AO, F_AO, C_beta_AO,F_beta_AO, d_f1, shells, lcao, is_dlpno);
       if(!is_dlpno) cholVpr = cd_svd_ga(sys_data, ec, MO, AO, chol_count, max_cvecs, shells, lcao);
       write_to_disk<TensorType>(lcao,lcaofile);
     }

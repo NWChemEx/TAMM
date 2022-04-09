@@ -444,7 +444,7 @@ void read_molden(const SystemData& sys_data, libint2::BasisSet& shells,
   Matrix eigenvecs(N,Northo);
   eigenvecs.setZero();
 
-  const bool is_spherical = (scf_options.sphcart == "spherical");
+  const bool is_spherical = (scf_options.gaussian_type == "spherical");
   const bool is_uhf = (sys_data.is_unrestricted);
 
   auto atoms = sys_data.options_map.options.atoms;

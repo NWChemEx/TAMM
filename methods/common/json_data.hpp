@@ -128,7 +128,7 @@ std::string getfilename(std::string filename){
   return fname.substr(fname.find_last_of("/")+1,fname.length());
 }
 
-void write_json_data(SystemData& sys_data, const std::string module){
+void write_json_data(SystemData& sys_data, const std::string cmodule){
   auto options = sys_data.options_map;
   auto scf = options.scf_options;
   auto cd = options.cd_options;
@@ -142,8 +142,8 @@ void write_json_data(SystemData& sys_data, const std::string module){
   };
 
   results["input"]["molecule"]["name"] = sys_data.input_molecule;
-  results["input"]["molecule"]["basis"] = scf.basis;
-  results["input"]["molecule"]["basis_sphcart"] = scf.sphcart;
+  results["input"]["molecule"]["basisset"] = scf.basis;
+  results["input"]["molecule"]["gaussian_type"] = scf.gaussian_type;
   results["input"]["molecule"]["geometry_units"] = scf.geom_units;
   //SCF options
   results["input"]["SCF"]["tol_int"] = scf.tol_int;
@@ -156,7 +156,7 @@ void write_json_data(SystemData& sys_data, const std::string module){
   results["input"]["SCF"]["scf_type"] = scf.scf_type;
   results["input"]["SCF"]["multiplicity"] = scf.multiplicity;
 
-  if(module == "CD" || module == "CCSD"){
+  if(cmodule == "CD" || cmodule == "CCSD"){
     //CD options
     results["input"]["CD"]["diagtol"] = cd.diagtol;
     results["input"]["CD"]["max_cvecs_factor"] = cd.max_cvecs_factor;
@@ -164,39 +164,56 @@ void write_json_data(SystemData& sys_data, const std::string module){
 
   results["input"]["CCSD"]["threshold"] = ccsd.threshold;
 
-  if(module == "CCSD") {
+  if(cmodule == "CCSD") {
     //CCSD options
-    results["input"]["CCSD"]["tilesize"] = ccsd.tilesize;
-    results["input"]["CCSD"]["itilesize"] = ccsd.itilesize;
-    // results["input"]["CCSD"]["ngpu"] = ccsd.ngpu;
-    results["input"]["CCSD"]["ndiis"] = ccsd.ndiis;
-    results["input"]["CCSD"]["readt"] = str_bool(ccsd.readt);
-    results["input"]["CCSD"]["writet"] = str_bool(ccsd.writet);
-    results["input"]["CCSD"]["ccsd_maxiter"] = ccsd.ccsd_maxiter;
-    results["input"]["CCSD"]["balance_tiles"] = str_bool(ccsd.balance_tiles);
+    results["input"][cmodule]["tilesize"] = ccsd.tilesize;
+    results["input"][cmodule]["itilesize"] = ccsd.itilesize;
+    // results["input"][cmodule]["ngpu"] = ccsd.ngpu;
+    results["input"][cmodule]["ndiis"] = ccsd.ndiis;
+    results["input"][cmodule]["readt"] = str_bool(ccsd.readt);
+    results["input"][cmodule]["writet"] = str_bool(ccsd.writet);
+    results["input"][cmodule]["ccsd_maxiter"] = ccsd.ccsd_maxiter;
+    results["input"][cmodule]["balance_tiles"] = str_bool(ccsd.balance_tiles);
   }
 
-  if(module == "CCSD(T)" || module == "CCSD_T") {
+  if(cmodule == "CCSD(T)" || cmodule == "CCSD_T") {
     //CCSD(T) options
-    results["input"]["CCSD(T)"]["ngpu"] = ccsd.ngpu;
-    results["input"]["CCSD(T)"]["skip_ccsd"] = ccsd.skip_ccsd;
-    results["input"]["CCSD(T)"]["ccsdt_tilesize"] = ccsd.ccsdt_tilesize;
+    results["input"][cmodule]["ngpu"] = ccsd.ngpu;
+    results["input"][cmodule]["skip_ccsd"] = ccsd.skip_ccsd;
+    results["input"][cmodule]["ccsdt_tilesize"] = ccsd.ccsdt_tilesize;
   }  
 
-  if(module == "DUCC") {
+  if(cmodule == "DLPNO-CCSD") {
+    //DLPNO-CCSD options
+    results["input"][cmodule]["localize"]    = str_bool(ccsd.localize);
+    results["input"][cmodule]["skip_dlpno"]  = str_bool(ccsd.skip_dlpno);
+    results["input"][cmodule]["max_pnos"]    = ccsd.max_pnos;
+    results["input"][cmodule]["keep_npairs"] = ccsd.keep_npairs;
+    results["input"][cmodule]["TCutEN"]      = ccsd.TCutEN;
+    results["input"][cmodule]["TCutPNO"]     = ccsd.TCutPNO;
+    results["input"][cmodule]["TCutPre"]     = ccsd.TCutPre;
+    results["input"][cmodule]["TCutPairs"]   = ccsd.TCutPairs;
+    results["input"][cmodule]["TCutDO"]      = ccsd.TCutDO;
+    results["input"][cmodule]["TCutDOij"]    = ccsd.TCutDOij;
+    results["input"][cmodule]["TCutDOPre"]   = ccsd.TCutDOPre;
+    results["input"][cmodule]["dlpno_dfbasis"]    = ccsd.dlpno_dfbasis;
+    results["input"][cmodule]["doubles_opt_eqns"] = ccsd.doubles_opt_eqns;
+  }
+
+  if(cmodule == "DUCC") {
     //DUCC options
     results["input"]["DUCC"]["nactive"]      = ccsd.nactive;
   }
   
-  if(module == "EOMCCSD") {
+  if(cmodule == "EOMCCSD") {
     //EOMCCSD options
-    results["input"]["EOMCCSD"]["eom_type"]      = ccsd.eom_type;
-    results["input"]["EOMCCSD"]["eom_nroots"]    = ccsd.eom_nroots;
-    results["input"]["EOMCCSD"]["eom_microiter"] = ccsd.eom_microiter;
-    results["input"]["EOMCCSD"]["eom_threshold"] = ccsd.eom_threshold;
+    results["input"][cmodule]["eom_type"]      = ccsd.eom_type;
+    results["input"][cmodule]["eom_nroots"]    = ccsd.eom_nroots;
+    results["input"][cmodule]["eom_microiter"] = ccsd.eom_microiter;
+    results["input"][cmodule]["eom_threshold"] = ccsd.eom_threshold;
   }
 
-  if(module == "RT-EOMCCS" || module == "RT-EOMCCSD") {
+  if(cmodule == "RT-EOMCCS" || cmodule == "RT-EOMCCSD") {
     //RT-EOMCC options
     results["input"]["RT-EOMCC"]["pcore"]         = ccsd.pcore;
     results["input"]["RT-EOMCC"]["ntimesteps"]    = ccsd.ntimesteps;
@@ -205,23 +222,23 @@ void write_json_data(SystemData& sys_data, const std::string module){
     results["input"]["RT-EOMCC"]["rt_multiplier"] = ccsd.rt_multiplier;
   }
 
-  if(module == "GFCCSD") {
+  if(cmodule == "GFCCSD") {
     //GFCCSD options
-    results["input"]["GFCCSD"]["gf_ngmres"] = ccsd.gf_ngmres;
-    results["input"]["GFCCSD"]["gf_maxiter"] = ccsd.gf_maxiter;
-    results["input"]["GFCCSD"]["gf_threshold"] = ccsd.gf_threshold;
-    results["input"]["GFCCSD"]["gf_nprocs_poi"] = ccsd.gf_nprocs_poi;
-    results["input"]["GFCCSD"]["gf_damping_factor"] = ccsd.gf_damping_factor;
-    results["input"]["GFCCSD"]["gf_omega_min_ip"] = ccsd.gf_omega_min_ip;
-    results["input"]["GFCCSD"]["gf_omega_max_ip"] = ccsd.gf_omega_max_ip;
-    results["input"]["GFCCSD"]["gf_omega_min_ip_e"] = ccsd.gf_omega_min_ip_e;
-    results["input"]["GFCCSD"]["gf_omega_max_ip_e"] = ccsd.gf_omega_max_ip_e;
-    results["input"]["GFCCSD"]["gf_omega_delta"] = ccsd.gf_omega_delta;
-    results["input"]["GFCCSD"]["gf_omega_delta_e"] = ccsd.gf_omega_delta_e;
-    results["input"]["GFCCSD"]["gf_extrapolate_level"] = ccsd.gf_extrapolate_level;
+    results["input"][cmodule]["gf_ngmres"] = ccsd.gf_ngmres;
+    results["input"][cmodule]["gf_maxiter"] = ccsd.gf_maxiter;
+    results["input"][cmodule]["gf_threshold"] = ccsd.gf_threshold;
+    results["input"][cmodule]["gf_nprocs_poi"] = ccsd.gf_nprocs_poi;
+    results["input"][cmodule]["gf_damping_factor"] = ccsd.gf_damping_factor;
+    results["input"][cmodule]["gf_omega_min_ip"] = ccsd.gf_omega_min_ip;
+    results["input"][cmodule]["gf_omega_max_ip"] = ccsd.gf_omega_max_ip;
+    results["input"][cmodule]["gf_omega_min_ip_e"] = ccsd.gf_omega_min_ip_e;
+    results["input"][cmodule]["gf_omega_max_ip_e"] = ccsd.gf_omega_max_ip_e;
+    results["input"][cmodule]["gf_omega_delta"] = ccsd.gf_omega_delta;
+    results["input"][cmodule]["gf_omega_delta_e"] = ccsd.gf_omega_delta_e;
+    results["input"][cmodule]["gf_extrapolate_level"] = ccsd.gf_extrapolate_level;
   }
 
-  std::string l_module = module;
+  std::string l_module = cmodule;
   to_lower(l_module);
 
   std::string out_fp = sys_data.output_file_prefix+"."+sys_data.options_map.ccsd_options.basis;

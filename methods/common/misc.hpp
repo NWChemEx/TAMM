@@ -84,6 +84,7 @@ struct AtomInfo {
   size_t nbf_lo;
   size_t nbf_hi;
   int atomic_number;
+  std::string symbol;
   std::vector<libint2::Shell> shells; //shells corresponding to this atom
 };
 
@@ -111,6 +112,7 @@ struct BasisSetMap {
   // first_bf_shell(nshells)    - number of basis functions on a given shell.
   std::vector<size_t> first_bf_shell; 
   // first_shell_atom(natoms) - First shell on a given atom.
-  std::vector<size_t> first_shell_atom; 
-
+  std::vector<size_t> first_shell_atom;
+  //gaussian basis function components
+  std::map<size_t,std::string> bf_comp;
 };

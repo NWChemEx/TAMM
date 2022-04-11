@@ -239,7 +239,8 @@ std::vector<size_t> map_basis_function_to_shell(
     return result;
 }
 
-BasisSetMap construct_basisset_maps(std::vector<libint2::Atom>& atoms, libint2::BasisSet& shells) {
+BasisSetMap construct_basisset_maps(std::vector<libint2::Atom>& atoms, 
+                  libint2::BasisSet& shells, bool is_spherical=true) {
 
     BasisSetMap bsm;
 
@@ -259,8 +260,24 @@ BasisSetMap construct_basisset_maps(std::vector<libint2::Atom>& atoms, libint2::
     std::vector<size_t> first_bf_atom(natoms);
     std::vector<size_t> first_bf_shell(nshells);
     std::vector<size_t> first_shell_atom(natoms);
+    std::map<size_t,std::string> bf_comp;
 
     for(size_t s1 = 0; s1 != nshells; ++s1) first_bf_shell[s1] = shells[s1].size();
+
+    std::map<int,std::string> gaus_comp_map {
+      {0,"s"}, {1,"p"}, {2,"d"}, {3,"f"}, {4,"g"}, {5,"h"}
+    };
+    std::map<int,std::vector<std::string>> cart_comp_map {
+     {1,{"x","y","z"}},
+     {2,{"xx","xy", "xz", "yy", "yz", "zz"}}, 
+     {3,{"xxx","xxy","xxz","xyy","xyz","xzz","yyy","yyz","yzz","zzz"}},
+     {4,{"xxxx","xxxy","xxxz","xxyy","xxyz","xxzz","xyyy","xyyz",
+         "xyzz","xzzz","yyyy","yyyz","yyzz","yzzz","zzzz"}},
+     {5,{"xxxxx","xxxxy","xxxxz","xxxyy","xxxyz","xxxzz",
+         "xxyyy","xxyyz","xxyzz","xxzzz","xyyyy","xyyyz",
+         "xyyzz","xyzzz","xzzzz","yyyyy","yyyyz","yyyzz",
+         "yyzzz","yzzzz","zzzzz"}}
+    };
 
     for (size_t ai = 0; ai < natoms; ai++) {
       auto nshells_ai = a2s_map[ai].size();
@@ -275,6 +292,12 @@ BasisSetMap construct_basisset_maps(std::vector<libint2::Atom>& atoms, libint2::
         as_index++;
         atom_nbf += shells[si].size();
       }
+      for(const auto& e : libint2::chemistry::get_element_info()) {
+        if(e.Z == atoms[ai].atomic_number) {
+            atominfo[ai].symbol = e.symbol;
+            break;
+        }
+      }      
       atominfo[ai].atomic_number = atoms[ai].atomic_number;
       atominfo[ai].shells = atom_shells;
       atominfo[ai].nbf = atom_nbf;
@@ -289,6 +312,39 @@ BasisSetMap construct_basisset_maps(std::vector<libint2::Atom>& atoms, libint2::
       nshells_atom[ai] = nshells_ai;
       first_bf_atom[ai] = atominfo[ai].nbf_lo;
       for(auto nlo = atominfo[ai].nbf_lo; nlo<atominfo[ai].nbf_hi; nlo++) bf2atom[nlo] = ai;
+
+      int alo = atominfo[ai].nbf_lo;
+      for(auto s: atominfo[ai].shells) { 
+        auto l = s.contr[0].l;
+        if(is_spherical) {
+          for (int i=0;i<2*l+1;i++)
+          { 
+            std::stringstream tmps;
+            if(l==0) tmps << "";
+            else if(l==1) {
+              if(i==0)      tmps << "_y";
+              else if(i==1) tmps << "_z";
+              else if(i==2) tmps << "_x";
+            }
+            else if(l<=5) tmps << std::showpos << i-l;
+            else NOT_IMPLEMENTED();
+            bf_comp[alo] = gaus_comp_map[l] + tmps.str(); alo++;
+          }
+        }
+        else { //cartesian
+          const auto ncfuncs = ((l+1)*(l+2))/2;
+          auto cart_vec = cart_comp_map[l];
+          for (int i = 0; i < ncfuncs; i++)
+          { 
+            std::string tmps;
+            if(l==0) tmps="";
+            else if(l<=5) tmps = "_" + cart_vec[i];
+            else NOT_IMPLEMENTED();
+            bf_comp[alo] = gaus_comp_map[l] + tmps; alo++;
+          }   
+        }           
+      }
+
     }
 
     bsm.nbf = nbf;
@@ -305,6 +361,7 @@ BasisSetMap construct_basisset_maps(std::vector<libint2::Atom>& atoms, libint2::
     bsm.first_bf_shell = first_bf_shell;
     bsm.shell2atom = shell2atom_map;
     bsm.first_shell_atom = first_shell_atom;
+    bsm.bf_comp = bf_comp;
 
     return bsm;
 

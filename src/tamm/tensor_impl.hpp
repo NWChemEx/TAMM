@@ -1272,6 +1272,14 @@ public:
     }
   }
 
+  TensorUnitTiled(const Tensor<T>& opt_tensor, size_t unit_tis_count, const std::vector<size_t>& spin_sizes):
+    TensorImpl<T>{construct_new_tis(opt_tensor, unit_tis_count), spin_sizes}, tensor_opt_{opt_tensor} {
+    setKind(TensorBase::TensorKind::unit_view);
+    if (tensor_opt_.is_allocated()) {
+      allocate(tensor_opt_.execution_context());
+    }
+  }
+
   // Copy/Move Ctors and Assignment Operators
   TensorUnitTiled(TensorUnitTiled &&) = default;
   TensorUnitTiled(const TensorUnitTiled &) = delete;

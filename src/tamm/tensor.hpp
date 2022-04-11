@@ -55,7 +55,6 @@ public:
      * @param [in] til_vec a vector of TiledIndexLabel objects which will be
      * used to extract TiledIndexSpace for Tensor construction
      */
-
     Tensor(std::vector<TiledIndexLabel> til_vec) {
       // bool is_sparse = false;
       // for(const auto& til : til_vec) {
@@ -74,6 +73,9 @@ public:
 
     Tensor(const Tensor<T>& opt_tensor, size_t unit_tis_count):
       impl_{std::make_shared<TensorUnitTiled<T>>(opt_tensor, unit_tis_count)} {}
+    
+    Tensor(const Tensor<T>& opt_tensor, size_t unit_tis_count, const std::vector<size_t>& spin_sizes):
+      impl_{std::make_shared<TensorUnitTiled<T>>(opt_tensor, unit_tis_count, spin_sizes)} {}
 
     // SpinTensor Constructors
     /**
@@ -620,23 +622,41 @@ public:
     }    
 };
 
-template <typename T>
-bool operator==(const Tensor<T>& lhs,
-                const Tensor<T>& rhs){
-  EXPECTS_STR(lhs.execution_context() != nullptr && 
-              rhs.execution_context() != nullptr,
+/**
+ * @brief Equality check operator for Tensor object that uses hashing mechanism for comparing
+ * 
+ * @tparam T Tensor element type
+ * @param [in] lhs Left hand side Tensor object of the comparison
+ * @param [in] rhs Right hand side Tensor object of the comparison
+ * @returns 
+ */
+template<typename T>
+bool operator==(const Tensor<T>& lhs, const Tensor<T>& rhs) {
+  EXPECTS_STR(lhs.execution_context() != nullptr && rhs.execution_context() != nullptr,
               "Tensors have to be allocated for comparison.");
-  EXPECTS_STR(lhs.num_modes() == rhs.num_modes(), 
+  EXPECTS_STR(lhs.num_modes() == rhs.num_modes(),
               "Tensors should have the same number of modes for comparison.");
-  for (size_t i = 0; i < lhs.num_modes(); i++) {
+  for(size_t i = 0; i < lhs.num_modes(); i++) {
     auto lhs_tis = lhs.tiled_index_spaces()[i];
     auto rhs_tis = rhs.tiled_index_spaces()[i];
 
-    EXPECTS_STR(lhs_tis == rhs_tis,
-                "Each mode on tensors should be the same for comparison.");
+    EXPECTS_STR(lhs_tis == rhs_tis, "Each mode on tensors should be the same for comparison.");
   }
 
-  return (hash_tensor(lhs.execution_context(), lhs) == hash_tensor(rhs.execution_context(), rhs));
+  return (hash_tensor(lhs) == hash_tensor(rhs));
+}
+
+/**
+ * @brief Not equal check for Tensor object using the negated equality check
+ * 
+ * @tparam T Tensor element type
+ * @param [in] lhs Left hand side Tensor object of the comparison
+ * @param [in] rhs Right hand side Tensor object of the comparison
+ * @returns 
+ */
+template<typename T>
+bool operator!=(const Tensor<T>& lhs, const Tensor<T>& rhs) {
+  return !(lhs == rhs);
 }
 
 // This class inherits from pair ranther than using an alias because deduction

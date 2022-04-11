@@ -85,7 +85,7 @@
   },
   "basis": {
     "basisset": "cc-pvdz",
-    "sphcart": "spherical"
+    "gaussian_type": "spherical"
   },
   "common": {
     "maxiter": 50

@@ -539,7 +539,7 @@
   },
   "basis": {
     "basisset": "6-31g*",
-    "sphcart": "spherical"
+    "gaussian_type": "spherical"
   },
   "SCF": {
     "tilesize": 30,

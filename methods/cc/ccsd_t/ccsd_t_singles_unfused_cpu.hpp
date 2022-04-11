@@ -8,8 +8,6 @@ extern double ccsdt_s1_t1_GetTime;
 extern double ccsdt_s1_v2_GetTime;
 extern double ccsd_t_data_per_rank;
 
-void initmemmodule();
-
 //target-centric CPU kernels
 void sd_t_s1_1_cpu(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
 void sd_t_s1_2_cpu(size_t,size_t,size_t,size_t,size_t,size_t,double*,double*,double*);
@@ -36,8 +34,6 @@ void ccsd_t_singles_unfused(ExecutionContext& ec,
                    size_t t_h1b, size_t t_h2b, size_t t_h3b, 
                    size_t t_p4b, size_t t_p5b, size_t t_p6b, int has_gpu,
                    bool is_restricted, bool use_nwc_gpu_kernels) {
-
-    initmemmodule();
 
     Eigen::Matrix<size_t, 9,6, Eigen::RowMajor> a3;
     a3.setZero();

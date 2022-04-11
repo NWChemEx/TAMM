@@ -401,7 +401,7 @@ public:
         new_ops::TensorInfo lhs  = binop.lhs_;
         new_ops::TensorInfo rhs1 = binop.rhs1_;
         new_ops::TensorInfo rhs2 = binop.rhs2_;
-        
+        std::string op_str = binop.op_string(symbol_table_);
         // std::cout << "constructing binop: \n" << binop.op_string(symbol_table_) << "\n";
         
         std::visit(
@@ -425,7 +425,8 @@ public:
 
                       auto multop = MultOp(lhs_lt, alpha, rhs1_lt, rhs2_lt,
                                            binop.is_assign_);
-                      sch_(multop);
+
+                      sch_(multop, op_str);
                   } else {
                     UNREACHABLE();
                   }
@@ -444,8 +445,8 @@ public:
                         AddOp(lhs_lt, rhs1_alpha, rhs1_lt, binop.is_assign_);
                       // second op is always accumulate
                       auto addop2 = AddOp(lhs_lt, rhs2_alpha, rhs2_lt, false);
-                      sch_(addop1);
-                      sch_(addop2);
+                      sch_(addop1, op_str + " ("+ rhs1.name_ +")");
+                      sch_(addop2, op_str + " ("+ rhs2.name_ +")");
                   } else {
                     UNREACHABLE();
                   }
@@ -460,7 +461,7 @@ public:
                       auto addop1 =
                         AddOp(lhs_lt, rhs1_alpha, rhs1_lt, binop.is_assign_);
                       // second op is always accumulate
-                      sch_(addop1);
+                      sch_(addop1, op_str + " ("+ rhs1.name_ +")");
                   } else {
                     UNREACHABLE();
                   }
@@ -539,6 +540,61 @@ public:
         binops.push_back(last_op);
         for(const auto& binop: binops) { std::cout << binop.op_string(symbol_table_) << "\n"; }
       }
+    }
+
+    std::string op_str(const new_ops::LTOp& lhs_ltop, const std::unique_ptr<new_ops::Op>& in_op,
+                bool use_opmin = false) {
+      std::string result;
+      auto canonicalized_ops = new_ops::CanonicalizeVisitor::canonicalize_ops(*in_op);
+
+      bool use_old_lhs = (canonicalized_ops.size() == 1);
+      for(size_t i = 0; i < canonicalized_ops.size(); i++) {
+        auto&                        op_lbl_pair = canonicalized_ops[i];
+        std::unique_ptr<new_ops::Op> op          = std::move(op_lbl_pair.first);
+        std::unique_ptr<new_ops::Op> optree      = op->clone();
+        optree->set_attribute<new_ops::NeededLabelsAttribute>(lhs_ltop.labels());
+        if(use_opmin) {
+          new_ops::LTOp new_ltop{lhs_ltop.tensor(), lhs_ltop.labels()};
+          OpMin         opmin{symbol_table_};
+
+          optree = opmin.optimize_all(new_ltop, *optree, true);
+        }
+        auto                                 label_pair = op_lbl_pair.second;
+        std::map<std::string, TensorVariant> inter_tensors;
+        std::vector<new_ops::BinarizedOp>    binops;
+        auto                                 lhs_labels = lhs_ltop.labels();
+
+        if(!use_old_lhs) {
+          auto it = std::find(lhs_labels.begin(), lhs_labels.end(), label_pair.first);
+          EXPECTS(it != lhs_labels.end());
+          auto index        = std::distance(lhs_labels.begin(), it);
+          lhs_labels[index] = label_pair.second;
+        }
+
+        op->set_attribute<new_ops::NeededLabelsAttribute>(lhs_labels);
+
+        binops = new_ops::BinarizeOpsVisitor::binarize_op(*optree, symbol_table_);
+
+        // last op will be updated with updates LHS LT
+        new_ops::BinarizedOp last_op = binops.back();
+        binops.pop_back();
+        new_ops::TensorInfo new_lhs{symbol_table_[lhs_ltop.tensor().get_symbol_ptr()],
+                                    lhs_ltop.tensor(),
+                                    lhs_ltop.labels(),
+                                    lhs_ltop.tensor_type(),
+                                    lhs_ltop.coeff(),
+                                    false};
+        last_op.lhs_       = new_lhs;
+        last_op.is_assign_ = true;
+
+        binops.push_back(last_op);
+
+        for(const auto& binop: binops) {
+          result += binop.op_string(symbol_table_);
+          result += "\n";
+        }
+      }
+      return result;
     }
 
     template <typename T>

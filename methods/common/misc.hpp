@@ -2,10 +2,13 @@
 #pragma once
 
 #include <iostream>
+
 // Libint Gaussian integrals library
+// TODO: remove following temporary fix for rocm compilers
+#if defined(__HIP_PLATFORM_AMD__)
+#define DEPRECATED [[deprecated]]
+#endif
 #include <libint2.hpp>
-#include <libint2/basis.h>
-#include <libint2/chemistry/sto3g_atomic_density.h>
 
 #include <fmt/fmt.h>
 

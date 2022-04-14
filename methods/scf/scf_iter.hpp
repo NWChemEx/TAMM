@@ -598,7 +598,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const SCFVars
           using libint2::BraKet;
           using libint2::Engine;
 
-          // const auto n = obs.nbf();
+          // const auto n = nbasis(obs);
           const auto ndf = sys_data.ndf;
           const libint2::BasisSet& dfbs = scf_vars.dfbs;
           const std::vector<Tile>& dfAO_tiles = scf_vars.dfAO_tiles;

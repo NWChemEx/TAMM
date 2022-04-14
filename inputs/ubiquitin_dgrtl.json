@@ -96,7 +96,8 @@
     "conve": 1e-06,
     "convd": 1e-05,
     "diis_hist": 12,
-    "tilesize": 30
+    "tilesize": 30,
+    "charge": 1
   },
   "CD": {
     "diagtol": 1e-06

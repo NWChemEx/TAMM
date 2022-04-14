@@ -244,7 +244,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
       if(is_spherical) scf_vars.dfbs.set_pure(true);
       else scf_vars.dfbs.set_pure(false);  // use cartesian gaussians
 
-      if (rank==0) cout << "density-fitting basis set rank = " << scf_vars.dfbs.nbf() << endl;
+      if (rank==0) cout << "density-fitting basis set rank = " << nbasis(scf_vars.dfbs) << endl;
       // compute DFBS non-negligible shell-pair list
       #if 0
       {
@@ -260,7 +260,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
       }
       #endif
 
-      sys_data.ndf = scf_vars.dfbs.nbf();
+      sys_data.ndf = nbasis(scf_vars.dfbs);
       scf_vars.dfAO = IndexSpace{range(0, sys_data.ndf)};
       recompute_tilesize(sys_data.options_map.scf_options.dfAO_tilesize,sys_data.ndf,sys_data.options_map.scf_options.force_tilesize,rank==0);
       std::tie(scf_vars.df_shell_tile_map, scf_vars.dfAO_tiles, scf_vars.dfAO_opttiles) = compute_AO_tiles(exc, sys_data, scf_vars.dfbs, true);

@@ -90,7 +90,7 @@ private:
 
 public:
   void set_device(unsigned int device) {
-    assertm(device > _ngpus, "Error: Invalid active-device set in GPUStreamPool!");
+    assertm(device < _ngpus, "Error: Invalid active-device set in GPUStreamPool!");
 
     if(!_initialized) {
       _count         = 0;

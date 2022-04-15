@@ -469,3 +469,64 @@ tamm::Tensor<T> retile_rank2_tensor(tamm::Tensor<T>& tensor, const tamm::TiledIn
 
 }
 
+bool eigen_tensors_are_equal(Tensor1D& e1, Tensor1D& e2, double threshold = 1.0e-12) {
+  bool ret  = true;
+  auto dims = e1.dimensions();
+  for(auto i = 0; i < dims[0]; i++) {
+    if(std::abs(e1(i) - e2(i)) > std::abs(threshold * e1(i))) {
+      ret = false;
+      break;
+    }
+  }
+  return ret;
+}
+
+bool eigen_tensors_are_equal(Tensor2D& e1, Tensor2D& e2, double threshold = 1.0e-12) {
+  bool ret  = true;
+  auto dims = e1.dimensions();
+  for(auto i = 0; i < dims[0]; i++) {
+    for(auto j = 0; j < dims[1]; j++) {
+      if(std::abs(e1(i, j) - e2(i, j)) > std::abs(threshold * e1(i, j))) {
+        ret = false;
+        break;
+      }
+    }
+  }
+  return ret;
+}
+
+bool eigen_tensors_are_equal(Tensor3D& e1, Tensor3D& e2, double threshold = 1.0e-12) {
+  bool ret  = true;
+  auto dims = e1.dimensions();
+  for(auto i = 0; i < dims[0]; i++) {
+    for(auto j = 0; j < dims[1]; j++) {
+      for(auto k = 0; k < dims[2]; k++) {
+        if(std::abs(e1(i, j, k) - e2(i, j, k)) > std::abs(threshold * e1(i, j, k))) {
+          ret = false;
+          break;
+        }
+      }
+    }
+  }
+  return ret;
+}
+
+bool eigen_tensors_are_equal(Tensor4D& e1, Tensor4D& e2, double threshold = 1.0e-12) {
+  bool ret  = true;
+  auto dims = e1.dimensions();
+  for(auto i = 0; i < dims[0]; i++) {
+    for(auto j = 0; j < dims[1]; j++) {
+      for(auto k = 0; k < dims[2]; k++) {
+        for(auto l = 0; l < dims[3]; l++) {
+          if(std::abs(e1(i, j, k, l) - e2(i, j, k, l)) > std::abs(threshold * e1(i, j, k, l))) {
+            ret = false;
+            break;
+          }
+        }
+      }
+    }
+  }
+  return ret;
+}
+
+

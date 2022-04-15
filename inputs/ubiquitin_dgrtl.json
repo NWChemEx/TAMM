@@ -84,7 +84,7 @@
     "units": "angstrom"
   },
   "basis": {
-    "basisset": "cc-pvdz",
+    "basisset": "sto-3g",
     "gaussian_type": "spherical"
   },
   "common": {
@@ -92,21 +92,22 @@
   },
   "SCF": {
     "tol_int": 1e-16,
-    "tol_lindep": 1e-12,
-    "conve": 1e-06,
-    "convd": 1e-05,
+    "tol_lindep": 1e-6,
+    "conve": 1e-10,
+    "convd": 1e-09,
     "diis_hist": 12,
     "tilesize": 30,
     "charge": 1
   },
   "CD": {
-    "diagtol": 1e-06
+    "diagtol": 1e-08
   },
   "CC": {
     "CCSD(T)": {
-      "ngpu": 6
+      "skip_ccsd": false,
+      "ccsdt_tilesize": 40
     },
-    "threshold": 0.01,
+    "threshold": 1e-8,
     "debug": false
   }
 }

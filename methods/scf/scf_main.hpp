@@ -1010,6 +1010,9 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
 
       if(do_density_fitting) Tensor<TensorType>::deallocate(ttensors.xyK_tamm, ttensors.C_occ_tamm, ttensors.Zxy_tamm);
 
+      if(scf_options.print_mos.first)
+        write_to_disk<TensorType>(ttensors.H1, files_prefix + ".hcore");
+
       Tensor<TensorType>::deallocate(ttensors.H1     , ttensors.S1      , ttensors.T1         , ttensors.V1,
                                      ttensors.F_alpha_tmp , ttensors.ehf_tmp , ttensors.ehf_tamm   , ttensors.F_alpha,
                                      ttensors.D_tamm , ttensors.D_diff  , ttensors.D_last_tamm,

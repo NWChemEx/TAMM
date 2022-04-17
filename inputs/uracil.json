@@ -23,18 +23,18 @@
   "SCF": {
     "tol_int": 1e-16,
     "tol_lindep": 1e-06,
-    "conve": 1e-12,
-    "convd": 1e-11,
+    "conve": 1e-8,
+    "convd": 1e-7,
     "charge": 0,
     "multiplicity": 1,
     "scf_type": "restricted",
     "restart": false
   },
   "CD": {
-    "diagtol": 1e-08
+    "diagtol": 1e-8
   },
   "CC": {
-    "threshold": 1e-10,
+    "threshold": 1e-8,
     "ccsd_maxiter": 50,
     "writet": true,
     "CCSD(T)": {

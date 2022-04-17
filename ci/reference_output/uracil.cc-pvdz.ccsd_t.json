@@ -316,8 +316,8 @@
     "SCF": {
       "tol_int": 1e-16,
       "tol_lindep": 1e-06,
-      "conve": 1e-12,
-      "convd": 1e-11,
+      "conve": 1e-8,
+      "convd": 1e-7,
       "diis_hist": 10,
       "AO_tilesize": 30,
       "force_tilesize": "false",
@@ -325,11 +325,11 @@
       "multiplicity": 1
     },
     "CD": {
-      "diagtol": 1e-08,
+      "diagtol": 1e-8,
       "max_cvecs_factor": 12
     },
     "CCSD": {
-      "threshold": 1e-10,
+      "threshold": 1e-8,
       "ndiis": 5,
       "readt": "false",
       "writet": "true",

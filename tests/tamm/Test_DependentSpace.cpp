@@ -5,6 +5,7 @@
 #include "ga/macdecls.h"
 #include "ga/ga-mpi.h"
 #include "tamm/tamm.hpp"
+#include <upcxx/upcxx.hpp>
 
 #include <string>
 
@@ -137,7 +138,7 @@ void test_setop_with_T(unsigned tilesize) {
     //0-4 dimensional setops
     //0-4 dimensional setops
 
-    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
     ExecutionContext* ec = new ExecutionContext{pg,DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10),
@@ -226,7 +227,7 @@ template<typename T>
 void test_addop_with_T(unsigned tilesize) {
     //0-4 dimensional addops
     bool failed;
-    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10),
@@ -505,7 +506,7 @@ void test_addop_with_T(unsigned tilesize) {
 template<typename T> 
 void test_dependent_space_with_T(Index tilesize) {
     bool success = false;
-    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10)};

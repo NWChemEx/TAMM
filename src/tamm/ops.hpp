@@ -4,6 +4,7 @@
 
 //#define DO_NB
 //#define DO_NB_GET
+extern int in_kernel;
 
 namespace tamm::internal {
 template <typename T>

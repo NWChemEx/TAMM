@@ -471,7 +471,7 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
                                         //
                                         bool seq_h3b = false) {
   //
-  auto rank = ec.pg().rank().value();
+  auto rank = ec.pg().rank();
 
   Index noab = MO("occ").num_tiles();
   Index nvab = MO("virt").num_tiles();
@@ -558,5 +558,5 @@ void ccsd_t_fused_driver_calculator_ops(SystemData& sys_data, ExecutionContext& 
   }   // end seq h3b
 
   total_num_ops = (long double) ccsd_t_fully_fused_performance(
-    is_restricted, list_tasks, rank, 1, noab, nvab, k_spin, k_range, k_offset, k_evl_sorted);
+    is_restricted, list_tasks, rank.value(), 1, noab, nvab, k_spin, k_range, k_offset, k_evl_sorted);
 }

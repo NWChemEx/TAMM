@@ -16,7 +16,6 @@ void energy_diis(ExecutionContext& ec, const TiledIndexSpace& tAO, int iter, int
                  std::vector<Tensor<TensorType>>& fock_hist, std::vector<Tensor<TensorType>>& ehf_tamm_hist);
 
 
-
 template<typename TensorType>
 std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec, 
       ScalapackInfo& scalapack_info,
@@ -906,7 +905,7 @@ void energy_diis(ExecutionContext& ec, const TiledIndexSpace& tAO, int iter, int
 
   tamm::Scheduler sch{ec};
 
-  auto rank = ec.pg().rank().value();
+  auto rank = ec.pg().rank();
 
   // if(rank == 0) cout << "contructing pulay matrix" << endl;
   

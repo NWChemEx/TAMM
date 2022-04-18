@@ -29,13 +29,32 @@ Choose Build Options
 -DUSE_DPCPP=ON (OFF by default, requires -DUSE_OPENMP=OFF) 
 ```
 
+### UPC++ options
+To build with UPC++ enabled, you must prefix your cmake command with:
+```
+UPCXX_CODEMODE=O3 CC=gcc CXX=upcxx FC=gfortran cmake ...
+```
+and add:
+```
+-DUSE_UPCXX=ON
+```
+
+When creating a debug mode, set UPCXX_CODEMODE to g instead of O3, while setting:
+```
+-DCMAKE_BUILD_TYPE=Debug
+```
+
+In addition, if you would like to use a version of the UPC++ logic based on UPC++ dist_array, add the following flag to the above:
+```
+-DUPCXX_DISTARRAY=ON
+```
+
 ### CMake options for developers (optional)
 ```
 -DUSE_GA_PROFILER=ON #Enable GA's profiling feature (GCC Only).
 
 -DUSE_OPENMP=OFF (ON by default, also required to be ON when USE_CUDA=ON)
 ```
-
 
 Building TAMM
 =====================
@@ -56,6 +75,8 @@ mkdir build && cd build
 * **[Build using Intel MKL](install.md#build-using-intel-mkl)**
 
 * **[Build instructions for Summit using ESSL](install.md#build-instructions-for-summit-using-essl)**
+
+* **[Build instructions for Summit using ESSL and UPC++](install.md#build-instructions-for-summit-using-essl-and-upc++)**
 
 * **[Build instructions for Crusher](install.md#build-instructions-for-crusher)**
 
@@ -125,6 +146,38 @@ CC=gcc CXX=g++ FC=gfortran cmake \
 make -j3
 make install
 ```
+
+## Build instructions for Summit using ESSL and UPC++
+
+```
+module use /gpfs/alpine/world-shared/csc296/summit/modulefiles
+module use /gpfs/alpine/chm136/world-shared/software/modules
+
+module load gcc
+module load cmake/3.18.4
+module load essl/6.3.0
+module load cuda/11.0.3
+module --ignore-cache load upcxx/2021.3.0
+module load upcxx-extras/2020.3.8
+```
+
+
+```
+cd $TAMM_SRC/build
+
+UPCXX_CODEMODE=O3 CC=gcc CXX=upcxx FC=gfortran cmake \
+-DCMAKE_BUILD_TYPE=Release \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
+-DBLIS_CONFIG=power9 \
+-DLINALG_VENDOR=IBMESSL \
+-DLINALG_PREFIX=/sw/summit/essl/6.3.0/essl/6.3 \
+-DUSE_CUDA=ON \
+-DUSE_UPCXX=ON ..
+
+UPCXX_CODEMODE=O3 make -j3
+UPCXX_CODEMODE=O3 make install
+```
+
 
 ## Build instructions for Crusher
 

@@ -1062,10 +1062,10 @@ void test_new_alloc(Scheduler& sch) {
 int main(int argc, char* argv[]) {
     tamm::initialize(argc, argv);
 
-    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    auto mgr     = MemoryManagerGA::create_coll(pg);
+    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    auto mgr     = MemoryManagerGA::create_coll(&pg);
     Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+    ExecutionContext* ec = new ExecutionContext{pg, (Distribution*)&distribution, mgr};
     Scheduler sch{*ec};
 
     // ccsd_driver_initial<double>(sch);

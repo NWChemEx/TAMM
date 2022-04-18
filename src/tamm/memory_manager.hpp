@@ -102,7 +102,7 @@ class MemoryManager {
    * Access the underlying process group
    * @return Underlying process group
    */
-  ProcGroup pg() const {
+  ProcGroup* pg() const {
     return pg_;
   }
   
@@ -118,7 +118,7 @@ class MemoryManager {
     }
 
  protected:
-  explicit MemoryManager(ProcGroup pg, MemoryManagerKind kind)
+  explicit MemoryManager(ProcGroup *pg, MemoryManagerKind kind)
       : pg_{pg}, kind_{kind} {}
 
 
@@ -270,12 +270,12 @@ class MemoryManager {
    */
   virtual void print_coll(const MemoryRegion& mr, std::ostream& os) = 0;
 
-  ProcGroup get_proc_group() {
+  ProcGroup *get_proc_group() {
     return pg_;
   }
 
  protected:
-  ProcGroup pg_;
+  ProcGroup* pg_;
 
   MemoryManagerKind kind_; /**< MemoryManager kind */
 
@@ -352,7 +352,7 @@ class MemoryRegion {
    * Underlying process group
    * @return underlying process group
    */
-  virtual ProcGroup pg() const = 0;
+  virtual ProcGroup* pg() const = 0;
 
   /**
    * Access the memory manager used to create this memory region
@@ -506,7 +506,7 @@ class MemoryRegionImpl : public MemoryRegion {
 
   virtual ~MemoryRegionImpl() {}
 
-  ProcGroup pg() const override {
+  ProcGroup *pg() const override {
     return mgr_.pg();
   }
 

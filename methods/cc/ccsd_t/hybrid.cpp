@@ -11,11 +11,21 @@
 #include <iomanip>
 #include <stdio.h>
 #include <stdlib.h>
+#include <upcxx/upcxx.hpp>
 
 //
-int util_my_smp_index() {
-  auto ppn = GA_Cluster_nprocs(0);
-  return GA_Nodeid() % ppn;
+int util_my_smp_index(){
+  int nnodes = -1;
+  if (getenv("SLURM_JOB_NUM_NODES")) {
+      nnodes = atoi(getenv("SLURM_JOB_NUM_NODES"));
+  } else if (getenv("LSB_DJOB_NUMPROC")) {
+      nnodes = (atoi(getenv("LSB_DJOB_NUMPROC")) - 1) / 42;
+  } else {
+      throw std::runtime_error("unable to determine # nodes");
+  }
+
+  int ppn = upcxx::rank_n() / nnodes;
+  return upcxx::rank_me() % ppn;
 }
 
 //

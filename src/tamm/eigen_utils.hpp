@@ -4,6 +4,8 @@
 #include "tamm/tamm.hpp"
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
+#include "tamm/tamm.hpp"
+#include <upcxx/upcxx.hpp>
 #include <fmt/fmt.h>
 #undef I
 
@@ -448,8 +450,8 @@ tamm::Tensor<T> retile_rank2_tensor(tamm::Tensor<T>& tensor, const tamm::TiledIn
    //auto* ec_tmp = tensor.execution_context(); //TODO: figure out why this seg faults
 
 
-   tamm::ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-   auto mgr = tamm::MemoryManagerGA::create_coll(pg);
+   tamm::ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+   auto mgr = tamm::MemoryManagerGA::create_coll(&pg);
    tamm::Distribution_NW distribution;
    tamm::ExecutionContext ec{pg,&distribution,mgr};
    auto is1 = tensor.tiled_index_spaces()[0].index_space();
@@ -466,6 +468,28 @@ tamm::Tensor<T> retile_rank2_tensor(tamm::Tensor<T>& tensor, const tamm::TiledIn
    
    return result;
 } 
+
+template<typename T>
+void print_eigen_tensor(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic,
+        Eigen::RowMajor>& etensor) {
+    FILE *fp = fopen("out.bin", "a+b");
+    assert(fp);
+    size_t n = etensor.rows() * etensor.cols();
+    size_t nwritten = fwrite(&n, sizeof(n), 1, fp);
+    assert(nwritten == 1);
+
+    std::cout << "printing etensor" << std::endl;
+    for (int r = 0; r < etensor.rows(); r++) {
+        for (int c = 0; c < etensor.cols(); c++) {
+            double v = etensor(r, c);
+            printf(" %e", v);
+            nwritten = fwrite(&v, sizeof(v), 1, fp);
+            assert(nwritten == 1);
+        }
+    }
+    std::cout << std::endl;
+    fclose(fp);
+}
 
 }
 

@@ -7,9 +7,8 @@
 #include "tamm/strong_num.hpp"
 #include <complex>
 #include <iosfwd>
-#include <map>
-#include "ga/ga.h"
-#include "ga/ga-mpi.h"
+#include "ga.h"
+#include <upcxx/upcxx.hpp>
 
 //#include <mpi.h>
  
@@ -182,8 +181,8 @@ enum class ReduceOp { min, max, sum, maxloc, minloc };
 
 using SpinMask = std::vector<SpinPosition>;
 
-using rtDataHandlePtr = ga_nbhdl_t*;
-using rtDataHandle = ga_nbhdl_t;
+using rtDataHandlePtr = upcxx::future<>*;
+using rtDataHandle = upcxx::future<>;
 
 class DataCommunicationHandle
 {
@@ -193,7 +192,7 @@ class DataCommunicationHandle
 
         void waitForCompletion() {
             if(!getCompletionStatus()) {
-                NGA_NbWait(&data_handle_);
+                data_handle_.wait();
                 setCompletionStatus();
             }
         }
@@ -210,9 +209,9 @@ class DataCommunicationHandle
         }
         rtDataHandlePtr getDataHandlePtr() { return &data_handle_; }
 
+        rtDataHandle data_handle_;
     private:
         bool status_{true};
-        rtDataHandle data_handle_;
 };
 
 using DataCommunicationHandlePtr = DataCommunicationHandle*;
@@ -224,6 +223,7 @@ using DataCommunicationHandlePtr = DataCommunicationHandle*;
 // const Spin beta{2};
 // }; // namespace SpinType
 
+#if 0
 template<typename T>
 static inline MPI_Datatype mpi_type(){
     using std::is_same_v;
@@ -259,7 +259,9 @@ static inline MPI_Op mpi_op(ReduceOp rop) {
         return MPI_MINLOC;
     else if (rop == ReduceOp::maxloc)
         return MPI_MAXLOC;
+    abort();
 }
+#endif
 
 namespace internal {
     template<typename T, typename... Args>

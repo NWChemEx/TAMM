@@ -3,6 +3,7 @@
 #include "ga/ga-mpi.h"
 #include "tamm/proc_group.hpp"
 #include <atomic>
+#include <upcxx/upcxx.hpp>
 
 namespace tamm {
 
@@ -77,7 +78,12 @@ class AtomicCounterGA : public AtomicCounter {
   AtomicCounterGA(const ProcGroup& pg, int64_t num_counters)
       : allocated_{false},
         num_counters_{num_counters},
-        pg_{pg} { }
+        counters_per_rank_((int64_t)((num_counters + pg.size().value() - 1) / pg.size().value())),
+        pg_{pg} {
+      //upcxx::persona_scope master_scope(master_mtx,
+      //        upcxx::master_persona());
+      ad_i64 = new upcxx::atomic_domain<int64_t>({upcxx::atomic_op::fetch_add}, *pg.team());
+  }
 
   /**
    * @brief Allocate the global array of counters and initialize all of them.
@@ -87,22 +93,33 @@ class AtomicCounterGA : public AtomicCounter {
   void allocate(int64_t init_val) {
     EXPECTS(allocated_ == false);
     int64_t size = num_counters_;
-    ga_pg_ = pg_.ga_pg();
-    char name[] = "atomic-counter";
-    ga_ = NGA_Create_config64(MT_C_LONGLONG, 1, &size, name, nullptr, ga_pg_);
-    //EXPECTS(ga_ != 0);
-    if(GA_Pgroup_nodeid(ga_pg_) == 0) {
-      int64_t lo[1] = {0};
-      int64_t hi[1] = {num_counters_ - 1};
-      int64_t ld = -1;
-      long long buf[num_counters_];
-      for(int i=0; i<num_counters_; i++) {
-        buf[i] = init_val;
-      }
-      NGA_Put64(ga_, lo, hi, buf, &ld);
+    int64_t nranks = pg_.size().value();
+
+    gptrs_.resize(nranks);
+
+    upcxx::global_ptr<int64_t> local_gptr = upcxx::new_array<int64_t>(
+            counters_per_rank_);
+    assert(local_gptr);
+
+    upcxx::dist_object<upcxx::global_ptr<int64_t>> *dobj = NULL;
+    {
+        //upcxx::persona_scope master_scope(master_mtx,
+        //        upcxx::master_persona());
+        dobj = new upcxx::dist_object<upcxx::global_ptr<int64_t>>(local_gptr, *pg_.team());
     }
-    GA_Pgroup_sync(ga_pg_);
+
+    pg_.barrier();
+
+    for (int r = 0; r < nranks; r++) {
+        gptrs_[r] = dobj->fetch(r).wait();
+    }
+
+    for (int i = 0; i < counters_per_rank_; i++) {
+        local_gptr.local()[i] = init_val;
+    }
+
     allocated_ = true;
+    pg_.barrier();
   }
 
   /**
@@ -111,13 +128,8 @@ class AtomicCounterGA : public AtomicCounter {
    */
   void deallocate() {
     EXPECTS(allocated_ == true);
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-    GA_Pgroup_sync(ga_pg_);
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-    GA_Destroy(ga_);
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-    //GA_Pgroup_destroy(ga_pg_);
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
+    pg_.barrier();
+    upcxx::delete_array(gptrs_[pg_.rank().value()]);
     allocated_ = false;
   }
 
@@ -126,10 +138,11 @@ class AtomicCounterGA : public AtomicCounter {
    */
   int64_t fetch_add(int64_t index, int64_t amount) {
     EXPECTS(allocated_ == true);
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-    auto ret = NGA_Read_inc64(ga_, &index, amount);
-    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
-    return ret;
+
+    int64_t target_rank = index / counters_per_rank_;
+    int64_t offset_on_rank = index % counters_per_rank_;
+    return ad_i64->fetch_add(gptrs_[target_rank] + offset_on_rank, amount,
+            std::memory_order_relaxed).wait();
   }
 
   /**
@@ -137,38 +150,18 @@ class AtomicCounterGA : public AtomicCounter {
    */
   ~AtomicCounterGA() {
     EXPECTS_NOTHROW(allocated_ == false);
+    //upcxx::persona_scope master_scope(master_mtx,
+    //        upcxx::master_persona());
+    ad_i64->destroy();
   }
 
  private:
-  int ga_;
+  std::vector<upcxx::global_ptr<int64_t>> gptrs_;
   bool allocated_;
   int64_t num_counters_;
+  int64_t counters_per_rank_;
   ProcGroup pg_;
-  int ga_pg_;
-
-  /**
-   * @brief Create a GA process group from a wrapped MPI communicator
-   * @param pg Wrapped MPI communicator
-   * @return GA process group on the MPI communicator
-   * @note Collective on the current default GA process group
-   */
-  static int create_ga_process_group(const ProcGroup& pg) {
-    MPI_Group group, group_default;
-    MPI_Comm comm = pg.comm();
-    int nranks = pg.size().value();
-    int ranks[nranks], ranks_default[nranks];
-    MPI_Comm_group(comm, &group);
-  
-    MPI_Comm_group(GA_MPI_Comm_pgroup_default(), &group_default);
-
-    for (int i = 0; i < nranks; i++) {
-      ranks[i] = i;
-    }
-    MPI_Group_translate_ranks(group, nranks, ranks, group_default, ranks_default);
-    return GA_Pgroup_create(ranks_default, nranks);
-  }
-
-
+  upcxx::atomic_domain<int64_t> *ad_i64;
 };
 
 } // namespace tamm

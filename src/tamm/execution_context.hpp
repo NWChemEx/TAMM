@@ -20,6 +20,8 @@
 #include "talsh/talshxx.hpp"
 #endif
 
+extern upcxx::team* team_self;
+
 namespace tamm {
 
 struct IndexedAC {
@@ -55,9 +57,9 @@ class Distribution_SimpleRoundRobin;
 class RuntimeEngine;
 class ExecutionContext {
 public:
-  ExecutionContext(): ac_{IndexedAC{nullptr, 0}} {
-    pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
-  };
+    ExecutionContext() : ac_{IndexedAC{nullptr, 0}} {
+        pg_self_ = ProcGroup{team_self};
+    };
 
   ExecutionContext(const ExecutionContext&)            = default;
   ExecutionContext& operator=(const ExecutionContext&) = default;
@@ -189,13 +191,17 @@ public:
    * @return Underlying process group
    */
   ProcGroup pg() const { return pg_; }
-
   /**
    * @brief Set ProcGroup object for ExecutionContext
    *
    * @param [in] pg input ProcGroup object
    */
-  void set_pg(const ProcGroup& pg) { pg_ = pg; }
+  void set_pg(const ProcGroup& pg) {
+    pg_ = pg;
+#ifdef UPCXX_DISTARRAY
+    hint_ = pg.size().value();
+#endif
+  }
 
   /**
    * Get the default distribution
@@ -245,6 +251,22 @@ public:
   MemoryManager* memory_manager(Args&&... args) const {
     return memory_manager_factory(memory_manager_kind_, std::forward<Args>(args)...).release();
   }
+
+#ifdef UPCXX_DISTARRAY
+    /**
+     * @brief Set cache size for MemoryRegionGAs created by MemoryManagerGAs of this ExecutionContext
+     *
+     * @param [in] hint input Size of cache for MemoryRegionsGAs
+     */
+    void set_memory_manager_cache(const upcxx::intrank_t hint = 0) { 
+        hint_ = (hint ? hint : pg_.size().value());
+    }
+    /**
+     * Cache size hint for this execution context
+     * @return Cache size used by MemoryRegionGAs within this ExecutionContext
+     */
+    upcxx::intrank_t hint() const { return hint_; }
+#endif
 
   /**
    * @brief Set the default memory manager for ExecutionContext
@@ -347,11 +369,11 @@ public:
       case MemoryManagerKind::invalid: NOT_ALLOWED(); return nullptr;
       case MemoryManagerKind::ga:
         // auto defd = get_memory_manager(memkind);
-        return std::unique_ptr<MemoryManager>(new MemoryManagerGA{pg_});
+        return std::unique_ptr<MemoryManager>(new MemoryManagerGA{(ProcGroup*)&pg_});
         // return std::unique_ptr<MemoryManager>(new MemoryManagerGA{std::forward<Args>(args)...});
         break;
       case MemoryManagerKind::local:
-        return std::unique_ptr<MemoryManager>(new MemoryManagerLocal{pg_self_});
+        return std::unique_ptr<MemoryManager>(new MemoryManagerLocal{(ProcGroup*)&pg_self_});
         //   return std::unique_ptr<MemoryManager>(new
         //   MemoryManagerLocal{std::forward<Args>(args)...});
         break;
@@ -381,6 +403,10 @@ private:
   std::stringstream          profile_data_;
   std::vector<MemoryRegion*> mem_regs_to_dealloc_;
   std::vector<MemoryRegion*> unregistered_mem_regs_;
+
+#ifdef UPCXX_DISTARRAY
+  upcxx::intrank_t hint_;
+#endif
 
 }; // class ExecutionContext
 

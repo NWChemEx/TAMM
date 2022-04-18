@@ -1,7 +1,6 @@
-#include "ga/macdecls.h"
-#include "mpi.h"
 #include <chrono>
 #include <tamm/tamm.hpp>
+#include <upcxx/upcxx.hpp>
 
 using namespace tamm;
 
@@ -269,7 +268,7 @@ int main(int argc, char* argv[]) {
 
   if(is_size < tile_size) tile_size = is_size;
 
-  ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup pg = ProcGroup::create_coll(upcxx::world());
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   ExecutionHW ex_hw = ExecutionHW::CPU;

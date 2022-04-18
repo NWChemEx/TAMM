@@ -12,10 +12,35 @@
 #include <functional>
 #include <gsl/span>
 #include <type_traits>
+#include "ga.h"
+#include <upcxx/upcxx.hpp>
 
 namespace tamm {
 
 using gsl::span;
+
+class TensorTile {
+    public:
+        int64_t lo[2];
+        int64_t dim[2];
+        int64_t rank;
+        int64_t offset;
+
+        TensorTile(int64_t lo_0, int64_t lo_1, int64_t dim_0, int64_t dim_1,
+                int64_t _rank, int64_t _offset) {
+            lo[0] = lo_0;
+            lo[1] = lo_1;
+            dim[0] = dim_0;
+            dim[1] = dim_1;
+            rank = _rank;
+            offset = _offset;
+        }
+
+        bool contains(int64_t i0, int64_t i1) {
+            return i0 >= lo[0] && i1 >= lo[1] && i0 < lo[0] + dim[0] &&
+                i1 < lo[1] + dim[1];
+        }
+};
 
 /**
  * @ingroup tensors
@@ -236,6 +261,8 @@ public:
      */
     virtual void allocate(ExecutionContext* ec) {
         {
+        // fprintf(stderr, "UPC++ rank %d rank=%d <333>\n", upcxx::rank_me(), ec->pg().rank().value());
+
             TimerGuard tg_total{&memTime1};
             EXPECTS(allocation_status_ == AllocationStatus::invalid);
             auto defd                  = ec->get_default_distribution();
@@ -243,7 +270,11 @@ public:
               defd->get_tensor_base(), defd->get_dist_proc()); // defd->kind());
             // Distribution* distribution    =
             // ec->distribution(defd.tensor_base(), nproc );
+#ifdef UPCXX_DISTARRAY
+            MemoryManager* memory_manager = ec->memory_manager(ec->hint());
+#else
             MemoryManager* memory_manager = ec->memory_manager();
+#endif
             EXPECTS(distribution != nullptr);
             EXPECTS(memory_manager != nullptr);
             ec_ = ec;
@@ -253,10 +284,10 @@ public:
             {
                 TimerGuard tg_total{&memTime2};
                 distribution_ = std::shared_ptr<Distribution>(
-                  distribution->clone(this, memory_manager->pg().size()));
+                  distribution->clone(this, memory_manager->pg()->size().value()));
             }
 #if 0
-        auto rank = memory_manager->pg().rank();
+        auto rank = memory_manager->pg()->rank();
         auto buf_size = distribution_->buf_size(rank);
         auto eltype = tensor_element_type<T>();
         EXPECTS(buf_size >= 0);
@@ -455,9 +486,19 @@ public:
     //     return dest;
     // }
 
+#if 0
     virtual int ga_handle() {
         const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(*mpb_);
         return mr.ga();
+    }
+#endif
+
+    virtual void put_raw(int64_t *lo, int64_t *hi, void *buf, int64_t *buf_ld) {
+        abort();
+    }
+
+    virtual void get_raw(int64_t *lo, int64_t *hi, void *buf, int64_t *buf_ld) {
+        abort();
     }
 
     virtual T* access_local_buf() {
@@ -741,16 +782,26 @@ public:
 
     void deallocate() {
         EXPECTS(allocation_status_ == AllocationStatus::created);
-        NGA_Destroy(ga_);
-        ga_ = -1;
+        ec_->pg().barrier();
+        upcxx::delete_array(local_gptr_);
+        ec_->pg().barrier();
         update_status(AllocationStatus::deallocated);
     }
 
     void allocate(ExecutionContext* ec) {
         EXPECTS(allocation_status_ == AllocationStatus::invalid);
 
-        ec_             = ec;
-        ga_             = NGA_Create_handle();
+        // Assert we are in the calling proc group
+        assert(ec->pg().rank() >= 0 &&
+                ec->pg().rank() < ec->pg().size());
+
+        /*
+         * Max Grossman (Mar 12 2020): All the code below only appears to support
+         * 2D tensors.
+         */
+        assert(num_modes() == 2);
+
+        ec_ = ec;
         const int ndims = num_modes();
 
         auto defd                  = ec->get_default_distribution();
@@ -763,29 +814,44 @@ public:
         proc_grid_ = distribution_->proc_grid();
 
         auto tis_dims = tindices();
-        std::vector<int64_t> dims;
-        for(auto tis : tis_dims)
-            dims.push_back(tis.index_space().num_indices());
+        for(auto tis: tis_dims) {
+            tensor_dims_.push_back(tis.index_space().num_indices());
+        }
+        eltype_ = tensor_element_type<T>();
+        size_t element_size = MemoryManagerGA::get_element_size(eltype_);
 
-        NGA_Set_data64(ga_, ndims, &dims[0], ga_eltype_);
+        const bool is_irreg_tis1 = !tis_dims[0].input_tile_sizes().empty();
+        const bool is_irreg_tis2 = !tis_dims[1].input_tile_sizes().empty();
 
-        std::vector<bool> is_irreg_tis(ndims,false);
-        for(int i = 0; i < ndims; i++) is_irreg_tis[i] = !tis_dims[i].input_tile_sizes().empty();
+        int nranks = ec->pg().size();
 
+        std::vector<int64_t> bsize(2);
+        bsize[0] = tis_dims[0].input_tile_size();
+        bsize[1] = tis_dims[1].input_tile_size();
+
+#ifndef USE_UPCXX
         if (proc_list_.size() > 0 ) {
           int nproc = proc_list_.size();
           int proclist_c[nproc]; 
           std::copy(proc_list_.begin(), proc_list_.end(), proclist_c);
           GA_Set_restricted(ga_, proclist_c, nproc);
         }
+#endif
 
         if(is_block_cyclic_) {
+            /*
+             * Implement a block-cyclic distribution of tiles with size
+             * (tis_dims[0].input_tile_size(), tis_dims[1].input_tile_size()) over a
+             * processor grid with size (proc_grid_[0], proc_grid_[1]).
+             */
+
             // EXPECTS(ndims == 2);
             std::vector<int64_t> bsize(2);
             std::vector<int64_t> pgrid(2);
+            std::vector<int64_t> ntiles(2);
             {
-                // Cannot provide list of irreg tile sizes
-                EXPECTS(!is_irreg_tis[0] && !is_irreg_tis[1]);
+                //Cannot provide list of irreg tile sizes
+                EXPECTS(!is_irreg_tis1 && !is_irreg_tis2);
 
                 bsize[0] = tis_dims[0].input_tile_size();
                 bsize[1] = tis_dims[1].input_tile_size();
@@ -793,17 +859,48 @@ public:
                 pgrid[0] = proc_grid_[0].value();
                 pgrid[1] = proc_grid_[1].value();
             }
-            // blocks_ = block sizes for scalapack distribution
-            NGA_Set_block_cyclic_proc_grid64(ga_, &bsize[0], &pgrid[0]);
-        } else {
-            // only needed when irreg tile sizes are provided
-            const bool is_irreg_tens = std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; });
-            if(is_irreg_tens) {
-                std::vector<std::vector<Tile>> new_tiles(ndims);
-                for(int i = 0; i < ndims; i++) {
-                  new_tiles[i] = is_irreg_tis[i] ? tis_dims[i].input_tile_sizes()
-                                             : std::vector<Tile>{tis_dims[i].input_tile_size()};
+            int64_t total_n_procs = pgrid[0] * pgrid[1];
+
+            ntiles[0] = (tensor_dims_[0] + bsize[0] - 1) / bsize[0];
+            ntiles[1] = (tensor_dims_[1] + bsize[1] - 1) / bsize[1];
+            int64_t total_n_tiles = ntiles[0] * ntiles[1];
+            int64_t tiles_per_proc = (total_n_tiles + total_n_procs - 1) /
+                total_n_procs;
+
+            size_t tile_size_in_bytes = bsize[0] * bsize[1] * element_size;
+
+            local_gptr_ = upcxx::new_array<uint8_t>(tiles_per_proc *
+                    tile_size_in_bytes);
+            memset(local_gptr_.local(), 0x00, tiles_per_proc * tile_size_in_bytes);
+
+            int64_t owning_rank = 0;
+            int64_t *tile_offsets = new int64_t[nranks];
+            memset(tile_offsets, 0x00, nranks * sizeof(*tile_offsets));
+            for (int64_t tile_row = 0; tile_row < tensor_dims_[0];
+                    tile_row += bsize[0]) {
+                for (int64_t tile_col = 0; tile_col < tensor_dims_[1];
+                        tile_col += bsize[1]) {
+                    tiles.push_back(TensorTile(tile_row, tile_col, bsize[0], bsize[1],
+                                owning_rank, tile_offsets[owning_rank]));
+                    tile_offsets[owning_rank] += (bsize[0] * bsize[1]);
+                    owning_rank = (owning_rank + 1) % nranks;
                 }
+            }
+            delete tile_offsets;
+
+        } else {
+            //only needed when irreg tile sizes are provided
+            if(is_irreg_tis1 || is_irreg_tis2){
+                /*
+                 * Max Grossman (Mar 12 2020): Not supporting this on UPC++ for now, but
+                 * can be added if a motivating use case arises.
+                 */
+                throw std::runtime_error("irregular tile sizes not supported");
+#if 0
+                std::vector<Tile> tiles1 = 
+                    is_irreg_tis1? tis_dims[0].input_tile_sizes() : std::vector<Tile>{tis_dims[0].input_tile_size()};
+                std::vector<Tile> tiles2 = 
+                    is_irreg_tis2? tis_dims[1].input_tile_sizes() : std::vector<Tile>{tis_dims[1].input_tile_size()};
 
                 int64_t size_map;
                 int64_t pgrid[ndims];
@@ -840,34 +937,79 @@ public:
                 GA_Set_restricted(ga_, proclist_c, nproc_restricted);
                 }
 
-                size_map = std::accumulate(nblock, nblock+ndims, (int64_t)0);
+                // std::cout << "#blocks 0,1 = " << nblock[0] << "," << nblock[1] << std::endl;
 
-                // create map
+                //create map
                 std::vector<int64_t> k_map(size_map);
                 {
-                    auto mi = 0;
-                    for(auto idim = 0; idim < ndims; idim++) {
-                        auto size_blk =
-                          (dims[idim] / nblock[idim]);
-                        // regular tile size
-                        for(auto i = 0; i < nblock[idim]; i++) {
-                            k_map[mi] = size_blk * i;
+                    auto mi=0;
+                    for (auto idim=0;idim<ndims;idim++){
+                        auto size_blk = std::ceil(1.0*tensor_dims_[idim]/nblock[idim]);
+                        //regular tile size
+                        for (auto i=0;i<nblock[idim];i++){
+                            k_map[mi] = size_blk*i;
                             mi++;
                         }
                     }
                 }
                 NGA_Set_tiled_irreg_proc_grid64(ga_, &k_map[0], nblock, pgrid);
+#endif
             } else {
-                // fixed tilesize for all dims
-                int64_t chunk[ndims];
-                for(int i = 0; i < ndims; i++) chunk[i] = tis_dims[i].input_tile_size();
-                GA_Set_chunk64(ga_, chunk);
+                //fixed tilesize for both dims
+                int64_t chunk[2] = {tis_dims[0].input_tile_size(),
+                    tis_dims[1].input_tile_size()};
+                int64_t chunks_per_dim[2] = {(tensor_dims_[0] + chunk[0] - 1) / chunk[0],
+                    (tensor_dims_[1] + chunk[1] - 1) / chunk[1]};
+                int64_t total_chunks = chunks_per_dim[0] * chunks_per_dim[1];
+                int64_t chunks_per_proc = (total_chunks + nranks - 1) / nranks;
+                local_gptr_ = upcxx::new_array<uint8_t>(
+                        chunks_per_proc * chunk[0] * chunk[1] * element_size);
+                memset(local_gptr_.local(), 0x00,
+                        chunks_per_proc * chunk[0] * chunk[1] * element_size);
+
+                int64_t tile_index = 0;
+                int64_t *tile_offsets = new int64_t[nranks];
+                memset(tile_offsets, 0x00, nranks * sizeof(*tile_offsets));
+                for (int64_t tile_row = 0; tile_row < tensor_dims_[0];
+                        tile_row += bsize[0]) {
+                    for (int64_t tile_col = 0; tile_col < tensor_dims_[1];
+                            tile_col += bsize[1]) {
+                        const int owning_rank = tile_index / chunks_per_proc;
+                        tiles.push_back(TensorTile(tile_row, tile_col, bsize[0], bsize[1],
+                                    owning_rank, tile_offsets[owning_rank]));
+                        tile_offsets[owning_rank] += (bsize[0] * bsize[1]);
+                        tile_index++;
+                    }
+                }
+                delete tile_offsets;
             }
         }
-        NGA_Set_pgroup(ga_, ec->pg().ga_pg());
-        NGA_Allocate(ga_);
-        distribution_->set_ga_handle(ga_);
+
+        gptrs_.resize(nranks);
+        upcxx::dist_object<upcxx::global_ptr<uint8_t>> *dobj = NULL;
+        {
+            // upcxx::persona_scope master_scope(master_mtx,
+            //         upcxx::master_persona());
+            dobj = new upcxx::dist_object<upcxx::global_ptr<uint8_t>>(
+                    local_gptr_, *ec->pg().team());
+        }
+        ec->pg().barrier();
+        for (int r = 0; r < nranks; r++) {
+            gptrs_[r] = dobj->fetch(r).wait();
+        }
+        ec->pg().barrier();
+
         update_status(AllocationStatus::created);
+    }
+
+    TensorTile find_tile(int64_t row, int64_t col) const {
+        for (auto i = tiles.begin(), e = tiles.end(); i != e; i++) {
+            TensorTile t = *i;
+            if (t.contains(row, col)) {
+                return t;
+            }
+        }
+        abort();
     }
 
     void get(const IndexVector& blockid, span<T> buff_span) const {
@@ -876,7 +1018,12 @@ public:
         std::vector<int64_t> hi = compute_hi(blockid);
         std::vector<int64_t> ld = compute_ld(blockid);
         EXPECTS(block_size(blockid) <= buff_span.size());
-        NGA_Get64(ga_, &lo[0], &hi[0], buff_span.data(), &ld[0]);
+
+        assert(lo.size() == 2); // lo is inclusive
+        assert(hi.size() == 2); // hi is inclusive
+        assert(ld.size() == 1);
+
+        get_raw(&lo[0], &hi[0], buff_span.data(), &ld[0]);
     }
 
     void put(const IndexVector& blockid, span<T> buff_span) {
@@ -886,10 +1033,17 @@ public:
         std::vector<int64_t> ld = compute_ld(blockid);
 
         EXPECTS(block_size(blockid) <= buff_span.size());
-        NGA_Put64(ga_, &lo[0], &hi[0], buff_span.data(), &ld[0]);
+
+        assert(lo.size() == 2); // lo is inclusive
+        assert(hi.size() == 2); // hi is inclusive
+        assert(ld.size() == 1);
+
+        put_raw(&lo[0], &hi[0], buff_span.data(), &ld[0]);
     }
 
     void add(const IndexVector& blockid, span<T> buff_span) {
+        throw std::runtime_error("add unsupported");
+#if 0
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
         std::vector<int64_t> lo = compute_lo(blockid);
         std::vector<int64_t> hi = compute_hi(blockid);
@@ -914,34 +1068,91 @@ public:
         }
         NGA_Acc64(ga_, &lo[0], &hi[0],
                   reinterpret_cast<void*>(buff_span.data()), &ld[0], alpha);
+#endif
     }
 
-    int ga_handle() override { return ga_; }
 
     bool is_block_cyclic() override { return is_block_cyclic_; }
 
     /// @todo Should this be GA_Nodeid() or GA_Proup_nodeid(GA_Get_pgroup(ga_))
     T* access_local_buf() override {
+        throw std::runtime_error("access_local_buf unsupported");
+#if 0
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
         T* ptr;
         int64_t len;
         NGA_Access_block_segment64(ga_, GA_Pgroup_nodeid(GA_Get_pgroup(ga_)),
                                    reinterpret_cast<void*>(&ptr), &len);
         return ptr;
+#endif
     }
 
     /// @todo Should this be GA_Nodeid() or GA_Proup_nodeid(GA_Get_pgroup(ga_))
     const T* access_local_buf() const override {
+        throw std::runtime_error("access_local_buf unsupported");
+#if 0
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
         T* ptr;
         int64_t len;
         NGA_Access_block_segment64(ga_, GA_Pgroup_nodeid(GA_Get_pgroup(ga_)),
                                    reinterpret_cast<void*>(&ptr), &len);
         return ptr;
+#endif
     }
+
+    void put_raw(int64_t *lo, int64_t *hi, void *buf, int64_t *buf_ld) {
+        for (int64_t row = lo[0]; row <= hi[1]; row++) {
+            for (int64_t col = lo[1]; col <= hi[1]; col++) {
+                TensorTile t = find_tile(row, col);
+
+                int64_t row_offset = row - t.lo[0];
+                int64_t col_offset = col - t.lo[1];
+
+                int64_t tile_offset = row_offset * t.dim[1] + col_offset;
+                upcxx::global_ptr<uint8_t> target = gptrs_[t.rank];
+                upcxx::global_ptr<uint8_t> remote_addr = target +
+                    (t.offset * MemoryManagerGA::get_element_size(eltype_)) +
+                    (tile_offset * MemoryManagerGA::get_element_size(eltype_));
+
+                int64_t buff_offset = row * buf_ld[0] + col;
+                uint8_t *local_addr = ((uint8_t *)buf) +
+                    (buff_offset * MemoryManagerGA::get_element_size(eltype_));
+
+                upcxx::rput(local_addr, remote_addr,
+                        MemoryManagerGA::get_element_size(eltype_)).wait();
+            }
+        }
+    }
+
+
+  void get_raw(int64_t *lo, int64_t *hi, void *buf, int64_t *buf_ld) const {
+      for (int64_t row = lo[0]; row <= hi[1]; row++) {
+          for (int64_t col = lo[1]; col <= hi[1]; col++) {
+              TensorTile t = find_tile(row, col);
+
+              int64_t row_offset = row - t.lo[0];
+              int64_t col_offset = col - t.lo[1];
+
+              int64_t tile_offset = row_offset * t.dim[0] + col_offset;
+              upcxx::global_ptr<uint8_t> target = gptrs_[t.rank];
+              upcxx::global_ptr<uint8_t> remote_addr = target +
+                  (t.offset * MemoryManagerGA::get_element_size(eltype_)) +
+                  (tile_offset * MemoryManagerGA::get_element_size(eltype_));
+
+              int64_t buff_offset = row * buf_ld[0] + col;
+              uint8_t *local_addr = ((uint8_t *)buf) +
+                  (buff_offset * MemoryManagerGA::get_element_size(eltype_));
+
+              upcxx::rget(remote_addr, local_addr,
+                      MemoryManagerGA::get_element_size(eltype_)).wait();
+          }
+      }
+  }
 
     /// @todo Check for a GA method to get the local buf size?
     size_t local_buf_size() const override {
+        throw std::runtime_error("local_buf_size unsupported");
+#if 0
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
         T* ptr;
         int64_t len;
@@ -949,6 +1160,7 @@ public:
                                    reinterpret_cast<void*>(&ptr), &len);
         size_t res = (size_t)len;
         return res;
+#endif
     }
 
     /// @todo implement accordingly
@@ -984,8 +1196,18 @@ protected:
         return retv;
     }
 
+    upcxx::global_ptr<uint8_t> local_gptr_;
+    std::vector<upcxx::global_ptr<uint8_t>> gptrs_;
+    ProcGrid proc_grid_;
+    std::vector<int64_t> tensor_dims_;
+    ElementType eltype_;
+    std::vector<TensorTile> tiles;
+
+#if 0
     int ga_;
     ProcGrid proc_grid_;
+#endif
+
     bool is_block_cyclic_ = false;
 
     // constants for NGA_Acc call
@@ -1229,10 +1451,12 @@ public:
     ref_tensor_.nb_add(idx_vec, buff_span, data_comm_handle);
   }
 
+#if 0
   int ga_handle() override {
     // Call Reference tensor
     return ref_tensor_.ga_handle();
   }
+#endif
 
   T *access_local_buf() override { NOT_ALLOWED(); }
 

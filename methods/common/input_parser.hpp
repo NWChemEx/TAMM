@@ -19,6 +19,7 @@ using namespace tamm;
 
 #include "ga/ga.h"
 #include "ga/ga-mpi.h"
+#include <upcxx/upcxx.hpp>
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::ordered_json;
@@ -938,7 +939,7 @@ inline std::tuple<OptionsMap, json>
       }
     }
 
-    if(GA_Nodeid()==0){
+    if(upcxx::rank_me()==0){
 
       jinput.erase(std::remove(jinput.begin(), jinput.end(), nullptr), jinput.end());
 

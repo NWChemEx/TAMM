@@ -6,6 +6,7 @@
 #include "ga/macdecls.h"
 #include "mpi.h"
 #include <tamm/tamm.hpp>
+#include <upcxx/upcxx.hpp>
 
 using namespace tamm;
 
@@ -161,7 +162,7 @@ TEST_CASE("Spin Tensor Construction") {
         REQUIRE((tis_3("virt").spin(3) == Spin{2}));
     }
 
-    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     failed = false;
@@ -500,7 +501,6 @@ TEST_CASE("Spin Tensor Construction") {
         failed = true;
     }
     REQUIRE(!failed);
-    
 }
 
 TEST_CASE("Non trivial ScaLAPACK test") {
@@ -525,7 +525,7 @@ TEST_CASE("Non trivial ScaLAPACK test") {
     bool failed = false;
 
 
-    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     
     // Non trivial ScaLAPACK test
@@ -596,7 +596,7 @@ TEST_CASE("Hash Based Equality and Compatibility Check") {
 
 TEST_CASE("GitHub Issues") {
 
-    tamm::ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+    tamm::ProcGroup pg = ProcGroup::create_coll(upcxx::world());
     tamm::ExecutionContext ec(pg, DistributionKind::nw, MemoryManagerKind::ga);
     tamm::TiledIndexSpace X{tamm::IndexSpace{tamm::range(0, 4)}};
     tamm::TiledIndexSpace Y{tamm::IndexSpace{tamm::range(0, 3)}};

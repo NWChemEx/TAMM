@@ -132,7 +132,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     shells.set_pure(false); // use cartesian gaussians
 
   const size_t N      = nbasis(shells);
-  auto         nnodes = GA_Cluster_nnodes();
+  auto         nnodes = exc.num_nodes();
 
   sys_data.nbf      = N;
   sys_data.nbf_orig = N;
@@ -157,15 +157,10 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     #if SCF_THROTTLE_RESOURCES
       auto [t_nnodes,hf_nnodes,ppn,hf_nranks,sca_nnodes,sca_nranks] = get_hf_nranks(scf_options,N);
 
-      int ranks[hf_nranks];
-      for (int i = 0; i < hf_nranks; i++) ranks[i] = i;    
-      auto gcomm = exc.pg().comm();
-      MPI_Group wgroup;
-      MPI_Comm_group(gcomm,&wgroup);
-      MPI_Group hfgroup;
-      MPI_Group_incl(wgroup,hf_nranks,ranks,&hfgroup);
-      MPI_Comm hf_comm;
-      MPI_Comm_create(gcomm,hfgroup,&hf_comm);
+      bool in_new_team = (rank < hf_nranks);
+      upcxx::team* gcomm = exc.pg().team();
+      upcxx::team* hf_comm = new upcxx::team(gcomm->split(
+                  in_new_team ? 0 : upcxx::team::color_none, rank.value()));
 
       #if defined(USE_SCALAPACK)
         int lranks[sca_nranks];
@@ -177,8 +172,9 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
       #endif
     #endif
 
+    //fprintf(stderr, "UPC++ rank %d rank=%d <CCC>\n", upcxx::rank_me(), rank);
     if(rank == 0) {
-      cout << std::endl << "Number of nodes, mpi ranks per node provided: " << nnodes << ", " << GA_Cluster_nprocs(0) << endl;
+      cout << std::endl << "Number of nodes, mpi ranks per node provided: " << nnodes << ", " << (int)(gcomm->rank_n() / nnodes) << endl;
       #if SCF_THROTTLE_RESOURCES
         cout << "Number of nodes, mpi ranks per node used for SCF calculation: " << hf_nnodes << ", " << ppn << endl;
       #endif
@@ -282,6 +278,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
 
     exc.pg().barrier();
 
+    //fprintf(stderr, "UPC++ rank %d rank=%d <EEE>\n", upcxx::rank_me(), rank);
     EigenTensors etensors;
 
     const bool scf_conv = restart && scf_options.noscf; 
@@ -293,13 +290,17 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     std::string densityfile_alpha = files_prefix + ".alpha.density";
     std::string movecsfile_beta  =  files_prefix + ".beta.movecs";       
     std::string densityfile_beta =  files_prefix + ".beta.density"; 
+    //fprintf(stderr, "UPC++ rank %d rank=%d <FFF>\n", upcxx::rank_me(), rank);
 
     #if SCF_THROTTLE_RESOURCES
+    //fprintf(stderr, "rank %d hf_nranks=%d hf_nnodes=%d ppn=%d\n", rank,
+    //        hf_nranks, hf_nnodes, ppn);
     if (rank < hf_nranks) {
-      EXPECTS(hf_comm != MPI_COMM_NULL);
+      int hrank = hf_comm->rank_me();
+      EXPECTS(rank==hrank);
       ScalapackInfo scalapack_info;
 
-      ProcGroup pg = ProcGroup::create_coll(hf_comm);
+      ProcGroup pg = ProcGroup::create_coll(*hf_comm);
       ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     #else 
       //TODO: Fix - create ec_m, when throttle is disabled
@@ -308,6 +309,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
       // ProcGroup pg_l = ProcGroup::create_coll(MPI_COMM_SELF);
       // ExecutionContext ec_l{pg_l, DistributionKind::nw, MemoryManagerKind::local};
     #if defined(USE_SCALAPACK)
+      abort(); // Not supported with UPC++
       scalapack_info.comm = scacomm;
       if(scacomm != MPI_COMM_NULL) {
 
@@ -371,7 +373,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
         std::cout << std::fixed << std::setprecision(2) << std::endl
                   << "Time for BLACS setup: " << blacs_time.count() << " secs" << std::endl;
       }
-    #endif
+    #endif // USE_SCALAPACK
 
     #if defined(USE_GAUXC)
     /*** =========================== ***/
@@ -540,16 +542,22 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
         ttensors.FD_beta_tamm     = {tAO, tAO}; 
         ttensors.FDS_beta_tamm    = {tAO, tAO};    
       }
-    
+
+#ifdef UPCXX_DISTARRAY
+      ec.set_memory_manager_cache(1);
+#endif
+
       Tensor<TensorType>::allocate(&ec, ttensors.F_alpha     , 
                                         ttensors.D_tamm , ttensors.D_last_tamm, ttensors.D_diff  ,
                                         ttensors.F_alpha_tmp , ttensors.ehf_tmp    , ttensors.ehf_tamm,
                                         ttensors.FD_tamm, ttensors.FDS_tamm);
+      //fprintf(stderr, "UPC++ rank %d rank=%d <PPP>\n", upcxx::rank_me(), rank);
       if(is_uhf) 
         Tensor<TensorType>::allocate(&ec, ttensors.F_beta     , 
                                           ttensors.D_beta_tamm , ttensors.D_last_beta_tamm, 
                                           ttensors.F_beta_tmp , ttensors.ehf_beta_tmp    ,
                                           ttensors.FD_beta_tamm, ttensors.FDS_beta_tamm);
+      //fprintf(stderr, "UPC++ rank %d rank=%d <QQQ>\n", upcxx::rank_me(), rank);
 
 
       // XXX: Only allocate for DFT
@@ -563,7 +571,8 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
       auto max_nprim4 = max_nprim * max_nprim * max_nprim * max_nprim;
       auto shell2bf   = obs.shell2bf();
 
-
+      // Still hangs here
+      
       if (restart) {
         scf_restart(ec, sys_data, filename, etensors, files_prefix);
         if(rank == 0){
@@ -690,6 +699,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
           ec.pg().barrier();
         } //initial guess
       }
+      //fprintf(stderr, "UPC++ rank %d rank=%d <TTT>\n", upcxx::rank_me(), rank);
 
       hf_t2   = std::chrono::high_resolution_clock::now();
       hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
@@ -936,6 +946,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
         if(debug) print_energies(ec, ttensors, sys_data, debug);
 
       } while ( (fabs(ediff) > conve) || (fabs(rmsd) > convd) ); //SCF main loop
+      //fprintf(stderr, "UPC++ rank %d rank=%d <YYY>\n", upcxx::rank_me(), rank);
 
       if(rank == 0) {
         std::cout.precision(13);
@@ -998,10 +1009,12 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
         cout << "done." << endl;
       }
 
+      // fprintf(stderr, "UPC++ rank %d rank=%d <AAA>\n", upcxx::rank_me(), rank);
       if(!is_conv) {
         ec.pg().barrier();
         tamm_terminate("Please check SCF input parameters");
       }
+      // fprintf(stderr, "UPC++ rank %d rank=%d <BBB>\n", upcxx::rank_me(), rank);
 
       // copy to fock matrices allocated on world group
       sch(Fa_global(mu,nu) = ttensors.F_alpha(mu,nu));
@@ -1009,11 +1022,13 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
       sch.execute();
 
       if(do_density_fitting) Tensor<TensorType>::deallocate(ttensors.xyK_tamm, ttensors.C_occ_tamm, ttensors.Zxy_tamm);
+      // fprintf(stderr, "UPC++ rank %d rank=%d <DDD>\n", upcxx::rank_me(), rank);
 
       Tensor<TensorType>::deallocate(ttensors.H1     , ttensors.S1      , ttensors.T1         , ttensors.V1,
                                      ttensors.F_alpha_tmp , ttensors.ehf_tmp , ttensors.ehf_tamm   , ttensors.F_alpha,
                                      ttensors.D_tamm , ttensors.D_diff  , ttensors.D_last_tamm,
                                      ttensors.FD_tamm, ttensors.FDS_tamm);
+      // fprintf(stderr, "UPC++ rank %d rank=%d <EEE>\n", upcxx::rank_me(), rank);
       
       if(is_uhf) 
         Tensor<TensorType>::deallocate(ttensors.F_beta,
@@ -1026,12 +1041,15 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
         Tensor<TensorType>::deallocate(ttensors.VXC);
       }
 
+      // fprintf(stderr, "UPC++ rank %d rank=%d <GGG>\n", upcxx::rank_me(), rank);
       #if SCF_THROTTLE_RESOURCES
       ec.flush_and_sync();
       #endif
+      // fprintf(stderr, "UPC++ rank %d rank=%d <HHH>\n", upcxx::rank_me(), rank);
 
 
       #if defined(USE_SCALAPACK)
+      abort(); // Not supported currently in UPC++
       if(scalapack_info.comm != MPI_COMM_NULL) {
         Tensor<TensorType>::deallocate(ttensors.F_BC, ttensors.X_alpha);
         if(is_uhf) Tensor<TensorType>::deallocate(ttensors.X_beta);
@@ -1047,15 +1065,28 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
         sch.execute();
       #endif
     
-    #if SCF_THROTTLE_RESOURCES
+#if SCF_THROTTLE_RESOURCES
 
     } //end scaled down process group
 
-    #endif
+    // fprintf(stderr, "UPC++ rank %d rank=%d <III>\n", upcxx::rank_me(), rank);
+    exc.pg().barrier(); 
+    // fprintf(stderr, "UPC++ rank %d rank=%d <JJJ>\n", upcxx::rank_me(), rank);
+
+    {
+        //upcxx::persona_scope master_scope(master_mtx,
+        //        upcxx::master_persona());
+        hf_comm->destroy();
+    }
+    // fprintf(stderr, "UPC++ rank %d rank=%d <KKK>\n", upcxx::rank_me(), rank);
+#else
+    exc.pg().barrier(); 
+#endif
+    //fprintf(stderr, "UPC++ rank %d rank=%d <JJJ>\n", upcxx::rank_me(), rank);
 
     //C,F1 is not allocated for ranks > hf_nranks 
-    exc.pg().barrier(); 
 
+    // fprintf(stderr, "UPC++ rank %d rank=%d <LLL>\n", upcxx::rank_me(), rank);
     //F, C are not deallocated.
     sys_data.n_occ_alpha = sys_data.nelectrons_alpha;
     sys_data.n_occ_beta  = sys_data.nelectrons_beta;
@@ -1070,6 +1101,9 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     exc.pg().broadcast(&sys_data.n_occ_beta ,0);
     exc.pg().broadcast(&sys_data.n_vir_beta ,0);
 
+    // fprintf(stderr, "UPC++ rank %d rank=%d <OOO>\n", upcxx::rank_me(), rank);
+    if(rank==0 && debug) sys_data.print();
+    std::cout << std::flush;
     sys_data.update();
     if(rank==0 && debug) sys_data.print();
     // sys_data.input_molecule = getfilename(filename);
@@ -1087,10 +1121,17 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     Tensor<TensorType> C_beta_tamm{scf_vars.tAO,tAO_ortho};
     vxc_tamm = Tensor<TensorType>{scf_vars.tAO,scf_vars.tAO};
 
+#ifdef UPCXX_DISTARRAY
+    exc.set_memory_manager_cache(1);
+#endif
+
     schg.allocate(C_alpha_tamm);
     if(is_uhf) schg.allocate(C_beta_tamm);
     if(is_ks) schg.allocate(vxc_tamm);
     schg.execute();
+#ifdef UPCXX_DISTARRAY
+    exc.set_memory_manager_cache(); // resets cache to pg.size().value();
+#endif
 
     if (rank == 0) {
       eigen_to_tamm_tensor(C_alpha_tamm, etensors.C);

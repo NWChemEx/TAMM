@@ -96,7 +96,7 @@ class MemoryManagerGA : public MemoryManager {
     delete mmga;
   }
 
-  static size_t get_element_size(ElementType t) {
+  static int64_t get_element_size(ElementType t) {
     switch (t) {
       case ElementType::single_precision:
         return sizeof(float);
@@ -166,9 +166,9 @@ class MemoryManagerGA : public MemoryManager {
     }
 
   }
-#else
+#else // UPCXX_DISTARRAY
   void alloc_coll_upcxx(ElementType eltype,
-      Size local_nelements, MemoryRegionGA* pmr, int nranks, size_t elemnt_size,
+      Size local_nelements, MemoryRegionGA* pmr, int nranks, int64_t element_size,
       int64_t nels) {
     upcxx::team *team = pg_->team();
     pmr->gptrs_ = new upcxx::global_ptr<uint8_t>[nranks];
@@ -208,6 +208,7 @@ class MemoryManagerGA : public MemoryManager {
     }
   }
 #endif
+#endif
 
   /**
    * @copydoc MemoryManager::alloc_coll
@@ -220,7 +221,7 @@ class MemoryManagerGA : public MemoryManager {
 
       int nranks = pg_->size().value();
 
-      size_t element_size = get_element_size(eltype);
+      int64_t element_size = get_element_size(eltype);
       int64_t nels = local_nelements.value();
 #ifdef USE_UPCXX
 #ifdef UPCXX_DISTARRAY
@@ -228,7 +229,7 @@ class MemoryManagerGA : public MemoryManager {
               elemnt_size, nels);
 #else // UPCXX_DISTARRAY
       alloc_coll_upcxx(eltype, local_nelements, pmr, nranks,
-              elemnt_size, nels);
+              element_size, nels);
 #endif // UPCXX_DISTARRAY
 #else // USE_UPCXX
       int ga_pg_default = GA_Pgroup_get_default();

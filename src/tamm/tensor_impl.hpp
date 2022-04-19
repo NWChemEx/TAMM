@@ -1245,7 +1245,7 @@ protected:
         return retv;
     }
 
-#ifdef USE_UCPXX
+#ifdef USE_UPCXX
     upcxx::global_ptr<uint8_t> local_gptr_;
     std::vector<upcxx::global_ptr<uint8_t>> gptrs_;
     ProcGrid proc_grid_;

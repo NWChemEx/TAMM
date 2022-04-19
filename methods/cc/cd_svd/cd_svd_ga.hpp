@@ -540,7 +540,9 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 #endif
           } //if s4
         } //s4
+#ifndef USE_UPCXX
       } //if s3
+#endif
     } //s3
   
 #ifdef USE_UPCXX

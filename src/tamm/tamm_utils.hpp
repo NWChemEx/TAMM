@@ -696,7 +696,7 @@ std::tuple<int, int, int> get_subgroup_info(ExecutionContext& gec, Tensor<Tensor
 }
 
 #ifndef USE_UPCXX
-void subcomm_from_subranks(ExecutionContext& gec, int subranks, MPI_Comm *io_comm) {
+static inline void subcomm_from_subranks(ExecutionContext& gec, int subranks, MPI_Comm *subcomm) {
   MPI_Group group; //, world_group;
   auto comm = gec.pg().comm();
   MPI_Comm_group(comm,&group);
@@ -704,7 +704,7 @@ void subcomm_from_subranks(ExecutionContext& gec, int subranks, MPI_Comm *io_com
   for (int i = 0; i < subranks; i++) ranks[i] = i;    
   MPI_Group subgroup;
   MPI_Group_incl(group,subranks,ranks,&subgroup);
-  MPI_Comm_create(comm,subgroup,&subcomm);
+  MPI_Comm_create(comm,subgroup,subcomm);
 }
 #endif
 
@@ -1054,8 +1054,6 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
     std::vector<int> rankspertensor;
     for(size_t i = 0; i < tensors.size(); i++) {
       auto [nagg,ppn,subranks] = get_agg_info(gec, gec.pg().size().value(),tensors[i],nagg_hint);
-      auto subranks    = nagg * ppn;
-      if(subranks > nranks) subranks = nranks;
       rankspertensor.push_back(subranks);
       if(world_rank >= prev_subranks && world_rank < (subranks + prev_subranks)) color = i;
       nranks -= subranks;
@@ -1591,8 +1589,6 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
     std::vector<int> rankspertensor;
     for(size_t i = 0; i < tensors.size(); i++) {
       auto [nagg,ppn,subranks] = get_agg_info(gec, gec.pg().size().value(),tensors[i],nagg_hint);
-      auto subranks    = nagg * ppn;
-      if(subranks > nranks) subranks = nranks;
       rankspertensor.push_back(subranks);
       if(world_rank >= prev_subranks && world_rank < (subranks + prev_subranks)) color = i;
       nranks -= subranks;
@@ -2095,7 +2091,11 @@ void apply_ewise_ip(LabeledTensor<TensorType> ltensor,
     subcomm_from_subranks(gec, subranks, &sub_comm);
 #endif
     if (gec.pg().rank() < subranks) {
+#ifdef USE_UPCXX
         ProcGroup pg = ProcGroup::create_coll(*sub_comm);
+#else
+        ProcGroup pg = ProcGroup::create_coll(sub_comm);
+#endif
         ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     #else 
         ExecutionContext& ec = gec;
@@ -2420,7 +2420,12 @@ TensorType norm(ExecutionContext& gec, LabeledTensor<TensorType> ltensor) {
 #endif
 
     if (rank < subranks) {
+#ifdef USE_UPCXX
         ProcGroup pg = ProcGroup::create_coll(*sub_comm);
+#else
+        ProcGroup pg = ProcGroup::create_coll(sub_comm);
+#endif
+
         ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     #else 
         ExecutionContext& ec = gec;

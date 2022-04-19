@@ -185,7 +185,12 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     #endif
 
     if(rank == 0) {
+#ifdef USE_UPCXX
       cout << std::endl << "Number of nodes, mpi ranks per node provided: " << nnodes << ", " << (int)(gcomm->rank_n() / nnodes) << endl;
+#else
+      cout << std::endl << "Number of nodes, mpi ranks per node provided: " << nnodes << ", " << GA_Cluster_nprocs(0) << endl;
+#endif
+
       #if SCF_THROTTLE_RESOURCES
         cout << "Number of nodes, mpi ranks per node used for SCF calculation: " << hf_nnodes << ", " << ppn << endl;
       #endif
@@ -305,7 +310,11 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     if (rank < hf_nranks) {
       ScalapackInfo scalapack_info;
 
+#ifdef USE_UPCXX
       ProcGroup pg = ProcGroup::create_coll(*hf_comm);
+#else
+      ProcGroup pg = ProcGroup::create_coll(hf_comm);
+#endif
       ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     #else 
       //TODO: Fix - create ec_m, when throttle is disabled
@@ -1068,7 +1077,9 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
 
     exc.pg().barrier(); 
 
+#ifdef USE_UPCXX
     hf_comm->destroy();
+#endif
     #else
     exc.pg().barrier(); 
     #endif

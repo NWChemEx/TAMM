@@ -207,6 +207,7 @@ class AtomicCounterGA : public AtomicCounter {
   int64_t counters_per_rank_;
 #endif
   ProcGroup pg_;
+  int ga_pg_;
 #ifdef USE_UPCXX
   upcxx::atomic_domain<int64_t> *ad_i64;
 #endif

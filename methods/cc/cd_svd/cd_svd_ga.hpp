@@ -52,6 +52,13 @@ bool cd_debug = false;
   }
 #endif
 
+#ifndef USE_UPCXX
+  int64_t ac_fetch_add(int ga_ac, int64_t index, int64_t amount) {
+    auto ret = NGA_Read_inc64(ga_ac, &index, amount);
+    return ret;
+  }
+#endif
+
 std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(SystemData sys_data, bool triples=false, int nactv=0) {
 
     TAMM_SIZE n_occ_alpha = sys_data.n_occ_alpha;
@@ -64,7 +71,7 @@ std::tuple<TiledIndexSpace,TAMM_SIZE> setupMOIS(SystemData sys_data, bool triple
         tce_tile = static_cast<Tile>(sys_data.nbf/10);
         if(tce_tile < 50) tce_tile = 50; //50 is the default tilesize for CCSD.
         if(tce_tile > 100) tce_tile = 100; //100 is the max tilesize for CCSD.
-        if(upcxx::rank_me()==0) std::cout << std::endl << "Resetting CCSD tilesize to: " << tce_tile << std::endl;
+        if(ProcGroup::world_rank()==0) std::cout << std::endl << "Resetting CCSD tilesize to: " << tce_tile << std::endl;
       }
     }
     else {

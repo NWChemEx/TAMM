@@ -941,7 +941,7 @@ inline std::tuple<OptionsMap, json>
       }
     }
 
-    if(upcxx::rank_me()==0){
+    if (ProcGroup::world_rank() == 0) {
 
       jinput.erase(std::remove(jinput.begin(), jinput.end(), nullptr), jinput.end());
 

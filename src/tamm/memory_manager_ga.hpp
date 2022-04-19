@@ -108,8 +108,6 @@ class MemoryManagerGA : public MemoryManager {
         return sizeof(DoubleComplex);
       case ElementType::invalid:
       default:
-        fprintf(stderr, "Rank %d reached unreachable code in get_element_size\n",
-                upcxx::rank_me());
         UNREACHABLE();
     }
   }
@@ -234,21 +232,19 @@ class MemoryManagerGA : public MemoryManager {
 #else // USE_UPCXX
       int ga_pg_default = GA_Pgroup_get_default();
       GA_Pgroup_set_default(ga_pg_);
-    int nranks = pg_.size().value();
     int ga_eltype = to_ga_eltype(eltype);
 
     pmr->map_.resize(nranks + 1);
     pmr->eltype_ = eltype;
     pmr->local_nelements_ = local_nelements;
-    int64_t nels = local_nelements.value();
 
     int64_t nelements_min, nelements_max;
 
     GA_Pgroup_set_default(ga_pg_);
     {
        TimerGuard tg_total{&memTime5};
-       nelements_min = pg_.allreduce(&nels, ReduceOp::min);
-       nelements_max = pg_.allreduce(&nels, ReduceOp::max);
+       nelements_min = pg_->allreduce(&nels, ReduceOp::min);
+       nelements_max = pg_->allreduce(&nels, ReduceOp::max);
     }
     std::string array_name{"array_name"+std::to_string(++ga_counter_)};
 
@@ -262,11 +258,11 @@ class MemoryManagerGA : public MemoryManager {
       int64_t dim, block = nranks;
       {
       TimerGuard tg_total{&memTime5};
-      dim = pg_.allreduce(&nels, ReduceOp::sum);
+      dim = pg_->allreduce(&nels, ReduceOp::sum);
       }
       {
       TimerGuard tg_total{&memTime6};
-      pg_.allgather(&nels, &pmr->map_[1]);
+      pg_->allgather(&nels, &pmr->map_[1]);
       }
       pmr->map_[0] = 0; // @note this is not set by MPI_Exscan
      {
@@ -297,10 +293,10 @@ class MemoryManagerGA : public MemoryManager {
     int64_t lo, hi;//, ld;
      {
        TimerGuard tg_total{&memTime8};    
-       NGA_Distribution64(pmr->ga_, pg_.rank().value(), &lo, &hi);
+       NGA_Distribution64(pmr->ga_, pg_->rank().value(), &lo, &hi);
      }
-    EXPECTS(nels<=0 || lo == static_cast<int64_t>(pmr->map_[pg_.rank().value()]));
-    EXPECTS(nels<=0 || hi == static_cast<int64_t>(pmr->map_[pg_.rank().value()]) + nels - 1);
+    EXPECTS(nels<=0 || lo == static_cast<int64_t>(pmr->map_[pg_->rank().value()]));
+    EXPECTS(nels<=0 || hi == static_cast<int64_t>(pmr->map_[pg_->rank().value()]) + nels - 1);
 #endif // USE_UPCXX
 
     pmr->set_status(AllocationStatus::created);
@@ -321,7 +317,7 @@ class MemoryManagerGA : public MemoryManager {
      {
        TimerGuard tg_total{&memTime3}; 
     pmr = new MemoryRegionGA{*this};
-    int nranks = pg_.size().value();
+    int nranks = pg_->size().value();
     int ga_eltype = to_ga_eltype(eltype);
 
     pmr->map_.resize(nranks + 1);
@@ -335,7 +331,7 @@ class MemoryManagerGA : public MemoryManager {
     pmr->ga_ = NGA_Create_handle();
     NGA_Set_data64(pmr->ga_, 1, &dim, ga_eltype);
     GA_Set_chunk64(pmr->ga_, &chunk);
-    GA_Set_pgroup(pmr->ga_, pg().ga_pg());
+    GA_Set_pgroup(pmr->ga_, pg()->ga_pg());
 
     if (proc_list.size() > 0 ) {
       int nproc = proc_list.size();
@@ -423,7 +419,7 @@ class MemoryManagerGA : public MemoryManager {
 #endif
 #else // USE_UPCXX
     pg_ = pg;
-    ga_pg_ = pg.ga_pg();
+    ga_pg_ = pg->ga_pg();
 #endif // USE_UPCXX
   }
 
@@ -567,7 +563,7 @@ class MemoryManagerGA : public MemoryManager {
     return static_cast<void*>(local_arr.local() + local_byte_offset);
 #endif
 #else
-    Proc proc{pg_.rank()};
+    Proc proc{pg_->rank()};
     TAMM_SIZE nels{1};
     TAMM_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nels-1, ld = -1;
@@ -1096,7 +1092,6 @@ class MemoryManagerGA : public MemoryManager {
   std::vector<std::chrono::duration<double,std::micro>> near, far, again;
 #endif
 #else
-  ProcGroup pg_;       /**< Underlying ProcGroup */
   int ga_pg_;          /**< GA pgroup underlying pg_ */
   int ga_counter_ = 0; /**< GA counter to name GAs in create call */
 

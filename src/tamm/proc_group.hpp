@@ -152,6 +152,14 @@ class ProcGroup {
   }
 #endif
 
+  static Proc world_rank() {
+#ifdef USE_UPCXX
+    return upcxx::rank_me();
+#else
+    return GA_Nodeid();
+#endif
+  }
+
   /**
    * Rank of invoking process
    * @return rank of invoking process in the wrapped communicator
@@ -308,6 +316,25 @@ class ProcGroup {
       ret[i] = rank_translate(i, pg2);
     }
     return ret;
+  }
+
+  /**
+   * @brief Create a GA process group correspondig to MPI_COMM_SELF, or just
+   * access it.
+   *
+   * @param create Create the GA pgroup if true
+   * @return int Return the created GA pgroup
+   */
+  static int self_ga_pgroup(bool create = false) {
+    static int ga_pg_self = -1;
+    static bool created = false;
+    if (!create) {
+      EXPECTS(created);
+      return ga_pg_self;
+    }
+    ga_pg_self = create_ga_process_group_coll(MPI_COMM_SELF);
+    created = true;
+    return ga_pg_self;
   }
 
   template <typename T>

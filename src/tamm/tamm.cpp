@@ -6,7 +6,9 @@
 #include <mutex>
 #undef I
 
+#ifdef USE_UPCXX
 upcxx::team* team_self = NULL;
+#endif
 
 static volatile bool finalized = false;
 static pthread_t progress_thread;

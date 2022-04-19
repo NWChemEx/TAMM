@@ -1,6 +1,10 @@
+#include "ga/macdecls.h"
+#include "mpi.h"
 #include <chrono>
 #include <tamm/tamm.hpp>
+#ifdef USE_UPCXX
 #include <upcxx/upcxx.hpp>
+#endif
 
 using namespace tamm;
 
@@ -268,7 +272,7 @@ int main(int argc, char* argv[]) {
 
   if(is_size < tile_size) tile_size = is_size;
 
-  ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+  ProcGroup pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   ExecutionHW ex_hw = ExecutionHW::CPU;

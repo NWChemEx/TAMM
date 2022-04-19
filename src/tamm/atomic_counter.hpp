@@ -3,7 +3,10 @@
 #include "ga/ga-mpi.h"
 #include "tamm/proc_group.hpp"
 #include <atomic>
+
+#ifdef USE_UPCXX
 #include <upcxx/upcxx.hpp>
+#endif
 
 namespace tamm {
 
@@ -78,11 +81,13 @@ class AtomicCounterGA : public AtomicCounter {
   AtomicCounterGA(const ProcGroup& pg, int64_t num_counters)
       : allocated_{false},
         num_counters_{num_counters},
+#ifdef USE_UPCXX
         counters_per_rank_((int64_t)((num_counters + pg.size().value() - 1) / pg.size().value())),
+#endif
         pg_{pg} {
-      //upcxx::persona_scope master_scope(master_mtx,
-      //        upcxx::master_persona());
+#ifdef USE_UPCXX
       ad_i64 = new upcxx::atomic_domain<int64_t>({upcxx::atomic_op::fetch_add}, *pg.team());
+#endif
   }
 
   /**
@@ -93,6 +98,7 @@ class AtomicCounterGA : public AtomicCounter {
   void allocate(int64_t init_val) {
     EXPECTS(allocated_ == false);
     int64_t size = num_counters_;
+#ifdef USE_UPCXX
     int64_t nranks = pg_.size().value();
 
     gptrs_.resize(nranks);
@@ -120,6 +126,24 @@ class AtomicCounterGA : public AtomicCounter {
 
     allocated_ = true;
     pg_.barrier();
+#else
+    ga_pg_ = pg_.ga_pg();
+    char name[] = "atomic-counter";
+    ga_ = NGA_Create_config64(MT_C_LONGLONG, 1, &size, name, nullptr, ga_pg_);
+    //EXPECTS(ga_ != 0);
+    if(GA_Pgroup_nodeid(ga_pg_) == 0) {
+      int64_t lo[1] = {0};
+      int64_t hi[1] = {num_counters_ - 1};
+      int64_t ld = -1;
+      long long buf[num_counters_];
+      for(int i=0; i<num_counters_; i++) {
+        buf[i] = init_val;
+      }
+      NGA_Put64(ga_, lo, hi, buf, &ld);
+    }
+    GA_Pgroup_sync(ga_pg_);
+    allocated_ = true;
+#endif
   }
 
   /**
@@ -128,8 +152,18 @@ class AtomicCounterGA : public AtomicCounter {
    */
   void deallocate() {
     EXPECTS(allocated_ == true);
+#ifdef USE_UPCXX
     pg_.barrier();
     upcxx::delete_array(gptrs_[pg_.rank().value()]);
+#else
+    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
+    GA_Pgroup_sync(ga_pg_);
+    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
+    GA_Destroy(ga_);
+    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
+    //GA_Pgroup_destroy(ga_pg_);
+    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
+#endif
     allocated_ = false;
   }
 
@@ -138,11 +172,17 @@ class AtomicCounterGA : public AtomicCounter {
    */
   int64_t fetch_add(int64_t index, int64_t amount) {
     EXPECTS(allocated_ == true);
-
+#ifdef USE_UPCXX
     int64_t target_rank = index / counters_per_rank_;
     int64_t offset_on_rank = index % counters_per_rank_;
     return ad_i64->fetch_add(gptrs_[target_rank] + offset_on_rank, amount,
             std::memory_order_relaxed).wait();
+#else
+    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
+    auto ret = NGA_Read_inc64(ga_, &index, amount);
+    //std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
+    return ret;
+#endif
   }
 
   /**
@@ -150,18 +190,26 @@ class AtomicCounterGA : public AtomicCounter {
    */
   ~AtomicCounterGA() {
     EXPECTS_NOTHROW(allocated_ == false);
-    //upcxx::persona_scope master_scope(master_mtx,
-    //        upcxx::master_persona());
+#ifdef USE_UPCXX
     ad_i64->destroy();
+#endif
   }
 
  private:
+#ifdef USE_UPCXX
   std::vector<upcxx::global_ptr<int64_t>> gptrs_;
+#else
+  int ga_;
+#endif
   bool allocated_;
   int64_t num_counters_;
+#ifdef USE_UPCXX
   int64_t counters_per_rank_;
+#endif
   ProcGroup pg_;
+#ifdef USE_UPCXX
   upcxx::atomic_domain<int64_t> *ad_i64;
+#endif
 };
 
 } // namespace tamm

@@ -1,4 +1,3 @@
-#include <upcxx/upcxx.hpp>
 #include "ccsd_canonical.hpp"
 
 #include <filesystem>

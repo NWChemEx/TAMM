@@ -31,7 +31,7 @@ std::tuple<double,double,double,double> ccsd_t_unfused_driver(ExecutionContext& 
                    std::vector<T>& k_evl_sorted,
                    double hf_ccsd_energy, int iDevice,
                    bool is_restricted, bool use_nwc_gpu_kernels) {
-  auto rank = ec.pg().rank();
+  auto rank     = ec.pg().rank().value();
   bool nodezero = rank==0;
 
   Index noab=MO("occ").num_tiles();

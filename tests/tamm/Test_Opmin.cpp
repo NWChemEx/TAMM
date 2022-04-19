@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
   talsh_instance.initialize(mpi_rank);
 #endif
 
-  ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+  ProcGroup pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   Scheduler sch{ec};

@@ -5,8 +5,6 @@
 #include "tamm/atomic_counter.hpp"
 #include "tamm/labeled_tensor.hpp"
 
-extern int in_kernel;
-
 namespace tamm {
 
 /**
@@ -40,7 +38,9 @@ void parallel_work_ga(ExecutionContext& ec, Itr first, Itr last, Fn fn) {
                 fn(*first);
                 next = ac->fetch_add(idx, 1);
             }
+#ifdef USE_UPCXX
             upcxx::progress();
+#endif
         }
     } else {
         AtomicCounter* ac = new AtomicCounterGA(ec.pg(), 1);
@@ -51,7 +51,9 @@ void parallel_work_ga(ExecutionContext& ec, Itr first, Itr last, Fn fn) {
                 fn(*first);
                 next = ac->fetch_add(0, 1);
             }
+#ifdef USE_UPCXX
             upcxx::progress();
+#endif
         }
         ac->deallocate();
         delete ac;

@@ -6,16 +6,11 @@
 #include <mutex>
 #undef I
 
-int in_kernel = 0;
 upcxx::team* team_self = NULL;
-int id_counter = 0;
 
 static volatile bool finalized = false;
-// static pthread_t progress_thread;
+static pthread_t progress_thread;
 static pthread_t abort_thread;
-// upcxx::persona *transmit_persona = NULL;
-// upcxx::persona_scope *transmit_persona_scope = NULL;
-// std::mutex master_mtx;
 
 static void *abort_func(void*) {
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -29,14 +24,6 @@ static void *abort_func(void*) {
         }
     }
 }
-
-// static void *progress_func(void *) {
-//     while (!finalized) {
-//         upcxx::persona_scope master_scope(master_mtx,
-//                 upcxx::master_persona());
-//         upcxx::progress();
-//     }
-// }
 
 namespace tamm {
 
@@ -68,20 +55,11 @@ double memTime9 = 0;
 
 
 void initialize(int argc, char *argv[]) {
+#ifdef USE_UPCXX
   upcxx::init();
 
   // Must be called with master persona
   team_self = new upcxx::team(upcxx::local_team().split(upcxx::rank_me(),0));
-
-  // upcxx::liberate_master_persona();
-  // transmit_persona = new upcxx::persona();
-  // transmit_persona_scope = new upcxx::persona_scope(*transmit_persona);
-
-  // int err = pthread_create(&progress_thread, NULL, progress_func, NULL);
-  // if (err != 0) {
-  //     fprintf(stderr, "Error launching progress thread\n");
-  //     abort();
-  // }
   // if (upcxx::rank_me() == 0) {
   // int err = pthread_create(&abort_thread, NULL, abort_func, NULL);
   // if (err != 0) {
@@ -89,32 +67,41 @@ void initialize(int argc, char *argv[]) {
   //     abort();
   // }
   // }
+#else
+  int flag;
+  MPI_Initialized(&flag);
+  if (!flag) {
+    MPI_Init(&argc, &argv);
+  }
+  if (!GA_Initialized()) {
+    GA_Initialize();
+    (void)ProcGroup::self_ga_pgroup(true);
+  }
+  // if (!MA_initialized()) {
+  //   MA_init(MT_DBL, 8000000, 20000000);
+#endif
 }
 
 void finalize() {
   finalized = true;
 
-  // delete transmit_persona_scope;
-  // delete transmit_persona;
-
-  // int err = pthread_join(progress_thread, NULL);
-  // if (err != 0) {
-  //     fprintf(stderr, "Error joining progress thread\n");
-  //     abort();
-  // }
-
-  // {
-  //     // Reacquire master so that we can finalize
-  //     upcxx::persona_scope master_scope(master_mtx,
-  //             upcxx::master_persona());
-  //     upcxx::finalize();
-  // }
-    upcxx::finalize();
+#ifdef USE_UPCXX
+  upcxx::finalize();
+#else
+  if (GA_Initialized()) {
+    GA_Terminate();
+  }
+  int flag;
+  MPI_Initialized(&flag);
+  if (flag) {
+    MPI_Finalize();
+  }
+#endif
 }
 
 void tamm_terminate(std::string msg) {
-    std::cerr << msg << " ... terminating program." << std::endl << std::endl;
-    abort();
+  std::cerr << msg << " ... terminating program." << std::endl << std::endl;
+  abort();
 }
 
 } // namespace tamm

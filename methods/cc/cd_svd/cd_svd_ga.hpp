@@ -4,8 +4,11 @@
 #include "scf/scf_main.hpp"
 #include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
-#include "ga_over_upcxx.hpp"
 #include "common/json_data.hpp"
+
+#ifdef USE_UPCXX
+#include "ga_over_upcxx.hpp"
+#endif
 
 using namespace tamm;
 using TAMM_GA_SIZE = int64_t;
@@ -46,13 +49,6 @@ bool cd_debug = false;
     }
 
     return std::make_tuple(s1,s2,curshelloffset_i,curshelloffset_j);
-  }
-#endif
-
-#if 0
-  int64_t ac_fetch_add(int ga_ac, int64_t index, int64_t amount) {
-    auto ret = NGA_Read_inc64(ga_ac, &index, amount);
-    return ret;
   }
 #endif
 
@@ -245,7 +241,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   // const TAMM_GA_SIZE northo         = sys_data.nbf;
   const TAMM_GA_SIZE nao            = sys_data.nbf_orig;
 
-  auto rank = ec.pg().rank().value();
+  auto rank = ec.pg().rank();
 
   TAMM_GA_SIZE N = tMO("all").max_num_indices();
 
@@ -263,10 +259,14 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   auto hf_t1 = std::chrono::high_resolution_clock::now();
 
   // Step A. Initialization
-  int64_t iproc = rank;
+  int64_t iproc = rank.value();
   int64_t ndim  = 3;
   auto    nbf   = nao;
   int64_t count = 0; //Initialize chol vector count
+
+  #ifndef USE_UPCXX
+  int g_chol_mo = 0;
+  #endif
 
   #ifdef CD_SVD_THROTTLE
     int64_t cd_nranks = std::abs(std::log10(diagtol)) * nbf; // max cores
@@ -282,9 +282,12 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
                    endl << "  --> Number of nodes, mpi ranks per node: " << cd_nnodes << ", " << ppn << endl;
   #endif
 
-    // fprintf(stderr, "Rank %d cd_nranks=%ld nnodes=%ld ppn=%ld cd_nnodes=%ld iproc=%ld\n",
-    //         upcxx::rank_me(), cd_nranks, nnodes, ppn, cd_nnodes, iproc);
-
+  int64_t dimsmo[3];
+  int64_t chnkmo[3];
+  #ifndef USE_UPCXX
+  int     nblockmo32[GA_MAX_DIM]; 
+  int64_t nblockmo[GA_MAX_DIM]; 
+  #endif
   int64_t size_map;
   std::vector<int64_t> k_map;
   int ga_eltype = C_DBL; 
@@ -303,19 +306,29 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     return k_map;
   };
 
+#ifdef USE_UPCXX
   upcxx::team& team_ref = upcxx::world();
   upcxx::team* team = &team_ref;
+#else
+  int ga_pg_default = GA_Pgroup_get_default();
+  int ga_pg = ga_pg_default;
+#endif
 
   #ifdef CD_SVD_THROTTLE
-  const bool throttle_cd = upcxx::world().rank_n() > cd_nranks;
+  const bool throttle_cd = ec.pg().size() > cd_nranks;
 
   if(iproc < cd_nranks) { //throttle  
 
   if(throttle_cd){
-      //upcxx::persona_scope master_scope(master_mtx,
-      //        upcxx::master_persona());
-      team = new upcxx::team(team->split((team->rank_me() < cd_nranks ? 0 : upcxx::team::color_none), 0));
-    }).wait();
+    #ifdef USE_UPCXX
+    team = new upcxx::team(team->split((team->rank_me() < cd_nranks ? 0 : upcxx::team::color_none), 0));
+    #else
+    int ranks[cd_nranks];
+    for (int i = 0; i < cd_nranks; i++) ranks[i] = i;    
+    ga_pg = GA_Pgroup_create(ranks, cd_nranks);
+    GA_Pgroup_set_default(ga_pg);
+    #endif
+  }
   #endif
 
   int64_t dims[3] = {nbf,nbf,max_cvecs};
@@ -323,16 +336,55 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   int nblock32[GA_MAX_DIM]; 
   int64_t nblock[GA_MAX_DIM]; 
 
+#ifdef USE_UPCXX
   ga_over_upcxx *g_chol = new ga_over_upcxx(3, dims, chnk, *team);
   g_chol->zero();
 
   int64_t dims2[3] = {nbf,nbf, 1};
   int64_t chnk2[3] = {-1, -1, 1};
+#else
+  int g_test = NGA_Create64(ga_eltype,ndim,dims,const_cast<char*>("CholVecTmp"),chnk);
+  NGA_Nblock(g_test,nblock32);
+  NGA_Destroy(g_test);
+
+  for(auto x=0;x<GA_MAX_DIM;x++) nblock[x] = nblock32[x];
+
+  size_map = nblock[0]+nblock[1]+nblock[2];
+
+  k_map = create_map(dims,nblock);
+
+  int g_chol = NGA_Create_irreg64(ga_eltype,3,dims,const_cast<char*>("CholX"),nblock,&k_map[0]);
+
+  GA_Zero(g_chol);
+
+  int64_t dims2[2]   = {nbf,nbf};
+  int64_t nblock2[2] = {nblock[0],nblock[1]};
+#endif
   
   //TODO: Check k_map;
+#ifdef USE_UPCXX
   ga_over_upcxx* g_d = new ga_over_upcxx(3, dims2, chnk2, *team);
   ga_over_upcxx* g_r = new ga_over_upcxx(3, dims2, chnk2, *team);
   g_d->zero();
+#else
+  int g_d = NGA_Create_irreg64(ga_eltype,2,dims2,const_cast<char*>("ERI Diag"), nblock2, &k_map[0]);
+  int g_r = NGA_Create_irreg64(ga_eltype,2,dims2,const_cast<char*>("ERI Res"), nblock2, &k_map[0]);
+
+  int64_t lo_b[GA_MAX_DIM]; // The lower limits of blocks of B
+  int64_t lo_r[GA_MAX_DIM]; // The lower limits of blocks of R
+  int64_t lo_d[GA_MAX_DIM]; // The lower limits of blocks of D
+  int64_t hi_b[GA_MAX_DIM]; // The upper limits of blocks of B
+  int64_t hi_r[GA_MAX_DIM]; // The upper limits of blocks of R
+  int64_t hi_d[GA_MAX_DIM]; // The upper limits of blocks of D
+  int64_t ld_b[GA_MAX_DIM]; // The leading dims of blocks of B
+  int64_t ld_r[GA_MAX_DIM]; // The leading dims of blocks of R
+  int64_t ld_d[GA_MAX_DIM]; // The leading dims of blocks of D
+
+  // Distribution Check
+  NGA_Distribution64(g_chol,iproc,lo_b,hi_b);
+  NGA_Distribution64(g_d,iproc,lo_d,hi_d);
+  NGA_Distribution64(g_r,iproc,lo_r,hi_r);
+#endif
 
   auto shell2bf = map_shell_to_basis_function(shells);
   auto bf2shell = map_basis_function_to_shell(shells);
@@ -344,12 +396,26 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   for (size_t s1 = 0; s1 != shells.size(); ++s1) {
     auto bf1_first = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();
-
+#ifdef USE_UPCXX
     for (size_t s2 = 0; s2 != shells.size(); ++s2) {
       auto bf2_first = shell2bf[s2];
       auto n2 = shells[s2].size();
 
       if (g_d->coord_is_local(bf1_first, bf2_first, 0)) {
+#else
+    decltype(bf1_first) lo_d0 = lo_d[0];
+    decltype(bf1_first) hi_d0 = hi_d[0];
+    if(lo_d0 <= bf1_first && bf1_first <= hi_d0){
+
+        for (size_t s2 = 0; s2 != shells.size(); ++s2) {
+            auto bf2_first = shell2bf[s2];
+            auto n2 = shells[s2].size();
+
+            decltype(bf2_first) lo_d1 = lo_d[1];
+            decltype(bf2_first) hi_d1 = hi_d[1];
+            if(lo_d1 <= bf2_first && bf2_first <= hi_d1){
+#endif
+
           //TODO: Screening
           engine.compute(shells[s1], shells[s2], shells[s1], shells[s2]);
           const auto *buf_1212 = buf[0];
@@ -366,25 +432,55 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
               //// cout << f1212 << " " << s1 << s2 << "(" << bf1 << bf2 << "|" << bf1 << bf2 << ") = " << DiagInt(bf1, bf2) << endl;
             }
           }
-          int64_t ibflo[3] = {cd_ncast<size_t>(bf1_first),cd_ncast<size_t>(bf2_first), 0};
-          int64_t ibfhi[3] = {cd_ncast<size_t>(bf1_first+n1-1),cd_ncast<size_t>(bf2_first+n2-1), 0};
+          int64_t ibflo[2] = {cd_ncast<size_t>(bf1_first),cd_ncast<size_t>(bf2_first)};
+          int64_t ibfhi[2] = {cd_ncast<size_t>(bf1_first+n1-1),cd_ncast<size_t>(bf2_first+n2-1)};
+#ifdef USE_UPCXX
           int64_t ld[3] = {cd_ncast<size_t>(n1), cd_ncast<size_t>(n2), 1};
-          g_d->put(ibflo[0], ibflo[1], ibflo[2], ibfhi[0], ibfhi[1], ibfhi[2],
+          g_d->put(ibflo[0], ibflo[1], 0, ibfhi[0], ibfhi[1], 0,
                   &k_eri[0], ld);
-      } //if s2
-    } //s2
+#else
+          int64_t ld[1] = {cd_ncast<size_t>(n2)};
+          const void *from_buf = &k_eri[0];
+          NGA_Put64(g_d,ibflo,ibfhi,const_cast<void*>(from_buf),ld);
+#endif
+        } //if s2
+      } //s2
+#ifndef USE_UPCXX
+    } //#if s1
+#endif
   } //s1
 
   // Step C. Find the coordinates of the maximum element of the diagonal.
+  #ifdef USE_UPCXX
   int64_t indx_d0[3];
+  #else
+  int64_t indx_d0[GA_MAX_DIM];
+  #endif
   TensorType val_d0;
+  #ifdef USE_UPCXX
   g_d->maximum(val_d0, indx_d0[0], indx_d0[1], indx_d0[2]);
+  #else
+  NGA_Select_elem64(g_d,const_cast<char*>("max"),&val_d0,indx_d0);
+  #endif
 
+  #ifdef USE_UPCXX
+  int64_t lo_x[3]; // The lower limits of blocks
+  int64_t hi_x[3]; // The upper limits of blocks
+  int64_t ld_x[3]; // The leading dims of blocks
+  #else
+  int64_t lo_x[GA_MAX_DIM]; // The lower limits of blocks
+  int64_t hi_x[GA_MAX_DIM]; // The upper limits of blocks
+  int64_t ld_x[GA_MAX_DIM]; // The leading dims of blocks
+  #endif
 
   // Step D. Start the while loop
   while(val_d0 > diagtol && count < max_cvecs){
 
+    #ifdef USE_UPCXX
     g_r->zero();
+    #else
+    NGA_Zero(g_r);
+    #endif
     auto bfu = indx_d0[0];
     auto bfv = indx_d0[1];
     auto s1 = bf2shell[bfu];
@@ -400,12 +496,24 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
       auto bf3_first = shell2bf[s3]; // first basis function in this shell
       auto n3 = shells[s3].size();
 
+#ifdef USE_UPCXX
       for (decltype(s3) s4 = 0; s4 != shells.size(); ++s4) {
         auto bf4_first = shell2bf[s4];
         auto n4 = shells[s4].size();
 
         if (g_r->coord_is_local(bf3_first, bf4_first, 0)) {
+#else
+      decltype(bf3_first) lo_r0 = lo_r[0];
+      decltype(bf3_first) hi_r0 = hi_r[0];
+      if(lo_r0 <= bf3_first && bf3_first <= hi_r0){
+        for (decltype(s3) s4 = 0; s4 != shells.size(); ++s4) {
+          auto bf4_first = shell2bf[s4];
+          auto n4 = shells[s4].size();
 
+          decltype(bf4_first) lo_r1 = lo_r[1];
+          decltype(bf4_first) hi_r1 = hi_r[1];
+          if(lo_r1 <= bf4_first && bf4_first <= hi_r1){
+#endif
             engine.compute(shells[s3], shells[s4], shells[s1], shells[s2]);
             const auto *buf_3412 = buf[0];
             if (buf_3412 == nullptr)
@@ -418,39 +526,48 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
                 k_eri[f3*n4+f4] = buf_3412[f3412];
               }
             }
-                
-            int64_t ibflo[3] = {cd_ncast<size_t>(bf3_first),cd_ncast<size_t>(bf4_first), 0};
-            int64_t ibfhi[3] = {cd_ncast<size_t>(bf3_first+n3-1),cd_ncast<size_t>(bf4_first+n4-1), 0};
+               
+            int64_t ibflo[2] = {cd_ncast<size_t>(bf3_first),cd_ncast<size_t>(bf4_first)};
+            int64_t ibfhi[2] = {cd_ncast<size_t>(bf3_first+n3-1),cd_ncast<size_t>(bf4_first+n4-1)};
+#ifdef USE_UPCXX
             int64_t ld[3] = {cd_ncast<size_t>(n3), cd_ncast<size_t>(n4), 1}; //n3                  
-            g_r->put(ibflo[0], ibflo[1], ibflo[2], ibfhi[0], ibfhi[1], ibfhi[2],
-                    &k_eri[0], ld);
+            g_r->put(ibflo[0], ibflo[1], 0, ibfhi[0], ibfhi[1], 0, &k_eri[0], ld);
+#else
+            const void *fbuf = &k_eri[0];
+            //TODO
+            int64_t ld[1] = {cd_ncast<size_t>(n4)}; //n3                  
+            NGA_Put64(g_r,ibflo,ibfhi,const_cast<void*>(fbuf),ld);
+#endif
           } //if s4
         } //s4
+      } //if s3
     } //s3
-    // g_r->print();
-   
-    {
-        //upcxx::persona_scope master_scope(master_mtx,
-        //        upcxx::master_persona());
-        upcxx::barrier(*team);
-    }
+  
+#ifdef USE_UPCXX
+    upcxx::barrier(*team);
+#else
+    NGA_Sync();
+#endif
 
     // Step F. Update the residual
-    int64_t lo_x[3]; // The lower limits of blocks
     lo_x[0] = indx_d0[0];
     lo_x[1] = indx_d0[1];
     lo_x[2] = 0;
-    int64_t hi_x[3]; // The upper limits of blocks
     hi_x[0] = indx_d0[0];
     hi_x[1] = indx_d0[1];
     hi_x[2] = count; //count>0? count : 0;
-    int64_t ld_x[3]; // The leading dims of blocks
     ld_x[0] = 1;
+#ifdef USE_UPCXX
     ld_x[1] = 1;
     ld_x[2] = hi_x[2]+1;
+#else
+    ld_x[1] = hi_x[2]+1;
+#endif
 
+    TensorType *indx_b, *indx_d, *indx_r;
     std::vector<TensorType> k_elems(max_cvecs);
     TensorType* k_row = &k_elems[0];
+#ifdef USE_UPCXX
     g_chol->get(lo_x[0], lo_x[1], lo_x[2], hi_x[0], hi_x[1], hi_x[2], k_row,
             ld_x);
 
@@ -481,7 +598,6 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
         g_chol_iter++;
     }
     assert(g_r_iter == g_r_end && g_chol_iter == g_chol_end);
-    // g_r->print();
 
     g_r_iter = g_r->local_chunks_begin();
     g_r_end = g_r->local_chunks_end();
@@ -506,12 +622,43 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
         g_chol_iter++;
     }
     assert(g_r_iter == g_r_end && g_chol_iter == g_chol_end);
-    // g_chol->print(count);
+#else
+    NGA_Get64(g_chol, lo_x, hi_x, k_row, ld_x);
+    NGA_Access64(g_r, lo_r, hi_r, &indx_r, ld_r);
+    NGA_Access64(g_chol, lo_b, hi_b, &indx_b, ld_b);
+
+    for(decltype(count) icount = 0;icount < count; icount++){
+      for(int64_t i = 0; i<= hi_r[0] - lo_r[0]; i++) {
+        for(int64_t j = 0; j <= hi_r[1] - lo_r[1]; j++) {
+          indx_r[i*ld_r[0] + j] -= indx_b[icount+j*ld_b[1] 
+              + i * ld_b[1]*ld_b[0]] * k_row[icount];
+        }
+      }
+    }
+
+    NGA_Release64(g_chol,lo_b,hi_b);
+    NGA_Release_update64(g_r,lo_r,hi_r);
+
+    // Step G. Compute the new Cholesky vector
+    NGA_Access64(g_r,lo_r,hi_r,&indx_r,ld_r);
+    NGA_Access64(g_chol,lo_b,hi_b,&indx_b,ld_b);
+
+    for(auto i = 0; i <= hi_r[0] - lo_r[0]; i++) {
+      for(auto j = 0; j <= hi_r[1] - lo_r[1]; j++) {
+        auto tmp = indx_r[i*ld_r[0]+j]/sqrt(val_d0);
+        indx_b[count+j*ld_b[1]+i*ld_b[1]*ld_b[0]] = tmp;
+      }
+    }
+
+    NGA_Release_update64(g_chol,lo_b,hi_b);
+    NGA_Release64(g_r,lo_r,hi_r);
+#endif
 
     //Step H. Increment count
     count++;
 
     //Step I. Update the diagonal
+#ifdef USE_UPCXX
     auto g_d_iter = g_d->local_chunks_begin();
     auto g_d_end = g_d->local_chunks_end();
     g_chol_iter = g_chol->local_chunks_begin();
@@ -535,15 +682,37 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
         g_chol_iter++;
     }
     assert(g_d_iter == g_d_end && g_chol_iter == g_chol_end);
-    // g_d->print();
+#else
+    NGA_Access64(g_d,lo_d,hi_d,&indx_d,ld_d);
+    NGA_Access64(g_chol,lo_b,hi_b,&indx_b,ld_b);
+
+    for(auto i = 0;i<= hi_d[0] - lo_d[0];i++) {
+      for(auto j = 0; j<= hi_d[1] - lo_d[1];j++) {
+        auto tmp = indx_b[count-1 + j*ld_b[1] + i*ld_b[1]*ld_b[0]];
+        indx_d[i*ld_d[0]+j] -= tmp*tmp;
+      }
+    }
+
+    NGA_Release64(g_chol,lo_b,hi_b);
+    NGA_Release_update64(g_d,lo_d,hi_d);
+#endif
 
     //Step J. Find the coordinates of the maximum element of the diagonal.
+#ifdef USE_UPCXX
     g_d->maximum(val_d0, indx_d0[0], indx_d0[1], indx_d0[2]);
+#else
+    NGA_Select_elem64(g_d,const_cast<char*>("max"),&val_d0,indx_d0);
+#endif
   }
 
   if (iproc == 0) cout << "Number of cholesky vectors = " << count << endl;
+#ifdef USE_UPCXX
   g_r->destroy();
   g_d->destroy();
+#else
+  NGA_Destroy(g_r);
+  NGA_Destroy(g_d);
+#endif
 
   auto hf_t2 = std::chrono::high_resolution_clock::now();
   auto hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
@@ -552,14 +721,29 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   update_sysdata(sys_data, tMO);
 
   TAMM_GA_SIZE N_eff = tMO("all").max_num_indices();
- 
-  int64_t dimsmo[3];
-  int64_t chnkmo[3];
+
+#ifdef USE_UPCXX
   dimsmo[0] = N; dimsmo[1] = N; dimsmo[2] = count;
+#else
+  dimsmo[0] =  N_eff; dimsmo[1] =  N_eff; dimsmo[2] = count;
+#endif
   chnkmo[0] = -1; chnkmo[1] = -1; chnkmo[2] = count;
 
+#ifdef USE_UPCXX
   ga_over_upcxx *g_chol_mo = new ga_over_upcxx(3, dimsmo, chnkmo, *team);
   g_chol_mo->zero();
+#else
+  int g_test2 = NGA_Create64(ga_eltype,3,dimsmo,const_cast<char*>("CholVecMOTmp"),chnkmo);
+  NGA_Nblock(g_test2,nblockmo32);
+  NGA_Destroy(g_test2);
+
+  for(auto x=0;x<GA_MAX_DIM;x++) nblockmo[x] = nblockmo32[x];
+
+  size_map = nblockmo[0]+nblockmo[1]+nblockmo[2];
+  k_map = create_map(dimsmo,nblockmo);
+  g_chol_mo = NGA_Create_irreg64(ga_eltype,3,dimsmo,const_cast<char*>("CholXMO"),nblockmo,&k_map[0]);
+  GA_Zero(g_chol_mo);
+#endif
 
   std::vector<TensorType> k_pj(N*nbf);
   std::vector<TensorType> k_pq(N*N);
@@ -575,20 +759,41 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   hf_t1 = std::chrono::high_resolution_clock::now();
   double cvpr_time = 0;
 
+#ifdef USE_UPCXX
   atomic_counter_over_upcxx ga_ac(*team);
+#else
+  char    name[]        = "atomic-counter";
+  int64_t num_counters_ = 1;
+  int64_t init_val      = 0;
+  int64_t size          = num_counters_;
+  int     ga_ac         = NGA_Create_config64(MT_C_LONGLONG, 1, &size, name, nullptr, ga_pg);
+  EXPECTS(ga_ac != 0);  
+  if(GA_Pgroup_nodeid(ga_pg) == 0) {
+    int64_t lo[1] = {0};
+    int64_t hi[1] = {num_counters_ - 1};
+    int64_t ld    = -1;
+    long long buf[num_counters_];
+    for(int i=0; i<num_counters_; i++) {
+        buf[i] = init_val;
+    }
+    NGA_Put64(ga_ac, lo, hi, buf, &ld);
+  }
+  GA_Pgroup_sync(ga_pg);
+#endif
 
   int64_t taskcount = 0;
+#ifdef USE_UPCXX
   int64_t next = ga_ac.fetch_add(1);
+
   /*
    * Necessary for progress. The atomic counter is stored on rank 0, and rank 0
    * may just proceed straight in to the loop below preventing others from
    * making progress in their fetch-adds?
    */
-  {
-      //upcxx::persona_scope master_scope(master_mtx,
-      //        upcxx::master_persona());
-      upcxx::barrier(*team);
-  }
+  upcxx::barrier(*team);
+#else
+  int64_t next = ac_fetch_add(ga_ac, 0, 1);
+#endif
 
   const bool do_freeze = (sys_data.n_frozen_core > 0 || sys_data.n_frozen_virtual > 0);
 
@@ -597,10 +802,18 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 
       int64_t lo_ao[3] = {0,0,kk};
       int64_t hi_ao[3] = {nbf-1,nbf-1,kk};
+#ifdef USE_UPCXX
       int64_t ld_ao[3] = {nbf,nbf, 1};
+#else
+      int64_t ld_ao[2] = {nbf,1};
+#endif
 
+#ifdef USE_UPCXX
       g_chol->get(lo_ao[0], lo_ao[1], lo_ao[2], hi_ao[0], hi_ao[1], hi_ao[2],
               &k_ij[0], ld_ao);
+#else
+      NGA_Get64(g_chol, lo_ao, hi_ao, &k_ij[0], ld_ao);
+#endif
 
       #if DO_SVD
         //uplotri
@@ -674,22 +887,34 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
         cvec.resize(0,0);
       }
 
+#ifdef USE_UPCXX
       g_chol_mo->put(lo_mo[0], lo_mo[1], lo_mo[2], hi_mo[0], hi_mo[1], hi_mo[2],
               &k_pq[0], ld_mo);
       next = ga_ac.fetch_add(1);
+#else
+      NGA_Put64(g_chol_mo,lo_mo,hi_mo,&k_pq[0],ld_mo);
+      next = ac_fetch_add(ga_ac, 0, 1);
+#endif
     }
     taskcount++;
 
+#ifdef USE_UPCXX
     upcxx::progress();
+#endif
   }
 
-  {
-      //upcxx::persona_scope master_scope(master_mtx,
-      //        upcxx::master_persona());
-      upcxx::barrier(*team);
-  }
+#ifdef USE_UPCXX
+  upcxx::barrier(*team);
+#else
+  GA_Pgroup_sync(ga_pg);
+#endif
 
+#ifdef USE_UPCXX
   g_chol->destroy();
+#else
+  NGA_Destroy(ga_ac);
+  NGA_Destroy(g_chol);
+#endif
   k_pj.clear();
   k_pq.clear();
   k_ij.clear();
@@ -703,7 +928,11 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   }
 
   #ifdef CD_SVD_THROTTLE
+#ifdef USE_UPCXX
     team = &team_ref;
+#else
+    if(throttle_cd) GA_Pgroup_set_default(ga_pg_default);
+#endif
 
   }//end throttle
   #endif
@@ -719,18 +948,43 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 
   dimsmo[0] =  N; dimsmo[1] =  N; dimsmo[2] = count;
   chnkmo[0] = -1; chnkmo[1] = -1; chnkmo[2] = count;
- 
+
+#ifdef USE_UPCXX
   ga_over_upcxx *g_chol_mo_copy = new ga_over_upcxx(3, dimsmo, chnkmo, *team);
   g_chol_mo_copy->zero();
+#else
+  int g_test_mo = NGA_Create64(ga_eltype,3,dimsmo,const_cast<char*>("CholVecMOTmp"),chnkmo);
+  NGA_Nblock(g_test_mo,nblockmo32);
+  NGA_Destroy(g_test_mo);
+
+  for(auto x=0;x<GA_MAX_DIM;x++) nblockmo[x] = nblockmo32[x];
+
+  size_map = nblockmo[0]+nblockmo[1]+nblockmo[2];
+  k_map    = create_map(dimsmo,nblockmo);
+  int g_chol_mo_copy = NGA_Create_irreg64(ga_eltype,3,dimsmo,const_cast<char*>("CholXMOCopy"),nblockmo,&k_map[0]);
+  GA_Zero(g_chol_mo_copy);
+#endif
 
   if(iproc < cd_nranks) { //throttle  
+#ifdef USE_UPCXX
     g_chol_mo->copy(g_chol_mo_copy);
     g_chol_mo->destroy();
+#else
+    GA_Pgroup_set_default(ga_pg);
+    GA_Copy(g_chol_mo,g_chol_mo_copy);
+    NGA_Destroy(g_chol_mo);
+    GA_Pgroup_sync(ga_pg);
+    GA_Pgroup_set_default(ga_pg_default);
+#endif
   }
 
   ec.pg().barrier();
   #else
+    #ifdef USE_UPCXX
     ga_over_upcxx *g_chol_mo_copy = g_chol_mo;
+    #else
+    int g_chol_mo_copy = g_chol_mo;
+    #endif
   #endif
 
   IndexSpace CIp{range(0, count)};
@@ -754,27 +1008,44 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     int64_t hi[3] = {cd_ncast<size_t>(block_offset[0] + block_dims[0]-1), 
                      cd_ncast<size_t>(block_offset[1] + block_dims[1]-1),
                      cd_ncast<size_t>(block_offset[2] + block_dims[2]-1)};
+    #ifdef USE_UPCXX
     int64_t ld[3] = {cd_ncast<size_t>(block_dims[0]),
                      cd_ncast<size_t>(block_dims[1]),
                      cd_ncast<size_t>(block_dims[2])};
 
     upcxx::progress();
+    #else
+    int64_t ld[2] = {cd_ncast<size_t>(block_dims[1]),
+                     cd_ncast<size_t>(block_dims[2])};
+    #endif
     std::vector<TensorType> sbuf(dsize);
+    #ifdef USE_UPCXX
     g_chol_mo_copy->get(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], &sbuf[0], ld);
+    #else
+    NGA_Get64(g_chol_mo_copy,lo,hi,&sbuf[0],ld);
+    #endif
 
     CholVpr_tamm.put(blockid, sbuf);
+    #ifdef USE_UPCXX
     upcxx::progress();
+    #endif
   };
 
   block_for(ec, CholVpr_tamm(), lambdacv);
 
+#ifdef USE_UPCXX
   g_chol_mo_copy->destroy();
+#else
+  NGA_Destroy(g_chol_mo_copy);
+#endif
 
   hf_t2   = std::chrono::high_resolution_clock::now();
   hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
   if(rank == 0) std::cout << std::endl << "Time for ga_chol_mo -> CholVpr_tamm conversion: " << hf_time << " secs" << endl;
 
+#ifdef USE_UPCXX
   ga_ac.destroy();
+#endif
   #if 0
   
     Tensor<TensorType> CholVuv_opt{tAO, tAO, tCIp};

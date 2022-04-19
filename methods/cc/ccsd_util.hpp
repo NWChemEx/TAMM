@@ -488,11 +488,7 @@ void ccsd_stats(ExecutionContext& ec, double hf_energy,double residual,double en
     }
     if(!ccsd_conv){
       ec.pg().barrier();
-      if (rank == 0) {
-          std::cerr << "ERROR: CCSD calculation does not converge!" << std::endl;
-      }
-      ec.pg().barrier();
-      exit(1);
+      tamm_terminate("ERROR: CCSD calculation does not converge!");
     }
 
 }

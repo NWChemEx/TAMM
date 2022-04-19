@@ -42,9 +42,9 @@ void ccsd_t_driver() {
 
     using T = double;
 
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
-    auto rank = ec.pg().rank().value();
+    auto rank = ec.pg().rank();
 
     auto [sys_data, hf_energy, shells, shell_tile_map, C_AO, F_AO, C_beta_AO, F_beta_AO, AO_opt, AO_tis,scf_conv]  
                     = hartree_fock_driver<T>(ec,filename);
@@ -65,9 +65,10 @@ void ccsd_t_driver() {
     int subranks[nsranks];
     for (int i = 0; i < nsranks; i++) subranks[i] = i;
 
+#ifdef USE_UPCXX
     upcxx::team subcomm = upcxx::world().split(
             (rank < nsranks) ? 0 : upcxx::team::color_none, 0);
-#if 0
+#else
     auto world_comm = ec.pg().comm();
     MPI_Group world_group;
     MPI_Comm_group(world_comm,&world_group);
@@ -125,7 +126,7 @@ void ccsd_t_driver() {
     ex_hw = ExecutionHW::GPU;
     const bool has_gpu = ec.has_gpu();
     TALSH talsh_instance;
-    if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank);
+    if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
     #endif
 
     TiledIndexSpace N = MO("all");
@@ -275,7 +276,11 @@ void ccsd_t_driver() {
 
     if (rank < nsranks) {
       (*sub_ec).flush_and_sync();
+#ifdef USE_UPCXX
       subcomm.destroy();
+#else
+      MPI_Comm_free(&subcomm);
+#endif
     }
 
     auto cc_t2 = std::chrono::high_resolution_clock::now();
@@ -461,8 +466,8 @@ void ccsd_t_driver() {
                 p_evl_sorted,hf_energy+corr_energy,ccsd_options.ngpu,is_restricted,use_nwc_gpu_kernels);
 
 
-    energy1 = ec.pg().reduce(&energy1, upcxx::op_fast_add, 0);
-    energy2 = ec.pg().reduce(&energy2, upcxx::op_fast_add, 0);
+    energy1 = ec.pg().reduce(&energy1, ReduceOp::sum, 0);
+    energy2 = ec.pg().reduce(&energy2, ReduceOp::sum, 0);
 
     if (rank==0 && !skip_ccsd) {
 
@@ -494,9 +499,9 @@ void ccsd_t_driver() {
     };
 
     auto comm_stats = [&](const std::string& timer_type, const double ctime){
-        double g_getTime     = ec.pg().reduce(&ctime, upcxx::op_fast_add, 0);
-        double g_min_getTime = ec.pg().reduce(&ctime, upcxx::op_fast_min, 0);
-        double g_max_getTime = ec.pg().reduce(&ctime, upcxx::op_fast_max, 0);
+        double g_getTime     = ec.pg().reduce(&ctime, ReduceOp::sum, 0);
+        double g_min_getTime = ec.pg().reduce(&ctime, ReduceOp::min, 0);
+        double g_max_getTime = ec.pg().reduce(&ctime, ReduceOp::max, 0);
         if(rank == 0) 
             print_profile_stats(timer_type, g_getTime, g_min_getTime, g_max_getTime);
         return g_getTime/nranks;        
@@ -527,7 +532,7 @@ void ccsd_t_driver() {
     comm_stats("D2-V2 GetTime", ccsdt_d2_v2_GetTime);
 
     ccsd_t_data_per_rank = (ccsd_t_data_per_rank * 8.0) / (1024*1024.0*1024); //GB
-    double g_ccsd_t_data_per_rank = ec.pg().reduce(&ccsd_t_data_per_rank, upcxx::op_fast_add, 0);
+    double g_ccsd_t_data_per_rank = ec.pg().reduce(&ccsd_t_data_per_rank, ReduceOp::sum, 0);
     if(rank == 0) 
         std::cout << "   -> Data Transfer (GB): " << g_ccsd_t_data_per_rank/nranks << std::endl;
 

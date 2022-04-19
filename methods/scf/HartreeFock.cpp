@@ -1,7 +1,9 @@
 
 #include "scf/scf_main.hpp"
 #include "tamm/tamm.hpp"
+#ifdef USE_UPCXX
 #include <upcxx/upcxx.hpp>
+#endif
 
 using namespace tamm;
 
@@ -26,7 +28,7 @@ int main( int argc, char* argv[] )
 
     tamm::initialize(argc, argv);
 
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     auto rank = ec.pg().rank();
 

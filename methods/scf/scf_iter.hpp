@@ -905,7 +905,7 @@ void energy_diis(ExecutionContext& ec, const TiledIndexSpace& tAO, int iter, int
 
   tamm::Scheduler sch{ec};
 
-  auto rank = ec.pg().rank();
+  auto rank = ec.pg().rank().value();
 
   // if(rank == 0) cout << "contructing pulay matrix" << endl;
   

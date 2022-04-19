@@ -44,7 +44,6 @@ if(USE_CUDA OR USE_HIP)
    list(APPEND TAMM_DEPENDENCIES TALSH)
 endif()
 
-# TODO this might need to be moved to CMakeBuild?
 if(USE_UPCXX)
     set(USE_CUDA  @USE_CUDA@)
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -DUSE_UPCXX")

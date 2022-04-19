@@ -1062,7 +1062,7 @@ void test_new_alloc(Scheduler& sch) {
 int main(int argc, char* argv[]) {
     tamm::initialize(argc, argv);
 
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     auto mgr     = MemoryManagerGA::create_coll(&pg);
     Distribution_NW distribution;
     ExecutionContext* ec = new ExecutionContext{pg, (Distribution*)&distribution, mgr};

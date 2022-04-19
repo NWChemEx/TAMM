@@ -416,7 +416,6 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData& sys_data, ExecutionConte
         for(int titer = 0; titer < maxiter; titer += ndiis) {
         for(int iter = titer; iter < std::min(titer + ndiis, maxiter); iter++) {
             const auto timer_start = std::chrono::high_resolution_clock::now();
-            in_kernel = 1;
 
             niter   = iter;
             int off = iter - titer;
@@ -441,7 +440,6 @@ std::tuple<double,double> cd_ccsd_cs_driver(SystemData& sys_data, ExecutionConte
             sch((d_r1s[off])() = r1_aa())
                 ((d_r2s[off])() = r2_abab())
                 .execute();
-            in_kernel = 0;
 
             const auto timer_end = std::chrono::high_resolution_clock::now();
             auto iter_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();

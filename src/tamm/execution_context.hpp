@@ -20,7 +20,9 @@
 #include "talsh/talshxx.hpp"
 #endif
 
+#ifdef USE_UPCXX
 extern upcxx::team* team_self;
+#endif
 
 namespace tamm {
 
@@ -57,9 +59,13 @@ class Distribution_SimpleRoundRobin;
 class RuntimeEngine;
 class ExecutionContext {
 public:
-    ExecutionContext() : ac_{IndexedAC{nullptr, 0}} {
-        pg_self_ = ProcGroup{team_self};
-    };
+  ExecutionContext() : ac_{IndexedAC{nullptr, 0}} {
+#ifdef USE_UPCXX
+    pg_self_ = ProcGroup{team_self};
+#else
+    pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
+#endif
+  };
 
   ExecutionContext(const ExecutionContext&)            = default;
   ExecutionContext& operator=(const ExecutionContext&) = default;

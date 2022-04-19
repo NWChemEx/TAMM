@@ -220,7 +220,7 @@ int main(int argc, char* argv[]) {
 
   tamm::initialize(argc, argv);
 
-  ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+  ProcGroup pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   // #ifdef USE_TALSH

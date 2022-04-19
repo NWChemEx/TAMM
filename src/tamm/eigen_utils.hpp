@@ -4,8 +4,9 @@
 #include "tamm/tamm.hpp"
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
-#include "tamm/tamm.hpp"
+#ifdef USE_UPCXX
 #include <upcxx/upcxx.hpp>
+#endif
 #include <fmt/fmt.h>
 #undef I
 
@@ -450,7 +451,7 @@ tamm::Tensor<T> retile_rank2_tensor(tamm::Tensor<T>& tensor, const tamm::TiledIn
    //auto* ec_tmp = tensor.execution_context(); //TODO: figure out why this seg faults
 
 
-   tamm::ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+   tamm::ProcGroup pg = ProcGroup::create_world_coll();
    auto mgr = tamm::MemoryManagerGA::create_coll(&pg);
    tamm::Distribution_NW distribution;
    tamm::ExecutionContext ec{pg,&distribution,mgr};

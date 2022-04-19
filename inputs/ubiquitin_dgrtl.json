@@ -107,7 +107,6 @@
       "ngpu": 6
     },
     "threshold": 0.01,
-    "debug": false,
-    "ccsd_maxiter": 1
+    "debug": false
   }
 }

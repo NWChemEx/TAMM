@@ -318,23 +318,23 @@ public:
             std::vector<double> global_multop_dgemm_times_sum(nops);
             std::vector<double> global_multop_add_times_sum(nops);
 
-            // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_min.data(), lvl, upcxx::op_fast_min, 0);
-            ec_.pg().reduce(op_times.data(), global_op_times_min.data(), nops, upcxx::op_fast_min, 0);
-            ec_.pg().reduce(multop_get_times.data(), global_multop_get_times_min.data(), nops, upcxx::op_fast_min, 0);
-            ec_.pg().reduce(multop_dgemm_times.data(), global_multop_dgemm_times_min.data(), nops, upcxx::op_fast_min, 0);
-            ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_min.data(), nops, upcxx::op_fast_min, 0);
+            // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_min.data(), lvl, ReduceOp::min, 0);
+            ec_.pg().reduce(op_times.data(), global_op_times_min.data(), nops, ReduceOp::min, 0);
+            ec_.pg().reduce(multop_get_times.data(), global_multop_get_times_min.data(), nops, ReduceOp::min, 0);
+            ec_.pg().reduce(multop_dgemm_times.data(), global_multop_dgemm_times_min.data(), nops, ReduceOp::min, 0);
+            ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_min.data(), nops, ReduceOp::min, 0);
 
-            // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_max.data(), lvl, upcxx::op_fast_max, 0);     
-            ec_.pg().reduce(op_times.data(), global_op_times_max.data(), nops, upcxx::op_fast_max, 0);
-            ec_.pg().reduce(multop_get_times.data(), global_multop_get_times_max.data(), nops, upcxx::op_fast_max, 0);
-            ec_.pg().reduce(multop_dgemm_times.data(), global_multop_dgemm_times_max.data(), nops, upcxx::op_fast_max, 0);
-            ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_max.data(), nops, upcxx::op_fast_max, 0);
+            // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_max.data(), lvl, ReduceOp::max, 0);     
+            ec_.pg().reduce(op_times.data(), global_op_times_max.data(), nops, ReduceOp::max, 0);
+            ec_.pg().reduce(multop_get_times.data(), global_multop_get_times_max.data(), nops, ReduceOp::max, 0);
+            ec_.pg().reduce(multop_dgemm_times.data(), global_multop_dgemm_times_max.data(), nops, ReduceOp::max, 0);
+            ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_max.data(), nops, ReduceOp::max, 0);
 
-            // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_sum.data(), lvl, upcxx::op_fast_add, 0);
-            ec_.pg().reduce(op_times.data(), global_op_times_sum.data(), nops, upcxx::op_fast_add, 0);
-            ec_.pg().reduce(multop_get_times.data(), global_multop_get_times_sum.data(), nops, upcxx::op_fast_add, 0);
-            ec_.pg().reduce(multop_dgemm_times.data(), global_multop_dgemm_times_sum.data(), nops, upcxx::op_fast_add, 0);
-            ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_sum.data(), nops, upcxx::op_fast_add, 0);
+            // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_sum.data(), lvl, ReduceOp::sum, 0);
+            ec_.pg().reduce(op_times.data(), global_op_times_sum.data(), nops, ReduceOp::sum, 0);
+            ec_.pg().reduce(multop_get_times.data(), global_multop_get_times_sum.data(), nops, ReduceOp::sum, 0);
+            ec_.pg().reduce(multop_dgemm_times.data(), global_multop_dgemm_times_sum.data(), nops, ReduceOp::sum, 0);
+            ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_sum.data(), nops, ReduceOp::sum, 0);
 
         
             int np = ec_.pg().size().value();

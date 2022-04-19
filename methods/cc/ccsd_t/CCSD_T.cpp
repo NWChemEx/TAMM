@@ -480,9 +480,8 @@ void ccsd_t_driver() {
     // auto ccsd_t_time = 
     //     std::chrono::duration_cast<std::chrono::duration<double>>((cc_t2 - cc_t1)).count();
 
-
-    energy1 = ec.pg().reduce(&energy1, upcxx::op_fast_add, 0);
-    energy2 = ec.pg().reduce(&energy2, upcxx::op_fast_add, 0);
+    energy1 = ec.pg().reduce(&energy1, ReduceOp::sum, 0);
+    energy2 = ec.pg().reduce(&energy2, ReduceOp::sum, 0);
 
     if (rank==0 && !skip_ccsd) {
 
@@ -528,10 +527,9 @@ void ccsd_t_driver() {
     };
 
     auto comm_stats = [&](const std::string& timer_type, const double ctime){
-        double g_getTime,g_min_getTime,g_max_getTime;
-        g_getTime = upcxx::reduce_one(ctime, upcxx::op_fast_add, 0,     *ec.pg().team()).wait();
-        g_min_getTime = upcxx::reduce_one(ctime, upcxx::op_fast_min, 0, *ec.pg().team()).wait();
-        g_max_getTime = upcxx::reduce_one(ctime, upcxx::op_fast_max, 0, *ec.pg().team()).wait();
+        double g_getTime     = ec.pg().reduce(&ctime, ReduceOp::sum, 0);
+        double g_min_getTime = ec.pg().reduce(&ctime, ReduceOp::min, 0);
+        double g_max_getTime = ec.pg().reduce(&ctime, ReduceOp::max, 0);
 
         if(rank == 0) 
             print_profile_stats(timer_type, g_getTime, g_min_getTime, g_max_getTime);
@@ -565,7 +563,7 @@ void ccsd_t_driver() {
     comm_stats("D2-V2 GetTime", ccsdt_d2_v2_GetTime);
 
     ccsd_t_data_per_rank = (ccsd_t_data_per_rank * 8.0) / (1024*1024.0*1024); //GB
-    double g_ccsd_t_data_per_rank = upcxx::reduce_one(ccsd_t_data_per_rank, upcxx::op_fast_add, 0, *ec.pg().team()).wait();
+    double g_ccsd_t_data_per_rank = ec.pg().reduce(&ccsd_t_data_per_rank, ReduceOp::sum, 0);
     if(rank == 0) 
         std::cout << "   -> Data Transfer (GB): " << g_ccsd_t_data_per_rank/nranks << std::endl;
 

@@ -1,7 +1,13 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest/doctest.h"
+#include "ga/ga-mpi.h"
+#include "ga/ga.h"
+#include "ga/macdecls.h"
+#include "mpi.h"
 #include "tamm/tamm.hpp"
+#ifdef USE_UPCXX
 #include <upcxx/upcxx.hpp>
+#endif
 
 #include <complex>
 #include <string>
@@ -66,7 +72,7 @@ void test_ops(const TiledIndexSpace& MO) {
     Tensor<T> d_t1{V, O};
     Tensor<T> d_t2{V, V, O, O};
 
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     Tensor<T> T1{N, N, N};
     Tensor<T>::allocate(ec, T1);
@@ -127,7 +133,7 @@ int main(int argc, char* argv[]) {
 // }
 
 TEST_CASE("Tensor Allocation and Deallocation") {
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     {
@@ -143,7 +149,7 @@ TEST_CASE("Tensor Allocation and Deallocation") {
 
 #if 1
 TEST_CASE("Zero-dimensional ops") {
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
@@ -261,7 +267,7 @@ TEST_CASE("Zero-dimensional ops") {
 #endif
 
 TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
@@ -516,7 +522,7 @@ void test_setop_with_T(unsigned tilesize) {
     // 0-4 dimensional setops
     // 0-4 dimensional setops
 
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10),
@@ -614,7 +620,7 @@ void test_mapop_with_T(unsigned tilesize) {
     // 0-4 dimensional setops
     // 0-4 dimensional setops
 
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10),
@@ -711,7 +717,7 @@ template<typename T>
 void test_addop_with_T(unsigned tilesize) {
     // 0-4 dimensional addops
     bool failed;
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     IndexSpace IS{range(0, 10),
@@ -1298,7 +1304,7 @@ TEST_CASE("addop with float") {
 #if 1
 TEST_CASE("Two-dimensional ops") {
     bool failed;
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
@@ -1379,7 +1385,7 @@ TEST_CASE("Two-dimensional ops") {
 
 TEST_CASE("Two-dimensional ops with flush and sync") {
     bool failed;
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
@@ -1460,7 +1466,7 @@ TEST_CASE("Two-dimensional ops with flush and sync") {
 
 TEST_CASE("One-dimensional ops") {
     bool failed;
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
@@ -1544,7 +1550,7 @@ TEST_CASE("One-dimensional ops") {
 
 TEST_CASE("Three-dimensional mult ops part I") {
     bool failed;
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T               = double;
     const size_t tilesize = 1;
@@ -1632,7 +1638,7 @@ TEST_CASE("Three-dimensional mult ops part I") {
 
 TEST_CASE("Four-dimensional mult ops part I") {
     bool failed;
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T               = double;
     const size_t tilesize = 1;
@@ -1720,7 +1726,7 @@ TEST_CASE("Four-dimensional mult ops part I") {
 #if 1
 TEST_CASE("Two-dimensional ops part I") {
     bool failed;
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 
@@ -1995,7 +2001,7 @@ TEST_CASE("Two-dimensional ops part I") {
 
 TEST_CASE("MultOp with RHS reduction") {
     bool failed;
-    ProcGroup pg = ProcGroup::create_coll(upcxx::world());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     using T              = double;
 

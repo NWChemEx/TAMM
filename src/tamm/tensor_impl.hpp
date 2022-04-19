@@ -272,7 +272,7 @@ public:
               defd->get_tensor_base(), defd->get_dist_proc()); // defd->kind());
             // Distribution* distribution    =
             // ec->distribution(defd.tensor_base(), nproc );
-#if defined(UPCXX_DISTARRAY) && defined(USE_UPCXX)
+#if defined(USE_UPCXX_DISTARRAY) && defined(USE_UPCXX)
             MemoryManager* memory_manager = ec->memory_manager(ec->hint());
 #else
             MemoryManager* memory_manager = ec->memory_manager();

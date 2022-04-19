@@ -46,7 +46,7 @@ When creating a debug mode, set UPCXX_CODEMODE to g instead of O3, while setting
 
 In addition, if you would like to use a version of the UPC++ logic based on UPC++ dist_array, add the following flag to the above:
 ```
--DUPCXX_DISTARRAY=ON
+-DUSE_UPCXX_DISTARRAY=ON
 ```
 
 ### CMake options for developers (optional)

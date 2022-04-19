@@ -204,7 +204,7 @@ public:
    */
   void set_pg(const ProcGroup& pg) {
     pg_ = pg;
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     hint_ = pg.size().value();
 #endif
   }
@@ -258,7 +258,7 @@ public:
     return memory_manager_factory(memory_manager_kind_, std::forward<Args>(args)...).release();
   }
 
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     /**
      * @brief Set cache size for MemoryRegionGAs created by MemoryManagerGAs of this ExecutionContext
      *
@@ -410,7 +410,7 @@ private:
   std::vector<MemoryRegion*> mem_regs_to_dealloc_;
   std::vector<MemoryRegion*> unregistered_mem_regs_;
 
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
   upcxx::intrank_t hint_;
 #endif
 

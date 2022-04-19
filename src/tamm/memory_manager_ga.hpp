@@ -5,7 +5,7 @@
 #include "ga/ga.h"
 #include "ga/ga-mpi.h"
 
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
 #include <upcxx-extras/dist_array.hpp>
 #include <type_traits>
 #endif
@@ -45,7 +45,7 @@ class MemoryRegionGA : public MemoryRegionImpl<MemoryManagerGA> {
 
  private:
 #ifdef USE_UPCXX
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
   // Dist array data structures
   upcxx::extras::dist_array<float>* daf_;
   upcxx::extras::dist_array<double>* dad_;
@@ -113,7 +113,7 @@ class MemoryManagerGA : public MemoryManager {
   }
 
 #ifdef USE_UPCXX
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
   void alloc_coll_upcxx_dist_array(ElementType eltype,
       Size local_nelements, MemoryRegionGA* pmr, int nranks, size_t elemnt_size,
       int64_t nels) {
@@ -164,7 +164,7 @@ class MemoryManagerGA : public MemoryManager {
     }
 
   }
-#else // UPCXX_DISTARRAY
+#else // USE_UPCXX_DISTARRAY
   void alloc_coll_upcxx(ElementType eltype,
       Size local_nelements, MemoryRegionGA* pmr, int nranks, int64_t element_size,
       int64_t nels) {
@@ -222,13 +222,13 @@ class MemoryManagerGA : public MemoryManager {
       int64_t element_size = get_element_size(eltype);
       int64_t nels = local_nelements.value();
 #ifdef USE_UPCXX
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
       alloc_coll_upcxx_dist_array(eltype, local_nelements, pmr, nranks,
               elemnt_size, nels);
-#else // UPCXX_DISTARRAY
+#else // USE_UPCXX_DISTARRAY
       alloc_coll_upcxx(eltype, local_nelements, pmr, nranks,
               element_size, nels);
-#endif // UPCXX_DISTARRAY
+#endif // USE_UPCXX_DISTARRAY
 #else // USE_UPCXX
       int ga_pg_default = GA_Pgroup_get_default();
       GA_Pgroup_set_default(ga_pg_);
@@ -368,7 +368,7 @@ class MemoryManagerGA : public MemoryManager {
     MemoryRegionGA* pmr = new MemoryRegionGA(*this);
 
 #ifdef USE_UPCXX
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     pmr->lookup = mr_rhs.lookup;
     pmr->daf_ = mr_rhs.daf_;
     pmr->dad_ = mr_rhs.dad_;
@@ -406,7 +406,7 @@ class MemoryManagerGA : public MemoryManager {
 
   protected:
   explicit MemoryManagerGA(ProcGroup* pg
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
           , upcxx::intrank_t hint = 0
 #endif
           )
@@ -414,7 +414,7 @@ class MemoryManagerGA : public MemoryManager {
     EXPECTS(pg->is_valid());
 #ifdef USE_UPCXX
     team_ = pg->team();
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     slots = (hint ? hint : pg->size().value());
 #endif
 #else // USE_UPCXX
@@ -435,7 +435,7 @@ class MemoryManagerGA : public MemoryManager {
 #endif
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 #ifdef USE_UPCXX
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     if (mr.daf_) mr.daf_->destroy();
     else if (mr.dad_) mr.dad_->destroy();
     else if (mr.dasc_) mr.dasc_->destroy();
@@ -517,7 +517,7 @@ class MemoryManagerGA : public MemoryManager {
 #endif
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 #ifdef USE_UPCXX
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     if (mr.daf_) mr.daf_ = nullptr;
     else if (mr.dad_) mr.dad_ = nullptr;
     else if (mr.dasc_) mr.dasc_ = nullptr;
@@ -542,7 +542,7 @@ class MemoryManagerGA : public MemoryManager {
   const void* access(const MemoryRegion& mrb, Offset off) const override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
 #ifdef USE_UPCXX
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     if (mr.daf_)
         return static_cast<void*>(mr.daf_->data() + off.value());
     else if (mr.dad_)
@@ -580,7 +580,7 @@ class MemoryManagerGA : public MemoryManager {
           void* to_buf) override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
 #ifdef USE_UPCXX
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     upcxx::future<> f;
     std::chrono::high_resolution_clock::time_point start, end;
     if (mr.daf_) {
@@ -641,7 +641,7 @@ class MemoryManagerGA : public MemoryManager {
           void* to_buf, DataCommunicationHandlePtr data_comm_handle) override {
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 #ifdef USE_UPCXX
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     upcxx::future<> f;
     std::chrono::high_resolution_clock::time_point start, end;
     if (mr.daf_) {
@@ -709,7 +709,7 @@ class MemoryManagerGA : public MemoryManager {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
 
 #ifdef USE_UPCXX
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     std::chrono::high_resolution_clock::time_point start, end;
     if (mr.daf_) {
         size_t idx = mr.daf_->process_size() * proc.value() + off.value(); // assumes equal allocation across ranks
@@ -751,11 +751,11 @@ class MemoryManagerGA : public MemoryManager {
     else
         far.push_back(elapsed);
 
-#else // UPCXX_DISTARRAY
+#else // USE_UPCXX_DISTARRAY
     upcxx::rput((uint8_t*)from_buf,
             mr.gptrs_[proc.value()] + off.value() * mr.eltype_size_,
             nelements.value() * mr.eltype_size_).wait();
-#endif // UPCXX_DISTARRAY
+#endif // USE_UPCXX_DISTARRAY
 #else
     TAMM_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
@@ -769,7 +769,7 @@ class MemoryManagerGA : public MemoryManager {
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 
 #ifdef USE_UPCXX
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     std::chrono::high_resolution_clock::time_point start, end;
     upcxx::future<> f;
     if (mr.daf_) {
@@ -834,7 +834,7 @@ class MemoryManagerGA : public MemoryManager {
           Size nelements, const void* from_buf) {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
 
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     std::chrono::high_resolution_clock::time_point start, end;
     if (mr.daf_) {
         size_t idx = mr.daf_->process_size() * proc.value() + off.value(); // assumes equal allocation across ranks
@@ -929,7 +929,7 @@ class MemoryManagerGA : public MemoryManager {
     else
         far.push_back(elapsed);
 
-#else // UPCXX_DISTARRAY
+#else // USE_UPCXX_DISTARRAY
     switch (mr.eltype_) {
         case ElementType::single_precision: {
             upcxx::global_ptr<float> typed_dst = upcxx::reinterpret_pointer_cast<float>(mr.gptrs_[proc.value()]);
@@ -1087,7 +1087,7 @@ class MemoryManagerGA : public MemoryManager {
  private:
 #ifdef USE_UPCXX
   upcxx::team* team_;
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
   size_t slots;
   std::vector<std::chrono::duration<double,std::micro>> near, far, again;
 #endif

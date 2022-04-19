@@ -559,7 +559,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
         ttensors.FDS_beta_tamm    = {tAO, tAO};    
       }
 
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
       ec.set_memory_manager_cache(1);
 #endif
 
@@ -1117,7 +1117,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     Tensor<TensorType> C_beta_tamm{scf_vars.tAO,tAO_ortho};
     vxc_tamm = Tensor<TensorType>{scf_vars.tAO,scf_vars.tAO};
 
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     exc.set_memory_manager_cache(1);
 #endif
 
@@ -1125,7 +1125,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     if(is_uhf) schg.allocate(C_beta_tamm);
     if(is_ks) schg.allocate(vxc_tamm);
     schg.execute();
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
     exc.set_memory_manager_cache(); // resets cache to pg.size().value();
 #endif
 

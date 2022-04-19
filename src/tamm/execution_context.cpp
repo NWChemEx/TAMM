@@ -23,7 +23,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #ifdef USE_UPCXX
   pg_self_ = ProcGroup{team_self};
 
-#ifdef UPCXX_DISTARRAY
+#ifdef USE_UPCXX_DISTARRAY
   hint_ = pg.size().value();
 #endif
 #else

@@ -4,47 +4,41 @@
 
 //
 // created by tc_gen_definition()
-#define FUSION_SIZE_SLICE_1_H3 4
-#define FUSION_SIZE_SLICE_1_H2 4
-#define FUSION_SIZE_SLICE_1_H1 4
-#define FUSION_SIZE_SLICE_1_P6 4
-#define FUSION_SIZE_SLICE_1_P5 4
-#define FUSION_SIZE_SLICE_1_P4 4
-#define FUSION_SIZE_SLICE_1_H7 16
+constexpr unsigned int FUSION_SIZE_SLICE_1_H3 = 4;
+constexpr unsigned int FUSION_SIZE_SLICE_1_H2 = 4;
+constexpr unsigned int FUSION_SIZE_SLICE_1_H1 = 4;
+constexpr unsigned int FUSION_SIZE_SLICE_1_P6 = 4;
+constexpr unsigned int FUSION_SIZE_SLICE_1_P5 = 4;
+constexpr unsigned int FUSION_SIZE_SLICE_1_P4 = 4;
+constexpr unsigned int FUSION_SIZE_SLICE_1_H7 = 16;
 
-#define FUSION_SIZE_SLICE_2_H3 4
-#define FUSION_SIZE_SLICE_2_H2 4
-#define FUSION_SIZE_SLICE_2_H1 4
-#define FUSION_SIZE_SLICE_2_P6 4
-#define FUSION_SIZE_SLICE_2_P5 4
-#define FUSION_SIZE_SLICE_2_P4 4
-#define FUSION_SIZE_SLICE_2_H7 16
+constexpr unsigned int FUSION_SIZE_SLICE_2_H3 = 4;
+constexpr unsigned int FUSION_SIZE_SLICE_2_H2 = 4;
+constexpr unsigned int FUSION_SIZE_SLICE_2_H1 = 4;
+constexpr unsigned int FUSION_SIZE_SLICE_2_P6 = 4;
+constexpr unsigned int FUSION_SIZE_SLICE_2_P5 = 4;
+constexpr unsigned int FUSION_SIZE_SLICE_2_P4 = 4;
+constexpr unsigned int FUSION_SIZE_SLICE_2_H7 = 16;
 
-#define FUSION_SIZE_INT_UNIT FUSION_SIZE_SLICE_1_H7
+constexpr unsigned int FUSION_SIZE_INT_UNIT = FUSION_SIZE_SLICE_1_H7;
 
-#define FUSION_SIZE_TB_1_X FUSION_SIZE_SLICE_1_H3* FUSION_SIZE_SLICE_1_H2
-#define FUSION_SIZE_TB_1_Y FUSION_SIZE_SLICE_1_P6* FUSION_SIZE_SLICE_1_H1
-#define FUSION_SIZE_REG_1_X FUSION_SIZE_SLICE_1_P5
-#define FUSION_SIZE_REG_1_Y FUSION_SIZE_SLICE_1_P4
+constexpr unsigned int FUSION_SIZE_TB_1_X = FUSION_SIZE_SLICE_1_H3 * FUSION_SIZE_SLICE_1_H2;
+constexpr unsigned int FUSION_SIZE_TB_1_Y = FUSION_SIZE_SLICE_1_P6 * FUSION_SIZE_SLICE_1_H1;
+constexpr unsigned int FUSION_SIZE_REG_1_X = FUSION_SIZE_SLICE_1_P5;
+constexpr unsigned int FUSION_SIZE_REG_1_Y = FUSION_SIZE_SLICE_1_P4;
 
-#define FUSION_SIZE_TB_2_X FUSION_SIZE_SLICE_2_H3* FUSION_SIZE_SLICE_2_H2
-#define FUSION_SIZE_TB_2_Y FUSION_SIZE_SLICE_2_P4* FUSION_SIZE_SLICE_2_H1
-#define FUSION_SIZE_REG_2_X FUSION_SIZE_SLICE_2_P5
-#define FUSION_SIZE_REG_2_Y FUSION_SIZE_SLICE_2_P6
+constexpr unsigned int FUSION_SIZE_TB_2_X = FUSION_SIZE_SLICE_2_H3 * FUSION_SIZE_SLICE_2_H2;
+constexpr unsigned int FUSION_SIZE_TB_2_Y = FUSION_SIZE_SLICE_2_P4 * FUSION_SIZE_SLICE_2_H1;
+constexpr unsigned int FUSION_SIZE_REG_2_X = FUSION_SIZE_SLICE_2_P5;
+constexpr unsigned int FUSION_SIZE_REG_2_Y = FUSION_SIZE_SLICE_2_P6;
 
-#define CEIL(a, b) (((a) + (b) -1) / (b))
+template <typename T1, typename T2>
+constexpr auto CEIL(T1 a, T2 b) {return (a + b - 1) / b; };
 
-#define NUM_IA6_LOOPS 9
-#define NUM_D1_EQUATIONS 9
-#define NUM_D2_EQUATIONS 9
-#define NUM_S1_EQUATIONS 9
-#define NUM_D1_INDEX 7
-#define NUM_D2_INDEX 7
-#define NUM_S1_INDEX 6
-#define NUM_ENERGIES 2
-
-#define MAX_NOAB 30
-#define MAX_NVAB 120
+constexpr unsigned int NUM_D1_EQUATIONS = 9;
+constexpr unsigned int NUM_D2_EQUATIONS = 9;
+constexpr unsigned int NUM_D1_INDEX = 7;
+constexpr unsigned int NUM_D2_INDEX = 7;
 
 template<typename T>
 using localAcc = sycl::accessor<T, 2, sycl::access_mode::read_write, sycl::target::local>;

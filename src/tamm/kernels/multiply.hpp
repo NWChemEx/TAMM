@@ -213,7 +213,11 @@ void block_multiply(bool& isgpuOp,
           for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
             if(hw == ExecutionHW::GPU) {
-              oneapi::mkl::blas::row_major::gemm(
+              #if defined(USE_DPCPP_CUDA_HIP)
+              oneapi::mkl::blas::column_major::gemm(
+              #else
+              oneapi::mkl::blas::gemm(
+              #endif
                 dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, M, N, K, alpha,
                 ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
                 binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
@@ -271,7 +275,11 @@ void block_multiply(bool& isgpuOp,
               for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
                 if(hw == ExecutionHW::GPU) {
-                  oneapi::mkl::blas::gemm(
+                    #if defined(USE_DPCPP_CUDA_HIP)
+                    oneapi::mkl::blas::column_major::gemm(
+                    #else
+                    oneapi::mkl::blas::gemm(
+                    #endif
                     dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
                     bbuf_complex_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
                     ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, beta,
@@ -322,7 +330,11 @@ void block_multiply(bool& isgpuOp,
               for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
                 if(hw == ExecutionHW::GPU) {
-                  oneapi::mkl::blas::gemm(
+                    #if defined(USE_DPCPP_CUDA_HIP)
+                    oneapi::mkl::blas::column_major::gemm(
+                    #else
+                    oneapi::mkl::blas::gemm(
+                    #endif
                     dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
                     bbuf_real_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
                     ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, beta,
@@ -378,7 +390,11 @@ void block_multiply(bool& isgpuOp,
               for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
                 if(hw == ExecutionHW::GPU) {
-                  oneapi::mkl::blas::gemm(
+                    #if defined(USE_DPCPP_CUDA_HIP)
+                    oneapi::mkl::blas::column_major::gemm(
+                    #else
+                    oneapi::mkl::blas::gemm(
+                    #endif
                     dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
                     binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
                     abuf_complex_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, beta,
@@ -429,7 +445,11 @@ void block_multiply(bool& isgpuOp,
               for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
                 if(hw == ExecutionHW::GPU) {
-                  oneapi::mkl::blas::gemm(
+                    #if defined(USE_DPCPP_CUDA_HIP)
+                    oneapi::mkl::blas::column_major::gemm(
+                    #else
+                    oneapi::mkl::blas::gemm(
+                    #endif
                     dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
                     binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
                     abuf_real_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, beta,
@@ -495,7 +515,11 @@ void block_multiply(bool& isgpuOp,
             for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
               if(hw == ExecutionHW::GPU) {
-                oneapi::mkl::blas::gemm(
+                  #if defined(USE_DPCPP_CUDA_HIP)
+                  oneapi::mkl::blas::column_major::gemm(
+                  #else
+                  oneapi::mkl::blas::gemm(
+                  #endif
                   dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
                   bbuf_complex_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
                   abuf_complex_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, beta,

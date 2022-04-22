@@ -11,7 +11,8 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#include <sycl/sycl.hpp>
+#include <CL/sycl.hpp>
+namespace sycl = cl::sycl;
 
 class device_ext: public sycl::device {
 public:

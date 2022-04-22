@@ -2,8 +2,8 @@
 
 #ifdef USE_DPCPP
 
-#include <sycl/sycl.hpp>
+#include <CL/sycl.hpp>
 #include "oneapi/mkl.hpp"
-using namespace sycl::ext::oneapi;
+namespace sycl = cl::sycl;
 
 #endif

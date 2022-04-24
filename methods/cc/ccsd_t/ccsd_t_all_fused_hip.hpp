@@ -134,7 +134,7 @@ __global__ void revised_jk_ccsd_t_fully_fused_kernel(
   int rng_h3, rng_h2, rng_h1, rng_p6, rng_p5, rng_p4;
   int energy_rng_h3, energy_rng_h2, energy_rng_h1, energy_rng_p6, energy_rng_p5, energy_rng_p4;
   energy_rng_h3 = ((base_size_h3b - str_blk_idx_h3) >= FUSION_SIZE_SLICE_1_H3) ? FUSION_SIZE_SLICE_1_H3 : (base_size_h3b % FUSION_SIZE_SLICE_1_H3);
-  energy_rng_h2 = ((base_size_h2b - str_blk_idx_h2) >= FUSION_SIZE_SLICE_1_H2) ? FUSION_SIZE_SLICE_1_H2 : (base_size_h2b % FUSION_SIZE_SLICE_1_H2)_;
+  energy_rng_h2 = ((base_size_h2b - str_blk_idx_h2) >= FUSION_SIZE_SLICE_1_H2) ? FUSION_SIZE_SLICE_1_H2 : (base_size_h2b % FUSION_SIZE_SLICE_1_H2);
   energy_rng_h1 = ((base_size_h1b - str_blk_idx_h1) >= FUSION_SIZE_SLICE_1_H1) ? FUSION_SIZE_SLICE_1_H1 : (base_size_h1b % FUSION_SIZE_SLICE_1_H1);
   energy_rng_p6 = ((base_size_p6b - str_blk_idx_p6) >= FUSION_SIZE_SLICE_1_P6) ? FUSION_SIZE_SLICE_1_P6 : (base_size_p6b % FUSION_SIZE_SLICE_1_P6);
   energy_rng_p5 = ((base_size_p5b - str_blk_idx_p5) >= FUSION_SIZE_SLICE_1_P5) ? FUSION_SIZE_SLICE_1_P5 : (base_size_p5b % FUSION_SIZE_SLICE_1_P5);

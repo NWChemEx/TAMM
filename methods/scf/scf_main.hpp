@@ -107,21 +107,13 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
 
   libint2::BasisSet shells;
   {
-    std::vector<libint2::Atom> atoms_list;
-    std::map<int,std::vector<libint2::Atom>> atoms_vec_map;
-
     for (int i = 0; i < atoms.size(); i++) {
       const auto Z = atoms[i].atomic_number;
-      Atom x{Z, atoms[i].x, atoms[i].y, atoms[i].z};
-      if(atom_basis_map.find( Z ) != atom_basis_map.end()) 
-        atoms_vec_map[Z].push_back(x);
-      else atoms_list.push_back(x);
-    }
-  
-    if(atoms_list.size()>0) shells = libint2::BasisSet{std::string(basis), atoms_list};
-    for (const auto& avec: atoms_vec_map) {
-      std::string basisset = atom_basis_map[avec.first];
-      libint2::BasisSet ashells(basisset, avec.second);
+      std::string _basisname = basis;
+      if(atom_basis_map.find( Z ) != atom_basis_map.end())
+        _basisname = atom_basis_map[Z];
+      else atom_basis_map[Z] = _basisname;
+      libint2::BasisSet ashells(_basisname,{atoms[i]});
       shells.insert(shells.end(),ashells.begin(),ashells.end());
     }
   }

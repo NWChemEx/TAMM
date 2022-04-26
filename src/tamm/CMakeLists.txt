@@ -45,7 +45,6 @@ set(TAMM_INCLUDES
     index_loop_nest.hpp
     utils.hpp
     tamm_utils.hpp
-    tamm_dpcpp.hpp
     eigen_utils.hpp
     runtime_engine.hpp
     block_buffer.hpp

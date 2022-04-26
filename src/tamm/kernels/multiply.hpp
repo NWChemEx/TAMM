@@ -5,6 +5,9 @@
 #include "tamm/types.hpp"
 
 #include <algorithm>
+#include <complex>
+#include <numeric>
+#include <vector>
 
 #if defined(USE_GA_AT)
 #include "ga_linalg.h"
@@ -18,11 +21,6 @@
 #include "blis/blis.h"
 #endif
 
-#include <complex>
-#include <numeric>
-#include <vector>
-
-// #define USE_TALSH
 #ifdef USE_TALSH
 #include "tamm/talsh_tamm.hpp"
 using tensor_handle = talsh_tens_t;
@@ -40,9 +38,40 @@ using tensor_handle = talsh_tens_t;
 #include "tamm/cuda_memory_allocator.hpp"
 #endif
 
-#endif
+#else
 
-#include "tamm/tamm_dpcpp.hpp"
+// ABB 04/20/22: the following headers are used to call vendor blas (cublas, rocblas, onemkl)
+//               libraries as an alternate to TAL_SH
+
+#ifdef USE_CUDA
+
+#define CUBLAS_CHECK(err)                                               \
+  do {                                                                  \
+    cublasStatus_t err_ = (err);                                        \
+    if(err_ != CUBLAS_STATUS_SUCCESS) {                                 \
+      std::printf("CUBLAS Exception code: %d at %s : %d\n", err_, __FILE__, __LINE__); \
+      throw std::runtime_error("cublas error");                         \
+    }                                                                   \
+  } while(0)
+#endif // USE_CUDA
+
+#ifdef USE_HIP
+
+#define ROCBLAS_CHECK(err)                                                  \
+  do {                                                                      \
+    rocblas_status err_ = (err);                                            \
+    if(err_ != rocblas_status_success) {                                    \
+      std::printf("ROCBLAS Exception code: %d at %s:%d\n", err_, __FILE__, __LINE__); \
+      throw std::runtime_error("rocblas error");                            \
+    }                                                                       \
+  } while(0)
+#endif // USE_HIP
+
+#ifdef USE_DPCPP
+#include "oneapi/mkl.hpp"
+#endif // USE_DPCPP
+
+#endif // USE_TALSH
 
 namespace tamm {
 
@@ -187,8 +216,9 @@ void block_multiply(bool& isgpuOp,
     std::vector<T1> cinter_buf(static_cast<size_t>(csize.value()));
     assign<T2>(ainter_buf.data(), ainter_dims, ainter_labels, T2{1}, abuf, adims, alabels, true);
     assign<T3>(binter_buf.data(), binter_dims, binter_labels, T3{1}, bbuf, bdims, blabels, true);
-#ifdef USE_DPCPP
-    auto& pool = tamm::GPUStreamPool::getInstance();
+
+#if defined(USE_DPCPP) && !defined(USE_TALSH)
+    auto& pool      = tamm::GPUStreamPool::getInstance();
     auto& dev_queue = pool.getStream();
 
     T2* ainter_buf_dev{nullptr};
@@ -204,6 +234,49 @@ void block_multiply(bool& isgpuOp,
       dev_queue.memcpy(binter_buf_dev, binter_buf.data(), binter_buf.size() * sizeof(T3)).wait();
       dev_queue.memcpy(cinter_buf_dev, cinter_buf.data(), cinter_buf.size() * sizeof(T1)).wait();
     }
+
+#elif defined(USE_CUDA) && !defined(USE_TALSH)
+    auto& pool   = tamm::GPUStreamPool::getInstance();
+    auto& handle = pool.getBlasHandle();
+
+    T2* ainter_buf_dev{nullptr};
+    T3* binter_buf_dev{nullptr};
+    T1* cinter_buf_dev{nullptr};
+    if(hw == ExecutionHW::GPU) {
+      cudaMalloc(&ainter_buf_dev, ainter_buf.size() * sizeof(T2));
+      cudaMalloc(&binter_buf_dev, binter_buf.size() * sizeof(T3));
+      cudaMalloc(&cinter_buf_dev, cinter_buf.size() * sizeof(T1));
+
+      // host-->device copy
+      cudaMemcpy(ainter_buf_dev, ainter_buf.data(), ainter_buf.size() * sizeof(T2),
+                 cudaMemcpyHostToDevice);
+      cudaMemcpy(binter_buf_dev, binter_buf.data(), binter_buf.size() * sizeof(T3),
+                 cudaMemcpyHostToDevice);
+      cudaMemcpy(cinter_buf_dev, cinter_buf.data(), cinter_buf.size() * sizeof(T1),
+                 cudaMemcpyHostToDevice);
+    }
+
+#elif defined(USE_HIP) && !defined(USE_TALSH)
+    auto& pool   = tamm::GPUStreamPool::getInstance();
+    auto& handle = pool.getBlasHandle();
+
+    T2* ainter_buf_dev{nullptr};
+    T3* binter_buf_dev{nullptr};
+    T1* cinter_buf_dev{nullptr};
+    if(hw == ExecutionHW::GPU) {
+      hipMalloc(&ainter_buf_dev, ainter_buf.size() * sizeof(T2));
+      hipMalloc(&binter_buf_dev, binter_buf.size() * sizeof(T3));
+      hipMalloc(&cinter_buf_dev, cinter_buf.size() * sizeof(T1));
+
+      // host-->device copy
+      hipMemcpy(ainter_buf_dev, ainter_buf.data(), ainter_buf.size() * sizeof(T2),
+                hipMemcpyHostToDevice);
+      hipMemcpy(binter_buf_dev, binter_buf.data(), binter_buf.size() * sizeof(T3),
+                hipMemcpyHostToDevice);
+      hipMemcpy(cinter_buf_dev, cinter_buf.data(), cinter_buf.size() * sizeof(T1),
+                hipMemcpyHostToDevice);
+    }
+
 #endif
 
     // dgemm
@@ -226,6 +299,32 @@ void block_multiply(bool& isgpuOp,
                          binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
                          cinter_buf.data() + i * cbatch_ld, cinter_ld);
             }
+#elif defined(USE_CUDA) && !defined(USE_TALSH)
+            if(hw == ExecutionHW::GPU) {
+              CUBLAS_CHECK( cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha,
+                                        binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
+                                        ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, &beta,
+                                        cinter_buf_dev + i * cbatch_ld, cinter_ld) );
+            }
+            else {
+              blas::gemm(blas::Layout::RowMajor, transA, transB, M, N, K, alpha,
+                         ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
+                         binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
+                         cinter_buf.data() + i * cbatch_ld, cinter_ld);
+            }
+#elif defined(USE_HIP) && !defined(USE_TALSH)
+            if(hw == ExecutionHW::GPU) {
+              ROCBLAS_CHECK( rocblas_dgemm(handle, rocblas_operation_none, rocblas_operation_none, N, M, K,
+                                           &alpha, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
+                                           ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, &beta,
+                                           cinter_buf_dev + i * cbatch_ld, cinter_ld) );
+            }
+            else {
+              blas::gemm(blas::Layout::RowMajor, transA, transB, M, N, K, alpha,
+                         ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
+                         binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
+                         cinter_buf.data() + i * cbatch_ld, cinter_ld);
+            }
 #else
             blas::gemm(blas::Layout::RowMajor, transA, transB, M, N, K, alpha,
                        ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
@@ -239,6 +338,18 @@ void block_multiply(bool& isgpuOp,
       // device-->host copy
       if(hw == ExecutionHW::GPU) {
         dev_queue.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size() * sizeof(T1)).wait();
+      }
+#elif defined(USE_CUDA) && !defined(USE_TALSH)
+      // device-->host copy
+      if(hw == ExecutionHW::GPU) {
+        cudaMemcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size() * sizeof(T1),
+                   cudaMemcpyDeviceToHost);
+      }
+#elif defined(USE_HIP) && !defined(USE_TALSH)
+      // device-->host copy
+      if(hw == ExecutionHW::GPU) {
+        hipMemcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size() * sizeof(T1),
+                   hipMemcpyDeviceToHost);
       }
 #endif
     }
@@ -495,7 +606,7 @@ void block_multiply(bool& isgpuOp,
             for(size_t i = 0; i < B; i++) {
 #ifdef USE_DPCPP
               if(hw == ExecutionHW::GPU) {
-                  oneapi::mkl::blas::column_major::gemm(
+                oneapi::mkl::blas::column_major::gemm(
                   dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
                   bbuf_complex_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
                   abuf_complex_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, beta,
@@ -537,6 +648,18 @@ void block_multiply(bool& isgpuOp,
       sycl::free(binter_buf_dev, dev_queue);
       sycl::free(cinter_buf_dev, dev_queue);
     }
+#elif defined(USE_CUDA) && !defined(USE_TALSH)
+    if(hw == ExecutionHW::GPU) {
+      cudaFree(ainter_buf_dev);
+      cudaFree(binter_buf_dev);
+      cudaFree(cinter_buf_dev);
+    }
+#elif defined(USE_HIP) && !defined(USE_TALSH)
+    if(hw == ExecutionHW::GPU) {
+      hipFree(ainter_buf_dev);
+      hipFree(binter_buf_dev);
+      hipFree(cinter_buf_dev);
+    }
 #endif
 
     assign<T1>(cbuf, cdims, clabels, T{1}, cinter_buf.data(), cinter_dims, cinter_labels,
@@ -552,9 +675,9 @@ void block_multiply(bool& isgpuOp,
   auto aid_size = adims.size();
   auto bid_size = bdims.size();
   auto cid_size = cdims.size();
-  int tal_adims[aid_size];
-  int tal_bdims[bid_size];
-  int tal_cdims[cid_size];
+  int  tal_adims[aid_size];
+  int  tal_bdims[bid_size];
+  int  tal_cdims[cid_size];
 
   std::vector<int> taid;
   std::vector<int> tbid;
@@ -638,7 +761,7 @@ void block_multiply(bool& isgpuOp,
         if constexpr(internal::is_complex_v<T1>) {
           // copy B to complex buffer
           std::vector<T1> bbuf_complex(bsize.value());
-          T3* bbuf_comp_ptr = reinterpret_cast<T3*>(&bbuf_complex[0]);
+          T3*             bbuf_comp_ptr = reinterpret_cast<T3*>(&bbuf_complex[0]);
           if constexpr(std::is_same_v<T3, double>)
             bli_dcopyv(BLIS_NO_CONJUGATE, bsize.value(), bbufp, 1, bbuf_comp_ptr, 2);
           else if constexpr(std::is_same_v<T3, float>)
@@ -659,7 +782,7 @@ void block_multiply(bool& isgpuOp,
         else {
           // T1,T2 (C,A) are real, T3 (B) is complex
           std::vector<T1> bbuf_real(bsize.value());
-          T1* bbuf_comp_ptr = reinterpret_cast<T1*>(bbufp);
+          T1*             bbuf_comp_ptr = reinterpret_cast<T1*>(bbufp);
           if constexpr(std::is_same_v<T1, double>)
             bli_dcopyv(BLIS_NO_CONJUGATE, bsize.value(), bbuf_comp_ptr, 2, &bbuf_real[0], 1);
           else if constexpr(std::is_same_v<T1, float>)
@@ -683,7 +806,7 @@ void block_multiply(bool& isgpuOp,
         // T3 (matrix B) is complex, T2 (A) is real
         if constexpr(internal::is_complex_v<T1>) {
           std::vector<T1> abuf_complex(asize.value());
-          T2* abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
+          T2*             abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
           if constexpr(std::is_same_v<T2, double>)
             bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), abufp, 1, abuf_comp_ptr, 2);
           else if constexpr(std::is_same_v<T2, float>)
@@ -703,7 +826,7 @@ void block_multiply(bool& isgpuOp,
         else {
           // T1,T3 (C,B) are real, T2 (A) is complex
           std::vector<T1> abuf_real(asize.value());
-          T1* abuf_comp_ptr = reinterpret_cast<T1*>(abufp);
+          T1*             abuf_comp_ptr = reinterpret_cast<T1*>(abufp);
           if constexpr(std::is_same_v<T1, double>)
             bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), abuf_comp_ptr, 2, &abuf_real[0], 1);
           else if constexpr(std::is_same_v<T1, float>)
@@ -726,9 +849,9 @@ void block_multiply(bool& isgpuOp,
       else if constexpr(internal::is_complex_v<T1> && std::is_same_v<T2, T3>) {
         // T1 is complex, T2, T3 are real
         std::vector<T1> abuf_complex(asize.value());
-        T2* abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
+        T2*             abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
         std::vector<T1> bbuf_complex(bsize.value());
-        T2* bbuf_comp_ptr = reinterpret_cast<T2*>(&bbuf_complex[0]);
+        T2*             bbuf_comp_ptr = reinterpret_cast<T2*>(&bbuf_complex[0]);
 
         if constexpr(std::is_same_v<T2, double>) {
           bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), abufp, 1, abuf_comp_ptr, 2);

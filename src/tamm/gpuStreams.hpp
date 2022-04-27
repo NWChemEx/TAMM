@@ -17,7 +17,7 @@
 // Use (void) to silence unused warnings.
 #define assertm(exp, msg) assert(((void) msg, exp))
 
-#ifdef USE_HIP
+#if defined(USE_HIP)
 using gpuStream_t                            = hipStream_t;
 using gpuEvent_t                             = hipEvent_t;
 using gpuBlasHandle_t                        = rocblas_handle;
@@ -83,30 +83,32 @@ private:
     _count       = 0;
     _initialized = false;
 
+  #if !defined(USE_DPCPP) && !defined(USE_TALSH)
+
     if(!_devID2Streams.empty()) {
       for(auto& stream: _devID2Streams) {
-#if defined(USE_CUDA)
-        cudaStreamDestroy(stream.second);
-#elif defined(USE_HIP)
-        hipStreamDestroy(stream.second);
-#elif defined(USE_DPCPP)
-#endif
+    #if defined(USE_CUDA)
+      cudaStreamDestroy(stream.second);
+    #elif defined(USE_HIP)
+      hipStreamDestroy(stream.second);
+    #endif
       }
     }
 
     if(!_devID2Handles.empty()) {
       for(auto& handle: _devID2Handles) {
-#if defined(USE_CUDA)
-        cublasDestroy(handle.second);
-#elif defined(USE_HIP)
-        rocblas_destroy_handle(handle.second);
-#elif defined(USE_DPCPP)
-#endif
+    #if defined(USE_CUDA)
+      cublasDestroy(handle.second);
+    #elif defined(USE_HIP)
+      rocblas_destroy_handle(handle.second);
+    #endif
       }
     }
 
     _devID2Streams.clear();
     _devID2Handles.clear();
+  #endif
+
   }
 
 public:
@@ -133,7 +135,7 @@ public:
   gpuStream_t& getStream() {
     unsigned short int counter = _count++ % max_gpu_streams;
 
-#ifdef USE_CUDA
+#if defined(USE_CUDA)
     auto         result   = _devID2Streams.insert({_active_device + counter, gpuStream_t()});
     gpuStream_t& stream   = (*result.first).second;
     bool&        inserted = result.second;
@@ -155,10 +157,10 @@ public:
 #endif
   }
 
-#if defined(USE_CUDA) || defined(USE_HIP)
+#if !defined(USE_DPCPP) && !defined(USE_TALSH)
   gpuBlasHandle_t& getBlasHandle() {
     auto result = _devID2Handles.insert({_active_device, gpuBlasHandle_t()});
-#ifdef USE_CUDA
+#if defined(USE_CUDA)
     gpuBlasHandle_t& handle   = (*result.first).second;
     bool&            inserted = result.second;
     if(inserted) { cublasCreate(&handle); }

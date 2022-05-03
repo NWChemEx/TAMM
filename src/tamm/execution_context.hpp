@@ -307,8 +307,6 @@ public:
 
   int num_gpu() const { return ngpu_; }
 
-  void set_ngpu(int ngpu) { ngpu_ = ngpu; }
-
   bool has_gpu() const { return has_gpu_; }
 
   ExecutionHW exhw() const { return exhw_; }

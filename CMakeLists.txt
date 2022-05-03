@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18.0)
+cmake_minimum_required(VERSION 3.22.0)
 
 include(FetchContent)
 
@@ -9,7 +9,7 @@ find_package( CMakeBuild QUIET )
 
 if( NOT ${CMakeBuild_FOUND} )
   if (NOT CMSB_TAG)
-    set(CMSB_TAG 3eee6e63d897b37bba021ab730b26c60b7169f4d)
+    set(CMSB_TAG bc44dcc6b4e63d322476238dfbf0fac422a45e7b)
     if (ENABLE_DEV_MODE)
       set(CMSB_TAG master)
     endif()

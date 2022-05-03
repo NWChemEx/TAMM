@@ -256,7 +256,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   if(rank==0) {
     cout << "Begin Cholesky Decomposition ... " << endl;
   }
-  auto hf_t1 = std::chrono::high_resolution_clock::now();
+  auto cd_t1 = std::chrono::high_resolution_clock::now();
 
   // Step A. Initialization
   int64_t iproc = rank.value();
@@ -361,6 +361,10 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   auto shell2bf = map_shell_to_basis_function(shells);
   auto bf2shell = map_basis_function_to_shell(shells);
 
+  auto cd_t2 = std::chrono::high_resolution_clock::now();
+  auto cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
+  if(iproc == 0) std::cout << std::endl << "Setup time: " << cd_time << " secs" << endl;
+
   // Step B. Compute the diagonal
   Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
   const auto &buf = engine.results();  
@@ -405,6 +409,10 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
       } //s2
     } //#if s1
   } //s1
+
+  auto cd_t3 = std::chrono::high_resolution_clock::now();
+  cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t3 - cd_t2)).count();
+  if(iproc == 0) std::cout << std::endl << "Time for computing the diagonal: " << cd_time << " secs" << endl;
 
   // Step C. Find the coordinates of the maximum element of the diagonal.
   int64_t indx_d0[GA_MAX_DIM];
@@ -541,9 +549,11 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   NGA_Destroy(g_r);
   NGA_Destroy(g_d);
 
-  auto hf_t2 = std::chrono::high_resolution_clock::now();
-  auto hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(iproc == 0) std::cout << std::endl << "Time taken for cholesky decomp: " << hf_time << " secs" << endl;
+  auto cd_t4 = std::chrono::high_resolution_clock::now();
+  cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t4 - cd_t3)).count();
+  if(iproc == 0) std::cout << std::endl << "Time to compute cholesky vectors: " << cd_time << " secs" << endl;
+  // cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t4 - cd_t1)).count();
+  // if(iproc == 0) std::cout << std::endl << "Total Time for cholesky decomp: " << cd_time << " secs" << endl;
  
   update_sysdata(sys_data, tMO);
 
@@ -574,7 +584,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     auto svdtol = 1e-8; //TODO same as diagtol ?
   #endif 
 
-  hf_t1 = std::chrono::high_resolution_clock::now();
+  cd_t1 = std::chrono::high_resolution_clock::now();
   double cvpr_time = 0;
 
   char    name[]        = "atomic-counter";
@@ -696,11 +706,11 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   k_ij.clear();
   k_eval_r.clear(); k_eval_r.shrink_to_fit();
 
-  hf_t2   = std::chrono::high_resolution_clock::now();
-  hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+  cd_t2   = std::chrono::high_resolution_clock::now();
+  cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
   if(rank == 0) {
-    std::cout << "Total Time for constructing CholVpr: " << hf_time   << " secs" << endl;
-    std::cout << "    --> Time for 2-step contraction:   " << cvpr_time << " secs" << endl;
+    std::cout << endl << "Time for constructing MO-based CholVpr tensor: " << cd_time   << " secs" << endl;
+    std::cout << "  --> Time for 2-step contraction: " << cvpr_time << " secs" << endl;
   }
 
   #ifdef CD_SVD_THROTTLE
@@ -714,7 +724,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   GA_Brdcst(&count, sizeof(int64_t), 0);
   #endif
 
-  hf_t1 = std::chrono::high_resolution_clock::now();
+  cd_t1 = std::chrono::high_resolution_clock::now();
 
   #ifdef CD_SVD_THROTTLE
 
@@ -779,16 +789,16 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 
   NGA_Destroy(g_chol_mo_copy);
 
-  hf_t2   = std::chrono::high_resolution_clock::now();
-  hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(rank == 0) std::cout << std::endl << "Time for ga_chol_mo -> CholVpr_tamm conversion: " << hf_time << " secs" << endl;
+  cd_t2   = std::chrono::high_resolution_clock::now();
+  cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
+  if(rank == 0) std::cout << std::endl << "Time for CholVpr (GA->TAMM) conversion: " << cd_time << " secs" << endl;
 
   #if 0
   
     Tensor<TensorType> CholVuv_opt{tAO, tAO, tCIp};
     Tensor<TensorType>::allocate(&ec, CholVuv_opt);
 
-    hf_t1 = std::chrono::high_resolution_clock::now();
+    cd_t1 = std::chrono::high_resolution_clock::now();
 
     // Contraction 1
     Tensor<TensorType> CholVpv_tamm{tMO,tAO,tCIp};
@@ -796,12 +806,12 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     Scheduler{ec}(CholVpv_tamm(pmo,mu,cindexp) = CTiled_tamm(nu, pmo) * CholVuv_opt(nu, mu, cindexp)).execute();
     Tensor<TensorType>::deallocate(CholVuv_opt);
 
-    hf_t2   = std::chrono::high_resolution_clock::now();
-    hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << std::endl << "Time taken for computing CholVpv: " << hf_time << " secs" << std::endl;
+    cd_t2   = std::chrono::high_resolution_clock::now();
+    cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
+    if(rank == 0) std::cout << std::endl << "Time for computing CholVpr: " << cd_time << " secs" << std::endl;
 
     //Contraction 2
-    hf_t1 = std::chrono::high_resolution_clock::now();
+    cd_t1 = std::chrono::high_resolution_clock::now();
   
     Tensor<TensorType> CholVpr_tamm{{tMO,tMO,tCIp},{SpinPosition::upper,SpinPosition::lower,SpinPosition::ignore}};
     Scheduler{ec}
@@ -810,9 +820,9 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
       .deallocate(CholVpv_tamm)
       .execute();
   
-    hf_t2   = std::chrono::high_resolution_clock::now();
-    hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << std::endl << "Time taken for computing CholVpr: " << hf_time << " secs" << std::endl;
+    cd_t2   = std::chrono::high_resolution_clock::now();
+    cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
+    if(rank == 0) std::cout << std::endl << "Time for computing CholVpr: " << cd_time << " secs" << std::endl;
 
   #endif
 

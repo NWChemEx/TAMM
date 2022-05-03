@@ -107,7 +107,7 @@ make install
 
 ```
 module load gcc
-module load cmake/3.21.3
+module load cmake
 module load essl/6.3.0
 module load cuda
 ```
@@ -166,7 +166,7 @@ module swap gcc/8.3.0
 module swap craype/2.5.18
 module swap cray-mpich/7.7.6
 module unload cmake
-module load cmake/3.21.3
+module load cmake
 ```
 
 ```
@@ -183,7 +183,7 @@ make install
 ### GPU build
 
 ```
-module purge && module load cgpu cuda gcc openmpi cmake/3.21.3
+module purge && module load cgpu cuda gcc openmpi cmake
 ```
 
 ```
@@ -223,7 +223,7 @@ make install
 module unload PrgEnv-intel/6.0.7
 module load PrgEnv-gnu/6.0.7
 module unload cmake
-module load cmake/3.20.4
+module load cmake
 export CRAYPE_LINK_TYPE=dynamic
 ```
 

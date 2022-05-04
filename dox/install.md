@@ -61,6 +61,8 @@ mkdir build && cd build
 
 * **[Build instructions for Cori](install.md#build-instructions-for-cori)**
 
+* **[Build instructions for Perlmutter and Polaris](install.md#build-instructions-for-perlmutter-and-polaris)**
+
 * **[Build instructions for Theta](install.md#build-instructions-for-theta)**
 
 * **[Building the DPCPP code path using Intel OneAPI SDK](install.md#build-dpcpp-code-path-using-intel-oneapi-sdk)**
@@ -196,21 +198,29 @@ make -j3
 make install
 ```
 
-## Build instructions for Perlmutter
+## Build instructions for Perlmutter and Polaris
 
 ```
 module load PrgEnv-gnu
 module load cudatoolkit
-module load cpe-cuda
+module load cpe-cuda (perlmutter only)
 module load gcc/9.3.0
 module load cmake
 export CRAYPE_LINK_TYPE=dynamic
 ```
 
 ```
+##ADJUST CUBLAS_PATH IF NEEDED
+
+export CUBLAS_PATH=$CUDA_HOME/../../math_libs/11.5/lib64
+export CPATH=$CPATH:$CUBLAS_PATH/include
+```
+
+```
 cd $TAMM_SRC/build
 
-cmake -DUSE_CUDA=ON -DBLIS_CONFIG=generic -DUSE_CRAYSHASTA=ON \
+cmake -DUSE_CUDA=ON -DBLIS_CONFIG=generic \
+-DCMAKE_PREFIX_PATH=$CUBLAS_PATH/lib \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
 make -j3

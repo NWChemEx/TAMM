@@ -96,7 +96,8 @@ void copy_data_to_gpu(ExecutionHW hw,
     // host-->device copy
     dev_queue.memcpy(*ainter_buf_dev, ainter_buf.data(), ainter_buf.size() * sizeof(T2)).wait();
     dev_queue.memcpy(*binter_buf_dev, binter_buf.data(), binter_buf.size() * sizeof(T3)).wait();
-    dev_queue.memcpy(*cinter_buf_dev, cinter_buf.data(), cinter_buf.size() * sizeof(T1)).wait();
+    // dev_queue.memcpy(*cinter_buf_dev, cinter_buf.data(), cinter_buf.size() * sizeof(T1)).wait();
+    dev_queue.memset(*cinter_buf_dev, 0, cinter_buf.size() * sizeof(T1)).wait();
 
 #elif defined(USE_CUDA) && !defined(USE_TALSH)
     cudaMalloc((void**)ainter_buf_dev, ainter_buf.size() * sizeof(T2));
@@ -108,8 +109,9 @@ void copy_data_to_gpu(ExecutionHW hw,
                 cudaMemcpyHostToDevice);
     cudaMemcpy(*binter_buf_dev, binter_buf.data(), binter_buf.size() * sizeof(T3),
                 cudaMemcpyHostToDevice);
-    cudaMemcpy(*cinter_buf_dev, cinter_buf.data(), cinter_buf.size() * sizeof(T1),
-                cudaMemcpyHostToDevice);
+    // cudaMemcpy(*cinter_buf_dev, cinter_buf.data(), cinter_buf.size() * sizeof(T1),
+    //             cudaMemcpyHostToDevice);
+    cudaMemset(*cinter_buf_dev, 0, cinter_buf.size() * sizeof(T1));
 
 #elif defined(USE_HIP) && !defined(USE_TALSH)
     hipMalloc((void**)ainter_buf_dev, ainter_buf.size() * sizeof(T2));
@@ -121,8 +123,9 @@ void copy_data_to_gpu(ExecutionHW hw,
               hipMemcpyHostToDevice);
     hipMemcpy(*binter_buf_dev, binter_buf.data(), binter_buf.size() * sizeof(T3),
               hipMemcpyHostToDevice);
-    hipMemcpy(*cinter_buf_dev, cinter_buf.data(), cinter_buf.size() * sizeof(T1),
-              hipMemcpyHostToDevice);
+    // hipMemcpy(*cinter_buf_dev, cinter_buf.data(), cinter_buf.size() * sizeof(T1),
+    //           hipMemcpyHostToDevice);
+    hipMemset(*cinter_buf_dev, 0, cinter_buf.size() * sizeof(T1));
 
 #endif
 }

@@ -7,10 +7,8 @@
 #include <type_traits>
 #include <iomanip>
 #include <hdf5.h>
-// Eigen matrix algebra library
-#include <Eigen/Dense>
-#include <unsupported/Eigen/CXX11/Tensor>
-#undef I
+
+#include "eigen_includes.hpp"
 
 // #define IO_ISIRREG 1
 #define TU_SG true

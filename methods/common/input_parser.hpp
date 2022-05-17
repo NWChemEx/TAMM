@@ -12,10 +12,7 @@
 
 using namespace tamm;
 
-// Libint Gaussian integrals library
-#include <libint2.hpp>
-#include <libint2/basis.h>
-#include <libint2/chemistry/sto3g_atomic_density.h>
+#include "libint2_includes.hpp"
 
 #include "ga/ga.h"
 #include "ga/ga-mpi.h"

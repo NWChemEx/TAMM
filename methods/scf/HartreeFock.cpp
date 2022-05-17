@@ -1,8 +1,5 @@
 
 #include "scf/scf_main.hpp"
-#include "tamm/tamm.hpp"
-
-using namespace tamm;
 
 std::string filename;
 using T = double;

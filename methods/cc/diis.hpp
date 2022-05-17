@@ -2,7 +2,6 @@
 
 #include "ga/ga.h"
 #include "tamm/tamm.hpp"
-#include <Eigen/Dense>
 
 namespace tamm {
 

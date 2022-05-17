@@ -137,6 +137,7 @@ module load PrgEnv-amd
 module load rocm
 module unload cray-libsci
 export CRAYPE_LINK_TYPE=dynamic
+export HDF5_USE_FILE_LOCKING=FALSE
 ```
 
 ```
@@ -156,7 +157,7 @@ make install
 
 ```
 export CRAYPE_LINK_TYPE=dynamic
-export HDF5_USE_FILE_LOCKING="FALSE"
+export HDF5_USE_FILE_LOCKING=FALSE
 ```
 
 ### CPU only build

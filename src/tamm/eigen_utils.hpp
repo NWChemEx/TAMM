@@ -2,8 +2,6 @@
 
 // Eigen matrix algebra library
 #include "tamm/tamm.hpp"
-#include <Eigen/Dense>
-#include <unsupported/Eigen/CXX11/Tensor>
 #include <fmt/fmt.h>
 #undef I
 

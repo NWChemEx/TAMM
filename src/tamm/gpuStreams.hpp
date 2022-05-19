@@ -14,9 +14,6 @@
 #include "sycl_device.hpp"
 #endif
 
-// Use (void) to silence unused warnings.
-#define assertm(exp, msg) assert(((void) msg, exp))
-
 #if defined(USE_HIP)
 using gpuStream_t                            = hipStream_t;
 using gpuEvent_t                             = hipEvent_t;

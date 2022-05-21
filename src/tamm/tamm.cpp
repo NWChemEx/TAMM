@@ -2,35 +2,8 @@
 #include "ga/macdecls.h"
 #include "mpi.h"
 #include "ga/ga.h"
-#undef I
+
 namespace tamm {
-
-int mult_counter = 0;
-double multOpTime = 0;
-double addOpTime = 0;
-double setOpTime = 0;
-double allocOpTime = 0;
-double deallocOpTime = 0;
-double tgetTime = 0;
-double taddTime = 0;
-double twaitTime = 0;
-double tgemmTime = 0;
-double tbarrierTime = 0;
-
-double multOpGetTime = 0;
-double multOpWaitTime = 0;
-double multOpAddTime = 0;
-double multOpDgemmTime = 0;
-double memTime1 = 0;
-double memTime2 = 0;
-double memTime3 = 0;
-double memTime4 = 0;
-double memTime5 = 0;
-double memTime6 = 0;
-double memTime7 = 0;
-double memTime8 = 0;
-double memTime9 = 0;
-
 
 void initialize(int argc, char *argv[]) {
   int flag;

@@ -54,6 +54,7 @@ set(TAMM_INCLUDES
     kernels/multiply.hpp
     op_dag.hpp
     interfaces.hpp
+    op_profiler.hpp
     op_attributes.hpp
     op_visitors.hpp
     scalar.hpp

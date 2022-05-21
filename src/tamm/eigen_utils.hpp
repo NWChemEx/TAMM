@@ -1,9 +1,7 @@
 #pragma once
 
-// Eigen matrix algebra library
 #include "tamm/tamm.hpp"
 #include <fmt/fmt.h>
-#undef I
 
 using EigenTensorType=double;
 using Matrix   = Eigen::Matrix<EigenTensorType, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;

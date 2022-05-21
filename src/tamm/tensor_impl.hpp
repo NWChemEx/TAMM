@@ -236,7 +236,6 @@ public:
      */
     virtual void allocate(ExecutionContext* ec) {
         {
-            TimerGuard tg_total{&memTime1};
             EXPECTS(allocation_status_ == AllocationStatus::invalid);
             auto defd                  = ec->get_default_distribution();
             Distribution* distribution = ec->distribution(
@@ -251,7 +250,6 @@ public:
             // DistributionFactory::make_distribution(*distribution, this,
             // pg.size());
             {
-                TimerGuard tg_total{&memTime2};
                 distribution_ = std::shared_ptr<Distribution>(
                   distribution->clone(this, memory_manager->pg().size()));
             }

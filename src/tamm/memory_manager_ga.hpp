@@ -77,130 +77,102 @@ class MemoryManagerGA : public MemoryManager {
   MemoryRegion* alloc_coll(ElementType eltype, Size local_nelements) override {
     MemoryRegionGA* pmr;
     {
-     TimerGuard tg_total{&memTime3};
-     pmr = new MemoryRegionGA(*this);
+      pmr = new MemoryRegionGA(*this);
 
       int ga_pg_default = GA_Pgroup_get_default();
       GA_Pgroup_set_default(ga_pg_);
-    int nranks = pg_.size().value();
-    int ga_eltype = to_ga_eltype(eltype);
+      int nranks    = pg_.size().value();
+      int ga_eltype = to_ga_eltype(eltype);
 
-    pmr->map_.resize(nranks + 1);
-    pmr->eltype_ = eltype;
-    pmr->local_nelements_ = local_nelements;
-    int64_t nels = local_nelements.value();
+      pmr->map_.resize(nranks + 1);
+      pmr->eltype_          = eltype;
+      pmr->local_nelements_ = local_nelements;
+      int64_t nels          = local_nelements.value();
 
-    int64_t nelements_min, nelements_max;
+      int64_t nelements_min, nelements_max;
 
-    GA_Pgroup_set_default(ga_pg_);
-    {
-       TimerGuard tg_total{&memTime5};
-       nelements_min = pg_.allreduce(&nels, ReduceOp::min);
-       nelements_max = pg_.allreduce(&nels, ReduceOp::max);
-    }
-    std::string array_name{"array_name"+std::to_string(++ga_counter_)};
-
-    if (nelements_min == nels && nelements_max == nels) {
-      int64_t dim = nranks * nels, chunk = -1;
-      pmr->ga_ = NGA_Create64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()), &chunk);
-      pmr->map_[0] = 0;
-      std::fill_n(pmr->map_.begin()+1, nranks-1, nels);
-      std::partial_sum(pmr->map_.begin(), pmr->map_.begin()+nranks, pmr->map_.begin());
-    } else {
-      int64_t dim, block = nranks;
+      GA_Pgroup_set_default(ga_pg_);
       {
-      TimerGuard tg_total{&memTime5};
-      dim = pg_.allreduce(&nels, ReduceOp::sum);
+        nelements_min = pg_.allreduce(&nels, ReduceOp::min);
+        nelements_max = pg_.allreduce(&nels, ReduceOp::max);
       }
-      {
-      TimerGuard tg_total{&memTime6};
-      pg_.allgather(&nels, &pmr->map_[1]);
+      std::string array_name{"array_name" + std::to_string(++ga_counter_)};
+
+      if(nelements_min == nels && nelements_max == nels) {
+        int64_t dim = nranks * nels, chunk = -1;
+        pmr->ga_ = NGA_Create64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()), &chunk);
+        pmr->map_[0] = 0;
+        std::fill_n(pmr->map_.begin() + 1, nranks - 1, nels);
+        std::partial_sum(pmr->map_.begin(), pmr->map_.begin() + nranks, pmr->map_.begin());
       }
-      pmr->map_[0] = 0; // @note this is not set by MPI_Exscan
-     {
-       TimerGuard tg_total{&memTime7};      
-       std::partial_sum(pmr->map_.begin(), pmr->map_.begin()+nranks, pmr->map_.begin());
-     }
-      
-      for(block = nranks; block>0 && static_cast<int64_t>(pmr->map_[block-1]) == dim; --block) {
-        //no-op
+      else {
+        int64_t dim, block = nranks;
+        dim = pg_.allreduce(&nels, ReduceOp::sum);
+        pg_.allgather(&nels, &pmr->map_[1]);
+        pmr->map_[0] = 0; // @note this is not set by MPI_Exscan
+        std::partial_sum(pmr->map_.begin(), pmr->map_.begin() + nranks, pmr->map_.begin());
+
+        for(block = nranks; block > 0 && static_cast<int64_t>(pmr->map_[block - 1]) == dim;
+            --block) {
+          // no-op
+        }
+
+        int64_t* map_start = &pmr->map_[0];
+        for(int i = 0; i < nranks && *(map_start + 1) == 0; ++i, ++map_start, --block) {
+          // no-op
+        }
+
+        pmr->ga_ = NGA_Create_irreg64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()),
+                                      &block, map_start);
       }
 
-      int64_t* map_start = &pmr->map_[0];
-      for(int i=0; i<nranks && *(map_start+1)==0; ++i, ++map_start, --block) {
-        //no-op
-      }
-      
-           {
-       TimerGuard tg_total{&memTime9};
-      pmr->ga_ = NGA_Create_irreg64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()), &block, map_start);
-           }
-           memTime4+=memTime9;
-           memTime9=0;
-      
+      GA_Pgroup_set_default(ga_pg_default);
+
+      int64_t lo, hi; //, ld;
+        NGA_Distribution64(pmr->ga_, pg_.rank().value(), &lo, &hi);
+      EXPECTS(nels <= 0 || lo == static_cast<int64_t>(pmr->map_[pg_.rank().value()]));
+      EXPECTS(nels <= 0 || hi == static_cast<int64_t>(pmr->map_[pg_.rank().value()]) + nels - 1);
+      pmr->set_status(AllocationStatus::created);
     }
-
-    GA_Pgroup_set_default(ga_pg_default);
-
-    int64_t lo, hi;//, ld;
-     {
-       TimerGuard tg_total{&memTime8};    
-       NGA_Distribution64(pmr->ga_, pg_.rank().value(), &lo, &hi);
-     }
-    EXPECTS(nels<=0 || lo == static_cast<int64_t>(pmr->map_[pg_.rank().value()]));
-    EXPECTS(nels<=0 || hi == static_cast<int64_t>(pmr->map_[pg_.rank().value()]) + nels - 1);
-    pmr->set_status(AllocationStatus::created);
-          }
     return pmr;
   }
 
   MemoryRegion* alloc_coll_balanced(ElementType eltype,
                                     Size max_nelements,
                                     ProcList proc_list = {}) override {
+    MemoryRegionGA* pmr{nullptr};
+    {
+      pmr           = new MemoryRegionGA{*this};
+      int nranks    = pg_.size().value();
+      int ga_eltype = to_ga_eltype(eltype);
 
-    MemoryRegionGA* pmr = nullptr;
-     {
-       TimerGuard tg_total{&memTime3}; 
-    pmr = new MemoryRegionGA{*this};
-    int nranks = pg_.size().value();
-    int ga_eltype = to_ga_eltype(eltype);
+      pmr->map_.resize(nranks + 1);
+      pmr->eltype_          = eltype;
+      pmr->local_nelements_ = max_nelements;
+      int64_t nels          = max_nelements.value();
 
-    pmr->map_.resize(nranks + 1);
-    pmr->eltype_ = eltype;
-    pmr->local_nelements_ = max_nelements;
-    int64_t nels = max_nelements.value();
+      std::string array_name{"array_name" + std::to_string(++ga_counter_)};
 
-    std::string array_name{"array_name" + std::to_string(++ga_counter_)};
+      int64_t dim = nranks * nels, chunk = nels;
+      pmr->ga_ = NGA_Create_handle();
+      NGA_Set_data64(pmr->ga_, 1, &dim, ga_eltype);
+      GA_Set_chunk64(pmr->ga_, &chunk);
+      GA_Set_pgroup(pmr->ga_, pg().ga_pg());
 
-    int64_t dim = nranks * nels, chunk = nels;
-    pmr->ga_ = NGA_Create_handle();
-    NGA_Set_data64(pmr->ga_, 1, &dim, ga_eltype);
-    GA_Set_chunk64(pmr->ga_, &chunk);
-    GA_Set_pgroup(pmr->ga_, pg().ga_pg());
+      if(proc_list.size() > 0) {
+        int nproc = proc_list.size();
+        int proclist_c[nproc];
+        std::copy(proc_list.begin(), proc_list.end(), proclist_c);
+        GA_Set_restricted(pmr->ga_, proclist_c, nproc);
+      }
 
-    if (proc_list.size() > 0 ) {
-      int nproc = proc_list.size();
-      int proclist_c[nproc]; 
-      std::copy(proc_list.begin(), proc_list.end(), proclist_c);
-      GA_Set_restricted(pmr->ga_, proclist_c, nproc);
+      NGA_Allocate(pmr->ga_);
+
+      pmr->map_[0] = 0;
+      std::fill_n(pmr->map_.begin() + 1, nranks - 1, nels);
+      std::partial_sum(pmr->map_.begin(), pmr->map_.begin() + nranks, pmr->map_.begin());
+      pmr->set_status(AllocationStatus::created);
     }
-
-        {
-    TimerGuard tg_total{&memTime9};
-    NGA_Allocate(pmr->ga_);
-        }
-    memTime4+=memTime9;
-    memTime9=0;
-
-    pmr->map_[0] = 0;
-     {
-       TimerGuard tg_total{&memTime7};     
-    std::fill_n(pmr->map_.begin() + 1, nranks - 1, nels);
-    std::partial_sum(pmr->map_.begin(), pmr->map_.begin() + nranks,
-                     pmr->map_.begin());
-     }
-    pmr->set_status(AllocationStatus::created);
-     }
     return pmr;
   }
 

@@ -11,6 +11,7 @@
 //#include "tamm/block_operations.hpp"
 #include "tamm/block_mult_plan.hpp"
 #include "tamm/boundvec.hpp"
+#include "tamm/op_profiler.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/kernels/assign.hpp"
 #include "tamm/kernels/multiply.hpp"
@@ -295,6 +296,8 @@ public:
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     EXPECTS(!is_assign_);
+    auto& oprof = tamm::OpProfiler::instance();
+
 #if 1
     using TensorElType = typename LabeledTensorT1::element_type;
     // determine set of all labels
@@ -306,7 +309,7 @@ public:
     std::vector<AddBuf<TensorElType1>*> add_bufs;
 
     // function to compute one block
-    auto lambda = [=, &add_bufs, &loop_nest, &ec](const IndexVector itval) {
+    auto lambda = [=, &oprof, &add_bufs, &loop_nest, &ec](const IndexVector itval) {
       auto ctensor = lhs_.tensor();
       auto atensor = rhs1_.tensor();
       auto btensor = rhs2_.tensor();
@@ -455,27 +458,28 @@ public:
         std::vector<TensorElType1> cbuf(csize, 0);
         std::vector<TensorElType2> abuf(asize);
         std::vector<TensorElType3> bbuf(bsize);
+
         // get inputs
 #ifdef DO_NB
         DataCommunicationHandle a_nbhandle, b_nbhandle, c_nbhandle;
 
         {
-          TimerGuard tg_get{&multOpGetTime};
+          TimerGuard tg_get{&oprof.multOpGetTime};
           atensor.nb_get(translated_ablockid, abuf, &a_nbhandle);
           btensor.nb_get(translated_bblockid, bbuf, &b_nbhandle);
         }
         {
-          TimerGuard tg_wait{&multOpWaitTime};
+          TimerGuard tg_wait{&oprof.multOpWaitTime};
           if(!a_nbhandle.getCompletionStatus()) a_nbhandle.waitForCompletion();
           if(!b_nbhandle.getCompletionStatus()) b_nbhandle.waitForCompletion();
         }
 #else
         {
-          TimerGuard tg_get{&multOpGetTime};
+          TimerGuard tg_get{&oprof.multOpGetTime};
           atensor.get(translated_ablockid, abuf);
         }
         {
-          TimerGuard tg_get{&multOpGetTime};
+          TimerGuard tg_get{&oprof.multOpGetTime};
           btensor.get(translated_bblockid, bbuf);
         }
 #endif
@@ -510,7 +514,7 @@ public:
         add_bufs.push_back(ab);
 
         {
-          TimerGuard tg_dgemm{&multOpDgemmTime};
+          TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
           kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
             ab->isgpu_,
 #ifdef USE_TALSH
@@ -525,7 +529,7 @@ public:
 #ifdef USE_TALSH
         if(hw == ExecutionHW::GPU && ab->isgpu_) {
           {
-            TimerGuard tg_dgemm{&multOpDgemmTime};
+            TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
             gpu_mult->wait_and_destruct(ab->tt_);
           }
           talshTensorDestruct(ab->ta_);
@@ -535,7 +539,7 @@ public:
         delete gpu_mult;
 #endif
         {
-          TimerGuard tg_get{&multOpAddTime};
+          TimerGuard tg_get{&oprof.multOpAddTime};
           // add the computed update to the tensor
           ctensor.add(translated_cblockid, ab->cbuf_);
         }
@@ -659,6 +663,7 @@ public:
 
   void execute_bufacc(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) {
     EXPECTS(!is_assign_);
+    auto& oprof = tamm::OpProfiler::instance();
 #if 1
     using TensorElType = typename LabeledTensorT1::element_type;
     // determine set of all labels
@@ -966,7 +971,7 @@ public:
         // LabelLoopNest inner_loop{reduction_lbls};
         LabelLoopNest inner_loop{reduction_labels};
 
-        // TimerGuard tg_total{&multOpTime};
+        // TimerGuard tg_total{&oprof.multOpTime};
 
         int loop_counter = 0;
 #if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
@@ -1018,7 +1023,7 @@ public:
           DataCommunicationHandle a_nbhandle, b_nbhandle;
 
           {
-            TimerGuard tg_get{&multOpGetTime};
+            TimerGuard tg_get{&oprof.multOpGetTime};
             atensor.nb_get(translated_ablockid, abuf, &a_nbhandle);
             btensor.nb_get(translated_bblockid, bbuf, &b_nbhandle);
           }
@@ -1029,11 +1034,11 @@ public:
           }
 #else
           {
-            TimerGuard tg_get{&multOpGetTime};
+            TimerGuard tg_get{&oprof.multOpGetTime};
             atensor.get(translated_ablockid, abuf);
           }
           {
-            TimerGuard tg_get{&multOpGetTime};
+            TimerGuard tg_get{&oprof.multOpGetTime};
             btensor.get(translated_bblockid, bbuf);
           }
 #endif
@@ -1077,7 +1082,7 @@ public:
             abptr->abuf_ = std::move(abuf);
             abptr->bbuf_ = std::move(bbuf);
 
-            TimerGuard tg_dgemm{&multOpDgemmTime};
+            TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
             kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
               abptr->isgpu_,
 #ifdef USE_TALSH
@@ -1091,7 +1096,7 @@ public:
         } // end of reduction loop
 
         {
-          TimerGuard tg_dgemm{&multOpDgemmTime};
+          TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
 #ifdef USE_TALSH
           if(hw == ExecutionHW::GPU) {
             if(ab1->isgpu_) {
@@ -1131,7 +1136,7 @@ public:
           }
 #endif
           {
-            TimerGuard tg_add{&multOpAddTime};
+            TimerGuard tg_add{&oprof.multOpAddTime};
             ctensor.add(translated_cblockid, cbuf);
           }
         }

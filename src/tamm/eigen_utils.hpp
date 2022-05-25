@@ -1,7 +1,6 @@
 #pragma once
 
 #include "tamm/tamm.hpp"
-#include <fmt/fmt.h>
 
 using EigenTensorType=double;
 using Matrix   = Eigen::Matrix<EigenTensorType, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
@@ -11,92 +10,6 @@ using Tensor3D = Eigen::Tensor<EigenTensorType, 3, Eigen::RowMajor>;
 using Tensor4D = Eigen::Tensor<EigenTensorType, 4, Eigen::RowMajor>;
 
 namespace tamm {
-
-template<typename T, int ndim>
-void print_eigen_tensor(Eigen::Tensor<T, ndim, Eigen::RowMajor>& etensor, const std::string tname = "") {
-  std::cout << tname << std::endl;
-  if (ndim == 2) {
-    int i, j, k, N, NR;
-    int a1, a2;
-
-    N = etensor.dimensions()[1];
-    NR = etensor.dimensions()[0];
-    a1 = N / 6; // number of blocks
-    a2 = N % 6;
-
-    for (i = 0; i < a1; i++) {
-      fmt::print("            ");
-      for (j = 0; j < 6; j++) {
-        fmt::print("    {:>3}    ", 6 * i + j);
-      }
-      fmt::print("\n");
-      for (j = 0; j < NR; j++) {
-        fmt::print("    {:>3}    ", j);
-        for (k = 0; k < 6; k++) {
-          fmt::print(" {:10.6f}", etensor(j, 6 * i + k));
-        }
-        fmt::print("\n");
-      }
-    }
-
-    if (a2 > 0) {
-      fmt::print("            ");
-      for (j = 0; j < a2; j++) {
-        fmt::print("    {:>3}    ", 6 * a1 + j);
-      }
-      fmt::print("\n");
-      for (j = 0; j < NR; j++) {
-        fmt::print("    {:>3}    ", j);
-        for (k = 0; k < a2; k++) {
-          fmt::print(" {:10.6f}", etensor(j, 6 * a1 + k));
-        }
-        fmt::print("\n");
-      }
-    }
-  }
-}
-
-template<typename T>
-void print_eigen_tensor(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& etensor, const std::string tname = "") {
-  std::cout << tname << std::endl;
-  int i, j, k, N, NR;
-  int a1, a2;
-
-  N = etensor.cols();
-  NR = etensor.rows();
-  a1 = N / 6; // number of blocks
-  a2 = N % 6;
-
-  for (i = 0; i < a1; i++) {
-    fmt::print("            ");
-    for (j = 0; j < 6; j++) {
-      fmt::print("    {:>3}    ", 6 * i + j);
-    }
-    fmt::print("\n");
-    for (j = 0; j < NR; j++) {
-      fmt::print("    {:>3}    ", j);
-      for (k = 0; k < 6; k++) {
-        fmt::print(" {:10.6f}", etensor(j, 6 * i + k));
-      }
-      fmt::print("\n");
-    }
-  }
-
-  if (a2 > 0) {
-    fmt::print("            ");
-    for (j = 0; j < a2; j++) {
-      fmt::print("    {:>3}    ", 6 * a1 + j);
-    }
-    fmt::print("\n");
-    for (j = 0; j < NR; j++) {
-      fmt::print("    {:>3}    ", j);
-      for (k = 0; k < a2; k++) {
-        fmt::print(" {:10.6f}", etensor(j, 6 * a1 + k));
-      }
-      fmt::print("\n");
-    }
-  }
-}
 
 template<typename T, int ndim>
 void patch_copy(std::vector<T>& sbuf,

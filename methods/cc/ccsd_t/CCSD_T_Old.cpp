@@ -118,12 +118,8 @@ void ccsd_t_driver() {
         ( (fs::exists(t1file) && fs::exists(t2file)     
         && fs::exists(f1file) && fs::exists(v2file)) );
 
-    ExecutionHW ex_hw = ExecutionHW::CPU;
-    #ifdef USE_DPCPP
-    ex_hw = ExecutionHW::GPU;
-    #endif    
+    ExecutionHW ex_hw = ec.exhw();
     #ifdef USE_TALSH_T
-    ex_hw = ExecutionHW::GPU;
     const bool has_gpu = ec.has_gpu();
     TALSH talsh_instance;
     if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
@@ -208,7 +204,7 @@ void ccsd_t_driver() {
 
     if(is_rhf) {
       if(ccsd_restart) {
-          if (rank < nsranks) {
+        if (rank < nsranks) {
               const int ppn = GA_Cluster_nprocs(0);
               if(rank==0) std::cout << "Executing with " << nsranks << " ranks (" << nsranks/ppn << " nodes)" << std::endl; 
               std::tie(residual, corr_energy) = cd_ccsd_cs_driver<T>(
@@ -231,7 +227,7 @@ void ccsd_t_driver() {
     }
     else {
       if(ccsd_restart) {
-          if (rank < nsranks) {
+        if (rank < nsranks) {
               const int ppn = GA_Cluster_nprocs(0);
               if(rank==0) std::cout << "Executing with " << nsranks << " ranks (" << nsranks/ppn << " nodes)" << std::endl; 
               std::tie(residual, corr_energy) = cd_ccsd_os_driver<T>(

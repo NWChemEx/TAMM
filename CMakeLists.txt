@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18.0)
+cmake_minimum_required(VERSION 3.22.0)
 
 include(FetchContent)
 
@@ -9,7 +9,7 @@ find_package( CMakeBuild QUIET )
 
 if( NOT ${CMakeBuild_FOUND} )
   if (NOT CMSB_TAG)
-    set(CMSB_TAG 1185e82ed3a2c7b61553723650ea1dfed23fee1d)
+    set(CMSB_TAG bc44dcc6b4e63d322476238dfbf0fac422a45e7b)
     if (ENABLE_DEV_MODE)
       set(CMSB_TAG master)
     endif()
@@ -41,22 +41,11 @@ else()
 endif()
 
 if(USE_CUDA OR USE_HIP) 
-   list(APPEND TAMM_DEPENDENCIES TALSH)
-endif()
-
-if(USE_UPCXX)
-    set(USE_CUDA  @USE_CUDA@)
-    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -DUSE_UPCXX")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_UPCXX")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_UPCXX")
-    list(APPEND TAMM_CXX_FLAGS -DUSE_UPCXX)
-
-    if(USE_UPCXX_DISTARRAY)
-        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -DUSE_UPCXX_DISTARRAY")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_UPCXX_DISTARRAY")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_UPCXX_DISTARRAY")
-        list(APPEND TAMM_CXX_FLAGS -DUSE_UPCXX_DISTARRAY)
-    endif()
+  if(NOT DEFINED USE_TALSH)
+    list(APPEND TAMM_DEPENDENCIES TALSH)
+  elseif(USE_TALSH)
+    list(APPEND TAMM_DEPENDENCIES TALSH)
+  endif()
 endif()
 
 if(DEFINED LINALG_VENDOR)

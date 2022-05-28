@@ -8,7 +8,7 @@
 #include "ga/ga-mpi.h"
 #include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
 

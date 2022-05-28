@@ -2,7 +2,7 @@
 #include "mpi.h"
 #include <chrono>
 #include <tamm/tamm.hpp>
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
 

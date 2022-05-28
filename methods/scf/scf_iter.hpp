@@ -16,6 +16,7 @@ void energy_diis(ExecutionContext& ec, const TiledIndexSpace& tAO, int iter, int
                  std::vector<Tensor<TensorType>>& fock_hist, std::vector<Tensor<TensorType>>& ehf_tamm_hist);
 
 
+
 template<typename TensorType>
 std::tuple<TensorType,TensorType> scf_iter_body(ExecutionContext& ec, 
       ScalapackInfo& scalapack_info,

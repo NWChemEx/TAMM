@@ -3,7 +3,7 @@
 #include "ga/macdecls.h"
 #include "mpi.h"
 #include <tamm/tamm.hpp>
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
 
@@ -16,7 +16,6 @@ using T = double;
 void test_pg(int dim, int nproc) {
 
     ProcGroup gpg = ProcGroup::create_world_coll();
-    ExecutionContext gec{gpg, DistributionKind::dense, MemoryManagerKind::ga};
     ExecutionContext gec{gpg, DistributionKind::nw, MemoryManagerKind::ga};
 
     auto rank = gec.pg().rank();
@@ -25,14 +24,14 @@ void test_pg(int dim, int nproc) {
     MPI_Group world_group;
     MPI_Comm_group(world_comm,&world_group);
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     auto ppn = upcxx::local_team().rank_n();
 #else
     auto ppn = GA_Cluster_nprocs(0);
 #endif
     if(rank==0) std::cout << "ppn=" << ppn << std::endl;
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     upcxx::team* subcomm = new upcxx::team(upcxx::world().split(
                 rank < ppn ? 0 : upcxx::team::color_none, 0));
 #else
@@ -140,7 +139,7 @@ void test_replicate_AB(int dim) {
     gsch.allocate(A, C).execute();
 
     { // B is replicated
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
         upcxx::team self_team = upcxx::world().split(upcxx::rank_me(), 0);
         ProcGroup pg = ProcGroup::create_coll(self_team);
 #else
@@ -156,7 +155,7 @@ void test_replicate_AB(int dim) {
         Scheduler{ec}.deallocate(B).execute();
 
         ec.flush_and_sync();
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
         self_team.destroy();
 #endif
     }

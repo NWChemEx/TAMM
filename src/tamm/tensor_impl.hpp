@@ -13,7 +13,7 @@
 #include <gsl/span>
 #include <type_traits>
 #include "ga.h"
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
 
@@ -21,7 +21,7 @@ namespace tamm {
 
 using gsl::span;
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 class TensorTile {
     public:
         int64_t lo[2];
@@ -265,7 +265,6 @@ public:
      */
     virtual void allocate(ExecutionContext* ec) {
         {
-            TimerGuard tg_total{&memTime1};
             EXPECTS(allocation_status_ == AllocationStatus::invalid);
             auto defd                  = ec->get_default_distribution();
             Distribution* distribution = ec->distribution(
@@ -284,7 +283,6 @@ public:
             // DistributionFactory::make_distribution(*distribution, this,
             // pg.size());
             {
-                TimerGuard tg_total{&memTime2};
                 distribution_ = std::shared_ptr<Distribution>(
                   distribution->clone(this, memory_manager->pg()->size()));
             }
@@ -488,7 +486,7 @@ public:
     //     return dest;
     // }
 
-#ifndef USE_UPCXX
+#if !defined(USE_UPCXX)
     virtual int ga_handle() {
         const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(*mpb_);
         return mr.ga();
@@ -784,7 +782,7 @@ public:
 
     void deallocate() {
         EXPECTS(allocation_status_ == AllocationStatus::created);
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
         ec_->pg().barrier();
         upcxx::delete_array(local_gptr_);
         ec_->pg().barrier();
@@ -798,7 +796,7 @@ public:
     void allocate(ExecutionContext* ec) {
         EXPECTS(allocation_status_ == AllocationStatus::invalid);
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
         // Assert we are in the calling proc group
         assert(ec->pg().rank() >= 0 &&
                 ec->pg().rank() < ec->pg().size());
@@ -829,7 +827,7 @@ public:
 
         std::vector<bool> is_irreg_tis(ndims,false);
         for(int i = 0; i < ndims; i++) is_irreg_tis[i] = !tis_dims[i].input_tile_sizes().empty();
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
         for(auto tis: tis_dims) {
             tensor_dims_.push_back(tis.index_space().num_indices());
         }
@@ -839,7 +837,7 @@ public:
         const bool is_irreg_tis1 = !tis_dims[0].input_tile_sizes().empty();
         const bool is_irreg_tis2 = !tis_dims[1].input_tile_sizes().empty();
 
-        int nranks = ec->pg().size();
+        int nranks = ec->pg().size().value();
 
         std::vector<int64_t> bsize(2);
         bsize[0] = tis_dims[0].input_tile_size();
@@ -851,6 +849,9 @@ public:
           dims.push_back(tis.index_space().num_indices());
 
         NGA_Set_data64(ga_, ndims, &dims[0], ga_eltype_);
+
+        std::vector<bool> is_irreg_tis(ndims,false);
+        for(int i = 0; i < ndims; i++) is_irreg_tis[i] = !tis_dims[i].input_tile_sizes().empty();
 
         if (proc_list_.size() > 0 ) {
           int nproc = proc_list_.size();
@@ -870,7 +871,7 @@ public:
             // EXPECTS(ndims == 2);
             std::vector<int64_t> bsize(2);
             std::vector<int64_t> pgrid(2);
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
             std::vector<int64_t> ntiles(2);
 #endif
             {
@@ -883,7 +884,7 @@ public:
                 pgrid[0] = proc_grid_[0].value();
                 pgrid[1] = proc_grid_[1].value();
             }
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
             int64_t total_n_procs = pgrid[0] * pgrid[1];
 
             ntiles[0] = (tensor_dims_[0] + bsize[0] - 1) / bsize[0];
@@ -921,12 +922,12 @@ public:
             // only needed when irreg tile sizes are provided
             const bool is_irreg_tens = std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; });
             if(is_irreg_tens) {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
                 /*
-                 * Max Grossman (Mar 12 2020): Not supporting this on UPC++ for now, but
+                 * Not supporting this on UPC++ for now, but
                  * can be added if a motivating use case arises.
                  */
-                throw std::runtime_error("irregular tile sizes not supported");
+                throw std::runtime_error("upcxx: irregular tile sizes not supported");
 #else
                 std::vector<std::vector<Tile>> new_tiles(ndims);
                 for(int i = 0; i < ndims; i++) {
@@ -977,7 +978,7 @@ public:
                     auto mi = 0;
                     for(auto idim = 0; idim < ndims; idim++) {
                         auto size_blk =
-                            (dims[idim] / nblock[idim]);
+                          (dims[idim] / nblock[idim]);
                         // regular tile size
                         for(auto i = 0; i < nblock[idim]; i++) {
                             k_map[mi] = size_blk * i;
@@ -989,7 +990,7 @@ public:
 #endif
             } else {
                 // fixed tilesize for both dims
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
                 int64_t chunk[2] = {tis_dims[0].input_tile_size(),
                     tis_dims[1].input_tile_size()};
                 int64_t chunks_per_dim[2] = {(tensor_dims_[0] + chunk[0] - 1) / chunk[0],
@@ -1024,7 +1025,7 @@ public:
             }
         }
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
         gptrs_.resize(nranks);
         upcxx::dist_object<upcxx::global_ptr<uint8_t>> *dobj =
             new upcxx::dist_object<upcxx::global_ptr<uint8_t>>(
@@ -1043,7 +1044,7 @@ public:
         update_status(AllocationStatus::created);
     }
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     TensorTile find_tile(int64_t row, int64_t col) const {
         for (auto i = tiles.begin(), e = tiles.end(); i != e; i++) {
             TensorTile t = *i;
@@ -1061,7 +1062,7 @@ public:
         std::vector<int64_t> hi = compute_hi(blockid);
         std::vector<int64_t> ld = compute_ld(blockid);
         EXPECTS(block_size(blockid) <= buff_span.size());
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
         get_raw(&lo[0], &hi[0], buff_span.data(), &ld[0]);
 #else
         NGA_Get64(ga_, &lo[0], &hi[0], buff_span.data(), &ld[0]);
@@ -1075,7 +1076,7 @@ public:
         std::vector<int64_t> ld = compute_ld(blockid);
 
         EXPECTS(block_size(blockid) <= buff_span.size());
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
         put_raw(&lo[0], &hi[0], buff_span.data(), &ld[0]);
 #else
         NGA_Put64(ga_, &lo[0], &hi[0], buff_span.data(), &ld[0]);
@@ -1083,8 +1084,8 @@ public:
     }
 
     void add(const IndexVector& blockid, span<T> buff_span) {
-#ifdef USE_UPCXX
-        throw std::runtime_error("add unsupported");
+#if defined(USE_UPCXX)
+        throw std::runtime_error("upcxx: dense tensor - add unsupported");
 #else
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
         std::vector<int64_t> lo = compute_lo(blockid);
@@ -1121,8 +1122,8 @@ public:
 
     /// @todo Should this be GA_Nodeid() or GA_Proup_nodeid(GA_Get_pgroup(ga_))
     T* access_local_buf() override {
-#ifdef USE_UPCXX
-        throw std::runtime_error("access_local_buf unsupported");
+#if defined(USE_UPCXX)
+        throw std::runtime_error("upcxx: dense tensor - access_local_buf unsupported");
 #else
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
         T* ptr;
@@ -1135,8 +1136,8 @@ public:
 
     /// @todo Should this be GA_Nodeid() or GA_Proup_nodeid(GA_Get_pgroup(ga_))
     const T* access_local_buf() const override {
-#ifdef USE_UPCXX
-        throw std::runtime_error("access_local_buf unsupported");
+#if defined(USE_UPCXX)
+        throw std::runtime_error("upcxx: dense tensor - access_local_buf unsupported");
 #else
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
         T* ptr;
@@ -1147,7 +1148,7 @@ public:
 #endif
     }
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     void put_raw(int64_t *lo, int64_t *hi, void *buf, int64_t *buf_ld) {
         for (int64_t row = lo[0]; row <= hi[1]; row++) {
             for (int64_t col = lo[1]; col <= hi[1]; col++) {
@@ -1199,8 +1200,8 @@ public:
 
     /// @todo Check for a GA method to get the local buf size?
     size_t local_buf_size() const override {
-#ifdef USE_UPCXX
-        throw std::runtime_error("local_buf_size unsupported");
+#if defined(USE_UPCXX)
+        throw std::runtime_error("upcxx: dense tensor - local_buf_size unsupported");
 #else
         EXPECTS(allocation_status_ != AllocationStatus::invalid);
         T* ptr;
@@ -1245,7 +1246,7 @@ protected:
         return retv;
     }
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     upcxx::global_ptr<uint8_t> local_gptr_;
     std::vector<upcxx::global_ptr<uint8_t>> gptrs_;
     ProcGrid proc_grid_;
@@ -1500,7 +1501,7 @@ public:
     ref_tensor_.nb_add(idx_vec, buff_span, data_comm_handle);
   }
 
-#ifndef USE_UPCXX
+#if !defined(USE_UPCXX)
   int ga_handle() override {
     // Call Reference tensor
     return ref_tensor_.ga_handle();

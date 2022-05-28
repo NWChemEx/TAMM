@@ -1,11 +1,8 @@
 
 #include "scf/scf_main.hpp"
-#include "tamm/tamm.hpp"
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
-
-using namespace tamm;
 
 std::string filename;
 using T = double;

@@ -6,7 +6,7 @@
 #include "mpi.h"
 #include "tamm/tamm.hpp"
 #include "tamm/utils.hpp"
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
 

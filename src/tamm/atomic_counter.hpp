@@ -4,7 +4,7 @@
 #include "tamm/proc_group.hpp"
 #include <atomic>
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
 
@@ -81,11 +81,11 @@ class AtomicCounterGA : public AtomicCounter {
   AtomicCounterGA(const ProcGroup& pg, int64_t num_counters)
       : allocated_{false},
         num_counters_{num_counters},
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
         counters_per_rank_((int64_t)((num_counters + pg.size().value() - 1) / pg.size().value())),
 #endif
         pg_{pg} {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
       ad_i64 = new upcxx::atomic_domain<int64_t>({upcxx::atomic_op::fetch_add}, *pg.team());
 #endif
   }
@@ -98,7 +98,7 @@ class AtomicCounterGA : public AtomicCounter {
   void allocate(int64_t init_val) {
     EXPECTS(allocated_ == false);
     int64_t size = num_counters_;
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     int64_t nranks = pg_.size().value();
 
     gptrs_.resize(nranks);
@@ -152,7 +152,7 @@ class AtomicCounterGA : public AtomicCounter {
    */
   void deallocate() {
     EXPECTS(allocated_ == true);
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     pg_.barrier();
     upcxx::delete_array(gptrs_[pg_.rank().value()]);
 #else
@@ -172,7 +172,7 @@ class AtomicCounterGA : public AtomicCounter {
    */
   int64_t fetch_add(int64_t index, int64_t amount) {
     EXPECTS(allocated_ == true);
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     int64_t target_rank = index / counters_per_rank_;
     int64_t offset_on_rank = index % counters_per_rank_;
     return ad_i64->fetch_add(gptrs_[target_rank] + offset_on_rank, amount,
@@ -190,27 +190,52 @@ class AtomicCounterGA : public AtomicCounter {
    */
   ~AtomicCounterGA() {
     EXPECTS_NOTHROW(allocated_ == false);
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     ad_i64->destroy();
 #endif
   }
 
  private:
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   std::vector<upcxx::global_ptr<int64_t>> gptrs_;
 #else
   int ga_;
 #endif
   bool allocated_;
   int64_t num_counters_;
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   int64_t counters_per_rank_;
 #endif
   ProcGroup pg_;
   int ga_pg_;
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   upcxx::atomic_domain<int64_t> *ad_i64;
 #endif
+
+
+  /**
+   * @brief Create a GA process group from a wrapped MPI communicator
+   * @param pg Wrapped MPI communicator
+   * @return GA process group on the MPI communicator
+   * @note Collective on the current default GA process group
+   */
+  // static int create_ga_process_group(const ProcGroup& pg) {
+  //   MPI_Group group, group_default;
+  //   MPI_Comm comm = pg.comm();
+  //   int nranks = pg.size().value();
+  //   int ranks[nranks], ranks_default[nranks];
+  //   MPI_Comm_group(comm, &group);
+  
+  //   MPI_Comm_group(GA_MPI_Comm_pgroup_default(), &group_default);
+
+  //   for (int i = 0; i < nranks; i++) {
+  //     ranks[i] = i;
+  //   }
+  //   MPI_Group_translate_ranks(group, nranks, ranks, group_default, ranks_default);
+  //   return GA_Pgroup_create(ranks_default, nranks);
+  // }
+
+
 };
 
 } // namespace tamm

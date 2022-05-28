@@ -36,13 +36,13 @@ class ProcGroup {
    *
    * @pre @param ga_pg corresponds to @param mpi_comm
    */
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   ProcGroup(upcxx::team* team)
 #else
   ProcGroup(MPI_Comm mpi_comm, int ga_pg)
 #endif
       : pginfo_{std::make_shared<ProcGroupInfo>()} {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     pginfo_->team_ = team;
     pginfo_->created_team_ = false;
     pginfo_->is_valid_ = true;
@@ -60,7 +60,7 @@ class ProcGroup {
   }
 
   static ProcGroup create_world_coll() {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
       return create_coll(upcxx::world());
 #else
       return create_coll(GA_MPI_Comm());
@@ -74,7 +74,7 @@ class ProcGroup {
    * @return ProcGroup New ProcGroup object that duplicates @param mpi_comm and
    * creates the corresponding GA process group
    */
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   static ProcGroup create_coll(upcxx::team& team) {
     return ProcGroup(&team);
   }
@@ -108,8 +108,8 @@ class ProcGroup {
    */
   Proc size() const {
     EXPECTS(is_valid());
-#ifdef USE_UPCXX
-    return pginfo_->team_->rank_n();
+#if defined(USE_UPCXX)
+    return Proc{pginfo_->team_->rank_n()};
 #else
     int nranks;
     MPI_Comm_size(pginfo_->mpi_comm_, &nranks);
@@ -117,7 +117,7 @@ class ProcGroup {
 #endif
   }
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   /**
    * Access the underlying UPC++ team
    * @return the wrapped UPC++ team
@@ -136,6 +136,7 @@ class ProcGroup {
    * @pre is_valid()
    */
   MPI_Comm comm() const {
+    EXPECTS(is_valid());
     return pginfo_->mpi_comm_;
   }
 
@@ -153,7 +154,7 @@ class ProcGroup {
 #endif
 
   static Proc world_rank() {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     return upcxx::rank_me();
 #else
     return GA_Nodeid();
@@ -166,7 +167,7 @@ class ProcGroup {
    */
   Proc rank() const {
     EXPECTS(is_valid());
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     return pginfo_->team_->rank_me();
 #else
     int rank;
@@ -179,7 +180,7 @@ class ProcGroup {
    * Collectivelu clone the given process group
    * @return A copy of this process group
    */
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   ProcGroup clone_coll() const { return create_coll(*pginfo_->team_); }
 #else
   ProcGroup clone_coll() const { return create_coll(pginfo_->mpi_comm_); }
@@ -195,7 +196,7 @@ class ProcGroup {
    */
   void destroy_coll() {
     EXPECTS(is_valid());
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     if (pginfo_->created_team_) {
       pginfo_->team_->destroy();
       pginfo_->created_team_ = false;
@@ -213,7 +214,7 @@ class ProcGroup {
     *pginfo_ = ProcGroupInfo{};  // cleanup
   }
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   void add_op(int rank) {
       pginfo_->sent_ops += 1;
   }
@@ -232,7 +233,7 @@ class ProcGroup {
    */
   void barrier() {
     EXPECTS(is_valid());
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     pginfo_->pending_put_futures.wait();
     pginfo_->pending_put_futures = upcxx::make_future();
 
@@ -281,7 +282,7 @@ class ProcGroup {
     EXPECTS(is_valid());
     EXPECTS(pg2.is_valid());
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     int this_rank = proc.value();
     int world_rank = (*pginfo_->team_)[this_rank];
     
@@ -339,7 +340,7 @@ class ProcGroup {
 
   template <typename T>
   void broadcast(T *buf, int root) {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     upcxx::broadcast(buf, 1, root, *pginfo_->team_).wait();
 #else
     MPI_Bcast(buf, 1, mpi_type<T>(), root, pginfo_->mpi_comm_);
@@ -348,14 +349,14 @@ class ProcGroup {
 
   template <typename T>
   void broadcast(T *buf, int buflen, int root) {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     upcxx::broadcast(buf, buflen, root, *pginfo_->team_).wait();
 #else
     MPI_Bcast(buf, buflen, mpi_type<T>(), root, pginfo_->mpi_comm_);
 #endif
   }
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   template <typename T>
   void gather(const T *sbuf, upcxx::global_ptr<T> rbuf) {
     gather(sbuf, 1, rbuf, 1);
@@ -422,7 +423,7 @@ class ProcGroup {
   template <typename T>
   T reduce(const T *buf, ReduceOp op, int root) {
     T result{};
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     if (op == ReduceOp::min) {
         upcxx::reduce_one(buf, &result, 1, upcxx::op_fast_min, root, *pginfo_->team_).wait();
     } else if (op == ReduceOp::max) {
@@ -440,7 +441,7 @@ class ProcGroup {
 
   template <typename T>
   void reduce(const T *sbuf, T *rbuf, int count, ReduceOp op, int root) {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     if (op == ReduceOp::min) {
       upcxx::reduce_one(sbuf, rbuf, count, upcxx::op_fast_min, root, *pginfo_->team_).wait();
     } else if (op == ReduceOp::max) {
@@ -458,7 +459,7 @@ class ProcGroup {
   template <typename T>
   T allreduce(const T *buf, ReduceOp op) {
     T result{};
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     if (op == ReduceOp::min) {
       upcxx::reduce_all(buf, &result, 1, upcxx::op_fast_min, *pginfo_->team_).wait();
     } else if (op == ReduceOp::max) {
@@ -476,7 +477,7 @@ class ProcGroup {
 
   template <typename T>
   void allreduce(const T *sbuf, T *rbuf, int count, ReduceOp op) {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 
     if (op == ReduceOp::min) {
       upcxx::reduce_all(sbuf, rbuf, count, upcxx::op_fast_min, *pginfo_->team_).wait();
@@ -537,7 +538,7 @@ class ProcGroup {
    *
    */
   struct ProcGroupInfo {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     upcxx::team* team_ = NULL; /**< Wrapped MPI communicator */
     bool created_team_ = false;     /**< Was mpi_comm_ duplicated/created */
 #else
@@ -548,7 +549,7 @@ class ProcGroup {
 #endif
     bool is_valid_ =
         false; /**< Is this object valid, i.e., mpi_comm_ != MPI_COMM_NULL */
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     int64_t sent_ops = 0;
     upcxx::dist_object<int64_t> *recvd_ops = NULL;
     upcxx::future<> pending_put_futures;
@@ -565,7 +566,7 @@ class ProcGroup {
    * @return false otherwise
    */
   friend bool operator==(const ProcGroup& lhs, const ProcGroup& rhs) {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     return lhs.pginfo_->team_->id() == rhs.pginfo_->team_->id();
 #else
     int result;
@@ -617,17 +618,21 @@ class ProcGroup {
     pg.ga_pg_ = create_ga_process_group_coll(mpi_comm);
     return pg;
   }
+
   ProcGroup(const ProcGroup&) = default;
   ProcGroup(ProcGroup&& pg)  // TBD: check if this can be default
       : mpi_comm_{std::move(pg.mpi_comm_)},
       ga_pg_{pg.ga_pg_} {}
+
   ProcGroup& operator=(const ProcGroup&) = default;
   //ProcGroup(ProcGroup&&) = default;
   ProcGroup& operator=(ProcGroup&&) = default;
   ~ProcGroup() = default;
+
   //explicit ProcGroup(MPI_Comm comm = MPI_COMM_NULL)
   //    : comm_{comm},
   //      is_valid_{comm != MPI_COMM_NULL} { }
+
   /**
    * Is it a valid communicator (i.e., not MPI_COMM_NULL)
    * @return true is wrapped MPI communicator is not MPI_COMM_NULL
@@ -635,6 +640,7 @@ class ProcGroup {
   bool is_valid() const {
     return is_valid_;
   }
+
   /**
    * Rank of invoking process
    * @return rank of invoking process in the wrapped communicator
@@ -646,6 +652,7 @@ class ProcGroup {
     MPI_Comm_rank(*mpi_comm_, &rank);
     return Proc{rank};
   }
+
   /**
    * Number of ranks in the wrapped communicator
    * @return Size of the wrapped communicator
@@ -657,6 +664,7 @@ class ProcGroup {
     MPI_Comm_size(*mpi_comm_, &nranks);
     return Proc{nranks};
   }
+
   /**
    * Access the underlying MPI communicator
    * @return the wrapped MPI communicator
@@ -665,9 +673,11 @@ class ProcGroup {
     //return comm_;
     return *mpi_comm_;
   }
+
   int ga_pg() const {
     return ga_pg_;
   }
+
   /**
    * Duplicate/clone the wrapped MPI communicator
    * @return A copy.
@@ -682,6 +692,7 @@ class ProcGroup {
   //  MPI_Comm_dup(comm_, &comm_out);
   //  return ProcGroup{comm_out};
   //}
+
 void destroy_coll() { 
   MPI_Comm_free(mpi_comm_.get());
   GA_Pgroup_destroy(ga_pg_);
@@ -697,6 +708,7 @@ void destroy_coll() {
     comm_ = MPI_COMM_NULL;
     is_valid_ = false;
   }*/
+
   /**
    * Barrier on the wrapped communicator.
    */
@@ -719,6 +731,7 @@ void destroy_coll() {
     return Proc{ranks2};
   }
   
+
  private:
   /**
    * Create a GA process group corresponding to the given proc group
@@ -732,27 +745,33 @@ void destroy_coll() {
     int ranks[nranks], ranks_world[nranks];
     MPI_Comm_group(comm, &group);
     MPI_Comm_group(GA_MPI_Comm(), &group_world);
+
     for (int i = 0; i < nranks; i++) {
       ranks[i] = i;
     }
     MPI_Group_translate_ranks(group, nranks, ranks, group_world, ranks_world);
+
     int ga_pg_default = GA_Pgroup_get_default();
     GA_Pgroup_set_default(GA_Pgroup_get_world());
     int ga_pg = GA_Pgroup_create(ranks_world, nranks);
     GA_Pgroup_set_default(ga_pg_default);
     return ga_pg;
   }
+
   // MPI_Comm comm_;// = MPI_COMM_NULL;
   std::shared_ptr<MPI_Comm> mpi_comm_;
   int ga_pg_;
   bool is_valid_;
+
   static void deleter(MPI_Comm* mpi_comm) {
     EXPECTS(*mpi_comm != MPI_COMM_NULL);
     delete mpi_comm;
   }
+
   static void deleter_comm(MPI_Comm* mpi_comm) {
     delete mpi_comm;
   }
+
   friend bool operator == (const ProcGroup& lhs, const ProcGroup& rhs) {
     int result;
     MPI_Comm_compare(*lhs.mpi_comm_, *rhs.mpi_comm_, &result);

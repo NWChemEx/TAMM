@@ -30,12 +30,14 @@
     "scf_type": "restricted",
     "restart": false
   },
+  "CD": {
+    "diagtol": 1e-8
+  },
   "CC": {
-    "threshold": 1e-6,
+    "threshold": 1e-8,
     "ccsd_maxiter": 50,
     "writet": true,
     "CCSD(T)": {
-      "ngpu": 1,
       "skip_ccsd": false,
       "ccsdt_tilesize": 40
     }

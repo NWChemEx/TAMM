@@ -183,6 +183,7 @@ public:
 
     void execute(ExecutionHW execute_on = ExecutionHW::CPU, bool profile = false) {
         if(start_idx_ == ops_.size()) return;
+        auto& oprof = tamm::OpProfiler::instance();
 #if 0
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
         EXPECTS(order.size() == ops_.size() - start_idx_);
@@ -193,7 +194,7 @@ public:
                 auto bt1 = std::chrono::high_resolution_clock::now();
                 ec().pg().barrier();
                 auto bt2 = std::chrono::high_resolution_clock::now();
-                tbarrierTime += std::chrono::duration_cast<std::chrono::duration<double>>((bt2 - bt1)).count(); 
+                oprof.tbarrierTime += std::chrono::duration_cast<std::chrono::duration<double>>((bt2 - bt1)).count(); 
                 lvl += 1;
             }
             auto t1 = std::chrono::high_resolution_clock::now();
@@ -201,25 +202,25 @@ public:
             auto t2 = std::chrono::high_resolution_clock::now();
             double mop_time = 
                 std::chrono::duration_cast<std::chrono::duration<double>>((t2 - t1)).count();  
-            if(ops_[order[i].second]->op_type() == OpType::mult) multOpTime += mop_time;
-            if(ops_[order[i].second]->op_type() == OpType::add) addOpTime += mop_time;       
-            if(ops_[order[i].second]->op_type() == OpType::set) setOpTime += mop_time;       
-            if(ops_[order[i].second]->op_type() == OpType::alloc) allocOpTime += mop_time;       
-            if(ops_[order[i].second]->op_type() == OpType::dealloc) deallocOpTime += mop_time;  
-            taddTime += multOpAddTime;
-            tgetTime += multOpGetTime;
-            twaitTime += multOpWaitTime; 
-            tgemmTime += multOpDgemmTime;
-            multOpGetTime = 0;
-            multOpWaitTime = 0;  
-            multOpDgemmTime = 0;
-            multOpAddTime = 0;    
+            if(ops_[order[i].second]->op_type() == OpType::mult) oprof.multOpTime += mop_time;
+            if(ops_[order[i].second]->op_type() == OpType::add) oprof.addOpTime += mop_time;       
+            if(ops_[order[i].second]->op_type() == OpType::set) oprof.setOpTime += mop_time;       
+            if(ops_[order[i].second]->op_type() == OpType::alloc) oprof.allocOpTime += mop_time;       
+            if(ops_[order[i].second]->op_type() == OpType::dealloc) oprof.deallocOpTime += mop_time;  
+            oprof.taddTime += oprof.multOpAddTime;
+            oprof.tgetTime += oprof.multOpGetTime;
+            oprof.twaitTime += oprof.multOpWaitTime; 
+            oprof.tgemmTime += oprof.multOpDgemmTime;
+            oprof.multOpGetTime = 0;
+            oprof.multOpWaitTime = 0;  
+            oprof.multOpDgemmTime = 0;
+            oprof.multOpAddTime = 0;
         }
 
         auto bt1 = std::chrono::high_resolution_clock::now();
         ec().pg().barrier();
         auto bt2 = std::chrono::high_resolution_clock::now();
-        tbarrierTime += std::chrono::duration_cast<std::chrono::duration<double>>((bt2 - bt1)).count(); 
+        oprof.tbarrierTime += std::chrono::duration_cast<std::chrono::duration<double>>((bt2 - bt1)).count(); 
         start_idx_ = ops_.size();
 #elif 1
         auto misc_start = std::chrono::high_resolution_clock::now();
@@ -233,9 +234,9 @@ public:
         auto t1 = misc_end;
 
         // double nranks = 1.0 * ec_.pg().size().value();
-        multOpGetTime = 0;
-        multOpDgemmTime = 0;
-        multOpAddTime = 0;  
+        oprof.multOpGetTime = 0;
+        oprof.multOpDgemmTime = 0;
+        oprof.multOpAddTime = 0;
 
         std::vector<double> load_imbalance_times;
         std::vector<double> op_times;
@@ -254,12 +255,12 @@ public:
                 // auto t3 = std::chrono::high_resolution_clock::now();
                 // load_imbalance_times.push_back(std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t2)).count());
                 // level_times.push_back(std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t1)).count());
-                // multop_get_times.push_back(multOpGetTime);
-                // multop_dgemm_times.push_back(multOpDgemmTime);
-                // multop_add_times.push_back(multOpAddTime);
-                // multOpGetTime = 0;
-                // multOpDgemmTime = 0;
-                // multOpAddTime = 0;  
+                // multop_get_times.push_back(oprof.multOpGetTime);
+                // multop_dgemm_times.push_back(oprof.multOpDgemmTime);
+                // multop_add_times.push_back(oprof.multOpAddTime);
+                // oprof.multOpGetTime = 0;
+                // oprof.multOpDgemmTime = 0;
+                // oprof.multOpAddTime = 0;
                 // t1 = t3;
             }
             ec().set_ac(IndexedAC(ac, i));
@@ -269,12 +270,12 @@ public:
             ops_[order[i].second]->execute(ec(), execute_on);
             auto t3 = std::chrono::high_resolution_clock::now();
             op_times.push_back(std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t2)).count());
-            multop_get_times.push_back(multOpGetTime);
-            multop_dgemm_times.push_back(multOpDgemmTime);
-            multop_add_times.push_back(multOpAddTime);   
-            multOpGetTime = 0;
-            multOpDgemmTime = 0;
-            multOpAddTime = 0;                          
+            multop_get_times.push_back(oprof.multOpGetTime);
+            multop_dgemm_times.push_back(oprof.multOpDgemmTime);
+            multop_add_times.push_back(oprof.multOpAddTime);   
+            oprof.multOpGetTime = 0;
+            oprof.multOpDgemmTime = 0;
+            oprof.multOpAddTime = 0;
         }
         auto t2 = std::chrono::high_resolution_clock::now();
         ec().pg().barrier();
@@ -282,12 +283,12 @@ public:
         auto t3 = std::chrono::high_resolution_clock::now();
         // load_imbalance_times.push_back(std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t2)).count());
         // level_times.push_back(std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t1)).count());
-        // multop_get_times.push_back(multOpGetTime);
-        // multop_dgemm_times.push_back(multOpDgemmTime);
-        // multop_add_times.push_back(multOpAddTime);
-        // multOpGetTime = 0;
-        // multOpDgemmTime = 0;
-        // multOpAddTime = 0;  
+        // multop_get_times.push_back(oprof.multOpGetTime);
+        // multop_dgemm_times.push_back(oprof.multOpDgemmTime);
+        // multop_add_times.push_back(oprof.multOpAddTime);
+        // oprof.multOpGetTime = 0;
+        // oprof.multOpDgemmTime = 0;
+        // oprof.multOpAddTime = 0;
         start_idx_ = ops_.size();
         ec().set_ac(IndexedAC(nullptr, 0));
         misc_start = t3;

@@ -20,12 +20,13 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     re_.reset(re, [](auto) {});
   }
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   pg_self_ = ProcGroup{team_self};
 
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX_DISTARRAY)
   hint_ = pg.size().value();
 #endif
+
 #else
   pg_self_  = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
 #endif
@@ -34,14 +35,14 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   has_gpu_ = false;
   exhw_     = ExecutionHW::CPU;
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   ranks_pn_ = upcxx::local_team().rank_n();
 #else
   ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
 #endif
   nnodes_ = pg.size().value() / ranks_pn_;
 
-#ifdef USE_TALSH
+#if defined(USE_TALSH)
   int errc = talshDeviceCount(DEV_NVIDIA_GPU, &ngpu_);
   assert(!errc);
 #else
@@ -51,7 +52,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #endif
 
 #if defined(USE_TALSH) || defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   dev_id_ = upcxx::rank_me() % ngpu_;
   has_gpu_ = true;
   exhw_ = ExecutionHW::GPU;
@@ -62,23 +63,19 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     has_gpu_ = true;
     exhw_    = ExecutionHW::GPU;
   }
+#endif
 
   if(ranks_pn_ > ngpu_) {
     if(pg.rank() == 0) {
       std::string msg = "#ranks per node(" + std::to_string(ranks_pn_) + ") > #gpus(" +
-          std::to_string(ngpu_) + ") per node ... terminating program.";
-      if(pg.rank()==0) {
-        std::string msg = "#ranks per node(" + std::to_string(ranks_pn_) + 
-            ") > #gpus(" + std::to_string(ngpu_) + ") per node ... terminating program.";
-        std::cout << msg << std::endl << std::endl;
-      }
-      GA_Terminate();
-      MPI_Finalize();
-      exit(0);
+                        std::to_string(ngpu_) + ") per node ... terminating program.";
+      std::cout << msg << std::endl << std::endl;
     }
+    GA_Terminate();
+    MPI_Finalize();
+    exit(0);
   }
 #endif
-#endif // USE_TALSH
 
   // GPUStreamPool as singleton object
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)

@@ -17,16 +17,6 @@
 
 namespace tamm {
 
-extern double memTime1;
-extern double memTime2;
-extern double memTime3;
-extern double memTime4;
-extern double memTime5;
-extern double memTime6;
-extern double memTime7;
-extern double memTime8;
-extern double memTime9; 
-
 class TimerGuard {
 public:
     TimerGuard(double *refptr)

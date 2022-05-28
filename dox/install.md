@@ -56,6 +56,7 @@ In addition, if you would like to use a version of the UPC++ logic based on UPC+
 -DUSE_OPENMP=OFF (ON by default, also required to be ON when USE_CUDA=ON)
 ```
 
+
 Building TAMM
 =====================
 
@@ -81,6 +82,8 @@ mkdir build && cd build
 * **[Build instructions for Crusher](install.md#build-instructions-for-crusher)**
 
 * **[Build instructions for Cori](install.md#build-instructions-for-cori)**
+
+* **[Build instructions for Perlmutter and Polaris](install.md#build-instructions-for-perlmutter-and-polaris)**
 
 * **[Build instructions for Theta](install.md#build-instructions-for-theta)**
 
@@ -128,7 +131,7 @@ make install
 
 ```
 module load gcc
-module load cmake/3.21.3
+module load cmake
 module load essl/6.3.0
 module load cuda
 ```
@@ -151,14 +154,13 @@ make install
 
 ```
 module use /gpfs/alpine/world-shared/csc296/summit/modulefiles
-module use /gpfs/alpine/chm136/world-shared/software/modules
 
 module load gcc
-module load cmake/3.18.4
+module load cmake
 module load essl/6.3.0
-module load cuda/11.0.3
-module --ignore-cache load upcxx/2021.3.0
-module load upcxx-extras/2020.3.8
+module load cuda
+module --ignore-cache load upcxx
+module load upcxx-extras
 ```
 
 
@@ -188,6 +190,7 @@ module load PrgEnv-amd
 module load rocm
 module unload cray-libsci
 export CRAYPE_LINK_TYPE=dynamic
+export HDF5_USE_FILE_LOCKING=FALSE
 ```
 
 ```
@@ -207,7 +210,7 @@ make install
 
 ```
 export CRAYPE_LINK_TYPE=dynamic
-export HDF5_USE_FILE_LOCKING="FALSE"
+export HDF5_USE_FILE_LOCKING=FALSE
 ```
 
 ### CPU only build
@@ -219,7 +222,7 @@ module swap gcc/8.3.0
 module swap craype/2.5.18
 module swap cray-mpich/7.7.6
 module unload cmake
-module load cmake/3.21.3
+module load cmake
 ```
 
 ```
@@ -236,7 +239,7 @@ make install
 ### GPU build
 
 ```
-module purge && module load cgpu cuda gcc openmpi cmake/3.21.3
+module purge && module load cgpu cuda gcc openmpi cmake
 ```
 
 ```
@@ -249,21 +252,29 @@ make -j3
 make install
 ```
 
-## Build instructions for Perlmutter
+## Build instructions for Perlmutter and Polaris
 
 ```
 module load PrgEnv-gnu
 module load cudatoolkit
-module load cpe-cuda
+module load cpe-cuda (perlmutter only)
 module load gcc/9.3.0
 module load cmake
 export CRAYPE_LINK_TYPE=dynamic
 ```
 
 ```
+##ADJUST CUBLAS_PATH IF NEEDED
+
+export CUBLAS_PATH=$CUDA_HOME/../../math_libs/11.5/lib64
+export CPATH=$CPATH:$CUBLAS_PATH/include
+```
+
+```
 cd $TAMM_SRC/build
 
-cmake -DUSE_CUDA=ON -DBLIS_CONFIG=generic -DUSE_CRAYSHASTA=ON \
+cmake -DUSE_CUDA=ON -DBLIS_CONFIG=generic \
+-DCMAKE_PREFIX_PATH=$CUBLAS_PATH/lib \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
 make -j3
@@ -276,7 +287,7 @@ make install
 module unload PrgEnv-intel/6.0.7
 module load PrgEnv-gnu/6.0.7
 module unload cmake
-module load cmake/3.20.4
+module load cmake
 export CRAYPE_LINK_TYPE=dynamic
 ```
 

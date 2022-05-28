@@ -5,7 +5,7 @@
 #include "ga/ga.h"
 #include "ga/ga-mpi.h"
 
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX_DISTARRAY)
 #include <upcxx-extras/dist_array.hpp>
 #include <type_traits>
 #endif
@@ -30,10 +30,9 @@ class MemoryManagerGA;
 class MemoryRegionGA : public MemoryRegionImpl<MemoryManagerGA> {
  public:
   MemoryRegionGA(MemoryManagerGA& mgr)
-      : MemoryRegionImpl<MemoryManagerGA>(mgr) {
-  }
+      : MemoryRegionImpl<MemoryManagerGA>(mgr) {}
 
-#ifndef USE_UPCXX
+#if !defined(USE_UPCXX)
     /**
      * Access the underying global arrays
      * @return Handle to underlying global array
@@ -44,8 +43,8 @@ class MemoryRegionGA : public MemoryRegionImpl<MemoryManagerGA> {
 #endif
 
  private:
-#ifdef USE_UPCXX
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX)
+#if defined(USE_UPCXX_DISTARRAY)
   // Dist array data structures
   upcxx::extras::dist_array<float>* daf_;
   upcxx::extras::dist_array<double>* dad_;
@@ -112,8 +111,8 @@ class MemoryManagerGA : public MemoryManager {
     }
   }
 
-#ifdef USE_UPCXX
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX)
+#if defined(USE_UPCXX_DISTARRAY)
   void alloc_coll_upcxx_dist_array(ElementType eltype,
       Size local_nelements, MemoryRegionGA* pmr, int nranks, size_t elemnt_size,
       int64_t nels) {
@@ -179,7 +178,7 @@ class MemoryManagerGA : public MemoryManager {
         int64_t nelements_min = upcxx::reduce_all(nels, upcxx::op_fast_min, *team).wait();
         int64_t nelements_max = upcxx::reduce_all(nels, upcxx::op_fast_max, *team).wait();
         if (nelements_min != nelements_max) {
-            // Max Grossman (September 2 2020): For now only support alocating same # elements on each rank
+            // upcxx: For now only support alocating same # elements on each rank
             fprintf(stderr, "ERROR: unsupported operation, allocating "
                     "different number of elements on different ranks. "
                     "nelements_min=%ld, nelements_max=%ld\n", nelements_min,
@@ -214,15 +213,14 @@ class MemoryManagerGA : public MemoryManager {
   MemoryRegion* alloc_coll(ElementType eltype, Size local_nelements) override {
     MemoryRegionGA* pmr;
     {
-      TimerGuard tg_total{&memTime3};
       pmr = new MemoryRegionGA(*this);
 
       int nranks = pg_->size().value();
 
       int64_t element_size = get_element_size(eltype);
       int64_t nels = local_nelements.value();
-#ifdef USE_UPCXX
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX)
+#if defined(USE_UPCXX_DISTARRAY)
       alloc_coll_upcxx_dist_array(eltype, local_nelements, pmr, nranks,
               elemnt_size, nels);
 #else // USE_UPCXX_DISTARRAY
@@ -232,130 +230,105 @@ class MemoryManagerGA : public MemoryManager {
 #else // USE_UPCXX
       int ga_pg_default = GA_Pgroup_get_default();
       GA_Pgroup_set_default(ga_pg_);
-    int ga_eltype = to_ga_eltype(eltype);
+      int nranks    = pg_.size().value();
+      int ga_eltype = to_ga_eltype(eltype);
 
-    pmr->map_.resize(nranks + 1);
-    pmr->eltype_ = eltype;
-    pmr->local_nelements_ = local_nelements;
+      pmr->map_.resize(nranks + 1);
+      pmr->eltype_          = eltype;
+      pmr->local_nelements_ = local_nelements;
+      int64_t nels          = local_nelements.value();
 
-    int64_t nelements_min, nelements_max;
+      int64_t nelements_min, nelements_max;
 
-    GA_Pgroup_set_default(ga_pg_);
-    {
-       TimerGuard tg_total{&memTime5};
-       nelements_min = pg_->allreduce(&nels, ReduceOp::min);
-       nelements_max = pg_->allreduce(&nels, ReduceOp::max);
-    }
-    std::string array_name{"array_name"+std::to_string(++ga_counter_)};
-
-    if (nelements_min == nels && nelements_max == nels) {
-      int64_t dim = nranks * nels, chunk = -1;
-      pmr->ga_ = NGA_Create64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()), &chunk);
-      pmr->map_[0] = 0;
-      std::fill_n(pmr->map_.begin()+1, nranks-1, nels);
-      std::partial_sum(pmr->map_.begin(), pmr->map_.begin()+nranks, pmr->map_.begin());
-    } else {
-      int64_t dim, block = nranks;
+      GA_Pgroup_set_default(ga_pg_);
       {
-      TimerGuard tg_total{&memTime5};
-      dim = pg_->allreduce(&nels, ReduceOp::sum);
+        nelements_min = pg_.allreduce(&nels, ReduceOp::min);
+        nelements_max = pg_.allreduce(&nels, ReduceOp::max);
       }
-      {
-      TimerGuard tg_total{&memTime6};
-      pg_->allgather(&nels, &pmr->map_[1]);
+      std::string array_name{"array_name" + std::to_string(++ga_counter_)};
+
+      if(nelements_min == nels && nelements_max == nels) {
+        int64_t dim = nranks * nels, chunk = -1;
+        pmr->ga_ = NGA_Create64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()), &chunk);
+        pmr->map_[0] = 0;
+        std::fill_n(pmr->map_.begin() + 1, nranks - 1, nels);
+        std::partial_sum(pmr->map_.begin(), pmr->map_.begin() + nranks, pmr->map_.begin());
       }
-      pmr->map_[0] = 0; // @note this is not set by MPI_Exscan
-     {
-       TimerGuard tg_total{&memTime7};      
-       std::partial_sum(pmr->map_.begin(), pmr->map_.begin()+nranks, pmr->map_.begin());
-     }
-      
-      for(block = nranks; block>0 && static_cast<int64_t>(pmr->map_[block-1]) == dim; --block) {
-        //no-op
+      else {
+        int64_t dim, block = nranks;
+        dim = pg_.allreduce(&nels, ReduceOp::sum);
+        pg_.allgather(&nels, &pmr->map_[1]);
+        pmr->map_[0] = 0; // @note this is not set by MPI_Exscan
+        std::partial_sum(pmr->map_.begin(), pmr->map_.begin() + nranks, pmr->map_.begin());
+
+        for(block = nranks; block > 0 && static_cast<int64_t>(pmr->map_[block - 1]) == dim;
+            --block) {
+          // no-op
+        }
+
+        int64_t* map_start = &pmr->map_[0];
+        for(int i = 0; i < nranks && *(map_start + 1) == 0; ++i, ++map_start, --block) {
+          // no-op
+        }
+
+        pmr->ga_ = NGA_Create_irreg64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()),
+                                      &block, map_start);
       }
 
-      int64_t* map_start = &pmr->map_[0];
-      for(int i=0; i<nranks && *(map_start+1)==0; ++i, ++map_start, --block) {
-        //no-op
-      }
-      
-           {
-       TimerGuard tg_total{&memTime9};
-      pmr->ga_ = NGA_Create_irreg64(ga_eltype, 1, &dim, const_cast<char*>(array_name.c_str()), &block, map_start);
-           }
-           memTime4+=memTime9;
-           memTime9=0;
-      
-    }
+      GA_Pgroup_set_default(ga_pg_default);
 
-    GA_Pgroup_set_default(ga_pg_default);
-
-    int64_t lo, hi;//, ld;
-     {
-       TimerGuard tg_total{&memTime8};    
-       NGA_Distribution64(pmr->ga_, pg_->rank().value(), &lo, &hi);
-     }
-    EXPECTS(nels<=0 || lo == static_cast<int64_t>(pmr->map_[pg_->rank().value()]));
-    EXPECTS(nels<=0 || hi == static_cast<int64_t>(pmr->map_[pg_->rank().value()]) + nels - 1);
+      int64_t lo, hi; //, ld;
+        NGA_Distribution64(pmr->ga_, pg_.rank().value(), &lo, &hi);
+      EXPECTS(nels <= 0 || lo == static_cast<int64_t>(pmr->map_[pg_.rank().value()]));
+      EXPECTS(nels <= 0 || hi == static_cast<int64_t>(pmr->map_[pg_.rank().value()]) + nels - 1);
 #endif // USE_UPCXX
 
-    pmr->set_status(AllocationStatus::created);
-    // ensure everyone has finished with dobj
-    pg_->barrier();
-          }
+      pmr->set_status(AllocationStatus::created);
+      
+    }
     return pmr;
   }
 
   MemoryRegion* alloc_coll_balanced(ElementType eltype,
                                     Size max_nelements,
                                     ProcList proc_list = {}) override {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     EXPECTS(proc_list.size() == 0);
     return alloc_coll(eltype, max_nelements);
 #else
-    MemoryRegionGA* pmr = nullptr;
-     {
-       TimerGuard tg_total{&memTime3}; 
-    pmr = new MemoryRegionGA{*this};
-    int nranks = pg_->size().value();
-    int ga_eltype = to_ga_eltype(eltype);
+    MemoryRegionGA* pmr{nullptr};
+    {
+      pmr           = new MemoryRegionGA{*this};
+      int nranks    = pg_.size().value();
+      int ga_eltype = to_ga_eltype(eltype);
 
-    pmr->map_.resize(nranks + 1);
-    pmr->eltype_ = eltype;
-    pmr->local_nelements_ = max_nelements;
-    int64_t nels = max_nelements.value();
+      pmr->map_.resize(nranks + 1);
+      pmr->eltype_          = eltype;
+      pmr->local_nelements_ = max_nelements;
+      int64_t nels          = max_nelements.value();
 
-    std::string array_name{"array_name" + std::to_string(++ga_counter_)};
+      std::string array_name{"array_name" + std::to_string(++ga_counter_)};
 
-    int64_t dim = nranks * nels, chunk = nels;
-    pmr->ga_ = NGA_Create_handle();
-    NGA_Set_data64(pmr->ga_, 1, &dim, ga_eltype);
-    GA_Set_chunk64(pmr->ga_, &chunk);
-    GA_Set_pgroup(pmr->ga_, pg()->ga_pg());
+      int64_t dim = nranks * nels, chunk = nels;
+      pmr->ga_ = NGA_Create_handle();
+      NGA_Set_data64(pmr->ga_, 1, &dim, ga_eltype);
+      GA_Set_chunk64(pmr->ga_, &chunk);
+      GA_Set_pgroup(pmr->ga_, pg().ga_pg());
 
-    if (proc_list.size() > 0 ) {
-      int nproc = proc_list.size();
-      int proclist_c[nproc]; 
-      std::copy(proc_list.begin(), proc_list.end(), proclist_c);
-      GA_Set_restricted(pmr->ga_, proclist_c, nproc);
+      if(proc_list.size() > 0) {
+        int nproc = proc_list.size();
+        int proclist_c[nproc];
+        std::copy(proc_list.begin(), proc_list.end(), proclist_c);
+        GA_Set_restricted(pmr->ga_, proclist_c, nproc);
+      }
+
+      NGA_Allocate(pmr->ga_);
+
+      pmr->map_[0] = 0;
+      std::fill_n(pmr->map_.begin() + 1, nranks - 1, nels);
+      std::partial_sum(pmr->map_.begin(), pmr->map_.begin() + nranks, pmr->map_.begin());
+      pmr->set_status(AllocationStatus::created);
     }
-
-        {
-    TimerGuard tg_total{&memTime9};
-    NGA_Allocate(pmr->ga_);
-        }
-    memTime4+=memTime9;
-    memTime9=0;
-
-    pmr->map_[0] = 0;
-     {
-       TimerGuard tg_total{&memTime7};     
-    std::fill_n(pmr->map_.begin() + 1, nranks - 1, nels);
-    std::partial_sum(pmr->map_.begin(), pmr->map_.begin() + nranks,
-                     pmr->map_.begin());
-     }
-    pmr->set_status(AllocationStatus::created);
-     }
     return pmr;
 #endif
   }
@@ -367,8 +340,8 @@ class MemoryManagerGA : public MemoryManager {
     MemoryRegionGA& mr_rhs = static_cast<MemoryRegionGA&>(mrb);
     MemoryRegionGA* pmr = new MemoryRegionGA(*this);
 
-#ifdef USE_UPCXX
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX)
+#if defined(USE_UPCXX_DISTARRAY)
     pmr->lookup = mr_rhs.lookup;
     pmr->daf_ = mr_rhs.daf_;
     pmr->dad_ = mr_rhs.dad_;
@@ -397,7 +370,7 @@ class MemoryManagerGA : public MemoryManager {
    * @todo Use a possibly more efficient fence
    */
   void fence(MemoryRegion& mrb) override {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     abort(); // assert this isn't being called
 #else
     ARMCI_AllFence();
@@ -406,15 +379,15 @@ class MemoryManagerGA : public MemoryManager {
 
   protected:
   explicit MemoryManagerGA(ProcGroup* pg
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX_DISTARRAY)
           , upcxx::intrank_t hint = 0
 #endif
           )
       : MemoryManager{pg, MemoryManagerKind::ga} {
     EXPECTS(pg->is_valid());
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     team_ = pg->team();
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX_DISTARRAY)
     slots = (hint ? hint : pg->size().value());
 #endif
 #else // USE_UPCXX
@@ -430,12 +403,12 @@ class MemoryManagerGA : public MemoryManager {
    * @copydoc MemoryManager::dealloc_coll
    */
   void dealloc_coll(MemoryRegion& mrb) override {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     upcxx::barrier(*team_);
 #endif
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
-#ifdef USE_UPCXX
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX)
+#if defined(USE_UPCXX_DISTARRAY)
     if (mr.daf_) mr.daf_->destroy();
     else if (mr.dad_) mr.dad_->destroy();
     else if (mr.dasc_) mr.dasc_->destroy();
@@ -512,12 +485,12 @@ class MemoryManagerGA : public MemoryManager {
    * @copydoc MemoryManager::detach_coll
    */
   void detach_coll(MemoryRegion& mrb) override {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     upcxx::barrier(*team_);
 #endif
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
-#ifdef USE_UPCXX
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX)
+#if defined(USE_UPCXX_DISTARRAY)
     if (mr.daf_) mr.daf_ = nullptr;
     else if (mr.dad_) mr.dad_ = nullptr;
     else if (mr.dasc_) mr.dasc_ = nullptr;
@@ -541,8 +514,8 @@ class MemoryManagerGA : public MemoryManager {
    */
   const void* access(const MemoryRegion& mrb, Offset off) const override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
-#ifdef USE_UPCXX
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX)
+#if defined(USE_UPCXX_DISTARRAY)
     if (mr.daf_)
         return static_cast<void*>(mr.daf_->data() + off.value());
     else if (mr.dad_)
@@ -579,8 +552,8 @@ class MemoryManagerGA : public MemoryManager {
   void get(MemoryRegion& mrb, Proc proc, Offset off, Size nelements,
           void* to_buf) override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
-#ifdef USE_UPCXX
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX)
+#if defined(USE_UPCXX_DISTARRAY)
     upcxx::future<> f;
     std::chrono::high_resolution_clock::time_point start, end;
     if (mr.daf_) {
@@ -640,8 +613,8 @@ class MemoryManagerGA : public MemoryManager {
   void nb_get(MemoryRegion& mrb, Proc proc, Offset off, Size nelements,
           void* to_buf, DataCommunicationHandlePtr data_comm_handle) override {
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
-#ifdef USE_UPCXX
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX)
+#if defined(USE_UPCXX_DISTARRAY)
     upcxx::future<> f;
     std::chrono::high_resolution_clock::time_point start, end;
     if (mr.daf_) {
@@ -694,7 +667,7 @@ class MemoryManagerGA : public MemoryManager {
 #endif
 
     data_comm_handle->resetCompletionStatus();
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     data_comm_handle->data_handle_ = f;
 #else
      NGA_NbGet64(mr.ga_, &lo, &hi, to_buf, &ld, data_comm_handle->getDataHandlePtr());
@@ -708,8 +681,8 @@ class MemoryManagerGA : public MemoryManager {
           const void* from_buf) override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
 
-#ifdef USE_UPCXX
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX)
+#if defined(USE_UPCXX_DISTARRAY)
     std::chrono::high_resolution_clock::time_point start, end;
     if (mr.daf_) {
         size_t idx = mr.daf_->process_size() * proc.value() + off.value(); // assumes equal allocation across ranks
@@ -768,8 +741,8 @@ class MemoryManagerGA : public MemoryManager {
           DataCommunicationHandlePtr data_comm_handle) override {
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 
-#ifdef USE_UPCXX
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX)
+#if defined(USE_UPCXX_DISTARRAY)
     std::chrono::high_resolution_clock::time_point start, end;
     upcxx::future<> f;
     if (mr.daf_) {
@@ -822,19 +795,19 @@ class MemoryManagerGA : public MemoryManager {
 #endif
 
     data_comm_handle->resetCompletionStatus();
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     data_comm_handle->data_handle_ = f;
 #else
     NGA_NbPut64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, data_comm_handle->getDataHandlePtr());
 #endif
   }
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   void add_helper(MemoryRegion& mrb, Proc proc, Offset off,
           Size nelements, const void* from_buf) {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
 
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX_DISTARRAY)
     std::chrono::high_resolution_clock::time_point start, end;
     if (mr.daf_) {
         size_t idx = mr.daf_->process_size() * proc.value() + off.value(); // assumes equal allocation across ranks
@@ -1013,7 +986,7 @@ class MemoryManagerGA : public MemoryManager {
   void add(MemoryRegion& mrb, Proc proc, Offset off, Size nelements,
           const void* from_buf) override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     add_helper(mrb, proc, off, nelements, from_buf);
     pg_->add_op(proc.value());
 #else
@@ -1047,7 +1020,7 @@ class MemoryManagerGA : public MemoryManager {
   void nb_add(MemoryRegion& mrb, Proc proc, Offset off, Size nelements,
           const void* from_buf,
           DataCommunicationHandlePtr data_comm_handle) override {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     abort(); // verify this API isn't being used.
 #else
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
@@ -1071,6 +1044,8 @@ class MemoryManagerGA : public MemoryManager {
       default:
         UNREACHABLE();
     }
+    data_comm_handle->resetCompletionStatus();
+    NGA_NbAcc64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, alpha, data_comm_handle->getDataHandlePtr());
 #endif
   }
   
@@ -1079,19 +1054,20 @@ class MemoryManagerGA : public MemoryManager {
    */
   void print_coll(const MemoryRegion& mrb, std::ostream& os) override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
-#ifndef USE_UPCXX
+#if !defined(USE_UPCXX)
     GA_Print(mr.ga_);
 #endif
   }
 
  private:
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   upcxx::team* team_;
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX_DISTARRAY)
   size_t slots;
   std::vector<std::chrono::duration<double,std::micro>> near, far, again;
 #endif
 #else
+  ProcGroup pg_;       /**< Underlying ProcGroup */
   int ga_pg_;          /**< GA pgroup underlying pg_ */
   int ga_counter_ = 0; /**< GA counter to name GAs in create call */
 

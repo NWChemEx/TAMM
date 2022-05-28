@@ -139,7 +139,7 @@
           }
         }
       },
-      "final_energy": -412.506173797910,
+      "final_energy": -412.506173797941,
       "n_iterations": 17
     },
     "CD": {
@@ -283,20 +283,20 @@
       },
       "n_iterations": 19,
       "final_energy": {
-        "correlation": -1.232871628325694,
-        "total": -413.739045426235350
+        "correlation": -1.232871626139941,
+        "total": -413.739045424080871
       }
     },
     "CCSD(T)": {
       "[T]Energies": {
-        "correction": -0.050037030375737,
-        "correlation": -1.282908658701431,
-        "total": -413.789082456611084
+        "correction": -0.050037028840669,
+        "correlation": -1.282908654980609,
+        "total": -413.789082452921548
       },
       "(T)Energies": {
-        "correction": -0.046595571595638,
-        "correlation": -1.279467199921333,
-        "total": -413.785640997830967
+        "correction": -0.046595570398370,
+        "correlation": -1.279467196538310,
+        "total": -413.785640994479252
       },
       "performance": {
         "total_time": 5.505052146,
@@ -316,8 +316,8 @@
     "SCF": {
       "tol_int": 1e-16,
       "tol_lindep": 1e-06,
-      "conve": 1e-08,
-      "convd": 1e-07,
+      "conve": 1e-8,
+      "convd": 1e-7,
       "diis_hist": 10,
       "AO_tilesize": 30,
       "force_tilesize": "false",
@@ -325,18 +325,15 @@
       "multiplicity": 1
     },
     "CD": {
-      "diagtol": 1e-06,
+      "diagtol": 1e-8,
       "max_cvecs_factor": 12
     },
     "CCSD": {
-      "threshold": 1e-06,
-      "tilesize": 40,
-      "itilesize": 1000,
+      "threshold": 1e-8,
       "ndiis": 5,
       "readt": "false",
       "writet": "true",
-      "ccsd_maxiter": 50,
-      "balance_tiles": "true"
+      "ccsd_maxiter": 50
     },
     "CCSD(T)": {
       "ngpu": 6,

@@ -7,7 +7,7 @@
 #include "tamm/memory_manager_local.hpp"
 //#include "tamm/distribution.hpp"
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-#include "tamm/gpuStreams.hpp"
+#include "tamm/gpu_streams.hpp"
 #endif
 #include "tamm/types.hpp"
 
@@ -20,7 +20,7 @@
 #include "talsh/talshxx.hpp"
 #endif
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 extern upcxx::team* team_self;
 #endif
 
@@ -59,8 +59,8 @@ class Distribution_SimpleRoundRobin;
 class RuntimeEngine;
 class ExecutionContext {
 public:
-  ExecutionContext() : ac_{IndexedAC{nullptr, 0}} {
-#ifdef USE_UPCXX
+  ExecutionContext(): ac_{IndexedAC{nullptr, 0}} {
+#if defined(USE_UPCXX)
     pg_self_ = ProcGroup{team_self};
 #else
     pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
@@ -197,6 +197,7 @@ public:
    * @return Underlying process group
    */
   ProcGroup pg() const { return pg_; }
+
   /**
    * @brief Set ProcGroup object for ExecutionContext
    *
@@ -204,7 +205,7 @@ public:
    */
   void set_pg(const ProcGroup& pg) {
     pg_ = pg;
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX_DISTARRAY)
     hint_ = pg.size().value();
 #endif
   }
@@ -258,7 +259,7 @@ public:
     return memory_manager_factory(memory_manager_kind_, std::forward<Args>(args)...).release();
   }
 
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX_DISTARRAY)
     /**
      * @brief Set cache size for MemoryRegionGAs created by MemoryManagerGAs of this ExecutionContext
      *
@@ -335,8 +336,6 @@ public:
 
   int num_gpu() const { return ngpu_; }
 
-  void set_ngpu(int ngpu) { ngpu_ = ngpu; }
-
   bool has_gpu() const { return has_gpu_; }
 
   ExecutionHW exhw() const { return exhw_; }
@@ -410,7 +409,7 @@ private:
   std::vector<MemoryRegion*> mem_regs_to_dealloc_;
   std::vector<MemoryRegion*> unregistered_mem_regs_;
 
-#ifdef USE_UPCXX_DISTARRAY
+#if defined(USE_UPCXX_DISTARRAY)
   upcxx::intrank_t hint_;
 #endif
 

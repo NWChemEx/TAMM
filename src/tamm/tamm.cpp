@@ -2,11 +2,8 @@
 #include "ga/macdecls.h"
 #include "mpi.h"
 #include "ga/ga.h"
-#include "pthread.h"
-#include <mutex>
-#undef I
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 upcxx::team* team_self = NULL;
 #endif
 
@@ -29,35 +26,8 @@ static void *abort_func(void*) {
 
 namespace tamm {
 
-int mult_counter = 0;
-double multOpTime = 0;
-double addOpTime = 0;
-double setOpTime = 0;
-double allocOpTime = 0;
-double deallocOpTime = 0;
-double tgetTime = 0;
-double taddTime = 0;
-double twaitTime = 0;
-double tgemmTime = 0;
-double tbarrierTime = 0;
-
-double multOpGetTime = 0;
-double multOpWaitTime = 0;
-double multOpAddTime = 0;
-double multOpDgemmTime = 0;
-double memTime1 = 0;
-double memTime2 = 0;
-double memTime3 = 0;
-double memTime4 = 0;
-double memTime5 = 0;
-double memTime6 = 0;
-double memTime7 = 0;
-double memTime8 = 0;
-double memTime9 = 0;
-
-
 void initialize(int argc, char *argv[]) {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   upcxx::init();
 
   // Must be called with master persona
@@ -87,7 +57,7 @@ void initialize(int argc, char *argv[]) {
 void finalize() {
   finalized = true;
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   upcxx::finalize();
 #else
   if (GA_Initialized()) {
@@ -102,8 +72,10 @@ void finalize() {
 }
 
 void tamm_terminate(std::string msg) {
-  std::cerr << msg << " ... terminating program." << std::endl << std::endl;
-  abort();
+  if(ProcGroup::world_rank()==0)
+    std::cout << msg << " ... terminating program." << std::endl << std::endl;
+  tamm::finalize();
+  exit(0);
 }
 
 } // namespace tamm

@@ -10,7 +10,7 @@
 #include <map>
 #include "ga/ga.h"
 #include "ga/ga-mpi.h"
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
 
@@ -185,7 +185,7 @@ enum class ReduceOp { min, max, sum, maxloc, minloc };
 
 using SpinMask = std::vector<SpinPosition>;
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 using rtDataHandlePtr = upcxx::future<>*;
 using rtDataHandle = upcxx::future<>;
 #else
@@ -201,7 +201,7 @@ class DataCommunicationHandle
 
         void waitForCompletion() {
             if(!getCompletionStatus()) {
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
                 data_handle_.wait();
 #else
                 NGA_NbWait(&data_handle_);
@@ -236,7 +236,7 @@ using DataCommunicationHandlePtr = DataCommunicationHandle*;
 // const Spin beta{2};
 // }; // namespace SpinType
 
-#ifndef USE_UPCXX
+#if !defined(USE_UPCXX)
 template<typename T>
 static inline MPI_Datatype mpi_type(){
     using std::is_same_v;

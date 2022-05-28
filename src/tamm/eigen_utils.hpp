@@ -1,14 +1,6 @@
 #pragma once
 
-// Eigen matrix algebra library
 #include "tamm/tamm.hpp"
-#include <Eigen/Dense>
-#include <unsupported/Eigen/CXX11/Tensor>
-#ifdef USE_UPCXX
-#include <upcxx/upcxx.hpp>
-#endif
-#include <fmt/fmt.h>
-#undef I
 
 using EigenTensorType=double;
 using Matrix   = Eigen::Matrix<EigenTensorType, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
@@ -18,92 +10,6 @@ using Tensor3D = Eigen::Tensor<EigenTensorType, 3, Eigen::RowMajor>;
 using Tensor4D = Eigen::Tensor<EigenTensorType, 4, Eigen::RowMajor>;
 
 namespace tamm {
-
-template<typename T, int ndim>
-void print_eigen_tensor(Eigen::Tensor<T, ndim, Eigen::RowMajor>& etensor, const std::string tname = "") {
-  std::cout << tname << std::endl;
-  if (ndim == 2) {
-    int i, j, k, N, NR;
-    int a1, a2;
-
-    N = etensor.dimensions()[1];
-    NR = etensor.dimensions()[0];
-    a1 = N / 6; // number of blocks
-    a2 = N % 6;
-
-    for (i = 0; i < a1; i++) {
-      fmt::print("            ");
-      for (j = 0; j < 6; j++) {
-        fmt::print("    {:>3}    ", 6 * i + j);
-      }
-      fmt::print("\n");
-      for (j = 0; j < NR; j++) {
-        fmt::print("    {:>3}    ", j);
-        for (k = 0; k < 6; k++) {
-          fmt::print(" {:10.6f}", etensor(j, 6 * i + k));
-        }
-        fmt::print("\n");
-      }
-    }
-
-    if (a2 > 0) {
-      fmt::print("            ");
-      for (j = 0; j < a2; j++) {
-        fmt::print("    {:>3}    ", 6 * a1 + j);
-      }
-      fmt::print("\n");
-      for (j = 0; j < NR; j++) {
-        fmt::print("    {:>3}    ", j);
-        for (k = 0; k < a2; k++) {
-          fmt::print(" {:10.6f}", etensor(j, 6 * a1 + k));
-        }
-        fmt::print("\n");
-      }
-    }
-  }
-}
-
-template<typename T>
-void print_eigen_tensor(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& etensor, const std::string tname = "") {
-  std::cout << tname << std::endl;
-  int i, j, k, N, NR;
-  int a1, a2;
-
-  N = etensor.cols();
-  NR = etensor.rows();
-  a1 = N / 6; // number of blocks
-  a2 = N % 6;
-
-  for (i = 0; i < a1; i++) {
-    fmt::print("            ");
-    for (j = 0; j < 6; j++) {
-      fmt::print("    {:>3}    ", 6 * i + j);
-    }
-    fmt::print("\n");
-    for (j = 0; j < NR; j++) {
-      fmt::print("    {:>3}    ", j);
-      for (k = 0; k < 6; k++) {
-        fmt::print(" {:10.6f}", etensor(j, 6 * i + k));
-      }
-      fmt::print("\n");
-    }
-  }
-
-  if (a2 > 0) {
-    fmt::print("            ");
-    for (j = 0; j < a2; j++) {
-      fmt::print("    {:>3}    ", 6 * a1 + j);
-    }
-    fmt::print("\n");
-    for (j = 0; j < NR; j++) {
-      fmt::print("    {:>3}    ", j);
-      for (k = 0; k < a2; k++) {
-        fmt::print(" {:10.6f}", etensor(j, 6 * a1 + k));
-      }
-      fmt::print("\n");
-    }
-  }
-}
 
 template<typename T, int ndim>
 void patch_copy(std::vector<T>& sbuf,
@@ -470,27 +376,66 @@ tamm::Tensor<T> retile_rank2_tensor(tamm::Tensor<T>& tensor, const tamm::TiledIn
    return result;
 } 
 
-template<typename T>
-void print_eigen_tensor(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic,
-        Eigen::RowMajor>& etensor) {
-    FILE *fp = fopen("out.bin", "a+b");
-    assert(fp);
-    size_t n = etensor.rows() * etensor.cols();
-    size_t nwritten = fwrite(&n, sizeof(n), 1, fp);
-    assert(nwritten == 1);
+}
 
-    std::cout << "printing etensor" << std::endl;
-    for (int r = 0; r < etensor.rows(); r++) {
-        for (int c = 0; c < etensor.cols(); c++) {
-            double v = etensor(r, c);
-            printf(" %e", v);
-            nwritten = fwrite(&v, sizeof(v), 1, fp);
-            assert(nwritten == 1);
-        }
+bool eigen_tensors_are_equal(Tensor1D& e1, Tensor1D& e2, double threshold = 1.0e-12) {
+  bool ret  = true;
+  auto dims = e1.dimensions();
+  for(auto i = 0; i < dims[0]; i++) {
+    if(std::abs(e1(i) - e2(i)) > std::abs(threshold * e1(i))) {
+      ret = false;
+      break;
     }
-    std::cout << std::endl;
-    fclose(fp);
+  }
+  return ret;
 }
 
+bool eigen_tensors_are_equal(Tensor2D& e1, Tensor2D& e2, double threshold = 1.0e-12) {
+  bool ret  = true;
+  auto dims = e1.dimensions();
+  for(auto i = 0; i < dims[0]; i++) {
+    for(auto j = 0; j < dims[1]; j++) {
+      if(std::abs(e1(i, j) - e2(i, j)) > std::abs(threshold * e1(i, j))) {
+        ret = false;
+        break;
+      }
+    }
+  }
+  return ret;
 }
+
+bool eigen_tensors_are_equal(Tensor3D& e1, Tensor3D& e2, double threshold = 1.0e-12) {
+  bool ret  = true;
+  auto dims = e1.dimensions();
+  for(auto i = 0; i < dims[0]; i++) {
+    for(auto j = 0; j < dims[1]; j++) {
+      for(auto k = 0; k < dims[2]; k++) {
+        if(std::abs(e1(i, j, k) - e2(i, j, k)) > std::abs(threshold * e1(i, j, k))) {
+          ret = false;
+          break;
+        }
+      }
+    }
+  }
+  return ret;
+}
+
+bool eigen_tensors_are_equal(Tensor4D& e1, Tensor4D& e2, double threshold = 1.0e-12) {
+  bool ret  = true;
+  auto dims = e1.dimensions();
+  for(auto i = 0; i < dims[0]; i++) {
+    for(auto j = 0; j < dims[1]; j++) {
+      for(auto k = 0; k < dims[2]; k++) {
+        for(auto l = 0; l < dims[3]; l++) {
+          if(std::abs(e1(i, j, k, l) - e2(i, j, k, l)) > std::abs(threshold * e1(i, j, k, l))) {
+            ret = false;
+            break;
+          }
+        }
+      }
+    }
+  }
+  return ret;
+}
+
 

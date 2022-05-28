@@ -3,10 +3,9 @@
 
 #include "scf/scf_main.hpp"
 #include "tamm/eigen_utils.hpp"
-#include "tamm/tamm.hpp"
 #include "common/json_data.hpp"
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 #include "ga_over_upcxx.hpp"
 #endif
 
@@ -52,7 +51,7 @@ bool cd_debug = false;
   }
 #endif
 
-#ifndef USE_UPCXX
+#if !defined(USE_UPCXX)
   int64_t ac_fetch_add(int ga_ac, int64_t index, int64_t amount) {
     auto ret = NGA_Read_inc64(ga_ac, &index, amount);
     return ret;
@@ -263,7 +262,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   if(rank==0) {
     cout << "Begin Cholesky Decomposition ... " << endl;
   }
-  auto hf_t1 = std::chrono::high_resolution_clock::now();
+  auto cd_t1 = std::chrono::high_resolution_clock::now();
 
   // Step A. Initialization
   int64_t iproc = rank.value();
@@ -271,14 +270,14 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   auto    nbf   = nao;
   int64_t count = 0; //Initialize chol vector count
 
-  #ifndef USE_UPCXX
+  #if !defined(USE_UPCXX)
   int g_chol_mo = 0;
   #endif
 
   #ifdef CD_SVD_THROTTLE
     int64_t cd_nranks = std::abs(std::log10(diagtol)) * nbf; // max cores
-    auto nnodes = ec.pg().num_nodes();
-    auto ppn = ec.pg().ppn();
+    auto    nnodes    = ec.num_nodes()
+    auto    ppn       = ec.ppn();
     int cd_nnodes     = cd_nranks/ppn;
     if(cd_nranks%ppn>0 || cd_nnodes==0) 
       cd_nnodes++;
@@ -291,7 +290,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 
   int64_t dimsmo[3];
   int64_t chnkmo[3];
-  #ifndef USE_UPCXX
+  #if !defined(USE_UPCXX)
   int     nblockmo32[GA_MAX_DIM]; 
   int64_t nblockmo[GA_MAX_DIM]; 
   #endif
@@ -313,7 +312,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     return k_map;
   };
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   upcxx::team& team_ref = upcxx::world();
   upcxx::team* team = &team_ref;
 #else
@@ -327,7 +326,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   if(iproc < cd_nranks) { //throttle  
 
   if(throttle_cd){
-    #ifdef USE_UPCXX
+    #if defined(USE_UPCXX)
     team = new upcxx::team(team->split((team->rank_me() < cd_nranks ? 0 : upcxx::team::color_none), 0));
     #else
     int ranks[cd_nranks];
@@ -343,7 +342,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   int nblock32[GA_MAX_DIM]; 
   int64_t nblock[GA_MAX_DIM]; 
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   ga_over_upcxx *g_chol = new ga_over_upcxx(3, dims, chnk, *team);
   g_chol->zero();
 
@@ -369,7 +368,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 #endif
   
   //TODO: Check k_map;
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   ga_over_upcxx* g_d = new ga_over_upcxx(3, dims2, chnk2, *team);
   ga_over_upcxx* g_r = new ga_over_upcxx(3, dims2, chnk2, *team);
   g_d->zero();
@@ -396,6 +395,10 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   auto shell2bf = map_shell_to_basis_function(shells);
   auto bf2shell = map_basis_function_to_shell(shells);
 
+  auto cd_t2 = std::chrono::high_resolution_clock::now();
+  auto cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
+  if(iproc == 0) std::cout << std::endl << "Setup time: " << cd_time << " secs" << endl;
+
   // Step B. Compute the diagonal
   Engine engine(Operator::coulomb, max_nprim(shells), max_l(shells), 0);
   const auto &buf = engine.results();  
@@ -403,7 +406,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   for (size_t s1 = 0; s1 != shells.size(); ++s1) {
     auto bf1_first = shell2bf[s1]; // first basis function in this shell
     auto n1 = shells[s1].size();
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     for (size_t s2 = 0; s2 != shells.size(); ++s2) {
       auto bf2_first = shell2bf[s2];
       auto n2 = shells[s2].size();
@@ -441,7 +444,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
           }
           int64_t ibflo[2] = {cd_ncast<size_t>(bf1_first),cd_ncast<size_t>(bf2_first)};
           int64_t ibfhi[2] = {cd_ncast<size_t>(bf1_first+n1-1),cd_ncast<size_t>(bf2_first+n2-1)};
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
           int64_t ld[3] = {cd_ncast<size_t>(n1), cd_ncast<size_t>(n2), 1};
           g_d->put(ibflo[0], ibflo[1], 0, ibfhi[0], ibfhi[1], 0,
                   &k_eri[0], ld);
@@ -452,25 +455,29 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 #endif
         } //if s2
       } //s2
-#ifndef USE_UPCXX
+#if !defined(USE_UPCXX)
     } //#if s1
 #endif
   } //s1
 
+  auto cd_t3 = std::chrono::high_resolution_clock::now();
+  cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t3 - cd_t2)).count();
+  if(iproc == 0) std::cout << std::endl << "Time for computing the diagonal: " << cd_time << " secs" << endl;
+
   // Step C. Find the coordinates of the maximum element of the diagonal.
-  #ifdef USE_UPCXX
+  #if defined(USE_UPCXX)
   int64_t indx_d0[3];
   #else
   int64_t indx_d0[GA_MAX_DIM];
   #endif
   TensorType val_d0;
-  #ifdef USE_UPCXX
+  #if defined(USE_UPCXX)
   g_d->maximum(val_d0, indx_d0[0], indx_d0[1], indx_d0[2]);
   #else
   NGA_Select_elem64(g_d,const_cast<char*>("max"),&val_d0,indx_d0);
   #endif
 
-  #ifdef USE_UPCXX
+  #if defined(USE_UPCXX)
   int64_t lo_x[3]; // The lower limits of blocks
   int64_t hi_x[3]; // The upper limits of blocks
   int64_t ld_x[3]; // The leading dims of blocks
@@ -483,7 +490,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   // Step D. Start the while loop
   while(val_d0 > diagtol && count < max_cvecs){
 
-    #ifdef USE_UPCXX
+    #if defined(USE_UPCXX)
     g_r->zero();
     #else
     NGA_Zero(g_r);
@@ -503,7 +510,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
       auto bf3_first = shell2bf[s3]; // first basis function in this shell
       auto n3 = shells[s3].size();
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
       for (decltype(s3) s4 = 0; s4 != shells.size(); ++s4) {
         auto bf4_first = shell2bf[s4];
         auto n4 = shells[s4].size();
@@ -536,7 +543,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
                
             int64_t ibflo[2] = {cd_ncast<size_t>(bf3_first),cd_ncast<size_t>(bf4_first)};
             int64_t ibfhi[2] = {cd_ncast<size_t>(bf3_first+n3-1),cd_ncast<size_t>(bf4_first+n4-1)};
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
             int64_t ld[3] = {cd_ncast<size_t>(n3), cd_ncast<size_t>(n4), 1}; //n3                  
             g_r->put(ibflo[0], ibflo[1], 0, ibfhi[0], ibfhi[1], 0, &k_eri[0], ld);
 #else
@@ -547,12 +554,12 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 #endif
           } //if s4
         } //s4
-#ifndef USE_UPCXX
+#if !defined(USE_UPCXX)
       } //if s3
 #endif
     } //s3
   
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     upcxx::barrier(*team);
 #else
     NGA_Sync();
@@ -566,7 +573,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     hi_x[1] = indx_d0[1];
     hi_x[2] = count; //count>0? count : 0;
     ld_x[0] = 1;
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     ld_x[1] = 1;
     ld_x[2] = hi_x[2]+1;
 #else
@@ -576,7 +583,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     TensorType *indx_b, *indx_d, *indx_r;
     std::vector<TensorType> k_elems(max_cvecs);
     TensorType* k_row = &k_elems[0];
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     g_chol->get(lo_x[0], lo_x[1], lo_x[2], hi_x[0], hi_x[1], hi_x[2], k_row,
             ld_x);
 
@@ -667,7 +674,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     count++;
 
     //Step I. Update the diagonal
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     auto g_d_iter = g_d->local_chunks_begin();
     auto g_d_end = g_d->local_chunks_end();
     g_chol_iter = g_chol->local_chunks_begin();
@@ -707,7 +714,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 #endif
 
     //Step J. Find the coordinates of the maximum element of the diagonal.
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     g_d->maximum(val_d0, indx_d0[0], indx_d0[1], indx_d0[2]);
 #else
     NGA_Select_elem64(g_d,const_cast<char*>("max"),&val_d0,indx_d0);
@@ -715,7 +722,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   }
 
   if (iproc == 0) cout << "Number of cholesky vectors = " << count << endl;
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   g_r->destroy();
   g_d->destroy();
 #else
@@ -723,22 +730,24 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   NGA_Destroy(g_d);
 #endif
 
-  auto hf_t2 = std::chrono::high_resolution_clock::now();
-  auto hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(iproc == 0) std::cout << std::endl << "Time taken for cholesky decomp: " << hf_time << " secs" << endl;
+  auto cd_t4 = std::chrono::high_resolution_clock::now();
+  cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t4 - cd_t3)).count();
+  if(iproc == 0) std::cout << std::endl << "Time to compute cholesky vectors: " << cd_time << " secs" << endl;
+  // cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t4 - cd_t1)).count();
+  // if(iproc == 0) std::cout << std::endl << "Total Time for cholesky decomp: " << cd_time << " secs" << endl;
  
   update_sysdata(sys_data, tMO);
 
   TAMM_GA_SIZE N_eff = tMO("all").max_num_indices();
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   dimsmo[0] = N; dimsmo[1] = N; dimsmo[2] = count;
 #else
   dimsmo[0] =  N_eff; dimsmo[1] =  N_eff; dimsmo[2] = count;
 #endif
   chnkmo[0] = -1; chnkmo[1] = -1; chnkmo[2] = count;
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   ga_over_upcxx *g_chol_mo = new ga_over_upcxx(3, dimsmo, chnkmo, *team);
   g_chol_mo->zero();
 #else
@@ -765,10 +774,10 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     auto svdtol = 1e-8; //TODO same as diagtol ?
   #endif 
 
-  hf_t1 = std::chrono::high_resolution_clock::now();
+  cd_t1 = std::chrono::high_resolution_clock::now();
   double cvpr_time = 0;
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   atomic_counter_over_upcxx ga_ac(*team);
 #else
   char    name[]        = "atomic-counter";
@@ -791,7 +800,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 #endif
 
   int64_t taskcount = 0;
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   int64_t next = ga_ac.fetch_add(1);
 
   /*
@@ -811,13 +820,13 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 
       int64_t lo_ao[3] = {0,0,kk};
       int64_t hi_ao[3] = {nbf-1,nbf-1,kk};
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
       int64_t ld_ao[3] = {nbf,nbf, 1};
 #else
       int64_t ld_ao[2] = {nbf,1};
 #endif
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
       g_chol->get(lo_ao[0], lo_ao[1], lo_ao[2], hi_ao[0], hi_ao[1], hi_ao[2],
               &k_ij[0], ld_ao);
 #else
@@ -896,7 +905,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
         cvec.resize(0,0);
       }
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
       g_chol_mo->put(lo_mo[0], lo_mo[1], lo_mo[2], hi_mo[0], hi_mo[1], hi_mo[2],
               &k_pq[0], ld_mo);
       next = ga_ac.fetch_add(1);
@@ -907,18 +916,18 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     }
     taskcount++;
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     upcxx::progress();
 #endif
   }
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   upcxx::barrier(*team);
 #else
   GA_Pgroup_sync(ga_pg);
 #endif
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   g_chol->destroy();
 #else
   NGA_Destroy(ga_ac);
@@ -929,15 +938,15 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   k_ij.clear();
   k_eval_r.clear(); k_eval_r.shrink_to_fit();
 
-  hf_t2   = std::chrono::high_resolution_clock::now();
-  hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
+  cd_t2   = std::chrono::high_resolution_clock::now();
+  cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
   if(rank == 0) {
-    std::cout << "Total Time for constructing CholVpr: " << hf_time   << " secs" << endl;
-    std::cout << "    --> Time for 2-step contraction:   " << cvpr_time << " secs" << endl;
+    std::cout << endl << "Time for constructing MO-based CholVpr tensor: " << cd_time   << " secs" << endl;
+    std::cout << "  --> Time for 2-step contraction: " << cvpr_time << " secs" << endl;
   }
 
   #ifdef CD_SVD_THROTTLE
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     team = &team_ref;
 #else
     if(throttle_cd) GA_Pgroup_set_default(ga_pg_default);
@@ -951,14 +960,14 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
   ec.pg().broadcast(&count, 1, 0);
   #endif
 
-  hf_t1 = std::chrono::high_resolution_clock::now();
+  cd_t1 = std::chrono::high_resolution_clock::now();
 
   #ifdef CD_SVD_THROTTLE
 
   dimsmo[0] =  N; dimsmo[1] =  N; dimsmo[2] = count;
   chnkmo[0] = -1; chnkmo[1] = -1; chnkmo[2] = count;
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   ga_over_upcxx *g_chol_mo_copy = new ga_over_upcxx(3, dimsmo, chnkmo, *team);
   g_chol_mo_copy->zero();
 #else
@@ -975,7 +984,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 #endif
 
   if(iproc < cd_nranks) { //throttle  
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
     g_chol_mo->copy(g_chol_mo_copy);
     g_chol_mo->destroy();
 #else
@@ -989,7 +998,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 
   ec.pg().barrier();
   #else
-    #ifdef USE_UPCXX
+    #if defined(USE_UPCXX)
     ga_over_upcxx *g_chol_mo_copy = g_chol_mo;
     #else
     int g_chol_mo_copy = g_chol_mo;
@@ -1017,7 +1026,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     int64_t hi[3] = {cd_ncast<size_t>(block_offset[0] + block_dims[0]-1), 
                      cd_ncast<size_t>(block_offset[1] + block_dims[1]-1),
                      cd_ncast<size_t>(block_offset[2] + block_dims[2]-1)};
-    #ifdef USE_UPCXX
+    #if defined(USE_UPCXX)
     int64_t ld[3] = {cd_ncast<size_t>(block_dims[0]),
                      cd_ncast<size_t>(block_dims[1]),
                      cd_ncast<size_t>(block_dims[2])};
@@ -1028,31 +1037,31 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
                      cd_ncast<size_t>(block_dims[2])};
     #endif
     std::vector<TensorType> sbuf(dsize);
-    #ifdef USE_UPCXX
+    #if defined(USE_UPCXX)
     g_chol_mo_copy->get(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], &sbuf[0], ld);
     #else
     NGA_Get64(g_chol_mo_copy,lo,hi,&sbuf[0],ld);
     #endif
 
     CholVpr_tamm.put(blockid, sbuf);
-    #ifdef USE_UPCXX
+    #if defined(USE_UPCXX)
     upcxx::progress();
     #endif
   };
 
   block_for(ec, CholVpr_tamm(), lambdacv);
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   g_chol_mo_copy->destroy();
 #else
   NGA_Destroy(g_chol_mo_copy);
 #endif
 
-  hf_t2   = std::chrono::high_resolution_clock::now();
-  hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-  if(rank == 0) std::cout << std::endl << "Time for ga_chol_mo -> CholVpr_tamm conversion: " << hf_time << " secs" << endl;
+  cd_t2   = std::chrono::high_resolution_clock::now();
+  cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
+  if(rank == 0) std::cout << std::endl << "Time for CholVpr (GA->TAMM) conversion: " << cd_time << " secs" << endl;
 
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
   ga_ac.destroy();
 #endif
   #if 0
@@ -1060,7 +1069,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     Tensor<TensorType> CholVuv_opt{tAO, tAO, tCIp};
     Tensor<TensorType>::allocate(&ec, CholVuv_opt);
 
-    hf_t1 = std::chrono::high_resolution_clock::now();
+    cd_t1 = std::chrono::high_resolution_clock::now();
 
     // Contraction 1
     Tensor<TensorType> CholVpv_tamm{tMO,tAO,tCIp};
@@ -1068,12 +1077,12 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     Scheduler{ec}(CholVpv_tamm(pmo,mu,cindexp) = CTiled_tamm(nu, pmo) * CholVuv_opt(nu, mu, cindexp)).execute();
     Tensor<TensorType>::deallocate(CholVuv_opt);
 
-    hf_t2   = std::chrono::high_resolution_clock::now();
-    hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << std::endl << "Time taken for computing CholVpv: " << hf_time << " secs" << std::endl;
+    cd_t2   = std::chrono::high_resolution_clock::now();
+    cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
+    if(rank == 0) std::cout << std::endl << "Time for computing CholVpr: " << cd_time << " secs" << std::endl;
 
     //Contraction 2
-    hf_t1 = std::chrono::high_resolution_clock::now();
+    cd_t1 = std::chrono::high_resolution_clock::now();
   
     Tensor<TensorType> CholVpr_tamm{{tMO,tMO,tCIp},{SpinPosition::upper,SpinPosition::lower,SpinPosition::ignore}};
     Scheduler{ec}
@@ -1082,9 +1091,9 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
       .deallocate(CholVpv_tamm)
       .execute();
   
-    hf_t2   = std::chrono::high_resolution_clock::now();
-    hf_time = std::chrono::duration_cast<std::chrono::duration<double>>((hf_t2 - hf_t1)).count();
-    if(rank == 0) std::cout << std::endl << "Time taken for computing CholVpr: " << hf_time << " secs" << std::endl;
+    cd_t2   = std::chrono::high_resolution_clock::now();
+    cd_time = std::chrono::duration_cast<std::chrono::duration<double>>((cd_t2 - cd_t1)).count();
+    if(rank == 0) std::cout << std::endl << "Time for computing CholVpr: " << cd_time << " secs" << std::endl;
 
   #endif
 

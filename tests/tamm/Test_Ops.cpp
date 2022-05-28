@@ -5,7 +5,7 @@
 #include "ga/macdecls.h"
 #include "mpi.h"
 #include "tamm/tamm.hpp"
-#ifdef USE_UPCXX
+#if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
 

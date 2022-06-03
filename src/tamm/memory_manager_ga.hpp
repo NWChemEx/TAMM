@@ -53,11 +53,11 @@ class MemoryRegionGA : public MemoryRegionImpl<MemoryManagerGA> {
   std::unordered_map<upcxx::intrank_t,std::chrono::duration<double,std::micro>> lookup;
 #else
   // UPC++ data structures
-  upcxx::future<> fut_ = upcxx::make_future();
   upcxx::global_ptr<uint8_t>* gptrs_;
   ElementType eltype_;
   size_t eltype_size_;
 #endif
+  upcxx::future<> fut_ = upcxx::make_future();
 #else
   // GA data structures
   int ga_;
@@ -114,7 +114,7 @@ class MemoryManagerGA : public MemoryManager {
 #if defined(USE_UPCXX)
 #if defined(USE_UPCXX_DISTARRAY)
   void alloc_coll_upcxx_dist_array(ElementType eltype,
-      Size local_nelements, MemoryRegionGA* pmr, int nranks, size_t elemnt_size,
+      Size local_nelements, MemoryRegionGA* pmr, int nranks, size_t element_size,
       int64_t nels) {
     upcxx::team *team = pg_->team();
 
@@ -126,28 +126,28 @@ class MemoryManagerGA : public MemoryManager {
 
     switch (eltype) {
         case ElementType::single_precision:
-            pmr->daf_ = new upcxx::extras::dist_array<float>(nranks*nels,nels,*teamm,
+            pmr->daf_ = new upcxx::extras::dist_array<float>(nranks*nels,nels,*team,
                     upcxx::extras::dist_array<float>::params(nranks));
-            loc_size = pmr->daf_->process_size(teamm->rank_me());
-            memset(pmr->daf_->data(), 0x00, nels * elt_size);
+            loc_size = pmr->daf_->process_size(team->rank_me());
+            memset(pmr->daf_->data(), 0x00, nels * element_size);
             break;
         case ElementType::double_precision:
-            pmr->dad_ = new upcxx::extras::dist_array<double>(nranks*nels,nels,*teamm,
+            pmr->dad_ = new upcxx::extras::dist_array<double>(nranks*nels,nels,*team,
                     upcxx::extras::dist_array<double>::params(nranks));
-            loc_size = pmr->dad_->process_size(teamm->rank_me());
-            memset(pmr->dad_->data(), 0x00, nels * elt_size);
+            loc_size = pmr->dad_->process_size(team->rank_me());
+            memset(pmr->dad_->data(), 0x00, nels * element_size);
             break;
         case ElementType::single_complex:
-            pmr->dasc_ = new upcxx::extras::dist_array<SingleComplex>(nranks*nels,nels,*teamm,
+            pmr->dasc_ = new upcxx::extras::dist_array<SingleComplex>(nranks*nels,nels,*team,
                     upcxx::extras::dist_array<SingleComplex>::params(nranks));
-            loc_size = pmr->dasc_->process_size(teamm->rank_me());
-            memset(pmr->dasc_->data(), 0x00, nels * elt_size);
+            loc_size = pmr->dasc_->process_size(team->rank_me());
+            memset(pmr->dasc_->data(), 0x00, nels * element_size);
             break;
         case ElementType::double_complex:
-            pmr->dadc_ = new upcxx::extras::dist_array<DoubleComplex>(nranks*nels,nels,*teamm,
+            pmr->dadc_ = new upcxx::extras::dist_array<DoubleComplex>(nranks*nels,nels,*team,
                     upcxx::extras::dist_array<DoubleComplex>::params(nranks));
-            loc_size = pmr->dadc_->process_size(teamm->rank_me());
-            memset(pmr->dadc_->data(), 0x00, nels * elt_size);
+            loc_size = pmr->dadc_->process_size(team->rank_me());
+            memset(pmr->dadc_->data(), 0x00, nels * element_size);
             break;
         case ElementType::invalid:
         default:
@@ -222,7 +222,7 @@ class MemoryManagerGA : public MemoryManager {
 #if defined(USE_UPCXX)
 #if defined(USE_UPCXX_DISTARRAY)
       alloc_coll_upcxx_dist_array(eltype, local_nelements, pmr, nranks,
-              elemnt_size, nels);
+              element_size, nels);
 #else // USE_UPCXX_DISTARRAY
       alloc_coll_upcxx(eltype, local_nelements, pmr, nranks,
               element_size, nels);
@@ -551,8 +551,8 @@ class MemoryManagerGA : public MemoryManager {
    */
   void get(MemoryRegion& mrb, Proc proc, Offset off, Size nelements,
           void* to_buf) override {
-    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
 #if defined(USE_UPCXX)
+    MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 #if defined(USE_UPCXX_DISTARRAY)
     upcxx::future<> f;
     std::chrono::high_resolution_clock::time_point start, end;
@@ -601,6 +601,7 @@ class MemoryManagerGA : public MemoryManager {
 #endif
     f.wait();
 #else
+    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
     TAMM_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Get64(mr.ga_, &lo, &hi, to_buf, &ld);
@@ -679,9 +680,8 @@ class MemoryManagerGA : public MemoryManager {
    */
   void put(MemoryRegion& mrb, Proc proc, Offset off, Size nelements,
           const void* from_buf) override {
-    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
-
 #if defined(USE_UPCXX)
+    MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 #if defined(USE_UPCXX_DISTARRAY)
     std::chrono::high_resolution_clock::time_point start, end;
     if (mr.daf_) {
@@ -730,6 +730,7 @@ class MemoryManagerGA : public MemoryManager {
             nelements.value() * mr.eltype_size_).wait();
 #endif // USE_UPCXX_DISTARRAY
 #else
+    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
     TAMM_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;
     NGA_Put64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld);
@@ -805,7 +806,7 @@ class MemoryManagerGA : public MemoryManager {
 #if defined(USE_UPCXX)
   void add_helper(MemoryRegion& mrb, Proc proc, Offset off,
           Size nelements, const void* from_buf) {
-    const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
+    MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 
 #if defined(USE_UPCXX_DISTARRAY)
     std::chrono::high_resolution_clock::time_point start, end;

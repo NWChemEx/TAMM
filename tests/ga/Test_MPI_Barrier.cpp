@@ -1,10 +1,7 @@
 
-#include "ga/macdecls.h"
 #include "mpi.h"
-#include "armci.h"
 #include "ga/ga.h"
 #include "ga/ga-mpi.h"
-
 #include <iostream>
 
 int main(int argc, char* argv[]) {
@@ -26,7 +23,6 @@ int main(int argc, char* argv[]) {
     nproc = 0; gbarrier = 0;
     
     GA_Initialize();
-    MA_init(MT_DBL, 8000000, 20000000);
 
     tbeg = MPI_Wtime();
     MPI_Barrier(GA_MPI_Comm());

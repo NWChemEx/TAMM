@@ -1,7 +1,7 @@
 #pragma once
 
 #include "tamm/memory_manager.hpp"
-#include "armci.h"
+#include "ga/armci.h"
 #include "ga/ga.h"
 #include "ga/ga-mpi.h"
 

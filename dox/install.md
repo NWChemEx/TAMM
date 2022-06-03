@@ -29,26 +29,6 @@ Choose Build Options
 -DUSE_DPCPP=ON (OFF by default, requires -DUSE_OPENMP=OFF) 
 ```
 
-### UPC++ options
-To build with UPC++ enabled, you must prefix your cmake command with:
-```
-UPCXX_CODEMODE=O3 CC=gcc CXX=upcxx FC=gfortran cmake ...
-```
-and add:
-```
--DUSE_UPCXX=ON
-```
-
-When creating a debug mode, set UPCXX_CODEMODE to g instead of O3, while setting:
-```
--DCMAKE_BUILD_TYPE=Debug
-```
-
-In addition, if you would like to use a version of the UPC++ logic based on UPC++ dist_array, add the following flag to the above:
-```
--DUSE_UPCXX_DISTARRAY=ON
-```
-
 ### CMake options for developers (optional)
 ```
 -DUSE_GA_PROFILER=ON #Enable GA's profiling feature (GCC Only).

@@ -83,7 +83,7 @@ class MemoryManagerGA : public MemoryManager {
    * @param pg Process group in which to create GA memory manager
    * @return Constructed GA memory manager
    */
-  static MemoryManagerGA* create_coll(ProcGroup* pg) {
+  static MemoryManagerGA* create_coll(ProcGroup pg) {
     return new MemoryManagerGA{pg};
   }
 
@@ -116,7 +116,7 @@ class MemoryManagerGA : public MemoryManager {
   void alloc_coll_upcxx_dist_array(ElementType eltype,
       Size local_nelements, MemoryRegionGA* pmr, int nranks, size_t element_size,
       int64_t nels) {
-    upcxx::team *team = pg_->team();
+    upcxx::team *team = pg_.team();
 
     size_t loc_size;
     pmr->daf_ = nullptr;
@@ -167,7 +167,7 @@ class MemoryManagerGA : public MemoryManager {
   void alloc_coll_upcxx(ElementType eltype,
       Size local_nelements, MemoryRegionGA* pmr, int nranks, int64_t element_size,
       int64_t nels) {
-    upcxx::team *team = pg_->team();
+    upcxx::team *team = pg_.team();
     pmr->gptrs_ = new upcxx::global_ptr<uint8_t>[nranks];
     pmr->eltype_ = eltype;
     pmr->eltype_size_ = get_element_size(eltype);
@@ -194,7 +194,7 @@ class MemoryManagerGA : public MemoryManager {
                             local_gptr, *team);
     }
 
-    pg_->barrier(); // ensure distributed object creation
+    pg_.barrier(); // ensure distributed object creation
 
     std::vector<upcxx::future<upcxx::global_ptr<uint8_t>>> futs(nranks);
     for (int r = 0; r < nranks; r++) {
@@ -215,8 +215,7 @@ class MemoryManagerGA : public MemoryManager {
     {
       pmr = new MemoryRegionGA(*this);
 
-      int nranks = pg_->size().value();
-
+      int nranks = pg_.size().value();
       int64_t element_size = get_element_size(eltype);
       int64_t nels = local_nelements.value();
 #if defined(USE_UPCXX)
@@ -230,13 +229,11 @@ class MemoryManagerGA : public MemoryManager {
 #else // USE_UPCXX
       int ga_pg_default = GA_Pgroup_get_default();
       GA_Pgroup_set_default(ga_pg_);
-      int nranks    = pg_.size().value();
       int ga_eltype = to_ga_eltype(eltype);
 
       pmr->map_.resize(nranks + 1);
       pmr->eltype_          = eltype;
       pmr->local_nelements_ = local_nelements;
-      int64_t nels          = local_nelements.value();
 
       int64_t nelements_min, nelements_max;
 
@@ -359,7 +356,7 @@ class MemoryManagerGA : public MemoryManager {
 #endif
     pmr->local_nelements_ = mr_rhs.local_nelements_;
     pmr->set_status(AllocationStatus::attached);
-    pg_->barrier();
+    pg_.barrier();
     return pmr;
   }
 
@@ -378,21 +375,21 @@ class MemoryManagerGA : public MemoryManager {
   }
 
   protected:
-  explicit MemoryManagerGA(ProcGroup* pg
+  explicit MemoryManagerGA(ProcGroup pg
 #if defined(USE_UPCXX_DISTARRAY)
           , upcxx::intrank_t hint = 0
 #endif
           )
       : MemoryManager{pg, MemoryManagerKind::ga} {
-    EXPECTS(pg->is_valid());
+    EXPECTS(pg.is_valid());
 #if defined(USE_UPCXX)
-    team_ = pg->team();
+    team_ = pg.team();
 #if defined(USE_UPCXX_DISTARRAY)
-    slots = (hint ? hint : pg->size().value());
+    slots = (hint ? hint : pg.size().value());
 #endif
 #else // USE_UPCXX
     pg_ = pg;
-    ga_pg_ = pg->ga_pg();
+    ga_pg_ = pg.ga_pg();
 #endif // USE_UPCXX
   }
 
@@ -469,9 +466,9 @@ class MemoryManagerGA : public MemoryManager {
         std::cout << std::endl;
     }
     again.clear(); near.clear(); far.clear(); mr.lookup.clear();
-    pg_->barrier();
+    pg_.barrier();
 #else
-    upcxx::delete_array(mr.gptrs_[pg_->rank().value()]);
+    upcxx::delete_array(mr.gptrs_[pg_.rank().value()]);
     mr.gptrs_ = NULL;
 #endif
     upcxx::barrier(*team_);
@@ -532,11 +529,11 @@ class MemoryManagerGA : public MemoryManager {
 #else
     size_t element_size = mr.eltype_size_;
     size_t local_byte_offset = off.value() * element_size;
-    upcxx::global_ptr<uint8_t> local_arr = mr.gptrs_[pg_->rank().value()];
+    upcxx::global_ptr<uint8_t> local_arr = mr.gptrs_[pg_.rank().value()];
     return static_cast<void*>(local_arr.local() + local_byte_offset);
 #endif
 #else
-    Proc proc{pg_->rank()};
+    Proc proc{pg_.rank()};
     TAMM_SIZE nels{1};
     TAMM_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nels-1, ld = -1;
@@ -827,7 +824,7 @@ class MemoryManagerGA : public MemoryManager {
                 for (int i = 0; i < lim; i++)
                     dst[i] += src[i];
                 *executed_ops += 1;
-            }, gptr, buf_view, *(pg_->get_recvd_ops_object()));
+            }, gptr, buf_view, *(pg_.get_recvd_ops_object()));
     } else if (mr.dad_) {
         size_t idx = mr.dad_->process_size() * proc.value() + off.value(); // assumes equal allocation across ranks
         start = std::chrono::high_resolution_clock::now();
@@ -845,7 +842,7 @@ class MemoryManagerGA : public MemoryManager {
                 for (int i = 0; i < lim; i++)
                     dst[i] += src[i];
                 *executed_ops += 1;
-            }, gptr, buf_view, *(pg_->get_recvd_ops_object()));
+            }, gptr, buf_view, *(pg_.get_recvd_ops_object()));
     } else if (mr.dasc_) {
         size_t idx = mr.dasc_->process_size() * proc.value() + off.value(); // assumes equal allocation across ranks
         start = std::chrono::high_resolution_clock::now();
@@ -866,7 +863,7 @@ class MemoryManagerGA : public MemoryManager {
                     dst[i].imag += src[i].imag;
                 }
                 *executed_ops += 1;
-            }, gptr, buf_view, *(pg_->get_recvd_ops_object()));
+            }, gptr, buf_view, *(pg_.get_recvd_ops_object()));
     } else if (mr.dadc_) {
         size_t idx = mr.dadc_->process_size() * proc.value() + off.value(); // assumes equal allocation across ranks
         start = std::chrono::high_resolution_clock::now();
@@ -887,7 +884,7 @@ class MemoryManagerGA : public MemoryManager {
                     dst[i].imag += src[i].imag;
                 }
                 *executed_ops += 1;
-            }, gptr, buf_view, *(pg_->get_recvd_ops_object()));
+            }, gptr, buf_view, *(pg_.get_recvd_ops_object()));
     } else {
         fprintf(stderr, "Rank %d reached unreachable code in nb_put\n",
                 upcxx::rank_me());
@@ -918,7 +915,7 @@ class MemoryManagerGA : public MemoryManager {
                             dst[i] += src[i];
                         }
                         *executed_ops += 1;
-                    }, typed_dst + off.value(), upcxx::make_view((float*)from_buf, (float*)from_buf + nelements.value()), *(pg_->get_recvd_ops_object()));
+                    }, typed_dst + off.value(), upcxx::make_view((float*)from_buf, (float*)from_buf + nelements.value()), *(pg_.get_recvd_ops_object()));
 
             break;
         }
@@ -935,7 +932,7 @@ class MemoryManagerGA : public MemoryManager {
                             dst[i] += src[i];
                         }
                         *executed_ops += 1;
-                    }, typed_dst + off.value(), upcxx::make_view((double*)from_buf, (double*)from_buf + nelements.value()), *(pg_->get_recvd_ops_object()));
+                    }, typed_dst + off.value(), upcxx::make_view((double*)from_buf, (double*)from_buf + nelements.value()), *(pg_.get_recvd_ops_object()));
             break;
         }
         case ElementType::single_complex: {
@@ -952,7 +949,7 @@ class MemoryManagerGA : public MemoryManager {
                             dst[i].imag += src[i].imag;
                         }
                         *executed_ops += 1;
-                    }, typed_dst + off.value(), upcxx::make_view((SingleComplex*)from_buf, (SingleComplex*)from_buf + nelements.value()), *(pg_->get_recvd_ops_object()));
+                    }, typed_dst + off.value(), upcxx::make_view((SingleComplex*)from_buf, (SingleComplex*)from_buf + nelements.value()), *(pg_.get_recvd_ops_object()));
 
             break;
         }
@@ -970,7 +967,7 @@ class MemoryManagerGA : public MemoryManager {
                             dst[i].imag += src[i].imag;
                         }
                         *executed_ops += 1;
-                    }, typed_dst + off.value(), upcxx::make_view((DoubleComplex*)from_buf, (DoubleComplex*)from_buf + nelements.value()), *(pg_->get_recvd_ops_object()));
+                    }, typed_dst + off.value(), upcxx::make_view((DoubleComplex*)from_buf, (DoubleComplex*)from_buf + nelements.value()), *(pg_.get_recvd_ops_object()));
             break;
         }
         case ElementType::invalid:
@@ -989,7 +986,7 @@ class MemoryManagerGA : public MemoryManager {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
 #if defined(USE_UPCXX)
     add_helper(mrb, proc, off, nelements, from_buf);
-    pg_->add_op(proc.value());
+    pg_.add_op(proc.value());
 #else
     TAMM_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     int64_t lo = ioffset, hi = ioffset + nelements.value()-1, ld = -1;

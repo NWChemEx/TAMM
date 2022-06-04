@@ -358,7 +358,7 @@ tamm::Tensor<T> retile_rank2_tensor(tamm::Tensor<T>& tensor, const tamm::TiledIn
 
 
    tamm::ProcGroup pg = ProcGroup::create_world_coll();
-   auto mgr = tamm::MemoryManagerGA::create_coll(&pg);
+   auto mgr = tamm::MemoryManagerGA::create_coll(pg);
    tamm::Distribution_NW distribution;
    tamm::ExecutionContext ec{pg,&distribution,mgr};
    auto is1 = tensor.tiled_index_spaces()[0].index_space();

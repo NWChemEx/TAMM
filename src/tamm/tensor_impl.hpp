@@ -12,7 +12,6 @@
 #include <functional>
 #include <gsl/span>
 #include <type_traits>
-#include "ga.h"
 #if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
@@ -284,10 +283,10 @@ public:
             // pg.size());
             {
                 distribution_ = std::shared_ptr<Distribution>(
-                  distribution->clone(this, memory_manager->pg()->size()));
+                  distribution->clone(this, memory_manager->pg().size()));
             }
 #if 0
-        auto rank = memory_manager->pg()->rank();
+        auto rank = memory_manager->pg().rank();
         auto buf_size = distribution_->buf_size(rank);
         auto eltype = tensor_element_type<T>();
         EXPECTS(buf_size >= 0);
@@ -849,9 +848,6 @@ public:
           dims.push_back(tis.index_space().num_indices());
 
         NGA_Set_data64(ga_, ndims, &dims[0], ga_eltype_);
-
-        std::vector<bool> is_irreg_tis(ndims,false);
-        for(int i = 0; i < ndims; i++) is_irreg_tis[i] = !tis_dims[i].input_tile_sizes().empty();
 
         if (proc_list_.size() > 0 ) {
           int nproc = proc_list_.size();

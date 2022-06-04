@@ -328,7 +328,7 @@ int main(int argc, char* argv[]) {
     #endif
 
     ProcGroup        pg  = ProcGroup::create_world_coll();
-    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(&pg);
+    MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW  distribution;
     RuntimeEngine    re;
     ExecutionContext ec{pg, &distribution, mgr, &re};

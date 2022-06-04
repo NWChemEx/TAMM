@@ -54,7 +54,7 @@ class MemoryManagerLocal : public MemoryManager {
    *
    * @pre pg is a TAMM process group wrapping just MPI_COMM_SELF
    */
-  static MemoryManagerLocal* create_coll(ProcGroup* pg) {
+  static MemoryManagerLocal* create_coll(ProcGroup pg) {
     return new MemoryManagerLocal{pg};
   }
 
@@ -109,11 +109,11 @@ class MemoryManagerLocal : public MemoryManager {
   ~MemoryManagerLocal() {}
 
   protected:
-  explicit MemoryManagerLocal(ProcGroup *pg)
+  explicit MemoryManagerLocal(ProcGroup pg)
       : MemoryManager{pg, MemoryManagerKind::local} {
     //sequential. So process group size should be 1
-    EXPECTS(pg->is_valid());
-    EXPECTS(pg_->size() == 1);
+    EXPECTS(pg.is_valid());
+    EXPECTS(pg_.size() == 1);
   }
 
 

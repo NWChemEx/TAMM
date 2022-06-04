@@ -132,15 +132,14 @@ make install
 
 ## Build instructions for Summit using ESSL and UPC++
 
-```
-module use /gpfs/alpine/world-shared/csc296/summit/modulefiles
+### Note that UPC++ support is still experimental
 
+```
 module load gcc
 module load cmake
 module load essl/6.3.0
 module load cuda
-module --ignore-cache load upcxx
-module load upcxx-extras
+module load upcxx
 ```
 
 

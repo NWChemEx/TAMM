@@ -374,11 +374,11 @@ public:
       case MemoryManagerKind::invalid: NOT_ALLOWED(); return nullptr;
       case MemoryManagerKind::ga:
         // auto defd = get_memory_manager(memkind);
-        return std::unique_ptr<MemoryManager>(new MemoryManagerGA{(ProcGroup*)&pg_});
+        return std::unique_ptr<MemoryManager>(new MemoryManagerGA{pg_});
         // return std::unique_ptr<MemoryManager>(new MemoryManagerGA{std::forward<Args>(args)...});
         break;
       case MemoryManagerKind::local:
-        return std::unique_ptr<MemoryManager>(new MemoryManagerLocal{(ProcGroup*)&pg_self_});
+        return std::unique_ptr<MemoryManager>(new MemoryManagerLocal{pg_self_});
         //   return std::unique_ptr<MemoryManager>(new
         //   MemoryManagerLocal{std::forward<Args>(args)...});
         break;

@@ -6,6 +6,9 @@
 #include "mpi.h"
 #include "tamm/tamm.hpp"
 #include "tamm/utils.hpp"
+#if defined(USE_UPCXX)
+#include <upcxx/upcxx.hpp>
+#endif
 
 using namespace tamm;
 
@@ -209,7 +212,7 @@ TEST_CASE("SCF Commutator declarations") {
         using space_type  = tamm::TiledIndexSpace;
         using index_type  = tamm::TiledIndexLabel;
 
-        ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+        ProcGroup pg = ProcGroup::create_world_coll();
         ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         IndexSpace is{range(10)};
@@ -266,7 +269,7 @@ TEST_CASE("SCF JK declarations") {
     try {
         using tensor_type = tamm::Tensor<double>;
 
-        ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+        ProcGroup pg = ProcGroup::create_world_coll();
         ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         IndexSpace is{range(10)};
@@ -321,7 +324,7 @@ TEST_CASE("CCSD T2") {
     try {
         using T = double;
 
-        ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+        ProcGroup pg = ProcGroup::create_world_coll();
         ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
         IndexSpace MO_IS{range(0, 14),
@@ -454,7 +457,7 @@ TEST_CASE("Tensor operations on named subspaces") {
 
     std::cerr << "Allocate and deallocate tensors" << std::endl;
 
-    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
     {
         bool failed = false;

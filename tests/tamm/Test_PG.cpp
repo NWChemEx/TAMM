@@ -3,6 +3,9 @@
 #include "ga/macdecls.h"
 #include "mpi.h"
 #include <tamm/tamm.hpp>
+#if defined(USE_UPCXX)
+#include <upcxx/upcxx.hpp>
+#endif
 
 using namespace tamm;
 using std::cout;
@@ -12,7 +15,7 @@ using T = double;
 // TEST_CASE("/* Testing process groups */") 
 void test_pg(int dim, int nproc) {
 
-    ProcGroup gpg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup gpg = ProcGroup::create_world_coll();
     ExecutionContext gec{gpg, DistributionKind::nw, MemoryManagerKind::ga};
 
     auto rank = gec.pg().rank();
@@ -21,9 +24,17 @@ void test_pg(int dim, int nproc) {
     MPI_Group world_group;
     MPI_Comm_group(world_comm,&world_group);
 
+#if defined(USE_UPCXX)
+    auto ppn = upcxx::local_team().rank_n();
+#else
     auto ppn = GA_Cluster_nprocs(0);
+#endif
     if(rank==0) std::cout << "ppn=" << ppn << std::endl;
 
+#if defined(USE_UPCXX)
+    upcxx::team* subcomm = new upcxx::team(upcxx::world().split(
+                rank < ppn ? 0 : upcxx::team::color_none, 0));
+#else
     int lranks[ppn];
     for(int i = 0; i < ppn; i++) lranks[i] = i;
     MPI_Group lgroup;
@@ -32,12 +43,12 @@ void test_pg(int dim, int nproc) {
     MPI_Group_incl(lgroup, ppn, lranks, &hf_lgroup);
     MPI_Comm subcomm;
     MPI_Comm_create(world_comm, hf_lgroup, &subcomm);
-
+#endif
 
     TiledIndexSpace AO{IndexSpace{range(5)},5};
     Tensor<double> tens1{{AO, AO}};
 
-    if(subcomm != MPI_COMM_NULL){
+    if (rank < ppn) {
       ProcGroup        pg_m = ProcGroup::create_coll(subcomm);
       ExecutionContext ec_m{pg_m, DistributionKind::nw, MemoryManagerKind::ga};
       Scheduler        sch{ec_m};
@@ -110,8 +121,8 @@ void test_pg(int dim, int nproc) {
 
 // TEST_CASE("/* Test case for replicated A/B */")
 void test_replicate_AB(int dim) {
+    ProcGroup gpg = ProcGroup::create_world_coll();
 
-    ProcGroup gpg = ProcGroup::create_coll(GA_MPI_Comm());
     ExecutionContext gec{gpg, DistributionKind::dense, MemoryManagerKind::ga};
 
     TiledIndexSpace tis1{IndexSpace{range(dim)}, 40};
@@ -128,8 +139,12 @@ void test_replicate_AB(int dim) {
     gsch.allocate(A, C).execute();
 
     { // B is replicated
-
+#if defined(USE_UPCXX)
+        upcxx::team self_team = upcxx::world().split(upcxx::rank_me(), 0);
+        ProcGroup pg = ProcGroup::create_coll(self_team);
+#else
         ProcGroup pg = ProcGroup::create_coll(MPI_COMM_SELF);
+#endif
         ExecutionContext ec{pg, DistributionKind::dense, MemoryManagerKind::ga};
 
         Scheduler{ec}.allocate(B).execute();
@@ -140,6 +155,9 @@ void test_replicate_AB(int dim) {
         Scheduler{ec}.deallocate(B).execute();
 
         ec.flush_and_sync();
+#if defined(USE_UPCXX)
+        self_team.destroy();
+#endif
     }
 
     gec.pg().barrier();

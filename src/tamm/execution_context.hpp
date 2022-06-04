@@ -20,6 +20,10 @@
 #include "talsh/talshxx.hpp"
 #endif
 
+#if defined(USE_UPCXX)
+extern upcxx::team* team_self;
+#endif
+
 namespace tamm {
 
 struct IndexedAC {
@@ -56,7 +60,11 @@ class RuntimeEngine;
 class ExecutionContext {
 public:
   ExecutionContext(): ac_{IndexedAC{nullptr, 0}} {
+#if defined(USE_UPCXX)
+    pg_self_ = ProcGroup{team_self};
+#else
     pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
+#endif
   };
 
   ExecutionContext(const ExecutionContext&)            = default;
@@ -195,7 +203,12 @@ public:
    *
    * @param [in] pg input ProcGroup object
    */
-  void set_pg(const ProcGroup& pg) { pg_ = pg; }
+  void set_pg(const ProcGroup& pg) {
+    pg_ = pg;
+#if defined(USE_UPCXX_DISTARRAY)
+    hint_ = pg.size().value();
+#endif
+  }
 
   /**
    * Get the default distribution
@@ -245,6 +258,22 @@ public:
   MemoryManager* memory_manager(Args&&... args) const {
     return memory_manager_factory(memory_manager_kind_, std::forward<Args>(args)...).release();
   }
+
+#if defined(USE_UPCXX_DISTARRAY)
+    /**
+     * @brief Set cache size for MemoryRegionGAs created by MemoryManagerGAs of this ExecutionContext
+     *
+     * @param [in] hint input Size of cache for MemoryRegionsGAs
+     */
+    void set_memory_manager_cache(const upcxx::intrank_t hint = 0) { 
+        hint_ = (hint ? hint : pg_.size().value());
+    }
+    /**
+     * Cache size hint for this execution context
+     * @return Cache size used by MemoryRegionGAs within this ExecutionContext
+     */
+    upcxx::intrank_t hint() const { return hint_; }
+#endif
 
   /**
    * @brief Set the default memory manager for ExecutionContext
@@ -379,6 +408,10 @@ private:
   std::stringstream          profile_data_;
   std::vector<MemoryRegion*> mem_regs_to_dealloc_;
   std::vector<MemoryRegion*> unregistered_mem_regs_;
+
+#if defined(USE_UPCXX_DISTARRAY)
+  upcxx::intrank_t hint_;
+#endif
 
 }; // class ExecutionContext
 

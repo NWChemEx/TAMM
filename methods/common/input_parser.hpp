@@ -16,6 +16,9 @@ using namespace tamm;
 
 #include "ga/ga.h"
 #include "ga/ga-mpi.h"
+#if defined(USE_UPCXX)
+#include <upcxx/upcxx.hpp>
+#endif
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::ordered_json;
@@ -860,7 +863,7 @@ class json_sax_no_exception : public nlohmann::detail::json_sax_dom_parser<json>
                      const std::string& last_token,
                      const json::exception& ex)
     {
-      if(GA_Nodeid()==0) {
+      if(ProcGroup::world_rank()==0) {
         std::cerr << std::endl << ex.what() << std::endl
                   << "last read: " << last_token
                   << std::endl;
@@ -941,7 +944,7 @@ inline std::tuple<OptionsMap, json>
       }
     }
 
-    if(GA_Nodeid()==0){
+    if (ProcGroup::world_rank() == 0) {
 
       jinput.erase(std::remove(jinput.begin(), jinput.end(), nullptr), jinput.end());
 

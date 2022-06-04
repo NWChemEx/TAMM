@@ -92,7 +92,11 @@ Tensor<TensorType> cd_svd_ao(ExecutionContext& ec, TiledIndexSpace& tMO, TiledIn
       cout << "F_MO dims = " << F.rows() << "," << F.cols()  << endl;
     }
 
-  GA_Sync();
+#ifdef USE_UPCXX
+    upcxx::barrier();
+#else
+    GA_Sync();
+#endif
 
   auto hf_t2 = std::chrono::high_resolution_clock::now();
 

@@ -327,7 +327,7 @@ int main(int argc, char* argv[]) {
     talsh_instance.initialize(mpi_rank);
     #endif
 
-    ProcGroup        pg  = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup        pg  = ProcGroup::create_world_coll();
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW  distribution;
     RuntimeEngine    re;

@@ -35,7 +35,7 @@ void ccsd_driver() {
 
     using T = double;
 
-    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     auto rank = ec.pg().rank();
 

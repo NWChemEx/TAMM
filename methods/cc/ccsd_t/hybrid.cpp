@@ -12,10 +12,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef USE_UPCXX
+#include <upcxx/upcxx.hpp>
+#endif
+
 //
-int util_my_smp_index() {
+int util_my_smp_index(){
+#ifdef USE_UPCXX
+  int ppn = upcxx::local_team().rank_n();
+  return upcxx::rank_me() % ppn;
+#else
   auto ppn = GA_Cluster_nprocs(0);
   return GA_Nodeid() % ppn;
+#endif
 }
 
 //

@@ -57,6 +57,8 @@ mkdir build && cd build
 
 * **[Build instructions for Summit using ESSL](install.md#build-instructions-for-summit-using-essl)**
 
+* **[Build instructions for Summit using ESSL and UPC++](install.md#build-instructions-for-summit-using-essl-and-upc++)**
+
 * **[Build instructions for Crusher](install.md#build-instructions-for-crusher)**
 
 * **[Build instructions for Cori](install.md#build-instructions-for-cori)**
@@ -127,6 +129,36 @@ CC=gcc CXX=g++ FC=gfortran cmake \
 make -j3
 make install
 ```
+
+## Build instructions for Summit using ESSL and UPC++
+
+### Note that UPC++ support is still experimental
+
+```
+module load gcc
+module load cmake
+module load essl/6.3.0
+module load cuda
+module load upcxx
+```
+
+
+```
+cd $TAMM_SRC/build
+
+UPCXX_CODEMODE=O3 CC=gcc CXX=upcxx FC=gfortran cmake \
+-DCMAKE_BUILD_TYPE=Release \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
+-DBLIS_CONFIG=power9 \
+-DLINALG_VENDOR=IBMESSL \
+-DLINALG_PREFIX=/sw/summit/essl/6.3.0/essl/6.3 \
+-DUSE_CUDA=ON \
+-DUSE_UPCXX=ON ..
+
+UPCXX_CODEMODE=O3 make -j3
+UPCXX_CODEMODE=O3 make install
+```
+
 
 ## Build instructions for Crusher
 

@@ -214,7 +214,7 @@ public:
             oprof.multOpGetTime = 0;
             oprof.multOpWaitTime = 0;  
             oprof.multOpDgemmTime = 0;
-            oprof.multOpAddTime = 0;    
+            oprof.multOpAddTime = 0;
         }
 
         auto bt1 = std::chrono::high_resolution_clock::now();
@@ -236,7 +236,7 @@ public:
         // double nranks = 1.0 * ec_.pg().size().value();
         oprof.multOpGetTime = 0;
         oprof.multOpDgemmTime = 0;
-        oprof.multOpAddTime = 0;  
+        oprof.multOpAddTime = 0;
 
         std::vector<double> load_imbalance_times;
         std::vector<double> op_times;
@@ -260,7 +260,7 @@ public:
                 // multop_add_times.push_back(oprof.multOpAddTime);
                 // oprof.multOpGetTime = 0;
                 // oprof.multOpDgemmTime = 0;
-                // oprof.multOpAddTime = 0;  
+                // oprof.multOpAddTime = 0;
                 // t1 = t3;
             }
             ec().set_ac(IndexedAC(ac, i));
@@ -275,7 +275,7 @@ public:
             multop_add_times.push_back(oprof.multOpAddTime);   
             oprof.multOpGetTime = 0;
             oprof.multOpDgemmTime = 0;
-            oprof.multOpAddTime = 0;                          
+            oprof.multOpAddTime = 0;
         }
         auto t2 = std::chrono::high_resolution_clock::now();
         ec().pg().barrier();
@@ -288,7 +288,7 @@ public:
         // multop_add_times.push_back(oprof.multOpAddTime);
         // oprof.multOpGetTime = 0;
         // oprof.multOpDgemmTime = 0;
-        // oprof.multOpAddTime = 0;  
+        // oprof.multOpAddTime = 0;
         start_idx_ = ops_.size();
         ec().set_ac(IndexedAC(nullptr, 0));
         misc_start = t3;

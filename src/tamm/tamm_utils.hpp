@@ -5,6 +5,9 @@
 #include <random>
 #include <fstream>
 #include <type_traits>
+#if defined(USE_UPCXX)
+#include <upcxx/upcxx.hpp>
+#endif
 #include <iomanip>
 #include <hdf5.h>
 
@@ -417,8 +420,8 @@ void update_tensor_general(LabeledTensor<T> labeled_tensor, Func lambda) {
  * when Execution context is destructed
  */
 /*inline ExecutionContext make_execution_context() {
-    ProcGroup* pg = new ProcGroup {ProcGroup::create_coll(GA_MPI_Comm())};
-    auto* pMM             = MemoryManagerGA::create_coll(*pg);
+    ProcGroup* pg = new ProcGroup {ProcGroup::create_world_coll()};
+    auto* pMM             = MemoryManagerGA::create_coll(pg);
     Distribution_NW* dist = new Distribution_NW();
     RuntimeEngine* re = new RuntimeEngine{};
     ExecutionContext *ec = new ExecutionContext(*pg, dist, pMM, re);
@@ -660,7 +663,7 @@ void fill_sparse_tensor(LabeledTensor<TensorType> ltensor,
 }
 
 template<typename TensorType>
-std::tuple<int, int> get_agg_info(const int nranks, Tensor<TensorType> tensor, const int nagg_hint) {
+std::tuple<int, int, int> get_agg_info(ExecutionContext& gec, const int nranks, Tensor<TensorType> tensor, const int nagg_hint) {
     long double nelements = 1;
     //Heuristic: Use 1 agg for every 14gb
     const long double ne_mb = 131072 * 14.0;
@@ -669,39 +672,39 @@ std::tuple<int, int> get_agg_info(const int nranks, Tensor<TensorType> tensor, c
     // nelements = tensor.size();
     int nagg = (nelements / (ne_mb * 1024) ) + 1;
     // const int nnodes = GA_Cluster_nnodes();
-    const int ppn = GA_Cluster_nprocs(0);
-    const int avail_nodes = std::min(nranks/ppn + 1,GA_Cluster_nnodes());
+    const int ppn = gec.ppn();
+    const int avail_nodes = std::min(nranks/ppn + 1,gec.num_nodes());
     if(nagg > avail_nodes) nagg = avail_nodes;
     if(nagg_hint > 0) nagg = nagg_hint;
 
-    return std::make_tuple(nagg,ppn);
-}
-
-template<typename TensorType>
-std::tuple<int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType> tensor, MPI_Comm &subcomm, int nagg_hint=0) {
-
-    int nranks = gec.pg().size().value();
-
-    auto [nagg,ppn] = get_agg_info(nranks,tensor,nagg_hint);
-    
     int subranks = nagg * ppn;
     if(subranks > nranks) subranks = nranks;
 
-    MPI_Group group; //, world_group;
-    // MPI_Comm_group(GA_MPI_Comm(), &world_group);
-    auto comm = gec.pg().comm();
-    MPI_Comm_group(comm,&group);
-
-    int ranks[subranks]; //,ranks_world[subranks];
-    for (int i = 0; i < subranks; i++) ranks[i] = i;    
-    // MPI_Group_translate_ranks(group, subranks, ranks, world_group, ranks_world);
-
-    MPI_Group subgroup;
-    MPI_Group_incl(group,subranks,ranks,&subgroup);
-    MPI_Comm_create(comm,subgroup,&subcomm);
-
-    return std::make_tuple(nagg,ppn);
+    return std::make_tuple(nagg,ppn,subranks);
 }
+
+template<typename TensorType>
+std::tuple<int, int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType> tensor, int nagg_hint=0) {
+
+    int nranks = gec.pg().size().value();
+
+    auto [nagg,ppn,subranks] = get_agg_info(gec, nranks,tensor,nagg_hint);
+    
+    return std::make_tuple(nagg,ppn,subranks);
+}
+
+#if !defined(USE_UPCXX)
+static inline void subcomm_from_subranks(ExecutionContext& gec, int subranks, MPI_Comm *subcomm) {
+  MPI_Group group; //, world_group;
+  auto comm = gec.pg().comm();
+  MPI_Comm_group(comm,&group);
+  int ranks[subranks]; //,ranks_world[subranks];
+  for (int i = 0; i < subranks; i++) ranks[i] = i;
+  MPI_Group subgroup;
+  MPI_Group_incl(group,subranks,ranks,&subgroup);
+  MPI_Comm_create(comm,subgroup,subcomm);
+}
+#endif
 
 /**
  * @brief convert tamm tensor to N-D GA
@@ -713,7 +716,9 @@ std::tuple<int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType>
  */
 template<typename TensorType>
 int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor) {
-
+#if defined(USE_UPCXX)
+  abort(); // Not supported in UPC++
+#else
   int ndims = tensor.num_modes();
   std::vector<int64_t> dims;
   std::vector<int64_t> chnks(ndims,-1);
@@ -752,6 +757,7 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor) {
     block_for(ec, tensor(), tamm_ga_lambda);
 
     return ga_tens;
+#endif
 }
 
 template<typename T>
@@ -808,12 +814,19 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
     int rank = gec.pg().rank().value();
 
     #ifdef TU_SG_IO
+    auto [nagg,ppn,subranks] = get_subgroup_info(gec,tensor);
+#if defined(USE_UPCXX)
+    upcxx::team* io_comm = new upcxx::team(gec.pg().team()->split(
+                gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
+#else
     MPI_Comm io_comm;
-    auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm,nagg_hint);
+    subcomm_from_subranks(gec, subranks, &io_comm);
+#endif
     #else
-    auto [nagg,ppn] = get_agg_info(gec.pg().size().value(),tensor,nagg_hint);
+    auto [nagg,ppn,subranks] = get_agg_info(gec, gec.pg().size().value(),tensor,nagg_hint);
     #endif 
 
+#if !defined(USE_UPCXX)
     int ga_tens;
     if(!tammio) ga_tens = tamm_to_ga(gec,tensor);
     size_t ndims = tensor.num_modes();
@@ -831,7 +844,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
     hid_t hdf5_dt = get_hdf5_dt<TensorType>();
 
     #ifdef TU_SG_IO
-    if(io_comm != MPI_COMM_NULL) {
+    if (rank < subranks) {
         ProcGroup pg = ProcGroup::create_coll(io_comm);
         ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     #else
@@ -999,12 +1012,12 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename,
 
     gec.pg().barrier();
     if(!tammio) NGA_Destroy(ga_tens);
-
     auto io_t2 = std::chrono::high_resolution_clock::now();
 
     double io_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
     if(rank == 0 && profile) std::cout << "Time for writing " << filename << " to disk (" << nppn << "): " << io_time << " secs" << std::endl;
+#endif
 
 }
 
@@ -1023,6 +1036,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
 
     EXPECTS(tensors.size() == filenames.size());
 
+#if !defined(USE_UPCXX)
     auto io_t1 = std::chrono::high_resolution_clock::now();
 
     hid_t hdf5_dt = get_hdf5_dt<TensorType>();
@@ -1037,9 +1051,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
 
     std::vector<int> rankspertensor;
     for(size_t i = 0; i < tensors.size(); i++) {
-      auto [nagg, ppn] = get_agg_info(nranks, tensors[i], nagg_hint);
-      auto subranks    = nagg * ppn;
-      if(subranks > nranks) subranks = nranks;
+      auto [nagg,ppn,subranks] = get_agg_info(gec, gec.pg().size().value(),tensors[i],nagg_hint);
       rankspertensor.push_back(subranks);
       if(world_rank >= prev_subranks && world_rank < (subranks + prev_subranks)) color = i;
       nranks -= subranks;
@@ -1227,6 +1239,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
     if(world_rank == 0 && profile)
       std::cout << "Total Time for writing tensors"
                 << " to disk: " << io_time << " secs" << std::endl;
+#endif
 }
 
 
@@ -1324,15 +1337,16 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
                     bool tammio=true, Tensor<TensorType> wtensor={}, 
                     bool profile=false, int nagg_hint=0) {
 
+#if !defined(USE_UPCXX)
     ExecutionContext& gec = get_ec(tensor());
     auto io_t1 = std::chrono::high_resolution_clock::now();
     int rank = gec.pg().rank().value();
-
     #ifdef TU_SG_IO
+    auto [nagg,ppn,subranks] = get_subgroup_info(gec,tensor);
     MPI_Comm io_comm;
-    auto [nagg,ppn] = get_subgroup_info(gec,tensor,io_comm,nagg_hint);
+    subcomm_from_subranks(gec, subranks, &io_comm);
     #else
-    auto [nagg,ppn] = get_agg_info(gec.pg().size().value(),tensor,nagg_hint);
+    auto [nagg,ppn,subranks] = get_agg_info(gec, gec.pg().size().value(),tensor,nagg_hint);
     #endif
 
     const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
@@ -1541,6 +1555,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename,
     double io_time = 
         std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
     if(rank == 0 && profile) std::cout << "Time for reading " << filename << " from disk (" << nppn << "): " << io_time << " secs" << std::endl;
+#endif
 }
 
 
@@ -1557,7 +1572,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
                     bool profile=false, int nagg_hint=0) {
 
     EXPECTS(tensors.size() == filenames.size());
-
+#if !defined(USE_UPCXX)
     auto io_t1 = std::chrono::high_resolution_clock::now();
 
     hid_t hdf5_dt = get_hdf5_dt<TensorType>();
@@ -1572,9 +1587,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
 
     std::vector<int> rankspertensor;
     for(size_t i = 0; i < tensors.size(); i++) {
-      auto [nagg, ppn] = get_agg_info(nranks, tensors[i], nagg_hint);
-      auto subranks    = nagg * ppn;
-      if(subranks > nranks) subranks = nranks;
+      auto [nagg,ppn,subranks] = get_agg_info(gec, gec.pg().size().value(),tensors[i],nagg_hint);
       rankspertensor.push_back(subranks);
       if(world_rank >= prev_subranks && world_rank < (subranks + prev_subranks)) color = i;
       nranks -= subranks;
@@ -1753,7 +1766,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
     if(world_rank == 0 && profile)
       std::cout << "Total Time for reading tensors"
                 << " from disk: " << io_time << " secs" << std::endl;
-
+#endif
 }
 
 
@@ -1865,12 +1878,22 @@ TensorType linf_norm(LabeledTensor<TensorType> ltensor) {
     Tensor<TensorType> tensor = ltensor.tensor();
 
     #ifdef TU_SG
-    MPI_Comm sub_comm;
     int rank = gec.pg().rank().value();
-    get_subgroup_info(gec,tensor,sub_comm);
+    auto [nagg,ppn,subranks] = get_subgroup_info(gec,tensor);
+#if defined(USE_UPCXX)
+    upcxx::team* sub_comm = new upcxx::team(gec.pg().team()->split(
+                    rank < subranks ? 0 : upcxx::team::color_none, 0));
+#else
+    MPI_Comm sub_comm;
+    subcomm_from_subranks(gec, subranks, &sub_comm);
+#endif
 
-    if(sub_comm != MPI_COMM_NULL) {
+    if (rank < subranks) {
+#if defined(USE_UPCXX)
+        ProcGroup pg = ProcGroup::create_coll(*sub_comm);
+#else
         ProcGroup pg = ProcGroup::create_coll(sub_comm);
+#endif
         ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     #else
         ExecutionContext& ec = gec;
@@ -1890,8 +1913,12 @@ TensorType linf_norm(LabeledTensor<TensorType> ltensor) {
     #ifdef TU_SG
         ec.flush_and_sync();
         //MemoryManagerGA::destroy_coll(mgr);
-        MPI_Comm_free(&sub_comm);
         pg.destroy_coll();
+#if defined(USE_UPCXX)
+        sub_comm->destroy();
+#else
+        MPI_Comm_free(&sub_comm);
+#endif
     }
     #endif
 
@@ -2055,11 +2082,20 @@ void apply_ewise_ip(LabeledTensor<TensorType> ltensor,
     Tensor<TensorType> tensor = ltensor.tensor();
 
     #ifdef TU_SG
+    auto [nagg,ppn,subranks] = get_subgroup_info(gec,tensor);
+#if defined(USE_UPCXX)
+    upcxx::team *sub_comm = new upcxx::team(gec.pg().team()->split(
+            gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
+#else
     MPI_Comm sub_comm;
-    get_subgroup_info(gec,tensor,sub_comm);
-
-    if(sub_comm != MPI_COMM_NULL) {
+    subcomm_from_subranks(gec, subranks, &sub_comm);
+#endif
+    if (gec.pg().rank() < subranks) {
+#if defined(USE_UPCXX)
+        ProcGroup pg = ProcGroup::create_coll(*sub_comm);
+#else
         ProcGroup pg = ProcGroup::create_coll(sub_comm);
+#endif
         ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     #else 
         ExecutionContext& ec = gec;
@@ -2078,11 +2114,16 @@ void apply_ewise_ip(LabeledTensor<TensorType> ltensor,
     #ifdef TU_SG
         ec.flush_and_sync();
         //MemoryManagerGA::destroy_coll(mgr);
+#if !defined(USE_UPCXX)
         MPI_Comm_free(&sub_comm);
+#endif
         pg.destroy_coll();
     }
+#if defined(USE_UPCXX)
+    sub_comm->destroy();
+#endif
     #endif
-    gec.pg().barrier();        
+    gec.pg().barrier();
 }
 
 // Several convenience functions using apply_ewise_ip. 
@@ -2272,6 +2313,9 @@ void random_ip(Tensor<TensorType> tensor) {
 
 template<typename TensorType>
 TensorType sum(LabeledTensor<TensorType> ltensor) {
+#if defined(USE_UPCXX)
+    throw std::runtime_error("upcxx: sum unsupported");
+#else
     ExecutionContext& gec = get_ec(ltensor);
     TensorType lsumsq         = 0;
     TensorType gsumsq         = 0;
@@ -2311,6 +2355,7 @@ TensorType sum(LabeledTensor<TensorType> ltensor) {
  
     gsumsq = gec.pg().allreduce(&lsumsq, ReduceOp::sum);
     return gsumsq;
+#endif
 }
 
 template<typename TensorType>
@@ -2364,12 +2409,23 @@ TensorType norm(ExecutionContext& gec, LabeledTensor<TensorType> ltensor) {
     Tensor<TensorType> tensor = ltensor.tensor();
 
     #ifdef TU_SG
-    MPI_Comm sub_comm;
     int rank = gec.pg().rank().value();
-    get_subgroup_info(gec,tensor,sub_comm);
+    auto [nagg,ppn,subranks] = get_subgroup_info(gec,tensor);
+#if defined(USE_UPCXX)
+    upcxx::team* sub_comm = new upcxx::team(gec.pg().team()->split(
+                rank < subranks ? 0 : upcxx::team::color_none, 0));
+#else
+    MPI_Comm sub_comm;
+    subcomm_from_subranks(gec, subranks, &sub_comm);
+#endif
 
-    if(sub_comm != MPI_COMM_NULL) {
+    if (rank < subranks) {
+#if defined(USE_UPCXX)
+        ProcGroup pg = ProcGroup::create_coll(*sub_comm);
+#else
         ProcGroup pg = ProcGroup::create_coll(sub_comm);
+#endif
+
         ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     #else 
         ExecutionContext& ec = gec;
@@ -2390,9 +2446,13 @@ TensorType norm(ExecutionContext& gec, LabeledTensor<TensorType> ltensor) {
 
     #ifdef TU_SG
         ec.flush_and_sync();
-        //MemoryManagerGA::destroy_coll(mgr);
+#if !defined(USE_UPCXX)
         MPI_Comm_free(&sub_comm);
+#endif
         pg.destroy_coll();
+#if defined(USE_UPCXX)
+        sub_comm->destroy();
+#endif
     }
     #endif
     gec.pg().barrier();
@@ -2545,6 +2605,9 @@ void gf_peak(Tensor<TensorType> tensor, double threshold, double x_norm_sq, std:
 
 template<typename TensorType>
 void gf_peak(LabeledTensor<TensorType> ltensor, double threshold, double x_norm_sq, std::ostringstream& spfe) {
+#if defined(USE_UPCXX)
+    throw std::runtime_error("upcxx: gf_peak unsupported");
+#else
     ExecutionContext& gec = get_ec(ltensor);
 
     Tensor<TensorType> tensor = ltensor.tensor();
@@ -2582,6 +2645,7 @@ void gf_peak(LabeledTensor<TensorType> ltensor, double threshold, double x_norm_
     #endif
 
     gec.pg().barrier();
+#endif
 
 }
 
@@ -2595,6 +2659,9 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>>
 template<typename TensorType>
 std::tuple<TensorType, IndexVector, std::vector<size_t>> 
         max_element(LabeledTensor<TensorType> ltensor) {
+#if defined(USE_UPCXX)
+    throw std::runtime_error("upcxx: max_element unsupported");
+#else
     ExecutionContext& ec = get_ec(ltensor);
     TensorType max = 0.0;
 
@@ -2756,6 +2823,7 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>>
     ec.pg().broadcast(bfuv.data(), nmodes, gmax[1]);
 
     return std::make_tuple(gmax[0], maxblockid, bfuv);
+#endif
 }
 
 // returns min_element, blockids, coordinates of min element in the block
@@ -2768,6 +2836,9 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>>
 template<typename TensorType>
 std::tuple<TensorType, IndexVector, std::vector<size_t>>
         min_element(LabeledTensor<TensorType> ltensor) {
+#if defined(USE_UPCXX)
+    throw std::runtime_error("upcxx: min_element unsupported");
+#else
     ExecutionContext& ec = get_ec(ltensor);
     TensorType min = 0.0;
 
@@ -2927,6 +2998,7 @@ std::tuple<TensorType, IndexVector, std::vector<size_t>>
     ec.pg().broadcast(bfuv.data(), nmodes, gmin[1]);
 
     return std::make_tuple(gmin[0], minblockid, bfuv);
+#endif
 }
 
 // regular 2D tamm tensor to block-cyclic tamm tensor
@@ -2936,7 +3008,9 @@ void to_block_cyclic_tensor(Tensor<TensorType> tensor, Tensor<TensorType> bc_ten
     int ndims = tensor.num_modes();
     EXPECTS(ndims == 2);
     EXPECTS(bc_tensor.is_block_cyclic());
+#if !defined(USE_UPCXX)
     auto ga_tens = bc_tensor.ga_handle();
+#endif
 
     //bc_tensor might be on a smaller process group
     ExecutionContext& ec = get_ec(bc_tensor());
@@ -2950,16 +3024,27 @@ void to_block_cyclic_tensor(Tensor<TensorType> tensor, Tensor<TensorType> bc_ten
         auto block_offset = tensor.block_offsets(blockid);
 
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
-        
+#if defined(USE_UPCXX)
+        int64_t lo[2] = {cd_ncast<size_t>(block_offset[0]), 
+            cd_ncast<size_t>(block_offset[1])};
+        int64_t hi[2] = {cd_ncast<size_t>(block_offset[0] + block_dims[0]-1), 
+            cd_ncast<size_t>(block_offset[1] + block_dims[1]-1)};
+        int64_t ld = cd_ncast<size_t>(block_dims[1]);
+#else
         std::vector<int64_t> lo(ndims),hi(ndims),ld(ndims-1);
 
         for(size_t i=0;i<ndims;i++) lo[i]   = cd_ncast<size_t>(block_offset[i]);
         for(size_t i=0;i<ndims;i++) hi[i]   = cd_ncast<size_t>(block_offset[i] + block_dims[i]-1);
         for(size_t i=1;i<ndims;i++) ld[i-1] = cd_ncast<size_t>(block_dims[i]);
-
+#endif
+        
         std::vector<TensorType> sbuf(dsize);
         tensor.get(blockid, sbuf);
+#if defined(USE_UPCXX)
+        bc_tensor.put_raw(lo, hi, &sbuf[0], &ld);
+#else
         NGA_Put64(ga_tens,&lo[0],&hi[0],&sbuf[0],&ld[0]);
+#endif
     };
 
     block_for(ec, tensor(), tamm_bc_lambda);    
@@ -2975,7 +3060,9 @@ void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> t
   EXPECTS(bc_tensor.kind() == TensorBase::TensorKind::dense);
   EXPECTS(bc_tensor.distribution().kind() == DistributionKind::dense);
 
+#if !defined(USE_UPCXX)
   auto ga_tens = bc_tensor.ga_handle();
+#endif
 
   // bc_tensor might be on a smaller process group
   ExecutionContext& ec = get_ec(bc_tensor());
@@ -2988,14 +3075,26 @@ void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> t
 
     const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
 
+#if defined(USE_UPCXX)
+    int64_t lo[2] = {cd_ncast<size_t>(block_offset[0]), 
+        cd_ncast<size_t>(block_offset[1])};
+    int64_t hi[2] = {cd_ncast<size_t>(block_offset[0] + block_dims[0]-1), 
+        cd_ncast<size_t>(block_offset[1] + block_dims[1]-1)};
+    int64_t ld = cd_ncast<size_t>(block_dims[1]);
+#else
     std::vector<int64_t> lo(ndims), hi(ndims), ld(ndims - 1);
 
     for(size_t i = 0; i < ndims; i++) lo[i] = cd_ncast<size_t>(block_offset[i]);
     for(size_t i = 0; i < ndims; i++) hi[i] = cd_ncast<size_t>(block_offset[i] + block_dims[i] - 1);
     for(size_t i = 1; i < ndims; i++) ld[i - 1] = cd_ncast<size_t>(block_dims[i]);
+#endif
 
     std::vector<TensorType> sbuf(dsize);
+#if defined(USE_UPCXX)
+    bc_tensor.get_raw(lo, hi, &sbuf[0], &ld);
+#else
     NGA_Get64(ga_tens, &lo[0], &hi[0], &sbuf[0], &ld[0]);
+#endif
     tensor.put(blockid, sbuf);
   };
 
@@ -3061,7 +3160,10 @@ Tensor<TensorType> permute_tensor(Tensor<TensorType> tensor, std::vector<int> pe
 // Extract block of a dense tensor given by [lo, hi)
 template<typename TensorType>
 Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> lo, std::vector<int64_t> hi, std::vector<int> permute={}) {
-    
+#if defined(USE_UPCXX)
+    // upcxx: unsupported for now, need to implement ga_copy_patch
+    abort();
+#else
     const int ndims = tensor.num_modes();
     EXPECTS(tensor.kind() == TensorBase::TensorKind::dense);
     EXPECTS(tensor.distribution().kind() == DistributionKind::dense);
@@ -3123,6 +3225,7 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
     }
 
     return pbtensor; // caller responsible for dellocating this tensor
+#endif
 }
 
 inline TiledIndexLabel compose_lbl(const TiledIndexLabel& lhs,

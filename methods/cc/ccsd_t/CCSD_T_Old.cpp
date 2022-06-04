@@ -42,7 +42,7 @@ void ccsd_t_driver() {
 
     using T = double;
 
-    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     auto rank = ec.pg().rank();
 
@@ -59,11 +59,16 @@ void ccsd_t_driver() {
 
     int nsranks = sys_data.nbf/15;
     if(nsranks < 1) nsranks=1;
-    int ga_cnn = GA_Cluster_nnodes();
+    int ga_cnn = ec.num_nodes();
     if(nsranks>ga_cnn) nsranks=ga_cnn;
     nsranks = nsranks * GA_Cluster_nprocs(0);
     int subranks[nsranks];
     for (int i = 0; i < nsranks; i++) subranks[i] = i;
+
+#ifdef USE_UPCXX
+    upcxx::team subcomm = upcxx::world().split(
+            (rank < nsranks) ? 0 : upcxx::team::color_none, 0);
+#else
     auto world_comm = ec.pg().comm();
     MPI_Group world_group;
     MPI_Comm_group(world_comm,&world_group);
@@ -71,11 +76,12 @@ void ccsd_t_driver() {
     MPI_Group_incl(world_group,nsranks,subranks,&subgroup);
     MPI_Comm subcomm;
     MPI_Comm_create(world_comm,subgroup,&subcomm);
+#endif
     
     ProcGroup sub_pg;
     ExecutionContext *sub_ec=nullptr;
 
-    if(subcomm != MPI_COMM_NULL){
+    if (rank < nsranks) {
         sub_pg = ProcGroup::create_coll(subcomm);
         sub_ec = new ExecutionContext(sub_pg, DistributionKind::nw, MemoryManagerKind::ga);
     }
@@ -183,7 +189,6 @@ void ccsd_t_driver() {
 
     auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-
     ccsd_restart = ccsd_restart && fs::exists(ccsdstatus) && scf_conv;
 
     t1file = files_prefix+".fullT1amp";
@@ -199,7 +204,7 @@ void ccsd_t_driver() {
 
     if(is_rhf) {
       if(ccsd_restart) {
-          if(subcomm != MPI_COMM_NULL) {
+        if (rank < nsranks) {
               const int ppn = GA_Cluster_nprocs(0);
               if(rank==0) std::cout << "Executing with " << nsranks << " ranks (" << nsranks/ppn << " nodes)" << std::endl; 
               std::tie(residual, corr_energy) = cd_ccsd_cs_driver<T>(
@@ -222,7 +227,7 @@ void ccsd_t_driver() {
     }
     else {
       if(ccsd_restart) {
-          if(subcomm != MPI_COMM_NULL) {
+        if (rank < nsranks) {
               const int ppn = GA_Cluster_nprocs(0);
               if(rank==0) std::cout << "Executing with " << nsranks << " ranks (" << nsranks/ppn << " nodes)" << std::endl; 
               std::tie(residual, corr_energy) = cd_ccsd_os_driver<T>(
@@ -265,9 +270,13 @@ void ccsd_t_driver() {
         }
     }
 
-    if(subcomm != MPI_COMM_NULL){
+    if (rank < nsranks) {
       (*sub_ec).flush_and_sync();
+#ifdef USE_UPCXX
+      subcomm.destroy();
+#else
       MPI_Comm_free(&subcomm);
+#endif
     }
 
     auto cc_t2 = std::chrono::high_resolution_clock::now();

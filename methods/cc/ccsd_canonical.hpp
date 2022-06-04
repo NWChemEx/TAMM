@@ -5,6 +5,10 @@
 #include "ga/macdecls.h"
 #include "ga/ga-mpi.h"
 
+#ifdef USE_UPCXX
+#include <upcxx/upcxx.hpp>
+#endif
+
 using namespace tamm;
 
 template<typename T>

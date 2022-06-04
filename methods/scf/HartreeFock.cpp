@@ -1,4 +1,3 @@
-
 #include "scf/scf_main.hpp"
 #if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>

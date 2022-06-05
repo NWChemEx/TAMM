@@ -81,9 +81,9 @@ void revised_jk_ccsd_t_fully_fused_kernel(
   const int* __restrict__ const_df_d1_exec, const int* __restrict__ const_df_d2_size,
   const int* __restrict__ const_df_d2_exec, sycl::local_ptr<T> sm_a, sycl::local_ptr<T> sm_b) {
   sycl::group thread_block = item.get_group();
-  size_t      threadIdx_x  = item.get_local_id(1);
-  size_t      threadIdx_y  = item.get_local_id(0);
-  size_t      blockIdx_x   = item.get_group(1);
+  int      threadIdx_x  = static_cast<int>(item.get_local_id(1));
+  int      threadIdx_y  = static_cast<int>(item.get_local_id(0));
+  int      blockIdx_x   = static_cast<int>(item.get_group(1));
 
   short internal_upperbound = 0;
   short internal_offset = 0;
@@ -2337,7 +2337,7 @@ void fully_fused_ccsd_t_gpu(gpuStream_t& stream_id, size_t num_blocks, size_t ba
 
     cgh.depends_on(*done_copy);
 
-    cgh.parallel_for(
+    cgh.parallel_for<class ccsd_t_syclkernel>(
       sycl::nd_range<2>(global_range, blocksize),
       [=](sycl::nd_item<2> item) [[sycl::reqd_sub_group_size(8)]] {
         revised_jk_ccsd_t_fully_fused_kernel(

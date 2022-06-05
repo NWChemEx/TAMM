@@ -14,9 +14,6 @@
 #include "sycl_device.hpp"
 #endif
 
-// Use (void) to silence unused warnings.
-#define assertm(exp, msg) assert(((void) msg, exp))
-
 #if defined(USE_HIP)
 using gpuStream_t                            = hipStream_t;
 using gpuEvent_t                             = hipEvent_t;
@@ -26,7 +23,10 @@ constexpr unsigned short int max_gpu_streams = 1;
 using gpuStream_t                            = cudaStream_t;
 using gpuEvent_t                             = cudaEvent_t;
 using gpuBlasHandle_t                        = cublasHandle_t;
-constexpr unsigned short int max_gpu_streams = 2;
+
+// Note: 06/04/22, there is gradual reduction to 1 stream give the
+//                 concurrency advantages are quite minimal
+constexpr unsigned short int max_gpu_streams = 1;
 #elif defined(USE_DPCPP)
 using gpuStream_t                            = sycl::queue;
 using gpuEvent_t                             = std::vector<sycl::event>;
@@ -148,9 +148,9 @@ public:
     if(inserted) { hipStreamCreate(&stream); }
     return stream;
 #elif defined(USE_DPCPP)
+
     auto result = _devID2Streams.insert(
-      {_active_device + counter, gpuStream_t(*sycl_get_context(_active_device),
-                                             *sycl_get_device(_active_device), sycl_asynchandler)});
+      {_active_device + counter, gpuStream_t(*sycl_get_device(_active_device), sycl_asynchandler)});
     gpuStream_t& stream   = (*result.first).second;
     bool&        inserted = result.second;
     return stream;

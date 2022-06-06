@@ -49,9 +49,6 @@ void fully_fused_ccsd_t_gpu(gpuStream_t& stream_id, size_t num_blocks, size_t ba
                             T* df_dev_d1_t2_all, T* df_dev_d1_v2_all, T* df_dev_d2_t2_all,
                             T* df_dev_d2_v2_all, T* df_dev_s1_t1_all, T* df_dev_s1_v2_all,
                             //
-                            size_t size_d1_t2_all, size_t size_d1_v2_all, size_t size_d2_t2_all,
-                            size_t size_d2_v2_all, size_t size_s1_t1_all, size_t size_s1_v2_all,
-                            //
                             int* host_d1_size, int* host_d1_exec, // used
                             int* host_d2_size, int* host_d2_exec, int* host_s1_size,
                             int* host_s1_exec,
@@ -441,9 +438,6 @@ void ccsd_t_fully_fused_none_df_none_task(
                          df_dev_d1_t2_all, df_dev_d1_v2_all, df_dev_d2_t2_all, df_dev_d2_v2_all,
                          df_dev_s1_t1_all, df_dev_s1_v2_all,
                          //
-                         size_T_d1_t2, size_T_d1_v2, size_T_d2_t2, size_T_d2_v2, size_T_s1_t1,
-                         size_T_s1_v2,
-                         //
                          //  for constant memory
                          //
                          df_simple_d1_size, df_simple_d1_exec, df_simple_d2_size, df_simple_d2_exec,
@@ -464,9 +458,6 @@ void ccsd_t_fully_fused_none_df_none_task(
                          //
                          df_dev_d1_t2_all, df_dev_d1_v2_all, df_dev_d2_t2_all, df_dev_d2_v2_all,
                          df_dev_s1_t1_all, df_dev_s1_v2_all,
-                         //
-                         size_T_d1_t2, size_T_d1_v2, size_T_d2_t2, size_T_d2_v2, size_T_s1_t1,
-                         size_T_s1_v2,
                          //
                          //  for constant memory
                          //

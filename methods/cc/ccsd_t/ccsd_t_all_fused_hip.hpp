@@ -2448,9 +2448,6 @@ void fully_fused_ccsd_t_gpu(gpuStream_t& stream_id, size_t num_blocks, size_t ba
                             T* df_dev_d1_t2_all, T* df_dev_d1_v2_all, T* df_dev_d2_t2_all,
                             T* df_dev_d2_v2_all, T* df_dev_s1_t1_all, T* df_dev_s1_v2_all,
                             //
-                            size_t size_d1_t2_all, size_t size_d1_v2_all, size_t size_d2_t2_all,
-                            size_t size_d2_v2_all, size_t size_s1_t1_all, size_t size_s1_v2_all,
-                            //
                             int* host_d1_size, int* host_d1_exec, // used
                             int* host_d2_size, int* host_d2_exec, int* host_s1_size,
                             int* host_s1_exec,

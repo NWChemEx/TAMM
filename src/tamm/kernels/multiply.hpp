@@ -423,11 +423,10 @@ void block_multiply(bool& isgpuOp,
         if constexpr(internal::is_complex_v<T1>) {
           // copy B to complex buffer
           std::vector<T1> bbuf_complex(bsize.value());
-          T3*             bbuf_comp_ptr = reinterpret_cast<T3*>(&bbuf_complex[0]);
           if constexpr(std::is_same_v<T3, double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE, bsize.value(), &binter_buf[0], 1, bbuf_comp_ptr, 2);
+            bli_dcopyv(BLIS_NO_CONJUGATE, bsize.value(), binter_buf.data(), 1, reinterpret_cast<T3*>(bbuf_complex.data()), 2);
           else if constexpr(std::is_same_v<T3, float>)
-            bli_scopyv(BLIS_NO_CONJUGATE, bsize.value(), &binter_buf[0], 1, bbuf_comp_ptr, 2);
+            bli_scopyv(BLIS_NO_CONJUGATE, bsize.value(), binter_buf.data(), 1, reinterpret_cast<T3*>(bbuf_complex.data()), 2);
 
           T1* bbuf_complex_dev{nullptr};
           copy_data_to_gpu(hw, ainter_buf, &ainter_buf_dev, bbuf_complex, &bbuf_complex_dev,
@@ -437,17 +436,18 @@ void block_multiply(bool& isgpuOp,
                        bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_buf_dev);
 
           copy_result_to_host(hw, cinter_buf, cinter_buf_dev);
-          free_device_buffers(hw, ainter_buf_dev, bbuf_complex_dev, cinter_buf_dev);
+          free_device_buffers(hw,
+			      ainter_buf.size(), bbuf_complex.size(), cinter_buf.size(),
+			      ainter_buf_dev, bbuf_complex_dev, cinter_buf_dev);
 
         } // is_complex<T1>
         else {
           // T1,T2 (C,A) are real, T3 (B) is complex
           std::vector<T1> bbuf_real(bsize.value());
-          T1*             bbuf_comp_ptr = reinterpret_cast<T1*>(&binter_buf[0]);
           if constexpr(std::is_same_v<T1, double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE, bsize.value(), bbuf_comp_ptr, 2, &bbuf_real[0], 1);
+            bli_dcopyv(BLIS_NO_CONJUGATE, bsize.value(), reinterpret_cast<T1*>(binter_buf.data()), 2, bbuf_real.data(), 1);
           else if constexpr(std::is_same_v<T1, float>)
-            bli_scopyv(BLIS_NO_CONJUGATE, bsize.value(), bbuf_comp_ptr, 2, &bbuf_real[0], 1);
+            bli_scopyv(BLIS_NO_CONJUGATE, bsize.value(), reinterpret_cast<T1*>(binter_buf.data()), 2, bbuf_real.data(), 1);
 
           T1* bbuf_real_dev{nullptr};
           copy_data_to_gpu(hw, ainter_buf, &ainter_buf_dev, bbuf_real, &bbuf_real_dev, cinter_buf,
@@ -457,8 +457,9 @@ void block_multiply(bool& isgpuOp,
                        bbuf_real_dev, cinter_buf, cinter_buf_dev);
 
           copy_result_to_host(hw, cinter_buf, cinter_buf_dev);
-          free_device_buffers(hw, ainter_buf_dev, bbuf_real_dev, cinter_buf_dev);
-
+          free_device_buffers(hw,
+			      ainter_buf.size(), bbuf_real.size(), cinter_buf.size(),
+			      ainter_buf_dev, bbuf_real_dev, cinter_buf_dev);
         } // is_real<T1>
 
       } // is_same_v<T1,T2>
@@ -466,11 +467,10 @@ void block_multiply(bool& isgpuOp,
         // T3 (matrix B) is complex, T2 (A) is real
         if constexpr(internal::is_complex_v<T1>) {
           std::vector<T1> abuf_complex(asize.value());
-          T2*             abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
           if constexpr(std::is_same_v<T2, double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), &ainter_buf[0], 1, abuf_comp_ptr, 2);
+            bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), ainter_buf.data(), 1, reinterpret_cast<T2*>(abuf_complex.data()), 2);
           else if constexpr(std::is_same_v<T2, float>)
-            bli_scopyv(BLIS_NO_CONJUGATE, asize.value(), &ainter_buf[0], 1, abuf_comp_ptr, 2);
+            bli_scopyv(BLIS_NO_CONJUGATE, asize.value(), ainter_buf.data(), 1, reinterpret_cast<T2*>(abuf_complex.data()), 2);
 
           T1* abuf_complex_dev{nullptr};
           copy_data_to_gpu(hw, abuf_complex, &abuf_complex_dev, binter_buf, &binter_buf_dev,
@@ -480,16 +480,17 @@ void block_multiply(bool& isgpuOp,
                        binter_buf, binter_buf_dev, cinter_buf, cinter_buf_dev);
 
           copy_result_to_host(hw, cinter_buf, cinter_buf_dev);
-          free_device_buffers(hw, abuf_complex_dev, binter_buf_dev, cinter_buf_dev);
+          free_device_buffers(hw,
+			      abuf_complex.size(), binter_buf.size(), cinter_buf.size(),
+			      abuf_complex_dev, binter_buf_dev, cinter_buf_dev);
         }
         else {
           // T1,T3 (C,B) are real, T2 (A) is complex
           std::vector<T1> abuf_real(asize.value());
-          T1*             abuf_comp_ptr = reinterpret_cast<T1*>(&ainter_buf[0]);
           if constexpr(std::is_same_v<T1, double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), abuf_comp_ptr, 2, &abuf_real[0], 1);
+            bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), reinterpret_cast<T1*>(ainter_buf.data()), 2, abuf_real.data(), 1);
           else if constexpr(std::is_same_v<T1, float>)
-            bli_scopyv(BLIS_NO_CONJUGATE, asize.value(), abuf_comp_ptr, 2, &abuf_real[0], 1);
+            bli_scopyv(BLIS_NO_CONJUGATE, asize.value(), reinterpret_cast<T1*>(ainter_buf.data()), 2, abuf_real.data(), 1);
 
           T1* abuf_real_dev{nullptr};
           copy_data_to_gpu(hw, abuf_real, &abuf_real_dev, binter_buf, &binter_buf_dev, cinter_buf,
@@ -499,7 +500,9 @@ void block_multiply(bool& isgpuOp,
                        binter_buf_dev, cinter_buf, cinter_buf_dev);
 
           copy_result_to_host(hw, cinter_buf, cinter_buf_dev);
-          free_device_buffers(hw, abuf_real_dev, binter_buf_dev, cinter_buf_dev);
+          free_device_buffers(hw,
+			      abuf_real.size(), binter_buf.size(), cinter_buf.size(),
+			      abuf_real_dev, binter_buf_dev, cinter_buf_dev);
         }
 
       } // is_same_v<T1,T3>
@@ -507,17 +510,17 @@ void block_multiply(bool& isgpuOp,
       else if constexpr(internal::is_complex_v<T1> && std::is_same_v<T2, T3>) {
         // T1 is complex, T2, T3 are real
         std::vector<T1> abuf_complex(asize.value());
-        T2*             abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
+        T2*             abuf_comp_ptr = reinterpret_cast<T2*>(abuf_complex.data());
         std::vector<T1> bbuf_complex(bsize.value());
-        T2*             bbuf_comp_ptr = reinterpret_cast<T2*>(&bbuf_complex[0]);
+        T2*             bbuf_comp_ptr = reinterpret_cast<T2*>(bbuf_complex.data());
 
         if constexpr(std::is_same_v<T2, double>) {
-          bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), &ainter_buf[0], 1, abuf_comp_ptr, 2);
-          bli_dcopyv(BLIS_NO_CONJUGATE, bsize.value(), &binter_buf[0], 1, bbuf_comp_ptr, 2);
+          bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), ainter_buf.data(), 1, abuf_comp_ptr, 2);
+          bli_dcopyv(BLIS_NO_CONJUGATE, bsize.value(), binter_buf.data(), 1, bbuf_comp_ptr, 2);
         }
         else if constexpr(std::is_same_v<T2, float>) {
-          bli_scopyv(BLIS_NO_CONJUGATE, asize.value(), &ainter_buf[0], 1, abuf_comp_ptr, 2);
-          bli_scopyv(BLIS_NO_CONJUGATE, bsize.value(), &binter_buf[0], 1, bbuf_comp_ptr, 2);
+          bli_scopyv(BLIS_NO_CONJUGATE, asize.value(), ainter_buf.data(), 1, abuf_comp_ptr, 2);
+          bli_scopyv(BLIS_NO_CONJUGATE, bsize.value(), binter_buf.data(), 1, bbuf_comp_ptr, 2);
         }
 
         T1* abuf_complex_dev{nullptr};
@@ -529,7 +532,9 @@ void block_multiply(bool& isgpuOp,
                      bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_buf_dev);
 
         copy_result_to_host(hw, cinter_buf, cinter_buf_dev);
-        free_device_buffers(hw, abuf_complex_dev, bbuf_complex_dev, cinter_buf_dev);
+        free_device_buffers(hw,
+			    abuf_complex.size(), bbuf_complex.size(), cinter_buf.size(),
+			    abuf_complex_dev, bbuf_complex_dev, cinter_buf_dev);
       }
 
       else

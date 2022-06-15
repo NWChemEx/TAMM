@@ -7,8 +7,6 @@
 #endif
 #include "ccsd_t_common.hpp"
 
-int check_device(long);
-
 void finalizememmodule();
 
 /**
@@ -190,7 +188,7 @@ std::tuple<T, T, double, double> ccsd_t_fused_driver_new(
 
   T* df_host_energies = (T*) getHostMem(sizeof(T) * std::pow(max_num_blocks, 6) * 2);
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  T* df_dev_energies = (T*) getGpuMem(sizeof(T) * std::pow(max_num_blocks, 6) * 2);
+  T* df_dev_energies = static_cast<T*>(memPool->allocate(sizeof(T) * std::pow(max_num_blocks, 6) * 2, stream));
 #endif
 
   //
@@ -424,7 +422,7 @@ HIP_SAFE(hipDeviceSynchronize());
   memPool->deallocate(static_cast<void*>(df_dev_d2_t2_all), sizeof(T) * size_T_d2_t2, stream);
   memPool->deallocate(static_cast<void*>(df_dev_d2_v2_all), sizeof(T) * size_T_d2_v2, stream);
 
-  freeGpuMem(df_dev_energies);
+  memPool->deallocate(static_cast<void*>(df_dev_energies), sizeof(T) * std::pow(max_num_blocks, 6) * 2, stream);
 #endif
 
   //

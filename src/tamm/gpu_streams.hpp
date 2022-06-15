@@ -24,14 +24,10 @@ constexpr unsigned short int max_gpu_streams = 1;
 using gpuStream_t                            = cudaStream_t;
 using gpuEvent_t                             = cudaEvent_t;
 using gpuBlasHandle_t                        = cublasHandle_t;
-
-// Note: 06/04/22, there is gradual reduction to 1 stream give the
-//                 concurrency advantages are quite minimal
 constexpr unsigned short int max_gpu_streams = 1;
 #elif defined(USE_DPCPP)
 using gpuStream_t                            = sycl::queue;
 using gpuEvent_t                             = sycl::event;
-//using gpuEvent_t                             = std::vector<sycl::event>;
 constexpr unsigned short int max_gpu_streams = 1;
 
 auto sycl_asynchandler = [](sycl::exception_list exceptions) {
@@ -114,11 +110,6 @@ private:
   }
 
 public:
-  void get_device(unsigned int* device) {
-    std::cout << "get the value from get_device: " << _active_device << std::endl;
-    *device = _active_device;
-  }
-  
   /// sets an active device for getting streams and blas handles
   void set_device(unsigned int device) {
     EXPECTS_STR(device < _ngpus, "Error: Invalid active-device set in GPUStreamPool!");

@@ -7,6 +7,7 @@
 #include <cublas_v2.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <cuda_runtime_api.h>
 #elif defined(USE_HIP)
 #include <hip/hip_runtime.h>
 #include <rocblas.h>
@@ -29,7 +30,8 @@ using gpuBlasHandle_t                        = cublasHandle_t;
 constexpr unsigned short int max_gpu_streams = 1;
 #elif defined(USE_DPCPP)
 using gpuStream_t                            = sycl::queue;
-using gpuEvent_t                             = std::vector<sycl::event>;
+using gpuEvent_t                             = sycl::event;
+//using gpuEvent_t                             = std::vector<sycl::event>;
 constexpr unsigned short int max_gpu_streams = 1;
 
 auto sycl_asynchandler = [](sycl::exception_list exceptions) {
@@ -112,6 +114,11 @@ private:
   }
 
 public:
+  void get_device(unsigned int* device) {
+    std::cout << "get the value from get_device: " << _active_device << std::endl;
+    *device = _active_device;
+  }
+  
   /// sets an active device for getting streams and blas handles
   void set_device(unsigned int device) {
     EXPECTS_STR(device < _ngpus, "Error: Invalid active-device set in GPUStreamPool!");

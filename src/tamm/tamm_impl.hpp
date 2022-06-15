@@ -5,7 +5,7 @@
 #include "tamm/gpu_streams.hpp"
 
 // headers related to memory pool
-#include "tamm/mr/cuda_memory_resource.hpp"
+#include "tamm/mr/gpu_memory_resource.hpp"
 #include "tamm/mr/device_memory_resource.hpp"
 #include "tamm/mr/pool_memory_resource.hpp"
 #include "tamm/mr/per_device_resource.hpp"

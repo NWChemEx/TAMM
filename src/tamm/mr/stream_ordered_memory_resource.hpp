@@ -4,7 +4,6 @@
 #include "device_memory_resource.hpp"
 
 #include "tamm/gpu_streams.hpp"
-//#include <cuda_runtime_api.h>
 
 #include <cstddef>
 #include <functional>
@@ -28,9 +27,9 @@ namespace rmm::mr::detail {
  *
  * @tparam T The derived class in a CRTP hierarchy
  */
-template <typename T>
+template<typename T>
 struct crtp {
-  [[nodiscard]] T& underlying() { return static_cast<T&>(*this); }
+  [[nodiscard]] T&       underlying() { return static_cast<T&>(*this); }
   [[nodiscard]] T const& underlying() const { return static_cast<T const&>(*this); }
 };
 
@@ -55,18 +54,18 @@ struct crtp {
  * 3. `split_block allocate_from_block(block_type const& b, std::size_t size)`
  * 4. `block_type free_block(void* p, std::size_t size) noexcept`
  */
-template <typename PoolResource, typename FreeListType>
-class stream_ordered_memory_resource : public crtp<PoolResource>, public device_memory_resource {
- public:
+template<typename PoolResource, typename FreeListType>
+class stream_ordered_memory_resource: public crtp<PoolResource>, public device_memory_resource {
+public:
   ~stream_ordered_memory_resource() override { release(); }
 
-  stream_ordered_memory_resource()                                      = default;
-  stream_ordered_memory_resource(stream_ordered_memory_resource const&) = delete;
-  stream_ordered_memory_resource(stream_ordered_memory_resource&&)      = delete;
+  stream_ordered_memory_resource()                                                 = default;
+  stream_ordered_memory_resource(stream_ordered_memory_resource const&)            = delete;
+  stream_ordered_memory_resource(stream_ordered_memory_resource&&)                 = delete;
   stream_ordered_memory_resource& operator=(stream_ordered_memory_resource const&) = delete;
-  stream_ordered_memory_resource& operator=(stream_ordered_memory_resource&&) = delete;
+  stream_ordered_memory_resource& operator=(stream_ordered_memory_resource&&)      = delete;
 
- protected:
+protected:
   using free_list  = FreeListType;
   using block_type = typename free_list::block_type;
   using lock_guard = std::lock_guard<std::mutex>;
@@ -133,8 +132,7 @@ class stream_ordered_memory_resource : public crtp<PoolResource>, public device_
    * @param block The block to insert into the pool.
    * @param stream The stream on which the memory was last used.
    */
-  void insert_block(block_type const& block, cuda_stream_view stream)
-  {
+  void insert_block(block_type const& block, cuda_stream_view stream) {
     stream_free_blocks_[get_event(stream)].insert(block);
   }
 
@@ -147,7 +145,7 @@ class stream_ordered_memory_resource : public crtp<PoolResource>, public device_
 
   struct stream_event_pair {
     gpuStream_t stream;
-    gpuEvent_t event;
+    gpuEvent_t  event;
 
     bool operator<(stream_event_pair const& rhs) const { return event < rhs.event; }
   };
@@ -163,21 +161,20 @@ class stream_ordered_memory_resource : public crtp<PoolResource>, public device_
    * @param stream The stream in which to order this allocation
    * @return void* Pointer to the newly allocated memory
    */
-  void* do_allocate(std::size_t size, cuda_stream_view stream) override
-  {
-    if (size <= 0) { return nullptr; }
+  void* do_allocate(std::size_t size, cuda_stream_view stream) override {
+    if(size <= 0) { return nullptr; }
 
     lock_guard lock(mtx_);
 
     auto stream_event = get_event(stream);
 
     size = rmm::detail::align_up(size, rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
-    // RMM_EXPECTS(size <= this->underlying().get_maximum_allocation_size(),
-    //             rmm::out_of_memory,
-    //             "Maximum allocation size exceeded");
+    if(!(size <= this->underlying().get_maximum_allocation_size())) {
+      std::cerr << "Maximum allocation size exceeded! \n";
+    }
     auto const block = this->underlying().get_block(size, stream_event);
 
-    std::cout << "stream_order do_allocate: " << size << std::endl;
+    // std::cout << "stream_order do_allocate: " << size << std::endl;
     return block.pointer();
   }
 
@@ -190,12 +187,11 @@ class stream_ordered_memory_resource : public crtp<PoolResource>, public device_
    * @param size The size in bytes of the allocation to deallocate
    * @param stream The stream in which to order this deallocation
    */
-  void do_deallocate(void* ptr, std::size_t size, cuda_stream_view stream) override
-  {
-    if (size <= 0 || ptr == nullptr) { return; }
+  void do_deallocate(void* ptr, std::size_t size, cuda_stream_view stream) override {
+    if(size <= 0 || ptr == nullptr) { return; }
 
     lock_guard lock(mtx_);
-    auto stream_event = get_event(stream);
+    auto       stream_event = get_event(stream);
 
     size             = rmm::detail::align_up(size, rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
     auto const block = this->underlying().free_block(ptr, size);
@@ -206,30 +202,41 @@ class stream_ordered_memory_resource : public crtp<PoolResource>, public device_
 #if defined(USE_CUDA)
     cudaEventRecord(stream_event.event, stream.value());
 #elif defined(USE_HIP)
-    hipEventRecord(stream_event.event, stream.value());    
+    hipEventRecord(stream_event.event, stream.value());
 #elif defined(USE_DPCPP)
 #endif
 
     stream_free_blocks_[stream_event].insert(block);
-    std::cout << "stream_order do_deallocate: " << size << " , " << ptr << std::endl;
+    // std::cout << "stream_order do_deallocate: " << size << " , " << ptr << std::endl;
   }
 
- private:
+private:
   /**
-   * @brief RAII wrapper for a CUDA event.
+   * @brief RAII wrapper for a CUDA/HIP/SYCL event.
    */
   struct event_wrapper {
-    event_wrapper()
-    {
+    event_wrapper() {
+#if defined(USE_CUDA)
       cudaEventCreateWithFlags(&event, cudaEventDisableTiming);
+#elif defined(USE_HIP)
+      hipEventCreateWithFlags(&event, hipEventDisableTiming);
+#elif defined(USE_DPCPP)
+#endif
     }
-    ~event_wrapper() { cudaEventDestroy(event); }
+    ~event_wrapper() {
+#if defined(USE_CUDA)
+      cudaEventDestroy(event);
+#elif defined(USE_HIP)
+      hipEventDestroy(event);
+#elif defined(USE_DPCPP)
+#endif
+    }
     gpuEvent_t event{};
 
-    event_wrapper(event_wrapper const&) = delete;
+    event_wrapper(event_wrapper const&)            = delete;
     event_wrapper& operator=(event_wrapper const&) = delete;
     event_wrapper(event_wrapper&&) noexcept        = delete;
-    event_wrapper& operator=(event_wrapper&&) = delete;
+    event_wrapper& operator=(event_wrapper&&)      = delete;
   };
 
   /**
@@ -242,9 +249,8 @@ class stream_ordered_memory_resource : public crtp<PoolResource>, public device_
    * @param stream The stream for which to get an event.
    * @return The stream_event for `stream`.
    */
-  stream_event_pair get_event(cuda_stream_view stream)
-  {
-    if (stream.is_per_thread_default()) {
+  stream_event_pair get_event(cuda_stream_view stream) {
+    if(stream.is_per_thread_default()) {
       // Create a thread-local shared event wrapper. Shared pointers in the thread and in each MR
       // instance ensures it is destroyed cleaned up only after all are finished with it.
       thread_local auto event_tls = std::make_shared<event_wrapper>();
@@ -262,7 +268,13 @@ class stream_ordered_memory_resource : public crtp<PoolResource>, public device_
     auto const iter = stream_events_.find(stream_to_store);
     return (iter != stream_events_.end()) ? iter->second : [&]() {
       stream_event_pair stream_event{stream_to_store};
+
+#if defined(USE_CUDA)
       cudaEventCreateWithFlags(&stream_event.event, cudaEventDisableTiming);
+#elif defined(USE_HIP)
+      hipEventCreateWithFlags(&stream_event.event, hipEventDisableTiming);
+#endif
+
       stream_events_[stream_to_store] = stream_event;
       return stream_event;
     }();
@@ -277,10 +289,9 @@ class stream_ordered_memory_resource : public crtp<PoolResource>, public device_
    * @param blocks The `free_list` in which to insert the remainder block.
    * @return The allocated block.
    */
-  block_type allocate_and_insert_remainder(block_type block, std::size_t size, free_list& blocks)
-  {
+  block_type allocate_and_insert_remainder(block_type block, std::size_t size, free_list& blocks) {
     auto const [allocated, remainder] = this->underlying().allocate_from_block(block, size);
-    if (remainder.is_valid()) { blocks.insert(remainder); }
+    if(remainder.is_valid()) { blocks.insert(remainder); }
     return allocated;
   }
 
@@ -291,29 +302,28 @@ class stream_ordered_memory_resource : public crtp<PoolResource>, public device_
    * @param stream_event The stream and associated event on which the allocation will be used.
    * @return block_type A block of memory of at least `size` bytes
    */
-  block_type get_block(std::size_t size, stream_event_pair stream_event)
-  {
+  block_type get_block(std::size_t size, stream_event_pair stream_event) {
     // Try to find a satisfactory block in free list for the same stream (no sync required)
     auto iter = stream_free_blocks_.find(stream_event);
-    if (iter != stream_free_blocks_.end()) {
+    if(iter != stream_free_blocks_.end()) {
       block_type const block = iter->second.get_block(size);
-      if (block.is_valid()) { return allocate_and_insert_remainder(block, size, iter->second); }
+      if(block.is_valid()) { return allocate_and_insert_remainder(block, size, iter->second); }
     }
 
-    free_list& blocks =
-      (iter != stream_free_blocks_.end()) ? iter->second : stream_free_blocks_[stream_event];
+    free_list& blocks = (iter != stream_free_blocks_.end()) ? iter->second
+                                                            : stream_free_blocks_[stream_event];
 
-    // // Try to find an existing block in another stream
-    // {
-    //   block_type const block = get_block_from_other_stream(size, stream_event, blocks, false);
-    //   if (block.is_valid()) { return block; }
-    // }
+    // Try to find an existing block in another stream
+    {
+      block_type const block = get_block_from_other_stream(size, stream_event, blocks, false);
+      if(block.is_valid()) { return block; }
+    }
 
-    // // no large enough blocks available on other streams, so sync and merge until we find one
-    // {
-    //   block_type const block = get_block_from_other_stream(size, stream_event, blocks, true);
-    //   if (block.is_valid()) { return block; }
-    // }
+    // no large enough blocks available on other streams, so sync and merge until we find one
+    {
+      block_type const block = get_block_from_other_stream(size, stream_event, blocks, true);
+      if(block.is_valid()) { return block; }
+    }
 
     // no large enough blocks available after merging, so grow the pool
     block_type const block =
@@ -322,98 +332,95 @@ class stream_ordered_memory_resource : public crtp<PoolResource>, public device_
     return allocate_and_insert_remainder(block, size, blocks);
   }
 
-  // /**
-  //  * @brief Find a free block of at least `size` bytes in a `free_list` with a different
-  //  * stream/event than `stream_event`.
-  //  *
-  //  * If an appropriate block is found in a free list F associated with event E,
-  //  * `stream_event.stream` will be made to wait on event E.
-  //  *
-  //  * @param size The requested size of the allocation.
-  //  * @param stream_event The stream and associated event on which the allocation is being
-  //  * requested.
-  //  * @return A block with non-null pointer and size >= `size`, or a nullptr block if none is
-  //  *         available in `blocks`.
-  //  */
-  // block_type get_block_from_other_stream(std::size_t size,
-  //                                        stream_event_pair stream_event,
-  //                                        free_list& blocks,
-  //                                        bool merge_first)
-  // {
-  //   auto find_block = [&](auto iter) {
-  //     auto other_event   = iter->first.event;
-  //     auto& other_blocks = iter->second;
-  //     if (merge_first) {
-  //       merge_lists(stream_event, blocks, other_event, std::move(other_blocks));
+  /**
+   * @brief Find a free block of at least `size` bytes in a `free_list` with a different
+   * stream/event than `stream_event`.
+   *
+   * If an appropriate block is found in a free list F associated with event E,
+   * `stream_event.stream` will be made to wait on event E.
+   *
+   * @param size The requested size of the allocation.
+   * @param stream_event The stream and associated event on which the allocation is being
+   * requested.
+   * @return A block with non-null pointer and size >= `size`, or a nullptr block if none is
+   *         available in `blocks`.
+   */
+  block_type get_block_from_other_stream(std::size_t size, stream_event_pair stream_event,
+                                         free_list& blocks, bool merge_first) {
+    auto find_block = [&](auto iter) {
+      auto  other_event  = iter->first.event;
+      auto& other_blocks = iter->second;
+      if(merge_first) {
+        merge_lists(stream_event, blocks, other_event, std::move(other_blocks));
 
-  //       // RMM_LOG_DEBUG("[A][Stream {:p}][{}B][Merged stream {:p}]",
-  //       //               fmt::ptr(stream_event.stream),
-  //       //               size,
-  //       //               fmt::ptr(iter->first.stream));
+        stream_free_blocks_.erase(iter);
 
-  //       stream_free_blocks_.erase(iter);
+        block_type const block = blocks.get_block(size); // get the best fit block in merged lists
+        if(block.is_valid()) { return allocate_and_insert_remainder(block, size, blocks); }
+      }
+      else {
+        block_type const block = other_blocks.get_block(size);
+        if(block.is_valid()) {
+          // Since we found a block associated with a different stream, we have to insert a wait
+          // on the stream's associated event into the allocating stream.
+#if defined(USE_CUDA)
+          cudaStreamWaitEvent(stream_event.stream, other_event, 0);
+#elif defined(USE_HIP)
+          hipStreamWaitEvent(stream_event.stream, other_event, 0);
+#elif defined(USE_DPCP)
+#endif
+          return allocate_and_insert_remainder(block, size, other_blocks);
+        }
+      }
+      return block_type{};
+    };
 
-  //       block_type const block = blocks.get_block(size);  // get the best fit block in merged lists
-  //       if (block.is_valid()) { return allocate_and_insert_remainder(block, size, blocks); }
-  //     } else {
-  //       block_type const block = other_blocks.get_block(size);
-  //       if (block.is_valid()) {
-  //         // Since we found a block associated with a different stream, we have to insert a wait
-  //         // on the stream's associated event into the allocating stream.
-  //         cudaStreamWaitEvent(stream_event.stream, other_event, 0);
-  //         return allocate_and_insert_remainder(block, size, other_blocks);
-  //       }
-  //     }
-  //     return block_type{};
-  //   };
+    for(auto iter = stream_free_blocks_.begin(), next_iter = iter;
+        iter != stream_free_blocks_.end(); iter = next_iter) {
+      ++next_iter; // Points to element after `iter` to allow erasing `iter` in the loop body
 
-  //   for (auto iter = stream_free_blocks_.begin(), next_iter = iter;
-  //        iter != stream_free_blocks_.end();
-  //        iter = next_iter) {
-  //     ++next_iter;  // Points to element after `iter` to allow erasing `iter` in the loop body
+      if(iter->first.event != stream_event.event) {
+        block_type const block = find_block(iter);
 
-  //     if (iter->first.event != stream_event.event) {
-  //       block_type const block = find_block(iter);
+        if(block.is_valid()) { return block; }
+      }
+    }
+    return block_type{};
+  }
 
-  //       if (block.is_valid()) {
-  //         // RMM_LOG_DEBUG((merge_first) ? "[A][Stream {:p}][{}B][Found after merging stream {:p}]"
-  //         //                             : "[A][Stream {:p}][{}B][Taken from stream {:p}]",
-  //         //               fmt::ptr(stream_event.stream),
-  //         //               size,
-  //         //               fmt::ptr(iter->first.stream));
-  //         return block;
-  //       }
-  //     }
-  //   }
-  //   return block_type{};
-  // }
+  void merge_lists(stream_event_pair stream_event, free_list& blocks, gpuEvent_t other_event,
+                   free_list&& other_blocks) {
+    // Since we found a block associated with a different stream, we have to insert a wait
+    // on the stream's associated event into the allocating stream.
+#if defined(USE_CUDA)
+    cudaStreamWaitEvent(stream_event.stream, other_event, 0);
+#elif defined(USE_HIP)
+    hipStreamWaitEvent(stream_event.stream, other_event, 0);
+#endif
 
-  // void merge_lists(stream_event_pair stream_event,
-  //                  free_list& blocks,
-  //                  gpuEvent_t other_event,
-  //                  free_list&& other_blocks)
-  // {
-  //   // Since we found a block associated with a different stream, we have to insert a wait
-  //   // on the stream's associated event into the allocating stream.
-  //   cudaStreamWaitEvent(stream_event.stream, other_event, 0);
-
-  //   // Merge the two free lists
-  //   blocks.insert(std::move(other_blocks));
-  // }
+    // Merge the two free lists
+    blocks.insert(std::move(other_blocks));
+  }
 
   /**
    * @brief Clear free lists and events
    *
    * Note: only called by destructor.
    */
-  void release()
-  {
+  void release() {
     lock_guard lock(mtx_);
 
-    // for (auto s_e : stream_events_) {
-    //   cudaEventSynchronize(s_e.second.event);
-    //   cudaEventDestroy(s_e.second.event);
-    // }
+    for(auto s_e: stream_events_) {
+#if defined(USE_CUDA)
+      cudaEventSynchronize(s_e.second.event);
+      cudaEventDestroy(s_e.second.event);
+#elif defined(USE_HIP)
+      hipEventSynchronize(s_e.second.event);
+      hipEventDestroy(s_e.second.event);
+#elif defined(USE_DPCPP)
+      s_e.second.event.wait();
+#endif
+    }
 
     stream_events_.clear();
     stream_free_blocks_.clear();
@@ -431,7 +438,7 @@ class stream_ordered_memory_resource : public crtp<PoolResource>, public device_
   // or the MR that is using them exists.
   std::set<std::shared_ptr<event_wrapper>> default_stream_events;
 
-  std::mutex mtx_;  // mutex for thread-safe access
-};                  // namespace detail
+  std::mutex mtx_; // mutex for thread-safe access
+};                 // namespace detail
 
-}  // namespace rmm::mr::detail
+} // namespace rmm::mr::detail

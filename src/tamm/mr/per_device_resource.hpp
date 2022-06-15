@@ -1,17 +1,16 @@
 #pragma once
 
-#include "gpu_memory_resource.hpp"
 #include "device_memory_resource.hpp"
+#include "gpu_memory_resource.hpp"
 
 // Macros used for defining symbol visibility, only GLIBC is supported
-#if (defined(__GNUC__) && !defined(__MINGW32__) && !defined(__MINGW64__))
+#if(defined(__GNUC__) && !defined(__MINGW32__) && !defined(__MINGW64__))
 #define RMM_EXPORT __attribute__((visibility("default")))
 #define RMM_HIDDEN __attribute__((visibility("hidden")))
 #else
 #define RMM_EXPORT
 #define RMM_HIDDEN
 #endif
-
 
 #include <map>
 #include <mutex>
@@ -41,7 +40,7 @@
  * is only valid if `id` refers to the CUDA device that was active when `mr` was created.
  *
  * If no resource was explicitly set for a given device specified by `id`, then
- * `get_per_device_resource(id)` will return a pointer to a `cuda_memory_resource`.
+ * `get_per_device_resource(id)` will return a pointer to a `gpu_memory_resource`.
  *
  * To fetch and modify the resource for the current CUDA device, `get_current_device_resource()` and
  * `set_current_device_resource()` will automatically use the current CUDA device id from
@@ -70,36 +69,33 @@ namespace detail {
 /**
  * @brief Returns a pointer to the initial resource.
  *
- * Returns a global instance of a `cuda_memory_resource` as a function local static.
+ * Returns a global instance of a `gpu_memory_resource` as a function local static.
  *
- * @return Pointer to the static cuda_memory_resource used as the initial, default resource
+ * @return Pointer to the static gpu_memory_resource used as the initial, default resource
  */
-inline device_memory_resource* initial_resource()
-{
-  static cuda_memory_resource mr{};
+inline device_memory_resource* initial_resource() {
+  static gpu_memory_resource mr{};
   return &mr;
 }
 
-inline std::mutex& map_lock()
-{
+inline std::mutex& map_lock() {
   static std::mutex map_lock;
   return map_lock;
 }
 
 // Must have default visibility, see: https://github.com/rapidsai/rmm/issues/826
-RMM_EXPORT inline auto& get_map()
-{
+RMM_EXPORT inline auto& get_map() {
   static std::map<unsigned short, device_memory_resource*> device_id_to_resource;
   return device_id_to_resource;
 }
 
-}  // namespace detail
+} // namespace detail
 
 /**
  * @brief Get the resource for the specified device.
  *
  * Returns a pointer to the `device_memory_resource` for the specified device. The initial
- * resource is a `cuda_memory_resource`.
+ * resource is a `gpu_memory_resource`.
  *
  * `id.value()` must be in the range `[0, cudaGetDeviceCount())`, otherwise behavior is undefined.
  *
@@ -116,21 +112,19 @@ RMM_EXPORT inline auto& get_map()
  * @param id The id of the target device
  * @return Pointer to the current `device_memory_resource` for device `id`
  */
-inline device_memory_resource* get_per_device_resource(unsigned short device_id)
-{
+inline device_memory_resource* get_per_device_resource(unsigned short device_id) {
   std::lock_guard<std::mutex> lock{detail::map_lock()};
-  auto& map = detail::get_map();
+  auto&                       map = detail::get_map();
   // If a resource was never set for `id`, set to the initial resource
   auto const found = map.find(device_id);
-  return (found == map.end()) ? (map[device_id] = detail::initial_resource())
-                              : found->second;
+  return (found == map.end()) ? (map[device_id] = detail::initial_resource()) : found->second;
 }
 
 /**
  * @brief Set the `device_memory_resource` for the specified device.
  *
  * If `new_mr` is not `nullptr`, sets the memory resource pointer for the device specified by `id`
- * to `new_mr`. Otherwise, resets `id`s resource to the initial `cuda_memory_resource`.
+ * to `new_mr`. Otherwise, resets `id`s resource to the initial `gpu_memory_resource`.
  *
  * `id.value()` must be in the range `[0, cudaGetDeviceCount())`, otherwise behavior is undefined.
  *
@@ -153,14 +147,13 @@ inline device_memory_resource* get_per_device_resource(unsigned short device_id)
  * for `id`
  * @return Pointer to the previous memory resource for `id`
  */
-inline device_memory_resource* set_per_device_resource(unsigned short device_id,
-                                                       device_memory_resource* new_mr)
-{
+inline device_memory_resource* set_per_device_resource(unsigned short          device_id,
+                                                       device_memory_resource* new_mr) {
   std::lock_guard<std::mutex> lock{detail::map_lock()};
-  auto& map          = detail::get_map();
-  auto const old_itr = map.find(device_id);
+  auto&                       map     = detail::get_map();
+  auto const                  old_itr = map.find(device_id);
   // If a resource didn't previously exist for `id`, return pointer to initial_resource
-  auto* old_mr           = (old_itr == map.end()) ? detail::initial_resource() : old_itr->second;
+  auto* old_mr   = (old_itr == map.end()) ? detail::initial_resource() : old_itr->second;
   map[device_id] = (new_mr == nullptr) ? detail::initial_resource() : new_mr;
   return old_mr;
 }
@@ -169,7 +162,7 @@ inline device_memory_resource* set_per_device_resource(unsigned short device_id,
  * @brief Get the memory resource for the current device.
  *
  * Returns a pointer to the resource set for the current device. The initial resource is a
- * `cuda_memory_resource`.
+ * `gpu_memory_resource`.
  *
  * The "current device" is the device returned by `cudaGetDevice`.
  *
@@ -186,8 +179,7 @@ inline device_memory_resource* set_per_device_resource(unsigned short device_id,
  *
  * @return Pointer to the resource for the current device
  */
-inline device_memory_resource* get_current_device_resource()
-{
+inline device_memory_resource* get_current_device_resource() {
   int currentDeviceId;
   cudaGetDevice(&currentDeviceId);
   return get_per_device_resource(currentDeviceId);
@@ -197,7 +189,7 @@ inline device_memory_resource* get_current_device_resource()
  * @brief Set the memory resource for the current device.
  *
  * If `new_mr` is not `nullptr`, sets the resource pointer for the current device to
- * `new_mr`. Otherwise, resets the resource to the initial `cuda_memory_resource`.
+ * `new_mr`. Otherwise, resets the resource to the initial `gpu_memory_resource`.
  *
  * The "current device" is the device returned by `cudaGetDevice`.
  *
@@ -217,11 +209,10 @@ inline device_memory_resource* get_current_device_resource()
  * @param new_mr If not `nullptr`, pointer to new resource to use for the current device
  * @return Pointer to the previous resource for the current device
  */
-inline device_memory_resource* set_current_device_resource(device_memory_resource* new_mr)
-{
+inline device_memory_resource* set_current_device_resource(device_memory_resource* new_mr) {
   int currentDeviceId;
   cudaGetDevice(&currentDeviceId);
-  
+
   return set_per_device_resource(currentDeviceId, new_mr);
 }
-}  // namespace rmm::mr
+} // namespace rmm::mr

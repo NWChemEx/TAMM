@@ -9,16 +9,16 @@ namespace rmm::mr {
  * @brief `device_memory_resource` derived class that uses cudaMalloc/Free for
  * allocation/deallocation.
  */
-class gpu_memory_resource final : public device_memory_resource {
- public:
-  gpu_memory_resource()                            = default;
-  ~gpu_memory_resource() override                  = default;
-  gpu_memory_resource(gpu_memory_resource const&) = default;
-  gpu_memory_resource(gpu_memory_resource&&)      = default;
+class gpu_memory_resource final: public device_memory_resource {
+public:
+  gpu_memory_resource()                                      = default;
+  ~gpu_memory_resource() override                            = default;
+  gpu_memory_resource(gpu_memory_resource const&)            = default;
+  gpu_memory_resource(gpu_memory_resource&&)                 = default;
   gpu_memory_resource& operator=(gpu_memory_resource const&) = default;
-  gpu_memory_resource& operator=(gpu_memory_resource&&) = default;
+  gpu_memory_resource& operator=(gpu_memory_resource&&)      = default;
 
- private:
+private:
   /**
    * @brief Allocates memory of size at least `bytes` using cudaMalloc.
    *
@@ -31,17 +31,16 @@ class gpu_memory_resource final : public device_memory_resource {
    * @param bytes The size, in bytes, of the allocation
    * @return void* Pointer to the newly allocated memory
    */
-  void* do_allocate(std::size_t bytes, cuda_stream_view stream) override
-  {
+  void* do_allocate(std::size_t bytes, cuda_stream_view stream) override {
     void* ptr{nullptr};
 #if defined(USE_CUDA)
     cudaMalloc(&ptr, bytes);
 #elif defined(USE_HIP)
-    hipMalloc(&ptr, bytes);    
+    hipMalloc(&ptr, bytes);
 #elif defined(USE_DPCPP)
     ptr = sycl::malloc_device(bytes, stream);
 #endif
-    
+
     std::cout << "gpu_memory_resource::do_allocate() : " << bytes << ", " << ptr << std::endl;
     return ptr;
   }
@@ -55,15 +54,14 @@ class gpu_memory_resource final : public device_memory_resource {
    *
    * @param p Pointer to be deallocated
    */
-  void do_deallocate(void* ptr, std::size_t bytes, cuda_stream_view stream) override
-  {
-#if defined(USE_CUDA)    
+  void do_deallocate(void* ptr, std::size_t bytes, cuda_stream_view stream) override {
+#if defined(USE_CUDA)
     cudaFree(ptr);
 #elif defined(USE_HIP)
-    hipFree(ptr);    
+    hipFree(ptr);
 #elif defined(USE_DPCPP)
     sycl::free(ptr, stream);
-#endif    
+#endif
     std::cout << "gpu_memory_resource::do_deallocate() : " << bytes << ", " << ptr << std::endl;
   }
 
@@ -79,8 +77,7 @@ class gpu_memory_resource final : public device_memory_resource {
    * @return true If the two resources are equivalent
    * @return false If the two resources are not equal
    */
-  [[nodiscard]] bool do_is_equal(device_memory_resource const& other) const noexcept override
-  {
+  [[nodiscard]] bool do_is_equal(device_memory_resource const& other) const noexcept override {
     return dynamic_cast<gpu_memory_resource const*>(&other) != nullptr;
   }
 
@@ -91,8 +88,8 @@ class gpu_memory_resource final : public device_memory_resource {
    *
    * @return std::pair contaiing free_size and total_size of memory
    */
-  [[nodiscard]] std::pair<std::size_t, std::size_t> do_get_mem_info(cuda_stream_view) const override
-  {
+  [[nodiscard]] std::pair<std::size_t, std::size_t>
+  do_get_mem_info(cuda_stream_view) const override {
     std::size_t free_size{};
     std::size_t total_size{};
 #if defined(USE_CUDA)
@@ -102,8 +99,8 @@ class gpu_memory_resource final : public device_memory_resource {
 #elif defined(USE_DPCPP)
     syclMemGetInfo(&free_size, &total_size);
 #endif
-    
+
     return std::make_pair(free_size, total_size);
   }
 };
-}  // namespace rmm::mr
+} // namespace rmm::mr

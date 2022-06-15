@@ -1,7 +1,7 @@
 #pragma once
 
 #include "tamm/gpu_streams.hpp"
-//#include <cuda_runtime_api.h>
+// #include <cuda_runtime_api.h>
 
 #include <atomic>
 #include <cstddef>
@@ -15,22 +15,22 @@ namespace rmm {
  * This wrapper is simply a "view": it does not own the lifetime of the stream it wraps.
  */
 class cuda_stream_view {
- public:
-  constexpr cuda_stream_view()                        = default;
-  constexpr cuda_stream_view(cuda_stream_view const&) = default;
-  constexpr cuda_stream_view(cuda_stream_view&&)      = default;
+public:
+  constexpr cuda_stream_view()                                   = default;
+  constexpr cuda_stream_view(cuda_stream_view const&)            = default;
+  constexpr cuda_stream_view(cuda_stream_view&&)                 = default;
   constexpr cuda_stream_view& operator=(cuda_stream_view const&) = default;
-  constexpr cuda_stream_view& operator=(cuda_stream_view&&) = default;
-  ~cuda_stream_view()                                       = default;
+  constexpr cuda_stream_view& operator=(cuda_stream_view&&)      = default;
+  ~cuda_stream_view()                                            = default;
 
   // Disable construction from literal 0
-  constexpr cuda_stream_view(int)            = delete;  //< Prevent cast from 0
-  constexpr cuda_stream_view(std::nullptr_t) = delete;  //< Prevent cast from nullptr
+  constexpr cuda_stream_view(int)            = delete; //< Prevent cast from 0
+  constexpr cuda_stream_view(std::nullptr_t) = delete; //< Prevent cast from nullptr
 
   /**
    * @brief Implicit conversion from gpuStream_t.
    */
-  constexpr cuda_stream_view(gpuStream_t stream) noexcept : stream_{stream} {}
+  constexpr cuda_stream_view(gpuStream_t stream) noexcept: stream_{stream} {}
 
   /**
    * @brief Get the wrapped stream.
@@ -76,8 +76,7 @@ class cuda_stream_view {
    *
    * Calls `cudaStreamSynchronize()` and asserts if there is an error.
    */
-  void synchronize_no_throw() const noexcept
-  {
+  void synchronize_no_throw() const noexcept {
 #if defined(USE_CUDA)
     cudaStreamSynchronize(stream_);
 #elif defined(USE_HIP)
@@ -87,7 +86,7 @@ class cuda_stream_view {
 #endif
   }
 
- private:
+private:
   gpuStream_t stream_{};
 };
 
@@ -101,18 +100,17 @@ static constexpr cuda_stream_view cuda_stream_default{};
  */
 
 static const cuda_stream_view cuda_stream_legacy{
-  cudaStreamLegacy  // NOLINT(cppcoreguidelines-pro-type-cstyle-cast)
+  cudaStreamLegacy // NOLINT(cppcoreguidelines-pro-type-cstyle-cast)
 };
 
 /**
  * @brief Static cuda_stream_view of cudaStreamPerThread, for convenience
  */
 static const cuda_stream_view cuda_stream_per_thread{
-  cudaStreamPerThread  // NOLINT(cppcoreguidelines-pro-type-cstyle-cast)
+  cudaStreamPerThread // NOLINT(cppcoreguidelines-pro-type-cstyle-cast)
 };
 
-[[nodiscard]] inline bool cuda_stream_view::is_per_thread_default() const noexcept
-{
+[[nodiscard]] inline bool cuda_stream_view::is_per_thread_default() const noexcept {
 #ifdef CUDA_API_PER_THREAD_DEFAULT_STREAM
   return value() == cuda_stream_per_thread || value() == nullptr;
 #else
@@ -123,8 +121,7 @@ static const cuda_stream_view cuda_stream_per_thread{
 /**
  * @brief Return true if the wrapped stream is explicitly the CUDA legacy default stream.
  */
-[[nodiscard]] inline bool cuda_stream_view::is_default() const noexcept
-{
+[[nodiscard]] inline bool cuda_stream_view::is_default() const noexcept {
 #ifdef CUDA_API_PER_THREAD_DEFAULT_STREAM
   return value() == cuda_stream_legacy;
 #else
@@ -139,8 +136,7 @@ static const cuda_stream_view cuda_stream_per_thread{
  * @param rhs The second stream view to compare
  * @return true if equal, false if unequal
  */
-inline bool operator==(cuda_stream_view lhs, cuda_stream_view rhs)
-{
+inline bool operator==(cuda_stream_view lhs, cuda_stream_view rhs) {
   return lhs.value() == rhs.value();
 }
 
@@ -160,10 +156,9 @@ inline bool operator!=(cuda_stream_view lhs, cuda_stream_view rhs) { return not(
  * @param sv The cuda_stream_view to output
  * @return std::ostream& The output ostream
  */
-inline std::ostream& operator<<(std::ostream& os, cuda_stream_view stream)
-{
+inline std::ostream& operator<<(std::ostream& os, cuda_stream_view stream) {
   os << stream.value();
   return os;
 }
 
-}  // namespace rmm
+} // namespace rmm

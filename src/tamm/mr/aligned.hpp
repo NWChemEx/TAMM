@@ -40,8 +40,7 @@ constexpr bool is_supported_alignment(std::size_t alignment) { return is_pow2(al
  *
  * @return Return the aligned value, as one would expect
  */
-constexpr std::size_t align_up(std::size_t value, std::size_t alignment) noexcept
-{
+constexpr std::size_t align_up(std::size_t value, std::size_t alignment) noexcept {
   assert(is_supported_alignment(alignment));
   return (value + (alignment - 1)) & ~(alignment - 1);
 }
@@ -54,8 +53,7 @@ constexpr std::size_t align_up(std::size_t value, std::size_t alignment) noexcep
  *
  * @return Return the aligned value, as one would expect
  */
-constexpr std::size_t align_down(std::size_t value, std::size_t alignment) noexcept
-{
+constexpr std::size_t align_down(std::size_t value, std::size_t alignment) noexcept {
   assert(is_supported_alignment(alignment));
   return value & ~(alignment - 1);
 }
@@ -68,14 +66,12 @@ constexpr std::size_t align_down(std::size_t value, std::size_t alignment) noexc
  *
  * @return true if aligned
  */
-constexpr bool is_aligned(std::size_t value, std::size_t alignment) noexcept
-{
+constexpr bool is_aligned(std::size_t value, std::size_t alignment) noexcept {
   assert(is_supported_alignment(alignment));
   return value == align_down(value, alignment);
 }
 
-inline bool is_pointer_aligned(void* ptr, std::size_t alignment = CUDA_ALLOCATION_ALIGNMENT)
-{
+inline bool is_pointer_aligned(void* ptr, std::size_t alignment = CUDA_ALLOCATION_ALIGNMENT) {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   return rmm::detail::is_aligned(reinterpret_cast<ptrdiff_t>(ptr), alignment);
 }
@@ -107,9 +103,8 @@ inline bool is_pointer_aligned(void* ptr, std::size_t alignment = CUDA_ALLOCATIO
  * @return void* Pointer into allocation of at least `bytes` with desired
  * `alignment`.
  */
-template <typename Alloc>
-void* aligned_allocate(std::size_t bytes, std::size_t alignment, Alloc alloc)
-{
+template<typename Alloc>
+void* aligned_allocate(std::size_t bytes, std::size_t alignment, Alloc alloc) {
   assert(is_pow2(alignment));
 
   // allocate memory for bytes, plus potential alignment correction,
@@ -150,11 +145,10 @@ void* aligned_allocate(std::size_t bytes, std::size_t alignment, Alloc alloc)
  * `alloc` in `aligned_allocate`.
  * @tparam Dealloc A unary callable type that deallocates memory.
  */
-template <typename Dealloc>
+template<typename Dealloc>
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-void aligned_deallocate(void* ptr, std::size_t bytes, std::size_t alignment, Dealloc dealloc)
-{
-  (void)alignment;
+void aligned_deallocate(void* ptr, std::size_t bytes, std::size_t alignment, Dealloc dealloc) {
+  (void) alignment;
 
   // Get offset from the location immediately prior to the aligned pointer
   // NOLINTNEXTLINE
@@ -165,4 +159,4 @@ void aligned_deallocate(void* ptr, std::size_t bytes, std::size_t alignment, Dea
 
   dealloc(original);
 }
-}  // namespace rmm::detail
+} // namespace rmm::detail

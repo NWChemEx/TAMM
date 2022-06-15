@@ -7,10 +7,10 @@
 namespace rmm::mr::detail {
 
 struct block_base {
-  void* ptr{};  ///< Raw memory pointer
+  void* ptr{}; ///< Raw memory pointer
 
   block_base() = default;
-  block_base(void* ptr) : ptr{ptr} {};
+  block_base(void* ptr): ptr{ptr} {};
 
   /// Returns the raw pointer for this block
   [[nodiscard]] inline void* pointer() const { return ptr; }
@@ -31,16 +31,16 @@ struct block_base {
  *
  * @tparam list_type the type of the internal list data structure.
  */
-template <typename BlockType, typename ListType = std::list<BlockType>>
+template<typename BlockType, typename ListType = std::list<BlockType>>
 class free_list {
- public:
+public:
   free_list()          = default;
   virtual ~free_list() = default;
 
-  free_list(free_list const&) = delete;
+  free_list(free_list const&)            = delete;
   free_list& operator=(free_list const&) = delete;
   free_list(free_list&&)                 = delete;
-  free_list& operator=(free_list&&) = delete;
+  free_list& operator=(free_list&&)      = delete;
 
   using block_type     = BlockType;
   using list_type      = ListType;
@@ -90,7 +90,7 @@ class free_list {
    */
   void clear() noexcept { blocks.clear(); }
 
- protected:
+protected:
   /**
    * @brief Insert a block in the free list before the specified position
    *
@@ -105,8 +105,7 @@ class free_list {
    * @param pos iterator before which the block will be inserted. pos may be the end() iterator.
    * @param other The free list to insert.
    */
-  void splice(const_iterator pos, free_list&& other)
-  {
+  void splice(const_iterator pos, free_list&& other) {
     return blocks.splice(pos, std::move(other.blocks));
   }
 
@@ -132,8 +131,8 @@ class free_list {
    */
   void pop_front() { blocks.pop_front(); }
 
- private:
-  list_type blocks;  // The internal container of blocks
+private:
+  list_type blocks; // The internal container of blocks
 };
 
-}  // namespace rmm::mr::detail
+} // namespace rmm::mr::detail

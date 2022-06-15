@@ -1,10 +1,10 @@
 #pragma once
 
-#include "cuda_stream_view.hpp"
 #include "aligned.hpp"
 #include "coalescing_free_list.hpp"
-#include "stream_ordered_memory_resource.hpp"
+#include "cuda_stream_view.hpp"
 #include "device_memory_resource.hpp"
+#include "stream_ordered_memory_resource.hpp"
 
 #include <optional>
 
@@ -33,11 +33,11 @@ namespace rmm::mr {
  * @tparam UpstreamResource memory_resource to use for allocating the pool. Implements
  *                          rmm::mr::device_memory_resource interface.
  */
-template <typename Upstream>
-class pool_memory_resource final
-  : public detail::stream_ordered_memory_resource<pool_memory_resource<Upstream>,
-                                                  detail::coalescing_free_list> {
- public:
+template<typename Upstream>
+class pool_memory_resource final:
+  public detail::stream_ordered_memory_resource<pool_memory_resource<Upstream>,
+                                                detail::coalescing_free_list> {
+public:
   friend class detail::stream_ordered_memory_resource<pool_memory_resource<Upstream>,
                                                       detail::coalescing_free_list>;
 
@@ -57,20 +57,21 @@ class pool_memory_resource final
    * @param maximum_pool_size Maximum size, in bytes, that the pool can grow to. Defaults to all
    * of the available memory on the current device.
    */
-  explicit pool_memory_resource(Upstream* upstream_mr,
+  explicit pool_memory_resource(Upstream*                  upstream_mr,
                                 std::optional<std::size_t> initial_pool_size = std::nullopt,
-                                std::optional<std::size_t> maximum_pool_size = std::nullopt)
-    : upstream_mr_{[upstream_mr]() {
-        if(upstream_mr == nullptr) { std::logic_error("Unexpected null upstream pointer."); }
-        return upstream_mr;
-      }()}
-  {
-    if(!rmm::detail::is_aligned(initial_pool_size.value_or(0), rmm::detail::CUDA_ALLOCATION_ALIGNMENT)) {
+                                std::optional<std::size_t> maximum_pool_size = std::nullopt):
+    upstream_mr_{[upstream_mr]() {
+      if(upstream_mr == nullptr) { std::logic_error("Unexpected null upstream pointer."); }
+      return upstream_mr;
+    }()} {
+    if(!rmm::detail::is_aligned(initial_pool_size.value_or(0),
+                                rmm::detail::CUDA_ALLOCATION_ALIGNMENT)) {
       std::logic_error("Error, Initial pool size required to be a multiple of 256 bytes");
     }
-    if(!rmm::detail::is_aligned(maximum_pool_size.value_or(0), rmm::detail::CUDA_ALLOCATION_ALIGNMENT)) {
+    if(!rmm::detail::is_aligned(maximum_pool_size.value_or(0),
+                                rmm::detail::CUDA_ALLOCATION_ALIGNMENT)) {
       std::logic_error("Error, Maximum pool size required to be a multiple of 256 bytes");
-    }    
+    }
 
     initialize_pool(initial_pool_size, maximum_pool_size);
   }
@@ -81,11 +82,11 @@ class pool_memory_resource final
    */
   ~pool_memory_resource() override { release(); }
 
-  pool_memory_resource()                            = delete;
-  pool_memory_resource(pool_memory_resource const&) = delete;
-  pool_memory_resource(pool_memory_resource&&)      = delete;
+  pool_memory_resource()                                       = delete;
+  pool_memory_resource(pool_memory_resource const&)            = delete;
+  pool_memory_resource(pool_memory_resource&&)                 = delete;
   pool_memory_resource& operator=(pool_memory_resource const&) = delete;
-  pool_memory_resource& operator=(pool_memory_resource&&) = delete;
+  pool_memory_resource& operator=(pool_memory_resource&&)      = delete;
 
   /**
    * @brief Get the upstream memory_resource object.
@@ -103,7 +104,7 @@ class pool_memory_resource final
    */
   [[nodiscard]] std::size_t pool_size() const noexcept { return current_pool_size_; }
 
- protected:
+protected:
   using free_list  = detail::coalescing_free_list;
   using block_type = free_list::block_type;
   using typename detail::stream_ordered_memory_resource<pool_memory_resource<Upstream>,
@@ -118,8 +119,7 @@ class pool_memory_resource final
    *
    * @return std::size_t The maximum size of a single allocation supported by this memory resource
    */
-  [[nodiscard]] std::size_t get_maximum_allocation_size() const
-  {
+  [[nodiscard]] std::size_t get_maximum_allocation_size() const {
     return std::numeric_limits<std::size_t>::max();
   }
 
@@ -138,16 +138,15 @@ class pool_memory_resource final
    * @param stream The stream on which the memory is to be used.
    * @return block_type a block of at least `min_size` bytes
    */
-  block_type try_to_expand(std::size_t try_size, std::size_t min_size, cuda_stream_view stream)
-  {
-    while (try_size >= min_size) {
+  block_type try_to_expand(std::size_t try_size, std::size_t min_size, cuda_stream_view stream) {
+    while(try_size >= min_size) {
       auto block = block_from_upstream(try_size, stream);
-      if (block.has_value()) {
+      if(block.has_value()) {
         current_pool_size_ += block.value().size();
         return block.value();
       }
-      if (try_size == min_size) {
-        break;  // only try `size` once
+      if(try_size == min_size) {
+        break; // only try `size` once
       }
       try_size = std::max(min_size, try_size / 2);
     }
@@ -167,26 +166,25 @@ class pool_memory_resource final
    */
   // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
   void initialize_pool(std::optional<std::size_t> initial_size,
-                       std::optional<std::size_t> maximum_size)
-  {
+                       std::optional<std::size_t> maximum_size) {
     auto const try_size = [&]() {
-      if (not initial_size.has_value()) {
-	std::size_t free, total;
-	cudaMemGetInfo(&free, &total);
+      if(not initial_size.has_value()) {
+        std::size_t free, total;
+        cudaMemGetInfo(&free, &total);
         return rmm::detail::align_up(std::min(free, total / 2),
                                      rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
       }
       return initial_size.value();
     }();
 
-    current_pool_size_ = 0;  // try_to_expand will set this if it succeeds
+    current_pool_size_ = 0; // try_to_expand will set this if it succeeds
     maximum_pool_size_ = maximum_size;
 
-    if( !(try_size <= maximum_pool_size_.value_or(std::numeric_limits<std::size_t>::max())) ) {
+    if(!(try_size <= maximum_pool_size_.value_or(std::numeric_limits<std::size_t>::max()))) {
       std::logic_error("Initial pool size exceeds the maximum pool size!");
     }
 
-    if (try_size > 0) {
+    if(try_size > 0) {
       auto const block = try_to_expand(try_size, try_size, cuda_stream_legacy);
       this->insert_block(block, cuda_stream_legacy);
     }
@@ -201,8 +199,7 @@ class pool_memory_resource final
    * @param stream The stream on which the memory is to be used.
    * @return block_type a block of at least `size` bytes
    */
-  block_type expand_pool(std::size_t size, free_list& blocks, cuda_stream_view stream)
-  {
+  block_type expand_pool(std::size_t size, free_list& blocks, cuda_stream_view stream) {
     // Strategy: If maximum_pool_size_ is set, then grow geometrically, e.g. by halfway to the
     // limit each time. If it is not set, grow exponentially, e.g. by doubling the pool size each
     // time. Upon failure, attempt to back off exponentially, e.g. by half the attempted size,
@@ -222,9 +219,8 @@ class pool_memory_resource final
    * @param size The size of the minimum allocation immediately needed
    * @return std::size_t The computed size to grow the pool.
    */
-  [[nodiscard]] std::size_t size_to_grow(std::size_t size) const
-  {
-    if (maximum_pool_size_.has_value()) {
+  [[nodiscard]] std::size_t size_to_grow(std::size_t size) const {
+    if(maximum_pool_size_.has_value()) {
       auto const unaligned_remaining = maximum_pool_size_.value() - pool_size();
       using rmm::detail::align_up;
       auto const remaining = align_up(unaligned_remaining, rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
@@ -241,17 +237,14 @@ class pool_memory_resource final
    * @param stream The stream on which the memory is to be used.
    * @return block_type The allocated block
    */
-  std::optional<block_type> block_from_upstream(std::size_t size, cuda_stream_view stream)
-  {
-    if (size == 0) { return {}; }
+  std::optional<block_type> block_from_upstream(std::size_t size, cuda_stream_view stream) {
+    if(size == 0) { return {}; }
 
     try {
       void* ptr = get_upstream()->allocate(size, stream);
       return std::optional<block_type>{
         *upstream_blocks_.emplace(static_cast<char*>(ptr), size, true).first};
-    } catch (std::exception const& e) {
-      return std::nullopt;
-    }
+    } catch(std::exception const& e) { return std::nullopt; }
   }
 
   /**
@@ -265,13 +258,12 @@ class pool_memory_resource final
    * @return A pair comprising the allocated pointer and any unallocated remainder of the input
    * block.
    */
-  split_block allocate_from_block(block_type const& block, std::size_t size)
-  {
+  split_block allocate_from_block(block_type const& block, std::size_t size) {
     block_type const alloc{block.pointer(), size, block.is_head()};
-    auto rest = (block.size() > size)
+    auto             rest = (block.size() > size)
                   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-                  ? block_type{block.pointer() + size, block.size() - size, false}
-                  : block_type{};
+                              ? block_type{block.pointer() + size, block.size() - size, false}
+                              : block_type{};
     return {alloc, rest};
   }
 
@@ -284,8 +276,7 @@ class pool_memory_resource final
    * @return The (now freed) block associated with `p`. The caller is expected to return the block
    * to the pool.
    */
-  block_type free_block(void* ptr, std::size_t size) noexcept
-  {
+  block_type free_block(void* ptr, std::size_t size) noexcept {
     auto const iter = upstream_blocks_.find(static_cast<char*>(ptr));
     return block_type{static_cast<char*>(ptr), size, (iter != upstream_blocks_.end())};
   }
@@ -294,13 +285,10 @@ class pool_memory_resource final
    * @brief Free all memory allocated from the upstream memory_resource.
    *
    */
-  void release()
-  {
+  void release() {
     lock_guard lock(this->get_mutex());
 
-    for (auto block : upstream_blocks_) {
-      get_upstream()->deallocate(block.pointer(), block.size());
-    }
+    for(auto block: upstream_blocks_) { get_upstream()->deallocate(block.pointer(), block.size()); }
     upstream_blocks_.clear();
     current_pool_size_ = 0;
   }
@@ -313,8 +301,7 @@ class pool_memory_resource final
    * @param blocks The free list from which to return the summary
    * @return std::pair<std::size_t, std::size_t> Pair of largest available block, total free size
    */
-  std::pair<std::size_t, std::size_t> free_list_summary(free_list const& blocks)
-  {
+  std::pair<std::size_t, std::size_t> free_list_summary(free_list const& blocks) {
     std::size_t largest{};
     std::size_t total{};
     std::for_each(blocks.cbegin(), blocks.cend(), [&largest, &total](auto const& block) {
@@ -332,20 +319,19 @@ class pool_memory_resource final
    * @param stream to execute on
    * @return std::pair contaiing free_size and total_size of memory
    */
-  [[nodiscard]] std::pair<std::size_t, std::size_t> do_get_mem_info(
-    cuda_stream_view stream) const override
-  {
+  [[nodiscard]] std::pair<std::size_t, std::size_t>
+  do_get_mem_info(cuda_stream_view stream) const override {
     // TODO implement this
     return {0, 0};
   }
 
- private:
-  Upstream* upstream_mr_;  // The "heap" to allocate the pool from
-  std::size_t current_pool_size_{};
+private:
+  Upstream*                  upstream_mr_; // The "heap" to allocate the pool from
+  std::size_t                current_pool_size_{};
   std::optional<std::size_t> maximum_pool_size_{};
 
   // blocks allocated from upstream
   std::set<block_type, rmm::mr::detail::compare_blocks<block_type>> upstream_blocks_;
-};  // namespace mr
+}; // namespace mr
 
-}  // namespace rmm::mr
+} // namespace rmm::mr

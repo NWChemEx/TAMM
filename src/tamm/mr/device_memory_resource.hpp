@@ -1,7 +1,7 @@
 #pragma once
 
-#include "cuda_stream_view.hpp"
 #include "aligned.hpp"
+#include "cuda_stream_view.hpp"
 
 #include <cstddef>
 #include <utility>
@@ -65,12 +65,12 @@ namespace rmm::mr {
  * @endcode
  */
 class device_memory_resource {
- public:
-  device_memory_resource()                              = default;
-  virtual ~device_memory_resource()                     = default;
-  device_memory_resource(device_memory_resource const&) = default;
-  device_memory_resource& operator=(device_memory_resource const&) = default;
-  device_memory_resource(device_memory_resource&&) noexcept        = default;
+public:
+  device_memory_resource()                                             = default;
+  virtual ~device_memory_resource()                                    = default;
+  device_memory_resource(device_memory_resource const&)                = default;
+  device_memory_resource& operator=(device_memory_resource const&)     = default;
+  device_memory_resource(device_memory_resource&&) noexcept            = default;
   device_memory_resource& operator=(device_memory_resource&&) noexcept = default;
 
   /**
@@ -88,8 +88,7 @@ class device_memory_resource {
    * @param stream Stream on which to perform allocation
    * @return void* Pointer to the newly allocated memory
    */
-  void* allocate(std::size_t bytes, cuda_stream_view stream = cuda_stream_view{})
-  {
+  void* allocate(std::size_t bytes, cuda_stream_view stream = cuda_stream_view{}) {
     return do_allocate(rmm::detail::align_up(bytes, allocation_size_alignment), stream);
   }
 
@@ -111,8 +110,7 @@ class device_memory_resource {
    * value of `bytes` that was passed to the `allocate` call that returned `p`.
    * @param stream Stream on which to perform deallocation
    */
-  void deallocate(void* ptr, std::size_t bytes, cuda_stream_view stream = cuda_stream_view{})
-  {
+  void deallocate(void* ptr, std::size_t bytes, cuda_stream_view stream = cuda_stream_view{}) {
     do_deallocate(ptr, rmm::detail::align_up(bytes, allocation_size_alignment), stream);
   }
 
@@ -129,8 +127,7 @@ class device_memory_resource {
    * @param other The other resource to compare to
    * @returns If the two resources are equivalent
    */
-  [[nodiscard]] bool is_equal(device_memory_resource const& other) const noexcept
-  {
+  [[nodiscard]] bool is_equal(device_memory_resource const& other) const noexcept {
     return do_is_equal(other);
   }
 
@@ -142,12 +139,11 @@ class device_memory_resource {
    * @returns a pair containing the free memory in bytes in .first and total amount of memory in
    * .second
    */
-  [[nodiscard]] std::pair<std::size_t, std::size_t> get_mem_info(cuda_stream_view stream) const
-  {
+  [[nodiscard]] std::pair<std::size_t, std::size_t> get_mem_info(cuda_stream_view stream) const {
     return do_get_mem_info(stream);
   }
 
- private:
+private:
   // All allocations are padded to a multiple of allocation_size_alignment bytes.
   static constexpr auto allocation_size_alignment = std::size_t{8};
 
@@ -192,8 +188,7 @@ class device_memory_resource {
    * @return true If the two resources are equivalent
    * @return false If the two resources are not equal
    */
-  [[nodiscard]] virtual bool do_is_equal(device_memory_resource const& other) const noexcept
-  {
+  [[nodiscard]] virtual bool do_is_equal(device_memory_resource const& other) const noexcept {
     return this == &other;
   }
 
@@ -205,7 +200,7 @@ class device_memory_resource {
    * @param stream the stream being executed on
    * @return std::pair with available and free memory for resource
    */
-  [[nodiscard]] virtual std::pair<std::size_t, std::size_t> do_get_mem_info(
-    cuda_stream_view stream) const = 0;
+  [[nodiscard]] virtual std::pair<std::size_t, std::size_t>
+  do_get_mem_info(cuda_stream_view stream) const = 0;
 };
-}  // namespace rmm::mr
+} // namespace rmm::mr

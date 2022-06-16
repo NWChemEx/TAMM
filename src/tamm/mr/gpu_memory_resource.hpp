@@ -34,8 +34,6 @@ private:
   void* do_allocate(std::size_t bytes, cuda_stream_view stream) override {
     void* ptr{nullptr};
 #if defined(USE_CUDA)
-    int currentDev;
-    cudaGetDevice(&currentDev);
     cudaMalloc(&ptr, bytes);
 #elif defined(USE_HIP)
     hipMalloc(&ptr, bytes);
@@ -43,8 +41,6 @@ private:
     ptr = sycl::malloc_device(bytes, stream);
 #endif
 
-    std::cout << "gpu_memory_resource::do_allocate() : " << bytes << ", " << ptr << ", "
-              << currentDev << std::endl;
     return ptr;
   }
 
@@ -59,16 +55,12 @@ private:
    */
   void do_deallocate(void* ptr, std::size_t bytes, cuda_stream_view stream) override {
 #if defined(USE_CUDA)
-    int currentDev;
-    cudaGetDevice(&currentDev);
     cudaFree(ptr);
 #elif defined(USE_HIP)
     hipFree(ptr);
 #elif defined(USE_DPCPP)
     sycl::free(ptr, stream);
 #endif
-    std::cout << "gpu_memory_resource::do_deallocate() : " << bytes << ", " << ptr << ", "
-              << currentDev << std::endl;
   }
 
   /**

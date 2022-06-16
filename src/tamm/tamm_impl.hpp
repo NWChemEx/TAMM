@@ -37,11 +37,11 @@ private:
     }
 
     // GPU Stream Pool as singleton object
-    auto&        pool                  = tamm::GPUStreamPool::getInstance();
-    auto&        dev_stream            = pool.getStream();
+    // It is important to set-device first before getting a stream handle from pool
     unsigned int default_gpu_device_id = 0; // per MPI-rank
+    auto&        pool                  = tamm::GPUStreamPool::getInstance();
     pool.set_device(default_gpu_device_id);
-
+    auto&        dev_stream            = pool.getStream();
     mr_ = std::make_unique<pool_mr>(rmm::mr::get_current_device_resource(), dev_stream);
 #endif // !defined(USE_TALSH)
   }

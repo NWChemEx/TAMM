@@ -174,7 +174,6 @@ protected:
     }
     auto const block = this->underlying().get_block(size, stream_event);
 
-    // std::cout << "stream_order do_allocate: " << size << std::endl;
     return block.pointer();
   }
 
@@ -207,7 +206,6 @@ protected:
 #endif
 
     stream_free_blocks_[stream_event].insert(block);
-    // std::cout << "stream_order do_deallocate: " << size << " , " << ptr << std::endl;
   }
 
 private:

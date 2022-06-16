@@ -131,6 +131,10 @@ public:
 
   /// Returns a GPU stream in a round-robin fashion
   gpuStream_t& getStream() {
+    if(!_initialized) {
+      EXPECTS_STR(false, "Error: active GPU-device not set! call set_device()!");
+    }
+
     unsigned short int counter = _count++ % max_gpu_streams;
 
 #if defined(USE_CUDA)
@@ -157,6 +161,10 @@ public:
 
 #if !defined(USE_DPCPP) && !defined(USE_TALSH)
   gpuBlasHandle_t& getBlasHandle() {
+    if(!_initialized) {
+      EXPECTS_STR(false, "Error: active GPU-device not set! call set_device()!");
+    }
+
     auto result = _devID2Handles.insert({_active_device, gpuBlasHandle_t()});
 #if defined(USE_CUDA)
     gpuBlasHandle_t& handle   = (*result.first).second;

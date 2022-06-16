@@ -265,7 +265,7 @@ public:
      *
      * @param [in] hint input Size of cache for MemoryRegionsGAs
      */
-    void set_memory_manager_cache(const upcxx::intrank_t hint = 0) { 
+    void set_memory_manager_cache(const upcxx::intrank_t hint = 0) {
         hint_ = (hint ? hint : pg_.size().value());
     }
     /**
@@ -343,7 +343,7 @@ public:
   int num_nodes() const { return nnodes_; }
   int ppn() const { return ranks_pn_; }
 
-  int gpu_devid() const { return dev_id_; }
+  int talsh_gpu_devid() const { return talsh_dev_id_; }
 
   bool print() const { return (pg_.rank() == 0); }
 
@@ -402,7 +402,7 @@ private:
   int                            nnodes_;
   int                            ranks_pn_;
   bool                           has_gpu_;
-  int                            dev_id_ = -1;
+  int                            talsh_dev_id_ = -1;
   ExecutionHW                    exhw_;
 
   std::stringstream          profile_data_;

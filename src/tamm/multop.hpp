@@ -447,7 +447,7 @@ public:
             else
 #endif
       {
-        const int dev_id = ec.gpu_devid();
+        const int talsh_dev_id = ec.talsh_gpu_devid();
         // determine set of all labels
 
         // compute block size and allocate buffers
@@ -518,9 +518,9 @@ public:
           kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
             ab->isgpu_,
 #ifdef USE_TALSH
-            *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, COPY_TTT,
+            *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, COPY_TTT, talsh_dev_id,
 #endif
-            dev_id, alpha_, abuf.data(), adims_sz, rhs1_int_labels_, bbuf.data(), bdims_sz,
+            alpha_, abuf.data(), adims_sz, rhs1_int_labels_, bbuf.data(), bdims_sz,
             rhs2_int_labels_, cscale, (ab->cbuf_).data(), cdims_sz, lhs_int_labels_, hw,
             ec.has_gpu());
         }
@@ -884,9 +884,9 @@ public:
       for(const auto v: cdims) { cdims_sz.push_back(v); }
 
       bool      isgpu  = false;
-      const int dev_id = ec.gpu_devid();
 
 #ifdef USE_TALSH
+      const int talsh_dev_id = ec.talsh_gpu_devid();
       TALSH* gpu_mult = new TALSH{ec.num_gpu()};
 
       // AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b,
@@ -919,8 +919,8 @@ public:
         th_b2 = new tensor_handle();
         th_c2 = new tensor_handle();
 
-        *th_c  = gpu_mult->gpu_block<TensorElType1>(cdims_sz.size(), tal_cdims, dev_id);
-        *th_c2 = gpu_mult->gpu_block<TensorElType1>(cdims_sz.size(), tal_cdims, dev_id);
+        *th_c  = gpu_mult->gpu_block<TensorElType1>(cdims_sz.size(), tal_cdims, talsh_dev_id);
+        *th_c2 = gpu_mult->gpu_block<TensorElType1>(cdims_sz.size(), tal_cdims, talsh_dev_id);
 
         ab1 =
           new AddBuf<TensorElType1>{isgpu, tt1, th_c, th_a, th_b, ctensor, {}, translated_cblockid};
@@ -936,7 +936,7 @@ public:
       AddBuf<TensorElType1>* ab =
         new AddBuf<TensorElType1>{isgpu, ctensor, {}, translated_cblockid};
       add_bufs.push_back(ab);
-#endif
+#endif // USE_TALSH
 
 #if 0
             if constexpr(std::is_same_v<TensorElType1,TensorElType2>
@@ -1086,9 +1086,9 @@ public:
             kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
               abptr->isgpu_,
 #ifdef USE_TALSH
-              *gpu_mult, *(abptr->tt_), *(abptr->tc_), *(abptr->ta_), *(abptr->tb_), COPY_MTT,
+              *gpu_mult, *(abptr->tt_), *(abptr->tc_), *(abptr->ta_), *(abptr->tb_), COPY_MTT, talsh_dev_id,
 #endif
-              dev_id, alpha_, (abptr->abuf_).data(), adims_sz, rhs1_int_labels_,
+              alpha_, (abptr->abuf_).data(), adims_sz, rhs1_int_labels_,
               (abptr->bbuf_).data(), bdims_sz, rhs2_int_labels_, cscale, cbuf.data(), cdims_sz,
               lhs_int_labels_, hw, ec.has_gpu(), false);
           }
@@ -1120,7 +1120,7 @@ public:
             // if(ab1->isgpu_ && ab2->isgpu_){
             std::string aop_string =
               internal::talsh_add_op_string(lhs_int_labels_, lhs_int_labels_);
-            gpu_mult->add_block(aop_string, dev_id, *th_c, *th_c2, (TensorElType1) 1.0);
+            gpu_mult->add_block(aop_string, talsh_dev_id, *th_c, *th_c2, (TensorElType1) 1.0);
 
             talsh_task_t* tph1 = new talsh_task_t();
             talshTaskClean(tph1);

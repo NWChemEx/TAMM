@@ -91,7 +91,7 @@ void copy_data_to_gpu(ExecutionHW hw, const std::vector<T2>& ainter_buf, T2** ai
   *binter_buf_dev = static_cast<T3*>(memPool->allocate(binter_buf.size() * sizeof(T3), dev_queue));
   *cinter_buf_dev = static_cast<T1*>(memPool->allocate(cinter_buf.size() * sizeof(T1), dev_queue));
 
-  // host-->device copy  
+  // host-->device copy
 #if defined(USE_DPCPP) && !defined(USE_TALSH)
   dev_queue.memcpy(*ainter_buf_dev, ainter_buf.data(), ainter_buf.size() * sizeof(T2)).wait();
   dev_queue.memcpy(*binter_buf_dev, binter_buf.data(), binter_buf.size() * sizeof(T3)).wait();
@@ -262,9 +262,9 @@ template<typename T, typename T1, typename T2, typename T3>
 void block_multiply(bool& isgpuOp,
 #if defined(USE_TALSH)
                     TALSH& gpu_mult, talsh_task_t& talsh_task, tensor_handle& th_c,
-                    tensor_handle& th_a, tensor_handle& th_b, int copy_ctrl,
+                    tensor_handle& th_a, tensor_handle& th_b, int copy_ctrl, int talsh_dev_id,
 #endif
-                    int dev_id, T alpha, const T2* abuf, const SizeVec& adims,
+                    T alpha, const T2* abuf, const SizeVec& adims,
                     const IntLabelVec& alabels, const T3* bbuf, const SizeVec& bdims,
                     const IntLabelVec& blabels, T beta, T1* cbuf, const SizeVec& cdims,
                     const IntLabelVec& clabels, ExecutionHW hw = ExecutionHW::CPU,
@@ -626,7 +626,7 @@ void block_multiply(bool& isgpuOp,
       th_b = gpu_mult.host_block(bdims.size(), tal_bdims, bbufp);
       if(copy_ctrl == COPY_TTT) th_c = gpu_mult.host_block(cdims.size(), tal_cdims, cbuf);
 
-      gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string, alpha, copy_ctrl,
+      gpu_mult.mult_block(talsh_task, talsh_dev_id, th_c, th_a, th_b, talsh_op_string, alpha, copy_ctrl,
                           is_assign);
 
       // talshTensorDestruct(&th_a);
@@ -651,7 +651,7 @@ void block_multiply(bool& isgpuOp,
           th_b = gpu_mult.host_block(bdims.size(), tal_bdims, bbuf_complex.data());
           if(copy_ctrl == COPY_TTT) th_c = gpu_mult.host_block(cdims.size(), tal_cdims, cbuf);
 
-          gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string, alpha,
+          gpu_mult.mult_block(talsh_task, talsh_dev_id, th_c, th_a, th_b, talsh_op_string, alpha,
                               copy_ctrl, is_assign);
 
           // talshTensorDestruct(&th_a);
@@ -672,7 +672,7 @@ void block_multiply(bool& isgpuOp,
           th_b = gpu_mult.host_block(bdims.size(), tal_bdims, bbuf_real.data());
           if(copy_ctrl == COPY_TTT) th_c = gpu_mult.host_block(cdims.size(), tal_cdims, cbuf);
 
-          gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string, alpha,
+          gpu_mult.mult_block(talsh_task, talsh_dev_id, th_c, th_a, th_b, talsh_op_string, alpha,
                               copy_ctrl, is_assign);
 
           // talshTensorDestruct(&th_a);
@@ -696,7 +696,7 @@ void block_multiply(bool& isgpuOp,
           th_b = gpu_mult.host_block(bdims.size(), tal_bdims, bbufp);
           if(copy_ctrl == COPY_TTT) th_c = gpu_mult.host_block(cdims.size(), tal_cdims, cbuf);
 
-          gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string, alpha,
+          gpu_mult.mult_block(talsh_task, talsh_dev_id, th_c, th_a, th_b, talsh_op_string, alpha,
                               copy_ctrl, is_assign);
 
           // talshTensorDestruct(&th_a);
@@ -716,7 +716,7 @@ void block_multiply(bool& isgpuOp,
           th_b = gpu_mult.host_block(bdims.size(), tal_bdims, bbufp);
           if(copy_ctrl == COPY_TTT) th_c = gpu_mult.host_block(cdims.size(), tal_cdims, cbuf);
 
-          gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string, alpha,
+          gpu_mult.mult_block(talsh_task, talsh_dev_id, th_c, th_a, th_b, talsh_op_string, alpha,
                               copy_ctrl, is_assign);
 
           // talshTensorDestruct(&th_a);
@@ -746,7 +746,7 @@ void block_multiply(bool& isgpuOp,
         th_b = gpu_mult.host_block(bdims.size(), tal_bdims, bbuf_complex.data());
         if(copy_ctrl == COPY_TTT) th_c = gpu_mult.host_block(cdims.size(), tal_cdims, cbuf);
 
-        gpu_mult.mult_block(talsh_task, dev_id, th_c, th_a, th_b, talsh_op_string, alpha, copy_ctrl,
+        gpu_mult.mult_block(talsh_task, talsh_dev_id, th_c, th_a, th_b, talsh_op_string, alpha, copy_ctrl,
                             is_assign);
 
         // talshTensorDestruct(&th_a);
@@ -766,7 +766,7 @@ void block_multiply(bool& isgpuOp,
     // tensor_handle th_c = gpu_mult.host_block(cdims.size(),
     //     tal_cdims, cbuf);
 
-    // gpu_mult.mult_block(talsh_task,dev_id, th_c, th_a, th_b, talsh_op_string,
+    // gpu_mult.mult_block(talsh_task,talsh_dev_id, th_c, th_a, th_b, talsh_op_string,
     //     alpha, copy_ctrl, is_assign);
 
     // talshTensorDestruct(&th_a);

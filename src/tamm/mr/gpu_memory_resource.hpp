@@ -34,6 +34,8 @@ private:
   void* do_allocate(std::size_t bytes, cuda_stream_view stream) override {
     void* ptr{nullptr};
 #if defined(USE_CUDA)
+    int currentDev;
+    cudaGetDevice(&currentDev);
     cudaMalloc(&ptr, bytes);
 #elif defined(USE_HIP)
     hipMalloc(&ptr, bytes);
@@ -41,7 +43,8 @@ private:
     ptr = sycl::malloc_device(bytes, stream);
 #endif
 
-    std::cout << "gpu_memory_resource::do_allocate() : " << bytes << ", " << ptr << std::endl;
+    std::cout << "gpu_memory_resource::do_allocate() : " << bytes << ", " << ptr << ", "
+              << currentDev << std::endl;
     return ptr;
   }
 
@@ -56,13 +59,16 @@ private:
    */
   void do_deallocate(void* ptr, std::size_t bytes, cuda_stream_view stream) override {
 #if defined(USE_CUDA)
+    int currentDev;
+    cudaGetDevice(&currentDev);
     cudaFree(ptr);
 #elif defined(USE_HIP)
     hipFree(ptr);
 #elif defined(USE_DPCPP)
     sycl::free(ptr, stream);
 #endif
-    std::cout << "gpu_memory_resource::do_deallocate() : " << bytes << ", " << ptr << std::endl;
+    std::cout << "gpu_memory_resource::do_deallocate() : " << bytes << ", " << ptr << ", "
+              << currentDev << std::endl;
   }
 
   /**
@@ -79,28 +85,6 @@ private:
    */
   [[nodiscard]] bool do_is_equal(device_memory_resource const& other) const noexcept override {
     return dynamic_cast<gpu_memory_resource const*>(&other) != nullptr;
-  }
-
-  /**
-   * @brief Get free and available memory for memory resource
-   *
-   * @throws `rmm::cuda_error` if unable to retrieve memory info.
-   *
-   * @return std::pair contaiing free_size and total_size of memory
-   */
-  [[nodiscard]] std::pair<std::size_t, std::size_t>
-  do_get_mem_info(cuda_stream_view) const override {
-    std::size_t free_size{};
-    std::size_t total_size{};
-#if defined(USE_CUDA)
-    cudaMemGetInfo(&free_size, &total_size);
-#elif defined(USE_HIP)
-    hipMemGetInfo(&free_size, &total_size);
-#elif defined(USE_DPCPP)
-    syclMemGetInfo(&free_size, &total_size);
-#endif
-
-    return std::make_pair(free_size, total_size);
   }
 };
 } // namespace rmm::mr

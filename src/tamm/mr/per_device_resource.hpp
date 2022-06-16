@@ -180,8 +180,15 @@ inline device_memory_resource* set_per_device_resource(unsigned short          d
  * @return Pointer to the resource for the current device
  */
 inline device_memory_resource* get_current_device_resource() {
-  int currentDeviceId;
+  int currentDeviceId{-1};
+#if defined(USE_CUDA)
   cudaGetDevice(&currentDeviceId);
+#elif defined(USE_HIP)
+  hipGetDevice(&currentDeviceId);
+#elif defined(USE_DPCPP)
+  syclGetDevice(&currentDeviceId);
+#endif
+
   return get_per_device_resource(currentDeviceId);
 }
 
@@ -210,8 +217,14 @@ inline device_memory_resource* get_current_device_resource() {
  * @return Pointer to the previous resource for the current device
  */
 inline device_memory_resource* set_current_device_resource(device_memory_resource* new_mr) {
-  int currentDeviceId;
+  int currentDeviceId{-1};
+#if defined(USE_CUDA)
   cudaGetDevice(&currentDeviceId);
+#elif defined(USE_HIP)
+  hipGetDevice(&currentDeviceId);
+#elif defined(USE_DPCPP)
+  syclGetDevice(&currentDeviceId);
+#endif
 
   return set_per_device_resource(currentDeviceId, new_mr);
 }

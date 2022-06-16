@@ -8,8 +8,6 @@
 
 #include <optional>
 
-#include <cuda_runtime_api.h>
-
 #include <algorithm>
 #include <cstddef>
 #include <iostream>
@@ -57,7 +55,7 @@ public:
    * @param maximum_pool_size Maximum size, in bytes, that the pool can grow to. Defaults to all
    * of the available memory on the current device.
    */
-  explicit pool_memory_resource(Upstream*                  upstream_mr,
+  explicit pool_memory_resource(Upstream* upstream_mr, cuda_stream_view gpuStream,
                                 std::optional<std::size_t> initial_pool_size = std::nullopt,
                                 std::optional<std::size_t> maximum_pool_size = std::nullopt):
     upstream_mr_{[upstream_mr]() {
@@ -73,7 +71,7 @@ public:
       std::logic_error("Error, Maximum pool size required to be a multiple of 256 bytes");
     }
 
-    initialize_pool(initial_pool_size, maximum_pool_size);
+    initialize_pool(gpuStream, initial_pool_size, maximum_pool_size);
   }
 
   /**
@@ -164,13 +162,18 @@ protected:
    * @param initial_size The optional initial size for the pool
    * @param maximum_size The optional maximum size for the pool
    */
-  // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-  void initialize_pool(std::optional<std::size_t> initial_size,
+  void initialize_pool(cuda_stream_view gpuStream, std::optional<std::size_t> initial_size,
                        std::optional<std::size_t> maximum_size) {
     auto const try_size = [&]() {
       if(not initial_size.has_value()) {
         std::size_t free, total;
+#if defined(USE_CUDA)
         cudaMemGetInfo(&free, &total);
+#elif defined(USE_HIP)
+        hipMemGetInfo(&free, &total);
+#elif defined(USE_DPCPP)
+        syclMemGetInfo(&free, &total);
+#endif
         return rmm::detail::align_up(std::min(free, total / 2),
                                      rmm::detail::CUDA_ALLOCATION_ALIGNMENT);
       }
@@ -185,8 +188,8 @@ protected:
     }
 
     if(try_size > 0) {
-      auto const block = try_to_expand(try_size, try_size, cuda_stream_legacy);
-      this->insert_block(block, cuda_stream_legacy);
+      auto const block = try_to_expand(try_size, try_size, gpuStream);
+      this->insert_block(block, gpuStream);
     }
   }
 
@@ -309,20 +312,6 @@ protected:
       largest = std::max(largest, block.size());
     });
     return {largest, total};
-  }
-
-  /**
-   * @brief Get free and available memory for memory resource
-   *
-   * @throws nothing
-   *
-   * @param stream to execute on
-   * @return std::pair contaiing free_size and total_size of memory
-   */
-  [[nodiscard]] std::pair<std::size_t, std::size_t>
-  do_get_mem_info(cuda_stream_view stream) const override {
-    // TODO implement this
-    return {0, 0};
   }
 
 private:

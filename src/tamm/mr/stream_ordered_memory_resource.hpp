@@ -249,21 +249,8 @@ private:
    * @param stream The stream for which to get an event.
    * @return The stream_event for `stream`.
    */
-  stream_event_pair get_event(cuda_stream_view stream) {
-    if(stream.is_per_thread_default()) {
-      // Create a thread-local shared event wrapper. Shared pointers in the thread and in each MR
-      // instance ensures it is destroyed cleaned up only after all are finished with it.
-      thread_local auto event_tls = std::make_shared<event_wrapper>();
-      default_stream_events.insert(event_tls);
-      return stream_event_pair{stream.value(), event_tls->event};
-    }
-    // We use cudaStreamLegacy as the event map key for the default stream for consistency between
-    // PTDS and non-PTDS mode. In PTDS mode, the cudaStreamLegacy map key will only exist if the
-    // user explicitly passes it, so it is used as the default location for the free list
-    // at construction. For consistency, the same key is used for null stream free lists in non-PTDS
-    // mode.
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
-    auto* const stream_to_store = stream.is_default() ? cudaStreamLegacy : stream.value();
+  stream_event_pair get_event(cuda_stream_view& stream) {
+    auto* const stream_to_store = stream.value();
 
     auto const iter = stream_events_.find(stream_to_store);
     return (iter != stream_events_.end()) ? iter->second : [&]() {

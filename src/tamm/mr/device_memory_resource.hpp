@@ -131,18 +131,6 @@ public:
     return do_is_equal(other);
   }
 
-  /**
-   * @brief Queries the amount of free and total memory for the resource.
-   *
-   * @param stream the stream whose memory manager we want to retrieve
-   *
-   * @returns a pair containing the free memory in bytes in .first and total amount of memory in
-   * .second
-   */
-  [[nodiscard]] std::pair<std::size_t, std::size_t> get_mem_info(cuda_stream_view stream) const {
-    return do_get_mem_info(stream);
-  }
-
 private:
   // All allocations are padded to a multiple of allocation_size_alignment bytes.
   static constexpr auto allocation_size_alignment = std::size_t{8};
@@ -191,16 +179,5 @@ private:
   [[nodiscard]] virtual bool do_is_equal(device_memory_resource const& other) const noexcept {
     return this == &other;
   }
-
-  /**
-   * @brief Get free and available memory for memory resource
-   *
-   * @throws std::runtime_error if we could not get free / total memory
-   *
-   * @param stream the stream being executed on
-   * @return std::pair with available and free memory for resource
-   */
-  [[nodiscard]] virtual std::pair<std::size_t, std::size_t>
-  do_get_mem_info(cuda_stream_view stream) const = 0;
 };
 } // namespace rmm::mr

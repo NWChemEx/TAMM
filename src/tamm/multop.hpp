@@ -447,7 +447,7 @@ public:
             else
 #endif
       {
-        const int talsh_dev_id = ec.talsh_gpu_devid();
+        const int talsh_dev_id = ec.gpu_devid();
         // determine set of all labels
 
         // compute block size and allocate buffers
@@ -886,7 +886,7 @@ public:
       bool      isgpu  = false;
 
 #ifdef USE_TALSH
-      const int talsh_dev_id = ec.talsh_gpu_devid();
+      const int talsh_dev_id = ec.gpu_devid();
       TALSH* gpu_mult = new TALSH{ec.num_gpu()};
 
       // AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b,

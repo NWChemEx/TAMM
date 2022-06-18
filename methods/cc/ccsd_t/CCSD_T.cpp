@@ -121,7 +121,7 @@ void ccsd_t_driver() {
     #ifdef USE_TALSH_T
     const bool has_gpu = ec.has_gpu();
     TALSH talsh_instance;
-    if(has_gpu) talsh_instance.initialize(ec.talsh_gpu_devid(),rank.value());
+    if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
     #endif
 
     TiledIndexSpace N = MO("all");

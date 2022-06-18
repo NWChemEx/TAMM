@@ -1,5 +1,4 @@
 #include "tamm/tamm.hpp"
-#include "tamm/tamm_impl.hpp"
 #include "ga/macdecls.h"
 #include "mpi.h"
 #include "ga/ga.h"
@@ -52,10 +51,6 @@ void initialize(int argc, char *argv[]) {
   }
   // if (!MA_initialized()) {
   //   MA_init(MT_DBL, 8000000, 20000000);
-#endif
-
-#if !defined(USE_TALSH)  && (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-  auto& tammInst = tamm::TAMM::getInstance();
 #endif
 }
 

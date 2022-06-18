@@ -130,7 +130,7 @@ void ccsd_driver() {
     ex_hw = ExecutionHW::GPU;
     const bool has_gpu = ec.has_gpu();
     TALSH talsh_instance;
-    if(has_gpu) talsh_instance.initialize(ec.talsh_gpu_devid(),rank.value());
+    if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
     #endif
 
     ccsd_restart = ccsd_restart && fs::exists(ccsdstatus) && scf_conv;

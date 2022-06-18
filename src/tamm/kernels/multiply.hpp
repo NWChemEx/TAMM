@@ -40,7 +40,7 @@ using tensor_handle = talsh_tens_t;
 
 #else
 
-#include "tamm/tamm_impl.hpp"
+#include "tamm/gpu_memory_pool.hpp"
 
 #if defined(USE_CUDA)
 
@@ -82,17 +82,17 @@ void copy_data_to_gpu(ExecutionHW hw, const std::vector<T2>& ainter_buf, T2** ai
                       const std::vector<T1>& cinter_buf, T1** cinter_buf_dev) {
   if(hw != ExecutionHW::GPU) return;
 
-  auto& pool      = tamm::GPUStreamPool::getInstance();
-  auto& dev_queue = pool.getStream();
-  auto& tammInst = tamm::TAMM::getInstance();
-  auto memPool = tammInst.get_memory_pool();
+  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
 
-  *ainter_buf_dev = static_cast<T2*>(memPool->allocate(ainter_buf.size() * sizeof(T2), dev_queue));
-  *binter_buf_dev = static_cast<T3*>(memPool->allocate(binter_buf.size() * sizeof(T3), dev_queue));
-  *cinter_buf_dev = static_cast<T1*>(memPool->allocate(cinter_buf.size() * sizeof(T1), dev_queue));
+  *ainter_buf_dev = static_cast<T2*>(memPool.allocate(ainter_buf.size() * sizeof(T2)));
+  *binter_buf_dev = static_cast<T3*>(memPool.allocate(binter_buf.size() * sizeof(T3)));
+  *cinter_buf_dev = static_cast<T1*>(memPool.allocate(cinter_buf.size() * sizeof(T1)));
 
   // host-->device copy
 #if defined(USE_DPCPP) && !defined(USE_TALSH)
+  auto& streamPool = tamm::GPUStreamPool::getInstance();
+  auto& dev_queue  = streamPool.getStream();
+
   dev_queue.memcpy(*ainter_buf_dev, ainter_buf.data(), ainter_buf.size() * sizeof(T2)).wait();
   dev_queue.memcpy(*binter_buf_dev, binter_buf.data(), binter_buf.size() * sizeof(T3)).wait();
   dev_queue.memset(*cinter_buf_dev, 0, cinter_buf.size() * sizeof(T1)).wait();
@@ -103,7 +103,6 @@ void copy_data_to_gpu(ExecutionHW hw, const std::vector<T2>& ainter_buf, T2** ai
              cudaMemcpyHostToDevice);
   cudaMemset(*cinter_buf_dev, 0, cinter_buf.size() * sizeof(T1));
 #elif defined(USE_HIP) && !defined(USE_TALSH)
-  // host-->device copy
   hipMemcpy(*ainter_buf_dev, ainter_buf.data(), ainter_buf.size() * sizeof(T2),
             hipMemcpyHostToDevice);
   hipMemcpy(*binter_buf_dev, binter_buf.data(), binter_buf.size() * sizeof(T3),
@@ -247,15 +246,11 @@ void free_device_buffers(ExecutionHW hw, std::size_t ainter_size, std::size_t bi
                          T1* cinter_buf_dev) {
   if(hw != ExecutionHW::GPU) return;
 
-  auto& pool      = tamm::GPUStreamPool::getInstance();
-  auto& dev_queue = pool.getStream();
-  auto& tammInst = tamm::TAMM::getInstance();
-  auto memPool = tammInst.get_memory_pool();
+  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
 
-  memPool->deallocate(static_cast<void*>(ainter_buf_dev), ainter_size * sizeof(T2), dev_queue);
-  memPool->deallocate(static_cast<void*>(binter_buf_dev), binter_size * sizeof(T3), dev_queue);
-  memPool->deallocate(static_cast<void*>(cinter_buf_dev), cinter_size * sizeof(T1), dev_queue);
-
+  memPool.deallocate(static_cast<void*>(ainter_buf_dev), ainter_size * sizeof(T2));
+  memPool.deallocate(static_cast<void*>(binter_buf_dev), binter_size * sizeof(T3));
+  memPool.deallocate(static_cast<void*>(cinter_buf_dev), cinter_size * sizeof(T1));
 }
 
 template<typename T, typename T1, typename T2, typename T3>
@@ -264,11 +259,11 @@ void block_multiply(bool& isgpuOp,
                     TALSH& gpu_mult, talsh_task_t& talsh_task, tensor_handle& th_c,
                     tensor_handle& th_a, tensor_handle& th_b, int copy_ctrl, int talsh_dev_id,
 #endif
-                    T alpha, const T2* abuf, const SizeVec& adims,
-                    const IntLabelVec& alabels, const T3* bbuf, const SizeVec& bdims,
-                    const IntLabelVec& blabels, T beta, T1* cbuf, const SizeVec& cdims,
-                    const IntLabelVec& clabels, ExecutionHW hw = ExecutionHW::CPU,
-                    bool has_gpu = false, bool is_assign = true) {
+                    T alpha, const T2* abuf, const SizeVec& adims, const IntLabelVec& alabels,
+                    const T3* bbuf, const SizeVec& bdims, const IntLabelVec& blabels, T beta,
+                    T1* cbuf, const SizeVec& cdims, const IntLabelVec& clabels,
+                    ExecutionHW hw = ExecutionHW::CPU, bool has_gpu = false,
+                    bool is_assign = true) {
 
   const Size asize = std::accumulate(adims.begin(), adims.end(), Size{1}, std::multiplies<Size>());
   const Size bsize = std::accumulate(bdims.begin(), bdims.end(), Size{1}, std::multiplies<Size>());
@@ -411,8 +406,7 @@ void block_multiply(bool& isgpuOp,
                    binter_buf_dev, cinter_buf, cinter_buf_dev);
 
       copy_result_to_host(hw, cinter_buf, cinter_buf_dev);
-      free_device_buffers(hw,
-			  ainter_buf.size(), binter_buf.size(), cinter_buf.size(),
+      free_device_buffers(hw, ainter_buf.size(), binter_buf.size(), cinter_buf.size(),
                           ainter_buf_dev, binter_buf_dev, cinter_buf_dev);
     }
 #if defined(USE_BLIS)
@@ -424,9 +418,11 @@ void block_multiply(bool& isgpuOp,
           // copy B to complex buffer
           std::vector<T1> bbuf_complex(bsize.value());
           if constexpr(std::is_same_v<T3, double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE, bsize.value(), binter_buf.data(), 1, reinterpret_cast<T3*>(bbuf_complex.data()), 2);
+            bli_dcopyv(BLIS_NO_CONJUGATE, bsize.value(), binter_buf.data(), 1,
+                       reinterpret_cast<T3*>(bbuf_complex.data()), 2);
           else if constexpr(std::is_same_v<T3, float>)
-            bli_scopyv(BLIS_NO_CONJUGATE, bsize.value(), binter_buf.data(), 1, reinterpret_cast<T3*>(bbuf_complex.data()), 2);
+            bli_scopyv(BLIS_NO_CONJUGATE, bsize.value(), binter_buf.data(), 1,
+                       reinterpret_cast<T3*>(bbuf_complex.data()), 2);
 
           T1* bbuf_complex_dev{nullptr};
           copy_data_to_gpu(hw, ainter_buf, &ainter_buf_dev, bbuf_complex, &bbuf_complex_dev,
@@ -436,18 +432,19 @@ void block_multiply(bool& isgpuOp,
                        bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_buf_dev);
 
           copy_result_to_host(hw, cinter_buf, cinter_buf_dev);
-          free_device_buffers(hw,
-			      ainter_buf.size(), bbuf_complex.size(), cinter_buf.size(),
-			      ainter_buf_dev, bbuf_complex_dev, cinter_buf_dev);
+          free_device_buffers(hw, ainter_buf.size(), bbuf_complex.size(), cinter_buf.size(),
+                              ainter_buf_dev, bbuf_complex_dev, cinter_buf_dev);
 
         } // is_complex<T1>
         else {
           // T1,T2 (C,A) are real, T3 (B) is complex
           std::vector<T1> bbuf_real(bsize.value());
           if constexpr(std::is_same_v<T1, double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE, bsize.value(), reinterpret_cast<T1*>(binter_buf.data()), 2, bbuf_real.data(), 1);
+            bli_dcopyv(BLIS_NO_CONJUGATE, bsize.value(), reinterpret_cast<T1*>(binter_buf.data()),
+                       2, bbuf_real.data(), 1);
           else if constexpr(std::is_same_v<T1, float>)
-            bli_scopyv(BLIS_NO_CONJUGATE, bsize.value(), reinterpret_cast<T1*>(binter_buf.data()), 2, bbuf_real.data(), 1);
+            bli_scopyv(BLIS_NO_CONJUGATE, bsize.value(), reinterpret_cast<T1*>(binter_buf.data()),
+                       2, bbuf_real.data(), 1);
 
           T1* bbuf_real_dev{nullptr};
           copy_data_to_gpu(hw, ainter_buf, &ainter_buf_dev, bbuf_real, &bbuf_real_dev, cinter_buf,
@@ -457,9 +454,8 @@ void block_multiply(bool& isgpuOp,
                        bbuf_real_dev, cinter_buf, cinter_buf_dev);
 
           copy_result_to_host(hw, cinter_buf, cinter_buf_dev);
-          free_device_buffers(hw,
-			      ainter_buf.size(), bbuf_real.size(), cinter_buf.size(),
-			      ainter_buf_dev, bbuf_real_dev, cinter_buf_dev);
+          free_device_buffers(hw, ainter_buf.size(), bbuf_real.size(), cinter_buf.size(),
+                              ainter_buf_dev, bbuf_real_dev, cinter_buf_dev);
         } // is_real<T1>
 
       } // is_same_v<T1,T2>
@@ -468,9 +464,11 @@ void block_multiply(bool& isgpuOp,
         if constexpr(internal::is_complex_v<T1>) {
           std::vector<T1> abuf_complex(asize.value());
           if constexpr(std::is_same_v<T2, double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), ainter_buf.data(), 1, reinterpret_cast<T2*>(abuf_complex.data()), 2);
+            bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), ainter_buf.data(), 1,
+                       reinterpret_cast<T2*>(abuf_complex.data()), 2);
           else if constexpr(std::is_same_v<T2, float>)
-            bli_scopyv(BLIS_NO_CONJUGATE, asize.value(), ainter_buf.data(), 1, reinterpret_cast<T2*>(abuf_complex.data()), 2);
+            bli_scopyv(BLIS_NO_CONJUGATE, asize.value(), ainter_buf.data(), 1,
+                       reinterpret_cast<T2*>(abuf_complex.data()), 2);
 
           T1* abuf_complex_dev{nullptr};
           copy_data_to_gpu(hw, abuf_complex, &abuf_complex_dev, binter_buf, &binter_buf_dev,
@@ -480,17 +478,18 @@ void block_multiply(bool& isgpuOp,
                        binter_buf, binter_buf_dev, cinter_buf, cinter_buf_dev);
 
           copy_result_to_host(hw, cinter_buf, cinter_buf_dev);
-          free_device_buffers(hw,
-			      abuf_complex.size(), binter_buf.size(), cinter_buf.size(),
-			      abuf_complex_dev, binter_buf_dev, cinter_buf_dev);
+          free_device_buffers(hw, abuf_complex.size(), binter_buf.size(), cinter_buf.size(),
+                              abuf_complex_dev, binter_buf_dev, cinter_buf_dev);
         }
         else {
           // T1,T3 (C,B) are real, T2 (A) is complex
           std::vector<T1> abuf_real(asize.value());
           if constexpr(std::is_same_v<T1, double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), reinterpret_cast<T1*>(ainter_buf.data()), 2, abuf_real.data(), 1);
+            bli_dcopyv(BLIS_NO_CONJUGATE, asize.value(), reinterpret_cast<T1*>(ainter_buf.data()),
+                       2, abuf_real.data(), 1);
           else if constexpr(std::is_same_v<T1, float>)
-            bli_scopyv(BLIS_NO_CONJUGATE, asize.value(), reinterpret_cast<T1*>(ainter_buf.data()), 2, abuf_real.data(), 1);
+            bli_scopyv(BLIS_NO_CONJUGATE, asize.value(), reinterpret_cast<T1*>(ainter_buf.data()),
+                       2, abuf_real.data(), 1);
 
           T1* abuf_real_dev{nullptr};
           copy_data_to_gpu(hw, abuf_real, &abuf_real_dev, binter_buf, &binter_buf_dev, cinter_buf,
@@ -500,9 +499,8 @@ void block_multiply(bool& isgpuOp,
                        binter_buf_dev, cinter_buf, cinter_buf_dev);
 
           copy_result_to_host(hw, cinter_buf, cinter_buf_dev);
-          free_device_buffers(hw,
-			      abuf_real.size(), binter_buf.size(), cinter_buf.size(),
-			      abuf_real_dev, binter_buf_dev, cinter_buf_dev);
+          free_device_buffers(hw, abuf_real.size(), binter_buf.size(), cinter_buf.size(),
+                              abuf_real_dev, binter_buf_dev, cinter_buf_dev);
         }
 
       } // is_same_v<T1,T3>
@@ -532,9 +530,8 @@ void block_multiply(bool& isgpuOp,
                      bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_buf_dev);
 
         copy_result_to_host(hw, cinter_buf, cinter_buf_dev);
-        free_device_buffers(hw,
-			    abuf_complex.size(), bbuf_complex.size(), cinter_buf.size(),
-			    abuf_complex_dev, bbuf_complex_dev, cinter_buf_dev);
+        free_device_buffers(hw, abuf_complex.size(), bbuf_complex.size(), cinter_buf.size(),
+                            abuf_complex_dev, bbuf_complex_dev, cinter_buf_dev);
       }
 
       else
@@ -626,8 +623,8 @@ void block_multiply(bool& isgpuOp,
       th_b = gpu_mult.host_block(bdims.size(), tal_bdims, bbufp);
       if(copy_ctrl == COPY_TTT) th_c = gpu_mult.host_block(cdims.size(), tal_cdims, cbuf);
 
-      gpu_mult.mult_block(talsh_task, talsh_dev_id, th_c, th_a, th_b, talsh_op_string, alpha, copy_ctrl,
-                          is_assign);
+      gpu_mult.mult_block(talsh_task, talsh_dev_id, th_c, th_a, th_b, talsh_op_string, alpha,
+                          copy_ctrl, is_assign);
 
       // talshTensorDestruct(&th_a);
       // talshTensorDestruct(&th_b);
@@ -746,8 +743,8 @@ void block_multiply(bool& isgpuOp,
         th_b = gpu_mult.host_block(bdims.size(), tal_bdims, bbuf_complex.data());
         if(copy_ctrl == COPY_TTT) th_c = gpu_mult.host_block(cdims.size(), tal_cdims, cbuf);
 
-        gpu_mult.mult_block(talsh_task, talsh_dev_id, th_c, th_a, th_b, talsh_op_string, alpha, copy_ctrl,
-                            is_assign);
+        gpu_mult.mult_block(talsh_task, talsh_dev_id, th_c, th_a, th_b, talsh_op_string, alpha,
+                            copy_ctrl, is_assign);
 
         // talshTensorDestruct(&th_a);
         // talshTensorDestruct(&th_b);

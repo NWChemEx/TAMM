@@ -35,7 +35,6 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   has_gpu_ = false;
   exhw_     = ExecutionHW::CPU;
 
-// step1 : get total number of ranks per MPI
 #if defined(USE_UPCXX)
   ranks_pn_ = upcxx::local_team().rank_n();
 #else
@@ -43,12 +42,30 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #endif
   nnodes_ = pg.size().value() / ranks_pn_;
 
-// step2 : check the number of GPUs per node
 #if defined(USE_TALSH)
   int errc = talshDeviceCount(DEV_NVIDIA_GPU, &ngpu_);
   assert(!errc);
+#else
+  #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+  tamm::getDeviceCount(&ngpu_);
+  #endif
+#endif
 
-  if(ranks_pn_ != ngpu_) {
+#if defined(USE_TALSH) || defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#if defined(USE_UPCXX)
+  dev_id_ = upcxx::rank_me() % ngpu_;
+  has_gpu_ = true;
+  exhw_ = ExecutionHW::GPU;
+#else
+  dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
+  if(ngpu_ == 1) dev_id_ = 0;
+  if((pg.rank().value() % ranks_pn_) < ngpu_) {
+    has_gpu_ = true;
+    exhw_    = ExecutionHW::GPU;
+  }
+#endif
+
+  if(ranks_pn_ > ngpu_) {
     if(pg.rank() == 0) {
       std::string msg = "#ranks per node(" + std::to_string(ranks_pn_) + ") > #gpus(" +
                         std::to_string(ngpu_) + ") per node ... terminating program.";
@@ -58,32 +75,13 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     MPI_Finalize();
     exit(0);
   }
-#else
-  #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  tamm::getDeviceCount(&ngpu_);
-  has_gpu_ = true;
-  exhw_ = ExecutionHW::GPU;
-  #endif
 #endif
 
-// step3 :bind the GPUs to MPI-rank as appropriate (only required for TALSH)
-#if defined(USE_TALSH)
-#if defined(USE_UPCXX)
-  talsh_dev_id_ = upcxx::rank_me() % ngpu_;
-  has_gpu_ = true;
-  exhw_ = ExecutionHW::GPU;
-#else
-  talsh_dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
-  if(ngpu_ == 1) talsh_dev_id_ = 0;
-  if((pg.rank().value() % ranks_pn_) < ngpu_) {
-    has_gpu_ = true;
-    exhw_    = ExecutionHW::GPU;
-  }
-#endif
-
+  // GPUStreamPool as singleton object
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   auto& pool = tamm::GPUStreamPool::getInstance();
-  pool.set_device(talsh_dev_id_);
-#endif // #if defined(USE_TALSH)
+  pool.set_device(dev_id_);
+#endif
 }
 
 ExecutionContext::ExecutionContext(ProcGroup pg, Distribution* default_distribution,

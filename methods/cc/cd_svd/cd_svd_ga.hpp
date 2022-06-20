@@ -6,7 +6,7 @@
 #include "common/json_data.hpp"
 
 #if defined(USE_UPCXX)
-#include "ga_over_upcxx.hpp"
+#include "tamm/ga_over_upcxx.hpp"
 #endif
 
 using namespace tamm;
@@ -892,7 +892,11 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 
       int64_t lo_mo[3] = {0,0,kk};
       int64_t hi_mo[3] = {N_eff-1,N_eff-1,kk};
+#ifdef USE_UPCXX
+      int64_t ld_mo[3] = {N_eff, N_eff,1};
+#else
       int64_t ld_mo[2] = {N_eff,1};
+#endif
 
       if(do_freeze) {
         Matrix emat = Eigen::Map<Matrix>(k_pq.data(),N,N);

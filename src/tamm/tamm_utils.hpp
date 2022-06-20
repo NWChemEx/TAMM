@@ -12,6 +12,7 @@
 #include <hdf5.h>
 
 #include "eigen_includes.hpp"
+#include "ga_over_upcxx.hpp"
 
 // #define IO_ISIRREG 1
 #define TU_SG true
@@ -715,16 +716,47 @@ static inline void subcomm_from_subranks(ExecutionContext& gec, int subranks, MP
  * @return GA handle
  */
 template<typename TensorType>
-int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor) {
 #if defined(USE_UPCXX)
-  abort(); // Not supported in UPC++
+ga_over_upcxx* tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
 #else
+int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
+#endif
+{
   int ndims = tensor.num_modes();
   std::vector<int64_t> dims;
-  std::vector<int64_t> chnks(ndims,-1);
 
   for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
 
+  std::vector<int64_t> chnks(ndims,-1);
+#if defined(USE_UPCXX)
+  if (ndims > 3) {
+      fprintf(stderr, "Invalid ndims=%d, only support up to 3\n", ndims);
+      if (ndims == 4) {
+          fprintf(stderr, "(%ld %ld %ld %ld)\n", dims[0], dims[1], dims[2], dims[3]);
+      }
+      abort();
+  }
+  // pad out to 3 dimensions if we're less
+  for (int i = ndims; i < 3; i++) {
+      dims.push_back(1);
+      chnks.push_back(-1);
+  }
+  if (tensor_element_type<TensorType>() != ElementType::double_precision) {
+      fprintf(stderr, "Unsupported element type for ga_over_upcxx\n");
+      if (tensor_element_type<TensorType>() == ElementType::single_precision) {
+          fprintf(stderr, "Type single\n");
+      } else if (tensor_element_type<TensorType>() == ElementType::single_complex) {
+          fprintf(stderr, "Type single complex\n");
+      } else if (tensor_element_type<TensorType>() == ElementType::double_complex) {
+          fprintf(stderr, "Type double complex\n");
+      } else {
+          fprintf(stderr, "Type unknown\n");
+      }
+      abort();
+  }
+  ga_over_upcxx* ga_tens = new ga_over_upcxx(3, &dims[0], &chnks[0],
+          upcxx::world());
+#else
   int ga_pg_default = GA_Pgroup_get_default();
   GA_Pgroup_set_default(ec.pg().ga_pg());
 
@@ -732,6 +764,7 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor) {
   int ga_tens = NGA_Create64(ga_eltype,ndims,&dims[0],const_cast<char*>("iotemp"),&chnks[0]);
   //GA_Zero(ga_tens);
   GA_Pgroup_set_default(ga_pg_default);
+#endif
 
     //convert tamm tensor to GA
     auto tamm_ga_lambda = [&](const IndexVector& bid){
@@ -743,21 +776,42 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor) {
 
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         
-        std::vector<int64_t> lo(ndims),hi(ndims),ld(ndims-1);
+#if defined(USE_UPCXX)
+        std::vector<int64_t> lo(3),hi(3);
+        std::vector<int64_t> ld(3);
+#else
+        std::vector<int64_t> lo(ndims),hi(ndims);
+        std::vector<int64_t> ld(ndims-1);
+#endif
 
         for(size_t i=0;i<ndims;i++) lo[i]   = cd_ncast<size_t>(block_offset[i]);
         for(size_t i=0;i<ndims;i++) hi[i]   = cd_ncast<size_t>(block_offset[i] + block_dims[i]-1);
+#if defined(USE_UPCXX)
+        for(size_t i=0;i<ndims;i++) ld[i] = cd_ncast<size_t>(block_dims[i]);
+        for (size_t i = ndims; i < 3; i++) {
+            lo[i] = 0;
+            hi[i] = 0;
+            ld[i] = 1;
+        }
+#else
         for(size_t i=1;i<ndims;i++) ld[i-1] = cd_ncast<size_t>(block_dims[i]);
+#endif
 
         std::vector<TensorType> sbuf(dsize);
         tensor.get(blockid, sbuf);
+
+#if defined(USE_UPCXX)
+        // ga_tens->put(lo[0], lo[1], lo[2],
+        //         hi[0], hi[1], hi[2],
+        //         &sbuf[0], &ld[0]);
+#else
         NGA_Put64(ga_tens,&lo[0],&hi[0],&sbuf[0],&ld[0]);
+#endif
     };
 
     block_for(ec, tensor(), tamm_ga_lambda);
 
     return ga_tens;
-#endif
 }
 
 template<typename T>
@@ -1252,7 +1306,13 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
  * @param ga_tens GA handle
  */
 template<typename TensorType>
-void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor, int ga_tens) {
+void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor,
+#if defined(USE_UPCXX)
+        ga_over_upcxx* ga_tens)
+#else
+        int ga_tens)
+#endif
+{
   
     size_t ndims = tensor.num_modes();
 
@@ -1266,14 +1326,34 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor, int ga_tens) {
 
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
 
-        std::vector<int64_t> lo(ndims),hi(ndims),ld(ndims-1);
+        std::vector<int64_t> lo(ndims),hi(ndims);
+#if defined(USE_UPCXX)
+        std::vector<int64_t> ld(ndims);
+#else
+        std::vector<int64_t> ld(ndims-1);
+#endif
 
         for(size_t i=0;i<ndims;i++)  lo[i]   = cd_ncast<size_t>(block_offset[i]);
         for(size_t i=0;i<ndims;i++)  hi[i]   = cd_ncast<size_t>(block_offset[i] + block_dims[i]-1);
+#if defined(USE_UPCXX)
+        for(size_t i=0;i<ndims;i++)  ld[i] = cd_ncast<size_t>(block_dims[i]);
+        for (size_t i = ndims; i < 3; i++) {
+            lo[i] = 0;
+            hi[i] = 0;
+            ld[i] = 1;
+        }
+#else
         for(size_t i=1;i<ndims;i++)  ld[i-1] = cd_ncast<size_t>(block_dims[i]);
+#endif
 
         std::vector<TensorType> sbuf(dsize);
+#if defined(USE_UPCXX)
+        // ga_tens->get(lo[0], lo[1], lo[2],
+        //         hi[0], hi[1], hi[2],
+        //         &sbuf[0], &ld[0]);
+#else
         NGA_Get64(ga_tens,&lo[0],&hi[0],&sbuf[0],&ld[0]);
+#endif
 
         tensor.put(blockid, sbuf);
     };
@@ -1288,13 +1368,22 @@ template<typename TensorType>
 Tensor<TensorType> redistribute_tensor(Tensor<TensorType> stensor, TiledIndexSpaceVec tis, std::vector<size_t> spins={}) {
     ExecutionContext& ec = get_ec(stensor());
     // int rank = ec.pg().rank().value();
+#if defined(USE_UPCXX)
+    ga_over_upcxx* wmn_ga = tamm_to_ga(ec,stensor);
+#else
     int wmn_ga = tamm_to_ga(ec,stensor);
+#endif
     // sch.deallocate(wmn).execute();
     Tensor<TensorType> dtensor{tis};
     if(spins.size()>0) dtensor = Tensor<TensorType>{tis,spins};
     Tensor<TensorType>::allocate(&ec,dtensor);
+#if defined(USE_UPCXX)
+    ga_to_tamm(ec,dtensor,wmn_ga);
+    wmn_ga->destroy();
+#else
     ga_to_tamm(ec,dtensor,wmn_ga);
     NGA_Destroy(wmn_ga);
+#endif
 
     return dtensor;
 }
@@ -1314,9 +1403,15 @@ void retile_tamm_tensor(Tensor<TensorType> stensor, Tensor<TensorType>& dtensor,
     ExecutionContext& ec = get_ec(stensor());
     int rank = ec.pg().rank().value();
 
+#if defined(USE_UPCXX)
+    ga_over_upcxx* ga_tens = tamm_to_ga(ec,stensor);
+    // ga_to_tamm(ec, dtensor, ga_tens);
+    //ga_tens->destroy();
+#else
     int ga_tens = tamm_to_ga(ec,stensor);
     ga_to_tamm(ec, dtensor, ga_tens);
     NGA_Destroy(ga_tens);
+#endif
 
     auto io_t2 = std::chrono::high_resolution_clock::now();
 
@@ -3352,9 +3447,15 @@ Tensor<TensorType> to_dense_tensor(ExecutionContext& ec_dense, Tensor<TensorType
     Tensor<TensorType> btensor{tis};
     btensor.set_dense();
     Tensor<TensorType>::allocate(&ec_dense,btensor);
+#if defined(USE_UPCXX)
+    ga_over_upcxx* ga_stensor  = tamm_to_ga(ec_dense,tensor);
+    ga_to_tamm(ec_dense,btensor,ga_stensor);
+    ga_stensor->destroy();
+#else
     int ga_stensor  = tamm_to_ga(ec_dense,tensor);
     ga_to_tamm(ec_dense,btensor,ga_stensor);
     NGA_Destroy(ga_stensor);
+#endif
 
     return btensor; // caller responsible for dellocating this tensor
 }

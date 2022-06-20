@@ -318,7 +318,12 @@ class ga_over_upcxx {
 
         ga_over_upcxx(int _ndims, int64_t *_dims, int64_t *_chunk_size,
                 upcxx::team& t) {
-            assert(_ndims == 3);
+            if (_ndims != 3) {
+                fprintf(stderr, "ga_over_upcxx only supports 3d tensors, got "
+                        "_ndims=%d\n", _ndims);
+                abort();
+            }
+
             rank = t.rank_me();
             nranks = t.rank_n();
 
@@ -497,13 +502,32 @@ class ga_over_upcxx {
         }
 
         void copy(ga_over_upcxx *dst) {
-            assert(dims[0] == dst->dims[0] && dims[1] == dst->dims[1] &&
-                    dims[2] == dst->dims[2]);
-            assert(chunk_size[0] == dst->chunk_size[0] &&
-                    chunk_size[1] == dst->chunk_size[1] &&
-                    chunk_size[2] == dst->chunk_size[2]);
-            assert(local_chunks.size() == dst->local_chunks.size());
-            assert(tid == dst->tid);
+            if (dims[0] != dst->dims[0] || dims[1] != dst->dims[1] ||
+                    dims[2] != dst->dims[2]) {
+                fprintf(stderr, "ga_over_upcxx::copy dims mismatch (%ld, %ld, "
+                        "%ld) (%ld, %ld, %ld)\n", dims[0], dims[1], dims[2],
+                        dst->dims[0], dst->dims[1], dst->dims[2]);
+                abort();
+            }
+
+            if (chunk_size[0] != dst->chunk_size[0] ||
+                    chunk_size[1] != dst->chunk_size[1] ||
+                    chunk_size[2] != dst->chunk_size[2]) {
+                fprintf(stderr, "ga_over_upcxx::copy chunk_size mismatch (%ld, "
+                        "%ld, %ld) (%ld, %ld, %ld)\n", chunk_size[0],
+                        chunk_size[1], chunk_size[2],
+                        dst->chunk_size[0], dst->chunk_size[1],
+                        dst->chunk_size[2]);
+                abort();
+            }
+
+            if (local_chunks.size() != dst->local_chunks.size()) {
+                abort();
+            }
+
+            if (tid != dst->tid) {
+                abort();
+            }
 
             for (unsigned i = 0; i < local_chunks.size(); i++) {
                 memcpy(dst->local_chunks[i]->local(), local_chunks[i]->local(),
@@ -511,8 +535,6 @@ class ga_over_upcxx {
                         local_chunks[i]->get_chunk_size(1) *
                         local_chunks[i]->get_chunk_size(2) * sizeof(double));
             }
-            //upcxx::persona_scope master_scope(master_mtx,
-            //        upcxx::master_persona());
             upcxx::barrier(tid.here());
         }
 
@@ -530,9 +552,17 @@ class ga_over_upcxx {
         void get(int64_t low0, int64_t low1, int64_t low2, int64_t high0,
                 int64_t high1, int64_t high2, double *out, int64_t* out_dims) {
             upcxx::future<> fut = upcxx::make_future();
-            assert(out_dims[0] == high0 - low0 + 1);
-            assert(out_dims[1] == high1 - low1 + 1);
-            assert(out_dims[2] == high2 - low2 + 1);
+            // Check that specified output dimensions match size of fetched
+            // region
+            if (out_dims[0] != (high0 - low0 + 1) ||
+                    out_dims[1] != (high1 - low1 + 1) ||
+                    out_dims[2] != (high2 - low2 + 1)) {
+                fprintf(stderr, "ga_over_upcxx::get size mismatch (%ld %ld "
+                        "%ld) (%ld %ld %ld)\n", out_dims[0], out_dims[1],
+                        out_dims[2], high0 - low0 + 1, high1 - low1 + 1,
+                        high2 - low2 + 1);
+                abort();
+            }
 
             int64_t lo_chunk_0 = low0 / chunk_size[0];
             int64_t lo_chunk_1 = low1 / chunk_size[1];
@@ -558,9 +588,18 @@ class ga_over_upcxx {
         void put(int64_t low0, int64_t low1, int64_t low2, int64_t high0,
                 int64_t high1, int64_t high2, double *in, int64_t* in_dims) {
             upcxx::future<> fut = upcxx::make_future();
-            assert(in_dims[0] == high0 - low0 + 1);
-            assert(in_dims[1] == high1 - low1 + 1);
-            assert(in_dims[2] == high2 - low2 + 1);
+
+            // Check that specified output dimensions match size of fetched
+            // region
+            if (in_dims[0] != (high0 - low0 + 1) ||
+                    in_dims[1] != (high1 - low1 + 1) ||
+                    in_dims[2] != (high2 - low2 + 1)) {
+                fprintf(stderr, "ga_over_upcxx::get size mismatch (%ld %ld "
+                        "%ld) (%ld %ld %ld)\n", in_dims[0], in_dims[1],
+                        in_dims[2], high0 - low0 + 1, high1 - low1 + 1,
+                        high2 - low2 + 1);
+                abort();
+            }
 
             int64_t lo_chunk_0 = low0 / chunk_size[0];
             int64_t lo_chunk_1 = low1 / chunk_size[1];
@@ -624,8 +663,10 @@ class ga_over_upcxx {
                 int64_t global_i2 = upcxx::reduce_all(i2, upcxx::op_fast_min,
                         tid.here()).wait();
 
-                assert(global_i0 != INT64_MAX && global_i1 != INT64_MAX &&
-                        global_i2 != INT64_MAX);
+                if (global_i0 == INT64_MAX || global_i1 == INT64_MAX ||
+                        global_i2 == INT64_MAX) {
+                    abort();
+                }
 
                 out_val = global_min;
                 out_i0 = global_i0;

@@ -433,6 +433,9 @@ void ccsd_t_driver() {
         read_from_disk(t_d_v2,fullV2file);
     }
 
+    upcxx::barrier();
+    abort();
+
     if(!is_rhf && !skip_ccsd) free_tensors(d_t1, d_t2);
 
     p_evl_sorted = tamm::diagonal(d_f1);

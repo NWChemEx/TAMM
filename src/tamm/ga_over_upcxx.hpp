@@ -1,11 +1,8 @@
-#ifndef _GA_OVER_UPCXX
-#define _GA_OVER_UPCXX
+#pragma once
 
+#if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #include <assert.h>
-
-#define MIN(_a, _b) (((_a) < (_b)) ? (_a) : (_b))
-#define MAX(_a, _b) (((_a) > (_b)) ? (_a) : (_b))
 
 class ga_over_upcxx_chunk_view {
     private:
@@ -160,14 +157,14 @@ class ga_over_upcxx_chunk {
                 return fut;
             }
 
-            int64_t this_low0 = MAX(low0, lo_coord[0]);
-            int64_t this_high0 = MIN(high0, lo_coord[0] + chunk_size[0] - 1);
-            int64_t this_low1 = MAX(low1, lo_coord[1]);
-            int64_t this_high1 = MIN(high1, lo_coord[1] + chunk_size[1] - 1);
-            int64_t this_low2 = MAX(low2, lo_coord[2]);
-            int64_t this_high2 = MIN(high2, lo_coord[2] + chunk_size[2] - 1);
-            int64_t this_low3 = MAX(low3, lo_coord[3]);
-            int64_t this_high3 = MIN(high3, lo_coord[3] + chunk_size[3] - 1);
+            int64_t this_low0 = std::max(low0, lo_coord[0]);
+            int64_t this_high0 = std::min(high0, lo_coord[0] + chunk_size[0] - 1);
+            int64_t this_low1 = std::max(low1, lo_coord[1]);
+            int64_t this_high1 = std::min(high1, lo_coord[1] + chunk_size[1] - 1);
+            int64_t this_low2 = std::max(low2, lo_coord[2]);
+            int64_t this_high2 = std::min(high2, lo_coord[2] + chunk_size[2] - 1);
+            int64_t this_low3 = std::max(low3, lo_coord[3]);
+            int64_t this_high3 = std::min(high3, lo_coord[3] + chunk_size[3] - 1);
             assert(this_low0 <= this_high0);
             assert(this_low1 <= this_high1);
             assert(this_low2 <= this_high2);

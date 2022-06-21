@@ -45,6 +45,7 @@ set(TAMM_INCLUDES
     index_loop_nest.hpp
     utils.hpp
     tamm_utils.hpp
+    ga_over_upcxx.hpp
     eigen_utils.hpp
     eigen_includes.hpp
     runtime_engine.hpp

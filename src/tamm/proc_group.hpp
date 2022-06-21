@@ -285,8 +285,8 @@ class ProcGroup {
 #if defined(USE_UPCXX)
     int this_rank = proc.value();
     int world_rank = (*pginfo_->team_)[this_rank];
-    
-    int other_rank = pg2.pginfo_->team_->from_world(world_rank);
+
+    int other_rank = pg2.pginfo_->team_->from_world(world_rank, MPI_UNDEFINED);
     return Proc{other_rank};
 #else
     MPI_Group group1, group2;

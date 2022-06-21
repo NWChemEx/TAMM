@@ -729,15 +729,12 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
 
   std::vector<int64_t> chnks(ndims,-1);
 #if defined(USE_UPCXX)
-  if (ndims > 3) {
-      fprintf(stderr, "Invalid ndims=%d, only support up to 3\n", ndims);
-      if (ndims == 4) {
-          fprintf(stderr, "(%ld %ld %ld %ld)\n", dims[0], dims[1], dims[2], dims[3]);
-      }
+  if (ndims > 4) {
+      fprintf(stderr, "Invalid ndims=%d, only support up to 4\n", ndims);
       abort();
   }
   // pad out to 3 dimensions if we're less
-  for (int i = ndims; i < 3; i++) {
+  for (int i = ndims; i < 4; i++) {
       dims.push_back(1);
       chnks.push_back(-1);
   }
@@ -754,7 +751,7 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
       }
       abort();
   }
-  ga_over_upcxx* ga_tens = new ga_over_upcxx(3, &dims[0], &chnks[0],
+  ga_over_upcxx* ga_tens = new ga_over_upcxx(4, &dims[0], &chnks[0],
           upcxx::world());
 #else
   int ga_pg_default = GA_Pgroup_get_default();
@@ -777,8 +774,8 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
         
 #if defined(USE_UPCXX)
-        std::vector<int64_t> lo(3),hi(3);
-        std::vector<int64_t> ld(3);
+        std::vector<int64_t> lo(4),hi(4);
+        std::vector<int64_t> ld(4);
 #else
         std::vector<int64_t> lo(ndims),hi(ndims);
         std::vector<int64_t> ld(ndims-1);
@@ -788,7 +785,7 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
         for(size_t i=0;i<ndims;i++) hi[i]   = cd_ncast<size_t>(block_offset[i] + block_dims[i]-1);
 #if defined(USE_UPCXX)
         for(size_t i=0;i<ndims;i++) ld[i] = cd_ncast<size_t>(block_dims[i]);
-        for (size_t i = ndims; i < 3; i++) {
+        for (size_t i = ndims; i < 4; i++) {
             lo[i] = 0;
             hi[i] = 0;
             ld[i] = 1;
@@ -801,9 +798,9 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
         tensor.get(blockid, sbuf);
 
 #if defined(USE_UPCXX)
-        // ga_tens->put(lo[0], lo[1], lo[2],
-        //         hi[0], hi[1], hi[2],
-        //         &sbuf[0], &ld[0]);
+        ga_tens->put(lo[0], lo[1], lo[2], lo[3],
+                hi[0], hi[1], hi[2], hi[3],
+                &sbuf[0], &ld[0]);
 #else
         NGA_Put64(ga_tens,&lo[0],&hi[0],&sbuf[0],&ld[0]);
 #endif
@@ -1326,10 +1323,11 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor,
 
         const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
 
-        std::vector<int64_t> lo(ndims),hi(ndims);
 #if defined(USE_UPCXX)
-        std::vector<int64_t> ld(ndims);
+        std::vector<int64_t> lo(4),hi(4);
+        std::vector<int64_t> ld(4);
 #else
+        std::vector<int64_t> lo(ndims),hi(ndims);
         std::vector<int64_t> ld(ndims-1);
 #endif
 
@@ -1337,7 +1335,7 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor,
         for(size_t i=0;i<ndims;i++)  hi[i]   = cd_ncast<size_t>(block_offset[i] + block_dims[i]-1);
 #if defined(USE_UPCXX)
         for(size_t i=0;i<ndims;i++)  ld[i] = cd_ncast<size_t>(block_dims[i]);
-        for (size_t i = ndims; i < 3; i++) {
+        for (size_t i = ndims; i < 4; i++) {
             lo[i] = 0;
             hi[i] = 0;
             ld[i] = 1;
@@ -1348,9 +1346,9 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor,
 
         std::vector<TensorType> sbuf(dsize);
 #if defined(USE_UPCXX)
-        // ga_tens->get(lo[0], lo[1], lo[2],
-        //         hi[0], hi[1], hi[2],
-        //         &sbuf[0], &ld[0]);
+        ga_tens->get(lo[0], lo[1], lo[2], lo[3],
+                hi[0], hi[1], hi[2], hi[3],
+                &sbuf[0], &ld[0]);
 #else
         NGA_Get64(ga_tens,&lo[0],&hi[0],&sbuf[0],&ld[0]);
 #endif
@@ -1405,8 +1403,8 @@ void retile_tamm_tensor(Tensor<TensorType> stensor, Tensor<TensorType>& dtensor,
 
 #if defined(USE_UPCXX)
     ga_over_upcxx* ga_tens = tamm_to_ga(ec,stensor);
-    // ga_to_tamm(ec, dtensor, ga_tens);
-    //ga_tens->destroy();
+    ga_to_tamm(ec, dtensor, ga_tens);
+    ga_tens->destroy();
 #else
     int ga_tens = tamm_to_ga(ec,stensor);
     ga_to_tamm(ec, dtensor, ga_tens);

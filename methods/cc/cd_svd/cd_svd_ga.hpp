@@ -411,7 +411,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
       auto bf2_first = shell2bf[s2];
       auto n2 = shells[s2].size();
 
-      if (g_d->coord_is_local(bf1_first, bf2_first, 0)) {
+      if (g_d->coord_is_local(bf1_first, bf2_first, 0, 0)) {
 #else
     decltype(bf1_first) lo_d0 = lo_d[0];
     decltype(bf1_first) hi_d0 = hi_d[0];
@@ -445,8 +445,8 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
           int64_t ibflo[2] = {cd_ncast<size_t>(bf1_first),cd_ncast<size_t>(bf2_first)};
           int64_t ibfhi[2] = {cd_ncast<size_t>(bf1_first+n1-1),cd_ncast<size_t>(bf2_first+n2-1)};
 #if defined(USE_UPCXX)
-          int64_t ld[3] = {cd_ncast<size_t>(n1), cd_ncast<size_t>(n2), 1};
-          g_d->put(ibflo[0], ibflo[1], 0, ibfhi[0], ibfhi[1], 0,
+          int64_t ld[4] = {cd_ncast<size_t>(n1), cd_ncast<size_t>(n2), 1, 1};
+          g_d->put(ibflo[0], ibflo[1], 0, 0, ibfhi[0], ibfhi[1], 0, 0,
                   &k_eri[0], ld);
 #else
           int64_t ld[1] = {cd_ncast<size_t>(n2)};
@@ -466,21 +466,21 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 
   // Step C. Find the coordinates of the maximum element of the diagonal.
   #if defined(USE_UPCXX)
-  int64_t indx_d0[3];
+  int64_t indx_d0[4];
   #else
   int64_t indx_d0[GA_MAX_DIM];
   #endif
   TensorType val_d0;
   #if defined(USE_UPCXX)
-  g_d->maximum(val_d0, indx_d0[0], indx_d0[1], indx_d0[2]);
+  g_d->maximum(val_d0, indx_d0[0], indx_d0[1], indx_d0[2], indx_d0[3]);
   #else
   NGA_Select_elem64(g_d,const_cast<char*>("max"),&val_d0,indx_d0);
   #endif
 
   #if defined(USE_UPCXX)
-  int64_t lo_x[3]; // The lower limits of blocks
-  int64_t hi_x[3]; // The upper limits of blocks
-  int64_t ld_x[3]; // The leading dims of blocks
+  int64_t lo_x[4]; // The lower limits of blocks
+  int64_t hi_x[4]; // The upper limits of blocks
+  int64_t ld_x[4]; // The leading dims of blocks
   #else
   int64_t lo_x[GA_MAX_DIM]; // The lower limits of blocks
   int64_t hi_x[GA_MAX_DIM]; // The upper limits of blocks
@@ -515,7 +515,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
         auto bf4_first = shell2bf[s4];
         auto n4 = shells[s4].size();
 
-        if (g_r->coord_is_local(bf3_first, bf4_first, 0)) {
+        if (g_r->coord_is_local(bf3_first, bf4_first, 0, 0)) {
 #else
       decltype(bf3_first) lo_r0 = lo_r[0];
       decltype(bf3_first) hi_r0 = hi_r[0];
@@ -544,8 +544,8 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
             int64_t ibflo[2] = {cd_ncast<size_t>(bf3_first),cd_ncast<size_t>(bf4_first)};
             int64_t ibfhi[2] = {cd_ncast<size_t>(bf3_first+n3-1),cd_ncast<size_t>(bf4_first+n4-1)};
 #if defined(USE_UPCXX)
-            int64_t ld[3] = {cd_ncast<size_t>(n3), cd_ncast<size_t>(n4), 1}; //n3                  
-            g_r->put(ibflo[0], ibflo[1], 0, ibfhi[0], ibfhi[1], 0, &k_eri[0], ld);
+            int64_t ld[4] = {cd_ncast<size_t>(n3), cd_ncast<size_t>(n4), 1, 1}; //n3
+            g_r->put(ibflo[0], ibflo[1], 0, 0, ibfhi[0], ibfhi[1], 0, 0, &k_eri[0], ld);
 #else
             const void *fbuf = &k_eri[0];
             //TODO
@@ -569,13 +569,16 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     lo_x[0] = indx_d0[0];
     lo_x[1] = indx_d0[1];
     lo_x[2] = 0;
+    lo_x[3] = 0;
     hi_x[0] = indx_d0[0];
     hi_x[1] = indx_d0[1];
     hi_x[2] = count; //count>0? count : 0;
+    hi_x[3] = 0;
     ld_x[0] = 1;
 #if defined(USE_UPCXX)
     ld_x[1] = 1;
     ld_x[2] = hi_x[2]+1;
+    ld_x[3] = 1;
 #else
     ld_x[1] = hi_x[2]+1;
 #endif
@@ -584,7 +587,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     std::vector<TensorType> k_elems(max_cvecs);
     TensorType* k_row = &k_elems[0];
 #if defined(USE_UPCXX)
-    g_chol->get(lo_x[0], lo_x[1], lo_x[2], hi_x[0], hi_x[1], hi_x[2], k_row,
+    g_chol->get(lo_x[0], lo_x[1], lo_x[2], lo_x[3], hi_x[0], hi_x[1], hi_x[2], hi_x[3], k_row,
             ld_x);
 
     auto g_r_iter = g_r->local_chunks_begin();
@@ -604,8 +607,8 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
         for(int64_t icount = 0; icount < count; icount++){
           for (int64_t i = 0; i < g_r_view.get_chunk_size(0); i++) {
               for (int64_t j = 0; j < g_r_view.get_chunk_size(1); j++) {
-                  g_r_view.subtract(i, j, 0,
-                          g_chol_view.read(i, j, icount) * k_row[icount]);
+                  g_r_view.subtract(i, j, 0, 0,
+                          g_chol_view.read(i, j, icount, 0) * k_row[icount]);
             }
           }
         }
@@ -630,8 +633,8 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 
         for(auto i = 0; i < g_r_view.get_chunk_size(0); i++) {
           for(auto j = 0; j < g_r_view.get_chunk_size(1); j++) {
-              auto tmp = g_r_view.read(i, j, 0) / sqrt(val_d0);
-              g_chol_view.write(i, j, count, tmp);
+              auto tmp = g_r_view.read(i, j, 0, 0) / sqrt(val_d0);
+              g_chol_view.write(i, j, count, 0, tmp);
           }
         }
         g_r_iter++;
@@ -690,8 +693,8 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 
         for(auto i = 0; i< g_d_view.get_chunk_size(0); i++) {
           for(auto j = 0; j< g_d_view.get_chunk_size(1); j++) {
-            auto tmp = g_chol_view.read(i, j, count-1);
-            g_d_view.subtract(i, j, 0, tmp*tmp);
+            auto tmp = g_chol_view.read(i, j, count-1, 0);
+            g_d_view.subtract(i, j, 0, 0, tmp*tmp);
           }
         }
         g_d_iter++;
@@ -715,7 +718,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
 
     //Step J. Find the coordinates of the maximum element of the diagonal.
 #if defined(USE_UPCXX)
-    g_d->maximum(val_d0, indx_d0[0], indx_d0[1], indx_d0[2]);
+    g_d->maximum(val_d0, indx_d0[0], indx_d0[1], indx_d0[2], indx_d0[3]);
 #else
     NGA_Select_elem64(g_d,const_cast<char*>("max"),&val_d0,indx_d0);
 #endif
@@ -821,13 +824,13 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
       int64_t lo_ao[3] = {0,0,kk};
       int64_t hi_ao[3] = {nbf-1,nbf-1,kk};
 #if defined(USE_UPCXX)
-      int64_t ld_ao[3] = {nbf,nbf, 1};
+      int64_t ld_ao[4] = {nbf,nbf, 1, 1};
 #else
       int64_t ld_ao[2] = {nbf,1};
 #endif
 
 #if defined(USE_UPCXX)
-      g_chol->get(lo_ao[0], lo_ao[1], lo_ao[2], hi_ao[0], hi_ao[1], hi_ao[2],
+      g_chol->get(lo_ao[0], lo_ao[1], lo_ao[2], 0, hi_ao[0], hi_ao[1], hi_ao[2], 0,
               &k_ij[0], ld_ao);
 #else
       NGA_Get64(g_chol, lo_ao, hi_ao, &k_ij[0], ld_ao);
@@ -893,7 +896,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
       int64_t lo_mo[3] = {0,0,kk};
       int64_t hi_mo[3] = {N_eff-1,N_eff-1,kk};
 #ifdef USE_UPCXX
-      int64_t ld_mo[3] = {N_eff, N_eff,1};
+      int64_t ld_mo[4] = {N_eff, N_eff,1, 1};
 #else
       int64_t ld_mo[2] = {N_eff,1};
 #endif
@@ -910,7 +913,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
       }
 
 #if defined(USE_UPCXX)
-      g_chol_mo->put(lo_mo[0], lo_mo[1], lo_mo[2], hi_mo[0], hi_mo[1], hi_mo[2],
+      g_chol_mo->put(lo_mo[0], lo_mo[1], lo_mo[2], 0, hi_mo[0], hi_mo[1], hi_mo[2], 0,
               &k_pq[0], ld_mo);
       next = ga_ac.fetch_add(1);
 #else
@@ -1031,9 +1034,10 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
                      cd_ncast<size_t>(block_offset[1] + block_dims[1]-1),
                      cd_ncast<size_t>(block_offset[2] + block_dims[2]-1)};
     #if defined(USE_UPCXX)
-    int64_t ld[3] = {cd_ncast<size_t>(block_dims[0]),
+    int64_t ld[4] = {cd_ncast<size_t>(block_dims[0]),
                      cd_ncast<size_t>(block_dims[1]),
-                     cd_ncast<size_t>(block_dims[2])};
+                     cd_ncast<size_t>(block_dims[2]),
+                     1};
 
     upcxx::progress();
     #else
@@ -1042,7 +1046,7 @@ Tensor<TensorType> cd_svd_ga(SystemData& sys_data, ExecutionContext& ec, TiledIn
     #endif
     std::vector<TensorType> sbuf(dsize);
     #if defined(USE_UPCXX)
-    g_chol_mo_copy->get(lo[0], lo[1], lo[2], hi[0], hi[1], hi[2], &sbuf[0], ld);
+    g_chol_mo_copy->get(lo[0], lo[1], lo[2], 0, hi[0], hi[1], hi[2], 0, &sbuf[0], ld);
     #else
     NGA_Get64(g_chol_mo_copy,lo,hi,&sbuf[0],ld);
     #endif

@@ -423,12 +423,14 @@ freeHostMem(df_host_pinned_d1_v2);
 freeHostMem(df_host_pinned_d2_t2);
 freeHostMem(df_host_pinned_d2_v2);
 
-freeHostMem(df_simple_s1_exec);
 freeHostMem(df_simple_s1_size);
-freeHostMem(df_simple_d1_exec);
+freeHostMem(df_simple_s1_exec);
+freeHostMem(host_d1_size);
 freeHostMem(df_simple_d1_size);
-freeHostMem(df_simple_d2_exec);
+freeHostMem(df_simple_d1_exec);
+freeHostMem(host_d2_size);
 freeHostMem(df_simple_d2_size);
+freeHostMem(df_simple_d2_exec);
 
 freeHostMem(df_host_energies);
 

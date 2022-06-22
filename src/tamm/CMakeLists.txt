@@ -4,11 +4,11 @@ include(TargetMacros) #For cmsb_add_library
 
 if(USE_CUDA)
     set(tamm_gpu_SRCS cuda_memory_allocator.cu cudamemset.cu)
-    set(tamm_gpu_INCS cuda_memory_allocator.hpp cudamemset.hpp talsh_tamm.hpp gpu_memory_pool.hpp)
+    set(tamm_gpu_INCS cuda_memory_allocator.hpp cudamemset.hpp talsh_tamm.hpp gpu_streams.hpp gpu_memory_pool.hpp)
 elseif(USE_HIP)
-    set(tamm_gpu_INCS talsh_tamm.hpp gpu_memory_pool.hpp)
+    set(tamm_gpu_INCS talsh_tamm.hpp gpu_memory_pool.hpp gpu_streams.hpp)
 elseif(USE_DPCPP)
-    set(tamm_gpu_INCS sycl_device.hpp gpu_memory_pool.hpp)
+    set(tamm_gpu_INCS sycl_device.hpp gpu_memory_pool.hpp gpu_streams.hpp)
 endif()
 
 #Add the current directory's sources to the list

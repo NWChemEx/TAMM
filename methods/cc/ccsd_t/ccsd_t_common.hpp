@@ -8,8 +8,7 @@
 #include <time.h>
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-#include "tamm/gpu_streams.hpp"
-#include "tamm/gpu_memory_pool.hpp"
+#include "tamm/gpu_stream_memory_pool.hpp"
 #endif
 
 #ifdef USE_TALSH

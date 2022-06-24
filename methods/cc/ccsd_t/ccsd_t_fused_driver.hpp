@@ -168,17 +168,16 @@ std::tuple<T, T, double, double> ccsd_t_fused_driver_new(
   int* df_simple_d2_exec = (int*) getHostMem(sizeof(int) * (9 * nvab));
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   // get GPU stream from pool
-  auto&        pool   = tamm::GPUStreamPool::getInstance();
-  gpuStream_t& stream = pool.getStream();
-  // get GPU memory handle from pool
-  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+  auto& gpuPool = tamm::GPUPool::getInstance();
+  gpuStream_t& stream = gpuPool.getStream();
+  auto memPool = gpuPool.get_memory_pool();
 
-  T* df_dev_s1_t1_all = static_cast<T*>(memPool.allocate(sizeof(T) * size_T_s1_t1));
-  T* df_dev_s1_v2_all = static_cast<T*>(memPool.allocate(sizeof(T) * size_T_s1_v2));
-  T* df_dev_d1_t2_all = static_cast<T*>(memPool.allocate(sizeof(T) * size_T_d1_t2));
-  T* df_dev_d1_v2_all = static_cast<T*>(memPool.allocate(sizeof(T) * size_T_d1_v2));
-  T* df_dev_d2_t2_all = static_cast<T*>(memPool.allocate(sizeof(T) * size_T_d2_t2));
-  T* df_dev_d2_v2_all = static_cast<T*>(memPool.allocate(sizeof(T) * size_T_d2_v2));
+  T* df_dev_s1_t1_all = static_cast<T*>(memPool->allocate(sizeof(T) * size_T_s1_t1, stream));
+  T* df_dev_s1_v2_all = static_cast<T*>(memPool->allocate(sizeof(T) * size_T_s1_v2, stream));
+  T* df_dev_d1_t2_all = static_cast<T*>(memPool->allocate(sizeof(T) * size_T_d1_t2, stream));
+  T* df_dev_d1_v2_all = static_cast<T*>(memPool->allocate(sizeof(T) * size_T_d1_v2, stream));
+  T* df_dev_d2_t2_all = static_cast<T*>(memPool->allocate(sizeof(T) * size_T_d2_t2, stream));
+  T* df_dev_d2_v2_all = static_cast<T*>(memPool->allocate(sizeof(T) * size_T_d2_v2, stream));
 #endif
 
   //
@@ -187,7 +186,7 @@ std::tuple<T, T, double, double> ccsd_t_fused_driver_new(
 
   T* df_host_energies = (T*) getHostMem(sizeof(T) * std::pow(max_num_blocks, 6) * 2);
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  T* df_dev_energies = static_cast<T*>(memPool.allocate(sizeof(T) * std::pow(max_num_blocks, 6) * 2));
+  T* df_dev_energies = static_cast<T*>(memPool->allocate(sizeof(T) * std::pow(max_num_blocks, 6) * 2, stream));
 #endif
 
   //
@@ -416,14 +415,14 @@ HIP_SAFE(hipDeviceSynchronize());
   freeHostMem(df_host_energies);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  memPool.deallocate(static_cast<void*>(df_dev_s1_t1_all), sizeof(T) * size_T_s1_t1);
-  memPool.deallocate(static_cast<void*>(df_dev_s1_v2_all), sizeof(T) * size_T_s1_v2);
-  memPool.deallocate(static_cast<void*>(df_dev_d1_t2_all), sizeof(T) * size_T_d1_t2);
-  memPool.deallocate(static_cast<void*>(df_dev_d1_v2_all), sizeof(T) * size_T_d1_v2);
-  memPool.deallocate(static_cast<void*>(df_dev_d2_t2_all), sizeof(T) * size_T_d2_t2);
-  memPool.deallocate(static_cast<void*>(df_dev_d2_v2_all), sizeof(T) * size_T_d2_v2);
+  memPool->deallocate(static_cast<void*>(df_dev_s1_t1_all), sizeof(T) * size_T_s1_t1, stream);
+  memPool->deallocate(static_cast<void*>(df_dev_s1_v2_all), sizeof(T) * size_T_s1_v2, stream);
+  memPool->deallocate(static_cast<void*>(df_dev_d1_t2_all), sizeof(T) * size_T_d1_t2, stream);
+  memPool->deallocate(static_cast<void*>(df_dev_d1_v2_all), sizeof(T) * size_T_d1_v2, stream);
+  memPool->deallocate(static_cast<void*>(df_dev_d2_t2_all), sizeof(T) * size_T_d2_t2, stream);
+  memPool->deallocate(static_cast<void*>(df_dev_d2_v2_all), sizeof(T) * size_T_d2_v2, stream);
 
-  memPool.deallocate(static_cast<void*>(df_dev_energies), sizeof(T) * std::pow(max_num_blocks, 6) * 2);
+  memPool->deallocate(static_cast<void*>(df_dev_energies), sizeof(T) * std::pow(max_num_blocks, 6) * 2, stream);
 #endif
 
   //

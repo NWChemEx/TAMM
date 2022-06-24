@@ -24,7 +24,7 @@ static void clearGpuFreeList()
 #elif defined(USE_HIP)
       HIP_SAFE( hipFree(*it2) );
 #elif defined(USE_DPCPP)
-      auto& pool = tamm::GPUStreamPool::getInstance();
+      auto& pool = tamm::GPUPool::getInstance();
       gpuStream_t& stream = pool.getStream();
       sycl::free(*it2, stream);
 #endif
@@ -44,7 +44,7 @@ static void clearHostFreeList()
 #elif defined(USE_HIP)
       HIP_SAFE( hipHostFree(*it2) );
 #elif defined(USE_DPCPP)
-      auto& pool = tamm::GPUStreamPool::getInstance();
+      auto& pool = tamm::GPUPool::getInstance();
       gpuStream_t& stream = pool.getStream();
       sycl::free(*it2, stream);
 #else
@@ -66,7 +66,7 @@ static void *moreDeviceMem(size_t bytes)
 #elif defined(USE_HIP)
   HIP_SAFE(hipMalloc(&ptr, bytes));
 #elif defined(USE_DPCPP)
-  auto& pool = tamm::GPUStreamPool::getInstance();
+  auto& pool = tamm::GPUPool::getInstance();
   gpuStream_t& stream = pool.getStream();
   ptr = sycl::malloc_device(bytes, stream);
 #endif
@@ -83,7 +83,7 @@ static void *moreHostMem(size_t bytes)
   #elif defined(USE_HIP)
     HIP_SAFE(hipHostMalloc(&ptr, bytes));
   #elif defined(USE_DPCPP)
-    auto& pool = tamm::GPUStreamPool::getInstance();
+    auto& pool = tamm::GPUPool::getInstance();
     gpuStream_t& stream = pool.getStream();
     ptr = sycl::malloc_host(bytes, stream);
   #else
@@ -122,7 +122,7 @@ void *getGpuMem(size_t bytes)
 #elif defined(USE_HIP)
   HIP_SAFE(hipMalloc((void **) &ptr, bytes));
 #elif defined(USE_DPCPP)
-  auto& pool = tamm::GPUStreamPool::getInstance();
+  auto& pool = tamm::GPUPool::getInstance();
   gpuStream_t& stream = pool.getStream();
   ptr = sycl::malloc_device(bytes, stream);
 #endif
@@ -165,7 +165,7 @@ void *getHostMem(size_t bytes)
 #elif defined(USE_HIP)
   HIP_SAFE(hipHostMalloc((void **) &ptr, bytes));
 #elif defined(USE_DPCPP)
-  auto& pool = tamm::GPUStreamPool::getInstance();
+  auto& pool = tamm::GPUPool::getInstance();
   gpuStream_t& stream = pool.getStream();
   ptr = sycl::malloc_host(bytes, stream);
 #else //cpu
@@ -216,7 +216,7 @@ void freeHostMem(void *p)
 #elif defined(USE_HIP)
   HIP_SAFE(hipHostFree(p));
 #elif defined(USE_DPCPP)
-  auto& pool = tamm::GPUStreamPool::getInstance();
+  auto& pool = tamm::GPUPool::getInstance();
   gpuStream_t& stream = pool.getStream();
   sycl::free(p, stream);
 #else
@@ -242,7 +242,7 @@ void freeGpuMem(void *p)
 #elif defined(USE_HIP)
   HIP_SAFE(hipFree(p));
 #elif defined(USE_DPCPP)
-  auto& pool = tamm::GPUStreamPool::getInstance();
+  auto& pool = tamm::GPUPool::getInstance();
   gpuStream_t& stream = pool.getStream();
   sycl::free(p, stream);
 #endif //NO_OPT

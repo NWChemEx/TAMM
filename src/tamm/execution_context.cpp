@@ -47,7 +47,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   assert(!errc);
 #else
   #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  tamm::getDeviceCount(&ngpu_);
+  tamm::gpuGetDeviceCount(&ngpu_);
   #endif
 #endif
 

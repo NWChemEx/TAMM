@@ -102,7 +102,7 @@ private:
       int numGPUs_{};
       gpuGetDeviceCount(&numGPUs_);
       _count = new unsigned int[numGPUs_];
-      _devID2MR.reserve(numGPUs);
+      _devID2MR.reserve(numGPUs_);
       
       for (int devID=0; devID<numGPUs_; devID++) { // # of GPUs per node
 	_active_device = devID;
@@ -180,7 +180,7 @@ public:
   void set_device(int device) {
     if(!_initialized) {
       _active_device = device;
-      GPUSetDevice(_active_device);
+      gpuSetDevice(_active_device);
       _initialized = true;
     }
   }

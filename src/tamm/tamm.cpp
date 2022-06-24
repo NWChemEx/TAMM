@@ -52,6 +52,10 @@ void initialize(int argc, char *argv[]) {
   // if (!MA_initialized()) {
   //   MA_init(MT_DBL, 8000000, 20000000);
 #endif
+
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+  auto& gpuPool   = tamm::GPUPool::getInstance();
+#endif // USE_CUDA, USE_HIP, USE_DPCPP
 }
 
 void finalize() {

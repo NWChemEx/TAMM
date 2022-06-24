@@ -4,12 +4,27 @@ include(TargetMacros) #For cmsb_add_library
 
 if(USE_CUDA)
     set(tamm_gpu_SRCS cuda_memory_allocator.cu cudamemset.cu)
-    set(tamm_gpu_INCS cuda_memory_allocator.hpp cudamemset.hpp talsh_tamm.hpp gpu_streams.hpp gpu_memory_pool.hpp)
+    set(tamm_gpu_INCS cuda_memory_allocator.hpp cudamemset.hpp talsh_tamm.hpp gpu_stream_memory_pool.hpp)
 elseif(USE_HIP)
-    set(tamm_gpu_INCS talsh_tamm.hpp gpu_memory_pool.hpp gpu_streams.hpp)
+    set(tamm_gpu_INCS talsh_tamm.hpp gpu_stream_memory_pool.hpp)
 elseif(USE_DPCPP)
-    set(tamm_gpu_INCS sycl_device.hpp gpu_memory_pool.hpp gpu_streams.hpp)
+    set(tamm_gpu_INCS sycl_device.hpp gpu_stream_memory_pool.hpp)
 endif()
+
+# this is for device memory resources
+if (USE_CUDA OR USE_HIP OR USE_DPCPP)
+   list(APPEND tamm_gpu_INCS
+   mr/aligned.hpp
+   mr/gpu_memory_resource.hpp
+   mr/cuda_stream_view.hpp
+   mr/device_memory_resource.hpp
+   mr/pool_memory_resource.hpp
+   mr/coalescing_free_list.hpp
+   mr/free_list.hpp
+   mr/stream_ordered_memory_resource.hpp
+   mr/per_device_resource.hpp
+   )
+endif ()
 
 #Add the current directory's sources to the list
 set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp "${tamm_gpu_SRCS}")
@@ -20,7 +35,7 @@ set(TAMM_INCLUDES
     work.hpp
     tamm.hpp
     types.hpp
-    errors.hpp 
+    errors.hpp
     strong_num.hpp
     proc_grid.hpp
     boundvec.hpp
@@ -94,4 +109,3 @@ set(TAMM_CFLAGS )
 set(TAMM_LFLAGS )
 
 cmsb_add_library(tamm TAMM_SRCS TAMM_INCLUDES TAMM_CFLAGS TAMM_LFLAGS)
-

@@ -7,7 +7,7 @@
 #include "tamm/memory_manager_local.hpp"
 //#include "tamm/distribution.hpp"
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-#include "tamm/gpu_streams.hpp"
+#include "tamm/gpu_stream_memory_pool.hpp"
 #endif
 #include "tamm/types.hpp"
 

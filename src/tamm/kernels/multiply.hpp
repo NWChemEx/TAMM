@@ -40,7 +40,7 @@ using tensor_handle = talsh_tens_t;
 
 #else
 
-#include "tamm/gpu_memory_pool.hpp"
+#include "tamm/gpu_stream_memory_pool.hpp"
 
 #if defined(USE_CUDA)
 
@@ -82,20 +82,19 @@ void copy_data_to_gpu(ExecutionHW hw, const std::vector<T2>& ainter_buf, T2** ai
                       const std::vector<T1>& cinter_buf, T1** cinter_buf_dev) {
   if(hw != ExecutionHW::GPU) return;
 
-  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+  auto& gpuPool   = tamm::GPUPool::getInstance();
+  auto  memPool   = gpuPool.get_memory_pool();
+  auto& devStream = gpuPool.getStream();
 
-  *ainter_buf_dev = static_cast<T2*>(memPool.allocate(ainter_buf.size() * sizeof(T2)));
-  *binter_buf_dev = static_cast<T3*>(memPool.allocate(binter_buf.size() * sizeof(T3)));
-  *cinter_buf_dev = static_cast<T1*>(memPool.allocate(cinter_buf.size() * sizeof(T1)));
+  *ainter_buf_dev = static_cast<T2*>(memPool->allocate(ainter_buf.size() * sizeof(T2), devStream));
+  *binter_buf_dev = static_cast<T3*>(memPool->allocate(binter_buf.size() * sizeof(T3), devStream));
+  *cinter_buf_dev = static_cast<T1*>(memPool->allocate(cinter_buf.size() * sizeof(T1), devStream));
 
   // host-->device copy
 #if defined(USE_DPCPP) && !defined(USE_TALSH)
-  auto& streamPool = tamm::GPUStreamPool::getInstance();
-  auto& dev_queue  = streamPool.getStream();
-
-  dev_queue.memcpy(*ainter_buf_dev, ainter_buf.data(), ainter_buf.size() * sizeof(T2)).wait();
-  dev_queue.memcpy(*binter_buf_dev, binter_buf.data(), binter_buf.size() * sizeof(T3)).wait();
-  dev_queue.memset(*cinter_buf_dev, 0, cinter_buf.size() * sizeof(T1)).wait();
+  devStream.memcpy(*ainter_buf_dev, ainter_buf.data(), ainter_buf.size() * sizeof(T2)).wait();
+  devStream.memcpy(*binter_buf_dev, binter_buf.data(), binter_buf.size() * sizeof(T3)).wait();
+  devStream.memset(*cinter_buf_dev, 0, cinter_buf.size() * sizeof(T1)).wait();
 #elif defined(USE_CUDA) && !defined(USE_TALSH)
   cudaMemcpy(*ainter_buf_dev, ainter_buf.data(), ainter_buf.size() * sizeof(T2),
              cudaMemcpyHostToDevice);
@@ -116,14 +115,14 @@ void gemm_wrapper(ExecutionHW hw, int AR, int BR, int B, int M, int N, int K, T 
                   std::vector<T2>& ainter_buf, T2* ainter_buf_dev, std::vector<T3>& binter_buf,
                   T3* binter_buf_dev, std::vector<T1>& cinter_buf, T1* cinter_buf_dev) {
 #if defined(USE_DPCPP) && !defined(USE_TALSH)
-  auto& pool      = tamm::GPUStreamPool::getInstance();
-  auto& dev_queue = pool.getStream();
+  auto& gpuPool   = tamm::GPUPool::getInstance();
+  auto& devStream = gpuPool.getStream();
 #elif defined(USE_CUDA) && !defined(USE_TALSH)
-  auto& pool   = tamm::GPUStreamPool::getInstance();
-  auto& handle = pool.getBlasHandle();
+  auto& gpuPool = tamm::GPUPool::getInstance();
+  auto& handle  = gpuPool.getBlasHandle();
 #elif defined(USE_HIP) && !defined(USE_TALSH)
-  auto& pool   = tamm::GPUStreamPool::getInstance();
-  auto& handle = pool.getBlasHandle();
+  auto& gpuPool = tamm::GPUPool::getInstance();
+  auto& handle  = gpuPool.getBlasHandle();
 #endif
 
   auto transA     = blas::Op::NoTrans;
@@ -143,7 +142,7 @@ void gemm_wrapper(ExecutionHW hw, int AR, int BR, int B, int M, int N, int K, T 
 #if defined(USE_DPCPP)
         if(hw == ExecutionHW::GPU) {
           oneapi::mkl::blas::column_major::gemm(
-            dev_queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
+            devStream, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
             binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
             ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, beta,
             cinter_buf_dev + i * cbatch_ld, cinter_ld)
@@ -170,16 +169,16 @@ void gemm_wrapper(ExecutionHW hw, int AR, int BR, int B, int M, int N, int K, T 
           }
           else {
             CUBLAS_CHECK(cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha,
-                                     binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
-                                     ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                                     &beta, cinter_buf_dev + i * cbatch_ld, cinter_ld));
+                                      binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
+                                      ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
+                                      &beta, cinter_buf_dev + i * cbatch_ld, cinter_ld));
           }
         }
         else {
           blas::gemm(blas::Layout::RowMajor, transA, transB, M, N, K, alpha,
-                     ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                     binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
-                     cinter_buf.data() + i * cbatch_ld, cinter_ld);
+                      ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
+                      binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
+                      cinter_buf.data() + i * cbatch_ld, cinter_ld);
         }
 #elif defined(USE_HIP) && !defined(USE_TALSH)
         if(hw == ExecutionHW::GPU) {
@@ -197,16 +196,16 @@ void gemm_wrapper(ExecutionHW hw, int AR, int BR, int B, int M, int N, int K, T 
           else {
             ROCBLAS_CHECK(
               rocblas_dgemm(handle, rocblas_operation_none, rocblas_operation_none, N, M, K, &alpha,
-                            binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
-                            ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, &beta,
-                            cinter_buf_dev + i * cbatch_ld, cinter_ld));
+                             binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
+                             ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, &beta,
+                             cinter_buf_dev + i * cbatch_ld, cinter_ld));
           }
         }
         else {
           blas::gemm(blas::Layout::RowMajor, transA, transB, M, N, K, alpha,
-                     ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                     binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
-                     cinter_buf.data() + i * cbatch_ld, cinter_ld);
+                      ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
+                      binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
+                      cinter_buf.data() + i * cbatch_ld, cinter_ld);
         }
 #else
         blas::gemm(blas::Layout::RowMajor, transA, transB, M, N, K, alpha,
@@ -223,14 +222,11 @@ template<typename T1>
 void copy_result_to_host(ExecutionHW hw, std::vector<T1>& cinter_buf, T1* cinter_buf_dev) {
   if(hw != ExecutionHW::GPU) return;
 
-#if defined(USE_DPCPP) && !defined(USE_TALSH)
-  auto& pool      = tamm::GPUStreamPool::getInstance();
-  auto& dev_queue = pool.getStream();
-#endif
-
 // device-->host copy
 #if defined(USE_DPCPP) && !defined(USE_TALSH)
-  dev_queue.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size() * sizeof(T1)).wait();
+  auto& gpuPool   = tamm::GPUPool::getInstance();
+  auto& devStream = gpuPool.getStream();
+  devStream.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size() * sizeof(T1)).wait();
 #elif defined(USE_CUDA) && !defined(USE_TALSH)
   cudaMemcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size() * sizeof(T1),
              cudaMemcpyDeviceToHost);
@@ -246,11 +242,13 @@ void free_device_buffers(ExecutionHW hw, std::size_t ainter_size, std::size_t bi
                          T1* cinter_buf_dev) {
   if(hw != ExecutionHW::GPU) return;
 
-  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+  auto& gpuPool   = tamm::GPUPool::getInstance();
+  auto  memPool   = gpuPool.get_memory_pool();
+  auto& devStream = gpuPool.getStream();
 
-  memPool.deallocate(static_cast<void*>(ainter_buf_dev), ainter_size * sizeof(T2));
-  memPool.deallocate(static_cast<void*>(binter_buf_dev), binter_size * sizeof(T3));
-  memPool.deallocate(static_cast<void*>(cinter_buf_dev), cinter_size * sizeof(T1));
+  memPool->deallocate(static_cast<void*>(ainter_buf_dev), ainter_size * sizeof(T2), devStream);
+  memPool->deallocate(static_cast<void*>(binter_buf_dev), binter_size * sizeof(T3), devStream);
+  memPool->deallocate(static_cast<void*>(cinter_buf_dev), cinter_size * sizeof(T1), devStream);
 }
 
 template<typename T, typename T1, typename T2, typename T3>

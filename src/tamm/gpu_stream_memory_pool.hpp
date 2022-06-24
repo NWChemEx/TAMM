@@ -50,7 +50,7 @@ auto sycl_asynchandler = [](sycl::exception_list exceptions) {
 
 namespace tamm {
 
-static inline void getDeviceCount(int* id) {
+static inline void gpuGetDeviceCount(int* id) {
 #if defined(USE_CUDA)
   cudaGetDeviceCount(id);
 #elif defined(USE_HIP)

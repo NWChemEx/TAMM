@@ -47,7 +47,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   assert(!errc);
 #else
   #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  tamm::gpuGetDeviceCount(&ngpu_);
+  tamm::getDeviceCount(&ngpu_);
   #endif
 #endif
 
@@ -79,8 +79,8 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 
   // GPUStreamPool as singleton object
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  auto& gpuPool = tamm::GPUPool::getInstance();
-  gpuPool.set_device(dev_id_);
+  auto& pool = tamm::GPUStreamPool::getInstance();
+  pool.set_device(dev_id_);
 #endif
 }
 

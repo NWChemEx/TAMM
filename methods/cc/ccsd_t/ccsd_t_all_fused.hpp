@@ -147,9 +147,12 @@ void ccsd_t_fully_fused_none_df_none_task(
 #endif // OPT_ALL_TIMING
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  auto& gpuPool = tamm::GPUPool::getInstance();
-  gpuStream_t& stream = gpuPool.getStream();
-  auto memPool = gpuPool.get_memory_pool();
+  // get GPU stream from pool
+  auto&        pool   = tamm::GPUStreamPool::getInstance();
+  gpuStream_t& stream = pool.getStream();
+
+  // get GPU memory handle from pool
+  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
 #endif
 
   // Index p4b,p5b,p6b,h1b,h2b,h3b;
@@ -180,12 +183,12 @@ void ccsd_t_fully_fused_none_df_none_task(
   T* host_evl_sorted_p6b = &k_evl_sorted[k_offset[t_p6b]];
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  T* dev_evl_sorted_h1b = static_cast<T*>(memPool->allocate(sizeof(T) * base_size_h1b, stream));
-  T* dev_evl_sorted_h2b = static_cast<T*>(memPool->allocate(sizeof(T) * base_size_h2b, stream));
-  T* dev_evl_sorted_h3b = static_cast<T*>(memPool->allocate(sizeof(T) * base_size_h3b, stream));
-  T* dev_evl_sorted_p4b = static_cast<T*>(memPool->allocate(sizeof(T) * base_size_p4b, stream));
-  T* dev_evl_sorted_p5b = static_cast<T*>(memPool->allocate(sizeof(T) * base_size_p5b, stream));
-  T* dev_evl_sorted_p6b = static_cast<T*>(memPool->allocate(sizeof(T) * base_size_p6b, stream));
+  T* dev_evl_sorted_h1b = static_cast<T*>(memPool.allocate(sizeof(T) * base_size_h1b));
+  T* dev_evl_sorted_h2b = static_cast<T*>(memPool.allocate(sizeof(T) * base_size_h2b));
+  T* dev_evl_sorted_h3b = static_cast<T*>(memPool.allocate(sizeof(T) * base_size_h3b));
+  T* dev_evl_sorted_p4b = static_cast<T*>(memPool.allocate(sizeof(T) * base_size_p4b));
+  T* dev_evl_sorted_p5b = static_cast<T*>(memPool.allocate(sizeof(T) * base_size_p5b));
+  T* dev_evl_sorted_p6b = static_cast<T*>(memPool.allocate(sizeof(T) * base_size_p6b));
 #endif
 
 #if defined(USE_CUDA)
@@ -489,12 +492,12 @@ void ccsd_t_fully_fused_none_df_none_task(
   energy_l[1] += final_energy_2 * factor;
 
   //  free device mem back to pool
-  memPool->deallocate(static_cast<void*>(dev_evl_sorted_h1b), sizeof(T) * base_size_h1b, stream);
-  memPool->deallocate(static_cast<void*>(dev_evl_sorted_h2b), sizeof(T) * base_size_h2b, stream);
-  memPool->deallocate(static_cast<void*>(dev_evl_sorted_h3b), sizeof(T) * base_size_h3b, stream);
-  memPool->deallocate(static_cast<void*>(dev_evl_sorted_p4b), sizeof(T) * base_size_p4b, stream);
-  memPool->deallocate(static_cast<void*>(dev_evl_sorted_p5b), sizeof(T) * base_size_p5b, stream);
-  memPool->deallocate(static_cast<void*>(dev_evl_sorted_p6b), sizeof(T) * base_size_p6b, stream);
+  memPool.deallocate(static_cast<void*>(dev_evl_sorted_h1b), sizeof(T) * base_size_h1b);
+  memPool.deallocate(static_cast<void*>(dev_evl_sorted_h2b), sizeof(T) * base_size_h2b);
+  memPool.deallocate(static_cast<void*>(dev_evl_sorted_h3b), sizeof(T) * base_size_h3b);
+  memPool.deallocate(static_cast<void*>(dev_evl_sorted_p4b), sizeof(T) * base_size_p4b);
+  memPool.deallocate(static_cast<void*>(dev_evl_sorted_p5b), sizeof(T) * base_size_p5b);
+  memPool.deallocate(static_cast<void*>(dev_evl_sorted_p6b), sizeof(T) * base_size_p6b);
 #endif
 
 #ifdef OPT_ALL_TIMING

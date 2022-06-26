@@ -40,7 +40,11 @@ else()
   endif()
 endif()
 
-if(USE_CUDA OR USE_HIP OR USE_DPCPP)
+if(USE_DPCPP)
+  list(APPEND TAMM_DEPENDENCIES Librett)
+endif()
+
+if(USE_CUDA OR USE_HIP)
   list(APPEND TAMM_DEPENDENCIES Librett)
   if(NOT DEFINED USE_TALSH)
     list(APPEND TAMM_DEPENDENCIES TALSH)

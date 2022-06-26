@@ -40,7 +40,7 @@ using tensor_handle = talsh_tens_t;
 
 #else
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP) || defined(USE_TALSH)
 #include "tamm/gpu_memory_pool.hpp"
 #endif
 
@@ -84,7 +84,7 @@ void copy_data_to_gpu(ExecutionHW hw, const std::vector<T2>& ainter_buf, T2** ai
                       const std::vector<T1>& cinter_buf, T1** cinter_buf_dev) {
   if(hw != ExecutionHW::GPU) return;
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
 
   auto& memPool = tamm::GPUPooledStorageManager::getInstance();
 
@@ -252,7 +252,7 @@ void free_device_buffers(ExecutionHW hw, std::size_t ainter_size, std::size_t bi
                          T1* cinter_buf_dev) {
   if(hw != ExecutionHW::GPU) return;
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
   auto& memPool = tamm::GPUPooledStorageManager::getInstance();
 
   memPool.deallocate(static_cast<void*>(ainter_buf_dev), ainter_size * sizeof(T2));

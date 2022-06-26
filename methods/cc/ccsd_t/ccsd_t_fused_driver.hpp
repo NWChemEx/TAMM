@@ -167,9 +167,6 @@ std::tuple<T, T, double, double> ccsd_t_fused_driver_new(
   int* df_simple_d2_size = (int*) getHostMem(sizeof(int) * (7 * nvab));
   int* df_simple_d2_exec = (int*) getHostMem(sizeof(int) * (9 * nvab));
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  // get GPU stream from pool
-  auto&        pool   = tamm::GPUStreamPool::getInstance();
-  gpuStream_t& stream = pool.getStream();
   // get GPU memory handle from pool
   auto& memPool = tamm::GPUPooledStorageManager::getInstance();
 

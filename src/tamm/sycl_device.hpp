@@ -12,12 +12,15 @@
 #include <unistd.h>
 
 #if __has_include(<sycl/sycl.hpp>)
- #include <sycl/sycl.hpp>
+#include <sycl/sycl.hpp>
 #else
- #include <CL/sycl.hpp>
- namespace sycl = cl::sycl;
+#include <CL/sycl.hpp>
+namespace sycl = cl::sycl;
 #endif
 
+#include <CL/sycl/backend/level_zero.hpp>
+#include <level_zero/ze_api.h>
+#include <level_zero/zes_api.h>
 
 class device_ext: public sycl::device {
 public:
@@ -61,6 +64,34 @@ public:
     _thread2dev_map[get_tid()] = id;
   }
   int device_count() { return _devs.size(); }
+
+  void memGetInfo(size_t* m_free, size_t* m_total) {
+    size_t        mfree = 0, mtotal = 0;
+    int           current_devID = this->current_device();
+    sycl::device* myDev         = get_sycl_device(current_devID);
+
+    ze_device_handle_t  ze_device  = sycl::get_native<sycl::backend::ext_oneapi_level_zero>(*myDev);
+    zes_device_handle_t zes_device = (zes_device_handle_t) ze_device;
+
+    uint32_t module_count = 0;
+    zesDeviceEnumMemoryModules(zes_device, &module_count, nullptr);
+    if(module_count > 0) {
+      std::vector<zes_mem_handle_t> module_list(module_count);
+      std::vector<zes_mem_state_t>  state_list(module_count);
+
+      zesDeviceEnumMemoryModules(zes_device, &module_count, module_list.data());
+
+      for(uint32_t i = 0; i < module_count; ++i) {
+        zesMemoryGetState(module_list[i], &(state_list[i]));
+        mfree += state_list[i].free;
+        mtotal += state_list[i].size;
+      }
+    }
+
+    *m_free  = mfree;
+    *m_total = mtotal;
+    return;
+  }
 
   /// Returns the instance of device manager singleton.
   static dev_mgr& instance() {
@@ -125,3 +156,8 @@ static inline void syclSetDevice(int id) { dev_mgr::instance().select_device(id)
 
 /// Util function to get number of GPU devices (default: explicit scaling)
 static inline void syclGetDeviceCount(int* id) { *id = dev_mgr::instance().device_count(); }
+
+/// Util function to get free, totoal memory in bytes for the active GPU
+static inline void syclMemGetInfo(size_t* free, size_t* total) {
+  dev_mgr::instance().memGetInfo(free, total);
+}

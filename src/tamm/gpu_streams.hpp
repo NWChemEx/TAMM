@@ -15,6 +15,8 @@
 #include "sycl_device.hpp"
 #endif
 
+namespace tamm {
+
 #if defined(USE_HIP)
 using gpuStream_t                            = hipStream_t;
 using gpuEvent_t                             = hipEvent_t;
@@ -40,9 +42,8 @@ auto sycl_asynchandler = [](sycl::exception_list exceptions) {
     }
   }
 };
-#endif // USE_DPCPP
+#endif
 
-namespace tamm {
 static inline void getDeviceCount(int* id) {
 #if defined(USE_CUDA)
   cudaGetDeviceCount(id);

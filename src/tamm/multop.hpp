@@ -514,6 +514,19 @@ public:
         add_bufs.push_back(ab);
 
         {
+          TensorElType1 *cbuf_dev_ptr{nullptr};
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
+          auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+          cbuf_dev_ptr = static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
+          #if defined(USE_DPCPP)
+            auto& dev_queue = tamm::GPUStreamPool::getInstance().getStream();
+            dev_queue.memset(cbuf_dev_ptr, 0, csize * sizeof(TensorElType1)).wait();
+          #elif defined(USE_HIP)
+            hipMemset(cbuf_dev_ptr,  0, csize * sizeof(TensorElType1));
+          #elif defined(USE_CUDA)
+            cudaMemset(cbuf_dev_ptr, 0, csize * sizeof(TensorElType1));
+          #endif
+#endif
           TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
           kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
             ab->isgpu_,
@@ -522,7 +535,13 @@ public:
 #endif
             alpha_, abuf.data(), adims_sz, rhs1_int_labels_, bbuf.data(), bdims_sz,
             rhs2_int_labels_, cscale, (ab->cbuf_).data(), cdims_sz, lhs_int_labels_, hw,
-            ec.has_gpu());
+            ec.has_gpu(), true, &cbuf_dev_ptr, nullptr);
+
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
+  // free cbuf_dev_ptr        
+  // auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+  memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
+#endif
         }
 
 #ifndef DO_NB
@@ -978,6 +997,26 @@ public:
         nranks_per_lhs_block = (ec.pg().size().value() / n_lhs_blocks) + 1 -
                                (lhs_counter >= (ec.pg().size().value() % n_lhs_blocks));
 #endif
+
+        TensorElType1 *cbuf_dev_ptr{nullptr};
+        TensorElType1 *cbuf_tmp_dev_ptr{nullptr};
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
+        auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+        cbuf_dev_ptr = static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
+        cbuf_tmp_dev_ptr = static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
+        #if defined(USE_DPCPP)
+          auto& dev_queue = tamm::GPUStreamPool::getInstance().getStream();
+          dev_queue.memset(cbuf_dev_ptr, 0, csize * sizeof(TensorElType1)).wait();
+          dev_queue.memset(cbuf_tmp_dev_ptr, 0, csize * sizeof(TensorElType1)).wait();
+        #elif defined(USE_HIP)
+          hipMemset(cbuf_dev_ptr, 0, csize * sizeof(TensorElType1));
+          hipMemset(cbuf_tmp_dev_ptr, 0, csize * sizeof(TensorElType1));
+        #elif defined(USE_CUDA)
+          cudaMemset(cbuf_dev_ptr, 0, csize * sizeof(TensorElType1));
+          cudaMemset(cbuf_tmp_dev_ptr, 0, csize * sizeof(TensorElType1));
+        #endif
+#endif
+
         int slc = 0;
         for(const auto& inner_it_val: inner_loop) { // k
 
@@ -1090,7 +1129,7 @@ public:
 #endif
               alpha_, (abptr->abuf_).data(), adims_sz, rhs1_int_labels_,
               (abptr->bbuf_).data(), bdims_sz, rhs2_int_labels_, cscale, cbuf.data(), cdims_sz,
-              lhs_int_labels_, hw, ec.has_gpu(), false);
+              lhs_int_labels_, hw, ec.has_gpu(), false, &cbuf_dev_ptr, &cbuf_tmp_dev_ptr);
           }
           slc++;
         } // end of reduction loop
@@ -1134,6 +1173,21 @@ public:
             talshTaskDestruct(tph1);
             //}
           }
+#else
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
+  {
+  // copy to host
+  std::vector<TensorElType1> cbuf_tmp(csize, 0);
+  kernels::copy_result_to_host(hw,cbuf_tmp,cbuf_dev_ptr);
+  // cbuf+=cbuf_tmp
+  blas::axpy(csize,TensorElType1{1},cbuf_tmp.data(),1,cbuf.data(),1);
+  }
+  // free cbuf_dev_ptr
+  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+  memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
+  memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
+#endif
+
 #endif
           {
             TimerGuard tg_add{&oprof.multOpAddTime};

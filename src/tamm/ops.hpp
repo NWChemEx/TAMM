@@ -131,7 +131,7 @@ constexpr auto LabeledTensor<T>::make_op(T1&& rhs, const bool is_assign,
                                (is_same_v<rhs1_t, LTT> &&
                                 (is_same_v<rhs0_t, LTT_cfloat> ||
                                  is_same_v<rhs0_t, LTT_cdouble>))))
-                return MultOp<int, LTT, rhs0_t, rhs1_t>{
+                return MultOp<T, LTT, rhs0_t, rhs1_t>{
                   *this, sub_v, get<0>(rhs), get<1>(rhs), is_assign};
         }
 

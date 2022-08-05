@@ -556,7 +556,7 @@ void block_multiply(bool& isgpuOp,
         }
 
         T1* abuf_complex_dev{nullptr};
-        T2* bbuf_complex_dev{nullptr};
+        T1* bbuf_complex_dev{nullptr};
         copy_data_to_gpu(hw, abuf_complex, &abuf_complex_dev,  
                     bbuf_complex, &bbuf_complex_dev,
                     cinter_buf, &cinter_buf_dev);

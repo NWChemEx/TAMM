@@ -535,12 +535,14 @@ public:
         bool isgpu = false;
 
 #ifdef USE_TALSH
+        gpuStream_t thandle{};
         AddBuf<TensorElType1>* ab = new AddBuf<TensorElType1>{
           isgpu, talsh_task, th_c, th_a, th_b, ctensor, std::move(cbuf), translated_cblockid};
 #elif defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         AddBuf<TensorElType1,TensorElType2,TensorElType3>* ab = new AddBuf<TensorElType1,TensorElType2,TensorElType3>{
           isgpu, &thandle, th_a, th_b, th_c, std::move(cbuf), translated_cblockid};
 #else
+        gpuStream_t thandle{};
         AddBuf<TensorElType1>* ab =
           new AddBuf<TensorElType1>{isgpu, ctensor, std::move(cbuf), translated_cblockid};
 #endif
@@ -574,9 +576,9 @@ public:
 #ifdef USE_TALSH
             *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, COPY_TTT, talsh_dev_id,
 #elif (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
-            thandle, &th_a, &th_b,
+            &th_a, &th_b,
 #endif
-            alpha_, abuf.data(), adims_sz, rhs1_int_labels_, bbuf.data(), bdims_sz,
+            thandle, alpha_, abuf.data(), adims_sz, rhs1_int_labels_, bbuf.data(), bdims_sz,
             rhs2_int_labels_, cscale, (ab->cbuf_).data(), cdims_sz, lhs_int_labels_, hw,
             ec.has_gpu(), true, &cbuf_dev_ptr, &cbuf_tmp_dev_ptr);
 
@@ -590,7 +592,8 @@ public:
   }
   // free cbuf_dev_ptr
   // auto& memPool = tamm::GPUPooledStorageManager::getInstance();
-  tamm::kernels::free_device_buffers(hw, asize, bsize, th_a, th_b);
+  tamm::kernels::free_device_buffers(hw, th_a, asize);
+  tamm::kernels::free_device_buffers(hw, th_b, bsize);
   memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
   memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
 #endif
@@ -975,6 +978,7 @@ public:
       tensor_handle*         th_c2;
       AddBuf<TensorElType1>* ab1;
       AddBuf<TensorElType1>* ab2;
+      gpuStream_t thandle{};
 
       if(hw == ExecutionHW::GPU) {
         int              tal_cdims[cdims_sz.size()];
@@ -1023,6 +1027,7 @@ public:
         }
         add_bufs.push_back(ab);
 #else
+      gpuStream_t thandle{};
       AddBuf<TensorElType1>* ab =
         new AddBuf<TensorElType1>{isgpu, ctensor, {}, translated_cblockid};
       add_bufs.push_back(ab);
@@ -1211,13 +1216,13 @@ public:
 #ifdef USE_TALSH
               *gpu_mult, *(abptr->tt_), *(abptr->tc_), *(abptr->ta_), *(abptr->tb_), COPY_MTT, talsh_dev_id,
 #elif defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-              thandle, &(abptr->ta_), &(abptr->tb_),
+              &(abptr->ta_), &(abptr->tb_),
 #endif
-              alpha_, (abptr->abuf_).data(), adims_sz, rhs1_int_labels_,
+              thandle, alpha_, (abptr->abuf_).data(), adims_sz, rhs1_int_labels_,
               (abptr->bbuf_).data(), bdims_sz, rhs2_int_labels_, cscale, cbuf.data(), cdims_sz,
               lhs_int_labels_, hw, ec.has_gpu(), false, &cbuf_dev_ptr, &cbuf_tmp_dev_ptr);
           }
-#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
       if(hw == ExecutionHW::GPU) {
         memPool.deallocate(static_cast<void*>(ab->ta_), (ab->abuf_).size() * sizeof(TensorElType2));
         memPool.deallocate(static_cast<void*>(ab->tb_), (ab->bbuf_).size() * sizeof(TensorElType3));

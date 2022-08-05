@@ -43,6 +43,10 @@ using tensor_handle = talsh_tens_t;
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP) || defined(USE_TALSH)
 #include "librett/librett.h"
 #include "tamm/gpu_memory_pool.hpp"
+#else
+namespace tamm {
+  using gpuStream_t = int; //not used
+}
 #endif
 
 #if defined(USE_CUDA)
@@ -277,16 +281,21 @@ void copy_result_to_host(ExecutionHW hw, gpuStream_t& thandle, std::vector<T1>& 
 #endif
 }
 
-template<typename T2, typename T3>
-void free_device_buffers(ExecutionHW hw, std::size_t ainter_size, std::size_t binter_size,
-                         T2* ainter_buf_dev, T3* binter_buf_dev) {
-#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
+template<typename T>
+void allocate_device_buffers(ExecutionHW hw, T** dev_buf, size_t buf_size) {
   if(hw != ExecutionHW::GPU) return;
-
+  #if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
   auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+  *dev_buf = static_cast<T*>(memPool.allocate(buf_size * sizeof(T)));
+  #endif
+}
 
-  memPool.deallocate(static_cast<void*>(ainter_buf_dev), ainter_size * sizeof(T2));
-  memPool.deallocate(static_cast<void*>(binter_buf_dev), binter_size * sizeof(T3));
+template<typename T>
+void free_device_buffers(ExecutionHW hw, T* dev_buf, std::size_t buf_size) {
+  if(hw != ExecutionHW::GPU) return;
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
+  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+  memPool.deallocate(static_cast<void*>(dev_buf), buf_size * sizeof(T));
 #endif
 }
 
@@ -423,9 +432,9 @@ void block_multiply(bool& isgpuOp,
                     TALSH& gpu_mult, talsh_task_t& talsh_task, tensor_handle& th_c,
                     tensor_handle& th_a, tensor_handle& th_b, int copy_ctrl, int talsh_dev_id,
 #elif (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
-                    gpuStream_t& thandle, T2** th_a, T3** th_b,
+                    T2** th_a, T3** th_b,
 #endif
-                    T alpha, const T2* abuf, const SizeVec& adims, const IntLabelVec& alabels,
+                    gpuStream_t& thandle, T alpha, const T2* abuf, const SizeVec& adims, const IntLabelVec& alabels,
                     const T3* bbuf, const SizeVec& bdims, const IntLabelVec& blabels, T beta,
                     T1* cbuf, const SizeVec& cdims, const IntLabelVec& clabels,
                     ExecutionHW hw, 
@@ -559,21 +568,24 @@ void block_multiply(bool& isgpuOp,
   auto bmult_cpu_lambda = [&]() {
     bool gpu_trans = false;
     std::vector<T1> cinter_buf;
-    if(hw != ExecutionHW::GPU) 
+    if(hw != ExecutionHW::GPU || !isgpuOp) 
     cinter_buf.resize(static_cast<size_t>(csize.value()));
 
-    T2* ainter_buf_dev=*th_a;//{nullptr};
-    T3* binter_buf_dev=*th_b;//{nullptr};
+    T2* ainter_buf_dev{nullptr};
+    T3* binter_buf_dev{nullptr};
+  #if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
+    ainter_buf_dev=*th_a;
+    binter_buf_dev=*th_b;
+  #endif
 
     // T1* cinter_buf_dev{nullptr};
-    auto& memPool = tamm::GPUPooledStorageManager::getInstance();
 
     // dgemm
     if constexpr(std::is_same_v<T1, T2> && std::is_same_v<T1, T3>) {
 
       std::vector<T2> ainter_buf;
       std::vector<T3> binter_buf;
-      if(hw != ExecutionHW::GPU) 
+      if(hw != ExecutionHW::GPU || !isgpuOp) 
       {
         ainter_buf.resize(static_cast<size_t>(asize.value()));
         binter_buf.resize(static_cast<size_t>(bsize.value()));
@@ -604,8 +616,12 @@ void block_multiply(bool& isgpuOp,
       // TODO: actually check if one of T2, T3 is real, T1 is complex
       if constexpr(std::is_same_v<T1, T2>) {
 
-        std::vector<T2> ainter_buf(static_cast<size_t>(asize.value()));
-        std::vector<T1> binter_buf(static_cast<size_t>(bsize.value()));
+        std::vector<T2> ainter_buf;
+        std::vector<T1> binter_buf;
+        if(hw != ExecutionHW::GPU || !isgpuOp) {
+          ainter_buf.resize(static_cast<size_t>(asize.value()));
+          binter_buf.resize(static_cast<size_t>(bsize.value()));
+        }
 
         // T2 (matrix A) is complex, T3 (B) is real
         if constexpr(internal::is_complex_v<T1>) {
@@ -624,7 +640,7 @@ void block_multiply(bool& isgpuOp,
             bli_scopyv(BLIS_NO_CONJUGATE, bsize.value(), bbufp, 1, bbuf_comp_ptr, 2);
 
           T1* bbuf_complex_dev{nullptr};
-          bbuf_complex_dev = static_cast<T1*>(memPool.allocate(bbuf_complex.size() * sizeof(T1)));
+          allocate_device_buffers(hw, &bbuf_complex_dev, bbuf_complex.size());
 
           gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf, asize.value(), adims, alabels,
                      binter_buf, binter_dims, binter_labels, bbuf_complex.data(), bsize.value(), bdims, blabels,
@@ -641,9 +657,7 @@ void block_multiply(bool& isgpuOp,
                           cbuf, cdims, clabels, cinter_buf_dev,
                           cinter_tmp_buf_dev, is_assign);
 
-          memPool.deallocate(static_cast<void*>(bbuf_complex_dev), bbuf_complex.size() * sizeof(T1));
-          // free_device_buffers(hw, ainter_buf.size(), bbuf_complex.size(),
-          //                     ainter_buf_dev, bbuf_complex_dev);
+          free_device_buffers(hw, bbuf_complex_dev, bbuf_complex.size());
 
         } // is_complex<T1>
         else {
@@ -662,7 +676,8 @@ void block_multiply(bool& isgpuOp,
             bli_scopyv(BLIS_NO_CONJUGATE, bsize.value(), bbuf_comp_ptr, 2, bbuf_real.data(), 1);
 
           T1* bbuf_real_dev{nullptr};
-          bbuf_real_dev = static_cast<T1*>(memPool.allocate(bbuf_real.size() * sizeof(T1)));
+          allocate_device_buffers(hw, &bbuf_real_dev, bbuf_real.size());
+
           gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf, asize.value(), adims, alabels,
                      binter_buf, binter_dims, binter_labels, bbuf_real.data(), bsize.value(), bdims, blabels,
                      &ainter_buf_dev, &bbuf_real_dev);
@@ -677,16 +692,19 @@ void block_multiply(bool& isgpuOp,
           transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels,
                           cbuf, cdims, clabels, cinter_buf_dev,
                           cinter_tmp_buf_dev, is_assign);
-          memPool.deallocate(static_cast<void*>(bbuf_real_dev), bbuf_real.size() * sizeof(T1));
-          // free_device_buffers(hw, ainter_buf.size(), bbuf_real.size(),
-          //                     ainter_buf_dev, bbuf_real_dev);
+          
+          free_device_buffers(hw, bbuf_real_dev, bbuf_real.size());
         } // is_real<T1>
 
       } // is_same_v<T1,T2>
       else if constexpr(std::is_same_v<T1, T3>) {
 
-        std::vector<T1> ainter_buf(static_cast<size_t>(asize.value()));
-        std::vector<T3> binter_buf(static_cast<size_t>(bsize.value()));
+        std::vector<T1> ainter_buf;
+        std::vector<T3> binter_buf;
+        if(hw != ExecutionHW::GPU || !isgpuOp) {
+          ainter_buf.resize(static_cast<size_t>(asize.value()));
+          binter_buf.resize(static_cast<size_t>(bsize.value()));
+        }
 
         // T3 (matrix B) is complex, T2 (A) is real
         if constexpr(internal::is_complex_v<T1>) {
@@ -704,7 +722,7 @@ void block_multiply(bool& isgpuOp,
             bli_scopyv(BLIS_NO_CONJUGATE, asize.value(), abufp, 1, abuf_comp_ptr, 2);
 
           T1* abuf_complex_dev{nullptr};
-          abuf_complex_dev = static_cast<T1*>(memPool.allocate(abuf_complex.size() * sizeof(T1)));
+          allocate_device_buffers(hw, &abuf_complex_dev, abuf_complex.size());
 
           gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf_complex.data(), asize.value(), adims, alabels,
                   binter_buf, binter_dims, binter_labels, bbuf, bsize.value(), bdims, blabels,
@@ -721,9 +739,7 @@ void block_multiply(bool& isgpuOp,
                           cbuf, cdims, clabels, cinter_buf_dev,
                           cinter_tmp_buf_dev, is_assign);                       
 
-          memPool.deallocate(static_cast<void*>(abuf_complex_dev), abuf_complex.size() * sizeof(T1));        
-          // free_device_buffers(hw, abuf_complex.size(), binter_buf.size(),
-          //                     abuf_complex_dev, binter_buf_dev);
+          free_device_buffers(hw, abuf_complex_dev, abuf_complex.size());
         }
         else {
           // T1,T3 (C,B) are real, T2 (A) is complex
@@ -742,7 +758,7 @@ void block_multiply(bool& isgpuOp,
             bli_scopyv(BLIS_NO_CONJUGATE, asize.value(), abuf_comp_ptr, 2, abuf_real.data(), 1);
 
           T1* abuf_real_dev{nullptr};
-          abuf_real_dev = static_cast<T1*>(memPool.allocate(abuf_real.size() * sizeof(T1)));
+          allocate_device_buffers(hw, &abuf_real_dev, abuf_real.size());
 
           gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf_real.data(), asize.value(), adims, alabels,
                      binter_buf, binter_dims, binter_labels, bbuf, bsize.value(), bdims, blabels,
@@ -750,8 +766,7 @@ void block_multiply(bool& isgpuOp,
 
           if(!gpu_trans) {
             abuf_real = ainter_buf;
-            copy_data_to_gpu(hw, thandle, abuf_real, &abuf_real_dev, binter_buf, &binter_buf_dev, cinter_buf,
-                            &cinter_buf_dev);
+            copy_data_to_gpu(hw, thandle, abuf_real, &abuf_real_dev, binter_buf, &binter_buf_dev);
           }
 
           gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_real, abuf_real_dev, binter_buf,
@@ -760,18 +775,19 @@ void block_multiply(bool& isgpuOp,
                           cbuf, cdims, clabels, cinter_buf_dev,
                           cinter_tmp_buf_dev, is_assign);                       
 
-          memPool.deallocate(static_cast<void*>(abuf_real_dev), abuf_real.size() * sizeof(T1));        
-
-          // free_device_buffers(hw, abuf_real.size(), binter_buf.size(),
-          //                     abuf_real_dev, binter_buf_dev);
+          free_device_buffers(hw, abuf_real_dev, abuf_real.size());
         }
 
       } // is_same_v<T1,T3>
 
       else if constexpr(internal::is_complex_v<T1> && std::is_same_v<T2, T3>) {
 
-        std::vector<T1> ainter_buf(static_cast<size_t>(asize.value()));
-        std::vector<T1> binter_buf(static_cast<size_t>(bsize.value()));
+        std::vector<T1> ainter_buf;
+        std::vector<T1> binter_buf;
+        if(hw != ExecutionHW::GPU || !isgpuOp) {
+          ainter_buf.resize(static_cast<size_t>(asize.value()));
+          binter_buf.resize(static_cast<size_t>(bsize.value()));
+        }
 
         // T1 is complex, T2, T3 are real
         // std::vector<T1> abuf_complex(asize.value());
@@ -803,8 +819,8 @@ void block_multiply(bool& isgpuOp,
 
         T1* abuf_complex_dev{nullptr};
         T1* bbuf_complex_dev{nullptr};
-        abuf_complex_dev = static_cast<T1*>(memPool.allocate(abuf_complex.size() * sizeof(T1)));
-        bbuf_complex_dev = static_cast<T1*>(memPool.allocate(bbuf_complex.size() * sizeof(T1)));
+        allocate_device_buffers(hw, &abuf_complex_dev, abuf_complex.size());
+        allocate_device_buffers(hw, &bbuf_complex_dev, bbuf_complex.size());
 
         gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf_complex.data(), asize.value(), adims, alabels,
                      binter_buf, binter_dims, binter_labels, bbuf_complex.data(), bsize.value(), bdims, blabels,
@@ -822,8 +838,9 @@ void block_multiply(bool& isgpuOp,
                         cbuf, cdims, clabels, cinter_buf_dev,
                         cinter_tmp_buf_dev, is_assign);
 
-        free_device_buffers(hw, abuf_complex.size(), bbuf_complex.size(),
-                            abuf_complex_dev, bbuf_complex_dev);
+        free_device_buffers(hw, abuf_complex_dev, abuf_complex.size());
+        free_device_buffers(hw, bbuf_complex_dev, bbuf_complex.size());
+
       }
 
       else

@@ -16,10 +16,6 @@
 #include <memory>
 #include <vector>
 
-#if USE_TALSH
-#include "talsh/talshxx.hpp"
-#endif
-
 #if defined(USE_UPCXX)
 extern upcxx::team* team_self;
 #endif
@@ -103,13 +99,6 @@ public:
   //     //nnodes_ = {GA_Cluster_nnodes()};
   //     nnodes_ = pg.size().value() / ranks_pn_;
 
-  // #ifdef USE_TALSH
-  //     int errc = talshDeviceCount(DEV_NVIDIA_GPU, &ngpu_);
-  //     assert(!errc);
-  //     dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
-  //     if (ngpu_ == 1) dev_id_=0;
-  //     if( (pg.rank().value() % ranks_pn_) < ngpu_ ) has_gpu_ = true;
-  // #endif
   //     // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
   // }
   RuntimeEngine* runtime_ptr();

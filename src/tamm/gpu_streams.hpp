@@ -4,8 +4,8 @@
 #include <map>
 
 #ifdef USE_CUDA
-#include <cublas_v2.h>
 #include <cuda.h>
+#include <cublas_v2.h>
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
 #elif defined(USE_HIP)
@@ -82,8 +82,7 @@ private:
     _count       = 0;
     _initialized = false;
 
-  #if !defined(USE_DPCPP) && !defined(USE_TALSH)
-
+  #if !defined(USE_DPCPP)
     if(!_devID2Streams.empty()) {
       for(auto& stream: _devID2Streams) {
     #if defined(USE_CUDA)
@@ -160,12 +159,11 @@ public:
 #endif
   }
 
-#if !defined(USE_DPCPP) && !defined(USE_TALSH)
-  gpuBlasHandle_t& getBlasHandle() {
+#if !defined(USE_DPCPP)
+    gpuBlasHandle_t& getBlasHandle() {
     if(!_initialized) {
       EXPECTS_STR(false, "Error: active GPU-device not set! call set_device()!");
     }
-
     auto result = _devID2Handles.insert({_active_device, gpuBlasHandle_t()});
 #if defined(USE_CUDA)
     gpuBlasHandle_t& handle   = (*result.first).second;

@@ -170,40 +170,7 @@ struct GeneralLHSMultPlan:
 } // namespace tamm::internal
 
 namespace tamm {
-#ifdef USE_TALSH
-template<typename T>
-struct AddBuf {
-  // AddBuf() = default;
-  AddBuf(bool isgpu, talsh_task_t* tt, tensor_handle* tc, tensor_handle* ta, tensor_handle* tb,
-         Tensor<T> tensor, std::vector<T>&& cbuf, const IndexVector& blockid):
-    tensor_{tensor},
-    blockid_{blockid}, cbuf_{cbuf}, tt_{tt}, tc_{tc}, ta_{ta}, tb_{tb}, isgpu_{isgpu} {
-    // tensor.nb_add(blockid, buf_, &nbhdl_);
-    // tensor.add(blockid, buf_);
-  }
-  ~AddBuf() { assert(nbhdl_.getCompletionStatus() == true); }
-  bool is_done() {
-    return true;
-    // return nbhdl_.getCompletionStatus();
-  }
-  void wait() {
-    if(!nbhdl_.getCompletionStatus()) { nbhdl_.waitForCompletion(); }
-  }
-
-  std::vector<T>          cbuf_;
-  std::vector<T>          abuf_;
-  std::vector<T>          bbuf_;
-  IndexVector             blockid_;
-  bool                    isgpu_;
-  Tensor<T>               tensor_;
-  talsh_task_t*           tt_;
-  tensor_handle*          tc_;
-  tensor_handle*          ta_;
-  tensor_handle*          tb_;
-  DataCommunicationHandle nbhdl_;
-};
-
-#elif defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 template<typename T1, typename T2, typename T3>
 struct AddBuf {
   // AddBuf() = default;
@@ -224,10 +191,10 @@ struct AddBuf {
   T1*          tc_;
 };
 #else
-template<typename T>
+template<typename T1, typename T2, typename T3>
 struct AddBuf {
   // AddBuf() = default;
-  AddBuf(bool isgpu, Tensor<T> tensor, std::vector<T>&& cbuf, const IndexVector& blockid):
+  AddBuf(bool isgpu, Tensor<T1> tensor, std::vector<T1>&& cbuf, const IndexVector& blockid):
     tensor_{tensor}, blockid_{blockid}, cbuf_{cbuf}, isgpu_{isgpu} {}
   ~AddBuf() { assert(nbhdl_.getCompletionStatus() == true); }
   bool is_done() { return true; }
@@ -235,12 +202,12 @@ struct AddBuf {
     if(!nbhdl_.getCompletionStatus()) { nbhdl_.waitForCompletion(); }
   }
 
-  std::vector<T>          cbuf_;
-  std::vector<T>          abuf_;
-  std::vector<T>          bbuf_;
+  std::vector<T1>         cbuf_;
+  std::vector<T2>         abuf_;
+  std::vector<T3>         bbuf_;  
   IndexVector             blockid_;
   bool                    isgpu_;
-  Tensor<T>               tensor_;
+  Tensor<T1>              tensor_;
   DataCommunicationHandle nbhdl_;
 };
 #endif
@@ -319,7 +286,6 @@ public:
     EXPECTS(!is_assign_);
     auto& oprof = tamm::OpProfiler::instance();
 
-#if 1
     using TensorElType = typename LabeledTensorT1::element_type;
     // determine set of all labels
     IndexLabelVec all_labels{lhs_.labels()};
@@ -327,11 +293,7 @@ public:
     all_labels.insert(all_labels.end(), rhs2_.labels().begin(), rhs2_.labels().end());
     LabelLoopNest loop_nest{all_labels};
 
-#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
-  std::vector<AddBuf<TensorElType1,TensorElType2,TensorElType3>*> add_bufs;
-#else
-    std::vector<AddBuf<TensorElType1>*> add_bufs;
-#endif
+    std::vector<AddBuf<TensorElType1,TensorElType2,TensorElType3>*> add_bufs;
     // function to compute one block
     auto lambda = [=, &oprof, &add_bufs, &loop_nest, &ec](const IndexVector itval) {
       auto ctensor = lhs_.tensor();
@@ -441,37 +403,7 @@ public:
          !btensor.is_non_zero(translated_bblockid))
         return;
 
-#if 0
-            if constexpr(std::is_same_v<TensorElType1,TensorElType2>
-                         && std::is_same_v<TensorElType1,TensorElType3>) {
-                ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc){
-                        BlockBuffer cbuf = rc.get_buf_tmp(ctensor, translated_cblockid);
-                        BlockBuffer abuf = rc.get_buf_read(atensor, translated_ablockid);
-                        BlockBuffer bbuf = rc.get_buf_read(btensor, translated_bblockid);
-                        // double cscale = is_assign_ ? 0 : 1;
-                        TensorElType cscale{0};
-
-                        SizeVec adims_sz, bdims_sz, cdims_sz;
-                        for(const auto v : abuf.block_dims()) { adims_sz.push_back(v); }
-                        for(const auto v : bbuf.block_dims()) { bdims_sz.push_back(v); }
-                        for(const auto v : cbuf.block_dims()) { cdims_sz.push_back(v); }
-                        kernels::block_multiply(ec.pg().rank().value(),alpha_, abuf.data(), adims_sz,
-                                rhs1_int_labels_, bbuf.data(), bdims_sz,
-                                rhs2_int_labels_, cscale, cbuf.data(),
-                                cdims_sz, lhs_int_labels_, hw, ec.has_gpu());
-
-                        // add the computed update to the tensor
-                        cbuf.release_add();
-
-                        }, TempAccess{IndexedTensor{ctensor, translated_cblockid}},
-                        AccumPermission{IndexedTensor{ctensor, translated_cblockid}},
-                        ReadAccess{IndexedTensor{atensor, translated_ablockid}},
-                        ReadAccess{IndexedTensor{btensor, translated_bblockid}});
-            }
-            else
-#endif
       {
-        const int talsh_dev_id = ec.gpu_devid();
         // determine set of all labels
 
         // compute block size and allocate buffers
@@ -517,41 +449,28 @@ public:
         for(const auto v: adims) { adims_sz.push_back(v); }
         for(const auto v: bdims) { bdims_sz.push_back(v); }
         for(const auto v: cdims) { cdims_sz.push_back(v); }
-#ifdef USE_TALSH
-        talsh_task_t* talsh_task = new talsh_task_t();
-        TALSH*        gpu_mult   = new TALSH{ec.num_gpu()};
-
-        tensor_handle* th_a = new tensor_handle();
-        tensor_handle* th_b = new tensor_handle();
-        tensor_handle* th_c = new tensor_handle();
-        talshTaskClean(talsh_task);
-#elif defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         TensorElType2* th_a{nullptr};
         TensorElType3* th_b{nullptr};
         TensorElType1* th_c{nullptr};
         auto& thandle = tamm::GPUStreamPool::getInstance().getStream();
-
 #endif
         bool isgpu = false;
 
-#ifdef USE_TALSH
-        gpuStream_t thandle{};
-        AddBuf<TensorElType1>* ab = new AddBuf<TensorElType1>{
-          isgpu, talsh_task, th_c, th_a, th_b, ctensor, std::move(cbuf), translated_cblockid};
-#elif defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         AddBuf<TensorElType1,TensorElType2,TensorElType3>* ab = new AddBuf<TensorElType1,TensorElType2,TensorElType3>{
           isgpu, &thandle, th_a, th_b, th_c, std::move(cbuf), translated_cblockid};
 #else
         gpuStream_t thandle{};
-        AddBuf<TensorElType1>* ab =
-          new AddBuf<TensorElType1>{isgpu, ctensor, std::move(cbuf), translated_cblockid};
+        AddBuf<TensorElType1,TensorElType2,TensorElType3>* ab =
+          new AddBuf<TensorElType1,TensorElType2,TensorElType3>{isgpu, ctensor, std::move(cbuf), translated_cblockid};
 #endif
         add_bufs.push_back(ab);
 
         {
           TensorElType1 *cbuf_dev_ptr{nullptr};
           TensorElType1 *cbuf_tmp_dev_ptr{nullptr};
-#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) 
           auto& memPool = tamm::GPUPooledStorageManager::getInstance();
           cbuf_dev_ptr = static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
           cbuf_tmp_dev_ptr = static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
@@ -573,16 +492,14 @@ public:
           TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
           kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
             ab->isgpu_,
-#ifdef USE_TALSH
-            *gpu_mult, *talsh_task, *th_c, *th_a, *th_b, COPY_TTT, talsh_dev_id,
-#elif (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) 
             &th_a, &th_b,
 #endif
             thandle, alpha_, abuf.data(), adims_sz, rhs1_int_labels_, bbuf.data(), bdims_sz,
             rhs2_int_labels_, cscale, (ab->cbuf_).data(), cdims_sz, lhs_int_labels_, hw,
             ec.has_gpu(), true, &cbuf_dev_ptr, &cbuf_tmp_dev_ptr);
 
-#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) 
   if(hw == ExecutionHW::GPU) {
     std::vector<TensorElType1> cbuf_tmp(csize, 0);
     kernels::copy_result_to_host(hw,thandle,cbuf_tmp,cbuf_dev_ptr);
@@ -599,64 +516,18 @@ public:
 #endif
         }
 
-#ifndef DO_NB
-#ifdef USE_TALSH
-        if(hw == ExecutionHW::GPU && ab->isgpu_) {
-          {
-            TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
-            gpu_mult->wait_and_destruct(ab->tt_);
-          }
-          talshTensorDestruct(ab->ta_);
-          talshTensorDestruct(ab->tb_);
-          talshTensorDestruct(ab->tc_);
-        }
-        delete gpu_mult;
-#endif
-        {
-          TimerGuard tg_get{&oprof.multOpAddTime};
-          // add the computed update to the tensor
-          ctensor.add(translated_cblockid, ab->cbuf_);
-        }
-        delete ab;
-        add_bufs.clear();
-#endif
-
-        // add the computed update to the tensor
-        // {
-        //     TimerGuard tg_add{&multOpAddTime};
-        //     //ctensor.add(translated_cblockid, cbuf);
-        //     const int k = 20;
-        //     if(add_bufs.size() >= k) {
-        //         for(auto& ab: add_bufs) {
-        //             #ifdef USE_TALSH
-        //             {
-        //                 if(ab->isgpu_) {
-        //                     int done = NOPE;
-        //                     int sts, errc = TALSH_SUCCESS;
-        //                     while(done != YEP && errc == TALSH_SUCCESS) {
-        //                     done=talshTaskComplete(ab->tt_, &sts, &errc);
-        //                     }
-        //                     assert(errc == TALSH_SUCCESS);
-        //                     errc = talshTaskDestruct(ab->tt_);
-        //                     assert(errc == TALSH_SUCCESS);
-        //                     talshTensorDestruct(ab->ta_);
-        //                     talshTensorDestruct(ab->tb_);
-        //                     talshTensorDestruct(ab->tc_);
-        //                 }
-        //             }
-        //             #endif
-        //         }
-        //          for(auto& ab: add_bufs) {
-        //             (ab->tensor_).nb_add(ab->blockid_, ab->cbuf_, &(ab->nbhdl_));
-        //             ab->wait();
-        //             delete ab;
-        //          }
-
-        //         add_bufs.clear();
-        //     }
-        // }
+  #ifndef DO_NB
+    {
+      TimerGuard tg_get{&oprof.multOpAddTime};
+      // add the computed update to the tensor
+      ctensor.add(translated_cblockid, ab->cbuf_);
+    }
+    delete ab;
+    add_bufs.clear();
+  #endif
       }
     };
+
     //@todo use a scheduler
     //@todo make parallel
     // do_work(ec, loop_nest, lambda);
@@ -669,20 +540,6 @@ public:
       }
     }
 
-// std::cout << "has_sparse_labels " << has_sparse_labels << std::endl;
-// do_work(ec, loop_nest, lambda);
-#if 0
-            int64_t num_lhs_tiles = 0;
-            {
-                LabelLoopNest lhs_loop_nest{lhs_.labels()};
-                for(const auto &lblockid:lhs_loop_nest) {
-                    if(lhs_.tensor().is_non_zero(lblockid)) {
-                    num_lhs_tiles += 1;
-                    }
-                }
-            }
-#endif
-
     if(1 && (lhs_.tensor().is_dense() /* && !lhs_.tensor().has_spin() */) &&
        (rhs1_.tensor().is_dense() /* && !rhs1_.tensor().has_spin() */) &&
        (rhs2_.tensor().is_dense() /* && !rhs2_.tensor().has_spin() */) && !has_sparse_labels &&
@@ -690,14 +547,7 @@ public:
        //    rhs1_.tensor().execution_context()->pg() == ec.pg() &&
        //    rhs2_.tensor().execution_context()->pg() == ec.pg()
     ) {
-      if constexpr(std::is_same_v<TensorElType1, TensorElType2> &&
-                   std::is_same_v<TensorElType1, TensorElType3>
-                   // && !internal::is_complex_v<TensorElType1>
-      ) {
-        execute_bufacc(ec, hw);
-      }
-      else
-        do_work(ec, loop_nest, lambda);
+      execute_bufacc(ec, hw);
     }
     else { do_work(ec, loop_nest, lambda); }
 
@@ -705,32 +555,12 @@ public:
     {
       TimerGuard tg_add{&multOpAddTime};
       for(auto& ab: add_bufs) {
-#ifdef USE_TALSH
-        {
-          if(ab->isgpu_) {
-            int done = NOPE;
-            int sts, errc = TALSH_SUCCESS;
-            while(done != YEP && errc == TALSH_SUCCESS) {
-              done = talshTaskComplete(ab->tt_, &sts, &errc);
-            }
-            assert(errc == TALSH_SUCCESS);
-            errc = talshTaskDestruct(ab->tt_);
-            assert(errc == TALSH_SUCCESS);
-            talshTensorDestruct(ab->ta_);
-            talshTensorDestruct(ab->tb_);
-            talshTensorDestruct(ab->tc_);
-          }
-        }
-#endif
-      }
-      for(auto& ab: add_bufs) {
         (ab->tensor_).nb_add(ab->blockid_, ab->cbuf_, &(ab->nbhdl_));
         ab->wait();
         delete ab;
       }
       add_bufs.clear();
     }
-#endif
 
 #endif
   }
@@ -738,7 +568,6 @@ public:
   void execute_bufacc(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) {
     EXPECTS(!is_assign_);
     auto& oprof = tamm::OpProfiler::instance();
-#if 1
     using TensorElType1 = typename LabeledTensorT1::element_type;
     using TensorElType2 = typename LabeledTensorT2::element_type;
     using TensorElType3 = typename LabeledTensorT3::element_type;
@@ -819,11 +648,7 @@ public:
      std::inserter(reduction_set, reduction_set.end())); */
 
     // IndexLabelVec reduction_lbls{reduction.begin(), reduction.end()};
-    #if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
-      std::vector<AddBuf<TensorElType1,TensorElType2,TensorElType3>*> add_bufs;
-    #else
-        std::vector<AddBuf<TensorElType1>*> add_bufs;
-    #endif
+    std::vector<AddBuf<TensorElType1,TensorElType2,TensorElType3>*> add_bufs;
 #if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
     int64_t n_lhs_blocks, nranks_per_lhs_block, lhs_counter;
 #endif
@@ -835,104 +660,6 @@ public:
       auto btensor = rhs2_.tensor();
       // compute blockids from the loop indices. itval is the loop index
 
-#if 0
-            auto it = itval.begin();
-            IndexVector citval{it, it + lhs_.labels().size()};
-            it += lhs_.labels().size();
-            IndexVector aitval{it, it + rhs1_.labels().size()};
-            it += rhs1_.labels().size();
-            IndexVector bitval{it, it + rhs2_.labels().size()};
-
-            auto [extracted_clabels, cblockid] = internal::extract_blockid_and_label(
-                loop_nest.sorted_unique_labels(), citval, lhs_.labels());
-
-            auto [extracted_alabels, ablockid] = internal::extract_blockid_and_label(
-                loop_nest.sorted_unique_labels(), aitval, rhs1_.labels());
-
-            auto [extracted_blabels, bblockid] = internal::extract_blockid_and_label(
-                loop_nest.sorted_unique_labels(), bitval, rhs2_.labels());
-
-            EXPECTS(lhs_.labels().size() == extracted_clabels.size());
-            EXPECTS(rhs1_.labels().size() == extracted_alabels.size());
-            EXPECTS(rhs2_.labels().size() == extracted_blabels.size());
-
-            for(size_t i = 0; i < extracted_clabels.size(); i++) {
-                EXPECTS(
-                    extracted_clabels[i].tiled_index_space().is_compatible_with(
-                    lhs_.labels()[i].tiled_index_space()));
-            }
-
-            for(size_t i = 0; i < extracted_alabels.size(); i++) {
-                EXPECTS(
-                    extracted_alabels[i].tiled_index_space().is_compatible_with(
-                    rhs1_.labels()[i].tiled_index_space()));
-            }
-
-            for(size_t i = 0; i < extracted_blabels.size(); i++) {
-                EXPECTS(
-                    extracted_blabels[i].tiled_index_space().is_compatible_with(
-                    rhs2_.labels()[i].tiled_index_space()));
-            }
-
-            for(size_t i = 0; i < extracted_clabels.size(); i++) {
-                EXPECTS(
-                    extracted_clabels[i].tiled_index_space().is_compatible_with(
-                    lhs_.tensor()().labels()[i].tiled_index_space()));
-            }
-
-            for(size_t i = 0; i < extracted_alabels.size(); i++) {
-                EXPECTS(
-                    extracted_alabels[i].tiled_index_space().is_compatible_with(
-                    rhs1_.tensor()().labels()[i].tiled_index_space()));
-            }
-
-            for(size_t i = 0; i < extracted_blabels.size(); i++) {
-                EXPECTS(
-                    extracted_blabels[i].tiled_index_space().is_compatible_with(
-                    rhs2_.tensor()().labels()[i].tiled_index_space()));
-            }
-
-            IndexVector blockid{cblockid};
-            blockid.insert(blockid.end(), ablockid.begin(), ablockid.end());
-            blockid.insert(blockid.end(), bblockid.begin(), bblockid.end());
-
-            IndexLabelVec extracted_lbls{extracted_clabels};
-            extracted_lbls.insert(extracted_lbls.end(), extracted_alabels.begin(), extracted_alabels.end());
-            extracted_lbls.insert(extracted_lbls.end(), extracted_blabels.begin(), extracted_blabels.end());
-
-            auto tc_lbls = lhs_.tensor()().labels();
-            auto ta_lbls = rhs1_.tensor()().labels();
-            auto tb_lbls = rhs2_.tensor()().labels();
-
-            IndexLabelVec tensor_lbls{tc_lbls};
-            tensor_lbls.insert(tensor_lbls.end(), ta_lbls.begin(), ta_lbls.end());
-            tensor_lbls.insert(tensor_lbls.end(), tb_lbls.begin(), tb_lbls.end());
-
-            IndexVector translated_blockid;
-            bool tb_valid;
-
-            std::tie(translated_blockid, tb_valid) =
-              internal::translate_blockid_if_possible(
-                blockid, extracted_lbls, tensor_lbls);
-
-            auto id_it = translated_blockid.begin();
-            IndexVector translated_cblockid{id_it, id_it + lhs_.labels().size()};
-            id_it += lhs_.labels().size();
-            IndexVector translated_ablockid{id_it, id_it + rhs1_.labels().size()};
-            id_it += rhs1_.labels().size();
-            IndexVector translated_bblockid{id_it, id_it + rhs2_.labels().size()};
-
-            for(const auto id : translated_cblockid) {
-                if (id == -1) return;
-            }
-            for(const auto id : translated_ablockid) {
-                if (id == -1) return;
-            }
-            for(const auto id : translated_bblockid) {
-                if (id == -1) return;
-            }
-
-#else
       IndexVector c_block_id{itval};
       // print the c_block_id
       // std::cout << "C Block ID: " ;
@@ -944,7 +671,6 @@ public:
         // const auto translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
         // const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
 
-#endif
       /* if( !ctensor.is_non_zero(translated_cblockid) ||
           !atensor.is_non_zero(translated_ablockid) ||
           !btensor.is_non_zero(translated_bblockid))
@@ -961,55 +687,7 @@ public:
 
       bool      isgpu  = false;
 
-#if defined(USE_TALSH)
-      const int talsh_dev_id = ec.gpu_devid();
-      TALSH* gpu_mult = new TALSH{ec.num_gpu()};
-
-      // AddBuf<TensorElType1> *ab = new AddBuf<TensorElType1>{isgpu, talsh_task, th_c, th_a, th_b,
-      //     ctensor, std::move(cbuf),translated_cblockid};
-      talsh_task_t* tt1 = new talsh_task_t();
-      talsh_task_t* tt2;
-
-      tensor_handle*         th_a = new tensor_handle();
-      tensor_handle*         th_b = new tensor_handle();
-      tensor_handle*         th_c = new tensor_handle();
-      tensor_handle*         th_a2;
-      tensor_handle*         th_b2;
-      tensor_handle*         th_c2;
-      AddBuf<TensorElType1>* ab1;
-      AddBuf<TensorElType1>* ab2;
-      gpuStream_t thandle{};
-
-      if(hw == ExecutionHW::GPU) {
-        int              tal_cdims[cdims_sz.size()];
-        std::vector<int> tcid;
-        std::transform(std::begin(cdims_sz), std::end(cdims_sz), std::back_inserter(tcid),
-                       [](tamm::Size i) -> int { return i.value(); });
-        std::reverse(tcid.begin(), tcid.end());
-        std::copy(tcid.begin(), tcid.end(), tal_cdims);
-
-        tt2 = new talsh_task_t();
-        talshTaskClean(tt1);
-        talshTaskClean(tt2);
-
-        th_a2 = new tensor_handle();
-        th_b2 = new tensor_handle();
-        th_c2 = new tensor_handle();
-
-        *th_c  = gpu_mult->gpu_block<TensorElType1>(cdims_sz.size(), tal_cdims, talsh_dev_id);
-        *th_c2 = gpu_mult->gpu_block<TensorElType1>(cdims_sz.size(), tal_cdims, talsh_dev_id);
-
-        ab1 =
-          new AddBuf<TensorElType1>{isgpu, tt1, th_c, th_a, th_b, ctensor, {}, translated_cblockid};
-        ab2 = new AddBuf<TensorElType1>{isgpu, tt2,     th_c2, th_a2,
-                                        th_b2, ctensor, {},    translated_cblockid};
-      }
-      else {
-        AddBuf<TensorElType1>* ab =
-          new AddBuf<TensorElType1>{isgpu, tt1, th_c, th_a, th_b, ctensor, {}, translated_cblockid};
-        add_bufs.push_back(ab);
-      }
-#elif defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         TensorElType2* th_a{nullptr};
         TensorElType3* th_b{nullptr};
         TensorElType1* th_c{nullptr};
@@ -1028,40 +706,11 @@ public:
         add_bufs.push_back(ab);
 #else
       gpuStream_t thandle{};
-      AddBuf<TensorElType1>* ab =
-        new AddBuf<TensorElType1>{isgpu, ctensor, {}, translated_cblockid};
+      AddBuf<TensorElType1,TensorElType2,TensorElType3>* ab =
+        new AddBuf<TensorElType1,TensorElType2,TensorElType3>{isgpu, ctensor, {}, translated_cblockid};
       add_bufs.push_back(ab);
-#endif // USE_TALSH
-
-#if 0
-            if constexpr(std::is_same_v<TensorElType1,TensorElType2>
-                         && std::is_same_v<TensorElType1,TensorElType3>) {
-                ec.re()->submitTask([=](RuntimeEngine::RuntimeContext rc){
-                        BlockBuffer cbuf = rc.get_buf_tmp(ctensor, translated_cblockid);
-                        BlockBuffer abuf = rc.get_buf_read(atensor, translated_ablockid);
-                        BlockBuffer bbuf = rc.get_buf_read(btensor, translated_bblockid);
-                        // double cscale = is_assign_ ? 0 : 1;
-                        TensorElType cscale{0};
-
-                        SizeVec adims_sz, bdims_sz, cdims_sz;
-                        for(const auto v : abuf.block_dims()) { adims_sz.push_back(v); }
-                        for(const auto v : bbuf.block_dims()) { bdims_sz.push_back(v); }
-                        for(const auto v : cbuf.block_dims()) { cdims_sz.push_back(v); }
-                        kernels::block_multiply(ec.pg().rank().value(),alpha_, abuf.data(), adims_sz,
-                                rhs1_int_labels_, bbuf.data(), bdims_sz,
-                                rhs2_int_labels_, cscale, cbuf.data(),
-                                cdims_sz, lhs_int_labels_, hw, ec.has_gpu());
-
-                        // add the computed update to the tensor
-                        cbuf.release_add();
-
-                        }, TempAccess{IndexedTensor{ctensor, translated_cblockid}},
-                        AccumPermission{IndexedTensor{ctensor, translated_cblockid}},
-                        ReadAccess{IndexedTensor{atensor, translated_ablockid}},
-                        ReadAccess{IndexedTensor{btensor, translated_bblockid}});
-            }
-            else
 #endif
+
       {
         // LabelLoopNest inner_loop{reduction_lbls};
         LabelLoopNest inner_loop{reduction_labels};
@@ -1076,7 +725,7 @@ public:
 
         TensorElType1 *cbuf_dev_ptr{nullptr};
         TensorElType1 *cbuf_tmp_dev_ptr{nullptr};
-#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) 
         auto& memPool = tamm::GPUPooledStorageManager::getInstance();
         if(hw==ExecutionHW::GPU) {
         cbuf_dev_ptr = static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
@@ -1093,7 +742,6 @@ public:
           cudaMemsetAsync(cbuf_tmp_dev_ptr, 0, csize * sizeof(TensorElType1),thandle);
         #endif
         }
-
 #endif
 
         int slc = 0;
@@ -1173,56 +821,31 @@ public:
           // A*B
 
           {
-#if defined(USE_TALSH)
-            AddBuf<TensorElType1>* abptr{nullptr};
-            abptr = slc % 2 == 0 ? ab1 : ab2;
-            if(hw == ExecutionHW::CPU) abptr = add_bufs[0];
-            talsh_task_t* tt_handle = abptr->tt_;
-
-            if(slc > 1) {
-              if(abptr->isgpu_) {
-                gpu_mult->wait_and_destruct(tt_handle);
-                // abptr->tt_ = new talsh_task_t();
-                // talshTaskClean(abptr->tt_);
-                gpu_mult->free_block(*(abptr->ta_));
-                gpu_mult->free_block(*(abptr->tb_));
-              }
-              // delete abptr->abuf_;
-              // delete abptr->bbuf_;
-            }
-#elif defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-    AddBuf<TensorElType1,TensorElType2,TensorElType3>* abptr{nullptr};
-    if(hw == ExecutionHW::GPU){
-      abptr = ab;
-      ab->ta_ = static_cast<TensorElType2*>(memPool.allocate(asize * sizeof(TensorElType2)));
-      ab->tb_ = static_cast<TensorElType3*>(memPool.allocate(bsize * sizeof(TensorElType3)));
-    }
-    else abptr = add_bufs[0];
-
-#else
-            AddBuf<TensorElType1>* abptr{nullptr};
-            abptr = add_bufs[0];
-            // if(slc>0){
-            //     delete abptr->abuf_;
-            //     delete abptr->bbuf_;
-            // }
-#endif
+          AddBuf<TensorElType1,TensorElType2,TensorElType3>* abptr{nullptr};
+      #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+          if(hw == ExecutionHW::GPU){
+            abptr = ab;
+            ab->ta_ = static_cast<TensorElType2*>(memPool.allocate(asize * sizeof(TensorElType2)));
+            ab->tb_ = static_cast<TensorElType3*>(memPool.allocate(bsize * sizeof(TensorElType3)));
+          }
+          else abptr = add_bufs[0];
+      #else
+          abptr = add_bufs[0];
+      #endif
             abptr->abuf_ = std::move(abuf);
             abptr->bbuf_ = std::move(bbuf);
 
             TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
             kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
               abptr->isgpu_,
-#ifdef USE_TALSH
-              *gpu_mult, *(abptr->tt_), *(abptr->tc_), *(abptr->ta_), *(abptr->tb_), COPY_MTT, talsh_dev_id,
-#elif defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
               &(abptr->ta_), &(abptr->tb_),
 #endif
               thandle, alpha_, (abptr->abuf_).data(), adims_sz, rhs1_int_labels_,
               (abptr->bbuf_).data(), bdims_sz, rhs2_int_labels_, cscale, cbuf.data(), cdims_sz,
               lhs_int_labels_, hw, ec.has_gpu(), false, &cbuf_dev_ptr, &cbuf_tmp_dev_ptr);
           }
-#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
+#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) 
       if(hw == ExecutionHW::GPU) {
         memPool.deallocate(static_cast<void*>(ab->ta_), (ab->abuf_).size() * sizeof(TensorElType2));
         memPool.deallocate(static_cast<void*>(ab->tb_), (ab->bbuf_).size() * sizeof(TensorElType3));
@@ -1231,85 +854,39 @@ public:
           slc++;
         } // end of reduction loop
 
-        {
-          TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
-#if defined(USE_TALSH)
-          if(hw == ExecutionHW::GPU) {
-            if(ab1->isgpu_) {
-              gpu_mult->wait_and_destruct(ab1->tt_);
-              gpu_mult->free_block(*(ab1->ta_));
-              gpu_mult->free_block(*(ab1->tb_));
-            }
-            if(slc > 1 && ab2->isgpu_) {
-              gpu_mult->wait_and_destruct(ab2->tt_);
-              gpu_mult->free_block(*(ab2->ta_));
-              gpu_mult->free_block(*(ab2->tb_));
-            }
-          }
-#endif
-        }
+  // add the computed update to the tensor
+  {
+  #if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) 
+    // copy to host
+    if(hw == ExecutionHW::GPU) {
+    std::vector<TensorElType1> cbuf_tmp(csize, 0);
+    kernels::copy_result_to_host(hw,thandle,cbuf_tmp,cbuf_dev_ptr);
+    // cbuf+=cbuf_tmp
+    kernels::stream_synchronize<TensorElType1>(thandle);
+    blas::axpy(csize,TensorElType1{1},cbuf_tmp.data(),1,cbuf.data(),1);
 
-        // add the computed update to the tensor
-        {
-#ifdef USE_TALSH
-          if(hw == ExecutionHW::GPU && (ab1->isgpu_ || ab2->isgpu_)) {
-            // if(ab1->isgpu_ && ab2->isgpu_){
-            std::string aop_string =
-              internal::talsh_add_op_string(lhs_int_labels_, lhs_int_labels_);
-            gpu_mult->add_block(aop_string, talsh_dev_id, *th_c, *th_c2, (TensorElType1) 1.0);
-
-            talsh_task_t* tph1 = new talsh_task_t();
-            talshTaskClean(tph1);
-
-            int errc = talshTensorPlace(th_c, 0, DEV_HOST, cbuf.data(), COPY_M, tph1);
-            if(errc != TALSH_SUCCESS) { talshTaskPrint(tph1); }
-            else {
-              int ierr;
-              int werrc = talshTaskWait(tph1, &ierr);
-            }
-            talshTaskDestruct(tph1);
-            //}
-          }
-#elif (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) && !defined(USE_TALSH)
-  // copy to host
-  if(hw == ExecutionHW::GPU) {
-  std::vector<TensorElType1> cbuf_tmp(csize, 0);
-  kernels::copy_result_to_host(hw,thandle,cbuf_tmp,cbuf_dev_ptr);
-  // cbuf+=cbuf_tmp
-  kernels::stream_synchronize<TensorElType1>(thandle);
-  blas::axpy(csize,TensorElType1{1},cbuf_tmp.data(),1,cbuf.data(),1);
-
-  // free cbuf_dev_ptr
-  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
-  memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
-  memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
+    // free cbuf_dev_ptr
+    auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+    memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
+    memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
+    }
+  #endif
+    {
+      TimerGuard tg_add{&oprof.multOpAddTime};
+      ctensor.add(translated_cblockid, cbuf);
+    }
   }
-#endif
-          {
-            TimerGuard tg_add{&oprof.multOpAddTime};
-            ctensor.add(translated_cblockid, cbuf);
-          }
-        }
 
-#ifndef DO_NB
-#ifdef USE_TALSH
-        if(hw == ExecutionHW::GPU) {
-          gpu_mult->free_block(*th_c);
-          gpu_mult->free_block(*th_c2);
-          delete ab1;
-          delete ab2;
-        }
-        delete gpu_mult;
-#endif
-        for(auto& ab: add_bufs) delete ab;
-        add_bufs.clear();
-#endif
+  #ifndef DO_NB
+    for(auto& ab: add_bufs) delete ab;
+    add_bufs.clear();
+  #endif
 
-      } // multoptime
+    } // multoptime
 
-    };
-    //@todo use a scheduler
-    //@todo make parallel
+  };
+  //@todo use a scheduler
+  //@todo make parallel
 
 #if 0 && 6
             do_work(ec, lhs_loop_nest, lambda);
@@ -1348,8 +925,6 @@ public:
         }
       }
     }
-#endif
-
 #endif
   }
 

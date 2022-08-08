@@ -42,16 +42,9 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #endif
   nnodes_ = pg.size().value() / ranks_pn_;
 
-#if defined(USE_TALSH)
-  int errc = talshDeviceCount(DEV_NVIDIA_GPU, &ngpu_);
-  assert(!errc);
-#else
-  #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  tamm::getDeviceCount(&ngpu_);
-  #endif
-#endif
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+tamm::getDeviceCount(&ngpu_);
 
-#if defined(USE_TALSH) || defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 #if defined(USE_UPCXX)
   dev_id_ = upcxx::rank_me() % ngpu_;
   has_gpu_ = true;

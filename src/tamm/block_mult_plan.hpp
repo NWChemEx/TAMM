@@ -2,7 +2,7 @@
 
 #include "tamm/block_assign_plan.hpp"
 #include "tamm/block_span.hpp"
-#include "tamm/blockops_blis.hpp"
+#include "tamm/blockops_blas.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/tiled_index_space.hpp"
 #include "tamm/types.hpp"
@@ -23,12 +23,6 @@
  *   - lhs is 1d
  *   - lhs and non-scalar rhs have the same label
  *
- * - else, choose TALSH plan if:
- *   - TALSH available
- *   - No repeated labels in any labeled tensor
- *   - No reduction labels
- *   - No hadamard labels
- *
  * - else, choose LOOP GEMM plan if:
  *   - No repeated labels in any labeled tensor
  *   - No reduction labels
@@ -44,9 +38,6 @@
  * - else:
  *   - NOT_IMPLEMENTED() for now
  *
- * @todo: instead of loop over ttgt, we could do tblis, etc.
- *
- * @todo: instead of talsh, we could do cuTensor
  */
 
 
@@ -624,9 +615,6 @@ public:
                                                          has_hadamard_index()} {
     prep_flat_plan();
     if (plan_ == Plan::invalid) {
-      prep_talsh_plan();
-    }
-    if (plan_ == Plan::invalid) {
       prep_loop_gemm_plan();
     }
     if (plan_ == Plan::invalid) {
@@ -653,47 +641,6 @@ public:
       internal::FlatBlockMultPlan flat_plan{lhs_labels_, rhs1_labels_,
                                             rhs2_labels_};
       flat_plan.apply_assign(lscale, lhs, rscale, rhs1, rhs2, optype_);
-      break;
-    }
-    case Plan::talsh: { // assume IP of rhs1,rhs2 is already done at this point
-      prep_buffers(lscale, lhs, rscale, rhs1,
-                   rhs2); // will be called by every plan for now
-
-      auto adims = lhs.block_dims();
-      auto bdims = rhs1.block_dims();
-      auto cdims = rhs2.block_dims();
-
-      auto aid_size = adims.size();
-      auto bid_size = bdims.size();
-      auto cid_size = cdims.size();
-
-      int tal_adims[aid_size];
-      int tal_bdims[bid_size];
-      int tal_cdims[cid_size];
-
-      std::vector<int> taid;
-      std::vector<int> tbid;
-      std::vector<int> tcid;
-      std::transform(std::begin(adims), std::end(adims),
-                     std::back_inserter(taid),
-                     [](tamm::Size i) -> int { return i.value(); });
-      std::transform(std::begin(bdims), std::end(bdims),
-                     std::back_inserter(tbid),
-                     [](tamm::Size i) -> int { return i.value(); });
-      std::transform(std::begin(cdims), std::end(cdims),
-                     std::back_inserter(tcid),
-                     [](tamm::Size i) -> int { return i.value(); });
-
-      std::reverse(taid.begin(), taid.end());
-      std::reverse(tbid.begin(), tbid.end());
-      std::reverse(tcid.begin(), tcid.end());
-
-      std::copy(taid.begin(), taid.end(), tal_adims);
-      std::copy(tbid.begin(), tbid.end(), tal_bdims);
-      std::copy(tcid.begin(), tcid.end(), tal_cdims);
-
-      // FIXME: Need to pass talsh_tensor handles
-      block_mult_talsh(lhs, rscale, rhs1, rhs2, talsh_plan_.op_string);
       break;
     }
     case Plan::loop_gemm: {
@@ -812,25 +759,6 @@ private:
     }
   }
 
-  /**
-   * @brief choose TALSH plan if:
-   *   - TALSH available
-   *   - No repeated labels in any labeled tensor
-   *   - No reduction labels
-   *   - No hadamard labels
-   *
-   */
-  void prep_talsh_plan() {
-#ifdef USE_TALSH
-    if (!has_repeated_index_ && !has_reduction_index_ && !has_hadamard_index_) {
-      plan_ = Plan::talsh;
-
-      // TODO: enable this once talsh is built by default
-      // talsh_plan_ = internal::talsh_mult_op_string(
-      //                             lhs_labels_, rhs1_labels_, rhs2_labels_);
-    }
-#endif
-  }
 
   /**
    * @brief choose LOOP GEMM plan if:
@@ -886,20 +814,14 @@ private:
   enum class Plan {
     flat_assign,
     flat_update,
-    talsh,
     loop_gemm,
     loop_ttgt,
     general,
     invalid,
   };
 
-  OpType optype_;
-  struct TALSHPlan {
-    std::string op_string;
-
-  } talsh_plan_;
-
   Plan plan_;
+  OpType optype_;
   IndexLabelVec lhs_labels_;
   IndexLabelVec rhs1_labels_;
   IndexLabelVec rhs2_labels_;

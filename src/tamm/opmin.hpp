@@ -437,7 +437,7 @@ class Optimizer {
     computed_list_.reserve(1l << nterms_);
     children_.resize(1l << nterms_);
     // compute_cost_.resize(1l << nterms_, INT64_MAX);
-    compute_cost_.resize(1l << nterms_, DBL_MAX);
+    compute_cost_.resize(1l << nterms_, std::numeric_limits<double>::max());
     available_index_ids_.resize(1l << nterms_);
     required_index_ids_.resize(1l << nterms_);
 

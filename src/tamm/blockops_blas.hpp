@@ -5,18 +5,11 @@
 #include "tamm/utils.hpp"
 
 #include <algorithm>
-// #ifdef USE_BLIS
-// disable BLAS prototypes within BLIS.
-// #define BLIS_DISABLE_BLAS_DEFS
-#include "blis/blis.h"
-// #endif
-// #include CBLAS_HEADER
 #include <complex>
 #include <numeric>
 #include <vector>
 
-namespace tamm::blockops::blis {
-// #ifdef USE_BLIS
+namespace tamm::blockops::bops_blas {
 template<typename T, typename T1, typename T2, typename T3>
 std::tuple<BlockSpan<T>, BlockSpan<T>, BlockSpan<T>> prep_buffers(
   T1 lscale, BlockSpan<T1>& lhs, T1 rscale, BlockSpan<T2>& rhs1,
@@ -42,13 +35,8 @@ std::tuple<BlockSpan<T>, BlockSpan<T>, BlockSpan<T>> prep_buffers(
         if constexpr(internal::is_complex_v<T1>) {
             // copy B to complex buffer
             std::vector<T1> bbuf_complex(bsize);
-            T3* bbuf_comp_ptr = reinterpret_cast<T3*>(&bbuf_complex[0]);
-            if constexpr(std::is_same_v<T3, double>)
-                bli_dcopyv(BLIS_NO_CONJUGATE, bsize, &rhs2[0], 1, bbuf_comp_ptr,
-                           2);
-            else if constexpr(std::is_same_v<T3, float>)
-                bli_scopyv(BLIS_NO_CONJUGATE, bsize, &rhs2[0], 1, bbuf_comp_ptr,
-                           2);
+            T3* bbuf_comp_ptr = reinterpret_cast<T3*>(bbuf_complex.data());
+            blas::copy(bsize, rhs2.data(), 1, bbuf_comp_ptr, 2);
 
             lhs_T  = lhs;
             rhs1_T = rhs1;
@@ -58,13 +46,8 @@ std::tuple<BlockSpan<T>, BlockSpan<T>, BlockSpan<T>> prep_buffers(
         else {
             // T1,T2 (C,A) are real, T3 (B) is complex
             std::vector<T1> bbuf_real(bsize);
-            T1* bbuf_comp_ptr = reinterpret_cast<T1*>(&rhs2[0]);
-            if constexpr(std::is_same_v<T1, double>)
-                bli_dcopyv(BLIS_NO_CONJUGATE, bsize, bbuf_comp_ptr, 2,
-                           &bbuf_real[0], 1);
-            else if constexpr(std::is_same_v<T1, float>)
-                bli_scopyv(BLIS_NO_CONJUGATE, bsize, bbuf_comp_ptr, 2,
-                           &bbuf_real[0], 1);
+            T1* bbuf_comp_ptr = reinterpret_cast<T1*>(rhs2.data());
+            blas::copy(bsize, bbuf_comp_ptr, 2, bbuf_real.data(), 1);
 
             lhs_T  = lhs;
             rhs1_T = rhs1;
@@ -77,13 +60,8 @@ std::tuple<BlockSpan<T>, BlockSpan<T>, BlockSpan<T>> prep_buffers(
         // T3 (matrix B) is complex, T2 (A) is real
         if constexpr(internal::is_complex_v<T1>) {
             std::vector<T1> abuf_complex(asize);
-            T2* abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
-            if constexpr(std::is_same_v<T2, double>)
-                bli_dcopyv(BLIS_NO_CONJUGATE, asize, &rhs1[0], 1, abuf_comp_ptr,
-                           2);
-            else if constexpr(std::is_same_v<T2, float>)
-                bli_scopyv(BLIS_NO_CONJUGATE, asize, &rhs1[0], 1, abuf_comp_ptr,
-                           2);
+            T2* abuf_comp_ptr = reinterpret_cast<T2*>(abuf_complex.data());
+            blas::copy(asize, rhs1.data(), 1, abuf_comp_ptr, 2);
 
             lhs_T  = lhs;
             rhs1_T = BlockSpan{abuf_comp_ptr, rhs1.block_dims()};
@@ -92,13 +70,8 @@ std::tuple<BlockSpan<T>, BlockSpan<T>, BlockSpan<T>> prep_buffers(
         } else {
             // T1,T3 (C,B) are real, T2 (A) is complex
             std::vector<T1> abuf_real(asize);
-            T1* abuf_comp_ptr = reinterpret_cast<T1*>(&rhs1[0]);
-            if constexpr(std::is_same_v<T1, double>)
-                bli_dcopyv(BLIS_NO_CONJUGATE, asize, abuf_comp_ptr, 2,
-                           &abuf_real[0], 1);
-            else if constexpr(std::is_same_v<T1, float>)
-                bli_scopyv(BLIS_NO_CONJUGATE, asize, abuf_comp_ptr, 2,
-                           &abuf_real[0], 1);
+            T1* abuf_comp_ptr = reinterpret_cast<T1*>(rhs1.data());
+            blas::copy(asize, abuf_comp_ptr, 2, abuf_real.data(), 1);
 
             lhs_T  = lhs;
             rhs1_T = BlockSpan{abuf_comp_ptr, rhs1.block_dims()};
@@ -110,17 +83,12 @@ std::tuple<BlockSpan<T>, BlockSpan<T>, BlockSpan<T>> prep_buffers(
     else if constexpr(internal::is_complex_v<T1> && std::is_same_v<T2, T3>) {
         // T1 is complex, T2, T3 are real
         std::vector<T1> abuf_complex(asize);
-        T2* abuf_comp_ptr = reinterpret_cast<T2*>(&abuf_complex[0]);
         std::vector<T1> bbuf_complex(bsize);
-        T2* bbuf_comp_ptr = reinterpret_cast<T2*>(&bbuf_complex[0]);
+        T2* abuf_comp_ptr = reinterpret_cast<T2*>(abuf_complex.data());
+        T2* bbuf_comp_ptr = reinterpret_cast<T2*>(bbuf_complex.data());
 
-        if constexpr(std::is_same_v<T2, double>) {
-            bli_dcopyv(BLIS_NO_CONJUGATE, asize, &rhs1[0], 1, abuf_comp_ptr, 2);
-            bli_dcopyv(BLIS_NO_CONJUGATE, bsize, &rhs2[0], 1, bbuf_comp_ptr, 2);
-        } else if constexpr(std::is_same_v<T2, float>) {
-            bli_scopyv(BLIS_NO_CONJUGATE, asize, &rhs1[0], 1, abuf_comp_ptr, 2);
-            bli_scopyv(BLIS_NO_CONJUGATE, bsize, &rhs2[0], 1, bbuf_comp_ptr, 2);
-        }
+        blas::copy(asize, rhs1.data(), 1, abuf_comp_ptr, 2);
+        blas::copy(bsize, rhs2.data(), 1, bbuf_comp_ptr, 2);
 
         lhs_T  = lhs;
         rhs1_T = BlockSpan{abuf_comp_ptr, rhs1.block_dims()};
@@ -136,32 +104,21 @@ std::tuple<BlockSpan<T>, BlockSpan<T>, BlockSpan<T>> prep_buffers(
 
 template<typename T1, typename T2>
 void prep_rhs_buffer(const BlockSpan<T2>& rhs, std::vector<T1>& new_rhs) {
-#ifdef USE_BLIS
     size_t r_size = rhs.num_elements();
     T1 *rhs_data = new_rhs.data();
     if constexpr(internal::is_complex_v<T1>) {
         T2* rhs_buf = const_cast<T2*>(rhs.buf());
         T2* rbuf_ptr = reinterpret_cast<T2*>(rhs_data);
-        if constexpr(std::is_same_v<T2, double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE, r_size, rhs_buf, 1, rbuf_ptr, 2);
-        else if constexpr(std::is_same_v<T2, float>)
-            bli_scopyv(BLIS_NO_CONJUGATE, r_size, rhs_buf, 1, rbuf_ptr, 2);
+        blas::copy(r_size, rhs_buf, 1, rbuf_ptr, 2);
     }
     // real = complex
     else if constexpr(internal::is_complex_v<T2>) {
         T2* rhs_buf = const_cast<T2*>(rhs.buf());
         T1* rbuf_ptr = reinterpret_cast<T1*>(rhs_buf);
-        if constexpr(std::is_same_v<T1, double>)
-            bli_dcopyv(BLIS_NO_CONJUGATE, r_size, rbuf_ptr + 1, 2, rhs_data,
-                       1);
-        else if constexpr(std::is_same_v<T1, float>)
-            bli_scopyv(BLIS_NO_CONJUGATE, r_size, rbuf_ptr + 1, 2, rhs_data,
-                       1);
+        blas::copy(r_size, rbuf_ptr+1, 2, rhs_data, 1);
     }
-#else
-    NOT_ALLOWED();
-#endif
+    else NOT_ALLOWED();
 }
 
-} // namespace tamm::blockops::blis
+} // namespace tamm::blockops::bops_blas
 

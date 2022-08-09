@@ -10,6 +10,9 @@
 #include <map>
 #include "ga/ga.h"
 #include "ga/ga-mpi.h"
+#if defined(USE_UPCXX)
+#include <upcxx/upcxx.hpp>
+#endif
 
 //#include <mpi.h>
  
@@ -182,8 +185,13 @@ enum class ReduceOp { min, max, sum, maxloc, minloc };
 
 using SpinMask = std::vector<SpinPosition>;
 
+#if defined(USE_UPCXX)
+using rtDataHandlePtr = upcxx::future<>*;
+using rtDataHandle = upcxx::future<>;
+#else
 using rtDataHandlePtr = ga_nbhdl_t*;
 using rtDataHandle = ga_nbhdl_t;
+#endif
 
 class DataCommunicationHandle
 {
@@ -193,7 +201,11 @@ class DataCommunicationHandle
 
         void waitForCompletion() {
             if(!getCompletionStatus()) {
+#if defined(USE_UPCXX)
+                data_handle_.wait();
+#else
                 NGA_NbWait(&data_handle_);
+#endif
                 setCompletionStatus();
             }
         }
@@ -210,9 +222,9 @@ class DataCommunicationHandle
         }
         rtDataHandlePtr getDataHandlePtr() { return &data_handle_; }
 
+        rtDataHandle data_handle_;
     private:
         bool status_{true};
-        rtDataHandle data_handle_;
 };
 
 using DataCommunicationHandlePtr = DataCommunicationHandle*;
@@ -224,6 +236,7 @@ using DataCommunicationHandlePtr = DataCommunicationHandle*;
 // const Spin beta{2};
 // }; // namespace SpinType
 
+#if !defined(USE_UPCXX)
 template<typename T>
 static inline MPI_Datatype mpi_type(){
     using std::is_same_v;
@@ -246,6 +259,7 @@ static inline MPI_Datatype mpi_type(){
         return MPI_COMPLEX;
     else if constexpr(is_same_v<std::complex<double>, T>)
         return MPI_DOUBLE_COMPLEX;
+    abort(); // unhandled type
 }
 
 static inline MPI_Op mpi_op(ReduceOp rop) {
@@ -259,7 +273,9 @@ static inline MPI_Op mpi_op(ReduceOp rop) {
         return MPI_MINLOC;
     else if (rop == ReduceOp::maxloc)
         return MPI_MAXLOC;
+    abort(); // unhandled op
 }
+#endif
 
 namespace internal {
     template<typename T, typename... Args>

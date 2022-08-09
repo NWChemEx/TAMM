@@ -269,13 +269,23 @@ public:
 
     // Tensor Accessors
 
+#ifdef USE_UPCXX
+    void put_raw(int64_t *lo, int64_t *hi, void *buf, int64_t *buf_ld) {
+        return impl_->put_raw(lo, hi, buf, buf_ld);
+    }
+
+    void get_raw(int64_t *lo, int64_t *hi, void *buf, int64_t *buf_ld) {
+        return impl_->get_raw(lo, hi, buf, buf_ld);
+    }
+#else
     /**
      * Access the underying global array
      * @return Handle to underlying global array
      */
     int ga_handle() {
-        return impl_->ga_handle();
+      return impl_->ga_handle();
     }
+#endif
 
     /**
      * @brief Get method for Tensor values

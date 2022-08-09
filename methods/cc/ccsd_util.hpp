@@ -732,6 +732,44 @@ std::tuple<Tensor<T>,Tensor<T>,Tensor<T>,TAMM_SIZE, tamm::Tile, TiledIndexSpace>
       d_f1 = d_f1_new;
     }
 
+    if(!readv2 && sys_data.options_map.scf_options.print_mos.first) {
+      Scheduler sch{ec};
+      std::string hcorefile = files_dir+"/scf/"+out_fp+".hcore";
+      Tensor<T> hcore{AO, AO};
+      Tensor<T> hcore_mo{MO, MO};
+      Tensor<T>::allocate(&ec,hcore,hcore_mo);
+      read_from_disk(hcore,hcorefile);
+
+      auto [mu,nu]   = AO.labels<2>("all");
+      auto [mo1,mo2] = MO.labels<2>("all");
+      
+      Tensor<T> tmp{MO,AO};
+      sch.allocate(tmp)
+          (tmp(mo1,nu) = lcao(mu,mo1) * hcore(mu,nu))
+          (hcore_mo(mo1,mo2) = tmp(mo1,nu) * lcao(nu,mo2))
+          .deallocate(tmp,hcore).execute();
+
+      ExecutionContext ec_dense{ec.pg(), DistributionKind::dense, MemoryManagerKind::ga};
+      std::string mop_dir = files_dir+"/print_mos/";
+      std::string mofprefix = mop_dir + out_fp;
+      if(!fs::exists(mop_dir)) fs::create_directories(mop_dir);
+
+      Tensor<T> d_v2 = setupV2<T>(ec,MO,CI,cholVpr,chol_count);
+      Tensor<T> d_f1_dense  = to_dense_tensor(ec_dense, d_f1);
+      Tensor<T> lcao_dense  = to_dense_tensor(ec_dense, lcao);
+      Tensor<T> d_v2_dense  = to_dense_tensor(ec_dense, d_v2);
+      Tensor<T> hcore_dense = to_dense_tensor(ec_dense, hcore_mo);
+
+      Tensor<T>::deallocate(hcore_mo,d_v2);
+      
+      print_dense_tensor(d_v2_dense,  mofprefix+".v2_mo");
+      print_dense_tensor(lcao_dense,  mofprefix+".ao2mo");
+      print_dense_tensor(d_f1_dense,  mofprefix+".fock_mo");
+      print_dense_tensor(hcore_dense, mofprefix+".hcore_mo");
+
+      Tensor<T>::deallocate(hcore_dense,d_f1_dense,lcao_dense,d_v2_dense);
+    }
+
 
     return std::make_tuple(cholVpr, d_f1, lcao, chol_count, max_cvecs, CI);
 }

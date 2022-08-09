@@ -4,9 +4,7 @@
 
 #if defined(USE_DPCPP)
 #include "ccsd_t_all_fused_sycl.hpp"
-#endif
-
-#if defined(USE_HIP)
+#elif defined(USE_HIP)
 #include "ccsd_t_all_fused_hip.hpp"
 #endif
 
@@ -16,29 +14,7 @@ void dev_mem_d(size_t, size_t, size_t, size_t, size_t, size_t);
 #define TEST_NEW_KERNEL
 #define TEST_NEW_THREAD
 
-#ifdef USE_CUDA
-#define STREAM_REDUCE
-#endif
-
 #define CEIL(a, b) (((a) + (b) -1) / (b))
-
-void hostEnergyReduce(void* data) {
-  hostEnergyReduceData_t* data_t        = (hostEnergyReduceData_t*) data;
-  const size_t            num_blocks    = data_t->num_blocks;
-  double*                 host_energies = data_t->host_energies;
-  double*                 res           = data_t->result_energy;
-  double                  factor        = data_t->factor;
-
-  double final_energy_1 = 0.0;
-  double final_energy_2 = 0.0;
-  for(size_t i = 0; i < num_blocks; i++) {
-    final_energy_1 += host_energies[i];
-    final_energy_2 += host_energies[i + num_blocks];
-  }
-
-  res[0] += final_energy_1 * factor;
-  res[1] += final_energy_2 * factor;
-}
 
 // driver for the fully-fused kernel (FP64)
 template<typename T>
@@ -48,9 +24,6 @@ void fully_fused_ccsd_t_gpu(gpuStream_t& stream_id, size_t num_blocks, size_t ba
                             //
                             T* df_dev_d1_t2_all, T* df_dev_d1_v2_all, T* df_dev_d2_t2_all,
                             T* df_dev_d2_v2_all, T* df_dev_s1_t1_all, T* df_dev_s1_v2_all,
-                            //
-                            size_t size_d1_t2_all, size_t size_d1_v2_all, size_t size_d2_t2_all,
-                            size_t size_d2_v2_all, size_t size_s1_t1_all, size_t size_s1_v2_all,
                             //
                             int* host_d1_size, int* host_d1_exec, // used
                             int* host_d2_size, int* host_d2_exec, int* host_s1_size,
@@ -65,9 +38,9 @@ void fully_fused_ccsd_t_gpu(gpuStream_t& stream_id, size_t num_blocks, size_t ba
                             T* dev_evl_sorted_h1b, T* dev_evl_sorted_h2b, T* dev_evl_sorted_h3b,
                             T* dev_evl_sorted_p4b, T* dev_evl_sorted_p5b, T* dev_evl_sorted_p6b,
                             T* partial_energies
-#if defined(USE_CUDA) || defined(USE_DPCPP)
+#if defined(USE_DPCPP)
                             ,
-                            gpuEvent_t* done_compute, gpuEvent_t* done_copy
+                            gpuEvent_t& done_compute, std::vector<gpuEvent_t>& done_copy
 #endif
 );
 #if defined(USE_CUDA) && defined(USE_NV_TC)
@@ -88,8 +61,7 @@ void ccsd_t_fully_fused_nvidia_tc_fp64(
   size_t size_max_dim_d2_v2,
   //
   T factor, T* dev_evl_sorted_h1b, T* dev_evl_sorted_h2b, T* dev_evl_sorted_h3b,
-  T* dev_evl_sorted_p4b, T* dev_evl_sorted_p5b, T* dev_evl_sorted_p6b, T* dev_final_energies,
-  gpuEvent_t* done_compute, gpuEvent_t* done_copy);
+  T* dev_evl_sorted_p4b, T* dev_evl_sorted_p5b, T* dev_evl_sorted_p6b, T* dev_final_energies);
 #endif
 
 template<typename T>
@@ -115,16 +87,13 @@ void ccsd_t_fully_fused_none_df_none_task(
   size_t size_T_s1_t1, size_t size_T_s1_v2, size_t size_T_d1_t2, size_t size_T_d1_v2,
   size_t size_T_d2_t2, size_t size_T_d2_v2,
   //
-  std::vector<T>& energy_l,
-#if defined(USE_CUDA)
-  hostEnergyReduceData_t* reduceData,
-#endif
-  LRUCache<Index, std::vector<T>>& cache_s1t, LRUCache<Index, std::vector<T>>& cache_s1v,
-  LRUCache<Index, std::vector<T>>& cache_d1t, LRUCache<Index, std::vector<T>>& cache_d1v,
-  LRUCache<Index, std::vector<T>>& cache_d2t, LRUCache<Index, std::vector<T>>& cache_d2v
-#if defined(USE_CUDA) || defined(USE_DPCPP)
+  std::vector<T>& energy_l, LRUCache<Index, std::vector<T>>& cache_s1t,
+  LRUCache<Index, std::vector<T>>& cache_s1v, LRUCache<Index, std::vector<T>>& cache_d1t,
+  LRUCache<Index, std::vector<T>>& cache_d1v, LRUCache<Index, std::vector<T>>& cache_d2t,
+  LRUCache<Index, std::vector<T>>& cache_d2v
+#if defined(USE_DPCPP)
   ,
-  gpuEvent_t* done_compute, gpuEvent_t* done_copy
+  gpuEvent_t& done_compute, std::vector<gpuEvent_t>& done_copy
 #endif
 ) {
 #ifdef OPT_KERNEL_TIMING
@@ -134,13 +103,19 @@ void ccsd_t_fully_fused_none_df_none_task(
 #endif
 
 #ifdef OPT_ALL_TIMING
-#if defined(USE_CUDA)
   gpuEvent_t start_init, stop_init;
   gpuEvent_t start_fused_kernel, stop_fused_kernel;
   gpuEvent_t start_pre_processing, stop_pre_processing;
   gpuEvent_t start_post_processing, stop_post_processing;
   gpuEvent_t start_collecting_data, stop_collecting_data;
 
+  float time_ms_init            = 0.0;
+  float time_ms_fused_kernel    = 0.0;
+  float time_ms_pre_processing  = 0.0;
+  float time_ms_post_processing = 0.0;
+  float time_ms_collecting_data = 0.0;
+
+#if defined(USE_CUDA)
   CUDA_SAFE(cudaEventCreate(&start_init));
   CUDA_SAFE(cudaEventCreate(&stop_init));
   CUDA_SAFE(cudaEventCreate(&start_fused_kernel));
@@ -151,23 +126,10 @@ void ccsd_t_fully_fused_none_df_none_task(
   CUDA_SAFE(cudaEventCreate(&stop_post_processing));
   CUDA_SAFE(cudaEventCreate(&start_collecting_data));
   CUDA_SAFE(cudaEventCreate(&stop_collecting_data));
-
-  float time_ms_init            = 0.0;
-  float time_ms_fused_kernel    = 0.0;
-  float time_ms_pre_processing  = 0.0;
-  float time_ms_post_processing = 0.0;
-  float time_ms_collecting_data = 0.0;
-
   CUDA_SAFE(cudaEventRecord(start_init));
 #endif
 
 #if defined(USE_HIP)
-  gpuEvent_t start_init, stop_init;
-  gpuEvent_t start_fused_kernel, stop_fused_kernel;
-  gpuEvent_t start_pre_processing, stop_pre_processing;
-  gpuEvent_t start_post_processing, stop_post_processing;
-  gpuEvent_t start_collecting_data, stop_collecting_data;
-
   HIP_SAFE(hipEventCreate(&start_init));
   HIP_SAFE(hipEventCreate(&stop_init));
   HIP_SAFE(hipEventCreate(&start_fused_kernel));
@@ -179,21 +141,18 @@ void ccsd_t_fully_fused_none_df_none_task(
   HIP_SAFE(hipEventCreate(&start_collecting_data));
   HIP_SAFE(hipEventCreate(&stop_collecting_data));
 
-  float time_ms_init            = 0.0;
-  float time_ms_fused_kernel    = 0.0;
-  float time_ms_pre_processing  = 0.0;
-  float time_ms_post_processing = 0.0;
-  float time_ms_collecting_data = 0.0;
-
   HIP_SAFE(hipEventRecord(start_init));
 #endif
 
 #endif // OPT_ALL_TIMING
 
-// create and assign streams from GPUStreamPool
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+  // get GPU stream from pool
   auto&        pool   = tamm::GPUStreamPool::getInstance();
   gpuStream_t& stream = pool.getStream();
+
+  // get GPU memory handle from pool
+  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
 #endif
 
   // Index p4b,p5b,p6b,h1b,h2b,h3b;
@@ -224,12 +183,12 @@ void ccsd_t_fully_fused_none_df_none_task(
   T* host_evl_sorted_p6b = &k_evl_sorted[k_offset[t_p6b]];
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  T* dev_evl_sorted_h1b = (T*) getGpuMem(sizeof(T) * base_size_h1b);
-  T* dev_evl_sorted_h2b = (T*) getGpuMem(sizeof(T) * base_size_h2b);
-  T* dev_evl_sorted_h3b = (T*) getGpuMem(sizeof(T) * base_size_h3b);
-  T* dev_evl_sorted_p4b = (T*) getGpuMem(sizeof(T) * base_size_p4b);
-  T* dev_evl_sorted_p5b = (T*) getGpuMem(sizeof(T) * base_size_p5b);
-  T* dev_evl_sorted_p6b = (T*) getGpuMem(sizeof(T) * base_size_p6b);
+  T* dev_evl_sorted_h1b = static_cast<T*>(memPool.allocate(sizeof(T) * base_size_h1b));
+  T* dev_evl_sorted_h2b = static_cast<T*>(memPool.allocate(sizeof(T) * base_size_h2b));
+  T* dev_evl_sorted_h3b = static_cast<T*>(memPool.allocate(sizeof(T) * base_size_h3b));
+  T* dev_evl_sorted_p4b = static_cast<T*>(memPool.allocate(sizeof(T) * base_size_p4b));
+  T* dev_evl_sorted_p5b = static_cast<T*>(memPool.allocate(sizeof(T) * base_size_p5b));
+  T* dev_evl_sorted_p6b = static_cast<T*>(memPool.allocate(sizeof(T) * base_size_p6b));
 #endif
 
 #if defined(USE_CUDA)
@@ -237,10 +196,6 @@ void ccsd_t_fully_fused_none_df_none_task(
   CUDA_SAFE(cudaEventRecord(stop_init));
   CUDA_SAFE(cudaEventSynchronize(stop_init));
   CUDA_SAFE(cudaEventRecord(start_collecting_data));
-#endif
-
-#ifdef STREAM_REDUCE
-  CUDA_SAFE(cudaEventSynchronize(*done_copy));
 #endif
 #endif
 
@@ -281,26 +236,21 @@ void ccsd_t_fully_fused_none_df_none_task(
                      df_simple_d2_size, df_simple_d2_exec, &df_num_d2_enabled,
                      //
                      cache_d2t, cache_d2v);
-#if defined(USE_CUDA)
+
 #ifdef OPT_ALL_TIMING
+#if defined(USE_CUDA)
   CUDA_SAFE(cudaEventRecord(stop_collecting_data));
   CUDA_SAFE(cudaEventSynchronize(stop_collecting_data));
   CUDA_SAFE(cudaEventRecord(start_pre_processing));
-#endif
 #elif defined(USE_HIP)
-#ifdef OPT_ALL_TIMING
   HIP_SAFE(hipEventRecord(stop_collecting_data));
   HIP_SAFE(hipEventSynchronize(stop_collecting_data));
   HIP_SAFE(hipEventRecord(start_pre_processing));
 #endif
-#endif
+#endif // OPT_ALL_TIMING
 
 #if defined(USE_CUDA)
-#ifdef STREAM_REDUCE
-  CUDA_SAFE(cudaEventSynchronize(*done_compute));
-#endif
   // this is not pinned memory.
-
   CUDA_SAFE(cudaMemcpyAsync(dev_evl_sorted_h1b, host_evl_sorted_h1b, sizeof(T) * base_size_h1b,
                             cudaMemcpyHostToDevice, stream));
   CUDA_SAFE(cudaMemcpyAsync(dev_evl_sorted_h2b, host_evl_sorted_h2b, sizeof(T) * base_size_h2b,
@@ -363,42 +313,36 @@ void ccsd_t_fully_fused_none_df_none_task(
                               sizeof(T) * (max_dim_d2_v2 * df_num_d2_enabled), stream));
 #elif defined(USE_DPCPP)
   // this is not pinned memory.
-  (*done_copy)[0] =
-    stream.memcpy(dev_evl_sorted_h1b, host_evl_sorted_h1b, sizeof(T) * base_size_h1b);
-  (*done_copy)[1] =
-    stream.memcpy(dev_evl_sorted_h2b, host_evl_sorted_h2b, sizeof(T) * base_size_h2b);
-  (*done_copy)[2] =
-    stream.memcpy(dev_evl_sorted_h3b, host_evl_sorted_h3b, sizeof(T) * base_size_h3b);
-  (*done_copy)[3] =
-    stream.memcpy(dev_evl_sorted_p4b, host_evl_sorted_p4b, sizeof(T) * base_size_p4b);
-  (*done_copy)[4] =
-    stream.memcpy(dev_evl_sorted_p5b, host_evl_sorted_p5b, sizeof(T) * base_size_p5b);
-  (*done_copy)[5] =
-    stream.memcpy(dev_evl_sorted_p6b, host_evl_sorted_p6b, sizeof(T) * base_size_p6b);
+  done_copy[0] = stream.memcpy(dev_evl_sorted_h1b, host_evl_sorted_h1b, sizeof(T) * base_size_h1b);
+  done_copy[1] = stream.memcpy(dev_evl_sorted_h2b, host_evl_sorted_h2b, sizeof(T) * base_size_h2b);
+  done_copy[2] = stream.memcpy(dev_evl_sorted_h3b, host_evl_sorted_h3b, sizeof(T) * base_size_h3b);
+  done_copy[3] = stream.memcpy(dev_evl_sorted_p4b, host_evl_sorted_p4b, sizeof(T) * base_size_p4b);
+  done_copy[4] = stream.memcpy(dev_evl_sorted_p5b, host_evl_sorted_p5b, sizeof(T) * base_size_p5b);
+  done_copy[5] = stream.memcpy(dev_evl_sorted_p6b, host_evl_sorted_p6b, sizeof(T) * base_size_p6b);
 
   //  new tensors
-  (*done_copy)[6]  = stream.memcpy(df_dev_s1_t1_all, df_host_pinned_s1_t1,
-                                   sizeof(T) * (max_dim_s1_t1 * df_num_s1_enabled));
-  (*done_copy)[7]  = stream.memcpy(df_dev_s1_v2_all, df_host_pinned_s1_v2,
-                                   sizeof(T) * (max_dim_s1_v2 * df_num_s1_enabled));
-  (*done_copy)[8]  = stream.memcpy(df_dev_d1_t2_all, df_host_pinned_d1_t2,
-                                   sizeof(T) * (max_dim_d1_t2 * df_num_d1_enabled));
-  (*done_copy)[9]  = stream.memcpy(df_dev_d1_v2_all, df_host_pinned_d1_v2,
-                                   sizeof(T) * (max_dim_d1_v2 * df_num_d1_enabled));
-  (*done_copy)[10] = stream.memcpy(df_dev_d2_t2_all, df_host_pinned_d2_t2,
-                                   sizeof(T) * (max_dim_d2_t2 * df_num_d2_enabled));
-  (*done_copy)[11] = stream.memcpy(df_dev_d2_v2_all, df_host_pinned_d2_v2,
-                                   sizeof(T) * (max_dim_d2_v2 * df_num_d2_enabled));
+  done_copy[6]  = stream.memcpy(df_dev_s1_t1_all, df_host_pinned_s1_t1,
+                                sizeof(T) * (max_dim_s1_t1 * df_num_s1_enabled));
+  done_copy[7]  = stream.memcpy(df_dev_s1_v2_all, df_host_pinned_s1_v2,
+                                sizeof(T) * (max_dim_s1_v2 * df_num_s1_enabled));
+  done_copy[8]  = stream.memcpy(df_dev_d1_t2_all, df_host_pinned_d1_t2,
+                                sizeof(T) * (max_dim_d1_t2 * df_num_d1_enabled));
+  done_copy[9]  = stream.memcpy(df_dev_d1_v2_all, df_host_pinned_d1_v2,
+                                sizeof(T) * (max_dim_d1_v2 * df_num_d1_enabled));
+  done_copy[10] = stream.memcpy(df_dev_d2_t2_all, df_host_pinned_d2_t2,
+                                sizeof(T) * (max_dim_d2_t2 * df_num_d2_enabled));
+  done_copy[11] = stream.memcpy(df_dev_d2_v2_all, df_host_pinned_d2_v2,
+                                sizeof(T) * (max_dim_d2_v2 * df_num_d2_enabled));
 #endif
 
   //
-#if defined(USE_CUDA)
 #ifdef OPT_ALL_TIMING
+#if defined(USE_CUDA)
   CUDA_SAFE(cudaEventRecord(stop_pre_processing));
   CUDA_SAFE(cudaEventSynchronize(stop_pre_processing));
   CUDA_SAFE(cudaEventRecord(start_fused_kernel));
 #endif
-#endif
+#endif // OPT_ALL_TIMINGS
   //
   size_t num_blocks = CEIL(base_size_h3b, 4) * CEIL(base_size_h2b, 4) * CEIL(base_size_h1b, 4) *
                       CEIL(base_size_p6b, 4) * CEIL(base_size_p5b, 4) * CEIL(base_size_p4b, 4);
@@ -421,28 +365,26 @@ void ccsd_t_fully_fused_none_df_none_task(
 #endif
 
 #ifdef OPT_KERNEL_TIMING
-#if defined(USE_CUDA)
   gpuEvent_t start_kernel_only, stop_kernel_only;
+
+#if defined(USE_CUDA)
   CUDA_SAFE(cudaEventCreate(&start_kernel_only));
   CUDA_SAFE(cudaEventCreate(&stop_kernel_only));
   CUDA_SAFE(cudaEventRecord(start_kernel_only));
 #elif defined(USE_HIP)
-  gpuEvent_t start_kernel_only, stop_kernel_only;
   HIP_SAFE(hipEventCreate(&start_kernel_only));
   HIP_SAFE(hipEventCreate(&stop_kernel_only));
   HIP_SAFE(hipEventRecord(start_kernel_only));
 #endif
-#endif // OPT_KERNEL_TIMsING
 
-#if(defined(USE_CUDA) && !defined(USE_NV_TC)) || defined(USE_DPCPP)
+#endif // OPT_KERNEL_TIMING
+
+#if defined(USE_DPCPP)
   fully_fused_ccsd_t_gpu(stream, num_blocks, k_range[t_h1b], k_range[t_h2b], k_range[t_h3b],
                          k_range[t_p4b], k_range[t_p5b], k_range[t_p6b],
                          //
                          df_dev_d1_t2_all, df_dev_d1_v2_all, df_dev_d2_t2_all, df_dev_d2_v2_all,
                          df_dev_s1_t1_all, df_dev_s1_v2_all,
-                         //
-                         size_T_d1_t2, size_T_d1_v2, size_T_d2_t2, size_T_d2_v2, size_T_s1_t1,
-                         size_T_s1_v2,
                          //
                          //  for constant memory
                          //
@@ -458,15 +400,12 @@ void ccsd_t_fully_fused_none_df_none_task(
                          dev_evl_sorted_p4b, dev_evl_sorted_p5b, dev_evl_sorted_p6b,
                          //
                          dev_energies, done_compute, done_copy);
-#elif defined(USE_HIP)
+#elif defined(USE_HIP) || (defined(USE_CUDA) && !defined(USE_NV_TC))
   fully_fused_ccsd_t_gpu(stream, num_blocks, k_range[t_h1b], k_range[t_h2b], k_range[t_h3b],
                          k_range[t_p4b], k_range[t_p5b], k_range[t_p6b],
                          //
                          df_dev_d1_t2_all, df_dev_d1_v2_all, df_dev_d2_t2_all, df_dev_d2_v2_all,
                          df_dev_s1_t1_all, df_dev_s1_v2_all,
-                         //
-                         size_T_d1_t2, size_T_d1_v2, size_T_d2_t2, size_T_d2_v2, size_T_s1_t1,
-                         size_T_s1_v2,
                          //
                          //  for constant memory
                          //
@@ -502,7 +441,7 @@ void ccsd_t_fully_fused_none_df_none_task(
                                     dev_evl_sorted_h1b, dev_evl_sorted_h2b, dev_evl_sorted_h3b,
                                     dev_evl_sorted_p4b, dev_evl_sorted_p5b, dev_evl_sorted_p6b,
                                     //
-                                    dev_energies, done_compute, done_copy);
+                                    dev_energies);
 #endif
 
 //
@@ -532,29 +471,16 @@ void ccsd_t_fully_fused_none_df_none_task(
 #if defined(USE_CUDA)
   CUDA_SAFE(cudaMemcpyAsync(host_energies, dev_energies, num_blocks * 2 * sizeof(T),
                             cudaMemcpyDeviceToHost, stream));
-#ifndef STREAM_REDUCE
   CUDA_SAFE(cudaDeviceSynchronize());
-#endif
 #elif defined(USE_HIP)
   HIP_SAFE(hipMemcpyAsync(host_energies, dev_energies, num_blocks * 2 * sizeof(T),
                           hipMemcpyDeviceToHost, stream));
-  HIP_SAFE(hipStreamSynchronize(stream));
-#ifndef STREAM_REDUCE
   HIP_SAFE(hipDeviceSynchronize());
-#endif
 #elif defined(USE_DPCPP)
-  stream.memcpy(host_energies, dev_energies, num_blocks * 2 * sizeof(T), (*done_compute)[0]).wait();
+  stream.memcpy(host_energies, dev_energies, num_blocks * 2 * sizeof(T), done_compute).wait();
 #endif
 
-#ifdef USE_CUDA
-  reduceData->num_blocks    = num_blocks;
-  reduceData->host_energies = host_energies;
-  reduceData->result_energy = energy_l.data();
-  reduceData->factor        = factor;
-
-  CUDA_SAFE(cudaLaunchHostFunc(stream, hostEnergyReduce, reduceData));
-  CUDA_SAFE(cudaEventRecord(*done_compute, stream));
-#elif defined(USE_HIP) || defined(USE_DPCPP)
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   T final_energy_1 = 0.0;
   T final_energy_2 = 0.0;
   for(size_t i = 0; i < num_blocks; i++) {
@@ -564,16 +490,14 @@ void ccsd_t_fully_fused_none_df_none_task(
 
   energy_l[0] += final_energy_1 * factor;
   energy_l[1] += final_energy_2 * factor;
-#endif
 
-  //  free device and host mem. for a task.
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  freeGpuMem(dev_evl_sorted_h1b);
-  freeGpuMem(dev_evl_sorted_h2b);
-  freeGpuMem(dev_evl_sorted_h3b);
-  freeGpuMem(dev_evl_sorted_p4b);
-  freeGpuMem(dev_evl_sorted_p5b);
-  freeGpuMem(dev_evl_sorted_p6b);
+  //  free device mem back to pool
+  memPool.deallocate(static_cast<void*>(dev_evl_sorted_h1b), sizeof(T) * base_size_h1b);
+  memPool.deallocate(static_cast<void*>(dev_evl_sorted_h2b), sizeof(T) * base_size_h2b);
+  memPool.deallocate(static_cast<void*>(dev_evl_sorted_h3b), sizeof(T) * base_size_h3b);
+  memPool.deallocate(static_cast<void*>(dev_evl_sorted_p4b), sizeof(T) * base_size_p4b);
+  memPool.deallocate(static_cast<void*>(dev_evl_sorted_p5b), sizeof(T) * base_size_p5b);
+  memPool.deallocate(static_cast<void*>(dev_evl_sorted_p6b), sizeof(T) * base_size_p6b);
 #endif
 
 #ifdef OPT_ALL_TIMING

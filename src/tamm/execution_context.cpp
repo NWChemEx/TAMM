@@ -19,30 +19,44 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   else {
     re_.reset(re, [](auto) {});
   }
-  pg_self_  = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
-  ngpu_     = 0;
-  has_gpu_  = false;
-  exhw_     = ExecutionHW::CPU;
-  ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
-  // nnodes_ = {GA_Cluster_nnodes()};
-  nnodes_ = pg.size().value() / ranks_pn_;
 
-#ifdef USE_TALSH
-  int errc = talshDeviceCount(DEV_NVIDIA_GPU, &ngpu_);
-  assert(!errc);
-#else
-  #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  tamm::getDeviceCount(&ngpu_);
-  #endif
+#if defined(USE_UPCXX)
+  pg_self_ = ProcGroup{team_self};
+
+#if defined(USE_UPCXX_DISTARRAY)
+  hint_ = pg.size().value();
 #endif
 
-#if defined(USE_TALSH) || defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#else
+  pg_self_  = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
+#endif
+
+  ngpu_ = 0;
+  has_gpu_ = false;
+  exhw_     = ExecutionHW::CPU;
+
+#if defined(USE_UPCXX)
+  ranks_pn_ = upcxx::local_team().rank_n();
+#else
+  ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
+#endif
+  nnodes_ = pg.size().value() / ranks_pn_;
+
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+tamm::getDeviceCount(&ngpu_);
+
+#if defined(USE_UPCXX)
+  dev_id_ = upcxx::rank_me() % ngpu_;
+  has_gpu_ = true;
+  exhw_ = ExecutionHW::GPU;
+#else
   dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
   if(ngpu_ == 1) dev_id_ = 0;
   if((pg.rank().value() % ranks_pn_) < ngpu_) {
     has_gpu_ = true;
     exhw_    = ExecutionHW::GPU;
   }
+#endif
 
   if(ranks_pn_ > ngpu_) {
     if(pg.rank() == 0) {

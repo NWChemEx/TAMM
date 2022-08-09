@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18.0)
+cmake_minimum_required(VERSION 3.22.0)
 
 include(FetchContent)
 
@@ -9,7 +9,7 @@ find_package( CMakeBuild QUIET )
 
 if( NOT ${CMakeBuild_FOUND} )
   if (NOT CMSB_TAG)
-    set(CMSB_TAG 1185e82ed3a2c7b61553723650ea1dfed23fee1d)
+    set(CMSB_TAG 3a31cf32c35b3e65ee1d25d9a2846556fc2be0b0)
     if (ENABLE_DEV_MODE)
       set(CMSB_TAG master)
     endif()
@@ -40,29 +40,11 @@ else()
   endif()
 endif()
 
-if(USE_CUDA OR USE_HIP) 
-   list(APPEND TAMM_DEPENDENCIES TALSH)
+if(USE_CUDA OR USE_HIP OR USE_DPCPP)
+  list(APPEND TAMM_DEPENDENCIES Librett)
 endif()
 
-if(DEFINED LINALG_VENDOR)
-    if(NOT ${LINALG_VENDOR} STREQUAL "BLIS")
-        list(APPEND TAMM_DEPENDENCIES BLIS)
-    endif()
-endif()
-
-if(USE_GA_AT)
-    if(USE_DPCPP)
-        list(APPEND TAMM_DEPENDENCIES IntelSYCL)
-    endif()
-    list(APPEND TAMM_DEPENDENCIES GlobalArrays)
-    if(USE_SCALAPACK)
-        list(APPEND TAMM_DEPENDENCIES ScaLAPACK LAPACK BLAS)
-    else()
-        list(APPEND TAMM_DEPENDENCIES LAPACK BLAS)
-    endif()
-else()
-    list(APPEND TAMM_DEPENDENCIES GlobalArrays) #BLAS LAPACK
-endif()
+list(APPEND TAMM_DEPENDENCIES GlobalArrays) #BLAS LAPACK
 
 if(USE_GAUXC)
   list(APPEND TAMM_DEPENDENCIES GauXC)

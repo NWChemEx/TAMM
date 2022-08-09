@@ -3,16 +3,15 @@ project(TAMM VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For cmsb_add_library
 
 if(USE_CUDA)
-    set(tamm_gpu_SRCS cuda_memory_allocator.cu cudamemset.cu)
-    set(tamm_gpu_INCS cuda_memory_allocator.hpp cudamemset.hpp talsh_tamm.hpp gpuStreams.hpp)
+    set(tamm_gpu_INCS gpu_streams.hpp gpu_memory_pool.hpp)
 elseif(USE_HIP)
-    set(tamm_gpu_INCS talsh_tamm.hpp gpuStreams.hpp)
+    set(tamm_gpu_INCS gpu_streams.hpp gpu_memory_pool.hpp)
 elseif(USE_DPCPP)
-    set(tamm_gpu_INCS gpuStreams.hpp sycl_device.hpp)
+    set(tamm_gpu_INCS sycl_device.hpp gpu_streams.hpp gpu_memory_pool.hpp)
 endif()
 
 #Add the current directory's sources to the list
-set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp "${tamm_gpu_SRCS}")
+set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp)
 
 #Add the current directory's header files to the list
 set(TAMM_INCLUDES
@@ -45,8 +44,9 @@ set(TAMM_INCLUDES
     index_loop_nest.hpp
     utils.hpp
     tamm_utils.hpp
-    tamm_dpcpp.hpp
+    ga_over_upcxx.hpp
     eigen_utils.hpp
+    eigen_includes.hpp
     runtime_engine.hpp
     block_buffer.hpp
     lru_cache.hpp
@@ -54,6 +54,7 @@ set(TAMM_INCLUDES
     kernels/multiply.hpp
     op_dag.hpp
     interfaces.hpp
+    op_profiler.hpp
     op_attributes.hpp
     op_visitors.hpp
     scalar.hpp
@@ -67,8 +68,7 @@ set(TAMM_INCLUDES
     perm.hpp
     iteration.hpp
     ip_hptt.hpp
-    blockops_blis.hpp
-    blockops_talsh.hpp
+    blockops_blas.hpp
     tensor_variant.hpp
     op_executor.hpp
     symbol.hpp

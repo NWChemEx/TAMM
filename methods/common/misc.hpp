@@ -3,12 +3,7 @@
 
 #include <iostream>
 
-// Libint Gaussian integrals library
-// TODO: remove following temporary fix for rocm compilers
-#if defined(__HIP_PLATFORM_AMD__)
-#define DEPRECATED [[deprecated]]
-#endif
-#include <libint2.hpp>
+#include "libint2_includes.hpp"
 
 #include <fmt/fmt.h>
 

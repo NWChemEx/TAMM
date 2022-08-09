@@ -60,6 +60,7 @@ static size_t num_resurrections=0;// num_morecore=0;
 static void *moreDeviceMem(size_t bytes)
 {
   void *ptr=nullptr;
+
 #if defined(USE_CUDA)
   CUDA_SAFE(cudaMalloc(&ptr, bytes));
 #elif defined(USE_HIP)
@@ -70,21 +71,6 @@ static void *moreDeviceMem(size_t bytes)
   ptr = sycl::malloc_device(bytes, stream);
 #endif
 
-  // num_morecore += 1;
-  if(ptr==nullptr) {     /*try one more time*/
-    clearHostFreeList();
-    clearGpuFreeList();
-
-#if defined(USE_CUDA)
-    CUDA_SAFE(cudaMalloc(&ptr, bytes));
-#elif defined(USE_HIP)
-    HIP_SAFE(hipMalloc(&ptr, bytes));
-#elif defined(USE_DPCPP)
-    auto& pool = tamm::GPUStreamPool::getInstance();
-    gpuStream_t& stream = pool.getStream();
-    ptr = sycl::malloc_device(bytes, stream);
-#endif
-  }
   assert(ptr!=nullptr); /*We hopefully have a pointer*/
   return ptr;
 }
@@ -104,23 +90,6 @@ static void *moreHostMem(size_t bytes)
     ptr = (void *)malloc(bytes);
   #endif
 
-  if(ptr==nullptr) {     /*try one more time*/
-    clearHostFreeList();
-    clearGpuFreeList();
-
-    #if defined(USE_CUDA)
-        CUDA_SAFE(cudaMallocHost(&ptr, bytes));
-    #elif defined(USE_HIP)
-        HIP_SAFE(hipHostMalloc(&ptr, bytes));
-    #elif defined(USE_DPCPP)
-        auto& pool = tamm::GPUStreamPool::getInstance();
-        gpuStream_t& stream = pool.getStream();
-        ptr = sycl::malloc_host(bytes, stream);
-    #else
-      ptr = (void *)malloc(bytes);
-    #endif
-  }
-
   assert(ptr!=nullptr); /*We hopefully have a pointer*/
   return ptr;
 }
@@ -139,6 +108,7 @@ static inline void *resurrect_from_free_list(map<size_t,set<void *> > &free_map,
   if(st.size()==0)
     free_map.erase(bytes);
   liveset[ptr] = bytes;
+
   return ptr;
 }
 
@@ -181,6 +151,7 @@ void *getGpuMem(size_t bytes)
   ptr = moreDeviceMem(bytes);
   live_ptrs_gpu[ptr] = bytes;
 #endif // NO_OPT
+
   return ptr;
 }
 

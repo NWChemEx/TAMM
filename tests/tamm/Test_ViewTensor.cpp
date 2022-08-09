@@ -1,8 +1,6 @@
-#include "ga/macdecls.h"
-#include "mpi.h"
+#include "ga/ga.h"
 #include <chrono>
 #include <tamm/tamm.hpp>
-#include <tamm/label_translator.hpp>
 
 using namespace tamm;
 
@@ -81,49 +79,49 @@ void test_view_tensor(size_t size, size_t tile_size) {
   (T_full() = 1.0)
   (F_occ() = 2.0)
   .execute();
-  std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
-  std::cout << "Print tensor T_full" << "\n";
-  print_tensor(T_full);
+//   std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+//   std::cout << "Print tensor T_full" << "\n";
+//   print_tensor(T_full);
   
   sch
   (T_occ() = 2.0)
   .execute();
 
-  std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
-  std::cout << "Print tensor T_full" << "\n";
-  print_tensor(T_full);
+//   std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+//   std::cout << "Print tensor T_full" << "\n";
+//   print_tensor(T_full);
 
   sch
   (T_occ(i_o, j_o, k_o) += F_occ(i_o, j_o, k_o))
   .execute();
 
-  std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
-  std::cout << "Print tensor T_full" << "\n";
-  print_tensor(T_full);
+//   std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+//   std::cout << "Print tensor T_full" << "\n";
+//   print_tensor(T_full);
 
   sch
   (T_virt() = 3.0)
   .execute();
 
-  std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
-  std::cout << "Print tensor T_full" << "\n";
-  print_tensor(T_full);
+//   std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+//   std::cout << "Print tensor T_full" << "\n";
+//   print_tensor(T_full);
   
   sch
   (T_alpha() = 4.0)
   .execute();
 
-  std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
-  std::cout << "Print tensor T_full" << "\n";
-  print_tensor(T_full);
+//   std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+//   std::cout << "Print tensor T_full" << "\n";
+//   print_tensor(T_full);
 
   sch
   (T_beta() = 5.0)
   .execute();
 
-  std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
-  std::cout << "Print tensor T_full" << "\n";
-  print_tensor(T_full);
+//   std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+//   std::cout << "Print tensor T_full" << "\n";
+//   print_tensor(T_full);
 
   sch
   (T_mixed() = 5.0)
@@ -138,18 +136,7 @@ void test_view_tensor(size_t size, size_t tile_size) {
 int main(int argc, char* argv[]) {
     tamm::initialize(argc, argv);
 
-    int mpi_rank;
-    MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
-    #ifdef USE_TALSH
-    TALSH talsh_instance;
-    talsh_instance.initialize(mpi_rank);
-    #endif
-
     test_view_tensor(10, 2);
-
-    #ifdef USE_TALSH
-    talsh_instance.shutdown();
-    #endif  
 
     tamm::finalize();
 

@@ -1,7 +1,5 @@
 
-#include "ga/macdecls.h"
 #include "mpi.h"
-#include "armci.h"
 #include "ga/ga.h"
 #include "ga/ga-mpi.h"
 
@@ -28,7 +26,6 @@ int main(int argc, char* argv[]) {
 
     MPI_Init(&argc, &argv);
     GA_Initialize();
-    MA_init(MT_DBL, 8000000, 20000000);
 
     int mpi_rank;
     MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);

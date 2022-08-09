@@ -12,13 +12,13 @@
 
 using namespace tamm;
 
-// Libint Gaussian integrals library
-#include <libint2.hpp>
-#include <libint2/basis.h>
-#include <libint2/chemistry/sto3g_atomic_density.h>
+#include "libint2_includes.hpp"
 
 #include "ga/ga.h"
 #include "ga/ga-mpi.h"
+#if defined(USE_UPCXX)
+#include <upcxx/upcxx.hpp>
+#endif
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::ordered_json;
@@ -151,6 +151,7 @@ class SCFOptions: public Options {
   double alpha; //density mixing parameter
   std::string scf_type;
   std::string xc_type;
+  std::pair<bool, double> print_mos{false,0.0};
   std::pair<bool, double> mo_vectors_analysis{false,0.15};
 
     void print() {
@@ -192,6 +193,10 @@ class SCFOptions: public Options {
       // print_bool(" ediis       ", ediis);
       // cout << " ediis_off    = " << ediis_off   << endl;  
       // print_bool(" sad         ", sad); 
+      if(print_mos.first) {
+        cout << " print_mos = [" << print_mos.first;
+        cout << "," << print_mos.second << "]" << endl;
+      }
       if(mo_vectors_analysis.first) {
         cout << " mo_vectors_analysis = [" << mo_vectors_analysis.first;
         cout << "," << mo_vectors_analysis.second << "]" << endl;
@@ -673,6 +678,7 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
     parse_option<int>   (scf_options.scalapack_np_row, jscf, "scalapack_np_row");                                                             
     parse_option<int>   (scf_options.scalapack_np_col, jscf, "scalapack_np_col");
     parse_option<string>(scf_options.ext_data_path   , jscf, "ext_data_path"); 
+    parse_option<std::pair<bool, double>>(scf_options.print_mos, jscf, "print_mos");
     parse_option<std::pair<bool, double>>(scf_options.mo_vectors_analysis, jscf, "mo_vectors_analysis");
     
     std::string riscf_str;
@@ -684,7 +690,7 @@ std::tuple<Options, SCFOptions, CDOptions, GWOptions, CCSDOptions> parse_json(js
      "tol_lindep", "conve", "convd", "diis_hist","force_tilesize","tilesize","df_tilesize",
      "alpha","writem","nnodes","restart","noscf","ediis","ediis_off","sad","moldenfile",
      "debug","scf_type","xc_type","n_lindep","restart_size","scalapack_nb","riscf",
-     "scalapack_np_row","scalapack_np_col","ext_data_path","mo_vectors_analysis","comments"};
+     "scalapack_np_row","scalapack_np_col","ext_data_path","print_mos","mo_vectors_analysis","comments"};
     for (auto& el : jscf.items()) {
       if (std::find(valid_scf.begin(), valid_scf.end(), el.key()) == valid_scf.end())
         tamm_terminate("INPUT FILE ERROR: Invalid SCF option [" + el.key() + "] in the input file");
@@ -857,7 +863,7 @@ class json_sax_no_exception : public nlohmann::detail::json_sax_dom_parser<json>
                      const std::string& last_token,
                      const json::exception& ex)
     {
-      if(GA_Nodeid()==0) {
+      if(ProcGroup::world_rank()==0) {
         std::cerr << std::endl << ex.what() << std::endl
                   << "last read: " << last_token
                   << std::endl;
@@ -938,7 +944,7 @@ inline std::tuple<OptionsMap, json>
       }
     }
 
-    if(GA_Nodeid()==0){
+    if (ProcGroup::world_rank() == 0) {
 
       jinput.erase(std::remove(jinput.begin(), jinput.end(), nullptr), jinput.end());
 

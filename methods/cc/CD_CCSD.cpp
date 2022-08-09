@@ -35,7 +35,7 @@ void ccsd_driver() {
 
     using T = double;
 
-    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     auto rank = ec.pg().rank();
 
@@ -122,17 +122,6 @@ void ccsd_driver() {
 
     auto cc_t1 = std::chrono::high_resolution_clock::now();
 
-    ExecutionHW ex_hw = ExecutionHW::CPU;
-    #ifdef USE_DPCPP
-    ex_hw = ExecutionHW::GPU;
-    #endif
-    #ifdef USE_TALSH
-    ex_hw = ExecutionHW::GPU;
-    const bool has_gpu = ec.has_gpu();
-    TALSH talsh_instance;
-    if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
-    #endif
-
     ccsd_restart = ccsd_restart && fs::exists(ccsdstatus) && scf_conv;
 
     std::string fullV2file = files_prefix+".fullV2";
@@ -212,11 +201,6 @@ void ccsd_driver() {
 
     free_tensors(d_f1, d_t1, d_t2, cholVpr);
     if(computeTData && is_rhf) free_tensors(dt1_full, dt2_full);
-
-    #ifdef USE_TALSH
-    //talshStats();
-    if(has_gpu) talsh_instance.shutdown();
-    #endif
 
     ec.flush_and_sync();
     // delete ec;

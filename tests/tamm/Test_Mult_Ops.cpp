@@ -2,6 +2,9 @@
 #include "mpi.h"
 #include <chrono>
 #include <tamm/tamm.hpp>
+#if defined(USE_UPCXX)
+#include <upcxx/upcxx.hpp>
+#endif
 
 using namespace tamm;
 
@@ -166,8 +169,11 @@ template <typename T>
 void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_hw, bool profile) {
   TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
 
+  using CT = std::complex<T>;
+
   auto [i, j, k, l, m, o] = tis1.labels<6>("all");
 
+ {
   Tensor<T> A{i, j, m, o};
   Tensor<T> B{m, o, k, l};
   Tensor<T> C{i, j, k, l};
@@ -186,10 +192,162 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
                        .count();
 
   if (sch.ec().pg().rank() == 0)
-    std::cout << "4-D Tensor contraction with " << N << " indices tiled with "
+    std::cout << "4-D Tensor contraction (R=RxR) with " << N << " indices tiled with "
               << tilesize << " : " << mult_time << std::endl;
 
   sch.deallocate(A, B, C).execute();
+ }
+
+  {
+  Tensor<T> A{i, j, m, o};
+  Tensor<T> B{m, o, k, l};
+  Tensor<CT> C{i, j, k, l};
+
+  sch.allocate(A, B, C)(A() = 21.0)(B() = 2.0)(C() = 0.0).execute();
+
+  const auto timer_start = std::chrono::high_resolution_clock::now();
+
+  sch//.exact_copy(A(i, j, m, o), B(m, o, k, l))
+  (C(j, i, k, l) += A(i, j, m, o) * B(m, o, k, l)).execute(ex_hw, profile);
+
+  const auto timer_end = std::chrono::high_resolution_clock::now();
+
+  auto mult_time = std::chrono::duration_cast<std::chrono::duration<double>>(
+                       (timer_end - timer_start))
+                       .count();
+
+  if (sch.ec().pg().rank() == 0)
+    std::cout << "4-D Tensor contraction (C=RxR) with " << N << " indices tiled with "
+              << tilesize << " : " << mult_time << std::endl;
+
+  sch.deallocate(A, B, C).execute();
+ }
+
+  {
+  Tensor<T> A{i, j, m, o};
+  Tensor<CT> B{m, o, k, l};
+  Tensor<CT> C{i, j, k, l};
+
+  sch.allocate(A, B, C)(A() = 21.0)(B() = 2.0)(C() = 0.0).execute();
+
+  const auto timer_start = std::chrono::high_resolution_clock::now();
+
+  sch//.exact_copy(A(i, j, m, o), B(m, o, k, l))
+  (C(j, i, k, l) += A(i, j, m, o) * B(m, o, k, l)).execute(ex_hw, profile);
+
+  const auto timer_end = std::chrono::high_resolution_clock::now();
+
+  auto mult_time = std::chrono::duration_cast<std::chrono::duration<double>>(
+                       (timer_end - timer_start))
+                       .count();
+
+  if (sch.ec().pg().rank() == 0)
+    std::cout << "4-D Tensor contraction (C=RxC) with " << N << " indices tiled with "
+              << tilesize << " : " << mult_time << std::endl;
+
+  sch.deallocate(A, B, C).execute();
+ }
+
+  {
+  Tensor<CT> A{i, j, m, o};
+  Tensor<T>  B{m, o, k, l};
+  Tensor<CT> C{i, j, k, l};
+
+  sch.allocate(A, B, C)(A() = 21.0)(B() = 2.0)(C() = 0.0).execute();
+
+  const auto timer_start = std::chrono::high_resolution_clock::now();
+
+  sch//.exact_copy(A(i, j, m, o), B(m, o, k, l))
+  (C(j, i, k, l) += A(i, j, m, o) * B(m, o, k, l)).execute(ex_hw, profile);
+
+  const auto timer_end = std::chrono::high_resolution_clock::now();
+
+  auto mult_time = std::chrono::duration_cast<std::chrono::duration<double>>(
+                       (timer_end - timer_start))
+                       .count();
+
+  if (sch.ec().pg().rank() == 0)
+    std::cout << "4-D Tensor contraction (C=CxR) with " << N << " indices tiled with "
+              << tilesize << " : " << mult_time << std::endl;
+
+  sch.deallocate(A, B, C).execute();
+ }
+
+  {
+  Tensor<CT> A{i, j, m, o};
+  Tensor<T> B{m, o, k, l};
+  Tensor<T> C{i, j, k, l};
+
+  sch.allocate(A, B, C)(A() = 21.0)(B() = 2.0)(C() = 0.0).execute();
+
+  const auto timer_start = std::chrono::high_resolution_clock::now();
+
+  sch//.exact_copy(A(i, j, m, o), B(m, o, k, l))
+  (C(j, i, k, l) += A(i, j, m, o) * B(m, o, k, l)).execute(ex_hw, profile);
+
+  const auto timer_end = std::chrono::high_resolution_clock::now();
+
+  auto mult_time = std::chrono::duration_cast<std::chrono::duration<double>>(
+                       (timer_end - timer_start))
+                       .count();
+
+  if (sch.ec().pg().rank() == 0)
+    std::cout << "4-D Tensor contraction (R=CxR) with " << N << " indices tiled with "
+              << tilesize << " : " << mult_time << std::endl;
+
+  sch.deallocate(A, B, C).execute();
+ }
+
+  {
+  Tensor<T> A{i, j, m, o};
+  Tensor<CT> B{m, o, k, l};
+  Tensor<T> C{i, j, k, l};
+
+  sch.allocate(A, B, C)(A() = 21.0)(B() = 2.0)(C() = 0.0).execute();
+
+  const auto timer_start = std::chrono::high_resolution_clock::now();
+
+  sch//.exact_copy(A(i, j, m, o), B(m, o, k, l))
+  (C(j, i, k, l) += A(i, j, m, o) * B(m, o, k, l)).execute(ex_hw, profile);
+
+  const auto timer_end = std::chrono::high_resolution_clock::now();
+
+  auto mult_time = std::chrono::duration_cast<std::chrono::duration<double>>(
+                       (timer_end - timer_start))
+                       .count();
+
+  if (sch.ec().pg().rank() == 0)
+    std::cout << "4-D Tensor contraction (R=RxC) with " << N << " indices tiled with "
+              << tilesize << " : " << mult_time << std::endl;
+
+  sch.deallocate(A, B, C).execute();
+  }
+
+  {
+  Tensor<CT> A{i, j, m, o};
+  Tensor<CT> B{m, o, k, l};
+  Tensor<CT> C{i, j, k, l};
+
+  sch.allocate(A, B, C)(A() = 21.0)(B() = 2.0)(C() = 0.0).execute();
+
+  const auto timer_start = std::chrono::high_resolution_clock::now();
+
+  sch//.exact_copy(A(i, j, m, o), B(m, o, k, l))
+  (C(j, i, k, l) += A(i, j, m, o) * B(m, o, k, l)).execute(ex_hw, profile);
+
+  const auto timer_end = std::chrono::high_resolution_clock::now();
+
+  auto mult_time = std::chrono::duration_cast<std::chrono::duration<double>>(
+                       (timer_end - timer_start))
+                       .count();
+
+  if (sch.ec().pg().rank() == 0)
+    std::cout << "4-D Tensor contraction (C=CxC) with " << N << " indices tiled with "
+              << tilesize << " : " << mult_time << std::endl;
+
+  sch.deallocate(A, B, C).execute();
+ } 
+
 }
 
 template <typename T>
@@ -269,35 +427,21 @@ int main(int argc, char* argv[]) {
 
   if(is_size < tile_size) tile_size = is_size;
 
-  ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
-  ExecutionHW ex_hw = ExecutionHW::CPU;
-  #ifdef USE_DPCPP
-  ex_hw = ExecutionHW::GPU;
-  #endif
-  #ifdef USE_TALSH
-  ex_hw = ExecutionHW::GPU;
-  const bool has_gpu = ec.has_gpu();
-  TALSH talsh_instance;
-  if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),ec.pg().rank().value());
-  #endif
+  ExecutionHW ex_hw = ec.exhw();
 
   Scheduler sch{ec};
 
   if(ec.pg().rank() == 0) std::cout << "tilesize = " << tile_size << std::endl;
 
   const bool profile = true;
-  test_2_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
-  test_3_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
+  // test_2_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
+  // test_3_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
   test_4_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
   // test_4_dim_mult_op_last_unit<double>(sch, is_size, tile_size);
   // test_4_dim_mult_op_first_unit<double>(sch, is_size, tile_size);
-
-  #ifdef USE_TALSH
-  //talshStats();
-  if(has_gpu) talsh_instance.shutdown();
-  #endif
 
   if(profile && ec.print()) {
     std::string profile_csv = "multops_profile.csv";

@@ -7,7 +7,7 @@
 #include "tamm/memory_manager_local.hpp"
 //#include "tamm/distribution.hpp"
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-#include "tamm/gpuStreams.hpp"
+#include "tamm/gpu_streams.hpp"
 #endif
 #include "tamm/types.hpp"
 
@@ -16,8 +16,8 @@
 #include <memory>
 #include <vector>
 
-#if USE_TALSH
-#include "talsh/talshxx.hpp"
+#if defined(USE_UPCXX)
+extern upcxx::team* team_self;
 #endif
 
 namespace tamm {
@@ -56,7 +56,11 @@ class RuntimeEngine;
 class ExecutionContext {
 public:
   ExecutionContext(): ac_{IndexedAC{nullptr, 0}} {
+#if defined(USE_UPCXX)
+    pg_self_ = ProcGroup{team_self};
+#else
     pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
+#endif
   };
 
   ExecutionContext(const ExecutionContext&)            = default;
@@ -95,13 +99,6 @@ public:
   //     //nnodes_ = {GA_Cluster_nnodes()};
   //     nnodes_ = pg.size().value() / ranks_pn_;
 
-  // #ifdef USE_TALSH
-  //     int errc = talshDeviceCount(DEV_NVIDIA_GPU, &ngpu_);
-  //     assert(!errc);
-  //     dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
-  //     if (ngpu_ == 1) dev_id_=0;
-  //     if( (pg.rank().value() % ranks_pn_) < ngpu_ ) has_gpu_ = true;
-  // #endif
   //     // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
   // }
   RuntimeEngine* runtime_ptr();
@@ -195,7 +192,12 @@ public:
    *
    * @param [in] pg input ProcGroup object
    */
-  void set_pg(const ProcGroup& pg) { pg_ = pg; }
+  void set_pg(const ProcGroup& pg) {
+    pg_ = pg;
+#if defined(USE_UPCXX_DISTARRAY)
+    hint_ = pg.size().value();
+#endif
+  }
 
   /**
    * Get the default distribution
@@ -245,6 +247,22 @@ public:
   MemoryManager* memory_manager(Args&&... args) const {
     return memory_manager_factory(memory_manager_kind_, std::forward<Args>(args)...).release();
   }
+
+#if defined(USE_UPCXX_DISTARRAY)
+    /**
+     * @brief Set cache size for MemoryRegionGAs created by MemoryManagerGAs of this ExecutionContext
+     *
+     * @param [in] hint input Size of cache for MemoryRegionsGAs
+     */
+    void set_memory_manager_cache(const upcxx::intrank_t hint = 0) { 
+        hint_ = (hint ? hint : pg_.size().value());
+    }
+    /**
+     * Cache size hint for this execution context
+     * @return Cache size used by MemoryRegionGAs within this ExecutionContext
+     */
+    upcxx::intrank_t hint() const { return hint_; }
+#endif
 
   /**
    * @brief Set the default memory manager for ExecutionContext
@@ -306,8 +324,6 @@ public:
   void set_ac(IndexedAC ac) { ac_ = ac; }
 
   int num_gpu() const { return ngpu_; }
-
-  void set_ngpu(int ngpu) { ngpu_ = ngpu; }
 
   bool has_gpu() const { return has_gpu_; }
 
@@ -381,6 +397,10 @@ private:
   std::stringstream          profile_data_;
   std::vector<MemoryRegion*> mem_regs_to_dealloc_;
   std::vector<MemoryRegion*> unregistered_mem_regs_;
+
+#if defined(USE_UPCXX_DISTARRAY)
+  upcxx::intrank_t hint_;
+#endif
 
 }; // class ExecutionContext
 

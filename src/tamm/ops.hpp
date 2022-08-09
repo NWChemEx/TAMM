@@ -1,6 +1,13 @@
 #pragma once
 
 #include "tamm/op_base.hpp"
+#include "tamm/setop.hpp"
+#include "tamm/scanop.hpp"
+#include "tamm/mapop.hpp"
+#include "tamm/addop.hpp"
+#include "tamm/multop.hpp"
+#include "tamm/allocop.hpp"
+#include "tamm/deallocop.hpp"
 
 //#define DO_NB
 //#define DO_NB_GET
@@ -39,38 +46,6 @@ class LabelMap {
 };
 }
 
-namespace tamm {
-
-extern int mult_counter;
-extern double tbarrierTime;
-extern double tgetTime;
-extern double taddTime;
-extern double twaitTime;
-extern double tgemmTime;
-extern double multOpTime;
-extern double setOpTime;
-extern double addOpTime;
-extern double allocOpTime;
-extern double deallocOpTime;
-extern double multOpGetTime;
-extern double multOpWaitTime;
-extern double multOpAddTime;
-extern double multOpDgemmTime;
-
-} // namespace tamm
-#include "tamm/setop.hpp"
-#include "tamm/scanop.hpp"
-#include "tamm/mapop.hpp"
-#include "tamm/addop.hpp"
-#include "tamm/multop.hpp"
-#include "tamm/allocop.hpp"
-#include "tamm/deallocop.hpp"
-
-// #include <algorithm>
-// #include <chrono>
-// #include <iostream>
-// #include <memory>
-// #include <vector>
 
 namespace tamm {
 template<typename T>
@@ -156,7 +131,7 @@ constexpr auto LabeledTensor<T>::make_op(T1&& rhs, const bool is_assign,
                                (is_same_v<rhs1_t, LTT> &&
                                 (is_same_v<rhs0_t, LTT_cfloat> ||
                                  is_same_v<rhs0_t, LTT_cdouble>))))
-                return MultOp<int, LTT, rhs0_t, rhs1_t>{
+                return MultOp<T, LTT, rhs0_t, rhs1_t>{
                   *this, sub_v, get<0>(rhs), get<1>(rhs), is_assign};
         }
 

@@ -1,71 +1,69 @@
-#include "ga/macdecls.h"
-#include "mpi.h"
+#include "ga/ga.h"
 #include <chrono>
-#include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
 
 using namespace tamm;
 
 
-bool eigen_tensors_are_equal(Tensor1D& e1, Tensor1D& e2, double threshold = 1.0e-12) {
-  bool ret  = true;
-  auto dims = e1.dimensions();
-  for(auto i = 0; i < dims[0]; i++) {
-    if(std::abs(e1(i) - e2(i)) > std::abs(threshold * e1(i))) {
-      ret = false;
-      break;
-    }
-  }
-  return ret;
-}
+// bool eigen_tensors_are_equal(Tensor1D& e1, Tensor1D& e2, double threshold = 1.0e-12) {
+//   bool ret  = true;
+//   auto dims = e1.dimensions();
+//   for(auto i = 0; i < dims[0]; i++) {
+//     if(std::abs(e1(i) - e2(i)) > std::abs(threshold * e1(i))) {
+//       ret = false;
+//       break;
+//     }
+//   }
+//   return ret;
+// }
 
-bool eigen_tensors_are_equal(Tensor2D& e1, Tensor2D& e2, double threshold = 1.0e-12) {
-  bool ret  = true;
-  auto dims = e1.dimensions();
-  for(auto i = 0; i < dims[0]; i++) {
-    for(auto j = 0; j < dims[1]; j++) {
-      if(std::abs(e1(i, j) - e2(i, j)) > std::abs(threshold * e1(i, j))) {
-        ret = false;
-        break;
-      }
-    }
-  }
-  return ret;
-}
+// bool eigen_tensors_are_equal(Tensor2D& e1, Tensor2D& e2, double threshold = 1.0e-12) {
+//   bool ret  = true;
+//   auto dims = e1.dimensions();
+//   for(auto i = 0; i < dims[0]; i++) {
+//     for(auto j = 0; j < dims[1]; j++) {
+//       if(std::abs(e1(i, j) - e2(i, j)) > std::abs(threshold * e1(i, j))) {
+//         ret = false;
+//         break;
+//       }
+//     }
+//   }
+//   return ret;
+// }
 
-bool eigen_tensors_are_equal(Tensor3D& e1, Tensor3D& e2, double threshold = 1.0e-12) {
-  bool ret  = true;
-  auto dims = e1.dimensions();
-  for(auto i = 0; i < dims[0]; i++) {
-    for(auto j = 0; j < dims[1]; j++) {
-      for(auto k = 0; k < dims[2]; k++) {
-        if(std::abs(e1(i, j, k) - e2(i, j, k)) > std::abs(threshold * e1(i, j, k))) {
-          ret = false;
-          break;
-        }
-      }
-    }
-  }
-  return ret;
-}
+// bool eigen_tensors_are_equal(Tensor3D& e1, Tensor3D& e2, double threshold = 1.0e-12) {
+//   bool ret  = true;
+//   auto dims = e1.dimensions();
+//   for(auto i = 0; i < dims[0]; i++) {
+//     for(auto j = 0; j < dims[1]; j++) {
+//       for(auto k = 0; k < dims[2]; k++) {
+//         if(std::abs(e1(i, j, k) - e2(i, j, k)) > std::abs(threshold * e1(i, j, k))) {
+//           ret = false;
+//           break;
+//         }
+//       }
+//     }
+//   }
+//   return ret;
+// }
 
-bool eigen_tensors_are_equal(Tensor4D& e1, Tensor4D& e2, double threshold = 1.0e-12) {
-  bool ret  = true;
-  auto dims = e1.dimensions();
-  for(auto i = 0; i < dims[0]; i++) {
-    for(auto j = 0; j < dims[1]; j++) {
-      for(auto k = 0; k < dims[2]; k++) {
-        for(auto l = 0; l < dims[3]; l++) {
-          if(std::abs(e1(i, j, k, l) - e2(i, j, k, l)) > std::abs(threshold * e1(i, j, k, l))) {
-            ret = false;
-            break;
-          }
-        }
-      }
-    }
-  }
-  return ret;
-}
+// bool eigen_tensors_are_equal(Tensor4D& e1, Tensor4D& e2, double threshold = 1.0e-12) {
+//   bool ret  = true;
+//   auto dims = e1.dimensions();
+//   for(auto i = 0; i < dims[0]; i++) {
+//     for(auto j = 0; j < dims[1]; j++) {
+//       for(auto k = 0; k < dims[2]; k++) {
+//         for(auto l = 0; l < dims[3]; l++) {
+//           if(std::abs(e1(i, j, k, l) - e2(i, j, k, l)) > std::abs(threshold * e1(i, j, k, l))) {
+//             ret = false;
+//             break;
+//           }
+//         }
+//       }
+//     }
+//   }
+//   return ret;
+// }
 
 template<typename T>
 bool check_value(LabeledTensor<T> lt, T val) {
@@ -320,24 +318,13 @@ void test_unit_tiled_view_tensor(ExecutionContext& ec, size_t size, size_t tile_
 int main(int argc, char* argv[]) {
     tamm::initialize(argc, argv);
 
-    int mpi_rank;
-    MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
-    #ifdef USE_TALSH
-    TALSH talsh_instance;
-    talsh_instance.initialize(mpi_rank);
-    #endif
-
-    ProcGroup        pg  = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup        pg  = ProcGroup::create_world_coll();
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW  distribution;
     RuntimeEngine    re;
     ExecutionContext ec{pg, &distribution, mgr, &re};
 
     test_unit_tiled_view_tensor(ec, 20, 5);
-
-    #ifdef USE_TALSH
-    talsh_instance.shutdown();
-    #endif  
 
     tamm::finalize();
 

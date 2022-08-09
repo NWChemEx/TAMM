@@ -107,21 +107,13 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
 
   libint2::BasisSet shells;
   {
-    std::vector<libint2::Atom> atoms_list;
-    std::map<int,std::vector<libint2::Atom>> atoms_vec_map;
-
     for (int i = 0; i < atoms.size(); i++) {
       const auto Z = atoms[i].atomic_number;
-      Atom x{Z, atoms[i].x, atoms[i].y, atoms[i].z};
-      if(atom_basis_map.find( Z ) != atom_basis_map.end()) 
-        atoms_vec_map[Z].push_back(x);
-      else atoms_list.push_back(x);
-    }
-  
-    if(atoms_list.size()>0) shells = libint2::BasisSet{std::string(basis), atoms_list};
-    for (const auto& avec: atoms_vec_map) {
-      std::string basisset = atom_basis_map[avec.first];
-      libint2::BasisSet ashells(basisset, avec.second);
+      std::string _basisname = basis;
+      if(atom_basis_map.find( Z ) != atom_basis_map.end())
+        _basisname = atom_basis_map[Z];
+      else atom_basis_map[Z] = _basisname;
+      libint2::BasisSet ashells(_basisname,{atoms[i]});
       shells.insert(shells.end(),ashells.begin(),ashells.end());
     }
   }
@@ -132,7 +124,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     shells.set_pure(false); // use cartesian gaussians
 
   const size_t N      = nbasis(shells);
-  auto         nnodes = GA_Cluster_nnodes();
+  auto         nnodes = exc.num_nodes();
 
   sys_data.nbf      = N;
   sys_data.nbf_orig = N;
@@ -157,6 +149,12 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     #if SCF_THROTTLE_RESOURCES
       auto [t_nnodes,hf_nnodes,ppn,hf_nranks,sca_nnodes,sca_nranks] = get_hf_nranks(scf_options,N);
 
+#if defined(USE_UPCXX)
+      bool in_new_team = (rank < hf_nranks);
+      upcxx::team* gcomm = exc.pg().team();
+      upcxx::team* hf_comm = new upcxx::team(gcomm->split(
+                  in_new_team ? 0 : upcxx::team::color_none, rank.value()));
+#else
       int ranks[hf_nranks];
       for (int i = 0; i < hf_nranks; i++) ranks[i] = i;    
       auto gcomm = exc.pg().comm();
@@ -166,6 +164,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
       MPI_Group_incl(wgroup,hf_nranks,ranks,&hfgroup);
       MPI_Comm hf_comm;
       MPI_Comm_create(gcomm,hfgroup,&hf_comm);
+#endif
 
       #if defined(USE_SCALAPACK)
         int lranks[sca_nranks];
@@ -178,7 +177,12 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     #endif
 
     if(rank == 0) {
+#if defined(USE_UPCXX)
+      cout << std::endl << "Number of nodes, mpi ranks per node provided: " << nnodes << ", " << (int)(gcomm->rank_n() / nnodes) << endl;
+#else
       cout << std::endl << "Number of nodes, mpi ranks per node provided: " << nnodes << ", " << GA_Cluster_nprocs(0) << endl;
+#endif
+
       #if SCF_THROTTLE_RESOURCES
         cout << "Number of nodes, mpi ranks per node used for SCF calculation: " << hf_nnodes << ", " << ppn << endl;
       #endif
@@ -296,10 +300,14 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
 
     #if SCF_THROTTLE_RESOURCES
     if (rank < hf_nranks) {
-      EXPECTS(hf_comm != MPI_COMM_NULL);
       ScalapackInfo scalapack_info;
 
+#if defined(USE_UPCXX)
+      ProcGroup pg = ProcGroup::create_coll(*hf_comm);
+#else
+      EXPECTS(hf_comm != MPI_COMM_NULL);
       ProcGroup pg = ProcGroup::create_coll(hf_comm);
+#endif
       ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     #else 
       //TODO: Fix - create ec_m, when throttle is disabled
@@ -308,6 +316,9 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
       // ProcGroup pg_l = ProcGroup::create_coll(MPI_COMM_SELF);
       // ExecutionContext ec_l{pg_l, DistributionKind::nw, MemoryManagerKind::local};
     #if defined(USE_SCALAPACK)
+      #if defined(USE_UPCXX)
+      abort(); // Not supported with UPC++
+      #endif
       scalapack_info.comm = scacomm;
       if(scacomm != MPI_COMM_NULL) {
 
@@ -371,7 +382,7 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
         std::cout << std::fixed << std::setprecision(2) << std::endl
                   << "Time for BLACS setup: " << blacs_time.count() << " secs" << std::endl;
       }
-    #endif
+    #endif // USE_SCALAPACK
 
     #if defined(USE_GAUXC)
     /*** =========================== ***/
@@ -540,7 +551,11 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
         ttensors.FD_beta_tamm     = {tAO, tAO}; 
         ttensors.FDS_beta_tamm    = {tAO, tAO};    
       }
-    
+
+#if defined(USE_UPCXX_DISTARRAY)
+      ec.set_memory_manager_cache(1);
+#endif
+
       Tensor<TensorType>::allocate(&ec, ttensors.F_alpha     , 
                                         ttensors.D_tamm , ttensors.D_last_tamm, ttensors.D_diff  ,
                                         ttensors.F_alpha_tmp , ttensors.ehf_tmp    , ttensors.ehf_tamm,
@@ -562,7 +577,6 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
       auto max_nprim  = obs.max_nprim();
       auto max_nprim4 = max_nprim * max_nprim * max_nprim * max_nprim;
       auto shell2bf   = obs.shell2bf();
-
 
       if (restart) {
         scf_restart(ec, sys_data, filename, etensors, files_prefix);
@@ -1010,6 +1024,9 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
 
       if(do_density_fitting) Tensor<TensorType>::deallocate(ttensors.xyK_tamm, ttensors.C_occ_tamm, ttensors.Zxy_tamm);
 
+      if(scf_options.print_mos.first)
+        write_to_disk<TensorType>(ttensors.H1, files_prefix + ".hcore");
+
       Tensor<TensorType>::deallocate(ttensors.H1     , ttensors.S1      , ttensors.T1         , ttensors.V1,
                                      ttensors.F_alpha_tmp , ttensors.ehf_tmp , ttensors.ehf_tamm   , ttensors.F_alpha,
                                      ttensors.D_tamm , ttensors.D_diff  , ttensors.D_last_tamm,
@@ -1032,6 +1049,9 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
 
 
       #if defined(USE_SCALAPACK)
+      #if defined(USE_UPCXX)
+      abort(); // Not supported currently in UPC++
+      #endif
       if(scalapack_info.comm != MPI_COMM_NULL) {
         Tensor<TensorType>::deallocate(ttensors.F_BC, ttensors.X_alpha);
         if(is_uhf) Tensor<TensorType>::deallocate(ttensors.X_beta);
@@ -1051,10 +1071,14 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
 
     } //end scaled down process group
 
+    #if defined(USE_UPCXX)
+        hf_comm->destroy();
+    #endif
+
     #endif
 
     //C,F1 is not allocated for ranks > hf_nranks 
-    exc.pg().barrier(); 
+    exc.pg().barrier();
 
     //F, C are not deallocated.
     sys_data.n_occ_alpha = sys_data.nelectrons_alpha;
@@ -1087,10 +1111,17 @@ hartree_fock(ExecutionContext& exc, const string filename, OptionsMap options_ma
     Tensor<TensorType> C_beta_tamm{scf_vars.tAO,tAO_ortho};
     vxc_tamm = Tensor<TensorType>{scf_vars.tAO,scf_vars.tAO};
 
+#if defined(USE_UPCXX_DISTARRAY)
+    exc.set_memory_manager_cache(1);
+#endif
+
     schg.allocate(C_alpha_tamm);
     if(is_uhf) schg.allocate(C_beta_tamm);
     if(is_ks) schg.allocate(vxc_tamm);
     schg.execute();
+#if defined(USE_UPCXX_DISTARRAY)
+    exc.set_memory_manager_cache(); // resets cache to pg.size().value();
+#endif
 
     if (rank == 0) {
       eigen_to_tamm_tensor(C_alpha_tamm, etensors.C);

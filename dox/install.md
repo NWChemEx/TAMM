@@ -57,9 +57,13 @@ mkdir build && cd build
 
 * **[Build instructions for Summit using ESSL](install.md#build-instructions-for-summit-using-essl)**
 
+* **[Build instructions for Summit using ESSL and UPC++](install.md#build-instructions-for-summit-using-essl-and-upc++)**
+
 * **[Build instructions for Crusher](install.md#build-instructions-for-crusher)**
 
 * **[Build instructions for Cori](install.md#build-instructions-for-cori)**
+
+* **[Build instructions for Perlmutter and Polaris](install.md#build-instructions-for-perlmutter-and-polaris)**
 
 * **[Build instructions for Theta](install.md#build-instructions-for-theta)**
 
@@ -107,7 +111,7 @@ make install
 
 ```
 module load gcc
-module load cmake/3.21.3
+module load cmake
 module load essl/6.3.0
 module load cuda
 ```
@@ -126,6 +130,36 @@ make -j3
 make install
 ```
 
+## Build instructions for Summit using ESSL and UPC++
+
+### Note that UPC++ support is still experimental
+
+```
+module load gcc
+module load cmake
+module load essl/6.3.0
+module load cuda
+module load upcxx
+```
+
+
+```
+cd $TAMM_SRC/build
+
+UPCXX_CODEMODE=O3 CC=gcc CXX=upcxx FC=gfortran cmake \
+-DCMAKE_BUILD_TYPE=Release \
+-DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
+-DBLIS_CONFIG=power9 \
+-DLINALG_VENDOR=IBMESSL \
+-DLINALG_PREFIX=/sw/summit/essl/6.3.0/essl/6.3 \
+-DUSE_CUDA=ON \
+-DUSE_UPCXX=ON ..
+
+UPCXX_CODEMODE=O3 make -j3
+UPCXX_CODEMODE=O3 make install
+```
+
+
 ## Build instructions for Crusher
 
 ```
@@ -135,6 +169,7 @@ module load PrgEnv-amd
 module load rocm
 module unload cray-libsci
 export CRAYPE_LINK_TYPE=dynamic
+export HDF5_USE_FILE_LOCKING=FALSE
 ```
 
 ```
@@ -154,7 +189,7 @@ make install
 
 ```
 export CRAYPE_LINK_TYPE=dynamic
-export HDF5_USE_FILE_LOCKING="FALSE"
+export HDF5_USE_FILE_LOCKING=FALSE
 ```
 
 ### CPU only build
@@ -166,7 +201,7 @@ module swap gcc/8.3.0
 module swap craype/2.5.18
 module swap cray-mpich/7.7.6
 module unload cmake
-module load cmake/3.21.3
+module load cmake
 ```
 
 ```
@@ -183,7 +218,7 @@ make install
 ### GPU build
 
 ```
-module purge && module load cgpu cuda gcc openmpi cmake/3.21.3
+module purge && module load cgpu cuda gcc openmpi cmake
 ```
 
 ```
@@ -196,21 +231,29 @@ make -j3
 make install
 ```
 
-## Build instructions for Perlmutter
+## Build instructions for Perlmutter and Polaris
 
 ```
 module load PrgEnv-gnu
 module load cudatoolkit
-module load cpe-cuda
+module load cpe-cuda (perlmutter only)
 module load gcc/9.3.0
 module load cmake
 export CRAYPE_LINK_TYPE=dynamic
 ```
 
 ```
+##ADJUST CUBLAS_PATH IF NEEDED
+
+export CUBLAS_PATH=$CUDA_HOME/../../math_libs/11.5/lib64
+export CPATH=$CPATH:$CUBLAS_PATH/include
+```
+
+```
 cd $TAMM_SRC/build
 
-cmake -DUSE_CUDA=ON -DBLIS_CONFIG=generic -DUSE_CRAYSHASTA=ON \
+cmake -DUSE_CUDA=ON -DBLIS_CONFIG=generic \
+-DCMAKE_PREFIX_PATH=$CUBLAS_PATH/lib \
 -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
 
 make -j3
@@ -223,7 +266,7 @@ make install
 module unload PrgEnv-intel/6.0.7
 module load PrgEnv-gnu/6.0.7
 module unload cmake
-module load cmake/3.20.4
+module load cmake
 export CRAYPE_LINK_TYPE=dynamic
 ```
 

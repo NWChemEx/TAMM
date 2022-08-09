@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "tamm/block_span.hpp"
-#include "tamm/blockops_blis.hpp"
+#include "tamm/blockops_blas.hpp"
 #include "tamm/blockops_cpu.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/ip_hptt.hpp"
@@ -111,7 +111,7 @@ public:
     void apply(BlockSpan<T1>& lhs, const BlockSpan<T2>& rhs) {
         if constexpr(internal::is_complex_v<T1> || internal::is_complex_v<T2>) {
             std::vector<T1> new_rhs_vec(rhs.num_elements());
-            blockops::blis::prep_rhs_buffer<T1>(rhs, new_rhs_vec);
+            blockops::bops_blas::prep_rhs_buffer<T1>(rhs, new_rhs_vec);
             BlockSpan<T1> rhs_new{new_rhs_vec.data(), rhs.block_dims()};
             apply_impl(lhs, rhs_new);
         } else if constexpr(std::is_convertible_v<T2, T1>) {
@@ -194,7 +194,7 @@ public:
                            internal::is_complex_v<T2> &&
                            std::is_convertible_v<decltype(alpha), T1>) {
                   std::vector<T1> new_rhs_vec(rhs.num_elements());
-                  blockops::blis::prep_rhs_buffer<T1>(rhs, new_rhs_vec);
+                  blockops::bops_blas::prep_rhs_buffer<T1>(rhs, new_rhs_vec);
                   BlockSpan<T1> rhs_new{new_rhs_vec.data(), rhs.block_dims()};
                   apply_impl(lhs, static_cast<T1>(alpha), rhs_new);
               } else if constexpr(std::is_convertible_v<T2, T1> &&
@@ -265,7 +265,7 @@ public:
                              std::is_convertible_v<decltype(beta), T1> &&
                              std::is_convertible_v<decltype(alpha), T2>) {
                   std::vector<T1> new_rhs_vec(rhs.num_elements());
-                  blockops::blis::prep_rhs_buffer<T1>(rhs, new_rhs_vec);
+                  blockops::bops_blas::prep_rhs_buffer<T1>(rhs, new_rhs_vec);
                   BlockSpan<T1> rhs_new{new_rhs_vec.data(), rhs.block_dims()};
                   apply_impl(static_cast<T1>(beta), lhs, static_cast<T2>(alpha),
                              rhs_new);

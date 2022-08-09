@@ -4,15 +4,18 @@
 #include <map>
 
 #ifdef USE_CUDA
-#include <cublas_v2.h>
 #include <cuda.h>
+#include <cublas_v2.h>
 #include <cuda_runtime.h>
+#include <cuda_runtime_api.h>
 #elif defined(USE_HIP)
 #include <hip/hip_runtime.h>
 #include <rocblas.h>
 #elif defined(USE_DPCPP)
 #include "sycl_device.hpp"
 #endif
+
+namespace tamm {
 
 #if defined(USE_HIP)
 using gpuStream_t                            = hipStream_t;
@@ -23,13 +26,10 @@ constexpr unsigned short int max_gpu_streams = 1;
 using gpuStream_t                            = cudaStream_t;
 using gpuEvent_t                             = cudaEvent_t;
 using gpuBlasHandle_t                        = cublasHandle_t;
-
-// Note: 06/04/22, there is gradual reduction to 1 stream give the
-//                 concurrency advantages are quite minimal
 constexpr unsigned short int max_gpu_streams = 1;
 #elif defined(USE_DPCPP)
 using gpuStream_t                            = sycl::queue;
-using gpuEvent_t                             = std::vector<sycl::event>;
+using gpuEvent_t                             = sycl::event;
 constexpr unsigned short int max_gpu_streams = 1;
 
 auto sycl_asynchandler = [](sycl::exception_list exceptions) {
@@ -42,9 +42,8 @@ auto sycl_asynchandler = [](sycl::exception_list exceptions) {
     }
   }
 };
-#endif // USE_DPCPP
+#endif
 
-namespace tamm {
 static inline void getDeviceCount(int* id) {
 #if defined(USE_CUDA)
   cudaGetDeviceCount(id);
@@ -83,8 +82,7 @@ private:
     _count       = 0;
     _initialized = false;
 
-  #if !defined(USE_DPCPP) && !defined(USE_TALSH)
-
+  #if !defined(USE_DPCPP)
     if(!_devID2Streams.empty()) {
       for(auto& stream: _devID2Streams) {
     #if defined(USE_CUDA)
@@ -133,6 +131,10 @@ public:
 
   /// Returns a GPU stream in a round-robin fashion
   gpuStream_t& getStream() {
+    if(!_initialized) {
+      EXPECTS_STR(false, "Error: active GPU-device not set! call set_device()!");
+    }
+
     unsigned short int counter = _count++ % max_gpu_streams;
 
 #if defined(USE_CUDA)
@@ -157,8 +159,11 @@ public:
 #endif
   }
 
-#if !defined(USE_DPCPP) && !defined(USE_TALSH)
-  gpuBlasHandle_t& getBlasHandle() {
+#if !defined(USE_DPCPP)
+    gpuBlasHandle_t& getBlasHandle() {
+    if(!_initialized) {
+      EXPECTS_STR(false, "Error: active GPU-device not set! call set_device()!");
+    }
     auto result = _devID2Handles.insert({_active_device, gpuBlasHandle_t()});
 #if defined(USE_CUDA)
     gpuBlasHandle_t& handle   = (*result.first).second;

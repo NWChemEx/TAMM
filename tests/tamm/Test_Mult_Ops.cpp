@@ -321,7 +321,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
               << tilesize << " : " << mult_time << std::endl;
 
   sch.deallocate(A, B, C).execute();
- }
+  }
 
   {
   Tensor<CT> A{i, j, m, o};
@@ -430,16 +430,7 @@ int main(int argc, char* argv[]) {
   ProcGroup pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
-  ExecutionHW ex_hw = ExecutionHW::CPU;
-  #ifdef USE_DPCPP
-  ex_hw = ExecutionHW::GPU;
-  #endif
-  #ifdef USE_TALSH
-  ex_hw = ExecutionHW::GPU;
-  const bool has_gpu = ec.has_gpu();
-  TALSH talsh_instance;
-  if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),ec.pg().rank().value());
-  #endif
+  ExecutionHW ex_hw = ec.exhw();
 
   Scheduler sch{ec};
 
@@ -451,11 +442,6 @@ int main(int argc, char* argv[]) {
   test_4_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
   // test_4_dim_mult_op_last_unit<double>(sch, is_size, tile_size);
   // test_4_dim_mult_op_first_unit<double>(sch, is_size, tile_size);
-
-  #ifdef USE_TALSH
-  //talshStats();
-  if(has_gpu) talsh_instance.shutdown();
-  #endif
 
   if(profile && ec.print()) {
     std::string profile_csv = "multops_profile.csv";

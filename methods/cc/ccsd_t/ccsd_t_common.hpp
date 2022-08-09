@@ -1,20 +1,16 @@
 #pragma once
 
-#include <assert.h>
-#include <stdio.h>
+#include <cstdio>
+#include <cassert>
 #include <string>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <time.h>
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 #include "tamm/gpu_streams.hpp"
+#include "tamm/gpu_memory_pool.hpp"
+using tamm::gpuStream_t;
+using tamm::gpuEvent_t;
 #endif
 
-#ifdef USE_TALSH
-#define USE_TALSH_T
-#endif
-#undef USE_TALSH
 
 #ifdef USE_CUDA
 #define CHECK_ERR(x)                           \

@@ -7,8 +7,6 @@
 #endif
 #include "ccsd_t_common.hpp"
 
-int check_device(long);
-
 void finalizememmodule();
 
 /**
@@ -110,25 +108,16 @@ std::tuple<T, T, double, double> ccsd_t_fused_driver_new(
   }
 
   // TODO replicate d_t1 L84-89 ccsd_t_gpu.F
-  T energy1 = 0.0;
-  T energy2 = 0.0;
+  T              energy1 = 0.0;
+  T              energy2 = 0.0;
   std::vector<T> energy_l;
   energy_l.resize(2);
   energy_l[0] = 0.0;
   energy_l[1] = 0.0;
 
-#if defined(USE_CUDA)
-  std::shared_ptr<gpuEvent_t> done_compute(new gpuEvent_t,
-                                           [](gpuEvent_t* e) { CUDA_SAFE(cudaEventDestroy(*e)); });
-  CUDA_SAFE( cudaEventCreate(done_compute.get()) );
-  std::shared_ptr<gpuEvent_t> done_copy(new gpuEvent_t,
-                                        [](gpuEvent_t* e) { CUDA_SAFE(cudaEventDestroy(*e)); });
-  CUDA_SAFE( cudaEventCreate(done_copy.get()) );
-
-  std::shared_ptr<hostEnergyReduceData_t> reduceData = std::make_shared<hostEnergyReduceData_t>();
-#elif defined(USE_DPCPP)
-  gpuEvent_t done_copy(12);
-  gpuEvent_t done_compute(1);
+#if defined(USE_DPCPP)
+  std::vector<gpuEvent_t> done_copy(12);
+  gpuEvent_t              done_compute;
 #endif
 
   AtomicCounter* ac = new AtomicCounterGA(ec.pg(), 1);
@@ -178,21 +167,24 @@ std::tuple<T, T, double, double> ccsd_t_fused_driver_new(
   int* df_simple_d2_size = (int*) getHostMem(sizeof(int) * (7 * nvab));
   int* df_simple_d2_exec = (int*) getHostMem(sizeof(int) * (9 * nvab));
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  T*   df_dev_s1_t1_all  = (T*) getGpuMem(sizeof(T) * size_T_s1_t1);
-  T*   df_dev_s1_v2_all  = (T*) getGpuMem(sizeof(T) * size_T_s1_v2);
-  T*   df_dev_d1_t2_all  = (T*) getGpuMem(sizeof(T) * size_T_d1_t2);
-  T*   df_dev_d1_v2_all  = (T*) getGpuMem(sizeof(T) * size_T_d1_v2);
-  T*   df_dev_d2_t2_all  = (T*) getGpuMem(sizeof(T) * size_T_d2_t2);
-  T*   df_dev_d2_v2_all  = (T*) getGpuMem(sizeof(T) * size_T_d2_v2);
+  // get GPU memory handle from pool
+  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+
+  T* df_dev_s1_t1_all = static_cast<T*>(memPool.allocate(sizeof(T) * size_T_s1_t1));
+  T* df_dev_s1_v2_all = static_cast<T*>(memPool.allocate(sizeof(T) * size_T_s1_v2));
+  T* df_dev_d1_t2_all = static_cast<T*>(memPool.allocate(sizeof(T) * size_T_d1_t2));
+  T* df_dev_d1_v2_all = static_cast<T*>(memPool.allocate(sizeof(T) * size_T_d1_v2));
+  T* df_dev_d2_t2_all = static_cast<T*>(memPool.allocate(sizeof(T) * size_T_d2_t2));
+  T* df_dev_d2_v2_all = static_cast<T*>(memPool.allocate(sizeof(T) * size_T_d2_v2));
 #endif
 
   //
   size_t max_num_blocks = sys_data.options_map.ccsd_options.ccsdt_tilesize;
   max_num_blocks        = std::ceil((max_num_blocks + 4 - 1) / 4.0);
 
-  T*   df_host_energies  = (T*) getHostMem(sizeof(T) * std::pow(max_num_blocks, 6) * 2);
+  T* df_host_energies = (T*) getHostMem(sizeof(T) * std::pow(max_num_blocks, 6) * 2);
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  T*   df_dev_energies   = (T*) getGpuMem(sizeof(T) * std::pow(max_num_blocks, 6) * 2);
+  T* df_dev_energies = static_cast<T*>(memPool.allocate(sizeof(T) * std::pow(max_num_blocks, 6) * 2));
 #endif
 
   //
@@ -226,8 +218,8 @@ std::tuple<T, T, double, double> ccsd_t_fused_driver_new(
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
                       ccsd_t_fully_fused_none_df_none_task<T>(
-                        is_restricted, noab, nvab, rank, k_spin, k_range,
-                        k_offset, d_t1, d_t2, d_v2, k_evl_sorted,
+                        is_restricted, noab, nvab, rank, k_spin, k_range, k_offset, d_t1, d_t2,
+                        d_v2, k_evl_sorted,
                         //
                         df_host_pinned_s1_t1, df_host_pinned_s1_v2, df_host_pinned_d1_t2,
                         df_host_pinned_d1_v2, df_host_pinned_d2_t2, df_host_pinned_d2_v2,
@@ -249,17 +241,10 @@ std::tuple<T, T, double, double> ccsd_t_fused_driver_new(
                         size_T_s1_t1, size_T_s1_v2, size_T_d1_t2, size_T_d1_v2, size_T_d2_t2,
                         size_T_d2_v2,
                         //
-                        energy_l,
-#if defined(USE_CUDA)
-                        reduceData.get(),
-#endif
-                        cache_s1t, cache_s1v, cache_d1t, cache_d1v, cache_d2t, cache_d2v
-#if defined(USE_CUDA)
+                        energy_l, cache_s1t, cache_s1v, cache_d1t, cache_d1v, cache_d2t, cache_d2v
+#if defined(USE_DPCPP)
                         ,
-                        done_compute.get(), done_copy.get()
-#elif defined(USE_DPCPP)
-                        ,
-                        &done_compute, &done_copy
+                        done_compute, done_copy
 #endif
                       );
 #else
@@ -335,8 +320,8 @@ std::tuple<T, T, double, double> ccsd_t_fused_driver_new(
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
                       ccsd_t_fully_fused_none_df_none_task<T>(
-                        is_restricted, noab, nvab, rank, k_spin, k_range,
-                        k_offset, d_t1, d_t2, d_v2, k_evl_sorted,
+                        is_restricted, noab, nvab, rank, k_spin, k_range, k_offset, d_t1, d_t2,
+                        d_v2, k_evl_sorted,
                         //
                         df_host_pinned_s1_t1, df_host_pinned_s1_v2, df_host_pinned_d1_t2,
                         df_host_pinned_d1_v2, df_host_pinned_d2_t2, df_host_pinned_d2_v2,
@@ -358,17 +343,10 @@ std::tuple<T, T, double, double> ccsd_t_fused_driver_new(
                         size_T_s1_t1, size_T_s1_v2, size_T_d1_t2, size_T_d1_v2, size_T_d2_t2,
                         size_T_d2_v2,
                         //
-                        energy_l,
-#if defined(USE_CUDA)
-                        reduceData.get(),
-#endif
-                        cache_s1t, cache_s1v, cache_d1t, cache_d1v, cache_d2t, cache_d2v
-#if defined(USE_CUDA)
+                        energy_l, cache_s1t, cache_s1v, cache_d1t, cache_d1v, cache_d2t, cache_d2v
+#if defined(USE_DPCPP)
                         ,
-                        done_compute.get(), done_copy.get()
-#elif defined(USE_DPCPP)
-                        ,
-                        &done_compute, &done_copy
+                        done_compute, done_copy
 #endif
                       );
 #else
@@ -407,41 +385,42 @@ std::tuple<T, T, double, double> ccsd_t_fused_driver_new(
 #if defined(USE_CUDA)
   CUDA_SAFE(cudaDeviceSynchronize());
 #elif defined(USE_HIP)
-  HIP_SAFE(hipDeviceSynchronize());
+HIP_SAFE(hipDeviceSynchronize());
 #endif
   //
   energy1 = energy_l[0];
   energy2 = energy_l[1];
 
-//
-//  free shared host mem.
-//
-freeHostMem(df_host_pinned_s1_t1);
-freeHostMem(df_host_pinned_s1_v2);
-freeHostMem(df_host_pinned_d1_t2);
-freeHostMem(df_host_pinned_d1_v2);
-freeHostMem(df_host_pinned_d2_t2);
-freeHostMem(df_host_pinned_d2_v2);
+  //
+  //  free shared host mem.
+  //
+  freeHostMem(df_host_pinned_s1_t1);
+  freeHostMem(df_host_pinned_s1_v2);
+  freeHostMem(df_host_pinned_d1_t2);
+  freeHostMem(df_host_pinned_d1_v2);
+  freeHostMem(df_host_pinned_d2_t2);
+  freeHostMem(df_host_pinned_d2_v2);
 
-freeHostMem(df_simple_s1_size);
-freeHostMem(df_simple_s1_exec);
-freeHostMem(host_d1_size);
-freeHostMem(df_simple_d1_size);
-freeHostMem(df_simple_d1_exec);
-freeHostMem(host_d2_size);
-freeHostMem(df_simple_d2_size);
-freeHostMem(df_simple_d2_exec);
+  freeHostMem(df_simple_s1_exec);
+  freeHostMem(df_simple_s1_size);
+  freeHostMem(df_simple_d1_exec);
+  freeHostMem(df_simple_d1_size);
+  freeHostMem(host_d1_size);
+  freeHostMem(df_simple_d2_exec);
+  freeHostMem(df_simple_d2_size);
+  freeHostMem(host_d2_size);
 
-freeHostMem(df_host_energies);
+  freeHostMem(df_host_energies);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-freeGpuMem(df_dev_s1_t1_all);
-freeGpuMem(df_dev_s1_v2_all);
-freeGpuMem(df_dev_d1_t2_all);
-freeGpuMem(df_dev_d1_v2_all);
-freeGpuMem(df_dev_d2_t2_all);
-freeGpuMem(df_dev_d2_v2_all);
-freeGpuMem(df_dev_energies);
+  memPool.deallocate(static_cast<void*>(df_dev_s1_t1_all), sizeof(T) * size_T_s1_t1);
+  memPool.deallocate(static_cast<void*>(df_dev_s1_v2_all), sizeof(T) * size_T_s1_v2);
+  memPool.deallocate(static_cast<void*>(df_dev_d1_t2_all), sizeof(T) * size_T_d1_t2);
+  memPool.deallocate(static_cast<void*>(df_dev_d1_v2_all), sizeof(T) * size_T_d1_v2);
+  memPool.deallocate(static_cast<void*>(df_dev_d2_t2_all), sizeof(T) * size_T_d2_t2);
+  memPool.deallocate(static_cast<void*>(df_dev_d2_v2_all), sizeof(T) * size_T_d2_v2);
+
+  memPool.deallocate(static_cast<void*>(df_dev_energies), sizeof(T) * std::pow(max_num_blocks, 6) * 2);
 #endif
 
   //

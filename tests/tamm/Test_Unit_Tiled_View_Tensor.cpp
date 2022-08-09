@@ -1,7 +1,5 @@
-#include "ga/macdecls.h"
-#include "mpi.h"
+#include "ga/ga.h"
 #include <chrono>
-#include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
 
 using namespace tamm;
@@ -320,13 +318,6 @@ void test_unit_tiled_view_tensor(ExecutionContext& ec, size_t size, size_t tile_
 int main(int argc, char* argv[]) {
     tamm::initialize(argc, argv);
 
-    int mpi_rank;
-    MPI_Comm_rank(GA_MPI_Comm(), &mpi_rank);
-    #ifdef USE_TALSH
-    TALSH talsh_instance;
-    talsh_instance.initialize(mpi_rank);
-    #endif
-
     ProcGroup        pg  = ProcGroup::create_world_coll();
     MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
     Distribution_NW  distribution;
@@ -334,10 +325,6 @@ int main(int argc, char* argv[]) {
     ExecutionContext ec{pg, &distribution, mgr, &re};
 
     test_unit_tiled_view_tensor(ec, 20, 5);
-
-    #ifdef USE_TALSH
-    talsh_instance.shutdown();
-    #endif  
 
     tamm::finalize();
 

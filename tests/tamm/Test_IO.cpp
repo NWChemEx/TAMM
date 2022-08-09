@@ -223,12 +223,6 @@ int main(int argc, char* argv[]) {
   ProcGroup pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
-  // #ifdef USE_TALSH
-  // const bool has_gpu = ec.has_gpu();
-  // TALSH talsh_instance;
-  // if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
-  // #endif
-
   Scheduler sch{ec};
 
   auto [TIS, TIS_I, total_orbitals] = setupTIS(noa, nva);
@@ -236,11 +230,6 @@ int main(int argc, char* argv[]) {
   test_io_2d<T>(sch, TIS, TIS_I);
   test_io_3d<T>(sch, TIS, TIS_I);
   test_io_4d<T>(sch, TIS, TIS_I);
-
-    // #ifdef USE_TALSH
-    // //talshStats();
-    // if(has_gpu) talsh_instance.shutdown();
-    // #endif  
 
   tamm::finalize();
 

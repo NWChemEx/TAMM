@@ -119,11 +119,6 @@ void ccsd_t_driver() {
         && fs::exists(f1file) && fs::exists(v2file)) );
 
     ExecutionHW ex_hw = ec.exhw();
-    #ifdef USE_TALSH_T
-    const bool has_gpu = ec.has_gpu();
-    TALSH talsh_instance;
-    if(has_gpu) talsh_instance.initialize(ec.gpu_devid(),rank.value());
-    #endif
 
     TiledIndexSpace N = MO("all");
 
@@ -364,12 +359,6 @@ void ccsd_t_driver() {
       }
       free_tensors(t_d_cv2);
     }
-
-    #ifdef USE_TALSH_T
-    //talshStats();
-    if(has_gpu) talsh_instance.shutdown();
-    #endif
-
 
     double energy1=0, energy2=0;
 

@@ -685,7 +685,7 @@ bool check_value(LabeledTensor<T> lt, T val) {
         std::vector<T> buf(size);
         lt.tensor().get(blockid, buf);
         for(TAMM_SIZE i = 0; i < size; i++) {
-            if(std::fabs(buf[i] - val) >= 1.0e-10) {
+            if(std::abs(buf[i] - val) >= 1.0e-10) {
               return false;
             }
         }

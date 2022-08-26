@@ -113,7 +113,7 @@ class SCFOptions: public Options {
       n_lindep       = 0;
       scf_type       = "restricted";
       xc_type        = ""; //pbe0
-      alpha          = 0.7;
+      alpha          = 1.0;
       nnodes         = 1;
       writem         = diis_hist;
       scalapack_nb   = 64;
@@ -168,7 +168,7 @@ class SCFOptions: public Options {
       cout << " diis_hist    = " << diis_hist    << endl;
       cout << " AO_tilesize  = " << AO_tilesize  << endl;  
       cout << " writem       = " << writem       << endl;
-      if(alpha != 0.7) 
+      if(alpha != 1.0)
         cout << " alpha        = " << alpha << endl;
       if(!moldenfile.empty()) {
         cout << " moldenfile   = " << moldenfile << endl;    

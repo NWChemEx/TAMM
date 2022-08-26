@@ -190,19 +190,19 @@ std::tuple<size_t, double, double> gensqrtinv(
 
 template <class T> T &unconst_cast(const T &v) { return const_cast<T &>(v); }
 
-size_t nbasis(const std::vector<libint2::Shell>& shells) {
-    size_t n = 0;
-    for(const auto& shell : shells) n += shell.size();
-    return n;
-}
+// size_t nbasis(const libint2::BasisSet& shells) {
+//     size_t n = 0;
+//     for(const auto& shell : shells) n += shell.size();
+//     return n;
+// }
 
-size_t max_nprim(const std::vector<libint2::Shell>& shells) {
+size_t max_nprim(const libint2::BasisSet& shells) {
     size_t n = 0;
     for(auto shell : shells) n = std::max(shell.nprim(), n);
     return n;
 }
 
-int max_l(const std::vector<libint2::Shell>& shells) {
+int max_l(const libint2::BasisSet& shells) {
     int l = 0;
     for(auto shell : shells)
         for(auto c : shell.contr) l = std::max(c.l, l);
@@ -210,7 +210,7 @@ int max_l(const std::vector<libint2::Shell>& shells) {
 }
 
 std::vector<size_t> map_shell_to_basis_function(
-  const std::vector<libint2::Shell>& shells) {
+  const libint2::BasisSet& shells) {
     std::vector<size_t> result;
     result.reserve(shells.size());
 
@@ -224,8 +224,8 @@ std::vector<size_t> map_shell_to_basis_function(
 }
 
 std::vector<size_t> map_basis_function_to_shell(
-  const std::vector<libint2::Shell>& shells) {
-    std::vector<size_t> result(nbasis(shells));
+  const libint2::BasisSet& shells) {
+    std::vector<size_t> result(shells.nbf());
 
     auto shell2bf = map_shell_to_basis_function(shells);
     for(size_t s1 = 0; s1 != shells.size(); ++s1) {
@@ -247,7 +247,7 @@ BasisSetMap construct_basisset_maps(std::vector<libint2::Atom>& atoms,
     auto a2s_map = shells.atom2shell(atoms);
     size_t natoms = atoms.size();
     size_t nshells = shells.size();
-    auto nbf = nbasis(shells);
+    auto nbf = shells.nbf();
 
     std::vector<long> shell2atom_map = shells.shell2atom(atoms);
     auto bf2shell = map_basis_function_to_shell(shells);
@@ -660,7 +660,7 @@ void compute_hamiltonian(ExecutionContext& ec, const SCFVars& scf_vars,
     TAMMTensors& ttensors, EigenTensors& etensors){
 
     using libint2::Operator;
-    // const size_t N = nbasis(shells);
+    // const size_t N = shells.nbf();
     auto rank = ec.pg().rank();
 
     ttensors.H1 = {scf_vars.tAO, scf_vars.tAO};

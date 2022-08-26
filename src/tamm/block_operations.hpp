@@ -241,7 +241,7 @@ namespace tamm::internal {
 //     all_dims.insert(all_dims.end(), bdims.begin(), bdims.end());
 //     endv = internal::perm_map_apply(all_dims, all_inv_pm);
 
-//     if(std::fabs(cscale) > 1e-11) { NOT_IMPLEMENTED(); }
+//     if(std::abs(cscale) > 1e-11) { NOT_IMPLEMENTED(); }
 //     do {
 //         const auto& itval  = itrv;
 //         const auto& cindex = perm_map_apply(itval, cperm_map);

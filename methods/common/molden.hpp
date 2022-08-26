@@ -311,7 +311,7 @@ void renormalize_libint_shells(const SystemData& sys_data, libint2::BasisSet& sh
   using libint2::math::df_Kminus1;
   using std::pow;
   const auto sqrt_Pi_cubed = double{5.56832799683170784528481798212};
-
+  #if 0 // TODO: Fix immutable basisset objects
   for (auto &s: shells) {
     const auto np = s.nprim();
     for(auto& c: s.contr) {
@@ -357,6 +357,7 @@ void renormalize_libint_shells(const SystemData& sys_data, libint2::BasisSet& sh
     }
 
   } //shells
+  #endif
 }
 
 void read_geom_molden(const SystemData& sys_data, std::vector<libint2::Atom> &atoms) {
@@ -409,18 +410,19 @@ void read_basis_molden(const SystemData& sys_data, libint2::BasisSet& shells) {
       //read shell nprim 0. TODO, should expc[1]==1 ?
       if(std::stoi(expc[0])==atom_i+1 && std::stoi(expc[1])==0) { atom_i++; } //shell_i=0;
     }
-                              
-    else if (expc[0]=="s" || expc[0]=="p" || expc[0]=="d" || expc[0]=="f" || expc[0]=="g") { 
-      for(auto np=0;np<std::stoi(expc[1]);np++){
-        std::getline(is, line);
-        std::istringstream iss(line);
-        std::vector<std::string> expc_val{std::istream_iterator<std::string>{iss},
-                                      std::istream_iterator<std::string>{}};
-        shells[shell_i].alpha[np] = std::stod(expc_val[0]);
-        shells[shell_i].contr[0].coeff[np] = std::stod(expc_val[1]);
-      } //nprims for shell_i
-      shell_i++;
-    }
+
+    // TODO: Fix immutable basisset objects
+    // else if (expc[0]=="s" || expc[0]=="p" || expc[0]=="d" || expc[0]=="f" || expc[0]=="g") { 
+    //   for(auto np=0;np<std::stoi(expc[1]);np++){
+    //     std::getline(is, line);
+    //     std::istringstream iss(line);
+    //     std::vector<std::string> expc_val{std::istream_iterator<std::string>{iss},
+    //                                   std::istream_iterator<std::string>{}};
+    //     shells[shell_i].alpha[np] = std::stod(expc_val[0]);
+    //     shells[shell_i].contr[0].coeff[np] = std::stod(expc_val[1]);
+    //   } //nprims for shell_i
+    //   shell_i++;
+    // }
     else if (line.find("[5D]")   != std::string::npos) basis_parse=false;
     else if (line.find("[9G]")   != std::string::npos) basis_parse=false;
     else if (line.find("[MO]")   != std::string::npos) basis_parse=false;

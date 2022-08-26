@@ -36,7 +36,7 @@ void print_mo_vectors_analysis(SystemData& sys_data, libint2::BasisSet& shells,
       cout << "Bfn. \t Coefficient \t Atom+Function" << endl;  
       cout << std::string(50, '-') << endl;
       for(size_t j = 0; j < (size_t)sys_data.nbf_orig; j++) {
-        if(std::fabs(C_alpha_eig(j,i)) >= vec_analysis.second) {
+        if(std::abs(C_alpha_eig(j,i)) >= vec_analysis.second) {
           auto atom_pos = bsm.bf2atom[j];
           cout << j+1 << "\t" << C_alpha_eig(j,i) << "\t" 
             << atom_pos+1 << "  " << bsm.atominfo[atom_pos].symbol 
@@ -58,7 +58,7 @@ void print_mo_vectors_analysis(SystemData& sys_data, libint2::BasisSet& shells,
         cout << "Bfn. \t Coefficient \t Atom+Function" << endl;  
         cout << std::string(50, '-') << endl;
         for(size_t j = 0; j < (size_t)sys_data.nbf_orig; j++) {
-          if(std::fabs(C_beta_eig(j,i)) >= vec_analysis.second) {
+          if(std::abs(C_beta_eig(j,i)) >= vec_analysis.second) {
             auto atom_pos = bsm.bf2atom[j];
             cout << j+1 << "\t" << C_beta_eig(j,i) << "\t" 
               << atom_pos+1 << "  " << bsm.atominfo[atom_pos].symbol 

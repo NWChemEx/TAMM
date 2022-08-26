@@ -206,7 +206,7 @@ Matrix reshape_mo_matrix(SystemData sys_data, Matrix& emat) {
 
   Matrix cvec(N_eff,N_eff);
   const int block2_off = 2*n_frozen_core+noa;
-  const int block3_off = 2*n_frozen_core+nocc+n_frozen_virtual;
+  const int block3_off = 2*n_frozen_core+nocc;
   const int last_block_off = block3_off+n_frozen_virtual+nva;
 
   cvec.block(0,0,noa,noa)        = emat.block(n_frozen_core,n_frozen_core,noa,noa);

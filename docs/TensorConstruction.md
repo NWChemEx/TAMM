@@ -657,7 +657,7 @@ void compute_2body_fock(const TiledIndexSpace& AO,
   const auto& N = AO("all");
   TiledIndexLabel s1, s2, s3, s4;
   std::tie(s1,s2, s3, s4) = AO.range_labels<4>("all");
-  const auto n = nbasis(shells);
+  const auto n = shells.nbf();
   Tensor<T> G{N,N};
   //TODO: construct D from C
   // construct the 2-electron repulsion integrals engine

@@ -2,8 +2,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "XL"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "Cray"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "Intel" 
-    OR CMAKE_CXX_COMPILER_ID STREQUAL "PGI"
-    OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    OR CMAKE_CXX_COMPILER_ID STREQUAL "PGI")
+    # OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         message(FATAL_ERROR "TAMM cannot be currently built with ${CMAKE_CXX_COMPILER_ID} compilers.")
 endif()
 
@@ -15,7 +15,7 @@ endif()
 if("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
     if (USE_CUDA)
         message(FATAL_ERROR "TAMM does not support building with GPU support \
-        on MACOSX. Please use USE_CUDA=OFF for MACOSX builds.")
+        on MACOSX. Please use -DUSE_CUDA=OFF for MACOSX builds.")
     endif()
     
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" 
@@ -46,22 +46,25 @@ if(DEFINED GA_RUNTIME)
     endif()
 endif()
 
-check_compiler_version(C Clang 8)
-check_compiler_version(CXX Clang 8)
+check_compiler_version(C Clang 9)
+check_compiler_version(CXX Clang 9)
 
-check_compiler_version(C GNU 8.3)
-check_compiler_version(CXX GNU 8.3)
-check_compiler_version(Fortran GNU 8.3)
+check_compiler_version(C AppleClang 13)
+check_compiler_version(CXX AppleClang 13)
 
-#TODO:Check for GCC>=8 compatibility
+check_compiler_version(C GNU 9.1)
+check_compiler_version(CXX GNU 9.1)
+check_compiler_version(Fortran GNU 9.1)
+
+#TODO:Check for GCC>=9 compatibility
 # check_compiler_version(C Intel 19)
 # check_compiler_version(CXX Intel 19)
 # check_compiler_version(Fortran Intel 19)
 
-#TODO:Check for GCC>=8 compatibility
-check_compiler_version(C PGI 18)
-check_compiler_version(CXX PGI 18)
-check_compiler_version(Fortran PGI 18)
+#TODO:Check for GCC>=9 compatibility
+check_compiler_version(C PGI 20)
+check_compiler_version(CXX PGI 20)
+check_compiler_version(Fortran PGI 20)
 
 find_package(MPI REQUIRED)
 
@@ -103,9 +106,9 @@ if(USE_CUDA)
     endif()
 
     set(_CUDA_MIN "11.1")
-    if(GPU_ARCH LESS 80)
-        set(_CUDA_MIN "10.1")
-    endif()
+    # if(GPU_ARCH LESS 80)
+    #     set(_CUDA_MIN "10.1")
+    # endif()
     if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS ${_CUDA_MIN})
         message(FATAL_ERROR "CUDA version provided \
         (${CMAKE_CUDA_COMPILER_VERSION}) \

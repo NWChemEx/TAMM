@@ -23,7 +23,7 @@ void check_value(const LabeledTensor<T>& lt, T val) {
         std::vector<T> buf(size);
         lt.tensor().get(blockid, buf);
         for(TAMM_SIZE i = 0; i < size; i++) {
-            REQUIRE(std::fabs(buf[i] - val) < 1.0e-10);
+            REQUIRE(std::abs(buf[i] - val) < 1.0e-10);
         }
     }
 }

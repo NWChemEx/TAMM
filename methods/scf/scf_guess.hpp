@@ -616,7 +616,7 @@ void compute_initial_guess(ExecutionContext& ec,
 
     const auto rank       = ec.pg().rank();
     const auto world_size = ec.pg().size();
-    const auto N          = nbasis(shells);
+    const auto N          = shells.nbf();
     const bool debug      = sys_data.options_map.scf_options.debug;
 
     // const Matrix& H   = etensors.H; 
@@ -905,7 +905,7 @@ void compute_sad_guess(ExecutionContext& ec, SystemData& sys_data, const SCFVars
     libint2::BasisSet shells_tot(std::string(basis), atoms);
     if(is_spherical) shells_tot.set_pure(true);
     else shells_tot.set_pure(false);
-    size_t nao = nbasis(shells_tot);
+    size_t nao = shells_tot.nbf();
 
     Matrix  D_tot_a = Matrix::Zero(nao,nao);
     Matrix  D_tot_b = Matrix::Zero(nao,nao);
@@ -962,7 +962,7 @@ void compute_sad_guess(ExecutionContext& ec, SystemData& sys_data, const SCFVars
       else shells_atom.set_pure(false);
       // if(rank == 0) cout << "construct shell info for present basis" << endl;
 
-      size_t nao_atom = nbasis(shells_atom);
+      size_t nao_atom = shells_atom.nbf();
       std::tie(scf_vars.obs_shellpair_list_atom, scf_vars.obs_shellpair_data_atom) = compute_shellpairs(shells_atom);
       // if(rank == 0) cout << "compute shell pairs for present basis" << endl;
 

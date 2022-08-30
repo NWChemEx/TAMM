@@ -598,7 +598,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const SCFVars
           using libint2::BraKet;
           using libint2::Engine;
 
-          // const auto n = nbasis(obs);
+          // const auto n = obs.nbf();
           const auto ndf = sys_data.ndf;
           const libint2::BasisSet& dfbs = scf_vars.dfbs;
           const std::vector<Tile>& dfAO_tiles = scf_vars.dfAO_tiles;
@@ -832,7 +832,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const SCFVars
           Tensor<TensorType> xiK_tamm{scf_vars.tAO,scf_vars.tdfCocc,scf_vars.tdfAO}; //n, nocc, ndf
           Tensor<TensorType>& C_occ_tamm = ttensors.C_occ_tamm;
       
-          eigen_to_tamm_tensor(C_occ_tamm,etensors.C_occ);
+          if(rank == 0) eigen_to_tamm_tensor(C_occ_tamm,etensors.C_occ);
 
         auto ig2 = std::chrono::high_resolution_clock::now();
         auto igtime =
@@ -866,7 +866,7 @@ void compute_2bf(ExecutionContext& ec, const SystemData& sys_data, const SCFVars
         // Tensor2D K_ret = xiK.contract(xiK,idx_1122); 
         // xiK.resize(0, 0, 0);
         sch
-        (F_alpha_tmp(mu,ku) += -xHF * xiK_tamm(mu,dCocc_til,d_mu) * xiK_tamm(ku,dCocc_til,d_mu))
+        (F_alpha_tmp(mu,ku) += -1.0 * xHF * xiK_tamm(mu,dCocc_til,d_mu) * xiK_tamm(ku,dCocc_til,d_mu))
         .deallocate(xiK_tamm).execute();
 
          ig2 = std::chrono::high_resolution_clock::now();

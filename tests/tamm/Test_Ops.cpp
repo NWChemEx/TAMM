@@ -50,9 +50,9 @@ void check_value(LabeledTensor<T> lt, T val) {
         lt.tensor().get(blockid, buf);
         for(TAMM_SIZE i = 0; i < size; i++) {
             if constexpr(tamm::internal::is_complex_v<T>) {
-                REQUIRE(std::fabs(buf[i].real() - val.real()) < 1.0e-10);                
+                REQUIRE(std::abs(buf[i].real() - val.real()) < 1.0e-10);                
             } else {
-                REQUIRE(std::fabs(buf[i] - val) < 1.0e-10);
+                REQUIRE(std::abs(buf[i] - val) < 1.0e-10);
             }
         }
     }

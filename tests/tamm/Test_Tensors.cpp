@@ -48,7 +48,7 @@ void check_value(LabeledTensor<T> lt, T val) {
             ref_val = (T)0;
         }
         for(TAMM_SIZE i = 0; i < size; i++) {
-            REQUIRE(std::fabs(buf[i] - ref_val) < 1.0e-10);
+            REQUIRE(std::abs(buf[i] - ref_val) < 1.0e-10);
         }
     }
 }

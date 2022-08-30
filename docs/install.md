@@ -16,12 +16,8 @@ Choose Build Options
 ### CUDA Options 
 ```
 -DUSE_CUDA=ON (OFF by default)  
--DCUDA_MAXREGCOUNT=128 (64 by default)
 -DGPU_ARCH=70 (GPU arch is detected automatically, only set this option if need to override)
-```
-### Optionally build with cuTensor support when USE_CUDA=ON  
-```
--DUSE_CUTENSOR=ON -DCUTENSOR_INSTALL_PREFIX=/path/to/cutensor_install_prefix  
+-DCUDA_MAXREGCOUNT=64 (128 by default)
 ```
 
 ### To enable DPCPP code path

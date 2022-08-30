@@ -6,7 +6,7 @@ Prerequisites
 - cmake >= 3.22
 - MPI Library
 - C++17 compiler
-- CUDA >= 11.1 (OR) ROCM >= 5.0 (only if building with GPU support)
+- CUDA >= 11.1 (OR) ROCM >= 5.0 (when building with Nvidia/AMD GPU support)
 
 Supported Compilers
 --------------------
@@ -17,7 +17,7 @@ Supported Compilers
 Supported Configurations
 -------------------------
 - The following configurations are recommended since they are tested and are known to work:
-  - GCC versions >= 9.1 + OpenMPI-2.x/MPICH-3.x built using corresponding gcc versions.
+  - GCC versions >= 9.1 + OpenMPI-2.x/MPICH-3.x built using the corresponding GCC versions.
   - LLVM Clang versions >= 9 + OpenMPI-2.x/MPICH-3.x 
   - Apple Clang versions >= 9 + OpenMPI-2.x/MPICH-3.x 
 
@@ -29,5 +29,5 @@ Installing Prerequisites
 
 ## On Linux:
 
-We recommend using the [Spack package manager](https://spack.io) to install and manage the Prerequisites if the versions
+We recommend using the [Spack package manager](https://spack.io) to install and manage the prerequisites if the versions
 avaiable via the OS package manager are not sufficient.

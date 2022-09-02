@@ -1,19 +1,18 @@
 
-The prerequisites needed to build TAMM can be found [here](prerequisites.md).
+The prerequisites needed to build this repository can be found [here](prerequisites.md).
 
 Build Instructions
 =====================
 
 ```
-export TAMM_SRC=$HOME/TAMM
-export TAMM_INSTALL_PATH=$HOME/tamm_install
-export REPO_URL=https://github.com/NWChemEx-Project
+export REPO_ROOT_PATH=$HOME/TAMM
+export REPO_INSTALL_PATH=$HOME/tamm_install
 ```
 
 Choose Build Options
 ============================
 
-### CUDA Options 
+### CUDA Options
 ```
 -DUSE_CUDA=ON (OFF by default)  
 -DGPU_ARCH=70 (GPU arch is detected automatically, only set this option if need to override)
@@ -22,23 +21,23 @@ Choose Build Options
 
 ### To enable DPCPP code path
 ``` 
--DUSE_DPCPP=ON (OFF by default, requires -DUSE_OPENMP=OFF) 
+-DUSE_DPCPP=ON
 ```
 
 ### CMake options for developers (optional)
 ```
 -DUSE_GA_PROFILER=ON #Enable GA's profiling feature (GCC Only).
 
--DUSE_OPENMP=OFF (ON by default, also required to be ON when USE_CUDA=ON)
+-DBUILD_LIBINT=ON (OFF by default)
 ```
 
 
-Building TAMM
-=====================
+Building this repository
+========================
 
 ```
-git clone $REPO_URL/TAMM.git $TAMM_SRC
-cd $TAMM_SRC
+git clone <repo-url> $REPO_ROOT_PATH
+cd $REPO_ROOT_PATH
 # Checkout the branch you want to build
 mkdir build && cd build
 ```
@@ -70,19 +69,19 @@ mkdir build && cd build
 ### To enable CUDA build, add `-DUSE_CUDA=ON`
 
 ```
-cd $TAMM_SRC/build 
-CC=gcc CXX=g++ FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
+cd $REPO_ROOT_PATH/build 
+CC=gcc CXX=g++ FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
 
 make -j3
 make install
 ```
 ## Default build on MACOS
 
-### NOTE: We only support building with GNU compilers on `MACOS`. They can be installed using brew as detailed [here](CMake_Build_Notes.md#on-mac-osx).
+### NOTE: The prerequisites for `MACOS` can be installed using `brew` as detailed [here](prerequisites.md#on-mac-osx).
 
 ```
-cd $TAMM_SRC/build 
-CC=gcc-10 CXX=g++-10 FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
+cd $REPO_ROOT_PATH/build 
+CC=gcc-10 CXX=g++-10 FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
 
 make -j3
 make install
@@ -93,11 +92,11 @@ make install
 ### To enable CUDA build, add `-DUSE_CUDA=ON`
 
 ```
-cd $TAMM_SRC/build 
+cd $REPO_ROOT_PATH/build 
 
 CC=gcc CXX=g++ FC=gfortran cmake -DLINALG_VENDOR=IntelMKL \
 -DLINALG_PREFIX=/opt/intel/mkl \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
+-DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
 
 make -j3
 make install
@@ -114,10 +113,10 @@ module load cuda
 
 
 ```
-cd $TAMM_SRC/build
+cd $REPO_ROOT_PATH/build
 
 CC=gcc CXX=g++ FC=gfortran cmake \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
+-DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
 -DBLIS_CONFIG=power9 \
 -DLINALG_VENDOR=IBMESSL -DUSE_CUDA=ON \
 -DLINALG_PREFIX=/sw/summit/essl/6.3.0/essl/6.3 ..
@@ -128,7 +127,7 @@ make install
 
 ## Build instructions for Summit using ESSL and UPC++
 
-### Note that UPC++ support is still experimental
+### Note that UPC++ support is experimental.
 
 ```
 module load gcc
@@ -140,11 +139,11 @@ module load upcxx
 
 
 ```
-cd $TAMM_SRC/build
+cd $REPO_ROOT_PATH/build
 
 UPCXX_CODEMODE=O3 CC=gcc CXX=upcxx FC=gfortran cmake \
 -DCMAKE_BUILD_TYPE=Release \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
+-DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
 -DBLIS_CONFIG=power9 \
 -DLINALG_VENDOR=IBMESSL \
 -DLINALG_PREFIX=/sw/summit/essl/6.3.0/essl/6.3 \
@@ -169,12 +168,12 @@ export HDF5_USE_FILE_LOCKING=FALSE
 ```
 
 ```
-cd $TAMM_SRC/build
+cd $REPO_ROOT_PATH/build
 
 CC=cc CXX=CC FC=ftn cmake \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
+-DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
 -DGPU_ARCH=gfx90a \
--DUSE_OPENMP=OFF -DUSE_HIP=ON -DROCM_ROOT=$ROCM_PATH \
+-DUSE_HIP=ON -DROCM_ROOT=$ROCM_PATH \
 -DGCCROOT=/opt/cray/pe/gcc/10.3.0/snos ..
 
 make -j3
@@ -201,11 +200,11 @@ module load cmake
 ```
 
 ```
-cd $TAMM_SRC/build
+cd $REPO_ROOT_PATH/build
 
 CC=cc CXX=CC FC=ftn cmake -DLINALG_VENDOR=IntelMKL \
 -DLINALG_PREFIX=/opt/intel/mkl \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH -H$TAMM_SRC
+-DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH -H$REPO_ROOT_PATH
 
 make -j3
 make install
@@ -218,10 +217,10 @@ module purge && module load cgpu cuda gcc openmpi cmake
 ```
 
 ```
-cd $TAMM_SRC/build
+cd $REPO_ROOT_PATH/build
 
-CC=gcc CXX=g++ FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
--DUSE_CUDA=ON -DGPU_ARCH=70 -H$TAMM_SRC
+CC=gcc CXX=g++ FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
+-DUSE_CUDA=ON -DGPU_ARCH=70 -H$REPO_ROOT_PATH
 
 make -j3
 make install
@@ -246,11 +245,11 @@ export CPATH=$CPATH:$CUBLAS_PATH/include
 ```
 
 ```
-cd $TAMM_SRC/build
+cd $REPO_ROOT_PATH/build
 
 cmake -DUSE_CUDA=ON -DBLIS_CONFIG=generic \
 -DCMAKE_PREFIX_PATH=$CUBLAS_PATH/lib \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
+-DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
 
 make -j3
 make install
@@ -267,11 +266,11 @@ export CRAYPE_LINK_TYPE=dynamic
 ```
 
 ```
-cd $TAMM_SRC/build
+cd $REPO_ROOT_PATH/build
 
 CC=cc CXX=CC FC=ftn cmake -DLINALG_VENDOR=IntelMKL \
 -DLINALG_PREFIX=/opt/intel/mkl \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH ..
+-DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
 
 make -j3
 make install
@@ -286,19 +285,18 @@ make install
 export DPCPP_ROOT=/opt/oneapi/compiler/latest/linux
 ```
 
-- Set ROOT dir of the GCC installation (need gcc >= v8.3)
+- Set ROOT dir of the GCC installation (need gcc >= v9.1)
 ```
-export GCCROOT=/opt/gcc8.3
+export GCC_ROOT_PATH=/opt/gcc-9.1.0
 ```
 
 ```
-cd $TAMM_SRC/build 
+cd $REPO_ROOT_PATH/build 
 
 CC=icx CXX=dpcpp FC=ifx cmake \
--DCMAKE_INSTALL_PREFIX=$TAMM_INSTALL_PATH \
--DMPIEXEC_EXECUTABLE=mpiexec -DUSE_OPENMP=OFF \
+-DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
 -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=/opt/oneapi/mkl/latest \
--DUSE_DPCPP=ON -DGCCROOT=$GCCROOT \
+-DUSE_DPCPP=ON -DGCCROOT=$GCC_ROOT_PATH \
 -DTAMM_CXX_FLAGS="-fsycl-device-code-split=per_kernel"
 ```
 
@@ -306,3 +304,5 @@ CC=icx CXX=dpcpp FC=ifx cmake \
 make -j3
 make install
 ```
+
+

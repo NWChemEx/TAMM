@@ -150,9 +150,9 @@ public:
     if(inserted) { hipStreamCreate(&stream); }
     return stream;
 #elif defined(USE_DPCPP)
-
     auto result = _devID2Streams.insert(
-      {_active_device + counter, gpuStream_t(*sycl_get_device(_active_device), sycl_asynchandler)});
+      {_active_device + counter, gpuStream_t(*sycl_get_device(_active_device), sycl_asynchandler,
+                                             sycl::property_list{sycl::property::queue::in_order{}})});
     gpuStream_t& stream   = (*result.first).second;
     bool&        inserted = result.second;
     return stream;

@@ -45,9 +45,8 @@ public:
 #elif defined(USE_HIP)
       hipMalloc(&ret, size);
 #elif defined(USE_DPCPP)
-      auto&        streamPool = tamm::GPUStreamPool::getInstance();
-      gpuStream_t& stream     = streamPool.getStream();
-      ret                     = sycl::malloc_device(size, stream);
+      gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
+      ret                 = sycl::malloc_device(size, stream);
 #endif
 
       used_memory_ += size;
@@ -65,6 +64,18 @@ public:
     reuse_pool.push_back(ptr);
   }
 
+  void gpuMemset(void** ptr, size_t sizeInBytes) {
+    gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
+
+#if defined(USE_DPCPP)
+    stream.memset(*ptr, 0, sizeInBytes);
+#elif defined(USE_HIP)
+    hipMemsetAsync(*ptr, 0, sizeInBytes, stream);
+#elif defined(USE_CUDA)
+    cudaMemsetAsync(*ptr, 0, sizeInBytes, stream);
+#endif
+  }
+
   void ReleaseAll() {
     for(auto&& i: memory_pool_) {
       for(auto&& j: i.second) {
@@ -73,8 +84,7 @@ public:
 #elif defined(USE_HIP)
         hipFree(j);
 #elif defined(USE_DPCPP)
-        auto&        streamPool = tamm::GPUStreamPool::getInstance();
-        gpuStream_t& stream     = streamPool.getStream();
+        gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
         sycl::free(j, stream);
 #endif
         used_memory_ -= i.first;

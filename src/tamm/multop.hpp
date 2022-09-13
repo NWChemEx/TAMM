@@ -1,6 +1,6 @@
 #pragma once
 
-//#define MULTOP_PARTIAL_PARALLELIZE_RHS
+// #define MULTOP_PARTIAL_PARALLELIZE_RHS
 
 #include <algorithm>
 #include <chrono>
@@ -8,14 +8,14 @@
 #include <memory>
 #include <vector>
 
-//#include "tamm/block_operations.hpp"
+// #include "tamm/block_operations.hpp"
 #include "tamm/block_mult_plan.hpp"
 #include "tamm/boundvec.hpp"
-#include "tamm/op_profiler.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/kernels/assign.hpp"
 #include "tamm/kernels/multiply.hpp"
 #include "tamm/labeled_tensor.hpp"
+#include "tamm/op_profiler.hpp"
 #include "tamm/runtime_engine.hpp"
 #include "tamm/tensor.hpp"
 #include "tamm/types.hpp"
@@ -174,21 +174,21 @@ namespace tamm {
 template<typename T1, typename T2, typename T3>
 struct AddBuf {
   // AddBuf() = default;
-  AddBuf(bool isgpu, gpuStream_t* tt, T2* ta, T3* tb, T1* tc,
-         std::vector<T1>&& cbuf, const IndexVector& blockid):
-    blockid_{blockid}, cbuf_{cbuf}, thandle_{tt}, ta_{ta}, tb_{tb},
-    tc_{tc}, isgpu_{isgpu} {}
+  AddBuf(bool isgpu, gpuStream_t* tt, T2* ta, T3* tb, T1* tc, std::vector<T1>&& cbuf,
+         const IndexVector& blockid):
+    blockid_{blockid},
+    cbuf_{cbuf}, thandle_{tt}, ta_{ta}, tb_{tb}, tc_{tc}, isgpu_{isgpu} {}
   ~AddBuf() {}
 
-  std::vector<T1>         cbuf_;
-  std::vector<T2>         abuf_;
-  std::vector<T3>         bbuf_;  
-  IndexVector             blockid_;
-  bool                    isgpu_;
-  gpuStream_t*            thandle_;
-  T2*          ta_;
-  T3*          tb_;
-  T1*          tc_;
+  std::vector<T1> cbuf_;
+  std::vector<T2> abuf_;
+  std::vector<T3> bbuf_;
+  IndexVector     blockid_;
+  bool            isgpu_;
+  gpuStream_t*    thandle_;
+  T2*             ta_;
+  T3*             tb_;
+  T1*             tc_;
 };
 #else
 template<typename T1, typename T2, typename T3>
@@ -204,7 +204,7 @@ struct AddBuf {
 
   std::vector<T1>         cbuf_;
   std::vector<T2>         abuf_;
-  std::vector<T3>         bbuf_;  
+  std::vector<T3>         bbuf_;
   IndexVector             blockid_;
   bool                    isgpu_;
   Tensor<T1>              tensor_;
@@ -293,7 +293,7 @@ public:
     all_labels.insert(all_labels.end(), rhs2_.labels().begin(), rhs2_.labels().end());
     LabelLoopNest loop_nest{all_labels};
 
-    std::vector<AddBuf<TensorElType1,TensorElType2,TensorElType3>*> add_bufs;
+    std::vector<AddBuf<TensorElType1, TensorElType2, TensorElType3>*> add_bufs;
     // function to compute one block
     auto lambda = [=, &oprof, &add_bufs, &loop_nest, &ec](const IndexVector itval) {
       auto ctensor = lhs_.tensor();
@@ -453,78 +453,73 @@ public:
         TensorElType2* th_a{nullptr};
         TensorElType3* th_b{nullptr};
         TensorElType1* th_c{nullptr};
-        auto& thandle = tamm::GPUStreamPool::getInstance().getStream();
+        auto&          thandle = tamm::GPUStreamPool::getInstance().getStream();
 #endif
         bool isgpu = false;
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-        AddBuf<TensorElType1,TensorElType2,TensorElType3>* ab = new AddBuf<TensorElType1,TensorElType2,TensorElType3>{
-          isgpu, &thandle, th_a, th_b, th_c, std::move(cbuf), translated_cblockid};
+        AddBuf<TensorElType1, TensorElType2, TensorElType3>* ab =
+          new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
+            isgpu, &thandle, th_a, th_b, th_c, std::move(cbuf), translated_cblockid};
 #else
-        gpuStream_t thandle{};
-        AddBuf<TensorElType1,TensorElType2,TensorElType3>* ab =
-          new AddBuf<TensorElType1,TensorElType2,TensorElType3>{isgpu, ctensor, std::move(cbuf), translated_cblockid};
+        gpuStream_t                                          thandle{};
+        AddBuf<TensorElType1, TensorElType2, TensorElType3>* ab =
+          new AddBuf<TensorElType1, TensorElType2, TensorElType3>{isgpu, ctensor, std::move(cbuf),
+                                                                  translated_cblockid};
 #endif
         add_bufs.push_back(ab);
 
         {
-          TensorElType1 *cbuf_dev_ptr{nullptr};
-          TensorElType1 *cbuf_tmp_dev_ptr{nullptr};
-#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) 
+          TensorElType1* cbuf_dev_ptr{nullptr};
+          TensorElType1* cbuf_tmp_dev_ptr{nullptr};
+#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
           auto& memPool = tamm::GPUPooledStorageManager::getInstance();
-          cbuf_dev_ptr = static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
-          cbuf_tmp_dev_ptr = static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
+          cbuf_dev_ptr =
+            static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
+          cbuf_tmp_dev_ptr =
+            static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
           th_a = static_cast<TensorElType2*>(memPool.allocate(asize * sizeof(TensorElType2)));
           th_b = static_cast<TensorElType3*>(memPool.allocate(bsize * sizeof(TensorElType3)));
 
-          #if defined(USE_DPCPP)
-            // auto& dev_queue = tamm::GPUStreamPool::getInstance().getStream();
-            thandle.memset(cbuf_dev_ptr, 0, csize * sizeof(TensorElType1)).wait();
-            thandle.memset(cbuf_tmp_dev_ptr, 0, csize * sizeof(TensorElType1)).wait();
-          #elif defined(USE_HIP)
-            hipMemsetAsync(cbuf_dev_ptr, 0, csize * sizeof(TensorElType1),thandle);
-            hipMemsetAsync(cbuf_tmp_dev_ptr, 0, csize * sizeof(TensorElType1),thandle);
-          #elif defined(USE_CUDA)
-            cudaMemsetAsync(cbuf_dev_ptr, 0, csize * sizeof(TensorElType1),thandle);
-            cudaMemsetAsync(cbuf_tmp_dev_ptr, 0, csize * sizeof(TensorElType1),thandle);
-          #endif
+          memPool.gpuMemset(reinterpret_cast<void**>(&cbuf_dev_ptr), csize * sizeof(TensorElType1));
+          memPool.gpuMemset(reinterpret_cast<void**>(&cbuf_tmp_dev_ptr),
+                            csize * sizeof(TensorElType1));
 #endif
           TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
           kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
             ab->isgpu_,
-#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) 
+#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
             &th_a, &th_b,
 #endif
             thandle, alpha_, abuf.data(), adims_sz, rhs1_int_labels_, bbuf.data(), bdims_sz,
             rhs2_int_labels_, cscale, (ab->cbuf_).data(), cdims_sz, lhs_int_labels_, hw,
             ec.has_gpu(), true, &cbuf_dev_ptr, &cbuf_tmp_dev_ptr);
 
-#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) 
-  if(hw == ExecutionHW::GPU) {
-    std::vector<TensorElType1> cbuf_tmp(csize, 0);
-    kernels::copy_result_to_host(hw,thandle,cbuf_tmp,cbuf_dev_ptr);
-    // cbuf+=cbuf_tmp
-    kernels::stream_synchronize<TensorElType1>(thandle);
-    blas::axpy(csize,TensorElType1{1},cbuf_tmp.data(),1,(ab->cbuf_).data(),1);
-  }
-  // free cbuf_dev_ptr
-  // auto& memPool = tamm::GPUPooledStorageManager::getInstance();
-  tamm::kernels::free_device_buffers(hw, th_a, asize);
-  tamm::kernels::free_device_buffers(hw, th_b, bsize);
-  memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
-  memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
+#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
+          if(hw == ExecutionHW::GPU) {
+            std::vector<TensorElType1> cbuf_tmp(csize, 0);
+            kernels::copy_result_to_host(hw, thandle, cbuf_tmp, cbuf_dev_ptr);
+            // cbuf+=cbuf_tmp
+            kernels::stream_synchronize<TensorElType1>(thandle);
+            blas::axpy(csize, TensorElType1{1}, cbuf_tmp.data(), 1, (ab->cbuf_).data(), 1);
+          }
+
+          memPool.deallocate(static_cast<void*>(th_a), asize * sizeof(TensorElType2));
+          memPool.deallocate(static_cast<void*>(th_b), bsize * sizeof(TensorElType3));
+          memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
+          memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
 #endif
         }
 
-  #ifndef DO_NB
-    {
-      TimerGuard tg_get{&oprof.multOpAddTime};
-      // add the computed update to the tensor
-      ctensor.add(translated_cblockid, ab->cbuf_);
-    }
-    delete ab;
-    add_bufs.clear();
-  #endif
+#ifndef DO_NB
+        {
+          TimerGuard tg_get{&oprof.multOpAddTime};
+          // add the computed update to the tensor
+          ctensor.add(translated_cblockid, ab->cbuf_);
+        }
+        delete ab;
+        add_bufs.clear();
+#endif
       }
     };
 
@@ -567,7 +562,7 @@ public:
 
   void execute_bufacc(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) {
     EXPECTS(!is_assign_);
-    auto& oprof = tamm::OpProfiler::instance();
+    auto& oprof         = tamm::OpProfiler::instance();
     using TensorElType1 = typename LabeledTensorT1::element_type;
     using TensorElType2 = typename LabeledTensorT2::element_type;
     using TensorElType3 = typename LabeledTensorT3::element_type;
@@ -648,7 +643,7 @@ public:
      std::inserter(reduction_set, reduction_set.end())); */
 
     // IndexLabelVec reduction_lbls{reduction.begin(), reduction.end()};
-    std::vector<AddBuf<TensorElType1,TensorElType2,TensorElType3>*> add_bufs;
+    std::vector<AddBuf<TensorElType1, TensorElType2, TensorElType3>*> add_bufs;
 #if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
     int64_t n_lhs_blocks, nranks_per_lhs_block, lhs_counter;
 #endif
@@ -668,14 +663,13 @@ public:
       // std::cout << std::endl;
       const auto translated_cblockid = internal::translate_blockid(c_block_id, lhs_);
       if(!ctensor.is_non_zero(translated_cblockid)) return;
-        // const auto translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
-        // const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
+      // const auto translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
+      // const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
 
       /* if( !ctensor.is_non_zero(translated_cblockid) ||
           !atensor.is_non_zero(translated_ablockid) ||
           !btensor.is_non_zero(translated_bblockid))
           return; */
-
 
       // compute block size and allocate buffers for cbuf
       const size_t               csize = ctensor.block_size(translated_cblockid);
@@ -685,29 +679,29 @@ public:
       SizeVec cdims_sz;
       for(const auto v: cdims) { cdims_sz.push_back(v); }
 
-      bool      isgpu  = false;
+      bool isgpu = false;
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-        TensorElType2* th_a{nullptr};
-        TensorElType3* th_b{nullptr};
-        TensorElType1* th_c{nullptr};
-        auto& thandle = tamm::GPUStreamPool::getInstance().getStream();
+      TensorElType2* th_a{nullptr};
+      TensorElType3* th_b{nullptr};
+      TensorElType1* th_c{nullptr};
+      auto&          thandle = tamm::GPUStreamPool::getInstance().getStream();
 
-
-        AddBuf<TensorElType1,TensorElType2,TensorElType3>* ab{nullptr};
-        if(hw == ExecutionHW::GPU) {
-         ab = new AddBuf<TensorElType1,TensorElType2,TensorElType3>{
+      AddBuf<TensorElType1, TensorElType2, TensorElType3>* ab{nullptr};
+      if(hw == ExecutionHW::GPU) {
+        ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
           isgpu, &thandle, th_a, th_b, th_c, {}, translated_cblockid};
-        }
-        else {
-          ab = new AddBuf<TensorElType1,TensorElType2,TensorElType3>
-            {isgpu, &thandle, th_a, th_b, th_c, {}, translated_cblockid};
-        }
-        add_bufs.push_back(ab);
+      }
+      else {
+        ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
+          isgpu, &thandle, th_a, th_b, th_c, {}, translated_cblockid};
+      }
+      add_bufs.push_back(ab);
 #else
-      gpuStream_t thandle{};
-      AddBuf<TensorElType1,TensorElType2,TensorElType3>* ab =
-        new AddBuf<TensorElType1,TensorElType2,TensorElType3>{isgpu, ctensor, {}, translated_cblockid};
+      gpuStream_t                                          thandle{};
+      AddBuf<TensorElType1, TensorElType2, TensorElType3>* ab =
+        new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
+          isgpu, ctensor, {}, translated_cblockid};
       add_bufs.push_back(ab);
 #endif
 
@@ -723,24 +717,20 @@ public:
                                (lhs_counter >= (ec.pg().size().value() % n_lhs_blocks));
 #endif
 
-        TensorElType1 *cbuf_dev_ptr{nullptr};
-        TensorElType1 *cbuf_tmp_dev_ptr{nullptr};
-#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) 
+        TensorElType1* cbuf_dev_ptr{nullptr};
+        TensorElType1* cbuf_tmp_dev_ptr{nullptr};
+#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
         auto& memPool = tamm::GPUPooledStorageManager::getInstance();
-        if(hw==ExecutionHW::GPU) {
-        cbuf_dev_ptr = static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
-        cbuf_tmp_dev_ptr = static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
-        #if defined(USE_DPCPP)
-          auto& dev_queue = tamm::GPUStreamPool::getInstance().getStream();
-          thandle.memset(cbuf_dev_ptr, 0, csize * sizeof(TensorElType1)).wait();
-          thandle.memset(cbuf_tmp_dev_ptr, 0, csize * sizeof(TensorElType1)).wait();
-        #elif defined(USE_HIP)
-          hipMemsetAsync(cbuf_dev_ptr, 0, csize * sizeof(TensorElType1),thandle);
-          hipMemsetAsync(cbuf_tmp_dev_ptr, 0, csize * sizeof(TensorElType1),thandle);
-        #elif defined(USE_CUDA)
-          cudaMemsetAsync(cbuf_dev_ptr, 0, csize * sizeof(TensorElType1),thandle);
-          cudaMemsetAsync(cbuf_tmp_dev_ptr, 0, csize * sizeof(TensorElType1),thandle);
-        #endif
+
+        if(hw == ExecutionHW::GPU) {
+          cbuf_dev_ptr =
+            static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
+          cbuf_tmp_dev_ptr =
+            static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
+
+          memPool.gpuMemset(reinterpret_cast<void**>(&cbuf_dev_ptr), csize * sizeof(TensorElType1));
+          memPool.gpuMemset(reinterpret_cast<void**>(&cbuf_tmp_dev_ptr),
+                            csize * sizeof(TensorElType1));
         }
 #endif
 
@@ -821,17 +811,20 @@ public:
           // A*B
 
           {
-          AddBuf<TensorElType1,TensorElType2,TensorElType3>* abptr{nullptr};
-      #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-          if(hw == ExecutionHW::GPU){
-            abptr = ab;
-            ab->ta_ = static_cast<TensorElType2*>(memPool.allocate(asize * sizeof(TensorElType2)));
-            ab->tb_ = static_cast<TensorElType3*>(memPool.allocate(bsize * sizeof(TensorElType3)));
-          }
-          else abptr = add_bufs[0];
-      #else
-          abptr = add_bufs[0];
-      #endif
+            AddBuf<TensorElType1, TensorElType2, TensorElType3>* abptr{nullptr};
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+            if(hw == ExecutionHW::GPU) {
+              abptr = ab;
+              ab->ta_ =
+                static_cast<TensorElType2*>(memPool.allocate(asize * sizeof(TensorElType2)));
+              ab->tb_ =
+                static_cast<TensorElType3*>(memPool.allocate(bsize * sizeof(TensorElType3)));
+            }
+            else
+              abptr = add_bufs[0];
+#else
+            abptr = add_bufs[0];
+#endif
             abptr->abuf_ = std::move(abuf);
             abptr->bbuf_ = std::move(bbuf);
 
@@ -845,57 +838,59 @@ public:
               (abptr->bbuf_).data(), bdims_sz, rhs2_int_labels_, cscale, cbuf.data(), cdims_sz,
               lhs_int_labels_, hw, ec.has_gpu(), false, &cbuf_dev_ptr, &cbuf_tmp_dev_ptr);
           }
-#if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) 
-      if(hw == ExecutionHW::GPU) {
-        memPool.deallocate(static_cast<void*>(ab->ta_), (ab->abuf_).size() * sizeof(TensorElType2));
-        memPool.deallocate(static_cast<void*>(ab->tb_), (ab->bbuf_).size() * sizeof(TensorElType3));
-      }
-#endif 
+#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
+          if(hw == ExecutionHW::GPU) {
+            memPool.deallocate(static_cast<void*>(ab->ta_),
+                               (ab->abuf_).size() * sizeof(TensorElType2));
+            memPool.deallocate(static_cast<void*>(ab->tb_),
+                               (ab->bbuf_).size() * sizeof(TensorElType3));
+          }
+#endif
           slc++;
         } // end of reduction loop
 
-  // add the computed update to the tensor
-  {
-  #if (defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)) 
-    // copy to host
-    if(hw == ExecutionHW::GPU) {
-    std::vector<TensorElType1> cbuf_tmp(csize, 0);
-    kernels::copy_result_to_host(hw,thandle,cbuf_tmp,cbuf_dev_ptr);
-    // cbuf+=cbuf_tmp
-    kernels::stream_synchronize<TensorElType1>(thandle);
-    blas::axpy(csize,TensorElType1{1},cbuf_tmp.data(),1,cbuf.data(),1);
+        // add the computed update to the tensor
+        {
+#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
+          // copy to host
+          if(hw == ExecutionHW::GPU) {
+            std::vector<TensorElType1> cbuf_tmp(csize, 0);
+            kernels::copy_result_to_host(hw, thandle, cbuf_tmp, cbuf_dev_ptr);
+            // cbuf+=cbuf_tmp
+            kernels::stream_synchronize<TensorElType1>(thandle);
+            blas::axpy(csize, TensorElType1{1}, cbuf_tmp.data(), 1, cbuf.data(), 1);
 
-    // free cbuf_dev_ptr
-    auto& memPool = tamm::GPUPooledStorageManager::getInstance();
-    memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
-    memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
-    }
-  #endif
-    {
-      TimerGuard tg_add{&oprof.multOpAddTime};
-      ctensor.add(translated_cblockid, cbuf);
-    }
-  }
+            // free cbuf_dev_ptr
+            auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+            memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
+            memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
+          }
+#endif
+          {
+            TimerGuard tg_add{&oprof.multOpAddTime};
+            ctensor.add(translated_cblockid, cbuf);
+          }
+        }
 
-  #ifndef DO_NB
-    for(auto& ab: add_bufs) delete ab;
-    add_bufs.clear();
-  #endif
+#ifndef DO_NB
+        for(auto& ab: add_bufs) delete ab;
+        add_bufs.clear();
+#endif
 
-    } // multoptime
+      } // multoptime
 
-  };
-  //@todo use a scheduler
-  //@todo make parallel
+    };
+    //@todo use a scheduler
+    //@todo make parallel
 
 #if 0 && 6
             do_work(ec, lhs_loop_nest, lambda);
 #elif defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
     {
-      const auto& ldist = lhs_.tensor().distribution();
-      int me = ec.pg().rank().value();
-      int nranks = ec.pg().rank().value();
-      int n_lhs_blocks = 0;
+      const auto& ldist        = lhs_.tensor().distribution();
+      int         me           = ec.pg().rank().value();
+      int         nranks       = ec.pg().rank().value();
+      int         n_lhs_blocks = 0;
       for(const auto& lblockid: lhs_loop_nest) {
         if(lhs_.tensor().is_non_zero(lblockid)) { n_lhs_blocks += 1; }
       }

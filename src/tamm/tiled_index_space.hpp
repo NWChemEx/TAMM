@@ -1324,12 +1324,10 @@ protected:
                 }
             }
 
-            if(is.get_named_ranges().empty()) {
-                for(const auto& kv : is.get_named_ranges()) {
-                    for(const auto& range : kv.second) {
-                        boundries.push_back(range.lo());
-                        boundries.push_back(range.hi());
-                    }
+            for(const auto& kv : is.get_named_ranges()) {
+                for(const auto& range : kv.second) {
+                    boundries.push_back(range.lo());
+                    boundries.push_back(range.hi());
                 }
             }
 

@@ -212,11 +212,26 @@ void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, i
               (rocblas_double_complex*) cinter_buf_dev + i * cbatch_ld, cinter_ld));
           }
           else {
-            ROCBLAS_CHECK(
-              rocblas_dgemm(handle, rocblas_operation_none, rocblas_operation_none, N, M, K, &alpha,
-                            binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
-                            ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, &beta,
-                            cinter_buf_dev + i * cbatch_ld, cinter_ld));
+            if(N == 1 and M == 1 and alpha == 1 and beta == 0) {
+              ROCBLAS_CHECK(
+                rocblas_ddot(handle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
+                             ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
+                             cinter_buf_dev + i * cbatch_ld));
+            }
+            else if(N == 1 and M != 1 and K != 1) {
+              ROCBLAS_CHECK(
+                rocblas_dgemv(handle, rocblas_operation_transpose, K, M, &alpha,
+                              ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
+                              binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1, &beta,
+                              cinter_buf_dev + i * cbatch_ld, 1));
+            }
+            else {
+              ROCBLAS_CHECK(
+                rocblas_dgemm(handle, rocblas_operation_none, rocblas_operation_none, N, M, K, &alpha,
+                              binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
+                              ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, &beta,
+                              cinter_buf_dev + i * cbatch_ld, cinter_ld));
+            }
           }
         }
         else {
@@ -347,8 +362,8 @@ bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, std::vector<T2>& ain
 
     auto& memPool = tamm::GPUPooledStorageManager::getInstance();
 
-    ainter_buf_dev = static_cast<T2*>(memPool.allocate(asize * sizeof(T2)));
-    binter_buf_dev = static_cast<T3*>(memPool.allocate(bsize * sizeof(T3)));
+    ainter_buf_dev_in = static_cast<T2*>(memPool.allocate(asize * sizeof(T2)));
+    binter_buf_dev_in = static_cast<T3*>(memPool.allocate(bsize * sizeof(T3)));
 
     copy_data_to_gpu_trans(hw, thandle, abuf, asize, &ainter_buf_dev_in, bbuf, bsize,
                            &binter_buf_dev_in);

@@ -4,8 +4,8 @@
 #include <map>
 
 #ifdef USE_CUDA
-#include <cuda.h>
 #include <cublas_v2.h>
+#include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
 #elif defined(USE_HIP)
@@ -82,31 +82,30 @@ private:
     _count       = 0;
     _initialized = false;
 
-  #if !defined(USE_DPCPP)
+#if !defined(USE_DPCPP)
     if(!_devID2Streams.empty()) {
       for(auto& stream: _devID2Streams) {
-    #if defined(USE_CUDA)
-      cudaStreamDestroy(stream.second);
-    #elif defined(USE_HIP)
-      hipStreamDestroy(stream.second);
-    #endif
+#if defined(USE_CUDA)
+        cudaStreamDestroy(stream.second);
+#elif defined(USE_HIP)
+        hipStreamDestroy(stream.second);
+#endif
       }
     }
 
     if(!_devID2Handles.empty()) {
       for(auto& handle: _devID2Handles) {
-    #if defined(USE_CUDA)
-      cublasDestroy(handle.second);
-    #elif defined(USE_HIP)
-      rocblas_destroy_handle(handle.second);
-    #endif
+#if defined(USE_CUDA)
+        cublasDestroy(handle.second);
+#elif defined(USE_HIP)
+        rocblas_destroy_handle(handle.second);
+#endif
       }
     }
 
     _devID2Streams.clear();
     _devID2Handles.clear();
-  #endif
-
+#endif
   }
 
 public:
@@ -142,40 +141,35 @@ public:
     gpuStream_t& stream   = (*result.first).second;
     bool&        inserted = result.second;
     if(inserted) { cudaStreamCreate(&stream); }
-    return stream;
 #elif defined(USE_HIP)
     auto         result   = _devID2Streams.insert({_active_device + counter, gpuStream_t()});
     gpuStream_t& stream   = (*result.first).second;
     bool&        inserted = result.second;
     if(inserted) { hipStreamCreate(&stream); }
-    return stream;
 #elif defined(USE_DPCPP)
-    auto result = _devID2Streams.insert(
-      {_active_device + counter, gpuStream_t(*sycl_get_device(_active_device), sycl_asynchandler,
-                                             sycl::property_list{sycl::property::queue::in_order{}})});
-    gpuStream_t& stream   = (*result.first).second;
-    bool&        inserted = result.second;
-    return stream;
+    auto result =
+      _devID2Streams.insert({_active_device + counter,
+                             gpuStream_t(*sycl_get_device(_active_device), sycl_asynchandler,
+                                         sycl::property_list{sycl::property::queue::in_order{}})});
+    gpuStream_t& stream = (*result.first).second;
 #endif
+    return stream;
   }
 
 #if !defined(USE_DPCPP)
-    gpuBlasHandle_t& getBlasHandle() {
+  gpuBlasHandle_t& getBlasHandle() {
     if(!_initialized) {
       EXPECTS_STR(false, "Error: active GPU-device not set! call set_device()!");
     }
-    auto result = _devID2Handles.insert({_active_device, gpuBlasHandle_t()});
+    auto             result   = _devID2Handles.insert({_active_device, gpuBlasHandle_t()});
+    gpuBlasHandle_t& handle   = (*result.first).second;
+    bool&            inserted = result.second;
 #if defined(USE_CUDA)
-    gpuBlasHandle_t& handle   = (*result.first).second;
-    bool&            inserted = result.second;
     if(inserted) { cublasCreate(&handle); }
-    return handle;
 #elif defined(USE_HIP)
-    gpuBlasHandle_t& handle   = (*result.first).second;
-    bool&            inserted = result.second;
     if(inserted) { rocblas_create_handle(&handle); }
-    return handle;
 #endif
+    return handle;
   }
 #endif
 

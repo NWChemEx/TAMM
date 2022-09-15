@@ -52,6 +52,16 @@ using gpuStream_t = int; // not used
       throw std::runtime_error("rocblas error");                                      \
     }                                                                                 \
   } while(0)
+
+#define HIP_CHECK(err)                                                                      \
+  do {                                                                                      \
+    hipError_t err_ = (err);                                                                \
+    if(err_ != hipSuccess) {                                                                \
+      std::printf("HIP Exception code: %s at %s : %d\n", hipGetErrorString(err_), __FILE__, \
+                  __LINE__);                                                                \
+      throw std::runtime_error("hip runtime error");                                        \
+    }                                                                                       \
+  } while(0)
 #endif // USE_HIP
 
 #if defined(USE_DPCPP)
@@ -74,10 +84,10 @@ void stream_synchronize(gpuStream_t& shandle) {
 }
 
 template<typename T2, typename T3>
-void copy_data_to_gpu_trans(ExecutionHW hw, gpuStream_t& thandle, const T2* ainter_buf,
-                            size_t asize, T2** ainter_buf_dev, const T3* binter_buf, size_t bsize,
+void copy_data_to_gpu_trans(bool& isgpuOp, gpuStream_t& thandle, const T2* ainter_buf, size_t asize,
+                            T2** ainter_buf_dev, const T3* binter_buf, size_t bsize,
                             T3** binter_buf_dev) {
-  if(hw != ExecutionHW::GPU) return;
+  if(!isgpuOp) return;
 
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
 
@@ -91,51 +101,51 @@ void copy_data_to_gpu_trans(ExecutionHW hw, gpuStream_t& thandle, const T2* aint
   CUDA_CHECK(cudaMemcpyAsync(*binter_buf_dev, binter_buf, bsize * sizeof(T3),
                              cudaMemcpyHostToDevice, thandle));
 #elif defined(USE_HIP)
-  hipMemcpyAsync(*ainter_buf_dev, ainter_buf, asize * sizeof(T2), hipMemcpyHostToDevice, thandle);
-  hipMemcpyAsync(*binter_buf_dev, binter_buf, bsize * sizeof(T3), hipMemcpyHostToDevice, thandle);
+  HIP_CHECK(hipMemcpyAsync(*ainter_buf_dev, ainter_buf, asize * sizeof(T2), hipMemcpyHostToDevice,
+                           thandle));
+  HIP_CHECK(hipMemcpyAsync(*binter_buf_dev, binter_buf, bsize * sizeof(T3), hipMemcpyHostToDevice,
+                           thandle));
 #endif
 
 #endif
 }
 
 template<typename T2, typename T3>
-void copy_data_to_gpu(ExecutionHW hw, gpuStream_t& thandle, const std::vector<T2>& ainter_buf,
+void copy_data_to_gpu(bool& isgpuOp, gpuStream_t& thandle, const std::vector<T2>& ainter_buf,
                       T2** ainter_buf_dev, const std::vector<T3>& binter_buf, T3** binter_buf_dev) {
-  copy_data_to_gpu_trans(hw, thandle, ainter_buf.data(), ainter_buf.size(), ainter_buf_dev,
+  copy_data_to_gpu_trans(isgpuOp, thandle, ainter_buf.data(), ainter_buf.size(), ainter_buf_dev,
                          binter_buf.data(), binter_buf.size(), binter_buf_dev);
 }
 
 template<typename T, typename T1, typename T2, typename T3>
-void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, int M, int N, int K,
+void gemm_wrapper(bool& isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, int M, int N, int K,
                   T alpha, T beta, std::vector<T2>& ainter_buf, T2* ainter_buf_dev,
                   std::vector<T3>& binter_buf, T3* binter_buf_dev, std::vector<T1>& cinter_buf,
                   T1* cinter_buf_dev) {
 #if defined(USE_CUDA)
   auto& pool   = tamm::GPUStreamPool::getInstance();
   auto& handle = pool.getBlasHandle();
-  auto  status = cublasSetStream(handle, thandle);
+  cublasSetStream(handle, thandle);
 #elif defined(USE_HIP)
   auto& pool   = tamm::GPUStreamPool::getInstance();
   auto& handle = pool.getBlasHandle();
   rocblas_set_stream(handle, thandle);
 #endif
 
-  auto transA     = blas::Op::NoTrans;
-  auto transB     = blas::Op::NoTrans;
-  int  ainter_ld  = K;
-  int  binter_ld  = N;
-  int  cinter_ld  = N;
-  int  cbatch_ld  = M * N;
-  int  abatch_ld  = M * K;
-  int  bbatch_ld  = K * N;
-  int  areduce_ld = B * abatch_ld;
-  int  breduce_ld = B * bbatch_ld;
+  int ainter_ld  = K;
+  int binter_ld  = N;
+  int cinter_ld  = N;
+  int cbatch_ld  = M * N;
+  int abatch_ld  = M * K;
+  int bbatch_ld  = K * N;
+  int areduce_ld = B * abatch_ld;
+  int breduce_ld = B * bbatch_ld;
 
   for(size_t ari = 0; ari < AR; ari++) {
     for(size_t bri = 0; bri < BR; bri++) {
       for(size_t i = 0; i < B; i++) {
 #if defined(USE_DPCPP)
-        if(hw == ExecutionHW::GPU) {
+        if(isgpuOp) {
           try {
             if(N == 1 and M == 1 and alpha == 1 and beta == 0) {
               auto ddot = oneapi::mkl::blas::column_major::dot(
@@ -152,6 +162,16 @@ void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, i
                 cinter_buf_dev + i * cbatch_ld, 1);
               dgemv.wait();
             }
+            else if(N == 1 and M == 1 and alpha != 1 and beta == 0) {
+              auto ddot = oneapi::mkl::blas::column_major::dot(
+                thandle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
+                ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
+                cinter_buf_dev + i * cbatch_ld);
+              auto dscal = oneapi::mkl::blas::column_major::scal(thandle, K, alpha,
+                                                                 cinter_buf_dev + i * cbatch_ld, 1,
+                                                                 std::vector<sycl::event>{ddot});
+              dscal.wait();
+            }
             else {
               auto dgemm = oneapi::mkl::blas::column_major::gemm(
                 thandle, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
@@ -165,19 +185,13 @@ void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, i
             msg << "oneMKL Exception at " << __FILE__ << " : " << __LINE__ << std::endl;
             throw(std::runtime_error(ex.what()));
           }
-        }
-        else {
-          blas::gemm(blas::Layout::RowMajor, transA, transB, M, N, K, alpha,
-                     ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                     binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
-                     cinter_buf.data() + i * cbatch_ld, cinter_ld);
+
+          continue;
         }
 #elif defined(USE_CUDA)
-        if(hw == ExecutionHW::GPU) {
+        if(isgpuOp) {
           if constexpr(internal::is_complex_v<T1> && internal::is_complex_v<T2> &&
                        internal::is_complex_v<T3>) {
-            cuDoubleComplex calpha = make_cuDoubleComplex(alpha.real(), 0);
-            cuDoubleComplex cbeta  = make_cuDoubleComplex(beta.real(), 0);
             CUBLAS_CHECK(cublasZgemm(
               handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, (cuDoubleComplex*) &alpha,
               (cuDoubleComplex*) binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
@@ -186,20 +200,35 @@ void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, i
               cinter_ld));
           }
           else {
-            CUBLAS_CHECK(cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha,
-                                     binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
-                                     ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                                     &beta, cinter_buf_dev + i * cbatch_ld, cinter_ld));
+            if(N == 1 and M == 1 and alpha == 1 and beta == 0) {
+              CUBLAS_CHECK(cublasDdot(handle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
+                                      1, ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
+                                      cinter_buf_dev + i * cbatch_ld));
+            }
+            else if(N == 1 and M != 1 and K != 1) {
+              CUBLAS_CHECK(cublasDgemv(handle, CUBLAS_OP_T, K, M, &alpha,
+                                       ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
+                                       binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1, &beta,
+                                       cinter_buf_dev + i * cbatch_ld, 1));
+            }
+            else if(N == 1 and M == 1 and alpha != 1 and beta == 0) {
+              CUBLAS_CHECK(cublasDdot(handle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
+                                      1, ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
+                                      cinter_buf_dev + i * cbatch_ld));
+              CUBLAS_CHECK(cublasDscal(handle, K, &alpha, cinter_buf_dev + i * cbatch_ld, 1));
+            }
+            else {
+              CUBLAS_CHECK(cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha,
+                                       binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
+                                       ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
+                                       &beta, cinter_buf_dev + i * cbatch_ld, cinter_ld));
+            }
           }
-        }
-        else {
-          blas::gemm(blas::Layout::RowMajor, transA, transB, M, N, K, alpha,
-                     ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                     binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
-                     cinter_buf.data() + i * cbatch_ld, cinter_ld);
+
+          continue;
         }
 #elif defined(USE_HIP)
-        if(hw == ExecutionHW::GPU) {
+        if(isgpuOp) {
           if constexpr(internal::is_complex_v<T1> && internal::is_complex_v<T2> &&
                        internal::is_complex_v<T3>) {
             ROCBLAS_CHECK(rocblas_zgemm(
@@ -213,42 +242,55 @@ void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, i
           }
           else {
             if(N == 1 and M == 1 and alpha == 1 and beta == 0) {
-              ROCBLAS_CHECK(
-                rocblas_ddot(handle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
-                             ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-                             cinter_buf_dev + i * cbatch_ld));
+              ROCBLAS_CHECK(rocblas_ddot(handle, K,
+                                         binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
+                                         ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
+                                         cinter_buf_dev + i * cbatch_ld));
             }
             else if(N == 1 and M != 1 and K != 1) {
-              ROCBLAS_CHECK(
-                rocblas_dgemv(handle, rocblas_operation_transpose, K, M, &alpha,
-                              ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                              binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1, &beta,
-                              cinter_buf_dev + i * cbatch_ld, 1));
+              ROCBLAS_CHECK(rocblas_dgemv(handle, rocblas_operation_transpose, K, M, &alpha,
+                                          ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
+                                          ainter_ld,
+                                          binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
+                                          &beta, cinter_buf_dev + i * cbatch_ld, 1));
+            }
+            else if(N == 1 and M == 1 and alpha != 1 and beta == 0) {
+              ROCBLAS_CHECK(rocblas_ddot(handle, K,
+                                         binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
+                                         ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
+                                         cinter_buf_dev + i * cbatch_ld));
+              ROCBLAS_CHECK(rocblas_dscal(handle, K, &alpha, cinter_buf_dev + i * cbatch_ld, 1));
             }
             else {
               ROCBLAS_CHECK(
-                rocblas_dgemm(handle, rocblas_operation_none, rocblas_operation_none, N, M, K, &alpha,
-                              binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
+                rocblas_dgemm(handle, rocblas_operation_none, rocblas_operation_none, N, M, K,
+                              &alpha, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
                               ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, &beta,
                               cinter_buf_dev + i * cbatch_ld, cinter_ld));
             }
           }
+
+          continue;
+        }
+#endif
+
+        // CPU only ops (i.e., for CPU builds or isgpuOp=false)
+        if(N == 1 and M != 1 and K != 1) {
+          blas::gemv(blas::Layout::ColMajor, blas::Op::Trans, K, M, alpha,
+                     ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
+                     binter_buf.data() + bri * breduce_ld + i * bbatch_ld, 1, beta,
+                     cinter_buf.data() + i * cbatch_ld, 1);
         }
         else {
-          blas::gemm(blas::Layout::RowMajor, transA, transB, M, N, K, alpha,
+          blas::gemm(blas::Layout::RowMajor, blas::Op::NoTrans, blas::Op::NoTrans, M, N, K, alpha,
                      ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
                      binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
                      cinter_buf.data() + i * cbatch_ld, cinter_ld);
         }
-#else
-        blas::gemm(blas::Layout::RowMajor, transA, transB, M, N, K, alpha,
-                   ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                   binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
-                   cinter_buf.data() + i * cbatch_ld, cinter_ld);
-#endif
-      }
-    }
-  }
+
+      } // for-i
+    }   // for-bri
+  }     // for-ari
 }
 
 template<typename T1>
@@ -263,8 +305,8 @@ void copy_result_to_host(ExecutionHW hw, gpuStream_t& thandle, std::vector<T1>& 
   CUDA_CHECK(cudaMemcpyAsync(cinter_buf.data(), cinter_buf_dev, cinter_buf.size() * sizeof(T1),
                              cudaMemcpyDeviceToHost, thandle));
 #elif defined(USE_HIP)
-  hipMemcpyAsync(cinter_buf.data(), cinter_buf_dev, cinter_buf.size() * sizeof(T1),
-                 hipMemcpyDeviceToHost, thandle);
+  HIP_CHECK(hipMemcpyAsync(cinter_buf.data(), cinter_buf_dev, cinter_buf.size() * sizeof(T1),
+                           hipMemcpyDeviceToHost, thandle));
 #endif
 }
 
@@ -299,9 +341,10 @@ void assign_gpu(gpuStream_t& thandle, T* dst, const SizeVec& ddims, const IntLab
     CUDA_CHECK(
       cudaMemcpyAsync(dst, src, ssize.value() * sizeof(T), cudaMemcpyDeviceToDevice, thandle));
 #elif defined(USE_HIP)
-    hipMemcpyAsync(dst, src, ssize.value() * sizeof(T), hipMemcpyDeviceToDevice, thandle);
+    HIP_CHECK(
+      hipMemcpyAsync(dst, src, ssize.value() * sizeof(T), hipMemcpyDeviceToDevice, thandle));
 #elif defined(USE_DPCPP)
-    thandle.memcpy(dst, src, ssize.value() * sizeof(T)).wait();
+    thandle.memcpy(dst, src, ssize.value() * sizeof(T));
 #endif
     return;
   }
@@ -343,7 +386,7 @@ void assign_gpu(gpuStream_t& thandle, T* dst, const SizeVec& ddims, const IntLab
 }
 
 template<typename T2, typename T3>
-bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, std::vector<T2>& ainter_buf,
+bool transpose_inputs(bool& isgpuOp, gpuStream_t& thandle, std::vector<T2>& ainter_buf,
                       const SizeVec& ainter_dims, const IntLabelVec& ainter_labels, const T2* abuf,
                       size_t asize, const SizeVec& adims, const IntLabelVec& alabels,
                       std::vector<T3>& binter_buf, const SizeVec& binter_dims,
@@ -353,8 +396,7 @@ bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, std::vector<T2>& ain
   bool gpu_trans = false;
 
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-  // bool  do_op = ainter_dims.size() > 1 && binter_dims.size() > 1;
-  if(hw == ExecutionHW::GPU /* && do_op*/) {
+  if(isgpuOp) {
     gpu_trans = true;
 
     T2* ainter_buf_dev_in{nullptr};
@@ -365,7 +407,7 @@ bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, std::vector<T2>& ain
     ainter_buf_dev_in = static_cast<T2*>(memPool.allocate(asize * sizeof(T2)));
     binter_buf_dev_in = static_cast<T3*>(memPool.allocate(bsize * sizeof(T3)));
 
-    copy_data_to_gpu_trans(hw, thandle, abuf, asize, &ainter_buf_dev_in, bbuf, bsize,
+    copy_data_to_gpu_trans(isgpuOp, thandle, abuf, asize, &ainter_buf_dev_in, bbuf, bsize,
                            &binter_buf_dev_in);
 
     assign_gpu<T2>(thandle, *ainter_buf_dev, ainter_dims, ainter_labels, T2{1}, ainter_buf_dev_in,
@@ -375,40 +417,31 @@ bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, std::vector<T2>& ain
 
     memPool.deallocate(static_cast<void*>(ainter_buf_dev_in), asize * sizeof(T2));
     memPool.deallocate(static_cast<void*>(binter_buf_dev_in), bsize * sizeof(T3));
-  }
-  else {
-    assign<T2>(ainter_buf.data(), ainter_dims, ainter_labels, T2{1}, abuf, adims, alabels, true);
-    assign<T3>(binter_buf.data(), binter_dims, binter_labels, T3{1}, bbuf, bdims, blabels, true);
-  }
 
-#else
-  assign<T2>(ainter_buf.data(), ainter_dims, ainter_labels, T2{1}, abuf, adims, alabels, true);
-  assign<T3>(binter_buf.data(), binter_dims, binter_labels, T3{1}, bbuf, bdims, blabels, true);
+    return gpu_trans;
+  }
 #endif
 
+  assign<T2>(ainter_buf.data(), ainter_dims, ainter_labels, T2{1}, abuf, adims, alabels, true);
+  assign<T3>(binter_buf.data(), binter_dims, binter_labels, T3{1}, bbuf, bdims, blabels, true);
   return gpu_trans;
 }
 
 template<typename T1>
-void transpose_output(ExecutionHW hw, gpuStream_t& thandle, bool gpu_trans,
+void transpose_output(bool& isgpuOp, gpuStream_t& thandle, bool gpu_trans,
                       std::vector<T1>& cinter_buf, const SizeVec& cinter_dims,
                       const IntLabelVec& cinter_labels, T1* cbuf, const SizeVec& cdims,
                       const IntLabelVec& clabels, T1** cinter_buf_dev, T1** cinter_tmp_buf_dev,
                       bool is_assign) {
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-  if(hw == ExecutionHW::GPU) {
+  if(isgpuOp) {
     assign_gpu<T1>(thandle, *cinter_buf_dev, cdims, clabels, T1{1}, *cinter_tmp_buf_dev,
                    cinter_dims, cinter_labels, is_assign);
+    return;
   }
-  else {
-    // copy_result_to_host(hw, cinter_buf, *cinter_tmp_buf_dev);
-    assign<T1>(cbuf, cdims, clabels, T1{1}, cinter_buf.data(), cinter_dims, cinter_labels,
-               is_assign);
-  }
-
-#else
-  assign<T1>(cbuf, cdims, clabels, T1{1}, cinter_buf.data(), cinter_dims, cinter_labels, is_assign);
 #endif
+
+  assign<T1>(cbuf, cdims, clabels, T1{1}, cinter_buf.data(), cinter_dims, cinter_labels, is_assign);
 }
 
 template<typename T, typename T1, typename T2, typename T3>
@@ -534,16 +567,22 @@ void block_multiply(bool& isgpuOp,
   cinter_dims.insert(cinter_dims.end(), aouter_dims.begin(), aouter_dims.end());
   cinter_dims.insert(cinter_dims.end(), bouter_dims.begin(), bouter_dims.end());
 
-  auto transA     = blas::Op::NoTrans;
-  auto transB     = blas::Op::NoTrans;
-  int  ainter_ld  = K;
-  int  binter_ld  = N;
-  int  cinter_ld  = N;
-  int  cbatch_ld  = M * N;
-  int  abatch_ld  = M * K;
-  int  bbatch_ld  = K * N;
-  int  areduce_ld = B * abatch_ld;
-  int  breduce_ld = B * bbatch_ld;
+  int ainter_ld  = K;
+  int binter_ld  = N;
+  int cinter_ld  = N;
+  int cbatch_ld  = M * N;
+  int abatch_ld  = M * K;
+  int bbatch_ld  = K * N;
+  int areduce_ld = B * abatch_ld;
+  int breduce_ld = B * bbatch_ld;
+
+  //   // optimization to run on CPU instead of GPU
+  // #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
+  //   if(isgpuOp && M < 100 && N < 100 && K < 100) {
+  //     isgpuOp = false;
+  //     hw      = ExecutionHW::CPU;
+  //   }
+  // #endif
 
   auto bmult_lambda = [&]() {
     bool            gpu_trans = false;
@@ -566,22 +605,21 @@ void block_multiply(bool& isgpuOp,
         binter_buf.resize(static_cast<size_t>(bsize.value()));
       }
 
-      gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
+      gpu_trans = transpose_inputs(isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                    asize.value(), adims, alabels, binter_buf, binter_dims,
                                    binter_labels, bbuf, bsize.value(), bdims, blabels,
                                    &ainter_buf_dev, &binter_buf_dev);
 
       if(!gpu_trans)
-        copy_data_to_gpu_trans(hw, thandle, ainter_buf.data(), ainter_buf.size(), &ainter_buf_dev,
-                               binter_buf.data(), binter_buf.size(), &binter_buf_dev);
+        copy_data_to_gpu_trans(isgpuOp, thandle, ainter_buf.data(), ainter_buf.size(),
+                               &ainter_buf_dev, binter_buf.data(), binter_buf.size(),
+                               &binter_buf_dev);
 
-      gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
+      gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
                    binter_buf, binter_buf_dev, cinter_buf, *cinter_tmp_buf_dev);
-      transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
-                       clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
-      // free_device_buffers(hw, ainter_buf.size(), binter_buf.size(), ainter_buf_dev,
-      // binter_buf_dev);
+      transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+                       cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
     }
     else {
       T2* abufp = const_cast<T2*>(abuf);

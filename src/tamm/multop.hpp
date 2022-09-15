@@ -509,8 +509,8 @@ public:
   }
   // free cbuf_dev_ptr
   // auto& memPool = tamm::GPUPooledStorageManager::getInstance();
-  tamm::kernels::free_device_buffers(hw, th_a, asize);
-  tamm::kernels::free_device_buffers(hw, th_b, bsize);
+  memPool.deallocate(static_cast<void*>(th_a), asize * sizeof(TensorElType2));
+  memPool.deallocate(static_cast<void*>(th_b), bsize * sizeof(TensorElType3));
   memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
   memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
 #endif

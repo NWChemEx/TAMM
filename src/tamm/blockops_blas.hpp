@@ -3,6 +3,7 @@
 #include "tamm/block_span.hpp"
 #include "tamm/types.hpp"
 #include "tamm/utils.hpp"
+#include "tamm/kernels/multiply.hpp"
 
 #include <algorithm>
 #include <complex>

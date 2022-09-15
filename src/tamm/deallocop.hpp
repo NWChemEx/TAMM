@@ -7,6 +7,7 @@
 #include "tamm/boundvec.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/labeled_tensor.hpp"
+#include "tamm/label_translator.hpp"
 #include "tamm/runtime_engine.hpp"
 #include "tamm/tensor.hpp"
 #include "tamm/types.hpp"

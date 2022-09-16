@@ -2,7 +2,8 @@
 
 #if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
-#include <assert.h>
+#include <cassert>
+#include <limits>
 
 class ga_over_upcxx_chunk_view {
     private:
@@ -291,7 +292,7 @@ class ga_over_upcxx_chunk {
         void minimum(double& out_val, int64_t& out_offset0,
                 int64_t& out_offset1, int64_t& out_offset2,
                 int64_t& out_offset3) {
-            out_val = -DBL_MAX;
+            out_val = -1.0 * std::numeric_limits<double>::max();
 
             double *ptr = chunk.local();
             for (int i = 0; i < chunk_size[0]; i++) {
@@ -313,7 +314,7 @@ class ga_over_upcxx_chunk {
 
         void maximum(double &out_val, int64_t &out_i0, int64_t &out_i1,
                 int64_t &out_i2, int64_t &out_i3) {
-            out_val = -DBL_MAX;
+            out_val = -1.0 * std::numeric_limits<double>::max();
             unsigned max_index = 0;
 
             const double *ptr = chunk.local();
@@ -697,7 +698,7 @@ class ga_over_upcxx {
 
         void minimum(double& out_val, int64_t& out_i0, int64_t& out_i1,
                 int64_t& out_i2, int64_t& out_i3) {
-            double min_val = DBL_MAX;
+            double min_val = std::numeric_limits<double>::max();
             int64_t i0 = 0;
             int64_t i1 = 0;
             int64_t i2 = 0;
@@ -756,7 +757,7 @@ class ga_over_upcxx {
 
         void maximum(double& out_val, int64_t& out_i0, int64_t& out_i1,
                 int64_t& out_i2, int64_t& out_i3) {
-            double max_val = -DBL_MAX;
+            double max_val = -1.0 * std::numeric_limits<double>::max();
             int64_t i0 = 0;
             int64_t i1 = 0;
             int64_t i2 = 0;

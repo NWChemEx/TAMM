@@ -10,6 +10,7 @@
 
 #include "tamm/block_operations.hpp"
 #include "tamm/boundvec.hpp"
+#include "tamm/op_base.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/kernels/assign.hpp"
 #include "tamm/labeled_tensor.hpp"
@@ -18,7 +19,7 @@
 #include "tamm/types.hpp"
 #include "tamm/utils.hpp"
 #include "tamm/work.hpp"
-
+#include "tamm/label_translator.hpp"
 #include "tamm/block_assign_plan.hpp"
 
 namespace tamm {

@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 
 namespace tamm {
 namespace new_ops {

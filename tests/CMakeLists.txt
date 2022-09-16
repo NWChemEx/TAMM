@@ -5,5 +5,7 @@ include(TargetMacros)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}/../methods/util/external)
 include(${CMAKE_CURRENT_LIST_DIR}/tamm/test_tamm.cmake)
-include(${CMAKE_CURRENT_LIST_DIR}/ga/test_ga.cmake)
+if(NOT USE_UPCXX)
+  include(${CMAKE_CURRENT_LIST_DIR}/ga/test_ga.cmake)
+endif()
 

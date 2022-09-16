@@ -122,14 +122,8 @@ void gemm_wrapper(bool& isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, in
                   T alpha, T beta, std::vector<T2>& ainter_buf, T2* ainter_buf_dev,
                   std::vector<T3>& binter_buf, T3* binter_buf_dev, std::vector<T1>& cinter_buf,
                   T1* cinter_buf_dev) {
-#if defined(USE_CUDA)
-  auto& pool   = tamm::GPUStreamPool::getInstance();
-  auto& handle = pool.getBlasHandle();
-  cublasSetStream(handle, thandle);
-#elif defined(USE_HIP)
-  auto& pool   = tamm::GPUStreamPool::getInstance();
-  auto& handle = pool.getBlasHandle();
-  rocblas_set_stream(handle, thandle);
+#if defined(USE_CUDA) || defined(USE_HIP)
+  auto& handle = tamm::GPUStreamPool::getInstance().getBlasHandle();
 #endif
 
   int ainter_ld  = K;
@@ -254,13 +248,14 @@ void gemm_wrapper(bool& isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, in
                                           binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
                                           &beta, cinter_buf_dev + i * cbatch_ld, 1));
             }
-            else if(N == 1 and M == 1 and alpha != 1 and beta == 0) {
-              ROCBLAS_CHECK(rocblas_ddot(handle, K,
-                                         binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
-                                         ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-                                         cinter_buf_dev + i * cbatch_ld));
-              ROCBLAS_CHECK(rocblas_dscal(handle, K, &alpha, cinter_buf_dev + i * cbatch_ld, 1));
-            }
+            // TODO: this seems to be failing on Crusher!
+            // else if(N == 1 and M == 1 and alpha != 1 and beta == 0) {
+            //   ROCBLAS_CHECK(rocblas_ddot(handle, K,
+            //                              binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
+            //                              ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
+            //                              cinter_buf_dev + i * cbatch_ld));
+            //   ROCBLAS_CHECK(rocblas_dscal(handle, K, &alpha, cinter_buf_dev + i * cbatch_ld, 1));
+            // }
             else {
               ROCBLAS_CHECK(
                 rocblas_dgemm(handle, rocblas_operation_none, rocblas_operation_none, N, M, K,

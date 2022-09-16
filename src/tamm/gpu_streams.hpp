@@ -18,19 +18,16 @@
 namespace tamm {
 
 #if defined(USE_HIP)
-using gpuStream_t                            = hipStream_t;
-using gpuEvent_t                             = hipEvent_t;
-using gpuBlasHandle_t                        = rocblas_handle;
-constexpr unsigned short int max_gpu_streams = 1;
+using gpuStream_t     = hipStream_t;
+using gpuEvent_t      = hipEvent_t;
+using gpuBlasHandle_t = rocblas_handle;
 #elif defined(USE_CUDA)
-using gpuStream_t                            = cudaStream_t;
-using gpuEvent_t                             = cudaEvent_t;
-using gpuBlasHandle_t                        = cublasHandle_t;
-constexpr unsigned short int max_gpu_streams = 1;
+using gpuStream_t     = cudaStream_t;
+using gpuEvent_t      = cudaEvent_t;
+using gpuBlasHandle_t = cublasHandle_t;
 #elif defined(USE_DPCPP)
-using gpuStream_t                            = sycl::queue;
-using gpuEvent_t                             = sycl::event;
-constexpr unsigned short int max_gpu_streams = 1;
+using gpuStream_t = sycl::queue;
+using gpuEvent_t  = sycl::event;
 
 auto sycl_asynchandler = [](sycl::exception_list exceptions) {
   for(std::exception_ptr const& e: exceptions) {
@@ -54,128 +51,130 @@ static inline void getDeviceCount(int* id) {
 #endif
 }
 
+static inline void gpuSetDevice(int active_device) {
+#ifdef USE_CUDA
+  cudaSetDevice(active_device);
+#elif defined(USE_HIP)
+  hipSetDevice(active_device);
+#elif defined(USE_DPCPP)
+  syclSetDevice(active_device);
+#endif
+}
+
 class GPUStreamPool {
 protected:
   bool _initialized{false};
   // Active GPU set by a given MPI-rank from execution context ctor
   int _active_device;
   // total number of GPUs on node
-  int _ngpus;
-  // Map of GPU-IDs and array of streams
-  std::map<int, gpuStream_t> _devID2Streams;
-  // counter for getting a round-robin stream used by (T) code
-  unsigned int _count{0};
+  int _ngpus{0};
+
+  // Map of GPU-IDs and stream
+  std::map<int, gpuStream_t*> _devID2Stream;
+
 #if defined(USE_CUDA) || defined(USE_HIP)
-  // Map of GPU-IDs and array of blashandles
-  std::map<int, gpuBlasHandle_t> _devID2Handles;
+  // Map of GPU-IDs and blashandle
+  std::map<int, gpuBlasHandle_t*> _devID2Handle;
 #endif
 
 private:
   GPUStreamPool() {
-    // total number of GPUs on-node
     getDeviceCount(&_ngpus);
+
+    for(int devID = 0; devID < _ngpus; devID++) { // # of GPUs per node
+      _active_device = devID;
+      gpuSetDevice(devID);
+
+      // 1. populate gpu-streams, gpu-blas handles per GPU
+      gpuStream_t* stream = nullptr;
+#if defined(USE_CUDA)
+      stream = new cudaStream_t;
+      cudaStreamCreate(stream);
+
+      gpuBlasHandle_t* handle = new gpuBlasHandle_t;
+      cublasCreate(handle);
+      cublasSetStream(*handle, *stream);
+      _devID2Handle[devID] = handle;
+#elif defined(USE_HIP)
+      stream = new hipStream_t;
+      hipStreamCreate(stream);
+
+      gpuBlasHandle_t* handle = new gpuBlasHandle_t;
+      rocblas_create_handle(handle);
+      rocblas_set_stream(*handle, *stream);
+      _devID2Handle[devID] = handle;
+#elif defined(USE_DPCPP)
+      stream = new sycl::queue(*sycl_get_context(devID), *sycl_get_device(devID), sycl_asynchandler,
+                               sycl::property_list{sycl::property::queue::in_order{}});
+#endif
+
+      _devID2Stream[devID] = stream;
+    } // devID
+
     _initialized = false;
-    _count       = 0;
   }
 
   ~GPUStreamPool() {
-    _count       = 0;
     _initialized = false;
 
-#if !defined(USE_DPCPP)
-    if(!_devID2Streams.empty()) {
-      for(auto& stream: _devID2Streams) {
-#if defined(USE_CUDA)
-        cudaStreamDestroy(stream.second);
-#elif defined(USE_HIP)
-        hipStreamDestroy(stream.second);
-#endif
-      }
-    }
+    for(int devID = 0; devID < _ngpus; devID++) { // # of GPUs per node
+      gpuSetDevice(devID);
 
-    if(!_devID2Handles.empty()) {
-      for(auto& handle: _devID2Handles) {
+      // 1. destroy gpu-streams, gpu-blas handles per GPU
+      gpuStream_t* stream = _devID2Stream[devID];
 #if defined(USE_CUDA)
-        cublasDestroy(handle.second);
-#elif defined(USE_HIP)
-        rocblas_destroy_handle(handle.second);
-#endif
-      }
-    }
+      cudaStreamDestroy(*stream);
 
-    _devID2Streams.clear();
-    _devID2Handles.clear();
+      gpuBlasHandle_t* handle = _devID2Handle[devID];
+      cublasDestroy(*handle);
+      handle = nullptr;
+#elif defined(USE_HIP)
+      hipStreamDestroy(*stream);
+
+      gpuBlasHandle_t* handle = _devID2Handle[devID];
+      rocblas_destroy_handle(*handle);
+      handle = nullptr;
+#elif defined(USE_DPCPP)
+      delete stream;
 #endif
+
+      stream = nullptr;
+    } // devID
+  }
+
+  void check_device() {
+    if(!_initialized) {
+      EXPECTS_STR(false, "Error: active GPU-device not set! call set_device()!");
+    }
   }
 
 public:
   /// sets an active device for getting streams and blas handles
-  void set_device(unsigned int device) {
-    EXPECTS_STR(device < _ngpus, "Error: Invalid active-device set in GPUStreamPool!");
-
+  void set_device(int device) {
     if(!_initialized) {
-      _count         = 0;
       _active_device = device;
-
-#ifdef USE_CUDA
-      cudaSetDevice(_active_device);
-#elif defined(USE_HIP)
-      hipSetDevice(_active_device);
-#elif defined(USE_DPCPP)
-      syclSetDevice(_active_device);
-#endif
+      gpuSetDevice(_active_device);
       _initialized = true;
     }
   }
 
   /// Returns a GPU stream in a round-robin fashion
   gpuStream_t& getStream() {
-    if(!_initialized) {
-      EXPECTS_STR(false, "Error: active GPU-device not set! call set_device()!");
-    }
-
-    unsigned short int counter = _count++ % max_gpu_streams;
-
-#if defined(USE_CUDA)
-    auto         result   = _devID2Streams.insert({_active_device + counter, gpuStream_t()});
-    gpuStream_t& stream   = (*result.first).second;
-    bool&        inserted = result.second;
-    if(inserted) { cudaStreamCreate(&stream); }
-#elif defined(USE_HIP)
-    auto         result   = _devID2Streams.insert({_active_device + counter, gpuStream_t()});
-    gpuStream_t& stream   = (*result.first).second;
-    bool&        inserted = result.second;
-    if(inserted) { hipStreamCreate(&stream); }
-#elif defined(USE_DPCPP)
-    auto result =
-      _devID2Streams.insert({_active_device + counter,
-                             gpuStream_t(*sycl_get_device(_active_device), sycl_asynchandler,
-                                         sycl::property_list{sycl::property::queue::in_order{}})});
-    gpuStream_t& stream = (*result.first).second;
-#endif
-    return stream;
+    check_device();
+    return *(_devID2Stream[_active_device]);
   }
 
 #if !defined(USE_DPCPP)
+  /// Returns a GPU BLAS handle that is valid only for the CUDA and HIP builds
   gpuBlasHandle_t& getBlasHandle() {
-    if(!_initialized) {
-      EXPECTS_STR(false, "Error: active GPU-device not set! call set_device()!");
-    }
-    auto             result   = _devID2Handles.insert({_active_device, gpuBlasHandle_t()});
-    gpuBlasHandle_t& handle   = (*result.first).second;
-    bool&            inserted = result.second;
-#if defined(USE_CUDA)
-    if(inserted) { cublasCreate(&handle); }
-#elif defined(USE_HIP)
-    if(inserted) { rocblas_create_handle(&handle); }
-#endif
-    return handle;
+    check_device();
+    return *(_devID2Handle[_active_device]);
   }
 #endif
 
   /// Returns the instance of device manager singleton.
   inline static GPUStreamPool& getInstance() {
-    static GPUStreamPool d_m;
+    static GPUStreamPool d_m{};
     return d_m;
   }
 

@@ -1,4 +1,4 @@
-[![Actions](https://github.com/NWChemEx-Project/TAMM/workflows/C_C++_CI/badge.svg)](https://github.com/NWChemEx-Project/TAMM)
+[![Actions](https://github.com/NWChemEx-Project/TAMM/workflows/TAMM_CI/badge.svg)](https://github.com/NWChemEx-Project/TAMM)
 [![CLA assistant](https://cla-assistant.io/readme/badge/NWChemEx-Project/TAMM)](https://cla-assistant.io/NWChemEx-Project/TAMM)
 [![codecov](https://codecov.io/gh/NWChemEx-Project/TAMM/branch/main/graph/badge.svg?token=rlCvgnawKX)](https://codecov.io/gh/NWChemEx-Project/TAMM)
 

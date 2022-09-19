@@ -8,6 +8,9 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
+        backend:
+          - ga
+          - upcxx
         mpi_impl:
           - openmpi
         cxx:
@@ -22,16 +25,32 @@ jobs:
             cxx: g++-10
             cc: gcc-10
             fc: gfortran-10
+            backend: ga
           - os: ubuntu-latest
             mpi_impl: openmpi
             cxx: g++-11
             cc: gcc-11
             fc: gfortran-11
+            backend: ga
           - os: ubuntu-latest
             mpi_impl: openmpi
             cxx: clang++-9
             cc: clang-9
             fc: gfortran-10
+            backend: ga
+          - os: ubuntu-latest
+            mpi_impl: openmpi
+            cxx: g++-9
+            cc: gcc-9
+            fc: gfortran-9
+            backend: upcxx
+        exclude:
+          - os: ubuntu-latest
+            mpi_impl: openmpi
+            cxx: g++-10
+            cc: gcc-10
+            fc: gfortran-10
+            backend: upcxx       
       fail-fast: true
     env:
       MPI_IMPL: ${{ matrix.mpi_impl }}
@@ -50,15 +69,23 @@ jobs:
         echo "::set-output name=simd::$(${GITHUB_WORKSPACE}/.github/workflows/scripts/check_simd.sh)"
       shell: bash
 
-    - name: Cache install steps
+    - name: Cache install steps (backend = ga)
+      if: ${{ matrix.backend == 'ga' }}
       id: tamm-cache-install
       uses: actions/cache@v3
-      env:
-        cache-name: cache-install-steps
       with:
         path: |
           ~/tamm_cache
         key: ${{ runner.os }}-${{ matrix.mpi_impl }}-${{ matrix.cc }}-${{ matrix.cxx }}-simd${{ steps.get-simd.outputs.simd }}-tamm
+
+    - name: Cache install steps (backend = upcxx)
+      if: ${{ matrix.backend == 'upcxx' }}
+      id: tamm-upcxx-cache-install
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/tamm_cache
+        key: ${{ runner.os }}-${{ matrix.mpi_impl }}-${{ matrix.cc }}-${{ matrix.cxx }}-simd${{ steps.get-simd.outputs.simd }}-tamm-upcxx
 
     - name: install compilers
       run: |
@@ -95,9 +122,23 @@ jobs:
         wget https://github.com/Kitware/CMake/releases/download/v3.22.6/cmake-3.22.6-linux-x86_64.sh
         yes | /bin/sh cmake-3.22.6-linux-x86_64.sh
 
+    - name: build upcxx
+      if: ${{ matrix.backend == 'upcxx' && steps.tamm-upcxx-cache-install.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        mkdir -p $GITHUB_WORKSPACE/external_deps
+        cd $GITHUB_WORKSPACE/external_deps
+        wget https://bitbucket.org/berkeleylab/upcxx/downloads/upcxx-2022.3.0.tar.gz
+        tar xf upcxx-2022.3.0.tar.gz
+        cd upcxx-2022.3.0
+        export INSTALL_PATH=$GITHUB_WORKSPACE/install
+        ./configure --prefix=${INSTALL_PATH} --with-cxx=mpicxx --with-cc=mpicc --with-default-network=smp
+        make -j2 all
+        make install
+
     - name: find cache
       id: find_cache
-      if: steps.tamm-cache-install.outputs.cache-hit == 'true'
+      if: ${{ steps.tamm-cache-install.outputs.cache-hit == 'true' || steps.tamm-upcxx-cache-install.outputs.cache-hit == 'true' }}
       run: |
         export INSTALL_PATH=$GITHUB_WORKSPACE/install
         pwd
@@ -106,7 +147,8 @@ jobs:
         rsync -av  ~/tamm_cache/* ${INSTALL_PATH}/.
         ls -lrt ${INSTALL_PATH} || true
 
-    - name: build tamm
+    - name: build tamm (backend = ga)
+      if: ${{ matrix.backend == 'ga' }}
       id: build_tamm
       run: |
         export INSTALL_PATH=$GITHUB_WORKSPACE/install
@@ -117,9 +159,24 @@ jobs:
         mkdir -p  ~/tamm_cache || true
         rsync -av --exclude="*tamm*" ${INSTALL_PATH}/* ~/tamm_cache/.
 
+    - name: build tamm (backend = upcxx)
+      if: ${{ matrix.backend == 'upcxx' }}
+      id: build_tamm_upcxx
+      run: |
+        export INSTALL_PATH=$GITHUB_WORKSPACE/install
+        export PATH=$PATH:$GITHUB_WORKSPACE/install/bin
+        export CPATH=$CPATH:/usr/lib/x86_64-linux-gnu/openmpi/include
+        UPCXX_CODEMODE=O3 CXX=upcxx $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DENABLE_COVERAGE=ON -DUSE_UPCXX=ON -DMPIRUN_EXECUTABLE="upcxx-run"
+        cd build
+        UPCXX_CODEMODE=O3 make -j2
+        UPCXX_CODEMODE=O3 make install
+        mkdir -p  ~/tamm_cache || true
+        rsync -av --exclude="*tamm*" ${INSTALL_PATH}/* ~/tamm_cache/.
+
     - name: ctest
       run: |
         cd $GITHUB_WORKSPACE/build
+        export PATH=$PATH:$GITHUB_WORKSPACE/install/bin
         $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/ctest -VV
     - name: gcovr
       run: |

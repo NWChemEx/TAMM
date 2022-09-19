@@ -645,13 +645,13 @@ void block_multiply(bool& isgpuOp,
 
           if(!gpu_trans) {
             bbuf_complex = binter_buf;
-            copy_data_to_gpu(hw, thandle, ainter_buf, &ainter_buf_dev, bbuf_complex,
+            copy_data_to_gpu(isgpuOp, thandle, ainter_buf, &ainter_buf_dev, bbuf_complex,
                              &bbuf_complex_dev);
           }
 
-          gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
+          gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
                        bbuf_complex, bbuf_complex_dev, cinter_buf, *cinter_tmp_buf_dev);
-          transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+          transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                            cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
           free_device_buffers(hw, bbuf_complex_dev, bbuf_complex.size());
@@ -673,12 +673,12 @@ void block_multiply(bool& isgpuOp,
 
           if(!gpu_trans) {
             bbuf_real = binter_buf;
-            copy_data_to_gpu(hw, thandle, ainter_buf, &ainter_buf_dev, bbuf_real, &bbuf_real_dev);
+            copy_data_to_gpu(isgpuOp, thandle, ainter_buf, &ainter_buf_dev, bbuf_real, &bbuf_real_dev);
           }
 
-          gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
+          gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
                        bbuf_real, bbuf_real_dev, cinter_buf, *cinter_tmp_buf_dev);
-          transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+          transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                            cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
           free_device_buffers(hw, bbuf_real_dev, bbuf_real.size());
@@ -709,13 +709,13 @@ void block_multiply(bool& isgpuOp,
 
           if(!gpu_trans) {
             abuf_complex = ainter_buf;
-            copy_data_to_gpu(hw, thandle, abuf_complex, &abuf_complex_dev, binter_buf,
+            copy_data_to_gpu(isgpuOp, thandle, abuf_complex, &abuf_complex_dev, binter_buf,
                              &binter_buf_dev);
           }
 
-          gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex, abuf_complex_dev,
+          gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex, abuf_complex_dev,
                        binter_buf, binter_buf_dev, cinter_buf, *cinter_tmp_buf_dev);
-          transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+          transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                            cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
           free_device_buffers(hw, abuf_complex_dev, abuf_complex.size());
@@ -737,12 +737,12 @@ void block_multiply(bool& isgpuOp,
 
           if(!gpu_trans) {
             abuf_real = ainter_buf;
-            copy_data_to_gpu(hw, thandle, abuf_real, &abuf_real_dev, binter_buf, &binter_buf_dev);
+            copy_data_to_gpu(isgpuOp, thandle, abuf_real, &abuf_real_dev, binter_buf, &binter_buf_dev);
           }
 
-          gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_real, abuf_real_dev,
+          gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_real, abuf_real_dev,
                        binter_buf, binter_buf_dev, cinter_buf, *cinter_tmp_buf_dev);
-          transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+          transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                            cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
           free_device_buffers(hw, abuf_real_dev, abuf_real.size());
@@ -780,13 +780,13 @@ void block_multiply(bool& isgpuOp,
         if(!gpu_trans) {
           abuf_complex = ainter_buf;
           bbuf_complex = binter_buf;
-          copy_data_to_gpu(hw, thandle, abuf_complex, &abuf_complex_dev, bbuf_complex,
+          copy_data_to_gpu(isgpuOp, thandle, abuf_complex, &abuf_complex_dev, bbuf_complex,
                            &bbuf_complex_dev);
         }
 
-        gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex, abuf_complex_dev,
+        gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex, abuf_complex_dev,
                      bbuf_complex, bbuf_complex_dev, cinter_buf, *cinter_buf_dev);
-        transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+        transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
         free_device_buffers(hw, abuf_complex_dev, abuf_complex.size());

@@ -638,7 +638,7 @@ void block_multiply(bool& isgpuOp,
           T1* bbuf_complex_dev{nullptr};
           allocate_device_buffers(hw, &bbuf_complex_dev, bbuf_complex.size());
 
-          gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
+          gpu_trans = transpose_inputs(isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                        asize.value(), adims, alabels, binter_buf, binter_dims,
                                        binter_labels, bbuf_complex.data(), bsize.value(), bdims,
                                        blabels, &ainter_buf_dev, &bbuf_complex_dev);
@@ -666,7 +666,7 @@ void block_multiply(bool& isgpuOp,
           T1* bbuf_real_dev{nullptr};
           allocate_device_buffers(hw, &bbuf_real_dev, bbuf_real.size());
 
-          gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
+          gpu_trans = transpose_inputs(isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                        asize.value(), adims, alabels, binter_buf, binter_dims,
                                        binter_labels, bbuf_real.data(), bsize.value(), bdims,
                                        blabels, &ainter_buf_dev, &bbuf_real_dev);
@@ -702,7 +702,7 @@ void block_multiply(bool& isgpuOp,
           T1* abuf_complex_dev{nullptr};
           allocate_device_buffers(hw, &abuf_complex_dev, abuf_complex.size());
 
-          gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels,
+          gpu_trans = transpose_inputs(isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels,
                                        abuf_complex.data(), asize.value(), adims, alabels,
                                        binter_buf, binter_dims, binter_labels, bbuf, bsize.value(),
                                        bdims, blabels, &abuf_complex_dev, &binter_buf_dev);
@@ -730,7 +730,7 @@ void block_multiply(bool& isgpuOp,
           T1* abuf_real_dev{nullptr};
           allocate_device_buffers(hw, &abuf_real_dev, abuf_real.size());
 
-          gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels,
+          gpu_trans = transpose_inputs(isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels,
                                        abuf_real.data(), asize.value(), adims, alabels, binter_buf,
                                        binter_dims, binter_labels, bbuf, bsize.value(), bdims,
                                        blabels, &abuf_real_dev, &binter_buf_dev);
@@ -772,7 +772,7 @@ void block_multiply(bool& isgpuOp,
         allocate_device_buffers(hw, &abuf_complex_dev, abuf_complex.size());
         allocate_device_buffers(hw, &bbuf_complex_dev, bbuf_complex.size());
 
-        gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels,
+        gpu_trans = transpose_inputs(isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels,
                                      abuf_complex.data(), asize.value(), adims, alabels, binter_buf,
                                      binter_dims, binter_labels, bbuf_complex.data(), bsize.value(),
                                      bdims, blabels, &abuf_complex_dev, &bbuf_complex_dev);

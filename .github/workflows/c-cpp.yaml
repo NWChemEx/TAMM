@@ -1,6 +1,12 @@
 name: TAMM_CI
 
-on: push
+on: 
+  push:
+    paths-ignore:
+      - docs  
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:

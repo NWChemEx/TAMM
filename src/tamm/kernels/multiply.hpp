@@ -141,14 +141,14 @@ void gemm_wrapper(bool& isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, in
 #if defined(USE_DPCPP)
         if(isgpuOp) {
           try {
-            if(N == 1 and M == 1 and alpha == 1 and beta == 0) {
-              auto ddot = oneapi::mkl::blas::column_major::dot(
-                thandle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
-                ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-                cinter_buf_dev + i * cbatch_ld);
-              ddot.wait();
-            }
-            else if(N == 1 and M != 1 and K != 1) {
+            // if(N == 1 and M == 1 and alpha == 1.0 and beta == 0.0) {
+            //   auto ddot = oneapi::mkl::blas::column_major::dot(
+            //     thandle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
+            //     ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
+            //     cinter_buf_dev + i * cbatch_ld);
+            //   ddot.wait();
+            // }
+            if(N == 1 and M != 1 and K != 1) {
               auto dgemv = oneapi::mkl::blas::column_major::gemv(
                 thandle, oneapi::mkl::transpose::T, K, M, alpha,
                 ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
@@ -156,16 +156,16 @@ void gemm_wrapper(bool& isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, in
                 cinter_buf_dev + i * cbatch_ld, 1);
               dgemv.wait();
             }
-            else if(N == 1 and M == 1 and alpha != 1 and beta == 0) {
-              auto ddot = oneapi::mkl::blas::column_major::dot(
-                thandle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
-                ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-                cinter_buf_dev + i * cbatch_ld);
-              auto dscal = oneapi::mkl::blas::column_major::scal(thandle, K, alpha,
-                                                                 cinter_buf_dev + i * cbatch_ld, 1,
-                                                                 std::vector<sycl::event>{ddot});
-              dscal.wait();
-            }
+            // else if(N == 1 and M == 1 and alpha != 1.0 and beta == 0.0) {
+            //   auto ddot = oneapi::mkl::blas::column_major::dot(
+            //     thandle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
+            //     ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
+            //     cinter_buf_dev + i * cbatch_ld);
+            //   auto dscal = oneapi::mkl::blas::column_major::scal(thandle, K, alpha,
+            //                                                      cinter_buf_dev + i * cbatch_ld, 1,
+            //                                                      std::vector<sycl::event>{ddot});
+            //   dscal.wait();
+            // }
             else {
               auto dgemm = oneapi::mkl::blas::column_major::gemm(
                 thandle, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
@@ -194,23 +194,23 @@ void gemm_wrapper(bool& isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, in
               cinter_ld));
           }
           else {
-            if(N == 1 and M == 1 and alpha == 1 and beta == 0) {
-              CUBLAS_CHECK(cublasDdot(handle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
-                                      1, ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-                                      cinter_buf_dev + i * cbatch_ld));
-            }
-            else if(N == 1 and M != 1 and K != 1) {
+            // if(N == 1 and M == 1 and alpha == 1.0 and beta == 0.0) {
+            //   CUBLAS_CHECK(cublasDdot(handle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
+            //                           1, ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
+            //                           cinter_buf_dev + i * cbatch_ld));
+            // }
+            if(N == 1 and M != 1 and K != 1) {
               CUBLAS_CHECK(cublasDgemv(handle, CUBLAS_OP_T, K, M, &alpha,
                                        ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
                                        binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1, &beta,
                                        cinter_buf_dev + i * cbatch_ld, 1));
             }
-            else if(N == 1 and M == 1 and alpha != 1 and beta == 0) {
-              CUBLAS_CHECK(cublasDdot(handle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
-                                      1, ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-                                      cinter_buf_dev + i * cbatch_ld));
-              CUBLAS_CHECK(cublasDscal(handle, K, &alpha, cinter_buf_dev + i * cbatch_ld, 1));
-            }
+            // else if(N == 1 and M == 1 and alpha != 1 and beta == 0) {
+            //   CUBLAS_CHECK(cublasDdot(handle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
+            //                           1, ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
+            //                           cinter_buf_dev + i * cbatch_ld));
+            //   CUBLAS_CHECK(cublasDscal(handle, K, &alpha, cinter_buf_dev + i * cbatch_ld, 1));
+            // }
             else {
               CUBLAS_CHECK(cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha,
                                        binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
@@ -235,13 +235,13 @@ void gemm_wrapper(bool& isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, in
               (rocblas_double_complex*) cinter_buf_dev + i * cbatch_ld, cinter_ld));
           }
           else {
-            if(N == 1 and M == 1 and alpha == 1 and beta == 0) {
-              ROCBLAS_CHECK(rocblas_ddot(handle, K,
-                                         binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
-                                         ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-                                         cinter_buf_dev + i * cbatch_ld));
-            }
-            else if(N == 1 and M != 1 and K != 1) {
+            // if(N == 1 and M == 1 and alpha == 1.0 and beta == 0.0) {
+            //   ROCBLAS_CHECK(rocblas_ddot(handle, K,
+            //                              binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
+            //                              ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
+            //                              cinter_buf_dev + i * cbatch_ld));
+            // }
+            if(N == 1 and M != 1 and K != 1) {
               ROCBLAS_CHECK(rocblas_dgemv(handle, rocblas_operation_transpose, K, M, &alpha,
                                           ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
                                           ainter_ld,

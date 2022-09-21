@@ -93,8 +93,8 @@ void copy_data_to_gpu_trans(bool& isgpuOp, gpuStream_t& thandle, const T2* ainte
 
     // host-->device copy
 #if defined(USE_DPCPP)
-  thandle.memcpy(*ainter_buf_dev, ainter_buf, asize * sizeof(T2));
-  thandle.memcpy(*binter_buf_dev, binter_buf, bsize * sizeof(T3));
+  thandle.memcpy(*ainter_buf_dev, ainter_buf, asize * sizeof(T2)).wait();
+  thandle.memcpy(*binter_buf_dev, binter_buf, bsize * sizeof(T3)).wait();
 #elif defined(USE_CUDA)
   CUDA_CHECK(cudaMemcpyAsync(*ainter_buf_dev, ainter_buf, asize * sizeof(T2),
                              cudaMemcpyHostToDevice, thandle));
@@ -141,39 +141,12 @@ void gemm_wrapper(bool& isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, in
 #if defined(USE_DPCPP)
         if(isgpuOp) {
           try {
-            // if(N == 1 and M == 1 and alpha == 1.0 and beta == 0.0) {
-            //   auto ddot = oneapi::mkl::blas::column_major::dot(
-            //     thandle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
-            //     ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-            //     cinter_buf_dev + i * cbatch_ld);
-            //   ddot.wait();
-            // }
-            if(N == 1 and M != 1 and K != 1) {
-              auto dgemv = oneapi::mkl::blas::column_major::gemv(
-                thandle, oneapi::mkl::transpose::T, K, M, alpha,
-                ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1, beta,
-                cinter_buf_dev + i * cbatch_ld, 1);
-              dgemv.wait();
-            }
-            // else if(N == 1 and M == 1 and alpha != 1.0 and beta == 0.0) {
-            //   auto ddot = oneapi::mkl::blas::column_major::dot(
-            //     thandle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
-            //     ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-            //     cinter_buf_dev + i * cbatch_ld);
-            //   auto dscal = oneapi::mkl::blas::column_major::scal(thandle, K, alpha,
-            //                                                      cinter_buf_dev + i * cbatch_ld, 1,
-            //                                                      std::vector<sycl::event>{ddot});
-            //   dscal.wait();
-            // }
-            else {
               auto dgemm = oneapi::mkl::blas::column_major::gemm(
                 thandle, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
                 binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
                 ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, beta,
                 cinter_buf_dev + i * cbatch_ld, cinter_ld);
               dgemm.wait();
-            }
           } catch(oneapi::mkl::exception const& ex) {
             std::stringstream msg;
             msg << "oneMKL Exception at " << __FILE__ << " : " << __LINE__ << std::endl;
@@ -194,31 +167,11 @@ void gemm_wrapper(bool& isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, in
               cinter_ld));
           }
           else {
-            // if(N == 1 and M == 1 and alpha == 1.0 and beta == 0.0) {
-            //   CUBLAS_CHECK(cublasDdot(handle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
-            //                           1, ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-            //                           cinter_buf_dev + i * cbatch_ld));
-            // }
-            if(N == 1 and M != 1 and K != 1) {
-              CUBLAS_CHECK(cublasDgemv(handle, CUBLAS_OP_T, K, M, &alpha,
-                                       ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                                       binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1, &beta,
-                                       cinter_buf_dev + i * cbatch_ld, 1));
+            CUBLAS_CHECK(cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha,
+                                      binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
+                                      ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
+                                      &beta, cinter_buf_dev + i * cbatch_ld, cinter_ld));
             }
-            // else if(N == 1 and M == 1 and alpha != 1 and beta == 0) {
-            //   CUBLAS_CHECK(cublasDdot(handle, K, binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
-            //                           1, ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-            //                           cinter_buf_dev + i * cbatch_ld));
-            //   CUBLAS_CHECK(cublasDscal(handle, K, &alpha, cinter_buf_dev + i * cbatch_ld, 1));
-            // }
-            else {
-              CUBLAS_CHECK(cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha,
-                                       binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
-                                       ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                                       &beta, cinter_buf_dev + i * cbatch_ld, cinter_ld));
-            }
-          }
-
           continue;
         }
 #elif defined(USE_HIP)
@@ -235,53 +188,20 @@ void gemm_wrapper(bool& isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, in
               (rocblas_double_complex*) cinter_buf_dev + i * cbatch_ld, cinter_ld));
           }
           else {
-            // if(N == 1 and M == 1 and alpha == 1.0 and beta == 0.0) {
-            //   ROCBLAS_CHECK(rocblas_ddot(handle, K,
-            //                              binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
-            //                              ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-            //                              cinter_buf_dev + i * cbatch_ld));
-            // }
-            if(N == 1 and M != 1 and K != 1) {
-              ROCBLAS_CHECK(rocblas_dgemv(handle, rocblas_operation_transpose, K, M, &alpha,
-                                          ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
-                                          ainter_ld,
-                                          binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
-                                          &beta, cinter_buf_dev + i * cbatch_ld, 1));
-            }
-            // TODO: this seems to be failing on Crusher!
-            // else if(N == 1 and M == 1 and alpha != 1 and beta == 0) {
-            //   ROCBLAS_CHECK(rocblas_ddot(handle, K,
-            //                              binter_buf_dev + bri * breduce_ld + i * bbatch_ld, 1,
-            //                              ainter_buf_dev + ari * areduce_ld + i * abatch_ld, 1,
-            //                              cinter_buf_dev + i * cbatch_ld));
-            //   ROCBLAS_CHECK(rocblas_dscal(handle, K, &alpha, cinter_buf_dev + i * cbatch_ld, 1));
-            // }
-            else {
               ROCBLAS_CHECK(
                 rocblas_dgemm(handle, rocblas_operation_none, rocblas_operation_none, N, M, K,
                               &alpha, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
                               ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, &beta,
                               cinter_buf_dev + i * cbatch_ld, cinter_ld));
-            }
           }
-
           continue;
         }
 #endif
-
         // CPU only ops (i.e., for CPU builds or isgpuOp=false)
-        if(N == 1 and M != 1 and K != 1) {
-          blas::gemv(blas::Layout::ColMajor, blas::Op::Trans, K, M, alpha,
-                     ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                     binter_buf.data() + bri * breduce_ld + i * bbatch_ld, 1, beta,
-                     cinter_buf.data() + i * cbatch_ld, 1);
-        }
-        else {
-          blas::gemm(blas::Layout::RowMajor, blas::Op::NoTrans, blas::Op::NoTrans, M, N, K, alpha,
-                     ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                     binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
-                     cinter_buf.data() + i * cbatch_ld, cinter_ld);
-        }
+        blas::gemm(blas::Layout::RowMajor, blas::Op::NoTrans, blas::Op::NoTrans, M, N, K, alpha,
+                    ainter_buf.data() + ari * areduce_ld + i * abatch_ld, ainter_ld,
+                    binter_buf.data() + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
+                    cinter_buf.data() + i * cbatch_ld, cinter_ld);
 
       } // for-i
     }   // for-bri
@@ -295,7 +215,7 @@ void copy_result_to_host(ExecutionHW hw, gpuStream_t& thandle, std::vector<T1>& 
 
 // device-->host copy
 #if defined(USE_DPCPP)
-  thandle.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size() * sizeof(T1));
+  thandle.memcpy(cinter_buf.data(), cinter_buf_dev, cinter_buf.size() * sizeof(T1)).wait();
 #elif defined(USE_CUDA)
   CUDA_CHECK(cudaMemcpyAsync(cinter_buf.data(), cinter_buf_dev, cinter_buf.size() * sizeof(T1),
                              cudaMemcpyDeviceToHost, thandle));
@@ -339,7 +259,7 @@ void assign_gpu(gpuStream_t& thandle, T* dst, const SizeVec& ddims, const IntLab
     HIP_CHECK(
       hipMemcpyAsync(dst, src, ssize.value() * sizeof(T), hipMemcpyDeviceToDevice, thandle));
 #elif defined(USE_DPCPP)
-    thandle.memcpy(dst, src, ssize.value() * sizeof(T));
+    thandle.memcpy(dst, src, ssize.value() * sizeof(T)).wait();
 #endif
     return;
   }
@@ -570,14 +490,6 @@ void block_multiply(bool& isgpuOp,
   int bbatch_ld  = K * N;
   int areduce_ld = B * abatch_ld;
   int breduce_ld = B * bbatch_ld;
-
-  //   // optimization to run on CPU instead of GPU
-  // #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-  //   if(isgpuOp && M < 100 && N < 100 && K < 100) {
-  //     isgpuOp = false;
-  //     hw      = ExecutionHW::CPU;
-  //   }
-  // #endif
 
   auto bmult_lambda = [&]() {
     bool            gpu_trans = false;

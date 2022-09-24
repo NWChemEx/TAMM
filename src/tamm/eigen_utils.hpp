@@ -127,7 +127,7 @@ void patch_copy(std::vector<T>& sbuf,
     }
 }
 
-Matrix eigen_tensor_to_matrix(Tensor2D &eig_tensor) {
+inline Matrix eigen_tensor_to_matrix(Tensor2D &eig_tensor) {
   Matrix eig_mat(eig_tensor.dimensions()[0], eig_tensor.dimensions()[1]);
   eig_mat.setZero();
   for (int i = 0; i < eig_mat.rows(); i++)
@@ -378,7 +378,7 @@ tamm::Tensor<T> retile_rank2_tensor(tamm::Tensor<T>& tensor, const tamm::TiledIn
 
 }
 
-bool eigen_tensors_are_equal(Tensor1D& e1, Tensor1D& e2, double threshold = 1.0e-12) {
+inline bool eigen_tensors_are_equal(Tensor1D& e1, Tensor1D& e2, double threshold = 1.0e-12) {
   bool ret  = true;
   auto dims = e1.dimensions();
   for(auto i = 0; i < dims[0]; i++) {
@@ -390,7 +390,7 @@ bool eigen_tensors_are_equal(Tensor1D& e1, Tensor1D& e2, double threshold = 1.0e
   return ret;
 }
 
-bool eigen_tensors_are_equal(Tensor2D& e1, Tensor2D& e2, double threshold = 1.0e-12) {
+inline bool eigen_tensors_are_equal(Tensor2D& e1, Tensor2D& e2, double threshold = 1.0e-12) {
   bool ret  = true;
   auto dims = e1.dimensions();
   for(auto i = 0; i < dims[0]; i++) {
@@ -404,7 +404,7 @@ bool eigen_tensors_are_equal(Tensor2D& e1, Tensor2D& e2, double threshold = 1.0e
   return ret;
 }
 
-bool eigen_tensors_are_equal(Tensor3D& e1, Tensor3D& e2, double threshold = 1.0e-12) {
+inline bool eigen_tensors_are_equal(Tensor3D& e1, Tensor3D& e2, double threshold = 1.0e-12) {
   bool ret  = true;
   auto dims = e1.dimensions();
   for(auto i = 0; i < dims[0]; i++) {
@@ -420,7 +420,7 @@ bool eigen_tensors_are_equal(Tensor3D& e1, Tensor3D& e2, double threshold = 1.0e
   return ret;
 }
 
-bool eigen_tensors_are_equal(Tensor4D& e1, Tensor4D& e2, double threshold = 1.0e-12) {
+inline bool eigen_tensors_are_equal(Tensor4D& e1, Tensor4D& e2, double threshold = 1.0e-12) {
   bool ret  = true;
   auto dims = e1.dimensions();
   for(auto i = 0; i < dims[0]; i++) {

@@ -642,18 +642,15 @@ public:
  */
 template<typename T>
 bool operator==(const Tensor<T>& lhs, const Tensor<T>& rhs) {
-  EXPECTS_STR(lhs.execution_context() != nullptr && rhs.execution_context() != nullptr,
-              "Tensors have to be allocated for comparison.");
-  EXPECTS_STR(lhs.num_modes() == rhs.num_modes(),
-              "Tensors should have the same number of modes for comparison.");
+  if(lhs.execution_context() == nullptr || rhs.execution_context() == nullptr) return false;
+  if(lhs.num_modes() != rhs.num_modes()) return false;
   for(size_t i = 0; i < lhs.num_modes(); i++) {
     auto lhs_tis = lhs.tiled_index_spaces()[i];
     auto rhs_tis = rhs.tiled_index_spaces()[i];
 
-    EXPECTS_STR(lhs_tis == rhs_tis, "Each mode on tensors should be the same for comparison.");
+    if(lhs_tis != rhs_tis) return false;
   }
-
-  return (hash_tensor(lhs) == hash_tensor(rhs));
+  return true;
 }
 
 /**

@@ -2,26 +2,25 @@
 #include "tamm/op_dag.hpp"
 
 namespace tamm {
-TensorUpdate::TensorUpdate(const IndexLabelVec& ilv,
-                           const std::unique_ptr<new_ops::Op>& op,
+TensorUpdate::TensorUpdate(const IndexLabelVec& ilv, const std::unique_ptr<new_ops::Op>& op,
                            bool is_update) {
-    ilv_       = ilv;
-    op_        = op->clone();
-    op_->set_attribute<new_ops::NeededLabelsAttribute>(ilv_);
-    is_update_ = is_update;
+  ilv_ = ilv;
+  op_  = op->clone();
+  op_->set_attribute<new_ops::NeededLabelsAttribute>(ilv_);
+  is_update_ = is_update;
 }
 
 TensorUpdate::TensorUpdate(const TensorUpdate& other) {
-    ilv_       = other.ilv_;
-    op_        = other.op_->clone();
-    is_update_ = other.is_update_;
+  ilv_       = other.ilv_;
+  op_        = other.op_->clone();
+  is_update_ = other.is_update_;
 }
 
 TensorUpdate& TensorUpdate::operator=(const TensorUpdate& other) {
-    ilv_       = other.ilv_;
-    op_        = other.op_->clone();
-    is_update_ = other.is_update_;
-    return *this;
+  ilv_       = other.ilv_;
+  op_        = other.op_->clone();
+  is_update_ = other.is_update_;
+  return *this;
 }
 
 /**
@@ -32,13 +31,13 @@ TensorUpdate& TensorUpdate::operator=(const TensorUpdate& other) {
  * used to construct the tensor
  */
 TensorBase::TensorBase(const std::vector<TiledIndexSpace>& block_indices) {
-    block_indices_     = block_indices;
-    allocation_status_ = AllocationStatus::invalid;
-    num_modes_         = block_indices.size();
-    updates_           = {};
-    for(const auto& tis : block_indices_) { EXPECTS(!tis.is_dependent()); }
-    fillin_tlabels();
-    construct_dep_map();
+  block_indices_     = block_indices;
+  allocation_status_ = AllocationStatus::invalid;
+  num_modes_         = block_indices.size();
+  updates_           = {};
+  for(const auto& tis: block_indices_) { EXPECTS(!tis.is_dependent()); }
+  fillin_tlabels();
+  construct_dep_map();
 }
 
 /**
@@ -50,9 +49,9 @@ TensorBase::TensorBase(const std::vector<TiledIndexSpace>& block_indices) {
  * tensor
  */
 TensorBase::TensorBase(const std::vector<TiledIndexLabel>& lbls) {
-    allocation_status_ = AllocationStatus::invalid;
-    num_modes_         = lbls.size();
-    updates_           = {};
+  allocation_status_ = AllocationStatus::invalid;
+  num_modes_         = lbls.size();
+  updates_           = {};
 #if 0
         for(const auto& lbl : lbls) {
             auto tis = lbl.tiled_index_space();
@@ -76,13 +75,11 @@ TensorBase::TensorBase(const std::vector<TiledIndexLabel>& lbls) {
             }
         }
 #else
-    tlabels_ = lbls;
-    for(auto& lbl : tlabels_) {
-        block_indices_.push_back(lbl.tiled_index_space());
-    }
+  tlabels_ = lbls;
+  for(auto& lbl: tlabels_) { block_indices_.push_back(lbl.tiled_index_space()); }
 #endif
-    construct_dep_map();
-    update_labels();
+  construct_dep_map();
+  update_labels();
 }
 
 /**
@@ -95,23 +92,21 @@ TensorBase::TensorBase(const std::vector<TiledIndexLabel>& lbls) {
  */
 template<class... Ts>
 TensorBase::TensorBase(const TiledIndexSpace& tis, Ts... rest) {
-    *this = TensorBase{rest...};
-    EXPECTS(!tis.is_dependent());
-    block_indices_.insert(block_indices_.begin(), tis);
-    fillin_tlabels();
-    construct_dep_map();
-    // tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 -
-    // block_indices_.size()));
+  *this = TensorBase{rest...};
+  EXPECTS(!tis.is_dependent());
+  block_indices_.insert(block_indices_.begin(), tis);
+  fillin_tlabels();
+  construct_dep_map();
+  // tlabels_.insert(tlabels_.begin(), block_indices_[0].label(-1 -
+  // block_indices_.size()));
 }
 
 // Dtor
-TensorBase::~TensorBase() {
+TensorBase::~TensorBase(){
   // EXPECTS(allocation_status_ == AllocationStatus::invalid);
 };
 
-void TensorBase::add_update(const TensorUpdate& new_update) {
-    updates_.push_back(new_update);
-}
+void TensorBase::add_update(const TensorUpdate& new_update) { updates_.push_back(new_update); }
 
 std::vector<TensorUpdate> TensorBase::get_updates() const { return updates_; }
 

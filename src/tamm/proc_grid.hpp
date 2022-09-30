@@ -28,7 +28,7 @@ namespace internal {
  *--
  ****************************************************************************/
 static double dd_ev(const int64_t ndims, const std::vector<int64_t> ardims,
-             const std::vector<int64_t> pedims) {
+                    const std::vector<int64_t> pedims) {
   double q, t;
   long   k;
   q = 1.0;
@@ -47,7 +47,7 @@ static double dd_ev(const int64_t ndims, const std::vector<int64_t> ardims,
  *--
  ****************************************************************************/
 static void dd_su(const int64_t ndims, const std::vector<int64_t> ardims,
-           const std::vector<int64_t> pedims, std::vector<int64_t>& blk) {
+                  const std::vector<int64_t> pedims, std::vector<int64_t>& blk) {
   long i;
 
   for(i = 0; i < ndims; i++) {
@@ -77,7 +77,8 @@ static void dd_su(const int64_t ndims, const std::vector<int64_t> ardims,
  *--
  ************************************************************************/
 static void ddb_ex(const int64_t ndims, const std::vector<int64_t> ardims, const long npes,
-            const double threshold, std::vector<int64_t>& blk, std::vector<int64_t>& pedims) {
+                   const double threshold, std::vector<int64_t>& blk,
+                   std::vector<int64_t>& pedims) {
   std::vector<int64_t> tdims(ndims);
   std::vector<long>    pdivs;
   long                 npdivs;

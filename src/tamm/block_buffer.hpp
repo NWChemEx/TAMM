@@ -1,7 +1,7 @@
 #pragma once
 
-#include "tamm/types.hpp"
 #include "tamm/tensor.hpp"
+#include "tamm/types.hpp"
 #include <iterator>
 
 namespace tamm {
@@ -11,69 +11,81 @@ class RuntimeEngine;
 /**
  * @brief The class used to pass block buffers to user functions
  *
- * @tparam T 
+ * @tparam T
  */
 template<typename T>
 class BlockBuffer {
 public:
   BlockBuffer() = default;
-  BlockBuffer(span<T> buf_span, IndexedTensor<T> indexedTensor, RuntimeEngine* re, bool allocated = false) 
-    : buf_span{buf_span}, allocated{allocated}, indexedTensor{indexedTensor}, re{re} {}
-  BlockBuffer(const BlockBuffer& block_buffer) 
-    : indexedTensor{block_buffer.indexedTensor}, re{block_buffer.re}
-    {
-      if (allocated) delete[] buf_span.data();
-      allocated = true;
-      const auto size = block_buffer.buf_span.size();
-      T* buffer = new T[size]; // that will need to be more complicated once we get device buffers
-      std::copy(block_buffer.buf_span.begin(), block_buffer.buf_span.end(), buffer);
-      buf_span = span{buffer, size};
-    }
-  BlockBuffer(BlockBuffer&& block_buffer){
-    buf_span = std::move(block_buffer.buf_span);
-    allocated = false;
-    indexedTensor = std::move(block_buffer.indexedTensor);
-    re = block_buffer.re;
+  BlockBuffer(span<T> buf_span, IndexedTensor<T> indexedTensor, RuntimeEngine* re,
+              bool allocated = false):
+    buf_span{buf_span}, allocated{allocated}, indexedTensor{indexedTensor}, re{re} {}
+  BlockBuffer(const BlockBuffer& block_buffer):
+    indexedTensor{block_buffer.indexedTensor}, re{block_buffer.re} {
+    if(allocated) delete[] buf_span.data();
+    allocated       = true;
+    const auto size = block_buffer.buf_span.size();
+    T* buffer = new T[size]; // that will need to be more complicated once we get device buffers
+    std::copy(block_buffer.buf_span.begin(), block_buffer.buf_span.end(), buffer);
+    buf_span = span{buffer, size};
+  }
+  BlockBuffer(BlockBuffer&& block_buffer) {
+    buf_span        = std::move(block_buffer.buf_span);
+    allocated       = false;
+    indexedTensor   = std::move(block_buffer.indexedTensor);
+    re              = block_buffer.re;
     block_buffer.re = nullptr;
   }
   BlockBuffer& operator=(const BlockBuffer& block_buffer) {
     indexedTensor = block_buffer.indexedTensor;
-    re = block_buffer.indexedTensor;
-    if (allocated) delete[] buf_span.data();
-    allocated = true;
+    re            = block_buffer.indexedTensor;
+    if(allocated) delete[] buf_span.data();
+    allocated       = true;
     const auto size = block_buffer.buf_span.size();
     T* buffer = new T[size]; // that will need to be more complicated once we get device buffers
     std::copy(block_buffer.buf_span.begin(), block_buffer.buf_span.end(), buffer);
     buf_span = span{buffer, size};
     return *this;
   }
-  BlockBuffer(Tensor<T> tensor, IndexVector blockid) 
-    : allocated{true}, indexedTensor{tensor, blockid} {
-    const size_t size = tensor.block_size(blockid);
-    T* buffer = new T[size];
-    buf_span = span{buffer, size};
+  BlockBuffer(Tensor<T> tensor, IndexVector blockid):
+    allocated{true}, indexedTensor{tensor, blockid} {
+    const size_t size   = tensor.block_size(blockid);
+    T*           buffer = new T[size];
+    buf_span            = span{buffer, size};
     tensor.get(blockid, buf_span);
   }
   ~BlockBuffer() {
-    if (allocated) delete[] buf_span.data();
+    if(allocated) delete[] buf_span.data();
   }
 
   // Whatever else is necessary to make the type regular
 
-  auto begin() { return buf_span.begin(); }
-  auto begin() const { return buf_span.begin(); }
-  auto end() { return buf_span.end(); }
-  auto end() const { return buf_span.end(); }
-  auto get_span() { return buf_span; }
+  auto       begin() { return buf_span.begin(); }
+  auto       begin() const { return buf_span.begin(); }
+  auto       end() { return buf_span.end(); }
+  auto       end() const { return buf_span.end(); }
+  auto       get_span() { return buf_span; }
   const auto get_span() const { return buf_span; }
-  auto data() { return buf_span.data(); }
+  auto       data() { return buf_span.data(); }
   const auto data() const { return buf_span.data(); }
-  void release_put() { indexedTensor.put(buf_span); release(); }
-  void release_put(Tensor<T> tensor, IndexVector blockid) { tensor.put(blockid, buf_span); release(); }
-  void release_add() { indexedTensor.add(buf_span); release(); }
-  void release_add(Tensor<T> tensor, IndexVector blockid) { tensor.add(blockid, buf_span); release(); }
-  void release() { 
-    if (allocated) {
+  void       release_put() {
+          indexedTensor.put(buf_span);
+          release();
+  }
+  void release_put(Tensor<T> tensor, IndexVector blockid) {
+    tensor.put(blockid, buf_span);
+    release();
+  }
+  void release_add() {
+    indexedTensor.add(buf_span);
+    release();
+  }
+  void release_add(Tensor<T> tensor, IndexVector blockid) {
+    tensor.add(blockid, buf_span);
+    release();
+  }
+  void release() {
+    if(allocated) {
       delete[] buf_span.data();
       allocated = false;
     }
@@ -84,9 +96,10 @@ public:
     std::fill(begin(), end(), val);
     return *this;
   }
+
 private:
-  span<T> buf_span;
-  bool allocated = false;
+  span<T>          buf_span;
+  bool             allocated = false;
   IndexedTensor<T> indexedTensor;
   // re is a pointer to allow it to be uninitialized.
   RuntimeEngine* re;
@@ -95,19 +108,16 @@ private:
 template<typename T>
 bool operator==(const BlockBuffer<T> lhs, const BlockBuffer<T> rhs) {
   return lhs.size = rhs.size &&
-    std::equal(lhs.get_data(), lhs.get_data() + lhs.get_size(), rhs.get_data()) &&
-    lhs.get_tensor() == rhs.get_tensor() &&
-    lhs.get_block_id() == rhs.get_block_id();
+                    std::equal(lhs.get_data(), lhs.get_data() + lhs.get_size(), rhs.get_data()) &&
+                    lhs.get_tensor() == rhs.get_tensor() &&
+                    lhs.get_block_id() == rhs.get_block_id();
 }
 
 template<typename T, typename Stream>
 inline auto& operator<<(Stream& os, BlockBuffer<T> bf) {
-    // std::copy(bf.begin(), bf.end(), std::ostream_iterator<T>(os, " "));
-    for (auto it = bf.begin(); it != bf.end(); ++it) {
-        os << *it << " ";
-    }
-    return os;
+  // std::copy(bf.begin(), bf.end(), std::ostream_iterator<T>(os, " "));
+  for(auto it = bf.begin(); it != bf.end(); ++it) { os << *it << " "; }
+  return os;
 }
 
 } // namespace tamm
-

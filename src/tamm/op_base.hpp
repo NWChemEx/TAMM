@@ -14,30 +14,29 @@ enum class OpType { alloc, dealloc, set, add, mult, scan, map };
 class OpList;
 
 class Op {
- public:
-  virtual TensorBase* writes() const = 0;
-  virtual TensorBase* accumulates() const = 0;
-  virtual std::vector<TensorBase*> reads() const = 0;
-  virtual bool is_memory_barrier() const = 0;
-  virtual std::shared_ptr<Op> clone() const = 0;
-  virtual void execute(ExecutionContext& ec,
-                       ExecutionHW hw = ExecutionHW::CPU) = 0;
-  virtual OpList canonicalize() const = 0;
-  virtual OpType op_type() const = 0;
+public:
+  virtual TensorBase*              writes() const                                 = 0;
+  virtual TensorBase*              accumulates() const                            = 0;
+  virtual std::vector<TensorBase*> reads() const                                  = 0;
+  virtual bool                     is_memory_barrier() const                      = 0;
+  virtual std::shared_ptr<Op>      clone() const                                  = 0;
+  virtual void   execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) = 0;
+  virtual OpList canonicalize() const                                             = 0;
+  virtual OpType op_type() const                                                  = 0;
   virtual ~Op() {}
   std::string opstr_;
   ExecutionHW exhw_ = ExecutionHW::DEFAULT;
 };
 
-class OpList : public std::vector<std::shared_ptr<Op>> {
- public:
+class OpList: public std::vector<std::shared_ptr<Op>> {
+public:
   // Ctors
   OpList() {}
 
-  template <typename T, typename... Args>
-  OpList(T l_op, Args... args) : OpList(args...) {
+  template<typename T, typename... Args>
+  OpList(T l_op, Args... args): OpList(args...) {
     insert(begin(), l_op.clone());
   }
-};  // OpList
+}; // OpList
 
-}  // namespace tamm
+} // namespace tamm

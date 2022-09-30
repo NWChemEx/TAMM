@@ -14,7 +14,8 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
                                    RuntimeEngine*    re):
   pg_{pg},
   distribution_kind_{default_dist_kind},
-  memory_manager_kind_{default_memory_manager_kind}, ac_{IndexedAC{nullptr, 0}} {
+  memory_manager_kind_{default_memory_manager_kind},
+  ac_{IndexedAC{nullptr, 0}} {
   if(re == nullptr) { re_.reset(runtime_ptr()); }
   else {
     re_.reset(re, [](auto) {});
@@ -31,9 +32,9 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   pg_self_  = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
 #endif
 
-  ngpu_ = 0;
+  ngpu_    = 0;
   has_gpu_ = false;
-  exhw_     = ExecutionHW::CPU;
+  exhw_    = ExecutionHW::CPU;
 
 #if defined(USE_UPCXX)
   ranks_pn_ = upcxx::local_team().rank_n();
@@ -43,12 +44,12 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   nnodes_ = pg.size().value() / ranks_pn_;
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-tamm::getDeviceCount(&ngpu_);
+  tamm::getDeviceCount(&ngpu_);
 
 #if defined(USE_UPCXX)
-  dev_id_ = upcxx::rank_me() % ngpu_;
+  dev_id_  = upcxx::rank_me() % ngpu_;
   has_gpu_ = true;
-  exhw_ = ExecutionHW::GPU;
+  exhw_    = ExecutionHW::GPU;
 #else
   dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
   if(ngpu_ == 1) dev_id_ = 0;

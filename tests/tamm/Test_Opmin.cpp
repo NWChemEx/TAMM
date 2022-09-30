@@ -1,21 +1,21 @@
 #include "ga/ga.h"
 #include <chrono>
 
-#include <tamm/tamm.hpp>
 #include <tamm/op_executor.hpp>
 #include <tamm/opmin.hpp>
+#include <tamm/tamm.hpp>
 
 using namespace tamm;
 using namespace tamm::new_ops;
 
-template <typename T>
+template<typename T>
 void cs_ccsd_t1(Scheduler& sch) {
   IndexSpace IS{range(10), {{"occ", {range(0, 5)}}, {"virt", {range(5, 10)}}}};
 
   TiledIndexSpace MO{IS};
 
   auto [i, j, m, n] = MO.labels<4>("occ");
-  auto [a, e, f] = MO.labels<3>("virt");
+  auto [a, e, f]    = MO.labels<3>("virt");
 
   Tensor<T> i0{a, i};
   Tensor<T> t1{a, m};
@@ -28,46 +28,39 @@ void cs_ccsd_t1(Scheduler& sch) {
   TAMM_REGISTER_SYMBOLS(symbol_table, i, j, m, n, a, e, f);
 
   sch.allocate(F, V, t1, t2, i0);
-  sch
-  (F() = 1.0)
-  (V() = 1.0)
-  (t1() = 1.0)
-  (t2() = 1.0)
-  (i0() = 1.0)
-  .execute();
+  sch(F() = 1.0)(V() = 1.0)(t1() = 1.0)(t2() = 1.0)(i0() = 1.0).execute();
 
-
-  auto singles =  (LTOp)F(a, i) +
-                  (-2.0 * (LTOp)F(m, e) * (LTOp)t1(a, m) * (LTOp)t1(e, i)) +
-                  ((LTOp)F(a, e) * (LTOp)t1(e, i)) +
-                  (-2.0 * (LTOp)V(m, n, e, f) * (LTOp)t2(a, f, m, n) * (LTOp)t1(e, i)) +
-                  (-2.0 * (LTOp)V(m, n, e, f) * (LTOp)t1(a, m) * (LTOp)t1(f, n) * (LTOp)t1(e, i)) +
-                  ((LTOp)V(n, m, e, f) * (LTOp)t2(a, f, m, n) * (LTOp)t1(e, i)) +
-                  ((LTOp)V(n, m, e, f) * (LTOp)t1(a, m) * (LTOp)t1(f, n) * (LTOp)t1(e, i)) +
-                  (-1.0 * (LTOp)F(m, i) * (LTOp)t1(a, m)) +
-                  (-2.0 * (LTOp)V(m, n, e, f) * (LTOp)t2(e, f, i, n) * (LTOp)t1(a, m)) +
-                  (-2.0 * (LTOp)V(m, n, e, f) * (LTOp)t1(e, i) * (LTOp)t1(f, n) * (LTOp)t1(a, m)) +
-                  ((LTOp)V(m, n, f, e) * (LTOp)t2(e, f, i, n) * (LTOp)t1(a, m)) +
-                  ((LTOp)V(m, n, f, e) * (LTOp)t1(e, i) * (LTOp)t1(f, n) * (LTOp)t1(a, m)) +
-                  (2.0 * (LTOp)F(m, e) * (LTOp)t2(e, a, m, i)) +
-                  (-1.0 * (LTOp)F(m, e) * (LTOp)t2(e, a, i, m)) +
-                  ((LTOp)F(m, e) * (LTOp)t1(e, i) * (LTOp)t1(a, m)) +
-                  (+4.0 * (LTOp)V(m, n, e, f) * (LTOp)t1(f, n) * (LTOp)t2(e, a, m, i)) +
-                  (-2.0 * (LTOp)V(m, n, e, f) * (LTOp)t1(f, n) * (LTOp)t2(e, a, i, m)) +
-                  (2.0 * (LTOp)V(m, n, e, f) * (LTOp)t1(f, n) * (LTOp)t1(e, i) * (LTOp)t1(a, m)) +
-                  (-2.0 * (LTOp)V(m, n, f, e) * (LTOp)t1(f, n) * (LTOp)t2(e, a, m, i)) +
-                  ((LTOp)V(m, n, f, e) * (LTOp)t1(f, n) * (LTOp)t2(e, a, i, m)) +
-                  (-1.0 * (LTOp)V(m, n, f, e) * (LTOp)t1(f, n) * (LTOp)t1(e, i) * (LTOp)t1(a, m)) +
-                  (2.0 * (LTOp)V(m, a, e, i) * (LTOp)t1(e, m)) +
-                  (-1.0 * (LTOp)V(m, a, i, e) * (LTOp)t1(e, m)) +
-                  (2.0 * (LTOp)V(m, a, e, f) * (LTOp)t2(e, f, m, i)) +
-                  (2.0 * (LTOp)V(m, a, e, f) * (LTOp)t1(e, m) * (LTOp)t1(f, i)) +
-                  (-1.0 * (LTOp)V(m, a, f, e) * (LTOp)t2(e, f, m, i)) +
-                  (-1.0 * (LTOp)V(m, a, f, e) * (LTOp)t1(e, m) * (LTOp)t1(f, i)) +
-                  (-2.0 * (LTOp)V(m, n, e, i) * (LTOp)t2(e, a, m, n)) +
-                  (-2.0 * (LTOp)V(m, n, e, i) * (LTOp)t1(e, m) * (LTOp)t1(a, n)) +
-                  ((LTOp)V(n, m, e, i) * (LTOp)t2(e, a, m, n)) +
-                  ((LTOp)V(n, m, e, i) * (LTOp)t1(e, m) * (LTOp)t1(a, n));
+  auto singles =
+    (LTOp) F(a, i) + (-2.0 * (LTOp) F(m, e) * (LTOp) t1(a, m) * (LTOp) t1(e, i)) +
+    ((LTOp) F(a, e) * (LTOp) t1(e, i)) +
+    (-2.0 * (LTOp) V(m, n, e, f) * (LTOp) t2(a, f, m, n) * (LTOp) t1(e, i)) +
+    (-2.0 * (LTOp) V(m, n, e, f) * (LTOp) t1(a, m) * (LTOp) t1(f, n) * (LTOp) t1(e, i)) +
+    ((LTOp) V(n, m, e, f) * (LTOp) t2(a, f, m, n) * (LTOp) t1(e, i)) +
+    ((LTOp) V(n, m, e, f) * (LTOp) t1(a, m) * (LTOp) t1(f, n) * (LTOp) t1(e, i)) +
+    (-1.0 * (LTOp) F(m, i) * (LTOp) t1(a, m)) +
+    (-2.0 * (LTOp) V(m, n, e, f) * (LTOp) t2(e, f, i, n) * (LTOp) t1(a, m)) +
+    (-2.0 * (LTOp) V(m, n, e, f) * (LTOp) t1(e, i) * (LTOp) t1(f, n) * (LTOp) t1(a, m)) +
+    ((LTOp) V(m, n, f, e) * (LTOp) t2(e, f, i, n) * (LTOp) t1(a, m)) +
+    ((LTOp) V(m, n, f, e) * (LTOp) t1(e, i) * (LTOp) t1(f, n) * (LTOp) t1(a, m)) +
+    (2.0 * (LTOp) F(m, e) * (LTOp) t2(e, a, m, i)) +
+    (-1.0 * (LTOp) F(m, e) * (LTOp) t2(e, a, i, m)) +
+    ((LTOp) F(m, e) * (LTOp) t1(e, i) * (LTOp) t1(a, m)) +
+    (+4.0 * (LTOp) V(m, n, e, f) * (LTOp) t1(f, n) * (LTOp) t2(e, a, m, i)) +
+    (-2.0 * (LTOp) V(m, n, e, f) * (LTOp) t1(f, n) * (LTOp) t2(e, a, i, m)) +
+    (2.0 * (LTOp) V(m, n, e, f) * (LTOp) t1(f, n) * (LTOp) t1(e, i) * (LTOp) t1(a, m)) +
+    (-2.0 * (LTOp) V(m, n, f, e) * (LTOp) t1(f, n) * (LTOp) t2(e, a, m, i)) +
+    ((LTOp) V(m, n, f, e) * (LTOp) t1(f, n) * (LTOp) t2(e, a, i, m)) +
+    (-1.0 * (LTOp) V(m, n, f, e) * (LTOp) t1(f, n) * (LTOp) t1(e, i) * (LTOp) t1(a, m)) +
+    (2.0 * (LTOp) V(m, a, e, i) * (LTOp) t1(e, m)) +
+    (-1.0 * (LTOp) V(m, a, i, e) * (LTOp) t1(e, m)) +
+    (2.0 * (LTOp) V(m, a, e, f) * (LTOp) t2(e, f, m, i)) +
+    (2.0 * (LTOp) V(m, a, e, f) * (LTOp) t1(e, m) * (LTOp) t1(f, i)) +
+    (-1.0 * (LTOp) V(m, a, f, e) * (LTOp) t2(e, f, m, i)) +
+    (-1.0 * (LTOp) V(m, a, f, e) * (LTOp) t1(e, m) * (LTOp) t1(f, i)) +
+    (-2.0 * (LTOp) V(m, n, e, i) * (LTOp) t2(e, a, m, n)) +
+    (-2.0 * (LTOp) V(m, n, e, i) * (LTOp) t1(e, m) * (LTOp) t1(a, n)) +
+    ((LTOp) V(n, m, e, i) * (LTOp) t2(e, a, m, n)) +
+    ((LTOp) V(n, m, e, i) * (LTOp) t1(e, m) * (LTOp) t1(a, n));
 
   i0(a, i).update(singles);
 
@@ -76,9 +69,7 @@ void cs_ccsd_t1(Scheduler& sch) {
   op_exec.opmin_execute(i0);
   print_tensor_all(i0);
 
-  sch
-  (i0() = 1.0)
-  .execute();
+  sch(i0() = 1.0).execute();
   i0(a, i).update(singles);
   op_exec.execute(i0);
   print_tensor_all(i0);
@@ -116,9 +107,9 @@ void cs_ccsd_t1(Scheduler& sch) {
   // }
 }
 
-template <typename T>
+template<typename T>
 void dlpno_test(Scheduler& sch) {
-  IndexSpace IS{range(13), {{"occ", {range(0, 4)}}, {"virt", {range(4, 13)}}}};
+  IndexSpace      IS{range(13), {{"occ", {range(0, 4)}}, {"virt", {range(4, 13)}}}};
   TiledIndexSpace AO{IndexSpace{range(13)}};
   TiledIndexSpace AO_DF{IndexSpace{range(375)}};
   TiledIndexSpace MO{IS};
@@ -136,54 +127,44 @@ void dlpno_test(Scheduler& sch) {
   Tensor<T> Siikl{LMOP, LMOP, PNO, PNO};
 
   SymbolTable symbol_table;
-  
+
   TAMM_REGISTER_SYMBOLS(symbol_table, dTEvv, dTEov_00, dT1, dT2, dT2_out, d, Siikl);
 
   sch.allocate(dTEvv, dTEov_00, dT1, dT2, dT2_out, d, Siikl);
-  sch
-  (dTEvv() = 1.0)
-  (dTEov_00() = 1.0)
-  (dT1() = 1.0)
-  (dT2() = 1.0)
-  (dT2_out() = 0.0)
-  (d() = 1.0)
-  (Siikl() = 1.0)
-  .execute();
+  sch(dTEvv() = 1.0)(dTEov_00() = 1.0)(dT1() = 1.0)(dT2() = 1.0)(dT2_out() =
+                                                                   0.0)(d() = 1.0)(Siikl() = 1.0)
+    .execute();
 
   auto dlpno_doubles_12 =
-      (-1.0 * (LTOp)dTEvv("a_mu", "e_mu", "K") *
-       (LTOp)dTEov_00("mm", "f_mu", "K") * (LTOp)dT1("b_mm", "mm") *
-       (LTOp)dT2("e_ij", "f_ij", "ij") * (LTOp)d("ij", "f_mu", "f_ij") *
-       (LTOp)d("ij", "e_mu", "e_ij") * (LTOp)d("ij", "a_mu", "a_ij") *
-       (LTOp)Siikl("mm", "ij", "b_mm", "b_ij"));
-
+    (-1.0 * (LTOp) dTEvv("a_mu", "e_mu", "K") * (LTOp) dTEov_00("mm", "f_mu", "K") *
+     (LTOp) dT1("b_mm", "mm") * (LTOp) dT2("e_ij", "f_ij", "ij") * (LTOp) d("ij", "f_mu", "f_ij") *
+     (LTOp) d("ij", "e_mu", "e_ij") * (LTOp) d("ij", "a_mu", "a_ij") *
+     (LTOp) Siikl("mm", "ij", "b_mm", "b_ij"));
 
   OpCostCalculator op_cost{symbol_table};
 
-  LTOp lhs_ltop = (LTOp)dT2_out("a_ij", "b_ij", "ij");
+  LTOp lhs_ltop = (LTOp) dT2_out("a_ij", "b_ij", "ij");
 
   std::cout << "Print original binarized op\n";
   op_cost.print_op_binarized(lhs_ltop, dlpno_doubles_12.clone());
-  auto original_op_cost = op_cost.get_op_cost(dlpno_doubles_12.clone(), dT2_out("a_ij", "b_ij", "ij"));
+  auto original_op_cost =
+    op_cost.get_op_cost(dlpno_doubles_12.clone(), dT2_out("a_ij", "b_ij", "ij"));
   std::cout << "Original op cost: " << original_op_cost << "\n";
 
   OpMin opmin{symbol_table};
-  auto optimized_dlpno_doubles_12 =
-      opmin.optimize_all(lhs_ltop, dlpno_doubles_12);
+  auto  optimized_dlpno_doubles_12 = opmin.optimize_all(lhs_ltop, dlpno_doubles_12);
 
   std::cout << "Print opmined binarized op\n";
-  op_cost.print_op_binarized((LTOp)dT2_out("a_ij", "b_ij", "ij"), optimized_dlpno_doubles_12);
-  auto opmined_op_cost = op_cost.get_op_cost(optimized_dlpno_doubles_12->clone(), dT2_out("a_ij", "b_ij", "ij"));
+  op_cost.print_op_binarized((LTOp) dT2_out("a_ij", "b_ij", "ij"), optimized_dlpno_doubles_12);
+  auto opmined_op_cost =
+    op_cost.get_op_cost(optimized_dlpno_doubles_12->clone(), dT2_out("a_ij", "b_ij", "ij"));
   std::cout << "Opmined op cost: " << opmined_op_cost << "\n";
-
 }
 
-
-int main(int argc, char *argv[]) {
-
+int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);
 
-  ProcGroup pg = ProcGroup::create_world_coll();
+  ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   Scheduler sch{ec};

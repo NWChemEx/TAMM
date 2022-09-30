@@ -2,11 +2,11 @@
 
 #include <type_traits>
 
+#include "execution_context.hpp"
 #include "tamm/block_buffer.hpp"
 #include "tamm/tensor.hpp"
 #include "tamm/types.hpp"
 #include "utility"
-#include "execution_context.hpp"
 
 namespace tamm {
 
@@ -15,97 +15,99 @@ namespace tamm {
  *
  */
 enum class Mode {
-    PW,   /**< Write Permission */
-    PR,   /**< Read Permission */
-    PRW,  /**< Read/Write Permission */
-    PA,   /**< Accumulate Permission */
-    AR,   /**< Read Access */
-    AW,   /**< Write Access */
-    ACW,  /**< Cancellable Write Access */
-    ARW,  /**< Read/Write Access */
-    ACRW, /**< Cancellable Read/Write Access */
-    AA,   /**< Accumulate Access */
-    AT    /**< Temporary Access */
+  PW,   /**< Write Permission */
+  PR,   /**< Read Permission */
+  PRW,  /**< Read/Write Permission */
+  PA,   /**< Accumulate Permission */
+  AR,   /**< Read Access */
+  AW,   /**< Write Access */
+  ACW,  /**< Cancellable Write Access */
+  ARW,  /**< Read/Write Access */
+  ACRW, /**< Cancellable Read/Write Access */
+  AA,   /**< Accumulate Access */
+  AT    /**< Temporary Access */
 };
 
 class PermissionBase {
 public:
-    virtual Mode getMode() = 0;
+  virtual Mode getMode() = 0;
 };
 
 namespace detail {
-  class PermissionVisitor {
-  public:
-    template<typename Permission, typename = std::enable_if_t<std::is_base_of<PermissionBase, Permission>::value>>
-    auto operator()(Permission& aw) const {
-	return std::tuple{};
-    }
+class PermissionVisitor {
+public:
+  template<typename Permission,
+           typename = std::enable_if_t<std::is_base_of<PermissionBase, Permission>::value>>
+  auto operator()(Permission& aw) const {
+    return std::tuple{};
+  }
 
-    template<typename T>
-    auto operator()(T&& value) const { return std::forward_as_tuple<T>(value); }
-  };
+  template<typename T>
+  auto operator()(T&& value) const {
+    return std::forward_as_tuple<T>(value);
+  }
+};
 } // namespace detail
 
 template<typename T>
 class Permission;
 
 template<typename T>
-class Permission<LabeledTensor<T>> : public PermissionBase {
+class Permission<LabeledTensor<T>>: public PermissionBase {
 public:
-    Permission(LabeledTensor<T> lt, Mode mode) : lt(lt), mode(mode) {}
+  Permission(LabeledTensor<T> lt, Mode mode): lt(lt), mode(mode) {}
 
-    Mode getMode() override { return mode; }
+  Mode getMode() override { return mode; }
 
 private:
-    LabeledTensor<T> lt;
-    Mode mode;
+  LabeledTensor<T> lt;
+  Mode             mode;
 };
 
 template<typename T>
-class Permission<IndexedTensor<T>> : public PermissionBase {
+class Permission<IndexedTensor<T>>: public PermissionBase {
 public:
-    Permission(IndexedTensor<T> lt, Mode mode) : lt(lt), mode(mode) {}
-    Permission(typename IndexedTensor<T>::first_type tensor,
-               typename IndexedTensor<T>::second_type index_vector,
-               Mode mode) :
-      lt(tensor, index_vector),
-      mode(mode) {}
+  Permission(IndexedTensor<T> lt, Mode mode): lt(lt), mode(mode) {}
+  Permission(typename IndexedTensor<T>::first_type  tensor,
+             typename IndexedTensor<T>::second_type index_vector, Mode mode):
+    lt(tensor, index_vector), mode(mode) {}
 
-    Mode getMode() override { return mode; }
+  Mode getMode() override { return mode; }
 
 private:
-    IndexedTensor<T> lt;
-    Mode mode;
+  IndexedTensor<T> lt;
+  Mode             mode;
 };
 
-#define GET_PERMISSION_MACRO(_1,_2,_3,NAME,...) NAME
-#define DECLARE_PERMISSION(...) GET_PERMISSION_MACRO(__VA_ARGS__, DECLARE_CANCELLABLE_ACCESS, DECLARE_PERMISSION2)(__VA_ARGS__)
+#define GET_PERMISSION_MACRO(_1, _2, _3, NAME, ...) NAME
+#define DECLARE_PERMISSION(...) \
+  GET_PERMISSION_MACRO(__VA_ARGS__, DECLARE_CANCELLABLE_ACCESS, DECLARE_PERMISSION2)(__VA_ARGS__)
 
-#define DECLARE_ACCESS(Name, ModeName) \
-template<typename T> \
-class Name ## Access : public Permission<T> { \
-public: \
-    Name ## Access(T t) : Permission<T>(t, Mode::A ## ModeName) {} \
-};
+#define DECLARE_ACCESS(Name, ModeName)                        \
+  template<typename T>                                        \
+  class Name##Access: public Permission<T> {                  \
+  public:                                                     \
+    Name##Access(T t): Permission<T>(t, Mode::A##ModeName) {} \
+  };
 
-#define DECLARE_PERMISSION2(Name, ModeName) \
-template<typename T> \
-class Name ## Permission : public Permission<T> { \
-public: \
-    Name ##  Permission(T t) : Permission<T>(t, Mode::P ## ModeName) {} \
-}; \
-DECLARE_ACCESS(Name, ModeName)
+#define DECLARE_PERMISSION2(Name, ModeName)                       \
+  template<typename T>                                            \
+  class Name##Permission: public Permission<T> {                  \
+  public:                                                         \
+    Name##Permission(T t): Permission<T>(t, Mode::P##ModeName) {} \
+  };                                                              \
+  DECLARE_ACCESS(Name, ModeName)
 
-#define DECLARE_CANCELLABLE_ACCESS(Name, ModeName, _1) \
-DECLARE_PERMISSION2(Name, ModeName) \
-template<typename T> \
-class Cancellable ## Name ## Access : public Permission<T> { \
-public: \
-    Cancellable ## Name ## Access(T t) : Permission<T>(t, Mode::AC ## ModeName) {} \
-};
+#define DECLARE_CANCELLABLE_ACCESS(Name, ModeName, _1)                      \
+  DECLARE_PERMISSION2(Name, ModeName)                                       \
+  template<typename T>                                                      \
+  class Cancellable##Name##Access: public Permission<T> {                   \
+  public:                                                                   \
+    Cancellable##Name##Access(T t): Permission<T>(t, Mode::AC##ModeName) {} \
+  };
 
 DECLARE_PERMISSION(Write, W, cancellable)
-DECLARE_PERMISSION(Read,  R)
+DECLARE_PERMISSION(Read, R)
 DECLARE_PERMISSION(ReadWrite, RW, cancellable)
 DECLARE_PERMISSION(Accum, A)
 DECLARE_ACCESS(Temp, T)
@@ -185,94 +187,89 @@ DECLARE_ACCESS(Temp, T)
 
 class RuntimeEngine {
 public:
-    class RuntimeContext {
-    public:
-        RuntimeContext(RuntimeEngine& re) : re(re) {}
-        auto& runtimeEngine() { return re; }
-        template<typename T>
-        BlockBuffer<T> get_buf_tmp(Tensor<T> tensor, IndexVector blockid) {
-            // TBD: figure out memory space: do we need GPU/CPU buffer?
-            const size_t size = tensor.block_size(blockid);
-            span span(new T[size], size);
-            return BlockBuffer(span, IndexedTensor{tensor, blockid}, &re,
-                                  true);
-        }
+  class RuntimeContext {
+  public:
+    RuntimeContext(RuntimeEngine& re): re(re) {}
+    auto& runtimeEngine() { return re; }
+    template<typename T>
+    BlockBuffer<T> get_buf_tmp(Tensor<T> tensor, IndexVector blockid) {
+      // TBD: figure out memory space: do we need GPU/CPU buffer?
+      const size_t size = tensor.block_size(blockid);
+      span         span(new T[size], size);
+      return BlockBuffer(span, IndexedTensor{tensor, blockid}, &re, true);
+    }
 
-        template<typename T, typename V>
-        BlockBuffer<T> get_buf_tmp(Tensor<T> tensor, IndexVector blockid, V val) {
-            auto buf = get_buf_tmp(tensor, blockid);
-            buf = val;
-            return buf;
-        }
+    template<typename T, typename V>
+    BlockBuffer<T> get_buf_tmp(Tensor<T> tensor, IndexVector blockid, V val) {
+      auto buf = get_buf_tmp(tensor, blockid);
+      buf      = val;
+      return buf;
+    }
 
-        template<typename T>
-        BlockBuffer<T> get_buf_read(Tensor<T> tensor, IndexVector blockid) {
-            return BlockBuffer(tensor, blockid);
-        }
+    template<typename T>
+    BlockBuffer<T> get_buf_read(Tensor<T> tensor, IndexVector blockid) {
+      return BlockBuffer(tensor, blockid);
+    }
 
-        template<typename T>
-        BlockBuffer<T> get_buf_readwrite(Tensor<T> tensor, IndexVector blockid) {
-            return BlockBuffer(tensor, blockid);
-        }
+    template<typename T>
+    BlockBuffer<T> get_buf_readwrite(Tensor<T> tensor, IndexVector blockid) {
+      return BlockBuffer(tensor, blockid);
+    }
 
-        template<typename T>
-        BlockBuffer<T> get_buf_creadwrite(Tensor<T> tensor, IndexVector blockid) {
-            return BlockBuffer(tensor, blockid);
-        }
+    template<typename T>
+    BlockBuffer<T> get_buf_creadwrite(Tensor<T> tensor, IndexVector blockid) {
+      return BlockBuffer(tensor, blockid);
+    }
 
-        template<typename T>
-        BlockBuffer<T> get_buf_write(Tensor<T> tensor, IndexVector blockid) {
-            return BlockBuffer(tensor, blockid);
-        }
+    template<typename T>
+    BlockBuffer<T> get_buf_write(Tensor<T> tensor, IndexVector blockid) {
+      return BlockBuffer(tensor, blockid);
+    }
 
-        template<typename T>
-        BlockBuffer<T> get_buf_cwrite(Tensor<T> tensor, IndexVector blockid) {
-            return BlockBuffer(tensor, blockid);
-        }
-
-        template<typename Lambda, typename... Args>
-        void submitTask(Lambda lambda, Args&&... args) {
-            re.submitTask(lambda, std::forward<Args>(args)...);
-        }
-
-    private:
-        RuntimeEngine& re;
-    };
-
-    RuntimeEngine() = default;
-
-    ~RuntimeEngine() =  default;
-    void executeAllthreads();
-
-    // More buffer functions
-    // e.g., buffer for accumulation
-    //   * "forwarded" buffers with immediate effects? No need to explicitly
-    //   write back.
-    //   * Maybe special type for reference buffer.
+    template<typename T>
+    BlockBuffer<T> get_buf_cwrite(Tensor<T> tensor, IndexVector blockid) {
+      return BlockBuffer(tensor, blockid);
+    }
 
     template<typename Lambda, typename... Args>
     void submitTask(Lambda lambda, Args&&... args) {
-      // g++-7 does not support constexpr if in this context
-        // std::apply(
-        //   lambda,
-        //   std::tuple_cat(
-        //     std::make_tuple(RuntimeContext{*this}), std::tuple_cat([&]() {
-        //         if constexpr(std::is_base_of_v<PermissionBase, Args>) {
-        //             return std::tuple{};
-        //         } else {
-        //             return std::forward_as_tuple<Args>(args);
-        //         }
-        //     }()...)));
-      std::apply(lambda,
-	   std::tuple_cat(std::make_tuple(RuntimeContext{*this}), detail::PermissionVisitor{}(args)...));
+      re.submitTask(lambda, std::forward<Args>(args)...);
     }
+
+  private:
+    RuntimeEngine& re;
+  };
+
+  RuntimeEngine() = default;
+
+  ~RuntimeEngine() = default;
+  void executeAllthreads();
+
+  // More buffer functions
+  // e.g., buffer for accumulation
+  //   * "forwarded" buffers with immediate effects? No need to explicitly
+  //   write back.
+  //   * Maybe special type for reference buffer.
+
+  template<typename Lambda, typename... Args>
+  void submitTask(Lambda lambda, Args&&... args) {
+    // std::apply(
+    //   lambda,
+    //   std::tuple_cat(
+    //     std::make_tuple(RuntimeContext{*this}), std::tuple_cat([&]() {
+    //         if constexpr(std::is_base_of_v<PermissionBase, Args>) {
+    //             return std::tuple{};
+    //         } else {
+    //             return std::forward_as_tuple<Args>(args);
+    //         }
+    //     }()...)));
+    std::apply(lambda, std::tuple_cat(std::make_tuple(RuntimeContext{*this}),
+                                      detail::PermissionVisitor{}(args)...));
+  }
 
 private:
 };
 
-inline RuntimeEngine* ExecutionContext::runtime_ptr()
-{
-    return new RuntimeEngine();
-}
+inline RuntimeEngine* ExecutionContext::runtime_ptr() { return new RuntimeEngine(); }
 
 } // namespace tamm

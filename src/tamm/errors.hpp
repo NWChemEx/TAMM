@@ -5,6 +5,8 @@
 
 namespace tamm {
 
+// clang-format off
+
 /**
  * @brief Mark code options that are not yet implemented.
  */
@@ -63,5 +65,6 @@ namespace tamm {
         }                                                                   \
     } while(0)
 
-} // namespace tamm
+// clang-format on
 
+} // namespace tamm

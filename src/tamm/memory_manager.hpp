@@ -2,9 +2,9 @@
 
 #include <iosfwd>
 
-#include <chrono>
-#include "tamm/types.hpp"
 #include "tamm/proc_group.hpp"
+#include "tamm/types.hpp"
+#include <chrono>
 
 /**
  * @defgroup memory_management
@@ -14,23 +14,24 @@
  * @todo Remove uses of void*
  */
 
-
 namespace tamm {
 
 class TimerGuard {
 public:
-    TimerGuard(double *refptr)
-    : refptr_{refptr} {
-        start_time_ = std::chrono::high_resolution_clock::now();
-    }
-    ~TimerGuard() {
-        std::chrono::time_point<std::chrono::high_resolution_clock> end_time = std::chrono::high_resolution_clock::now();
-        *refptr_ += std::chrono::duration_cast<std::chrono::duration<double>>((end_time - start_time_)).count();
-    }
+  TimerGuard(double* refptr): refptr_{refptr} {
+    start_time_ = std::chrono::high_resolution_clock::now();
+  }
+  ~TimerGuard() {
+    std::chrono::time_point<std::chrono::high_resolution_clock> end_time =
+      std::chrono::high_resolution_clock::now();
+    *refptr_ +=
+      std::chrono::duration_cast<std::chrono::duration<double>>((end_time - start_time_)).count();
+  }
+
 private:
-    double *refptr_;
-    std::chrono::time_point<std::chrono::high_resolution_clock> start_time_;
-};  // TimeGuard
+  double*                                                     refptr_;
+  std::chrono::time_point<std::chrono::high_resolution_clock> start_time_;
+}; // TimeGuard
 
 enum class MemoryManagerType { local, distributed };
 
@@ -44,17 +45,18 @@ class MemoryRegion;
  * - Memory manager is associated with a process group.
  * - Each memory allocation is tracked in a memory region.
  * - Memory region allocates a buffer at each rank in a given process group.
- * - Multiple memory regions can be allocated using the same memory manager and share the same process group.
+ * - Multiple memory regions can be allocated using the same memory manager and share the same
+ * process group.
  * - Each memory manager implementation (sub-class) provides the implementation of all
  * operations on memory regions managed by it.
- * - The user accesses data in the memory regions using the memory region API's routines. The memory region
- * delegates to the implementation in the memory manager.
+ * - The user accesses data in the memory regions using the memory region API's routines. The memory
+ * region delegates to the implementation in the memory manager.
  *
  * @note Memory regions use for their operations the memory manager that allocated them.
  * Thus, a memory manager should outlive all memory regions created by it.
  */
 class MemoryManager {
- public:
+public:
   /**
    * @brief Collective allocation of a memory region.
    *
@@ -75,8 +77,7 @@ class MemoryManager {
    * allocated per rank
    * @return Allocated memory region
    */
-  virtual MemoryRegion* alloc_coll_balanced(ElementType eltype,
-                                            Size max_nelements,
+  virtual MemoryRegion* alloc_coll_balanced(ElementType eltype, Size max_nelements,
                                             ProcList proc_list = {}) = 0;
 
   /**
@@ -92,27 +93,21 @@ class MemoryManager {
    * Access the underlying process group
    * @return Underlying process group
    */
-  ProcGroup pg() const {
-    return pg_;
-  }
-  
+  ProcGroup pg() const { return pg_; }
+
   virtual ~MemoryManager() {}
 
-/**
-     * @brief Return the memory manager type type
-     * 
-     * @return MemoryManagerType 
-     */
-  MemoryManagerKind kind() const {
-      return kind_;
-    }
+  /**
+   * @brief Return the memory manager type type
+   *
+   * @return MemoryManagerType
+   */
+  MemoryManagerKind kind() const { return kind_; }
 
- protected:
-  explicit MemoryManager(ProcGroup pg, MemoryManagerKind kind)
-      : pg_{pg}, kind_{kind} {}
+protected:
+  explicit MemoryManager(ProcGroup pg, MemoryManagerKind kind): pg_{pg}, kind_{kind} {}
 
-
- public:
+public:
   /**
    * Collectively deallocate a memory region.
    * @param mr Memory region being deallocated
@@ -128,7 +123,8 @@ class MemoryManager {
   /**
    * Access a pointer at an offset from local buffer associated with a memory region.
    * @param mr Memory region being accessed
-   * @param off Offset (in number of elements) from base of this rank's buffer associated with this memory region.
+   * @param off Offset (in number of elements) from base of this rank's buffer associated with this
+   * memory region.
    * @return Pointer to element at offset @p off in local buffer
    */
   void* access(MemoryRegion& mr, Offset off) {
@@ -144,7 +140,8 @@ class MemoryManager {
   /**
    * Access a pointer at an offset from local buffer associated with a memory region.
    * @param mr Memory region being accessed
-   * @param off Offset (in number of elements) from base of this rank's buffer associated with this memory region.
+   * @param off Offset (in number of elements) from base of this rank's buffer associated with this
+   * memory region.
    * @return Pointer to element at offset @p off in local buffer
    */
   virtual const void* access(const MemoryRegion& mr, Offset off) const = 0;
@@ -167,7 +164,8 @@ class MemoryManager {
   virtual void get(MemoryRegion& mr, Proc proc, Offset off, Size nelements, void* buf) = 0;
 
   /**
-   * Get data from a buffer associated with a memory region into a local memory buffer in nonblocking fashion
+   * Get data from a buffer associated with a memory region into a local memory buffer in
+   * nonblocking fashion
    * @param mr Memory region
    * @param proc Rank whose buffer is to be accessed
    * @param off Offset at which data is to be accessed
@@ -181,7 +179,8 @@ class MemoryManager {
    * @pre buf != nullptr
    * @pre buf[0..nelements] is valid (i.e., buffer is of sufficient size)
    */
-  virtual void nb_get(MemoryRegion& mr, Proc proc, Offset off, Size nelements, void* buf, DataCommunicationHandlePtr data_comm_handle) = 0;
+  virtual void nb_get(MemoryRegion& mr, Proc proc, Offset off, Size nelements, void* buf,
+                      DataCommunicationHandlePtr data_comm_handle) = 0;
 
   /**
    * Put data to a buffer associated with a memory region from a local memory buffer
@@ -201,7 +200,8 @@ class MemoryManager {
   virtual void put(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf) = 0;
 
   /**
-   * Put data to a buffer associated with a memory region from a local memory buffer in nonblocking fashion
+   * Put data to a buffer associated with a memory region from a local memory buffer in nonblocking
+   * fashion
    * @param mr Memory region
    * @param proc Rank whose buffer is to be accessed
    * @param off Offset at which data is to be accessed
@@ -215,7 +215,8 @@ class MemoryManager {
    * @pre buf != nullptr
    * @pre buf[0..nelements] is valid (i.e., buffer is of sufficient size)
    */
-  virtual void nb_put(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf, DataCommunicationHandlePtr data_comm_handle) = 0;
+  virtual void nb_put(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf,
+                      DataCommunicationHandlePtr data_comm_handle) = 0;
 
   /**
    * Add data to a buffer associated with a memory region from a local memory buffer
@@ -234,8 +235,9 @@ class MemoryManager {
    */
   virtual void add(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf) = 0;
 
- /**
-   * Add data to a buffer associated with a memory region from a local memory buffer in nonblocking fashion
+  /**
+   * Add data to a buffer associated with a memory region from a local memory buffer in nonblocking
+   * fashion
    * @param mr Memory region
    * @param proc Rank whose buffer is to be accessed
    * @param off Offset at which data is to be accessed
@@ -249,7 +251,8 @@ class MemoryManager {
    * @pre buf != nullptr
    * @pre buf[0..nelements] is valid (i.e., buffer is of sufficient size)
    */
-  virtual void nb_add(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf, DataCommunicationHandlePtr data_comm_handle) = 0;
+  virtual void nb_add(MemoryRegion& mr, Proc proc, Offset off, Size nelements, const void* buf,
+                      DataCommunicationHandlePtr data_comm_handle) = 0;
 
   /**
    * @brief Collectively print contents of the memory region
@@ -260,11 +263,9 @@ class MemoryManager {
    */
   virtual void print_coll(const MemoryRegion& mr, std::ostream& os) = 0;
 
-  ProcGroup get_proc_group() {
-    return pg_;
-  }
+  ProcGroup get_proc_group() { return pg_; }
 
- protected:
+protected:
   ProcGroup pg_;
 
   MemoryManagerKind kind_; /**< MemoryManager kind */
@@ -277,14 +278,15 @@ class MemoryManager {
  * @ingroup memory_management
  * @brief Base class for a memory region.
  *
- * Memory regions allocate and manage one contiguous buffer per rank in the corresponding memory manager's process group.
- * Memory region contains meta-data associated with an individual (collective allocation by a memory manager.
- * Memory regions are allocated using static calls in the memory manager. Operations on the memory region
- * delegate to the memory manager. This base class provides some correctness checking by tracking the state
- * of the memory region as operations are performed on it.
+ * Memory regions allocate and manage one contiguous buffer per rank in the corresponding memory
+ * manager's process group. Memory region contains meta-data associated with an individual
+ * (collective allocation by a memory manager. Memory regions are allocated using static calls in
+ * the memory manager. Operations on the memory region delegate to the memory manager. This base
+ * class provides some correctness checking by tracking the state of the memory region as operations
+ * are performed on it.
  */
 class MemoryRegion {
- public:
+public:
   /**
    * @brief Construct a memory region.
    *
@@ -292,41 +294,33 @@ class MemoryRegion {
    *
    * @param nelements Number of elements to be allocated on this rank for this memory manager.
    */
-  MemoryRegion(Size nelements = Size{0})
-      : allocation_status_{AllocationStatus::invalid},
-        local_nelements_{nelements} {}
+  MemoryRegion(Size nelements = Size{0}):
+    allocation_status_{AllocationStatus::invalid}, local_nelements_{nelements} {}
 
   /**
    * Access the current allocation status
    * @return This memory region's allocation status
    */
-  AllocationStatus allocation_status() const {
-    return allocation_status_;
-  }
+  AllocationStatus allocation_status() const { return allocation_status_; }
 
   /**
    * Has it been created (as in allocated using MemoryManager::allocate_coll)?
    * @return True if the memory region has been created.
    */
-  bool created() const {
-    return allocation_status_ == AllocationStatus::created;
-  }
+  bool created() const { return allocation_status_ == AllocationStatus::created; }
 
   /**
-   * Has it been orphaned (as in allocated using MemoryManager::allocate_coll and then outlived its owner)?
+   * Has it been orphaned (as in allocated using MemoryManager::allocate_coll and then outlived its
+   * owner)?
    * @return True if the memory region has been created.
    */
-  bool orphaned() const {
-    return allocation_status_ == AllocationStatus::orphaned;
-  }
+  bool orphaned() const { return allocation_status_ == AllocationStatus::orphaned; }
 
   /**
    * Has the memory region been attached  (using MemoryManager::attach_coll())?
    * @return True if the memory region has been attached
    */
-  bool attached() const {
-    return allocation_status_ == AllocationStatus::attached;
-  }
+  bool attached() const { return allocation_status_ == AllocationStatus::attached; }
 
   virtual ~MemoryRegion() {}
 
@@ -334,9 +328,7 @@ class MemoryRegion {
    * Number of elements associated with this rank in this memory region
    * @return Number of local elements
    */
-  Size local_nelements() const {
-    return local_nelements_;
-  }
+  Size local_nelements() const { return local_nelements_; }
 
   /**
    * Underlying process group
@@ -456,29 +448,27 @@ class MemoryRegion {
     print_coll_impl(os);
   }
 
-  virtual void dealloc_coll_impl() = 0;
-  virtual void detach_coll_impl() = 0;
-  virtual void fence_impl() = 0;
-  virtual const void* access_impl(Offset off) const = 0;
-  virtual void get_impl(Proc proc, Offset off, Size nelements, void* buf) = 0;
-  virtual void put_impl(Proc proc, Offset off, Size nelements, const void* buf) = 0;
-  virtual void add_impl(Proc proc, Offset off, Size nelements, const void* buf) = 0;
-  virtual void print_coll_impl(std::ostream& os) = 0;
+  virtual void        dealloc_coll_impl()                                              = 0;
+  virtual void        detach_coll_impl()                                               = 0;
+  virtual void        fence_impl()                                                     = 0;
+  virtual const void* access_impl(Offset off) const                                    = 0;
+  virtual void        get_impl(Proc proc, Offset off, Size nelements, void* buf)       = 0;
+  virtual void        put_impl(Proc proc, Offset off, Size nelements, const void* buf) = 0;
+  virtual void        add_impl(Proc proc, Offset off, Size nelements, const void* buf) = 0;
+  virtual void        print_coll_impl(std::ostream& os)                                = 0;
 
- protected:
-  void set_status(AllocationStatus allocation_status) {
-    allocation_status_ = allocation_status;
-  }
+protected:
+  void set_status(AllocationStatus allocation_status) { allocation_status_ = allocation_status; }
 
   // size_t elsize_;
   // uint8_t* buf_;
   AllocationStatus allocation_status_;
-  Size local_nelements_;
+  Size             local_nelements_;
 
-  template <typename T>
+  template<typename T>
   friend class TensorImpl;
 
-  template <typename T>
+  template<typename T>
   friend class TensorImplUnitTile;
 }; // class MemoryRegion
 
@@ -489,36 +479,23 @@ class MemoryRegion {
  * @tparam MgrType Concrete memory manager type
  */
 template<typename MgrType>
-class MemoryRegionImpl : public MemoryRegion {
- public:
-  MemoryRegionImpl(MgrType& mgr)
-      : mgr_{mgr} {}
+class MemoryRegionImpl: public MemoryRegion {
+public:
+  MemoryRegionImpl(MgrType& mgr): mgr_{mgr} {}
 
   virtual ~MemoryRegionImpl() {}
 
-  ProcGroup pg() const override {
-    return mgr_.pg();
-  }
+  ProcGroup pg() const override { return mgr_.pg(); }
 
-  MemoryManager& mgr() const override {
-    return mgr_;
-  }
+  MemoryManager& mgr() const override { return mgr_; }
 
-  void dealloc_coll_impl() override {
-    mgr_.dealloc_coll(*this);
-  }
+  void dealloc_coll_impl() override { mgr_.dealloc_coll(*this); }
 
-  void detach_coll_impl() override {
-    mgr_.detach_coll(*this);
-  }
+  void detach_coll_impl() override { mgr_.detach_coll(*this); }
 
-  void fence_impl() override {
-    mgr_.fence(*this);
-  }
+  void fence_impl() override { mgr_.fence(*this); }
 
-  const void* access_impl(Offset off) const override {
-    return mgr_.access(*this, off);
-  }
+  const void* access_impl(Offset off) const override { return mgr_.access(*this, off); }
 
   void get_impl(Proc proc, Offset off, Size nelements, void* buf) override {
     mgr_.get(*this, proc, off, nelements, buf);
@@ -532,16 +509,13 @@ class MemoryRegionImpl : public MemoryRegion {
     mgr_.add(*this, proc, off, nelements, buf);
   }
 
-  void print_coll_impl(std::ostream& os) override {
-    mgr_.print_coll(*this, os);
-  }
+  void print_coll_impl(std::ostream& os) override { mgr_.print_coll(*this, os); }
 
- private:
+private:
   MgrType& mgr_;
-};  // class MemoryRegionImpl
+}; // class MemoryRegionImpl
 
-}  // namespace tamm
+} // namespace tamm
 
-
-#include "tamm/memory_manager_local.hpp"
 #include "tamm/memory_manager_ga.hpp"
+#include "tamm/memory_manager_local.hpp"

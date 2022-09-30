@@ -249,19 +249,19 @@ public:
   }
 
 #if defined(USE_UPCXX_DISTARRAY)
-    /**
-     * @brief Set cache size for MemoryRegionGAs created by MemoryManagerGAs of this ExecutionContext
-     *
-     * @param [in] hint input Size of cache for MemoryRegionsGAs
-     */
-    void set_memory_manager_cache(const upcxx::intrank_t hint = 0) { 
-        hint_ = (hint ? hint : pg_.size().value());
-    }
-    /**
-     * Cache size hint for this execution context
-     * @return Cache size used by MemoryRegionGAs within this ExecutionContext
-     */
-    upcxx::intrank_t hint() const { return hint_; }
+  /**
+   * @brief Set cache size for MemoryRegionGAs created by MemoryManagerGAs of this ExecutionContext
+   *
+   * @param [in] hint input Size of cache for MemoryRegionsGAs
+   */
+  void set_memory_manager_cache(const upcxx::intrank_t hint = 0) {
+    hint_ = (hint ? hint : pg_.size().value());
+  }
+  /**
+   * Cache size hint for this execution context
+   * @return Cache size used by MemoryRegionGAs within this ExecutionContext
+   */
+  upcxx::intrank_t hint() const { return hint_; }
 #endif
 
   /**

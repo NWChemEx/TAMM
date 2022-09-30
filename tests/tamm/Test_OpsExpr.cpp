@@ -12,53 +12,50 @@
 
 using namespace tamm;
 
-
 template<typename T>
 void check_value(const LabeledTensor<T>& lt, T val) {
-    LabelLoopNest loop_nest{lt.labels()};
+  LabelLoopNest loop_nest{lt.labels()};
 
-    for(const auto& itval : loop_nest) {
-        const IndexVector blockid = internal::translate_blockid(itval, lt);
-        size_t size               = lt.tensor().block_size(blockid);
-        std::vector<T> buf(size);
-        lt.tensor().get(blockid, buf);
-        for(TAMM_SIZE i = 0; i < size; i++) {
-            REQUIRE(std::abs(buf[i] - val) < 1.0e-10);
-        }
-    }
+  for(const auto& itval: loop_nest) {
+    const IndexVector blockid = internal::translate_blockid(itval, lt);
+    size_t            size    = lt.tensor().block_size(blockid);
+    std::vector<T>    buf(size);
+    lt.tensor().get(blockid, buf);
+    for(TAMM_SIZE i = 0; i < size; i++) { REQUIRE(std::abs(buf[i] - val) < 1.0e-10); }
+  }
 }
 
 template<typename T>
 void check_value(const Tensor<T>& t, T val) {
-    check_value(t(), val);
+  check_value(t(), val);
 }
 
 template<typename T>
 void check_and_print(const Tensor<T>& tensor, T val) {
-    check_value(tensor, val);
-    print_tensor(tensor);
+  check_value(tensor, val);
+  print_tensor(tensor);
 }
 
 TEST_CASE("Zero-dimensional tensor with double") {
-    bool failed = false;
-    // IndexSpace is {range(10)};
-    // TiledIndexSpace tis{is};
-    Tensor<double> T1{};
-    try {
-        T1() = double{0};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
+  bool failed = false;
+  // IndexSpace is {range(10)};
+  // TiledIndexSpace tis{is};
+  Tensor<double> T1{};
+  try {
+    T1() = double{0};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
 }
 
 TEST_CASE("Zero-dimensional tensor with int") {
-    bool failed = false;
-    // IndexSpace is {range(10)};
-    // TiledIndexSpace tis{is};
-    Tensor<double> T1{};
-    try {
-        T1() = int{0};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
+  bool failed = false;
+  // IndexSpace is {range(10)};
+  // TiledIndexSpace tis{is};
+  Tensor<double> T1{};
+  try {
+    T1() = int{0};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
 }
 
 /** @todo This is a compile-time failing test. Need to enable it*/
@@ -76,246 +73,241 @@ TEST_CASE("Zero-dimensional tensor with int") {
 // }
 
 TEST_CASE("One-dimensional tensor with double") {
-    bool failed = false;
-    IndexSpace is{range(10)};
-    TiledIndexSpace tis{is};
-    Tensor<double> T1{tis};
-    try {
-        T1() = double{7};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
-    failed = false;
+  bool            failed = false;
+  IndexSpace      is{range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double>  T1{tis};
+  try {
+    T1() = double{7};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
+  failed = false;
 
-    try {
-        T1("i") = double{0};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
-    failed = false;
+  try {
+    T1("i") = double{0};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
+  failed = false;
 
-    TiledIndexLabel i = tis.label("all");
-    try {
-        T1(i) = double{5};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
+  TiledIndexLabel i = tis.label("all");
+  try {
+    T1(i) = double{5};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
 }
 
 TEST_CASE("One-dimensional tensor with int") {
-    bool failed = false;
-    IndexSpace is{range(10)};
-    TiledIndexSpace tis{is};
-    Tensor<double> T1{tis};
-    try {
-        T1() = int{7};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
-    failed = false;
+  bool            failed = false;
+  IndexSpace      is{range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double>  T1{tis};
+  try {
+    T1() = int{7};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
+  failed = false;
 
-    try {
-        T1("i") = int{0};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
-    failed = false;
+  try {
+    T1("i") = int{0};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
+  failed = false;
 
-    TiledIndexLabel i = tis.label("all");
-    try {
-        T1(i) = int{5};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
+  TiledIndexLabel i = tis.label("all");
+  try {
+    T1(i) = int{5};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
 }
 
 TEST_CASE("Two-dimensional tensor") {
-    bool failed = false;
-    IndexSpace is{range(10)};
-    TiledIndexSpace tis{is};
-    Tensor<double> T1{tis, tis};
-    TiledIndexLabel i, j;
-    std::tie(i, j) = tis.labels<2>("all");
+  bool            failed = false;
+  IndexSpace      is{range(10)};
+  TiledIndexSpace tis{is};
+  Tensor<double>  T1{tis, tis};
+  TiledIndexLabel i, j;
+  std::tie(i, j) = tis.labels<2>("all");
 
-    try {
-        T1() = double{8};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
-    failed = false;
+  try {
+    T1() = double{8};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
+  failed = false;
 
-    try {
-        T1(i, j) = double{5};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
-    failed = false;
+  try {
+    T1(i, j) = double{5};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
+  failed = false;
 
-    try {
-        T1(i, "j") = double{5};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
-    failed = false;
+  try {
+    T1(i, "j") = double{5};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
+  failed = false;
 
-    try {
-        T1(i, "i") = double{5};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
-    failed = false;
+  try {
+    T1(i, "i") = double{5};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
+  failed = false;
 
-    try {
-        T1("x", "x") = double{5};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
-    failed = false;
+  try {
+    T1("x", "x") = double{5};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
+  failed = false;
 
-    try {
-        T1(i, i) = double{5};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
-    failed = false;
+  try {
+    T1(i, i) = double{5};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
+  failed = false;
 
-    // invalid operations: should fail
+  // invalid operations: should fail
 
-    // invalid number of labels
-    try {
-        T1(i) = double{8};
-    } catch(...) { failed = true; }
-    REQUIRE(failed);
-    failed = false;
+  // invalid number of labels
+  try {
+    T1(i) = double{8};
+  } catch(...) { failed = true; }
+  REQUIRE(failed);
+  failed = false;
 
-    // invalid number of labels
-    try {
-        T1("x") = double{8};
-    } catch(...) { failed = true; }
-    REQUIRE(failed);
-    failed = false;
+  // invalid number of labels
+  try {
+    T1("x") = double{8};
+  } catch(...) { failed = true; }
+  REQUIRE(failed);
+  failed = false;
 
-    // invalid labels
-    try {
-        T1(i, i(j)) = double{8};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
-    failed = false;
+  // invalid labels
+  try {
+    T1(i, i(j)) = double{8};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
+  failed = false;
 
-    // invalid labels
-    try {
-        T1(i, j(i)) = double{8};
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
-    failed = false;
+  // invalid labels
+  try {
+    T1(i, j(i)) = double{8};
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
+  failed = false;
 
-    // invalid number of labels
-    try {
-        T1(i, j, "x") = double{8};
-    } catch(...) { failed = true; }
-    REQUIRE(failed);
-    failed = false;
+  // invalid number of labels
+  try {
+    T1(i, j, "x") = double{8};
+  } catch(...) { failed = true; }
+  REQUIRE(failed);
+  failed = false;
 }
 
 TEST_CASE("SCF Commutator declarations") {
-    bool failed = false;
-    try {
-        using tensor_type = tamm::Tensor<double>;
-        using space_type  = tamm::TiledIndexSpace;
-        using index_type  = tamm::TiledIndexLabel;
+  bool failed = false;
+  try {
+    using tensor_type = tamm::Tensor<double>;
+    using space_type  = tamm::TiledIndexSpace;
+    using index_type  = tamm::TiledIndexLabel;
 
-        ProcGroup pg = ProcGroup::create_world_coll();
-        ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
+    ProcGroup         pg = ProcGroup::create_world_coll();
+    ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
-        IndexSpace is{range(10)};
-        space_type tis{is};
+    IndexSpace is{range(10)};
+    space_type tis{is};
 
-        tensor_type comm{tis, tis}, temp{tis, tis}, F{tis, tis}, D{tis, tis},
-          S{tis, tis};
-        index_type mu, nu, lambda;
+    tensor_type comm{tis, tis}, temp{tis, tis}, F{tis, tis}, D{tis, tis}, S{tis, tis};
+    index_type  mu, nu, lambda;
 
-        std::tie(mu, nu, lambda) = tis.labels<3>("all");
+    std::tie(mu, nu, lambda) = tis.labels<3>("all");
 
-        tensor_type::allocate(ec, comm, temp, F, D, S);
+    tensor_type::allocate(ec, comm, temp, F, D, S);
 
-        /*
-        temp(mu, lambda) = F(mu,nu)*D(nu, lambda); //FD
-        comm(mu, lambda) = temp(mu, nu)*S(nu, lambda); //FDS
-        temp(mu, lambda) = S(mu, nu)*D(nu, lambda); //SD
-        comm(mu, lambda) += -1.0*temp(mu, nu)*F(nu, lambda);//FDS - SDF
-         */
+    /*
+    temp(mu, lambda) = F(mu,nu)*D(nu, lambda); //FD
+    comm(mu, lambda) = temp(mu, nu)*S(nu, lambda); //FDS
+    temp(mu, lambda) = S(mu, nu)*D(nu, lambda); //SD
+    comm(mu, lambda) += -1.0*temp(mu, nu)*F(nu, lambda);//FDS - SDF
+     */
 
-        Scheduler{*ec}(temp(mu, lambda) += F(mu, nu) * D(nu, lambda)) // FD
-          (comm(mu, lambda) += temp(mu, nu) * S(nu, lambda))         // FDS
-          (temp(mu, lambda) += S(mu, nu) * D(nu, lambda))            // SD
-          (comm(mu, lambda) += -1.0 * temp(mu, nu) * F(nu, lambda)) // FDS - SDF
-            .execute();
+    Scheduler{*ec}(temp(mu, lambda) += F(mu, nu) * D(nu, lambda)) // FD
+      (comm(mu, lambda) += temp(mu, nu) * S(nu, lambda))          // FDS
+      (temp(mu, lambda) += S(mu, nu) * D(nu, lambda))             // SD
+      (comm(mu, lambda) += -1.0 * temp(mu, nu) * F(nu, lambda))   // FDS - SDF
+        .execute();
 
-        tensor_type::deallocate(comm, temp, F, D, S);
+    tensor_type::deallocate(comm, temp, F, D, S);
 
-        delete ec;
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
+    delete ec;
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
 }
 
 TEST_CASE("SCF GuessDensity declarations") {
-    bool failed = false;
-    try {
-        // using tensor_type = tamm::Tensor<double>;
-        // tamm::TiledIndexSpace MOs = rv.C.get_spaces()[1];
-        // tamm::TiledIndexSpace AOs = rv.C.get_spaces()[0];
-        IndexSpace mo_is{range(10)};
-        IndexSpace ao_is{range(10, 20)};
+  bool failed = false;
+  try {
+    // using tensor_type = tamm::Tensor<double>;
+    // tamm::TiledIndexSpace MOs = rv.C.get_spaces()[1];
+    // tamm::TiledIndexSpace AOs = rv.C.get_spaces()[0];
+    IndexSpace mo_is{range(10)};
+    IndexSpace ao_is{range(10, 20)};
 
-        tamm::TiledIndexSpace MOs{mo_is};
-        tamm::TiledIndexSpace AOs{ao_is};
-        tamm::TiledIndexLabel i, mu, nu;
-        std::tie(mu, nu) = AOs.labels<2>("all");
-        std::tie(i)      = MOs.labels<1>("all");
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
+    tamm::TiledIndexSpace MOs{mo_is};
+    tamm::TiledIndexSpace AOs{ao_is};
+    tamm::TiledIndexLabel i, mu, nu;
+    std::tie(mu, nu) = AOs.labels<2>("all");
+    std::tie(i)      = MOs.labels<1>("all");
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
 }
 
 TEST_CASE("SCF JK declarations") {
-    bool failed = false;
-    try {
-        using tensor_type = tamm::Tensor<double>;
+  bool failed = false;
+  try {
+    using tensor_type = tamm::Tensor<double>;
 
-        ProcGroup pg = ProcGroup::create_world_coll();
-        ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
+    ProcGroup        pg = ProcGroup::create_world_coll();
+    ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
-        IndexSpace is{range(10)};
-        tamm::TiledIndexSpace tis{is};
+    IndexSpace            is{range(10)};
+    tamm::TiledIndexSpace tis{is};
 
-        // tamm::TiledIndexSpace Aux = M.get_spaces()[0];
-        // tamm::TiledIndexSpace AOs = I.get_spaces()[1];
-        // tamm::TiledIndexSpace tMOs = MOs.Cdagger.get_spaces()[0];
-        tamm::TiledIndexSpace Aux{is};
-        tamm::TiledIndexSpace AOs{is};
-        tamm::TiledIndexSpace tMOs{is};
-        tamm::TiledIndexLabel P, Q, mu, nu, i;
-        std::tie(P, Q)   = Aux.labels<2>("all");
-        std::tie(mu, nu) = AOs.labels<2>("all");
-        std::tie(i)      = tMOs.labels<1>("all");
+    // tamm::TiledIndexSpace Aux = M.get_spaces()[0];
+    // tamm::TiledIndexSpace AOs = I.get_spaces()[1];
+    // tamm::TiledIndexSpace tMOs = MOs.Cdagger.get_spaces()[0];
+    tamm::TiledIndexSpace Aux{is};
+    tamm::TiledIndexSpace AOs{is};
+    tamm::TiledIndexSpace tMOs{is};
+    tamm::TiledIndexLabel P, Q, mu, nu, i;
+    std::tie(P, Q)   = Aux.labels<2>("all");
+    std::tie(mu, nu) = AOs.labels<2>("all");
+    std::tie(i)      = tMOs.labels<1>("all");
 
-        tensor_type L{tis, tis};
-        tensor_type Linv{Aux, Aux};
-        tensor_type Itemp{Aux, tMOs, AOs};
-        tensor_type D{Aux, tMOs, AOs};
-        tensor_type d{Aux};
-        tensor_type J{tis, tis};
-        tensor_type K{AOs, AOs};
+    tensor_type L{tis, tis};
+    tensor_type Linv{Aux, Aux};
+    tensor_type Itemp{Aux, tMOs, AOs};
+    tensor_type D{Aux, tMOs, AOs};
+    tensor_type d{Aux};
+    tensor_type J{tis, tis};
+    tensor_type K{AOs, AOs};
 
-        tensor_type::allocate(&ec, L, Linv, Itemp, D, d, J, K);
+    tensor_type::allocate(&ec, L, Linv, Itemp, D, d, J, K);
 
-        // // Itemp(Q, i, nu) = MOs.Cdagger(i, mu) * I(Q, mu, nu);
-        Scheduler{ec}
-            (D() = 1.0)
-            (Linv() = 2.0)
-            (Itemp() = 3.0)
-            (D() = 4.0)
-            // (D(P, i, mu) += Linv(P, Q) * Itemp(Q, i, mu))
-          // d(P) = D(P, i, mu) * MOs.Cdagger(i, mu);
-          //@TODO cannot use itemp this way
-          //(Itemp(Q) = d(P) * Linv(P, Q))
-          // J(mu, nu) = Itemp(P) * I(P, mu, nu);
-        //  (K(mu, nu) += D(P, i, mu) * D(P, i, nu))
-            .execute();
+    // // Itemp(Q, i, nu) = MOs.Cdagger(i, mu) * I(Q, mu, nu);
+    Scheduler{ec}(D() = 1.0)(Linv() = 2.0)(Itemp() = 3.0)(D() = 4.0)
+      // (D(P, i, mu) += Linv(P, Q) * Itemp(Q, i, mu))
+      // d(P) = D(P, i, mu) * MOs.Cdagger(i, mu);
+      //@TODO cannot use itemp this way
+      //(Itemp(Q) = d(P) * Linv(P, Q))
+      // J(mu, nu) = Itemp(P) * I(P, mu, nu);
+      //  (K(mu, nu) += D(P, i, mu) * D(P, i, nu))
+      .execute();
 
-        // tensor_type::deallocate(L, Linv, Itemp, D, d, J, K);
-        // MemoryManagerGA::destroy_coll(mgr);
-        // delete ec;
+    // tensor_type::deallocate(L, Linv, Itemp, D, d, J, K);
+    // MemoryManagerGA::destroy_coll(mgr);
+    // delete ec;
 
-    } catch(...) { failed = true; }
-    REQUIRE(!failed);
+  } catch(...) { failed = true; }
+  REQUIRE(!failed);
 }
 #if 0
 TEST_CASE("CCSD T2") {
@@ -664,16 +656,14 @@ TEST_CASE("Tensor operations on named subspaces") {
 
 #endif
 
-
 int main(int argc, char* argv[]) {
+  tamm::initialize(argc, argv);
 
-    tamm::initialize(argc, argv);
+  doctest::Context context(argc, argv);
 
-    doctest::Context context(argc, argv);
+  int res = context.run();
 
-    int res = context.run();
+  tamm::finalize();
 
-    tamm::finalize();
-
-    return res;
+  return res;
 }

@@ -176,8 +176,7 @@ struct AddBuf {
   // AddBuf() = default;
   AddBuf(bool isgpu, gpuStream_t* tt, T2* ta, T3* tb, T1* tc, std::vector<T1>&& cbuf,
          const IndexVector& blockid):
-    blockid_{blockid},
-    cbuf_{cbuf}, thandle_{tt}, ta_{ta}, tb_{tb}, tc_{tc}, isgpu_{isgpu} {}
+    blockid_{blockid}, cbuf_{cbuf}, thandle_{tt}, ta_{ta}, tb_{tb}, tc_{tc}, isgpu_{isgpu} {}
   ~AddBuf() {}
 
   std::vector<T1> cbuf_;
@@ -601,31 +600,25 @@ public:
     const auto&      lhs_lbls = lhs_.labels();
     for(auto& lbl: rhs1_labels) {
       auto it_out = std::find(lhs_lbls.begin(), lhs_lbls.end(), lbl);
-      if(it_out != lhs_lbls.end())
-        rhs1_map_output.push_back(it_out - lhs_lbls.begin());
-      else
-        rhs1_map_output.push_back(-1);
+      if(it_out != lhs_lbls.end()) rhs1_map_output.push_back(it_out - lhs_lbls.begin());
+      else rhs1_map_output.push_back(-1);
 
       // auto it_red = std::find(reduction.begin(), reduction.end(), lbl);
       auto it_red = std::find(reduction_labels.begin(), reduction_labels.end(), lbl);
       if(it_red != reduction_labels.end())
         rhs1_map_reduction.push_back(it_red - reduction_labels.begin());
-      else
-        rhs1_map_reduction.push_back(-1);
+      else rhs1_map_reduction.push_back(-1);
     }
 
     for(auto& lbl: rhs2_labels) {
       auto it_out = std::find(lhs_lbls.begin(), lhs_lbls.end(), lbl);
-      if(it_out != lhs_lbls.end())
-        rhs2_map_output.push_back(it_out - lhs_lbls.begin());
-      else
-        rhs2_map_output.push_back(-1);
+      if(it_out != lhs_lbls.end()) rhs2_map_output.push_back(it_out - lhs_lbls.begin());
+      else rhs2_map_output.push_back(-1);
 
       auto it_red = std::find(reduction_labels.begin(), reduction_labels.end(), lbl);
       if(it_red != reduction_labels.end())
         rhs2_map_reduction.push_back(it_red - reduction_labels.begin());
-      else
-        rhs2_map_reduction.push_back(-1);
+      else rhs2_map_reduction.push_back(-1);
     }
 
     // std::cout << "rhs1_map_output" << std::endl;
@@ -820,8 +813,7 @@ public:
               ab->tb_ =
                 static_cast<TensorElType3*>(memPool.allocate(bsize * sizeof(TensorElType3)));
             }
-            else
-              abptr = add_bufs[0];
+            else abptr = add_bufs[0];
 #else
             abptr = add_bufs[0];
 #endif

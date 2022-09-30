@@ -35,11 +35,11 @@ template<typename Target, typename Source,
          typename = std::enable_if_t<!std::is_same<Target, Source>::value>>
 constexpr Target checked_cast(Source s) {
 #if defined(DEBUG_STRONGNUM)
-    auto r = static_cast<Target>(s);
-    assert(static_cast<Source>(r) == s);
-    return r;
+  auto r = static_cast<Target>(s);
+  assert(static_cast<Source>(r) == s);
+  return r;
 #else
-    return static_cast<Target>(s);
+  return static_cast<Target>(s);
 #endif
 }
 
@@ -52,7 +52,7 @@ constexpr Target checked_cast(Source s) {
  */
 template<typename T, typename = std::enable_if_t<std::is_arithmetic<T>::value>>
 constexpr T checked_cast(T s) {
-    return s;
+  return s;
 }
 
 // template <typename Target, typename Source> Target strongnum_cast(Source s) {
@@ -79,268 +79,256 @@ constexpr T checked_cast(T s) {
  */
 template<typename Space, typename T>
 struct StrongNum {
-    /**
-     * @brief Type of wrapper number
-     *
-     */
-    using value_type = T;
+  /**
+   * @brief Type of wrapper number
+   *
+   */
+  using value_type = T;
 
-    /**
-     * @brief Alias for this StrongNum type
-     *
-     */
-    using NumType = StrongNum<Space, T>;
+  /**
+   * @brief Alias for this StrongNum type
+   *
+   */
+  using NumType = StrongNum<Space, T>;
 
-    StrongNum()                           = default;
-    StrongNum(const StrongNum<Space, T>&) = default;
-    StrongNum& operator=(const StrongNum<Space, T>&) = default;
-    ~StrongNum()                                     = default;
+  StrongNum()                                      = default;
+  StrongNum(const StrongNum<Space, T>&)            = default;
+  StrongNum& operator=(const StrongNum<Space, T>&) = default;
+  ~StrongNum()                                     = default;
 
-    template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>,
-             typename = std::enable_if_t<std::is_convertible<T2, T>::value>>
-    StrongNum(const T2 v1) : v{checked_cast<T>(v1)} {}
+  template<typename T2, typename = std::enable_if_t<std::is_arithmetic<T2>::value>,
+           typename = std::enable_if_t<std::is_convertible<T2, T>::value>>
+  StrongNum(const T2 v1): v{checked_cast<T>(v1)} {}
 
-    template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
-    NumType& operator=(T2 t) {
-        v = checked_cast<T>(t);
-        return *this;
-    }
+  template<typename T2, typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+  NumType& operator=(T2 t) {
+    v = checked_cast<T>(t);
+    return *this;
+  }
 
-    template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
-    NumType& operator+=(T2 t) {
-        v += checked_cast<T>(t);
-        return *this;
-    }
+  template<typename T2, typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+  NumType& operator+=(T2 t) {
+    v += checked_cast<T>(t);
+    return *this;
+  }
 
-    NumType& operator+=(NumType d) {
-        v += d.v;
-        return *this;
-    }
+  NumType& operator+=(NumType d) {
+    v += d.v;
+    return *this;
+  }
 
-    template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
-    NumType& operator-=(T2 t) {
-        v -= checked_cast<T>(t);
-        return *this;
-    }
+  template<typename T2, typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+  NumType& operator-=(T2 t) {
+    v -= checked_cast<T>(t);
+    return *this;
+  }
 
-    NumType& operator-=(NumType d) {
-        v -= d.v;
-        return *this;
-    }
+  NumType& operator-=(NumType d) {
+    v -= d.v;
+    return *this;
+  }
 
-    template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
-    NumType& operator*=(T2 t) {
-        v *= checked_cast<T>(t);
-        return *this;
-    }
+  template<typename T2, typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+  NumType& operator*=(T2 t) {
+    v *= checked_cast<T>(t);
+    return *this;
+  }
 
-    NumType& operator*=(NumType d) {
-        v *= d.v;
-        return *this;
-    }
+  NumType& operator*=(NumType d) {
+    v *= d.v;
+    return *this;
+  }
 
-    template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
-    NumType& operator/=(T2 t) {
-        v /= checked_cast<T>(t);
-        return *this;
-    }
+  template<typename T2, typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+  NumType& operator/=(T2 t) {
+    v /= checked_cast<T>(t);
+    return *this;
+  }
 
-    NumType& operator/=(NumType d) {
-        v /= d.v;
-        return *this;
-    }
+  NumType& operator/=(NumType d) {
+    v /= d.v;
+    return *this;
+  }
 
-    template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
-    NumType& operator^=(T2 t) {
-        v ^= checked_cast<T>(t);
-        return *this;
-    }
+  template<typename T2, typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+  NumType& operator^=(T2 t) {
+    v ^= checked_cast<T>(t);
+    return *this;
+  }
 
-    NumType& operator^=(NumType d) {
-        v ^= d.v;
-        return *this;
-    }
+  NumType& operator^=(NumType d) {
+    v ^= d.v;
+    return *this;
+  }
 
-    NumType& operator++() {
-        v += 1;
-        return *this;
-    }
+  NumType& operator++() {
+    v += 1;
+    return *this;
+  }
 
-    NumType operator++(int) {
-        NumType ret{*this};
-        v += 1;
-        return ret;
-    }
+  NumType operator++(int) {
+    NumType ret{*this};
+    v += 1;
+    return ret;
+  }
 
-    NumType& operator--() {
-        v -= 1;
-        return *this;
-    }
+  NumType& operator--() {
+    v -= 1;
+    return *this;
+  }
 
-    NumType operator--(int) {
-        NumType ret{*this};
-        v -= 1;
-        return ret;
-    }
+  NumType operator--(int) {
+    NumType ret{*this};
+    v -= 1;
+    return ret;
+  }
 
-    NumType operator+(NumType d) const { return v + d.v; }
-    NumType operator-(NumType d) const { return v - d.v; }
-    NumType operator*(NumType d) const { return v * d.v; }
-    NumType operator/(NumType d) const { return v / d.v; }
-    NumType operator%(NumType d) const { return v % d.v; }
+  NumType operator+(NumType d) const { return v + d.v; }
+  NumType operator-(NumType d) const { return v - d.v; }
+  NumType operator*(NumType d) const { return v * d.v; }
+  NumType operator/(NumType d) const { return v / d.v; }
+  NumType operator%(NumType d) const { return v % d.v; }
 
-    template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
-    NumType operator+(T2 t) const {
-        return v + checked_cast<T>(t);
-    }
+  template<typename T2, typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+  NumType operator+(T2 t) const {
+    return v + checked_cast<T>(t);
+  }
 
-    template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
-    NumType operator-(T2 t) const {
-        return v - checked_cast<T>(t);
-    }
+  template<typename T2, typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+  NumType operator-(T2 t) const {
+    return v - checked_cast<T>(t);
+  }
 
-    template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
-    NumType operator*(T2 t) const {
-        return v * checked_cast<T>(t);
-    }
+  template<typename T2, typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+  NumType operator*(T2 t) const {
+    return v * checked_cast<T>(t);
+  }
 
-    template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
-    NumType operator/(T2 t) const {
-        return v / checked_cast<T>(t);
-    }
+  template<typename T2, typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+  NumType operator/(T2 t) const {
+    return v / checked_cast<T>(t);
+  }
 
-    template<typename T2,
-             typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
-    NumType operator%(T2 t) const {
-        return v % checked_cast<T>(t);
-    }
+  template<typename T2, typename = std::enable_if_t<std::is_arithmetic<T2>::value>>
+  NumType operator%(T2 t) const {
+    return v % checked_cast<T>(t);
+  }
 
-    bool operator==(NumType d) const { return v == d.v; }
-    bool operator!=(NumType d) const { return v != d.v; }
-    bool operator>=(NumType d) const { return v >= d.v; }
-    bool operator<=(NumType d) const { return v <= d.v; }
-    bool operator>(NumType d) const { return v > d.v; }
-    bool operator<(NumType d) const { return v < d.v; }
+  bool operator==(NumType d) const { return v == d.v; }
+  bool operator!=(NumType d) const { return v != d.v; }
+  bool operator>=(NumType d) const { return v >= d.v; }
+  bool operator<=(NumType d) const { return v <= d.v; }
+  bool operator>(NumType d) const { return v > d.v; }
+  bool operator<(NumType d) const { return v < d.v; }
 
-    template<typename T2>
-    bool operator==(T2 t) const {
-        return v == checked_cast<T>(t);
-    }
+  template<typename T2>
+  bool operator==(T2 t) const {
+    return v == checked_cast<T>(t);
+  }
 
-    template<typename T2>
-    bool operator!=(T2 t) const {
-        return v != checked_cast<T>(t);
-    }
+  template<typename T2>
+  bool operator!=(T2 t) const {
+    return v != checked_cast<T>(t);
+  }
 
-    template<typename T2>
-    bool operator>=(T2 t) const {
-        return v >= checked_cast<T>(t);
-    }
+  template<typename T2>
+  bool operator>=(T2 t) const {
+    return v >= checked_cast<T>(t);
+  }
 
-    template<typename T2>
-    bool operator<=(T2 t) const {
-        return v <= checked_cast<T>(t);
-    }
+  template<typename T2>
+  bool operator<=(T2 t) const {
+    return v <= checked_cast<T>(t);
+  }
 
-    template<typename T2>
-    bool operator>(T2 t) const {
-        return v > checked_cast<T>(t);
-    }
+  template<typename T2>
+  bool operator>(T2 t) const {
+    return v > checked_cast<T>(t);
+  }
 
-    template<typename T2>
-    bool operator<(T2 t) const {
-        return v < checked_cast<T>(t);
-    }
+  template<typename T2>
+  bool operator<(T2 t) const {
+    return v < checked_cast<T>(t);
+  }
 
-    T value() const { return v; }
-    T& value() { return v; }
+  T  value() const { return v; }
+  T& value() { return v; }
 
-    //   template <typename T1> T1 value() const { return checked_cast<T1>(v); }
+  //   template <typename T1> T1 value() const { return checked_cast<T1>(v); }
 
 private:
-    T v; /**< Value wrapped by this object */
+  T v; /**< Value wrapped by this object */
 };
 
 template<typename Space1, typename T1, typename Space2, typename T2>
 inline StrongNum<Space1, T1> strongnum_cast(StrongNum<Space2, T2> v2) {
-    return {checked_cast<T1>(v2.value())};
+  return {checked_cast<T1>(v2.value())};
 }
 
 template<typename Space, typename Type, typename T>
 inline bool operator==(T val, StrongNum<Space, Type> snum) {
-    return snum == val;
+  return snum == val;
 }
 
 template<typename Space, typename Type, typename T>
 inline bool operator!=(T val, StrongNum<Space, Type> snum) {
-    return snum != val;
+  return snum != val;
 }
 
 template<typename Space, typename Type, typename T>
 inline bool operator>=(T val, StrongNum<Space, Type> snum) {
-    return snum <= val;
+  return snum <= val;
 }
 
 template<typename Space, typename Type, typename T>
 inline bool operator<=(T val, StrongNum<Space, Type> snum) {
-    return snum >= val;
+  return snum >= val;
 }
 
 template<typename Space, typename Type, typename T>
 inline bool operator>(T val, StrongNum<Space, Type> snum) {
-    return snum < val;
+  return snum < val;
 }
 
 template<typename Space, typename Type, typename T>
 inline bool operator<(T val, StrongNum<Space, Type> snum) {
-    return snum > val;
+  return snum > val;
 }
 
 template<typename Space, typename Type, typename T>
 StrongNum<Space, Type> operator-(T value, StrongNum<Space, Type> snum) {
-    return checked_cast<Type>(value) - snum;
+  return checked_cast<Type>(value) - snum;
 }
 
 template<typename Space, typename Type, typename T>
 StrongNum<Space, Type> operator*(T value, StrongNum<Space, Type> snum) {
-    return checked_cast<Type>(value) * snum;
+  return checked_cast<Type>(value) * snum;
 }
 
 template<typename Space, typename Type, typename T>
 StrongNum<Space, Type> operator/(T value, StrongNum<Space, Type> snum) {
-    return checked_cast<Type>(value) / snum;
+  return checked_cast<Type>(value) / snum;
 }
 
 template<typename Space, typename Type, typename T>
 StrongNum<Space, Type> operator+(T value, StrongNum<Space, Type> snum) {
-    return checked_cast<Type>(value) + snum;
+  return checked_cast<Type>(value) + snum;
 }
 
 template<typename Space, typename Type, typename T>
 StrongNum<Space, Type> operator%(T value, StrongNum<Space, Type> snum) {
-    return checked_cast<Type>(value) % snum;
+  return checked_cast<Type>(value) % snum;
 }
 
 template<typename S, typename T>
 inline std::ostream& operator<<(std::ostream& os, StrongNum<S, T> s) {
-    return os << s.value();
+  return os << s.value();
 }
 
 template<typename S, typename T>
 inline std::istream& operator>>(std::istream& is, StrongNum<S, T>& s) {
-    is >> s.value();
-    return is;
+  is >> s.value();
+  return is;
 }
 
 } // namespace tamm

@@ -8,15 +8,10 @@
 
 #include "tamm/boundvec.hpp"
 #include "tamm/errors.hpp"
+#include "tamm/iteration.hpp"
 #include "tamm/kernels/assign.hpp"
 #include "tamm/kernels/multiply.hpp"
-// #include "tamm/labeled_tensor.hpp"
-// #include "tamm/runtime_engine.hpp"
-// #include "tamm/tensor.hpp"
-// #include "tamm/types.hpp"
 #include "tamm/utils.hpp"
-#include "tamm/iteration.hpp"
-// #include "tamm/work.hpp"
 
 namespace tamm::internal {
 
@@ -253,5 +248,4 @@ namespace tamm::internal {
 //     } while(internal::cartesian_iteration(itrv, endv));
 // }
 
-} // namespace internal
-
+} // namespace tamm::internal

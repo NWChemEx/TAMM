@@ -6,9 +6,9 @@
 #include <random>
 #include <tamm/block_plan.hpp>
 #include <tamm/op_dag.hpp>
+#include <tamm/op_executor.hpp>
 #include <tamm/op_visitors.hpp>
 #include <tamm/tamm.hpp>
-#include <tamm/op_executor.hpp>
 
 using namespace tamm;
 using namespace tamm::new_ops;
@@ -717,124 +717,86 @@ void new_ops_ccsd_e() {
 }
 #endif
 
-template <typename T>
+template<typename T>
 void lambda_function(const IndexVector& blockid, span<T> buff) {
-    for(size_t i = 0; i < static_cast<size_t>(buff.size()); i++) {
-        buff[i] = 42;
-    }
+  for(size_t i = 0; i < static_cast<size_t>(buff.size()); i++) { buff[i] = 42; }
 }
 
-void test_new_ops(){
-    using T = double;
-    size_t aux_size = 5;
-    IndexSpace MO_IS{range(0, 20),
-                     {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
-    TiledIndexSpace MO{MO_IS, {2,3,2,3,2,3,2,3}};
-    TiledIndexSpace AUX{IndexSpace{range(aux_size)}};
+void test_new_ops() {
+  using T                  = double;
+  size_t          aux_size = 5;
+  IndexSpace      MO_IS{range(0, 20), {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
+  TiledIndexSpace MO{MO_IS, {2, 3, 2, 3, 2, 3, 2, 3}};
+  TiledIndexSpace AUX{IndexSpace{range(aux_size)}};
 
-    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-    auto mgr     = MemoryManagerGA::create_coll(pg);
-    Distribution_NW distribution;
-    ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-    Scheduler sch{*ec};
+  ProcGroup         pg  = ProcGroup::create_coll(GA_MPI_Comm());
+  auto              mgr = MemoryManagerGA::create_coll(pg);
+  Distribution_NW   distribution;
+  ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+  Scheduler         sch{*ec};
 
-    auto [x, y] = MO.labels<2>("all");
-    auto [i, j] = MO.labels<2>("occ");
-    auto [a, b] = MO.labels<2>("virt");
-    auto [K, L] = AUX.labels<2>("all");
-    Tensor<T> lambdaT{{MO, MO}, lambda_function<T>};
+  auto [x, y] = MO.labels<2>("all");
+  auto [i, j] = MO.labels<2>("occ");
+  auto [a, b] = MO.labels<2>("virt");
+  auto [K, L] = AUX.labels<2>("all");
+  Tensor<T> lambdaT{{MO, MO}, lambda_function<T>};
 
-    Tensor<T> A{x, y};
-    Tensor<std::complex<T>> B{x, y};
-    Tensor<std::complex<T>> C{x, y};
-    Tensor<std::complex<T>> D{x, y, K};
+  Tensor<T>               A{x, y};
+  Tensor<std::complex<T>> B{x, y};
+  Tensor<std::complex<T>> C{x, y};
+  Tensor<std::complex<T>> D{x, y, K};
 
-    std::complex<T> cnst{-10.1, 4.0};
-    std::complex<T> cnst2{1.1, 3.0};
+  std::complex<T> cnst{-10.1, 4.0};
+  std::complex<T> cnst2{1.1, 3.0};
 
+  sch.allocate(A, B, C, D).execute();
 
-    sch.allocate(A, B, C, D).execute();
+  sch(A() = 1.0)(B() = cnst)(C() = cnst2).execute();
+  print_tensor(A);
+  print_tensor(B);
+  print_tensor(C);
 
-    sch
-    (A() = 1.0)
-    (B() = cnst)
-    (C() = cnst2)
-    .execute();
-    print_tensor(A);
-    print_tensor(B);
-    print_tensor(C);
+  sch(C(x, y) = B(x, y))(A(x, y) = B(x, y))(B(x, y) = A(x, y)).execute();
 
-    sch
-    (C(x, y) = B(x, y))
-    (A(x, y) = B(x, y))
-    (B(x, y) = A(x, y))
-    .execute();
+  print_tensor(A);
+  print_tensor(B);
+  print_tensor(C);
 
-    print_tensor(A);
-    print_tensor(B);
-    print_tensor(C);
+  sch(A() = 1.0)(B() = cnst)(C() = cnst2).execute();
 
+  sch(C(x, y) += B(x, y))(A(x, y) += B(x, y))(B(x, y) += A(x, y)).execute();
 
-    sch
-    (A() = 1.0)
-    (B() = cnst)
-    (C() = cnst2)
-    .execute();
+  print_tensor(A);
+  print_tensor(B);
+  print_tensor(C);
 
-    sch
-    (C(x, y) += B(x, y))
-    (A(x, y) += B(x, y))
-    (B(x, y) += A(x, y))
-    .execute();
+  sch(A() = 1.0)(B() = cnst)(C() = cnst2).execute();
 
-    print_tensor(A);
-    print_tensor(B);
-    print_tensor(C);
+  sch(C(x, y) -= B(x, y))(A(x, y) -= B(x, y))(B(x, y) -= A(x, y)).execute();
 
+  print_tensor(A);
+  print_tensor(B);
+  print_tensor(C);
 
-    sch
-    (A() = 1.0)
-    (B() = cnst)
-    (C() = cnst2)
-    .execute();
+  sch(A() = 1.0)(B() = cnst)(C() = cnst2)(D() = 0.0).execute();
 
-    sch
-    (C(x, y) -= B(x, y))
-    (A(x, y) -= B(x, y))
-    (B(x, y) -= A(x, y))
-    .execute();
+  print_tensor(A);
+  print_tensor(B);
+  print_tensor(C);
+  std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
+  for(size_t i = 0; i < aux_size; i++) {
+    TiledIndexSpace tsc{AUX, range(i, i + 1)};
+    auto [sc] = tsc.labels<1>("all");
+    sch(D(x, y, sc) = C(x, y)).execute();
+    print_tensor(D);
+  }
 
-    print_tensor(A);
-    print_tensor(B);
-    print_tensor(C);
-
-    sch
-    (A() = 1.0)
-    (B() = cnst)
-    (C() = cnst2)
-    (D() = 0.0)
-    .execute();
-
-    print_tensor(A);
-    print_tensor(B);
-    print_tensor(C);
-    std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
-    for (size_t i = 0; i < aux_size; i++) {
-      TiledIndexSpace tsc{AUX, range(i,i+1)};
-      auto [sc] = tsc.labels<1>("all"); 
-      sch
-      (D(x, y, sc) = C(x, y))
-      .execute();
-      print_tensor(D);
-    }
-
-
-    // sch
-    // (A(x,x) = 10.0)
-    // // (A(x, y) += -0.1 * B(x, y))
-    // // (A(x, y) -= B(y, x))
-    // // (A(x, y) += B(y, x))
-    // .execute();
+  // sch
+  // (A(x,x) = 10.0)
+  // // (A(x, y) += -0.1 * B(x, y))
+  // // (A(x, y) -= B(y, x))
+  // // (A(x, y) += B(y, x))
+  // .execute();
 }
 
 void test_utility_methods() {
@@ -850,32 +812,28 @@ void test_utility_methods() {
   EXPECTS(vec1 == new_vec1);
   EXPECTS(vec2 == new_vec2);
   EXPECTS(vec3 == new_vec3);
-
 }
 
 void test_gfcc_failed_case() {
-  using T = double;
-  size_t aux_size = 5;
-  IndexSpace MO_IS{range(0, 20),
-                   {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
+  using T                  = double;
+  size_t          aux_size = 5;
+  IndexSpace      MO_IS{range(0, 20), {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
   TiledIndexSpace MO{MO_IS, {2, 3, 2, 3, 2, 3, 2, 3}};
   TiledIndexSpace AUX{IndexSpace{range(aux_size)}};
 
-  ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
-  auto mgr = MemoryManagerGA::create_coll(pg);
-  Distribution_NW distribution;
-  ExecutionContext *ec = new ExecutionContext{pg, &distribution, mgr};
-  Scheduler sch{*ec};
+  ProcGroup         pg  = ProcGroup::create_coll(GA_MPI_Comm());
+  auto              mgr = MemoryManagerGA::create_coll(pg);
+  Distribution_NW   distribution;
+  ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
+  Scheduler         sch{*ec};
 
   int nsranks = /* sys_data.nbf */ 45 / 15;
-  int ga_cnn = GA_Cluster_nnodes();
-  if (nsranks > ga_cnn)
-    nsranks = ga_cnn;
+  int ga_cnn  = GA_Cluster_nnodes();
+  if(nsranks > ga_cnn) nsranks = ga_cnn;
   nsranks = nsranks * GA_Cluster_nprocs(0);
   int subranks[nsranks];
-  for (int i = 0; i < nsranks; i++)
-    subranks[i] = i;
-  auto world_comm = ec->pg().comm();
+  for(int i = 0; i < nsranks; i++) subranks[i] = i;
+  auto      world_comm = ec->pg().comm();
   MPI_Group world_group;
   MPI_Comm_group(world_comm, &world_group);
   MPI_Group subgroup;
@@ -883,12 +841,11 @@ void test_gfcc_failed_case() {
   MPI_Comm subcomm;
   MPI_Comm_create(world_comm, subgroup, &subcomm);
 
-  ProcGroup sub_pg = ProcGroup::create_coll(subcomm);
-  MemoryManagerGA *sub_mgr = MemoryManagerGA::create_coll(sub_pg);
-  Distribution_NW *sub_distribution = new Distribution_NW();
-  RuntimeEngine *sub_re = new RuntimeEngine();
-  ExecutionContext *sub_ec =
-      new ExecutionContext(sub_pg, sub_distribution, sub_mgr, sub_re);
+  ProcGroup         sub_pg           = ProcGroup::create_coll(subcomm);
+  MemoryManagerGA*  sub_mgr          = MemoryManagerGA::create_coll(sub_pg);
+  Distribution_NW*  sub_distribution = new Distribution_NW();
+  RuntimeEngine*    sub_re           = new RuntimeEngine();
+  ExecutionContext* sub_ec = new ExecutionContext(sub_pg, sub_distribution, sub_mgr, sub_re);
 
   Scheduler sub_sch{*sub_ec};
 
@@ -898,7 +855,7 @@ void test_gfcc_failed_case() {
   auto [K, L] = AUX.labels<2>("all");
   Tensor<T> lambdaT{{MO, MO}, lambda_function<T>};
 
-  Tensor<T> A{x, y};
+  Tensor<T>               A{x, y};
   Tensor<std::complex<T>> B{x, y};
   Tensor<std::complex<T>> C{x, y};
   Tensor<std::complex<T>> D{x, y, K};
@@ -906,41 +863,38 @@ void test_gfcc_failed_case() {
   std::complex<T> cnst{-10.1, 4.0};
   std::complex<T> cnst2{1.1, 3.0};
 
-  sch.allocate(A, B, C, D)
-  (A() = 1.0)
-  (B() = cnst)
-  (C() = cnst2)
-  (D() = 0.0)
-  .execute();
-  std::cout << "Execute on sub_sch" << "\n";
-  for (size_t i = 0; i < aux_size; i++) {
+  sch.allocate(A, B, C, D)(A() = 1.0)(B() = cnst)(C() = cnst2)(D() = 0.0).execute();
+  std::cout << "Execute on sub_sch"
+            << "\n";
+  for(size_t i = 0; i < aux_size; i++) {
     TiledIndexSpace tsc{AUX, range(i, i + 1)};
     auto [sc] = tsc.labels<1>("all");
-    sub_sch
-    (D(x, y, sc) = C(x, y))
-    .execute();
+    sub_sch(D(x, y, sc) = C(x, y)).execute();
   }
-  std::cout << "Printing Tensor D" << "\n";
+  std::cout << "Printing Tensor D"
+            << "\n";
   print_tensor_all(D);
 
-  std::cout << "Execute on sch" << "\n";
-  for (size_t i = 0; i < aux_size; i++) {
+  std::cout << "Execute on sch"
+            << "\n";
+  for(size_t i = 0; i < aux_size; i++) {
     TiledIndexSpace tsc{AUX, range(i, i + 1)};
     auto [sc] = tsc.labels<1>("all");
     sch(D(x, y, sc) = C(x, y)).execute();
   }
-    std::cout << "Printing Tensor D" << "\n";
-    print_tensor_all(D);
+  std::cout << "Printing Tensor D"
+            << "\n";
+  print_tensor_all(D);
 }
 
-template <typename T>
+template<typename T>
 void cs_ccsd_t1() {
   IndexSpace IS{range(10), {{"occ", {range(0, 5)}}, {"virt", {range(5, 10)}}}};
 
   TiledIndexSpace MO{IS};
 
   auto [i, j, m, n] = MO.labels<4>("occ");
-  auto [a, e, f] = MO.labels<3>("virt");
+  auto [a, e, f]    = MO.labels<3>("virt");
 
   Tensor<T> i0{a, i};
   Tensor<T> t1{a, m};
@@ -952,81 +906,76 @@ void cs_ccsd_t1() {
   TAMM_REGISTER_SYMBOLS(symbol_table, F, V, t1, t2, i0);
   TAMM_REGISTER_SYMBOLS(symbol_table, i, j, m, n, a, e, f);
 
-
-  auto singles =  (LTOp)F(a, i) +
-                  (-2.0 * (LTOp)F(m, e) * (LTOp)t1(a, m) * (LTOp)t1(e, i)) +
-                  ((LTOp)F(a, e) * (LTOp)t1(e, i)) +
-                  (-2.0 * (LTOp)V(m, n, e, f) * (LTOp)t2(a, f, m, n) * (LTOp)t1(e, i)) +
-                  (-2.0 * (LTOp)V(m, n, e, f) * (LTOp)t1(a, m) * (LTOp)t1(f, n) * (LTOp)t1(e, i)) +
-                  ((LTOp)V(n, m, e, f) * (LTOp)t2(a, f, m, n) * (LTOp)t1(e, i)) +
-                  ((LTOp)V(n, m, e, f) * (LTOp)t1(a, m) * (LTOp)t1(f, n) * (LTOp)t1(e, i)) +
-                  (-1.0 * (LTOp)F(m, i) * (LTOp)t1(a, m)) +
-                  (-2.0 * (LTOp)V(m, n, e, f) * (LTOp)t2(e, f, i, n) * (LTOp)t1(a, m)) +
-                  (-2.0 * (LTOp)V(m, n, e, f) * (LTOp)t1(e, i) * (LTOp)t1(f, n) * (LTOp)t1(a, m)) +
-                  ((LTOp)V(m, n, f, e) * (LTOp)t2(e, f, i, n) * (LTOp)t1(a, m)) +
-                  ((LTOp)V(m, n, f, e) * (LTOp)t1(e, i) * (LTOp)t1(f, n) * (LTOp)t1(a, m)) +
-                  (2.0 * (LTOp)F(m, e) * (LTOp)t2(e, a, m, i)) +
-                  (-1.0 * (LTOp)F(m, e) * (LTOp)t2(e, a, i, m)) +
-                  ((LTOp)F(m, e) * (LTOp)t1(e, i) * (LTOp)t1(a, m)) +
-                  (+4.0 * (LTOp)V(m, n, e, f) * (LTOp)t1(f, n) * (LTOp)t2(e, a, m, i)) +
-                  (-2.0 * (LTOp)V(m, n, e, f) * (LTOp)t1(f, n) * (LTOp)t2(e, a, i, m)) +
-                  (2.0 * (LTOp)V(m, n, e, f) * (LTOp)t1(f, n) * (LTOp)t1(e, i) * (LTOp)t1(a, m)) +
-                  (-2.0 * (LTOp)V(m, n, f, e) * (LTOp)t1(f, n) * (LTOp)t2(e, a, m, i)) +
-                  ((LTOp)V(m, n, f, e) * (LTOp)t1(f, n) * (LTOp)t2(e, a, i, m)) +
-                  (-1.0 * (LTOp)V(m, n, f, e) * (LTOp)t1(f, n) * (LTOp)t1(e, i) * (LTOp)t1(a, m)) +
-                  (2.0 * (LTOp)V(m, a, e, i) * (LTOp)t1(e, m)) +
-                  (-1.0 * (LTOp)V(m, a, i, e) * (LTOp)t1(e, m)) +
-                  (2.0 * (LTOp)V(m, a, e, f) * (LTOp)t2(e, f, m, i)) +
-                  (2.0 * (LTOp)V(m, a, e, f) * (LTOp)t1(e, m) * (LTOp)t1(f, i)) +
-                  (-1.0 * (LTOp)V(m, a, f, e) * (LTOp)t2(e, f, m, i)) +
-                  (-1.0 * (LTOp)V(m, a, f, e) * (LTOp)t1(e, m) * (LTOp)t1(f, i)) +
-                  (-2.0 * (LTOp)V(m, n, e, i) * (LTOp)t2(e, a, m, n)) +
-                  (-2.0 * (LTOp)V(m, n, e, i) * (LTOp)t1(e, m) * (LTOp)t1(a, n)) +
-                  ((LTOp)V(n, m, e, i) * (LTOp)t2(e, a, m, n)) +
-                  ((LTOp)V(n, m, e, i) * (LTOp)t1(e, m) * (LTOp)t1(a, n));
+  auto singles =
+    (LTOp) F(a, i) + (-2.0 * (LTOp) F(m, e) * (LTOp) t1(a, m) * (LTOp) t1(e, i)) +
+    ((LTOp) F(a, e) * (LTOp) t1(e, i)) +
+    (-2.0 * (LTOp) V(m, n, e, f) * (LTOp) t2(a, f, m, n) * (LTOp) t1(e, i)) +
+    (-2.0 * (LTOp) V(m, n, e, f) * (LTOp) t1(a, m) * (LTOp) t1(f, n) * (LTOp) t1(e, i)) +
+    ((LTOp) V(n, m, e, f) * (LTOp) t2(a, f, m, n) * (LTOp) t1(e, i)) +
+    ((LTOp) V(n, m, e, f) * (LTOp) t1(a, m) * (LTOp) t1(f, n) * (LTOp) t1(e, i)) +
+    (-1.0 * (LTOp) F(m, i) * (LTOp) t1(a, m)) +
+    (-2.0 * (LTOp) V(m, n, e, f) * (LTOp) t2(e, f, i, n) * (LTOp) t1(a, m)) +
+    (-2.0 * (LTOp) V(m, n, e, f) * (LTOp) t1(e, i) * (LTOp) t1(f, n) * (LTOp) t1(a, m)) +
+    ((LTOp) V(m, n, f, e) * (LTOp) t2(e, f, i, n) * (LTOp) t1(a, m)) +
+    ((LTOp) V(m, n, f, e) * (LTOp) t1(e, i) * (LTOp) t1(f, n) * (LTOp) t1(a, m)) +
+    (2.0 * (LTOp) F(m, e) * (LTOp) t2(e, a, m, i)) +
+    (-1.0 * (LTOp) F(m, e) * (LTOp) t2(e, a, i, m)) +
+    ((LTOp) F(m, e) * (LTOp) t1(e, i) * (LTOp) t1(a, m)) +
+    (+4.0 * (LTOp) V(m, n, e, f) * (LTOp) t1(f, n) * (LTOp) t2(e, a, m, i)) +
+    (-2.0 * (LTOp) V(m, n, e, f) * (LTOp) t1(f, n) * (LTOp) t2(e, a, i, m)) +
+    (2.0 * (LTOp) V(m, n, e, f) * (LTOp) t1(f, n) * (LTOp) t1(e, i) * (LTOp) t1(a, m)) +
+    (-2.0 * (LTOp) V(m, n, f, e) * (LTOp) t1(f, n) * (LTOp) t2(e, a, m, i)) +
+    ((LTOp) V(m, n, f, e) * (LTOp) t1(f, n) * (LTOp) t2(e, a, i, m)) +
+    (-1.0 * (LTOp) V(m, n, f, e) * (LTOp) t1(f, n) * (LTOp) t1(e, i) * (LTOp) t1(a, m)) +
+    (2.0 * (LTOp) V(m, a, e, i) * (LTOp) t1(e, m)) +
+    (-1.0 * (LTOp) V(m, a, i, e) * (LTOp) t1(e, m)) +
+    (2.0 * (LTOp) V(m, a, e, f) * (LTOp) t2(e, f, m, i)) +
+    (2.0 * (LTOp) V(m, a, e, f) * (LTOp) t1(e, m) * (LTOp) t1(f, i)) +
+    (-1.0 * (LTOp) V(m, a, f, e) * (LTOp) t2(e, f, m, i)) +
+    (-1.0 * (LTOp) V(m, a, f, e) * (LTOp) t1(e, m) * (LTOp) t1(f, i)) +
+    (-2.0 * (LTOp) V(m, n, e, i) * (LTOp) t2(e, a, m, n)) +
+    (-2.0 * (LTOp) V(m, n, e, i) * (LTOp) t1(e, m) * (LTOp) t1(a, n)) +
+    ((LTOp) V(n, m, e, i) * (LTOp) t2(e, a, m, n)) +
+    ((LTOp) V(n, m, e, i) * (LTOp) t1(e, m) * (LTOp) t1(a, n));
 
   OpStringGenerator str_generator{symbol_table};
-  auto op_str = str_generator.toString(singles);
-  
+  auto              op_str = str_generator.toString(singles);
+
   UsedTensorInfoVisitor tensor_info{symbol_table};
   singles.accept(tensor_info);
-
-
 
   std::cout << "op: \n" << op_str << "\n";
   SeparateSumOpsVisitor sum_visitor;
 
   auto sum_ops = sum_visitor.sum_vectors(singles);
   std::cout << "total mult ops : " << sum_ops.size() << "\n";
-  for(auto& var : sum_ops) {
+  for(auto& var: sum_ops) {
     std::cout << "op: \n" << str_generator.toString(*var) << "\n";
     auto tensors = var->get_attribute<UsedTensorInfoAttribute>().get();
-    for(auto tensor : tensors) {
-      std::cout << tensor.to_string() << "\n";
-    }
+    for(auto tensor: tensors) { std::cout << tensor.to_string() << "\n"; }
   }
 }
 
 int main(int argc, char* argv[]) {
-    tamm::initialize(argc, argv);
+  tamm::initialize(argc, argv);
 
-    // test_scalar_add_operator();
-    // test_scalar_sub_operator();
-    // test_scalar_mult_operator();
-    // test_scalar_div_operator();
+  // test_scalar_add_operator();
+  // test_scalar_sub_operator();
+  // test_scalar_mult_operator();
+  // test_scalar_div_operator();
 
-    // test_new_op_construction();
-    // test_visitors();
+  // test_new_op_construction();
+  // test_visitors();
 
-    // test_block_set();
+  // test_block_set();
 
-    // test_binarized_execution();
-    // new_ops_ccsd_e();
-    // test_new_ops();
-    // test_utility_methods();
-    // test_gfcc_failed_case();
-    cs_ccsd_t1<double>();
+  // test_binarized_execution();
+  // new_ops_ccsd_e();
+  // test_new_ops();
+  // test_utility_methods();
+  // test_gfcc_failed_case();
+  cs_ccsd_t1<double>();
 
-    tamm::finalize();
-    return 0;
+  tamm::finalize();
+  return 0;
 }

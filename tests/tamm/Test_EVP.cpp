@@ -36,9 +36,9 @@ std::tuple<int, int, int, int, int, int> sca_get_subgroup_info(const size_t N) {
   int hf_nranks = hf_nnodes * ppn;
 
   // Find nearest square
-  int sca_nranks = std::ceil(N/10);
-  if(sca_nranks>hf_nranks) sca_nranks = hf_nranks;
-  sca_nranks     = std::pow(std::floor(std::sqrt(sca_nranks)), 2);
+  int sca_nranks = std::ceil(N / 10);
+  if(sca_nranks > hf_nranks) sca_nranks = hf_nranks;
+  sca_nranks = std::pow(std::floor(std::sqrt(sca_nranks)), 2);
   if(sca_nranks == 0) sca_nranks = 1;
   int sca_nnodes = sca_nranks / ppn;
   if(sca_nranks % ppn > 0 || sca_nnodes == 0) sca_nnodes++;
@@ -89,7 +89,6 @@ void test_evp(size_t N, size_t mb) {
   MPI_Comm_create(gcomm, sca_group, &scacomm);
 
   if(rank < hf_nranks) {
-
     EXPECTS(hf_comm != MPI_COMM_NULL);
     ScalapackInfo scalapack_info;
 
@@ -128,7 +127,8 @@ void test_evp(size_t N, size_t mb) {
       auto blacs_setup_st = std::chrono::high_resolution_clock::now();
 
       scalapack_info.pg = ProcGroup::create_coll(scacomm);
-      scalapack_info.ec = ExecutionContext{scalapack_info.pg, DistributionKind::dense, MemoryManagerKind::ga};
+      scalapack_info.ec =
+        ExecutionContext{scalapack_info.pg, DistributionKind::dense, MemoryManagerKind::ga};
       scalapack_info.blacs_grid = std::make_unique<blacspp::Grid>(
         scalapack_info.pg.comm(), scalapack_info.npr, scalapack_info.npc, scalapack_ranks.data(),
         scalapack_info.npr);
@@ -157,20 +157,17 @@ void test_evp(size_t N, size_t mb) {
       const auto  mb     = blockcyclic_dist->mb();
       const auto  Northo = N;
 
-      Tensor<T> F_BC   {AO_sca, AO_sca};
+      Tensor<T> F_BC{AO_sca, AO_sca};
       Tensor<T> X_alpha{AO_sca, AO_sca};
-      F_BC.set_block_cyclic   ({scalapack_info.npr, scalapack_info.npc});
+      F_BC.set_block_cyclic({scalapack_info.npr, scalapack_info.npc});
       X_alpha.set_block_cyclic({scalapack_info.npr, scalapack_info.npc});
       Tensor<T>::allocate(&scalapack_info.ec, X_alpha, F_BC);
       // Scheduler{scalapack_info.ec}(F_BC() = X_alpha()* X_alpha()).execute();
 
-      if( grid.ipr() >= 0 and grid.ipc() >= 0 ) {
-
+      if(grid.ipr() >= 0 and grid.ipc() >= 0) {
         // TODO: Optimize intermediates here
-        scalapackpp::BlockCyclicMatrix<double> 
-          Fp_sca(grid, Northo, Northo, mb, mb),
-          Ca_sca(grid, Northo, Northo, mb, mb),
-          TMP1_sca(grid, N, Northo, mb, mb),
+        scalapackpp::BlockCyclicMatrix<double> Fp_sca(grid, Northo, Northo, mb, mb),
+          Ca_sca(grid, Northo, Northo, mb, mb), TMP1_sca(grid, N, Northo, mb, mb),
           TMP2_sca(grid, Northo, N, mb, mb);
 
         auto desc_Fa = desc_lambda(N, N);
@@ -194,15 +191,15 @@ void test_evp(size_t N, size_t mb) {
         // scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::Trans,
         // 1., Fa_sca, Xa_sca, 0., TMP1_sca );
         scalapackpp::pgemm(scalapackpp::Op::NoTrans, scalapackpp::Op::Trans, TMP1_sca.m(),
-                          TMP1_sca.n(), desc_Fa[3], 1., Fa_tamm_lptr, 1, 1, desc_Fa, Xa_tamm_lptr, 1,
-                          1, desc_Xa, 0., TMP1_sca.data(), 1, 1, TMP1_sca.desc());
+                           TMP1_sca.n(), desc_Fa[3], 1., Fa_tamm_lptr, 1, 1, desc_Fa, Xa_tamm_lptr,
+                           1, 1, desc_Xa, 0., TMP1_sca.data(), 1, 1, TMP1_sca.desc());
 
         // Compute Fp = X**T * TMP -> X * TMP (b/c row-major)
         // scalapackpp::pgemm( scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans,
         // 1., Xa_sca, TMP1_sca, 0., Fp_sca );
-        scalapackpp::pgemm(scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans, Fp_sca.m(), Fp_sca.n(),
-                          desc_Xa[3], 1., Xa_tamm_lptr, 1, 1, desc_Xa, TMP1_sca.data(), 1, 1,
-                          TMP1_sca.desc(), 0., Fp_sca.data(), 1, 1, Fp_sca.desc());
+        scalapackpp::pgemm(scalapackpp::Op::NoTrans, scalapackpp::Op::NoTrans, Fp_sca.m(),
+                           Fp_sca.n(), desc_Xa[3], 1., Xa_tamm_lptr, 1, 1, desc_Xa, TMP1_sca.data(),
+                           1, 1, TMP1_sca.desc(), 0., Fp_sca.data(), 1, 1, Fp_sca.desc());
 
         // Solve EVP
         std::vector<T> eps_a(Northo);
@@ -216,8 +213,8 @@ void test_evp(size_t N, size_t mb) {
         // scalapackpp::pgemm( scalapackpp::Op::Trans, scalapackpp::Op::NoTrans,
         //                     1., Ca_sca, Xa_sca, 0., TMP2_sca );
         scalapackpp::pgemm(scalapackpp::Op::Trans, scalapackpp::Op::NoTrans, TMP2_sca.m(),
-                          TMP2_sca.n(), Ca_sca.m(), 1., Ca_sca.data(), 1, 1, Ca_sca.desc(),
-                          Xa_tamm_lptr, 1, 1, desc_Xa, 0., TMP2_sca.data(), 1, 1, TMP2_sca.desc());
+                           TMP2_sca.n(), Ca_sca.m(), 1., Ca_sca.data(), 1, 1, Ca_sca.desc(),
+                           Xa_tamm_lptr, 1, 1, desc_Xa, 0., TMP2_sca.data(), 1, 1, TMP2_sca.desc());
 
         blacs_setup_en = std::chrono::high_resolution_clock::now();
 

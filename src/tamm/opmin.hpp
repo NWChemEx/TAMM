@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <bitset>
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
@@ -10,7 +11,6 @@
 #include <set>
 #include <sstream>
 #include <vector>
-#include <bitset>
 
 #include "tamm/op_dag.hpp"
 
@@ -46,47 +46,44 @@ namespace tamm {
 
 namespace opmin::internal {
 
-  using U64 = uint64_t;
+using U64 = uint64_t;
 
-  // // print bit indices of x
-  // void setPrint(U64 x) {
-  //   std::cout << "{ ";
-  //   for (auto i = 1; x; x >>= 1, ++i)
-  //     if (x & 1) std::cout << i << ", ";
-  //   std::cout << "}\n";
-  // }
+// // print bit indices of x
+// void setPrint(U64 x) {
+//   std::cout << "{ ";
+//   for (auto i = 1; x; x >>= 1, ++i)
+//     if (x & 1) std::cout << i << ", ";
+//   std::cout << "}\n";
+// }
 
-  // get next greater subset of set with
-  // Same Number Of One Bits
-  U64 snoob(U64 sub, U64 set) {
-    U64 tmp = sub - 1;
-    U64 rip = set & (tmp + (sub & (0 - sub)) - set);
-    for (sub = (tmp & sub) ^ rip; sub &= sub - 1; rip ^= tmp, set ^= tmp)
-      tmp = set & (0 - set);
-    return rip;
+// get next greater subset of set with
+// Same Number Of One Bits
+U64 snoob(U64 sub, U64 set) {
+  U64 tmp = sub - 1;
+  U64 rip = set & (tmp + (sub & (0 - sub)) - set);
+  for(sub = (tmp & sub) ^ rip; sub &= sub - 1; rip ^= tmp, set ^= tmp) tmp = set & (0 - set);
+  return rip;
+}
+
+template<typename Fn, typename... Args>
+void enumerate_power_set_minus_empty_set(unsigned n, Fn&& fn, Args&&... args) {
+  auto set = (1ULL << n) - 1; // n bits
+  for(unsigned i = 1; i < n + 1; ++i) {
+    auto sub = (1ULL << i) - 1; // i bits
+    U64  x   = sub;
+    U64  y;
+    do {
+      fn(x, std::forward<Args>(args)...);
+      y = snoob(x, set); // get next subset
+      x = y;
+    } while((y > sub));
   }
+}
 
-  template <typename Fn, typename... Args>
-  void enumerate_power_set_minus_empty_set(unsigned n, Fn&& fn, Args&&... args) {
-    auto set = (1ULL << n) - 1;  // n bits
-    for (unsigned i = 1; i < n + 1; ++i) {
-      auto sub = (1ULL << i) - 1;  // i bits
-      U64 x = sub;
-      U64 y;
-      do {
-        fn(x, std::forward<Args>(args)...);
-        y = snoob(x, set);  // get next subset
-        x = y;
-      } while ((y > sub));
-    }
-  }
+constexpr std::uint32_t intlog2(std::uint32_t n) { return (n > 1) ? 1 + intlog2(n >> 1) : 0; }
 
-  constexpr std::uint32_t intlog2(std::uint32_t n) {
-    return (n > 1) ? 1 + intlog2(n >> 1) : 0;
-  }
-
-  unsigned int get_first_bit_pos(uint64_t n) { return intlog2(n & -n) + 1; }
-} //namespace internal
+unsigned int get_first_bit_pos(uint64_t n) { return intlog2(n & -n) + 1; }
+} // namespace opmin::internal
 
 #if 0
   namespace opmin {
@@ -411,29 +408,29 @@ enum class OpType { equal, plus_equal, minus_equal };
 
 class OpStmt {
 public:
-  OpStmt(const new_ops::TensorInfo &lhs, OpType opt, const Scalar &scalar,
-         const std::vector<new_ops::TensorInfo> &rhs)
-      : lhs_{lhs}, opt_{opt}, scalar_{scalar}, rhs_{rhs} {}
+  OpStmt(const new_ops::TensorInfo& lhs, OpType opt, const Scalar& scalar,
+         const std::vector<new_ops::TensorInfo>& rhs):
+    lhs_{lhs}, opt_{opt}, scalar_{scalar}, rhs_{rhs} {}
 
-  const new_ops::TensorInfo &lhs() const { return lhs_; }
+  const new_ops::TensorInfo& lhs() const { return lhs_; }
 
-  const std::vector<new_ops::TensorInfo> &rhs() const { return rhs_; }
+  const std::vector<new_ops::TensorInfo>& rhs() const { return rhs_; }
 
-  const Scalar &scalar() const { return scalar_; }
+  const Scalar& scalar() const { return scalar_; }
 
   OpType optype() const { return opt_; }
 
 private:
-  new_ops::TensorInfo lhs_;
-  OpType opt_;
-  Scalar scalar_;
+  new_ops::TensorInfo              lhs_;
+  OpType                           opt_;
+  Scalar                           scalar_;
   std::vector<new_ops::TensorInfo> rhs_;
 };
 
 class Optimizer {
- public:
-  Optimizer(OpStmt& stmt, const std::map<TiledIndexLabel, std::string>& index_names)
-      : stmt_{stmt}, nterms_{stmt.rhs().size()}, index_names_{index_names} {
+public:
+  Optimizer(OpStmt& stmt, const std::map<TiledIndexLabel, std::string>& index_names):
+    stmt_{stmt}, nterms_{stmt.rhs().size()}, index_names_{index_names} {
     computed_list_.reserve(1l << nterms_);
     children_.resize(1l << nterms_);
     // compute_cost_.resize(1l << nterms_, INT64_MAX);
@@ -443,22 +440,22 @@ class Optimizer {
 
     order_indices();
     lhs_index_ids_ = 0;
-    for (const auto& idx : stmt.lhs().ilv_) {
+    for(const auto& idx: stmt.lhs().ilv_) {
       // lhs_index_ids_ |= stmt.index_to_id().find(idx)->second;
       lhs_index_ids_ |= index_to_id_.find(index_names.at(idx))->second;
     }
   }
-  
+
   std::unique_ptr<new_ops::Op> optimize() {
     const unsigned n = nterms_;
-    for (uint64_t i = 0; i < n; ++i) {
+    for(uint64_t i = 0; i < n; ++i) {
       // std::cerr << "Updating pos=" << (1 << i) << "\n";
-      children_[1 << i] = {-1, -1};
-      compute_cost_[1 << i] = 0;
+      children_[1 << i]            = {-1, -1};
+      compute_cost_[1 << i]        = 0;
       available_index_ids_[1 << i] = 0;
       // std::cerr << "num indices in rhs[" << i
       //           << "]=" << stmt_.rhs()[i].indices().size() << "\n";
-      for (const auto& idx : stmt_.rhs()[i].ilv_) {
+      for(const auto& idx: stmt_.rhs()[i].ilv_) {
         // std::cerr << "looking up index=" << idx << "\n";
         // std::cerr << index_to_id_.size() << "\n";
         assert(index_to_id_.find(index_names_.at(idx)) != index_to_id_.end());
@@ -467,8 +464,7 @@ class Optimizer {
     }
     computed_list_.clear();
     internal::enumerate_power_set_minus_empty_set(n, compute_available_index_ids, *this);
-    internal::enumerate_power_set_minus_empty_set(n, compute_required_ids,
-                                                  *this);
+    internal::enumerate_power_set_minus_empty_set(n, compute_required_ids, *this);
     computed_list_.clear();
     internal::enumerate_power_set_minus_empty_set(n, optimize_optree, *this);
 
@@ -478,15 +474,14 @@ class Optimizer {
     // ope->set_indices_visitor(*this, required_index_ids_, children_,
     //                          (1l << nterms_) - 1);
     return ope;
-
   }
 
   double compute_id_product_size(unsigned int ids) const {
     double product_size = 1;
-    while (ids != 0) {
+    while(ids != 0) {
       int pos = internal::get_first_bit_pos(ids);
-      assert(pos-1 < ordered_index_sizes_.size());
-      product_size *= ordered_index_sizes_[pos-1];
+      assert(pos - 1 < ordered_index_sizes_.size());
+      product_size *= ordered_index_sizes_[pos - 1];
       ids ^= (1 << (pos - 1));
     }
     return product_size;
@@ -500,39 +495,39 @@ class Optimizer {
 
   std::vector<TiledIndexLabel> translate_index_ids(uint64_t ids) const {
     std::vector<TiledIndexLabel> indices;
-    while (ids != 0) {
+    while(ids != 0) {
       int pos = internal::get_first_bit_pos(ids);
-      indices.push_back(id_to_index_obj_.find(1<<(pos-1))->second);
-      ids ^= (1<<(pos-1));
+      indices.push_back(id_to_index_obj_.find(1 << (pos - 1))->second);
+      ids ^= (1 << (pos - 1));
     }
     return indices;
   }
- private:
+
+private:
   static void compute_available_index_ids(unsigned x, Optimizer& opt) {
-    for (auto y : opt.computed_list_) {
-      opt.available_index_ids_[x | y] =
-          opt.available_index_ids_[x] | opt.available_index_ids_[y];
+    for(auto y: opt.computed_list_) {
+      opt.available_index_ids_[x | y] = opt.available_index_ids_[x] | opt.available_index_ids_[y];
     }
     opt.computed_list_.push_back(x);
   }
 
   static void compute_required_ids(unsigned x, Optimizer& opt) {
     opt.required_index_ids_[x] =
-        opt.available_index_ids_[x] &
-        (opt.available_index_ids_[((1l << opt.nterms_) - 1) & (~x)] |
-         opt.lhs_index_ids_);
+      opt.available_index_ids_[x] &
+      (opt.available_index_ids_[((1l << opt.nterms_) - 1) & (~x)] | opt.lhs_index_ids_);
   }
 
   static void optimize_optree(unsigned x, Optimizer& opt) {
-    for (auto y : opt.computed_list_) {
-      if ((x & y) == 0) {
-        auto product_index_ids = opt.required_index_ids_[x] | opt.required_index_ids_[y];
+    for(auto y: opt.computed_list_) {
+      if((x & y) == 0) {
+        auto   product_index_ids = opt.required_index_ids_[x] | opt.required_index_ids_[y];
         double this_compute_cost = opt.compute_id_product_size(product_index_ids);
-        if (this_compute_cost + opt.compute_cost_[x] + opt.compute_cost_[y] <
-            opt.compute_cost_[x | y]) {
+        if(this_compute_cost + opt.compute_cost_[x] + opt.compute_cost_[y] <
+           opt.compute_cost_[x | y]) {
           // std::cout << "Op cost for " << std::bitset<16>{x | y} << " : "
           //           << (double)this_compute_cost << "\n";
-          opt.compute_cost_[x | y] = this_compute_cost + opt.compute_cost_[x] + opt.compute_cost_[y];
+          opt.compute_cost_[x | y] =
+            this_compute_cost + opt.compute_cost_[x] + opt.compute_cost_[y];
           opt.children_[x | y].child1 = x;
           opt.children_[x | y].child2 = y;
         }
@@ -541,22 +536,23 @@ class Optimizer {
     opt.computed_list_.push_back(x);
   }
 
-  std::unique_ptr<new_ops::Op>
-  construct_op_expr(const std::vector<new_ops::TensorInfo> &tensors,
-                   const std::vector<children_t> &children, int64_t pos = -1) {
-    if (pos == -1) {
+  std::unique_ptr<new_ops::Op> construct_op_expr(const std::vector<new_ops::TensorInfo>& tensors,
+                                                 const std::vector<children_t>&          children,
+                                                 int64_t                                 pos = -1) {
+    if(pos == -1) {
       pos = children.size() - 1; // initial condition. last is the full tree
     }
-    bool leaf = (children[pos].child1 == -1 && children[pos].child2 == -1);
+    bool leaf   = (children[pos].child1 == -1 && children[pos].child2 == -1);
     bool binary = (children[pos].child1 != -1 && children[pos].child2 != -1);
     // check that this is full binary node
     assert(leaf || binary);
 
-    if (leaf) {
-
+    if(leaf) {
       return new_ops::LTOp{tensors[internal::intlog2(pos)].tensor_,
-                           tensors[internal::intlog2(pos)].ilv_}.clone();
-    } else {
+                           tensors[internal::intlog2(pos)].ilv_}
+        .clone();
+    }
+    else {
       auto c1 = construct_op_expr(tensors, children, children[pos].child1);
       auto c2 = construct_op_expr(tensors, children, children[pos].child2);
       return new_ops::MultOp{c1, c2}.clone();
@@ -564,65 +560,64 @@ class Optimizer {
   }
 
   void order_indices() {
-    std::set<TiledIndexLabel> index_set{stmt_.lhs().ilv_.begin(),
-                                        stmt_.lhs().ilv_.end()};
-    for (const auto& ten : stmt_.rhs()) {
-      index_set.insert(ten.ilv_.begin(), ten.ilv_.end());
-    }
+    std::set<TiledIndexLabel> index_set{stmt_.lhs().ilv_.begin(), stmt_.lhs().ilv_.end()};
+    for(const auto& ten: stmt_.rhs()) { index_set.insert(ten.ilv_.begin(), ten.ilv_.end()); }
 
     uint64_t id = 1;
-    for (const auto& idx : index_set) {
+    for(const auto& idx: index_set) {
       assert(index_names_.find(idx) != index_names_.end());
-      id_to_index_[id] = index_names_.at(idx);
+      id_to_index_[id]                   = index_names_.at(idx);
       index_to_id_[index_names_.at(idx)] = id;
-      id_to_index_obj_[id] = idx;
+      id_to_index_obj_[id]               = idx;
       ordered_index_sizes_.push_back(idx.tiled_index_space().max_num_indices());
       id <<= 1;
     }
   }
 
-
-  OpStmt stmt_;
-  std::vector<double> ordered_index_sizes_;
-  std::map<std::string, int> index_to_id_;
+  OpStmt                         stmt_;
+  std::vector<double>            ordered_index_sizes_;
+  std::map<std::string, int>     index_to_id_;
   std::map<int, TiledIndexLabel> id_to_index_obj_; // for translation
-  std::map<int, std::string> id_to_index_;
+  std::map<int, std::string>     id_to_index_;
+  size_t                         nterms_; // number of rhs labeled tensors
+  uint64_t                       lhs_index_ids_;
+  std::vector<children_t>        children_;
+  std::vector<unsigned int>      computed_list_;
+  std::vector<double>            compute_cost_;
+  std::vector<uint64_t>          available_index_ids_;
+  std::vector<uint64_t>          required_index_ids_;
+
   std::map<TiledIndexLabel, std::string> index_names_;
-  size_t nterms_;  //number of rhs labeled tensors
-  uint64_t lhs_index_ids_;
-  std::vector<children_t> children_;
-  std::vector<unsigned int> computed_list_;
-  std::vector<double> compute_cost_;
-  std::vector<uint64_t> available_index_ids_;
-  std::vector<uint64_t> required_index_ids_;
-};  // class Optimizer
-}  // namespace opmin
+
+}; // class Optimizer
+} // namespace opmin
 
 class OpMin {
 public:
   // Ctors
   OpMin() = default;
-  OpMin(const SymbolTable &symbol_table) : symbol_table_{symbol_table} {}
+  OpMin(const SymbolTable& symbol_table): symbol_table_{symbol_table} {}
 
   // Copy/Move Ctors and Assignment Operators
-  OpMin(OpMin &&) = default;
-  OpMin(const OpMin &) = default;
-  OpMin &operator=(OpMin &&) = default;
-  OpMin &operator=(const OpMin &) = default;
+  OpMin(OpMin&&)                 = default;
+  OpMin(const OpMin&)            = default;
+  OpMin& operator=(OpMin&&)      = default;
+  OpMin& operator=(const OpMin&) = default;
 
   // Dtor
   ~OpMin() = default;
 
-  std::unique_ptr<new_ops::Op> optimize_all(const new_ops::LTOp& lhs_op, new_ops::Op& rhs_op, bool is_assign = false) {
-    new_ops::TensorInfo lhs{symbol_table_[lhs_op.tensor().get_symbol_ptr()],
+  std::unique_ptr<new_ops::Op> optimize_all(const new_ops::LTOp& lhs_op, new_ops::Op& rhs_op,
+                                            bool is_assign = false) {
+    new_ops::TensorInfo             lhs{symbol_table_[lhs_op.tensor().get_symbol_ptr()],
                             lhs_op.tensor(),
                             lhs_op.labels(),
                             lhs_op.tensor_type(),
                             lhs_op.coeff(),
                             false};
     new_ops::AvailableLabelsVisitor available_labels;
-    new_ops::UsedTensorInfoVisitor tensor_info{symbol_table_};
-    new_ops::SeparateSumOpsVisitor sum_visitor;
+    new_ops::UsedTensorInfoVisitor  tensor_info{symbol_table_};
+    new_ops::SeparateSumOpsVisitor  sum_visitor;
 
     rhs_op.accept(available_labels);
     rhs_op.accept(tensor_info);
@@ -632,37 +627,33 @@ public:
     all_labels.insert(lhs_labels.begin(), lhs_labels.end());
 
     std::map<TiledIndexLabel, std::string> label_names;
-    for (const auto &lbl : all_labels) {
-      if (symbol_table_.find(lbl.get_symbol_ptr()) == symbol_table_.end()) {
+    for(const auto& lbl: all_labels) {
+      if(symbol_table_.find(lbl.get_symbol_ptr()) == symbol_table_.end()) {
         label_names[lbl] = lbl.label_str();
-      } else {
-        label_names[lbl] = symbol_table_[lbl.get_symbol_ptr()];
       }
+      else { label_names[lbl] = symbol_table_[lbl.get_symbol_ptr()]; }
     }
 
-    auto sum_ops = sum_visitor.sum_vectors(rhs_op);
+    auto                       sum_ops = sum_visitor.sum_vectors(rhs_op);
     new_ops::OpStringGenerator str_generator{symbol_table_};
 
     opmin::OpType optype = opmin::OpType::plus_equal;
-    if(is_assign == true) {
-      optype = opmin::OpType::equal;
-    }
+    if(is_assign == true) { optype = opmin::OpType::equal; }
     std::vector<std::unique_ptr<new_ops::Op>> optimized_ops;
 
-    for(auto& op : sum_ops) {
+    for(auto& op: sum_ops) {
       auto tensors = op->get_attribute<new_ops::UsedTensorInfoAttribute>().get();
-      if (tensors.size() > 2) {
-        opmin::OpStmt stmt{lhs, optype, op->coeff(), tensors};
+      if(tensors.size() > 2) {
+        opmin::OpStmt    stmt{lhs, optype, op->coeff(), tensors};
         opmin::Optimizer optimizer{stmt, label_names};
-        auto optimized_op = optimizer.optimize();
+        auto             optimized_op = optimizer.optimize();
         optimized_ops.push_back(std::move(optimized_op));
-      } else {
-        optimized_ops.push_back(std::move(op->clone()));
       }
+      else { optimized_ops.push_back(std::move(op->clone())); }
     }
-    
+
     std::unique_ptr<new_ops::Op> result_op = (*optimized_ops.at(0)).clone();
-    for (size_t i = 1; i < optimized_ops.size(); i++) {
+    for(size_t i = 1; i < optimized_ops.size(); i++) {
       result_op = new_ops::AddOp{result_op, optimized_ops.at(i)}.clone();
     }
 
@@ -753,7 +744,6 @@ protected:
 
 // //----------------test driver --------------------
 
-
 // int main(int argc, char* argv[]) {
 // //   assert(argc == 2);
 // //   int n = atoi(argv[1]);
@@ -780,9 +770,10 @@ protected:
 //       Tensor{"T0", {i4}},
 //       OpType::plus_equal,
 //       "-2",
-//       {Tensor{"T1", {i0, i1, i2, i3}}, Tensor{"T2", {i0, i1, i2, i3}}, Tensor{"T1", {i0, i1, i2, i3, i4}},
-//        Tensor{"T1", {i0, i1, i2, i3}}, Tensor{"T2", {i0, i1, i2, i3}}, Tensor{"T1", {i0, i1, i2, i3, i4}},
-//        Tensor{"T2", {i0, i1, i2, i3}}, Tensor{"T4"}, Tensor{"T8"}},
+//       {Tensor{"T1", {i0, i1, i2, i3}}, Tensor{"T2", {i0, i1, i2, i3}}, Tensor{"T1", {i0, i1, i2,
+//       i3, i4}},
+//        Tensor{"T1", {i0, i1, i2, i3}}, Tensor{"T2", {i0, i1, i2, i3}}, Tensor{"T1", {i0, i1, i2,
+//        i3, i4}}, Tensor{"T2", {i0, i1, i2, i3}}, Tensor{"T4"}, Tensor{"T8"}},
 //       "S1"};
 //   input.stmts_.push_back(opstmt);
 
@@ -818,4 +809,3 @@ protected:
 //   //     std::cout << subtrees[subtrees.size() / 2] << "\n";
 //   return 0;
 // }
-

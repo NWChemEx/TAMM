@@ -39,28 +39,22 @@ namespace tamm::blockops::hptt {
 //   plan->execute();
 // }
 
-template <typename T>
-void index_permute_hptt(T lscale, T* lbuf, T rscale, const T* rbuf,
-                        const PermVector& perm_to_dest,
+template<typename T>
+void index_permute_hptt(T lscale, T* lbuf, T rscale, const T* rbuf, const PermVector& perm_to_dest,
                         const std::vector<size_t>& sdims) {
   const int ndim = sdims.size();
-  int perm[ndim];
-  int size[ndim];
-  int num_threads = 1;
-  for (size_t i = 0; i < sdims.size(); i++) {
-    size[i] = sdims[i];
-  }
+  int       perm[ndim];
+  int       size[ndim];
+  int       num_threads = 1;
+  for(size_t i = 0; i < sdims.size(); i++) { size[i] = sdims[i]; }
 
-  for (size_t i = 0; i < perm_to_dest.size(); i++) {
-    perm[i] = perm_to_dest[i];
-  }
+  for(size_t i = 0; i < perm_to_dest.size(); i++) { perm[i] = perm_to_dest[i]; }
   // create a plan (shared_ptr)
-  auto plan =
-      ::hptt::create_plan(perm, ndim, rscale, rbuf, size, NULL, lscale, lbuf,
-                          NULL, ::hptt::ESTIMATE, num_threads, NULL, true);
+  auto plan = ::hptt::create_plan(perm, ndim, rscale, rbuf, size, NULL, lscale, lbuf, NULL,
+                                  ::hptt::ESTIMATE, num_threads, NULL, true);
 
   // execute the transposition
   plan->execute();
 }
 
-}  // namespace tamm::blockops::hptt
+} // namespace tamm::blockops::hptt

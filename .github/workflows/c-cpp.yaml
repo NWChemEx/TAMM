@@ -151,6 +151,8 @@ jobs:
         pwd
         ls -lart
         mkdir -p ${INSTALL_PATH} ~/tamm_cache || true
+        export TIP=~/tamm_cache/
+        rm -rf $TIP/share/cmake/tamm $TIP/lib/libtamm* $TIP/include/tamm $TIP/share/cmake/CMakeBuild
         rsync -av  ~/tamm_cache/* ${INSTALL_PATH}/.
         ls -lrt ${INSTALL_PATH} || true
 

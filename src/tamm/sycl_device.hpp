@@ -14,13 +14,13 @@
 #if __has_include(<sycl/sycl.hpp>)
 #include <sycl/sycl.hpp>
 #else
-#include <CL/sycl.hpp>
+#include <sycl.hpp>
 namespace sycl = cl::sycl;
 #endif
 
-#include <CL/sycl/backend/level_zero.hpp>
 #include <level_zero/ze_api.h>
 #include <level_zero/zes_api.h>
+#include <sycl/backend/level_zero.hpp>
 
 class device_ext: public sycl::device {
 public:

@@ -3339,18 +3339,26 @@ TensorType get_tensor_element(Tensor<TensorType> tensor, std::vector<int64_t> in
   EXPECTS(tensor.kind() == TensorBase::TensorKind::dense);
   // EXPECTS(tensor.distribution().kind() == DistributionKind::dense);
 
-  std::vector<int64_t> ld(ndims - 1, 1);
+  TensorType val{};
 
-  int64_t lo[ndims];
-  int64_t hi[ndims];
+#if defined(USE_UPCXX)
+  std::vector<int64_t> lo(4), hi(4);
+  std::vector<int64_t> ld(4, 1);
+#else
+  std::vector<int64_t> lo(ndims), hi(ndims);
+  std::vector<int64_t> ld(ndims - 1, 1);
+#endif
 
   for(int i = 0; i < ndims; i++) {
     lo[i] = index_id[i];
     hi[i] = index_id[i];
   }
 
-  TensorType val{};
+#if defined(USE_UPCXX)
+  tensor.get_raw(&lo[0], &hi[0], &val, &ld[0]);
+#else
   NGA_Get64(tensor.ga_handle(), &lo[0], &hi[0], &val, &ld[0]);
+#endif
   return val;
 };
 

@@ -331,14 +331,18 @@ public:
     rank   = t.rank_me();
     nranks = t.rank_n();
 
-    if(_ndims == 3) {
+    if(_ndims == 2 || _ndims == 3) {
       /*
        * Hacky, because the APIs below only accept 4 dimensional
        * indices so it leads to an inconsistency between construction
        * and access. But just to get things working.
        */
-      memcpy(dims, _dims, 3 * sizeof(dims[0]));
-      memcpy(chunk_size, _chunk_size, 3 * sizeof(chunk_size[0]));
+      memcpy(dims, _dims, _ndims * sizeof(dims[0]));
+      memcpy(chunk_size, _chunk_size, _ndims * sizeof(chunk_size[0]));
+      if(_ndims == 2) {
+        dims[2]       = 1;
+        chunk_size[2] = 1;
+      }
       dims[3]       = 1;
       chunk_size[3] = 1;
     }
@@ -348,7 +352,7 @@ public:
     }
     else {
       fprintf(stderr,
-              "ga_over_upcxx only supports 3 or 4d tensors, got "
+              "ga_over_upcxx only supports 2,3,4D tensors, got "
               "_ndims=%d\n",
               _ndims);
       abort();

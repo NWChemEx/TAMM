@@ -411,7 +411,7 @@ public:
   }
 #endif
 
-  template<typename T>
+  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
   T reduce(const T* buf, ReduceOp op, int root) {
     T result{};
 #if defined(USE_UPCXX)
@@ -432,6 +432,34 @@ public:
   }
 
   template<typename T>
+  T reduce(const T* buf, ReduceOp op, int root) {
+    T result{};
+#if defined(USE_UPCXX)
+    if(op == ReduceOp::min) {
+      upcxx::reduce_one(
+        buf, &result, 1, [](const T& a, const T& b) { return std::abs(a) < std::abs(b) ? a : b; },
+        root, *pginfo_->team_)
+        .wait();
+    }
+    else if(op == ReduceOp::max) {
+      upcxx::reduce_one(
+        buf, &result, 1, [](const T& a, const T& b) { return std::abs(a) > std::abs(b) ? a : b; },
+        root, *pginfo_->team_)
+        .wait();
+    }
+    else if(op == ReduceOp::sum) {
+      upcxx::reduce_one(
+        buf, &result, 1, [](const T& a, const T& b) { return a + b; }, root, *pginfo_->team_)
+        .wait();
+    }
+    else { abort(); }
+#else
+    MPI_Reduce(buf, &result, 1, mpi_type<T>(), mpi_op(op), root, pginfo_->mpi_comm_);
+#endif
+    return result;
+  }
+
+  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
   void reduce(const T* sbuf, T* rbuf, int count, ReduceOp op, int root) {
 #if defined(USE_UPCXX)
     if(op == ReduceOp::min) {
@@ -450,6 +478,32 @@ public:
   }
 
   template<typename T>
+  void reduce(const T* sbuf, T* rbuf, int count, ReduceOp op, int root) {
+#if defined(USE_UPCXX)
+    if(op == ReduceOp::min) {
+      upcxx::reduce_one(
+        sbuf, rbuf, count, [](const T& a, const T& b) { return std::abs(a) < std::abs(b) ? a : b; },
+        root, *pginfo_->team_)
+        .wait();
+    }
+    else if(op == ReduceOp::max) {
+      upcxx::reduce_one(
+        sbuf, rbuf, count, [](const T& a, const T& b) { return std::abs(a) > std::abs(b) ? a : b; },
+        root, *pginfo_->team_)
+        .wait();
+    }
+    else if(op == ReduceOp::sum) {
+      upcxx::reduce_one(
+        sbuf, rbuf, count, [](const T& a, const T& b) { return a + b; }, root, *pginfo_->team_)
+        .wait();
+    }
+    else { abort(); }
+#else
+    MPI_Reduce(sbuf, rbuf, count, mpi_type<T>(), mpi_op(op), root, pginfo_->mpi_comm_);
+#endif
+  }
+
+  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
   T allreduce(const T* buf, ReduceOp op) {
     T result{};
 #if defined(USE_UPCXX)
@@ -470,6 +524,34 @@ public:
   }
 
   template<typename T>
+  T allreduce(const T* buf, ReduceOp op) {
+    T result{};
+#if defined(USE_UPCXX)
+    if(op == ReduceOp::min) {
+      upcxx::reduce_all(
+        buf, &result, 1, [](const T& a, const T& b) { return std::abs(a) < std::abs(b) ? a : b; },
+        *pginfo_->team_)
+        .wait();
+    }
+    else if(op == ReduceOp::max) {
+      upcxx::reduce_all(
+        buf, &result, 1, [](const T& a, const T& b) { return std::abs(a) > std::abs(b) ? a : b; },
+        *pginfo_->team_)
+        .wait();
+    }
+    else if(op == ReduceOp::sum) {
+      upcxx::reduce_all(
+        buf, &result, 1, [](const T& a, const T& b) { return a + b; }, *pginfo_->team_)
+        .wait();
+    }
+    else { abort(); }
+#else
+    MPI_Allreduce(buf, &result, 1, mpi_type<T>(), mpi_op(op), pginfo_->mpi_comm_);
+#endif
+    return result;
+  }
+
+  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
   void allreduce(const T* sbuf, T* rbuf, int count, ReduceOp op) {
 #if defined(USE_UPCXX)
 
@@ -481,6 +563,33 @@ public:
     }
     else if(op == ReduceOp::sum) {
       upcxx::reduce_all(sbuf, rbuf, count, upcxx::op_fast_add, *pginfo_->team_).wait();
+    }
+    else { abort(); }
+#else
+    MPI_Allreduce(sbuf, rbuf, count, mpi_type<T>(), mpi_op(op), pginfo_->mpi_comm_);
+#endif
+  }
+
+  template<typename T>
+  void allreduce(const T* sbuf, T* rbuf, int count, ReduceOp op) {
+#if defined(USE_UPCXX)
+
+    if(op == ReduceOp::min) {
+      upcxx::reduce_all(
+        sbuf, rbuf, count, [](const T& a, const T& b) { return std::abs(a) < std::abs(b) ? a : b; },
+        *pginfo_->team_)
+        .wait();
+    }
+    else if(op == ReduceOp::max) {
+      upcxx::reduce_all(
+        sbuf, rbuf, count, [](const T& a, const T& b) { return std::abs(a) > std::abs(b) ? a : b; },
+        *pginfo_->team_)
+        .wait();
+    }
+    else if(op == ReduceOp::sum) {
+      upcxx::reduce_all(
+        sbuf, rbuf, count, [](const T& a, const T& b) { return a + b; }, *pginfo_->team_)
+        .wait();
     }
     else { abort(); }
 #else

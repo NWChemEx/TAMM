@@ -7,4 +7,4 @@ TAMM build instructions can be found [here](docs/install.md)
 
 ## Contributors
 
-* [Max Grossman](https://github.com/agrippa), [The UPC++ Team](https://bitbucket.org/berkeleylab/upcxx/wiki/Home) (UPC++ port)
+* [Johnny Corbino](https://crd.lbl.gov/divisions/amcr/computer-science-amcr/class/members/class-staff/johnny-corbino), [The UPC++ Team](https://bitbucket.org/berkeleylab/upcxx/wiki/Home) (UPC++ port)

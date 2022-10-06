@@ -436,13 +436,21 @@ public:
     T result{};
 #if defined(USE_UPCXX)
     if(op == ReduceOp::min) {
-      upcxx::reduce_one(buf, &result, 1, [](const T& a, const T& b){ return std::abs(a) < std::abs(b) ? a : b; }, root, *pginfo_->team_).wait();
+      upcxx::reduce_one(
+        buf, &result, 1, [](const T& a, const T& b) { return std::abs(a) < std::abs(b) ? a : b; },
+        root, *pginfo_->team_)
+        .wait();
     }
     else if(op == ReduceOp::max) {
-      upcxx::reduce_one(buf, &result, 1, [](const T& a, const T& b){ return std::abs(a) > std::abs(b) ? a : b; }, root, *pginfo_->team_).wait();
+      upcxx::reduce_one(
+        buf, &result, 1, [](const T& a, const T& b) { return std::abs(a) > std::abs(b) ? a : b; },
+        root, *pginfo_->team_)
+        .wait();
     }
     else if(op == ReduceOp::sum) {
-      upcxx::reduce_one(buf, &result, 1, [](const T& a, const T& b){ return a + b; }, root, *pginfo_->team_).wait();
+      upcxx::reduce_one(
+        buf, &result, 1, [](const T& a, const T& b) { return a + b; }, root, *pginfo_->team_)
+        .wait();
     }
     else { abort(); }
 #else
@@ -473,13 +481,21 @@ public:
   void reduce(const T* sbuf, T* rbuf, int count, ReduceOp op, int root) {
 #if defined(USE_UPCXX)
     if(op == ReduceOp::min) {
-      upcxx::reduce_one(sbuf, rbuf, count, [](const T& a, const T& b){ return std::abs(a) < std::abs(b) ? a : b; }, root, *pginfo_->team_).wait();
+      upcxx::reduce_one(
+        sbuf, rbuf, count, [](const T& a, const T& b) { return std::abs(a) < std::abs(b) ? a : b; },
+        root, *pginfo_->team_)
+        .wait();
     }
     else if(op == ReduceOp::max) {
-      upcxx::reduce_one(sbuf, rbuf, count, [](const T& a, const T& b){ return std::abs(a) > std::abs(b) ? a : b; }, root, *pginfo_->team_).wait();
+      upcxx::reduce_one(
+        sbuf, rbuf, count, [](const T& a, const T& b) { return std::abs(a) > std::abs(b) ? a : b; },
+        root, *pginfo_->team_)
+        .wait();
     }
     else if(op == ReduceOp::sum) {
-      upcxx::reduce_one(sbuf, rbuf, count, [](const T& a, const T& b){ return a + b; }, root, *pginfo_->team_).wait();
+      upcxx::reduce_one(
+        sbuf, rbuf, count, [](const T& a, const T& b) { return a + b; }, root, *pginfo_->team_)
+        .wait();
     }
     else { abort(); }
 #else
@@ -512,13 +528,21 @@ public:
     T result{};
 #if defined(USE_UPCXX)
     if(op == ReduceOp::min) {
-      upcxx::reduce_all(buf, &result, 1, [](const T& a, const T& b){ return std::abs(a) < std::abs(b) ? a : b; }, *pginfo_->team_).wait();
+      upcxx::reduce_all(
+        buf, &result, 1, [](const T& a, const T& b) { return std::abs(a) < std::abs(b) ? a : b; },
+        *pginfo_->team_)
+        .wait();
     }
     else if(op == ReduceOp::max) {
-      upcxx::reduce_all(buf, &result, 1, [](const T& a, const T& b){ return std::abs(a) > std::abs(b) ? a : b; }, *pginfo_->team_).wait();
+      upcxx::reduce_all(
+        buf, &result, 1, [](const T& a, const T& b) { return std::abs(a) > std::abs(b) ? a : b; },
+        *pginfo_->team_)
+        .wait();
     }
     else if(op == ReduceOp::sum) {
-      upcxx::reduce_all(buf, &result, 1, [](const T& a, const T& b){ return a + b; }, *pginfo_->team_).wait();
+      upcxx::reduce_all(
+        buf, &result, 1, [](const T& a, const T& b) { return a + b; }, *pginfo_->team_)
+        .wait();
     }
     else { abort(); }
 #else
@@ -551,13 +575,21 @@ public:
 #if defined(USE_UPCXX)
 
     if(op == ReduceOp::min) {
-      upcxx::reduce_all(sbuf, rbuf, count, [](const T& a, const T& b){ return std::abs(a) < std::abs(b) ? a : b; }, *pginfo_->team_).wait();
+      upcxx::reduce_all(
+        sbuf, rbuf, count, [](const T& a, const T& b) { return std::abs(a) < std::abs(b) ? a : b; },
+        *pginfo_->team_)
+        .wait();
     }
     else if(op == ReduceOp::max) {
-      upcxx::reduce_all(sbuf, rbuf, count, [](const T& a, const T& b){ return std::abs(a) > std::abs(b) ? a : b; }, *pginfo_->team_).wait();
+      upcxx::reduce_all(
+        sbuf, rbuf, count, [](const T& a, const T& b) { return std::abs(a) > std::abs(b) ? a : b; },
+        *pginfo_->team_)
+        .wait();
     }
     else if(op == ReduceOp::sum) {
-      upcxx::reduce_all(sbuf, rbuf, count, [](const T& a, const T& b){ return a + b; }, *pginfo_->team_).wait();
+      upcxx::reduce_all(
+        sbuf, rbuf, count, [](const T& a, const T& b) { return a + b; }, *pginfo_->team_)
+        .wait();
     }
     else { abort(); }
 #else

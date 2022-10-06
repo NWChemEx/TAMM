@@ -411,7 +411,7 @@ public:
   }
 #endif
 
-  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
+  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* = nullptr>
   T reduce(const T* buf, ReduceOp op, int root) {
     T result{};
 #if defined(USE_UPCXX)
@@ -431,7 +431,7 @@ public:
     return result;
   }
 
-  template<typename T>
+  template<typename T, typename std::enable_if<!std::is_arithmetic<T>::value, T>::type* = nullptr>
   T reduce(const T* buf, ReduceOp op, int root) {
     T result{};
 #if defined(USE_UPCXX)
@@ -451,7 +451,7 @@ public:
     return result;
   }
 
-  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
+  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* = nullptr>
   void reduce(const T* sbuf, T* rbuf, int count, ReduceOp op, int root) {
 #if defined(USE_UPCXX)
     if(op == ReduceOp::min) {
@@ -469,7 +469,7 @@ public:
 #endif
   }
 
-  template<typename T>
+  template<typename T, typename std::enable_if<!std::is_arithmetic<T>::value, T>::type* = nullptr>
   void reduce(const T* sbuf, T* rbuf, int count, ReduceOp op, int root) {
 #if defined(USE_UPCXX)
     if(op == ReduceOp::min) {
@@ -487,7 +487,7 @@ public:
 #endif
   }
 
-  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
+  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* = nullptr>
   T allreduce(const T* buf, ReduceOp op) {
     T result{};
 #if defined(USE_UPCXX)
@@ -507,7 +507,7 @@ public:
     return result;
   }
 
-  template<typename T>
+  template<typename T, typename std::enable_if<!std::is_arithmetic<T>::value, T>::type* = nullptr>
   T allreduce(const T* buf, ReduceOp op) {
     T result{};
 #if defined(USE_UPCXX)
@@ -527,7 +527,7 @@ public:
     return result;
   }
 
-  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
+  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* = nullptr>
   void allreduce(const T* sbuf, T* rbuf, int count, ReduceOp op) {
 #if defined(USE_UPCXX)
 
@@ -546,7 +546,7 @@ public:
 #endif
   }
 
-  template<typename T>
+  template<typename T, typename std::enable_if<!std::is_arithmetic<T>::value, T>::type* = nullptr>
   void allreduce(const T* sbuf, T* rbuf, int count, ReduceOp op) {
 #if defined(USE_UPCXX)
 

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+CF_EXE=$REPO_ROOT/support/clang-format
+
 STYLE=$(git config --get hooks.clangformat.style)
 if [ -n "${STYLE}" ] ; then
   STYLEARG="-style=${STYLE}"
@@ -7,7 +10,7 @@ else
   STYLEARG=""
 fi
 
-if ! "clang-format" --version | grep 'clang-format version 14\.0' >/dev/null 2>/dev/null; then
+if ! "${CF_EXE}" --version | grep 'clang-format version 14\.0' >/dev/null 2>/dev/null; then
     echo "clang-format version 14.0 is required (exactly)"
     exit 1
 fi
@@ -16,7 +19,7 @@ format_file() {
   file="${1}"
   if [ -f $file ]; then
     echo "Running clang-format on ${1}"
-    clang-format -i ${STYLEARG} ${1} || exit 1
+    ${CF_EXE} -i ${STYLEARG} ${1} || exit 1
     git add ${1}
   fi
 }

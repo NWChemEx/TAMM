@@ -25,3 +25,6 @@ build*
 
 #editor backups
 *~
+
+#Misc
+clang-format

@@ -411,8 +411,8 @@ public:
   }
 #endif
 
-template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* = nullptr>
-T reduce(const T* buf, ReduceOp op, int root) {
+  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* = nullptr>
+  T reduce(const T* buf, ReduceOp op, int root) {
     T result{};
 #if defined(USE_UPCXX)
     if(op == ReduceOp::min) {
@@ -431,9 +431,8 @@ T reduce(const T* buf, ReduceOp op, int root) {
     return result;
   }
 
-
-template<typename T, typename std::enable_if<!std::is_arithmetic<T>::value, T>::type* = nullptr>
-T reduce(const T* buf, ReduceOp op, int root) {
+  template<typename T, typename std::enable_if<!std::is_arithmetic<T>::value, T>::type* = nullptr>
+  T reduce(const T* buf, ReduceOp op, int root) {
     T result{};
 #if defined(USE_UPCXX)
     if(op == ReduceOp::min) {
@@ -460,8 +459,8 @@ T reduce(const T* buf, ReduceOp op, int root) {
     return result;
   }
 
-template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* = nullptr>
-void reduce(const T* sbuf, T* rbuf, int count, ReduceOp op, int root) {
+  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* = nullptr>
+  void reduce(const T* sbuf, T* rbuf, int count, ReduceOp op, int root) {
 #if defined(USE_UPCXX)
     if(op == ReduceOp::min) {
       upcxx::reduce_one(sbuf, rbuf, count, upcxx::op_fast_min, root, *pginfo_->team_).wait();
@@ -478,9 +477,8 @@ void reduce(const T* sbuf, T* rbuf, int count, ReduceOp op, int root) {
 #endif
   }
 
-
-template<typename T, typename std::enable_if<!std::is_arithmetic<T>::value, T>::type* = nullptr>
-void reduce(const T* sbuf, T* rbuf, int count, ReduceOp op, int root) {
+  template<typename T, typename std::enable_if<!std::is_arithmetic<T>::value, T>::type* = nullptr>
+  void reduce(const T* sbuf, T* rbuf, int count, ReduceOp op, int root) {
 #if defined(USE_UPCXX)
     if(op == ReduceOp::min) {
       upcxx::reduce_one(
@@ -505,9 +503,8 @@ void reduce(const T* sbuf, T* rbuf, int count, ReduceOp op, int root) {
 #endif
   }
 
-
-template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* = nullptr>
-T allreduce(const T* buf, ReduceOp op) {
+  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* = nullptr>
+  T allreduce(const T* buf, ReduceOp op) {
     T result{};
 #if defined(USE_UPCXX)
     if(op == ReduceOp::min) {
@@ -526,9 +523,8 @@ T allreduce(const T* buf, ReduceOp op) {
     return result;
   }
 
-
-template<typename T, typename std::enable_if<!std::is_arithmetic<T>::value, T>::type* = nullptr>
-T allreduce(const T* buf, ReduceOp op) {
+  template<typename T, typename std::enable_if<!std::is_arithmetic<T>::value, T>::type* = nullptr>
+  T allreduce(const T* buf, ReduceOp op) {
     T result{};
 #if defined(USE_UPCXX)
     if(op == ReduceOp::min) {
@@ -555,9 +551,8 @@ T allreduce(const T* buf, ReduceOp op) {
     return result;
   }
 
-
-template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* = nullptr>
-void allreduce(const T* sbuf, T* rbuf, int count, ReduceOp op) {
+  template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* = nullptr>
+  void allreduce(const T* sbuf, T* rbuf, int count, ReduceOp op) {
 #if defined(USE_UPCXX)
 
     if(op == ReduceOp::min) {
@@ -575,9 +570,8 @@ void allreduce(const T* sbuf, T* rbuf, int count, ReduceOp op) {
 #endif
   }
 
-
-template<typename T, typename std::enable_if<!std::is_arithmetic<T>::value, T>::type* = nullptr>
-void allreduce(const T* sbuf, T* rbuf, int count, ReduceOp op) {
+  template<typename T, typename std::enable_if<!std::is_arithmetic<T>::value, T>::type* = nullptr>
+  void allreduce(const T* sbuf, T* rbuf, int count, ReduceOp op) {
 #if defined(USE_UPCXX)
 
     if(op == ReduceOp::min) {

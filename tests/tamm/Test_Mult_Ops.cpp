@@ -217,8 +217,6 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
       std::cout << "4-D Tensor contraction (C=RxR) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
-    CT c_norm = tamm::norm(C);
-
     sch.deallocate(A, B, C).execute();
   }
 

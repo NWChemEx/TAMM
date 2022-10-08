@@ -567,10 +567,7 @@ public:
     else { abort(); }
 #else
     auto mpidtype = mpi_type<T>();
-    if(op == ReduceOp::minloc || op == ReduceOp::maxloc) {
-      count    = 1;
-      mpidtype = mpi_type_loc<T>();
-    }
+    if(op == ReduceOp::minloc || op == ReduceOp::maxloc) mpidtype = mpi_type_loc<T>();
     MPI_Allreduce(sbuf, rbuf, count, mpidtype, mpi_op(op), pginfo_->mpi_comm_);
 #endif
   }
@@ -599,10 +596,7 @@ public:
     else { abort(); }
 #else
     auto mpidtype = mpi_type<T>();
-    if(op == ReduceOp::minloc || op == ReduceOp::maxloc) {
-      count    = 1;
-      mpidtype = mpi_type_loc<T>();
-    }
+    if(op == ReduceOp::minloc || op == ReduceOp::maxloc) mpidtype = mpi_type_loc<T>();
     MPI_Allreduce(sbuf, rbuf, count, mpidtype, mpi_op(op), pginfo_->mpi_comm_);
 #endif
   }

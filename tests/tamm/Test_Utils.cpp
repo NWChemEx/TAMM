@@ -79,8 +79,11 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   T  b_norm = tamm::norm(B);
   CT c_norm = tamm::norm(C);
 
-  // linf_norm
-  T b_linf_norm = tamm::linf_norm(B);
+// linf_norm
+#if !defined(USE_UPCXX)
+  T  b_linf_norm = tamm::linf_norm(B);
+  CT c_linf_norm = tamm::linf_norm(C);
+#endif
 
   // sqrt
   Tensor<T>  b_sqrt = tamm::sqrt(B);

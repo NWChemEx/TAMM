@@ -1922,12 +1922,12 @@ void dense_to_dlpno(Tensor<T> src, Tensor<T> dst) {
   else NOT_ALLOWED();
 }
 
-template<typename TensorType, typename = std::enable_if_t<!internal::is_complex_v<TensorType>>>
+template<typename TensorType>
 TensorType linf_norm(Tensor<TensorType> tensor) {
   return linf_norm(tensor());
 }
 
-template<typename TensorType, typename = std::enable_if_t<!internal::is_complex_v<TensorType>>>
+template<typename TensorType>
 TensorType linf_norm(LabeledTensor<TensorType> ltensor) {
   ExecutionContext& gec = get_ec(ltensor);
 
@@ -1961,11 +1961,7 @@ TensorType linf_norm(LabeledTensor<TensorType> ltensor) {
       std::vector<TensorType> dbuf(dsize);
       tensor.get(blockid, dbuf);
       for(TensorType val: dbuf) {
-        TensorType aval = std::abs(val);
-        // if constexpr(internal::is_complex_v<TensorType>) {
-        //   if(linfnorm.real() < aval.real()) linfnorm = aval;
-        // } else
-        if(linfnorm < aval) linfnorm = aval;
+        if(std::abs(linfnorm) < std::abs(val)) linfnorm = val;
       }
     };
     block_for(ec, ltensor, getnorm);
@@ -1985,8 +1981,14 @@ TensorType linf_norm(LabeledTensor<TensorType> ltensor) {
 
   gec.pg().barrier();
 
-  TensorType glinfnorm = gec.pg().allreduce(&linfnorm, ReduceOp::max);
-  return glinfnorm;
+  auto                            linf_abs = std::abs(linfnorm);
+  std::vector<decltype(linf_abs)> linf_pair{linf_abs, gec.pg().rank().value()};
+  decltype(linf_pair)             linf_result(2, 0);
+
+  gec.pg().allreduce(linf_pair.data(), linf_result.data(), 1, ReduceOp::maxloc);
+  gec.pg().broadcast(&linfnorm, linf_result[1]);
+
+  return linfnorm;
 }
 
 template<typename T>
@@ -2509,8 +2511,9 @@ template<typename TensorType, typename = std::enable_if_t<std::is_arithmetic_v<T
                                                           std::is_floating_point_v<TensorType>>>
 std::tuple<TensorType, IndexVector, std::vector<size_t>>
 max_element(LabeledTensor<TensorType> ltensor) {
-  ExecutionContext& ec  = get_ec(ltensor);
-  TensorType        max = 0.0;
+  ExecutionContext& ec   = get_ec(ltensor);
+  const auto        rank = ec.pg().rank().value();
+  TensorType        max  = 0.0;
 
   Tensor<TensorType> tensor = ltensor.tensor();
   auto               nmodes = tensor.num_modes();
@@ -2536,7 +2539,7 @@ max_element(LabeledTensor<TensorType> ltensor) {
       for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++, c++) {
         if(lmax[0] < dbuf[c]) {
           lmax[0]    = dbuf[c];
-          lmax[1]    = GA_Nodeid();
+          lmax[1]    = rank;
           bfuv[0]    = i - block_offset[0];
           maxblockid = {blockid[0]};
         }
@@ -2549,7 +2552,7 @@ max_element(LabeledTensor<TensorType> ltensor) {
         for(size_t j = block_offset[1]; j < dimj; j++, c++) {
           if(lmax[0] < dbuf[c]) {
             lmax[0]    = dbuf[c];
-            lmax[1]    = GA_Nodeid();
+            lmax[1]    = rank;
             bfuv[0]    = i - block_offset[0];
             bfuv[1]    = j - block_offset[1];
             maxblockid = {blockid[0], blockid[1]};
@@ -2567,7 +2570,7 @@ max_element(LabeledTensor<TensorType> ltensor) {
           for(size_t k = block_offset[2]; k < dimk; k++, c++) {
             if(lmax[0] < dbuf[c]) {
               lmax[0]    = dbuf[c];
-              lmax[1]    = GA_Nodeid();
+              lmax[1]    = rank;
               bfuv[0]    = i - block_offset[0];
               bfuv[1]    = j - block_offset[1];
               bfuv[2]    = k - block_offset[2];
@@ -2584,7 +2587,7 @@ max_element(LabeledTensor<TensorType> ltensor) {
             for(size_t l = block_offset[3]; l < block_offset[3] + block_dims[3]; l++, c++) {
               if(lmax[0] < dbuf[c]) {
                 lmax[0]    = dbuf[c];
-                lmax[1]    = GA_Nodeid();
+                lmax[1]    = rank;
                 bfuv[0]    = i - block_offset[0];
                 bfuv[1]    = j - block_offset[1];
                 bfuv[2]    = k - block_offset[2];
@@ -2604,7 +2607,7 @@ max_element(LabeledTensor<TensorType> ltensor) {
               for(size_t m = block_offset[4]; m < block_offset[4] + block_dims[4]; m++, c++) {
                 if(lmax[0] < dbuf[c]) {
                   lmax[0]    = dbuf[c];
-                  lmax[1]    = GA_Nodeid();
+                  lmax[1]    = rank;
                   bfuv[0]    = i - block_offset[0];
                   bfuv[1]    = j - block_offset[1];
                   bfuv[2]    = k - block_offset[2];
@@ -2628,7 +2631,7 @@ max_element(LabeledTensor<TensorType> ltensor) {
                 for(size_t n = block_offset[5]; n < block_offset[5] + block_dims[5]; n++, c++) {
                   if(lmax[0] < dbuf[c]) {
                     lmax[0]    = dbuf[c];
-                    lmax[1]    = GA_Nodeid();
+                    lmax[1]    = rank;
                     bfuv[0]    = i - block_offset[0];
                     bfuv[1]    = j - block_offset[1];
                     bfuv[2]    = k - block_offset[2];
@@ -2648,7 +2651,7 @@ max_element(LabeledTensor<TensorType> ltensor) {
   };
   block_for(ec, ltensor, getmax);
 
-  ec.pg().allreduce(lmax.data(), gmax.data(), 2, ReduceOp::maxloc);
+  ec.pg().allreduce(lmax.data(), gmax.data(), 1, ReduceOp::maxloc);
   ec.pg().broadcast(maxblockid.data(), nmodes, gmax[1]);
   ec.pg().broadcast(bfuv.data(), nmodes, gmax[1]);
 
@@ -2666,8 +2669,9 @@ template<typename TensorType, typename = std::enable_if_t<std::is_arithmetic_v<T
                                                           std::is_floating_point_v<TensorType>>>
 std::tuple<TensorType, IndexVector, std::vector<size_t>>
 min_element(LabeledTensor<TensorType> ltensor) {
-  ExecutionContext& ec  = get_ec(ltensor);
-  TensorType        min = 0.0;
+  ExecutionContext& ec   = get_ec(ltensor);
+  const auto        rank = ec.pg().rank().value();
+  TensorType        min  = 0.0;
 
   Tensor<TensorType> tensor = ltensor.tensor();
   auto               nmodes = tensor.num_modes();
@@ -2692,7 +2696,7 @@ min_element(LabeledTensor<TensorType> ltensor) {
       for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++, c++) {
         if(lmin[0] > dbuf[c]) {
           lmin[0]    = dbuf[c];
-          lmin[1]    = GA_Nodeid();
+          lmin[1]    = rank;
           bfuv[0]    = i - block_offset[0];
           minblockid = {blockid[0]};
         }
@@ -2703,7 +2707,7 @@ min_element(LabeledTensor<TensorType> ltensor) {
         for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++, c++) {
           if(lmin[0] > dbuf[c]) {
             lmin[0]    = dbuf[c];
-            lmin[1]    = GA_Nodeid();
+            lmin[1]    = rank;
             bfuv[0]    = i - block_offset[0];
             bfuv[1]    = j - block_offset[1];
             minblockid = {blockid[0], blockid[1]};
@@ -2717,7 +2721,7 @@ min_element(LabeledTensor<TensorType> ltensor) {
           for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++, c++) {
             if(lmin[0] > dbuf[c]) {
               lmin[0]    = dbuf[c];
-              lmin[1]    = GA_Nodeid();
+              lmin[1]    = rank;
               bfuv[0]    = i - block_offset[0];
               bfuv[1]    = j - block_offset[1];
               bfuv[2]    = k - block_offset[2];
@@ -2734,7 +2738,7 @@ min_element(LabeledTensor<TensorType> ltensor) {
             for(size_t l = block_offset[3]; l < block_offset[3] + block_dims[3]; l++, c++) {
               if(lmin[0] > dbuf[c]) {
                 lmin[0]    = dbuf[c];
-                lmin[1]    = GA_Nodeid();
+                lmin[1]    = rank;
                 bfuv[0]    = i - block_offset[0];
                 bfuv[1]    = j - block_offset[1];
                 bfuv[2]    = k - block_offset[2];
@@ -2754,7 +2758,7 @@ min_element(LabeledTensor<TensorType> ltensor) {
               for(size_t m = block_offset[4]; m < block_offset[4] + block_dims[4]; m++, c++) {
                 if(lmin[0] > dbuf[c]) {
                   lmin[0]    = dbuf[c];
-                  lmin[1]    = GA_Nodeid();
+                  lmin[1]    = rank;
                   bfuv[0]    = i - block_offset[0];
                   bfuv[1]    = j - block_offset[1];
                   bfuv[2]    = k - block_offset[2];
@@ -2778,7 +2782,7 @@ min_element(LabeledTensor<TensorType> ltensor) {
                 for(size_t n = block_offset[5]; n < block_offset[5] + block_dims[5]; n++, c++) {
                   if(lmin[0] > dbuf[c]) {
                     lmin[0]    = dbuf[c];
-                    lmin[1]    = GA_Nodeid();
+                    lmin[1]    = rank;
                     bfuv[0]    = i - block_offset[0];
                     bfuv[1]    = j - block_offset[1];
                     bfuv[2]    = k - block_offset[2];
@@ -2798,7 +2802,7 @@ min_element(LabeledTensor<TensorType> ltensor) {
   };
   block_for(ec, ltensor, getmin);
 
-  ec.pg().allreduce(lmin.data(), gmin.data(), 2, ReduceOp::minloc);
+  ec.pg().allreduce(lmin.data(), gmin.data(), 1, ReduceOp::minloc);
   ec.pg().broadcast(minblockid.data(), nmodes, gmin[1]);
   ec.pg().broadcast(bfuv.data(), nmodes, gmin[1]);
 
@@ -3106,7 +3110,7 @@ inline size_t hash_tensor(Tensor<TensorType> tensor) {
     std::vector<TensorType> dbuf(dsize);
     tensor.get(blockid, dbuf);
     for(auto& val: dbuf) {
-      if constexpr(internal::is_complex_v<TensorType>) internal::hash_combine(hash, val.real());
+      if constexpr(internal::is_complex_v<TensorType>) internal::hash_combine(hash, std::abs(val));
       else internal::hash_combine(hash, val);
     }
   };

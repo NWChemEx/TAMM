@@ -917,10 +917,10 @@ TEST_CASE("Tensor ops for double") {
   test_dependent_space_with_T<double>(3);
 }
 
-TEST_CASE("Tensor ops for float") {
-  test_dependent_space_with_T<float>(1);
-  test_dependent_space_with_T<float>(3);
-}
+// TEST_CASE("Tensor ops for float") {
+//   test_dependent_space_with_T<float>(1);
+//   test_dependent_space_with_T<float>(3);
+// }
 
 int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);

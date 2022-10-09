@@ -92,7 +92,6 @@ void test_ops(const TiledIndexSpace& MO) {
   Tensor<T> xt3{N, N};
   // Tensor<T>::allocate(ec,xt1,xt2,xt3);
 
-#if 1
   Scheduler{*ec}
     .allocate(xt1, xt2, xt3)(xt1("n1", "n2") = 2.2)(xt2("n1", "n2") = 2.0 * xt1("n1", "n2"))
     //(xt3("n1","n2") = 2.0*xt1("n1","nk")*xt2("nk","n2")) //no-op
@@ -101,7 +100,6 @@ void test_ops(const TiledIndexSpace& MO) {
 
   check_value(xt1, 2.2);
   check_value(xt2, 4.4);
-#endif
 
   Tensor<T>::deallocate(xt1, xt2, xt3);
 }
@@ -142,7 +140,6 @@ TEST_CASE("Tensor Allocation and Deallocation") {
   delete ec;
 }
 
-#if 1
 TEST_CASE("Zero-dimensional ops") {
   ProcGroup         pg = ProcGroup::create_world_coll();
   ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
@@ -237,7 +234,6 @@ TEST_CASE("Zero-dimensional ops") {
   // MemoryManagerGA::destroy_coll(mgr);
   delete ec;
 }
-#endif
 
 TEST_CASE("Zero-dimensional ops with flush and sync deallocation") {
   ProcGroup         pg = ProcGroup::create_world_coll();
@@ -1144,14 +1140,14 @@ void test_addop_with_T(unsigned tilesize) {
 
 TEST_CASE("setop with double") {
   test_setop_with_T<double>(1);
-  ///@todo with the new block ops the check value method should we updated
+  ///@todo with the new block ops the check value method should be updated
   /// with respect to repeating index labels
   // test_setop_with_T<double>(3);
 }
 
 TEST_CASE("setop with float") {
   test_setop_with_T<float>(1);
-  ///@todo with the new block ops the check value method should we updated
+  ///@todo with the new block ops the check value method should be updated
   /// with respect to repeating index labels
   // test_setop_with_T<float>(3);
 }
@@ -1191,22 +1187,21 @@ TEST_CASE("addop with double") {
   test_addop_with_T<double>(3);
 }
 
-TEST_CASE("addop with float") {
-  test_addop_with_T<float>(1);
-  test_addop_with_T<float>(3);
+// TEST_CASE("addop with float") {
+//   test_addop_with_T<float>(1);
+//   test_addop_with_T<float>(3);
+// }
+
+TEST_CASE("addop with single complex") {
+  test_addop_with_T<complex_single>(1);
+  test_addop_with_T<complex_single>(3);
 }
 
-// TEST_CASE("addop with single complex") {
-//     test_addop_with_T<complex_single>(1);
-//     test_addop_with_T<complex_single>(3);
-// }
+TEST_CASE("addop with double complex") {
+  test_addop_with_T<complex_double>(1);
+  test_addop_with_T<complex_double>(3);
+}
 
-// TEST_CASE("addop with double complex") {
-//     test_addop_with_T<complex_double>(1);
-//     test_addop_with_T<complex_double>(3);
-// }
-
-#if 1
 TEST_CASE("Two-dimensional ops") {
   bool              failed;
   ProcGroup         pg = ProcGroup::create_world_coll();
@@ -1437,7 +1432,6 @@ TEST_CASE("One-dimensional ops") {
   // MemoryManagerGA::destroy_coll(mgr);
   delete ec;
 }
-#endif
 
 TEST_CASE("Three-dimensional mult ops part I") {
   bool              failed;
@@ -1451,7 +1445,6 @@ TEST_CASE("Three-dimensional mult ops part I") {
   TiledIndexLabel i, j, k, l;
   std::tie(i, j, k, l) = TIS.labels<4>("all");
 
-#if 1
   // mult 3x3x0
   try {
     failed = false;
@@ -1499,10 +1492,8 @@ TEST_CASE("Three-dimensional mult ops part I") {
     failed = true;
   }
   REQUIRE(!failed);
-#endif
 
   // mult 3x3x3
-#if 1
   try {
     failed = false;
     Tensor<T> T1{TIS, TIS, TIS}, T2{TIS, TIS, TIS}, T3{TIS, TIS, TIS};
@@ -1518,7 +1509,6 @@ TEST_CASE("Three-dimensional mult ops part I") {
     failed = true;
   }
   REQUIRE(!failed);
-#endif
   // MemoryManagerGA::destroy_coll(mgr);
   delete ec;
 }
@@ -1585,7 +1575,6 @@ TEST_CASE("Four-dimensional mult ops part I") {
   REQUIRE(!failed);
 
   // mult 4x4x4
-#if 1
   try {
     failed = false;
     Tensor<T> T1{TIS, TIS, TIS, TIS}, T2{TIS, TIS, TIS, TIS}, T3{TIS, TIS, TIS, TIS};
@@ -1601,12 +1590,10 @@ TEST_CASE("Four-dimensional mult ops part I") {
     failed = true;
   }
   REQUIRE(!failed);
-#endif
   // MemoryManagerGA::destroy_coll(mgr);
   delete ec;
 }
 
-#if 1
 TEST_CASE("Two-dimensional ops part I") {
   bool              failed;
   ProcGroup         pg = ProcGroup::create_world_coll();
@@ -1857,7 +1844,6 @@ TEST_CASE("Two-dimensional ops part I") {
   }
   REQUIRE(!failed);
 }
-#endif
 
 TEST_CASE("MultOp with RHS reduction") {
   bool              failed;

@@ -135,10 +135,11 @@ jobs:
       run: |
         mkdir -p $GITHUB_WORKSPACE/external_deps
         cd $GITHUB_WORKSPACE/external_deps
-        wget https://bitbucket.org/berkeleylab/upcxx/downloads/upcxx-2022.3.0.tar.gz
-        tar xf upcxx-2022.3.0.tar.gz
-        cd upcxx-2022.3.0
+        wget https://bitbucket.org/berkeleylab/upcxx/downloads/upcxx-2022.9.0.tar.gz
+        tar xf upcxx-2022.9.0.tar.gz
+        cd upcxx-2022.9.0
         export INSTALL_PATH=$GITHUB_WORKSPACE/install
+        #rm -rf ${INSTALL_PATH}/upcxx* ${INSTALL_PATH}/include ${INSTALL_PATH}/bin ${INSTALL_PATH}/gasne* ${INSTALL_PATH}/share
         ./configure --prefix=${INSTALL_PATH} --with-cxx=mpicxx --with-cc=mpicc --with-default-network=smp
         make -j2 all
         make install

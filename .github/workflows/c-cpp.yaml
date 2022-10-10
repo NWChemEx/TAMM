@@ -130,7 +130,7 @@ jobs:
         yes | /bin/sh cmake-3.22.6-linux-x86_64.sh
 
     - name: build upcxx
-      if: ${{ matrix.backend == 'upcxx' && steps.tamm-upcxx-cache-install.outputs.cache-hit != 'true' }}
+      if: ${{ matrix.backend == 'upcxx' }}
       shell: bash
       run: |
         mkdir -p $GITHUB_WORKSPACE/external_deps
@@ -139,7 +139,7 @@ jobs:
         tar xf upcxx-2022.9.0.tar.gz
         cd upcxx-2022.9.0
         export INSTALL_PATH=$GITHUB_WORKSPACE/install
-        #rm -rf ${INSTALL_PATH}/upcxx* ${INSTALL_PATH}/include ${INSTALL_PATH}/bin ${INSTALL_PATH}/gasne* ${INSTALL_PATH}/share
+        rm -rf ${INSTALL_PATH}/upcxx* ${INSTALL_PATH}/include/upcxx ${INSTALL_PATH}/bin/upcxx* ${INSTALL_PATH}/gasnet* ${INSTALL_PATH}/share/cmake/UPCXX
         ./configure --prefix=${INSTALL_PATH} --with-cxx=mpicxx --with-cc=mpicc --with-default-network=smp
         make -j2 all
         make install
@@ -175,6 +175,7 @@ jobs:
       run: |
         export INSTALL_PATH=$GITHUB_WORKSPACE/install
         export PATH=$PATH:$GITHUB_WORKSPACE/install/bin
+        upcxx --version
         export CPATH=$CPATH:/usr/lib/x86_64-linux-gnu/openmpi/include
         UPCXX_CODEMODE=O3 CXX=upcxx $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DENABLE_COVERAGE=ON -DUSE_UPCXX=ON -DJOB_LAUNCH_CMD="upcxx-run"
         cd build

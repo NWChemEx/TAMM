@@ -79,11 +79,9 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   T  b_norm = tamm::norm(B);
   CT c_norm = tamm::norm(C);
 
-// linf_norm
-#if !defined(USE_UPCXX)
+  // linf_norm
   T  b_linf_norm = tamm::linf_norm(B);
   CT c_linf_norm = tamm::linf_norm(C);
-#endif
 
   // sqrt
   Tensor<T>  b_sqrt = tamm::sqrt(B);
@@ -131,11 +129,9 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   // tamm::random_ip(A);
   tamm::random_ip(B);
 
-// max_element,min_element
-#if !defined(USE_UPCXX)
+  // max_element,min_element
   auto [bmaxval, bmaxblockid, bmaxcoord] = tamm::max_element(B);
   auto [bminval, bminblockid, bmincoord] = tamm::min_element(B);
-#endif
 
   // update_tensor_val
   const T                   val_t = 42.0;

@@ -564,6 +564,26 @@ public:
     else if(op == ReduceOp::sum) {
       upcxx::reduce_all(sbuf, rbuf, count, upcxx::op_fast_add, *pginfo_->team_).wait();
     }
+    else if(op == ReduceOp::minloc) {
+      auto pair                  = std::make_pair(sbuf[0], sbuf[1]);
+      std::tie(rbuf[0], rbuf[1]) = upcxx::reduce_all(
+                                     pair,
+                                     [](const decltype(pair)& a, const decltype(pair)& b) {
+                                       return a.first < b.first ? a : b;
+                                     },
+                                     *pginfo_->team_)
+                                     .wait();
+    }
+    else if(op == ReduceOp::maxloc) {
+      auto pair                  = std::make_pair(sbuf[0], sbuf[1]);
+      std::tie(rbuf[0], rbuf[1]) = upcxx::reduce_all(
+                                     pair,
+                                     [](const decltype(pair)& a, const decltype(pair)& b) {
+                                       return a.first > b.first ? a : b;
+                                     },
+                                     *pginfo_->team_)
+                                     .wait();
+    }
     else { abort(); }
 #else
     auto mpidtype = mpi_type<T>();

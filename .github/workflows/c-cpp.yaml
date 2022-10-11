@@ -130,7 +130,7 @@ jobs:
         yes | /bin/sh cmake-3.22.6-linux-x86_64.sh
 
     - name: build upcxx
-      if: ${{ matrix.backend == 'upcxx' }}
+      if: ${{ matrix.backend == 'upcxx' && steps.tamm-upcxx-cache-install.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
         mkdir -p $GITHUB_WORKSPACE/external_deps
@@ -139,7 +139,6 @@ jobs:
         tar xf upcxx-2022.9.0.tar.gz
         cd upcxx-2022.9.0
         export INSTALL_PATH=$GITHUB_WORKSPACE/install
-        rm -rf ${INSTALL_PATH}/upcxx* ${INSTALL_PATH}/include/upcxx ${INSTALL_PATH}/bin/upcxx* ${INSTALL_PATH}/gasnet* ${INSTALL_PATH}/share/cmake/UPCXX
         ./configure --prefix=${INSTALL_PATH} --with-cxx=mpicxx --with-cc=mpicc --with-default-network=smp
         make -j2 all
         make install

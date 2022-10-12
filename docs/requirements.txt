@@ -1,0 +1,3 @@
+sphinx
+rstcheck
+sphinx_rtd_theme

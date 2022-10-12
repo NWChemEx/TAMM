@@ -1,4 +1,4 @@
-TAMM Code Recipes
+Code Recipes
 =================
 
 View Tensor Construction
@@ -55,12 +55,13 @@ View tensor constructs a lambda tensor that can access to the reference tensors 
 
 
 Unit Tiled View Tensor Construction
-------------------------
+-----------------------------------
 
 As a specialized view tensor, TAMM also provides unit tiled views of tensors that are build with tiled index spaces. This is especially useful to be used on sliced updates on specific dimension/s of a tensor that is already tiled for efficiency. Due to the distribution of the tensor blocks, you can only have unit tiled views for the consecutive dimensions from the left. Below example gives some usage details for the unit tiled view tensors. Users can chose to unit tile the whole tensor as in Example 2 or chose number dimensions from left to be unit tiled. As these tensors are view tensors, there is no need to do allocation for unit tiled view tensors, they simply use the storage from the reference tensors.
 
 
 .. code-block:: cpp
+  
   // Example 1
   // Construct MO Index Space
   const IndexSpace MO_IS{

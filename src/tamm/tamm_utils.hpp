@@ -2956,8 +2956,10 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
                                 std::vector<int64_t> hi, std::vector<int> permute = {}) {
   const int ndims = tensor.num_modes();
 
+#if defined(USE_UPCXX)
   // Only works for 2-D - for now
   EXPECTS(ndims == 2);
+#endif
   EXPECTS(tensor.kind() == TensorBase::TensorKind::dense);
   EXPECTS(tensor.distribution().kind() == DistributionKind::dense);
 

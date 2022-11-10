@@ -119,9 +119,9 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   sch.deallocate(b_einverse, c_einverse).execute();
 
   // scale, scale_ip
-  Tensor<T>  b_scale = tamm::scale(B, 2.0);
+  Tensor<T>  b_scale = tamm::scale(B, static_cast<T>(2.0));
   Tensor<CT> c_scale = tamm::scale(C, (CT) 2.0);
-  tamm::scale_ip(b_scale, 2.0);
+  tamm::scale_ip(b_scale, static_cast<T>(2.0));
   tamm::scale_ip(c_scale, (CT) 2.0);
   sch.deallocate(b_scale, c_scale).execute();
 
@@ -180,6 +180,50 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   tamm::retile_tamm_tensor(B, b_ret);
   tamm::retile_tamm_tensor(C, c_ret);
   sch.deallocate(b_ret, c_ret).execute();
+
+#else // Only for rank 2 tensors
+  TiledIndexSpace tis_1{IndexSpace{range(N)}, tilesize};
+  auto [ii, jj] = tis_1.labels<2>("all");
+
+  Tensor<T> B2{ii, jj};
+  sch.allocate(B2).execute();
+  tamm::random_ip(B2);
+
+  Tensor<CT> C2{ii, jj};
+  sch.allocate(C2).execute();
+  tamm::random_ip(C2);
+
+  // to_dense_tensor
+  Tensor<T>  b_dens = tamm::to_dense_tensor(ec_dense, B2);
+  Tensor<CT> c_dens = tamm::to_dense_tensor(ec_dense, C2);
+
+  // get_tensor_element
+  T  b_dens_val = tamm::get_tensor_element(b_dens, {0, 0});
+  CT c_dens_val = tamm::get_tensor_element(c_dens, {0, 0});
+
+  // tensor_block
+  Tensor<T>  b_block = tamm::tensor_block(b_dens, {0, 0}, {N / 2, N / 2});
+  Tensor<CT> c_block = tamm::tensor_block(c_dens, {0, 0}, {N / 2, N / 2});
+
+  sch.deallocate(b_dens, c_dens).execute();
+  sch.deallocate(b_block, c_block).execute();
+
+  // redistribute_tensor
+  TiledIndexSpace    tis_red{IndexSpace{range(N)}, N / 2};
+  TiledIndexSpaceVec tis_red_vec{tis_red, tis_red};
+  Tensor<T>          b_red = tamm::redistribute_tensor<T>(B2, tis_red_vec);
+  Tensor<CT>         c_red = tamm::redistribute_tensor<CT>(C2, tis_red_vec);
+  sch.deallocate(b_red, c_red).execute();
+
+  // retile_tamm_tensor
+  Tensor<T>  b_ret{tis_red, tis_red};
+  Tensor<CT> c_ret{tis_red, tis_red};
+  sch.allocate(b_ret, c_ret).execute();
+  tamm::retile_tamm_tensor(B, b_ret);
+  tamm::retile_tamm_tensor(C, c_ret);
+  sch.deallocate(b_ret, c_ret).execute();
+
+  sch.deallocate(B2, C2).execute();
 #endif
 
   sch.deallocate(A, B, C).execute();

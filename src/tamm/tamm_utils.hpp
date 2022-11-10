@@ -707,7 +707,7 @@ static inline void subcomm_from_subranks(ExecutionContext& gec, int subranks, MP
  */
 template<typename TensorType>
 #if defined(USE_UPCXX)
-ga_over_upcxx* tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
+ga_over_upcxx<TensorType>* tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
 #else
 int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
 #endif
@@ -728,28 +728,15 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
     dims.push_back(1);
     chnks.push_back(-1);
   }
-  if(tensor_element_type<TensorType>() != ElementType::double_precision) {
-    fprintf(stderr, "Unsupported element type for ga_over_upcxx\n");
-    if(tensor_element_type<TensorType>() == ElementType::single_precision) {
-      fprintf(stderr, "Type single\n");
-    }
-    else if(tensor_element_type<TensorType>() == ElementType::single_complex) {
-      fprintf(stderr, "Type single complex\n");
-    }
-    else if(tensor_element_type<TensorType>() == ElementType::double_complex) {
-      fprintf(stderr, "Type double complex\n");
-    }
-    else { fprintf(stderr, "Type unknown\n"); }
-    abort();
-  }
-  ga_over_upcxx* ga_tens = new ga_over_upcxx(4, &dims[0], &chnks[0], upcxx::world());
+
+  ga_over_upcxx<TensorType>* ga_tens =
+    new ga_over_upcxx<TensorType>(4, &dims[0], &chnks[0], upcxx::world());
 #else
   int ga_pg_default = GA_Pgroup_get_default();
   GA_Pgroup_set_default(ec.pg().ga_pg());
 
   auto ga_eltype = to_ga_eltype(tensor_element_type<TensorType>());
   int ga_tens = NGA_Create64(ga_eltype, ndims, &dims[0], const_cast<char*>("iotemp"), &chnks[0]);
-  // GA_Zero(ga_tens);
   GA_Pgroup_set_default(ga_pg_default);
 #endif
 
@@ -1280,7 +1267,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
 template<typename TensorType>
 void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor,
 #if defined(USE_UPCXX)
-                ga_over_upcxx* ga_tens)
+                ga_over_upcxx<TensorType>* ga_tens)
 #else
                 int ga_tens)
 #endif
@@ -1329,29 +1316,28 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor,
   };
 
   block_for(ec, tensor(), ga_tamm_lambda);
-
-  // NGA_Destroy(ga_tens);
 }
 
 template<typename TensorType>
 Tensor<TensorType> redistribute_tensor(Tensor<TensorType> stensor, TiledIndexSpaceVec tis,
                                        std::vector<size_t> spins = {}) {
   ExecutionContext& ec = get_ec(stensor());
-  // int rank = ec.pg().rank().value();
+
 #if defined(USE_UPCXX)
-  ga_over_upcxx* wmn_ga = tamm_to_ga(ec, stensor);
+  ga_over_upcxx<TensorType>* wmn_ga = tamm_to_ga(ec, stensor);
 #else
   int wmn_ga = tamm_to_ga(ec, stensor);
 #endif
-  // sch.deallocate(wmn).execute();
+
   Tensor<TensorType> dtensor{tis};
   if(spins.size() > 0) dtensor = Tensor<TensorType>{tis, spins};
   Tensor<TensorType>::allocate(&ec, dtensor);
-#if defined(USE_UPCXX)
+
   ga_to_tamm(ec, dtensor, wmn_ga);
+
+#if defined(USE_UPCXX)
   wmn_ga->destroy();
 #else
-  ga_to_tamm(ec, dtensor, wmn_ga);
   NGA_Destroy(wmn_ga);
 #endif
 
@@ -1374,7 +1360,7 @@ void retile_tamm_tensor(Tensor<TensorType> stensor, Tensor<TensorType>& dtensor,
   int               rank = ec.pg().rank().value();
 
 #if defined(USE_UPCXX)
-  ga_over_upcxx* ga_tens = tamm_to_ga(ec, stensor);
+  ga_over_upcxx<TensorType>* ga_tens = tamm_to_ga(ec, stensor);
   ga_to_tamm(ec, dtensor, ga_tens);
   ga_tens->destroy();
 #else
@@ -2323,14 +2309,21 @@ Tensor<TensorType> sqrt(Tensor<TensorType> tensor) {
 
 template<typename TensorType>
 void random_ip(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
-  // std::random_device random_device;
-  std::default_random_engine                 generator;
-  std::uniform_real_distribution<TensorType> tensor_rand_dist(0.0, 1.0);
+  std::mt19937                           generator(get_ec(ltensor).pg().rank().value());
+  std::uniform_real_distribution<double> tensor_rand_dist(0.0, 1.0);
 
-  std::function<TensorType(TensorType)> func = [&](TensorType a) {
-    return tensor_rand_dist(generator);
-  };
-  apply_ewise_ip(ltensor, func);
+  if constexpr(!tamm::internal::is_complex_v<TensorType>) {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+      return tensor_rand_dist(generator);
+    };
+    apply_ewise_ip(ltensor, func);
+  }
+  else {
+    std::function<TensorType(TensorType)> func = [&](TensorType a) {
+      return TensorType(tensor_rand_dist(generator), tensor_rand_dist(generator));
+    };
+    apply_ewise_ip(ltensor, func);
+  }
 }
 
 template<typename TensorType>
@@ -2517,7 +2510,7 @@ max_element(LabeledTensor<TensorType> ltensor) {
 
   Tensor<TensorType> tensor = ltensor.tensor();
   auto               nmodes = tensor.num_modes();
-  // Works for only upto 6D tensors
+  // Works for only up to 6D tensors
   EXPECTS(tensor.num_modes() <= 6);
 
   IndexVector             maxblockid(nmodes);
@@ -2675,7 +2668,7 @@ min_element(LabeledTensor<TensorType> ltensor) {
 
   Tensor<TensorType> tensor = ltensor.tensor();
   auto               nmodes = tensor.num_modes();
-  // Works for only upto 6D tensors
+  // Works for only up to 6D tensors
   EXPECTS(tensor.num_modes() <= 6);
 
   IndexVector             minblockid(nmodes);
@@ -2957,15 +2950,14 @@ Tensor<TensorType> permute_tensor(Tensor<TensorType> tensor, std::vector<int> pe
   return ptensor; // caller responsible for dellocating this tensor
 }
 
-// Extract block of a dense tensor given by [lo, hi)
+// Extract block of a dense tensor given by [lo, hi]
 template<typename TensorType>
 Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> lo,
                                 std::vector<int64_t> hi, std::vector<int> permute = {}) {
-#if defined(USE_UPCXX)
-  // upcxx: unsupported for now, need to implement ga_copy_patch
-  abort();
-#else
   const int ndims = tensor.num_modes();
+
+  // Only works for 2-D - for now
+  EXPECTS(ndims == 2);
   EXPECTS(tensor.kind() == TensorBase::TensorKind::dense);
   EXPECTS(tensor.distribution().kind() == DistributionKind::dense);
 
@@ -2973,12 +2965,11 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
 
   for(int i = 0; i < ndims; i++) {
     EXPECTS(hi[i] <= tis[i].index_space().num_indices() && lo[i] >= 0);
-    // tamm_terminate("invalid ranges specified to tensor_block");
   }
 
   LabeledTensor<TensorType> ltensor = tensor();
-  ExecutionContext& ec = get_ec(ltensor);
-  std::vector<bool> is_irreg_tis(ndims, false);
+  ExecutionContext&         ec      = get_ec(ltensor);
+  std::vector<bool>         is_irreg_tis(ndims, false);
   for(int i = 0; i < ndims; i++) is_irreg_tis[i] = !tis[i].input_tile_sizes().empty();
 
   std::vector<std::vector<Tile>> tiles(ndims);
@@ -2992,11 +2983,27 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
     max_ts[i] = is_irreg_tis[i] ? *max_element(tiles[i].begin(), tiles[i].end()) : tiles[i][0];
 
   TiledIndexSpaceVec btis(ndims);
-  for(int i = 0; i < ndims; i++) btis[i] = TiledIndexSpace{range(hi[i] - lo[i]), max_ts[i]};
+  for(int i = 0; i < ndims; i++) btis[i] = TiledIndexSpace{range(hi[i] + 1 - lo[i]), max_ts[i]};
 
   Tensor<TensorType> btensor{btis};
   btensor.set_dense();
   Tensor<TensorType>::allocate(&ec, btensor);
+
+#if defined(USE_UPCXX)
+  std::vector<int64_t> chnks(ndims + 2, -1), dims(ndims + 2, 1), ld(ndims + 2, 1);
+  dims[0] = tis[0].index_space().num_indices();
+  dims[1] = tis[1].index_space().num_indices();
+  lo.push_back(0), lo.push_back(0), hi.push_back(0), hi.push_back(0);
+  ld[0] = hi[0] - lo[0] + 1;
+  ld[1] = hi[1] - lo[1] + 1;
+  std::vector<TensorType>    sbuf(btensor.size());
+  ga_over_upcxx<TensorType>* ga_stensor =
+    new ga_over_upcxx<TensorType>(ndims + 2, dims.data(), chnks.data(), upcxx::world());
+  tensor.get_raw(lo.data(), hi.data(), sbuf.data(), ld.data());
+  ga_stensor->put(0, 0, 0, 0, ld[0] - 1, ld[1] - 1, 0, 0, sbuf.data(), ld.data());
+  ga_to_tamm(ec, btensor, ga_stensor);
+  ga_stensor->destroy();
+#else
   int btensor_gah = btensor.ga_handle();
   int tensor_gah = tensor.ga_handle();
 
@@ -3018,6 +3025,7 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
   NGA_Copy_patch64(ctrans, tensor_gah, lo_src, hi_src, btensor_gah, lo_dst, hi_dst);
 
   GA_Pgroup_set_default(ga_pg_default);
+#endif
 
   Tensor<TensorType> pbtensor = btensor;
   if(!permute.empty()) {
@@ -3025,8 +3033,7 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
     Tensor<TensorType>::deallocate(btensor);
   }
 
-  return pbtensor; // caller responsible for dellocating this tensor
-#endif
+  return pbtensor; // Caller responsible for dellocating this tensor
 }
 
 inline TiledIndexLabel compose_lbl(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
@@ -3136,7 +3143,7 @@ Tensor<TensorType> to_dense_tensor(ExecutionContext& ec_dense, Tensor<TensorType
   btensor.set_dense();
   Tensor<TensorType>::allocate(&ec_dense, btensor);
 #if defined(USE_UPCXX)
-  ga_over_upcxx* ga_stensor = tamm_to_ga(ec_dense, tensor);
+  ga_over_upcxx<TensorType>* ga_stensor = tamm_to_ga(ec_dense, tensor);
   ga_to_tamm(ec_dense, btensor, ga_stensor);
   ga_stensor->destroy();
 #else
@@ -3145,25 +3152,19 @@ Tensor<TensorType> to_dense_tensor(ExecutionContext& ec_dense, Tensor<TensorType
   NGA_Destroy(ga_stensor);
 #endif
 
-  return btensor; // caller responsible for dellocating this tensor
+  return btensor; // Caller responsible for dellocating this tensor
 }
 
-// Extract a single value specified by index_id from a dense tensor.
+// Extract a single value specified by index_id from a dense tensor
 template<typename TensorType>
 TensorType get_tensor_element(Tensor<TensorType> tensor, std::vector<int64_t> index_id) {
   const int ndims = tensor.num_modes();
   EXPECTS(tensor.kind() == TensorBase::TensorKind::dense);
-  // EXPECTS(tensor.distribution().kind() == DistributionKind::dense);
 
   TensorType val{};
 
-#if defined(USE_UPCXX)
-  std::vector<int64_t> lo(4), hi(4);
-  std::vector<int64_t> ld(4, 1);
-#else
   std::vector<int64_t> lo(ndims), hi(ndims);
   std::vector<int64_t> ld(ndims - 1, 1);
-#endif
 
   for(int i = 0; i < ndims; i++) {
     lo[i] = index_id[i];
@@ -3175,6 +3176,7 @@ TensorType get_tensor_element(Tensor<TensorType> tensor, std::vector<int64_t> in
 #else
   NGA_Get64(tensor.ga_handle(), &lo[0], &hi[0], &val, &ld[0]);
 #endif
+
   return val;
 };
 
@@ -3205,8 +3207,6 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
     std::vector<int64_t> dims;
     for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
 
-    // tstring << "tensor dims = " << dims << std::endl;
-    // tstring << "actual tensor size = " << tensor.size() << std::endl;
     for(auto it: tensor.loop_nest()) {
       auto blockid = internal::translate_blockid(it, lt);
       if(!tensor.is_non_zero(blockid)) continue;

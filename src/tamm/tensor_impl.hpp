@@ -461,9 +461,9 @@ public:
   }
 #endif
 
-  virtual void put_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) { abort(); }
+  virtual void put_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) const { abort(); }
 
-  virtual void get_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) { abort(); }
+  virtual void get_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) const { abort(); }
 
   virtual T* access_local_buf() {
     EXPECTS(mpb_);
@@ -985,6 +985,7 @@ public:
     std::vector<int64_t> ld = compute_ld(blockid);
 
     EXPECTS(block_size(blockid) <= buff_span.size());
+
 #if defined(USE_UPCXX)
     put_raw(&lo[0], &hi[0], buff_span.data(), &ld[0]);
 #else
@@ -1049,8 +1050,10 @@ public:
   }
 
 #if defined(USE_UPCXX)
-  void put_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) {
-    for(int64_t row = lo[0]; row <= hi[1]; row++) {
+  void put_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) const {
+    const auto elem_sz = MemoryManagerGA::get_element_size(eltype_);
+    int        i       = 0;
+    for(int64_t row = lo[0]; row <= hi[0]; row++) {
       for(int64_t col = lo[1]; col <= hi[1]; col++) {
         TensorTile t = find_tile(row, col);
 
@@ -1060,37 +1063,35 @@ public:
         int64_t                    tile_offset = row_offset * t.dim[1] + col_offset;
         upcxx::global_ptr<uint8_t> target      = gptrs_[t.rank];
         upcxx::global_ptr<uint8_t> remote_addr =
-          target + (t.offset * MemoryManagerGA::get_element_size(eltype_)) +
-          (tile_offset * MemoryManagerGA::get_element_size(eltype_));
+          target + (t.offset * elem_sz) + (tile_offset * elem_sz);
 
         int64_t  buff_offset = row * buf_ld[0] + col;
-        uint8_t* local_addr =
-          ((uint8_t*) buf) + (buff_offset * MemoryManagerGA::get_element_size(eltype_));
+        uint8_t* local_addr  = ((uint8_t*) buf) + (i++ * elem_sz);
 
-        upcxx::rput(local_addr, remote_addr, MemoryManagerGA::get_element_size(eltype_)).wait();
+        upcxx::rput(local_addr, remote_addr, elem_sz).wait();
       }
     }
   }
 
   void get_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) const {
-    for(int64_t row = lo[0]; row <= hi[1]; row++) {
+    const auto elem_sz = MemoryManagerGA::get_element_size(eltype_);
+    int        i       = 0;
+    for(int64_t row = lo[0]; row <= hi[0]; row++) {
       for(int64_t col = lo[1]; col <= hi[1]; col++) {
         TensorTile t = find_tile(row, col);
 
         int64_t row_offset = row - t.lo[0];
         int64_t col_offset = col - t.lo[1];
 
-        int64_t                    tile_offset = row_offset * t.dim[0] + col_offset;
+        int64_t                    tile_offset = row_offset * t.dim[1] + col_offset;
         upcxx::global_ptr<uint8_t> target      = gptrs_[t.rank];
         upcxx::global_ptr<uint8_t> remote_addr =
-          target + (t.offset * MemoryManagerGA::get_element_size(eltype_)) +
-          (tile_offset * MemoryManagerGA::get_element_size(eltype_));
+          target + (t.offset * elem_sz) + (tile_offset * elem_sz);
 
         int64_t  buff_offset = row * buf_ld[0] + col;
-        uint8_t* local_addr =
-          ((uint8_t*) buf) + (buff_offset * MemoryManagerGA::get_element_size(eltype_));
+        uint8_t* local_addr  = ((uint8_t*) buf) + (i++ * elem_sz);
 
-        upcxx::rget(remote_addr, local_addr, MemoryManagerGA::get_element_size(eltype_)).wait();
+        upcxx::rget(remote_addr, local_addr, elem_sz).wait();
       }
     }
   }

@@ -276,7 +276,7 @@ public:
   }
 #else
   /**
-   * Access the underying global array
+   * Access the underlying global array
    * @return Handle to underlying global array
    */
   int ga_handle() { return impl_->ga_handle(); }

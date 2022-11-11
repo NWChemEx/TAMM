@@ -5,9 +5,10 @@
 #include <limits>
 #include <upcxx/upcxx.hpp>
 
+template<typename T = double>
 class ga_over_upcxx_chunk_view {
 private:
-  double* chunk;
+  T*      chunk;
   int64_t chunk_size[4];
 
   inline int64_t flatten(const int64_t i0_offset, const int64_t i1_offset, const int64_t i2_offset,
@@ -17,7 +18,7 @@ private:
   }
 
 public:
-  ga_over_upcxx_chunk_view(double* _chunk, int64_t dim0, int64_t dim1, int64_t dim2, int64_t dim3) {
+  ga_over_upcxx_chunk_view(T* _chunk, int64_t dim0, int64_t dim1, int64_t dim2, int64_t dim3) {
     chunk         = _chunk;
     chunk_size[0] = dim0;
     chunk_size[1] = dim1;
@@ -25,33 +26,33 @@ public:
     chunk_size[3] = dim3;
   }
 
-  inline double read(const int64_t i0, const int64_t i1, const int64_t i2, const int64_t i3) const {
+  inline T read(const int64_t i0, const int64_t i1, const int64_t i2, const int64_t i3) const {
     return chunk[flatten(i0, i1, i2, i3)];
   }
 
-  inline void write(const int64_t i0, const int64_t i1, const int64_t i2, const int64_t i3,
-                    double val) {
+  inline void write(const int64_t i0, const int64_t i1, const int64_t i2, const int64_t i3, T val) {
     chunk[flatten(i0, i1, i2, i3)] = val;
   }
 
   inline void subtract(const int64_t i0, const int64_t i1, const int64_t i2, const int64_t i3,
-                       double val) {
+                       T val) {
     chunk[flatten(i0, i1, i2, i3)] -= val;
   }
 
   inline int64_t get_chunk_size(int index) const { return chunk_size[index]; }
 };
 
+template<typename T = double>
 class ga_over_upcxx_chunk {
 private:
-  int64_t                   lo_coord[4];
-  int64_t                   chunk_size[4];
-  upcxx::global_ptr<double> chunk;
+  int64_t              lo_coord[4];
+  int64_t              chunk_size[4];
+  upcxx::global_ptr<T> chunk;
 
 public:
   ga_over_upcxx_chunk(int64_t lo0, int64_t lo1, int64_t lo2, int64_t lo3, int64_t chunk_size0,
                       int64_t chunk_size1, int64_t chunk_size2, int64_t chunk_size3,
-                      upcxx::global_ptr<double> _chunk) {
+                      upcxx::global_ptr<T> _chunk) {
     lo_coord[0] = lo0;
     lo_coord[1] = lo1;
     lo_coord[2] = lo2;
@@ -67,12 +68,12 @@ public:
 
   void destroy() { upcxx::delete_array(chunk); }
 
-  double* local() {
+  T* local() {
     assert(chunk.is_local());
     return chunk.local();
   }
 
-  ga_over_upcxx_chunk_view local_view() {
+  ga_over_upcxx_chunk_view<T> local_view() {
     if(!chunk.is_local()) abort();
     return ga_over_upcxx_chunk_view(chunk.local(), chunk_size[0], chunk_size[1], chunk_size[2],
                                     chunk_size[3]);
@@ -109,20 +110,19 @@ public:
 
   // Dimensions of in are high0-low0+1, high1-low1+1, high2-low2+1
   upcxx::future<> put_any(int64_t low0, int64_t low1, int64_t low2, int64_t low3, int64_t high0,
-                          int64_t high1, int64_t high2, int64_t high3, double* buf) {
+                          int64_t high1, int64_t high2, int64_t high3, T* buf) {
     return putget_any(low0, low1, low2, low3, high0, high1, high2, high3, buf, true);
   }
 
   // Dimensions of in are high0-low0+1, high1-low1+1, high2-low2+1
   upcxx::future<> get_any(int64_t low0, int64_t low1, int64_t low2, int64_t low3, int64_t high0,
-                          int64_t high1, int64_t high2, int64_t high3, double* buf) {
+                          int64_t high1, int64_t high2, int64_t high3, T* buf) {
     return putget_any(low0, low1, low2, low3, high0, high1, high2, high3, buf, false);
   }
 
   // Dimensions of in are high0-low0+1, high1-low1+1, high2-low2+1
   upcxx::future<> putget_any(int64_t low0, int64_t low1, int64_t low2, int64_t low3, int64_t high0,
-                             int64_t high1, int64_t high2, int64_t high3, double* buf,
-                             bool is_put) {
+                             int64_t high1, int64_t high2, int64_t high3, T* buf, bool is_put) {
     upcxx::future<> fut      = upcxx::make_future();
     bool            overlap0 = (low0 <= (lo_coord[0] + chunk_size[0] - 1) && lo_coord[0] <= high0);
     bool            overlap1 = (low1 <= (lo_coord[1] + chunk_size[1] - 1) && lo_coord[1] <= high1);
@@ -298,17 +298,18 @@ public:
   int64_t  get_chunk_size(int dim) { return chunk_size[dim]; }
   int64_t  get_nelements() { return chunk_size[0] * chunk_size[1] * chunk_size[2] * chunk_size[3]; }
 
-  bool same_coord(ga_over_upcxx_chunk* other) {
+  bool same_coord(ga_over_upcxx_chunk<T>* other) {
     return lo_coord[0] == other->lo_coord[0] && lo_coord[1] == other->lo_coord[1] &&
            lo_coord[2] == other->lo_coord[2] && lo_coord[3] == other->lo_coord[3];
   }
 
-  bool same_size_or_smaller(ga_over_upcxx_chunk* other) {
+  bool same_size_or_smaller(ga_over_upcxx_chunk<T>* other) {
     return chunk_size[0] <= other->chunk_size[0] && chunk_size[1] <= other->chunk_size[1] &&
            chunk_size[2] <= other->chunk_size[2] && chunk_size[3] <= other->chunk_size[3];
   }
 };
 
+template<typename T = double>
 class ga_over_upcxx {
 private:
   int rank;
@@ -321,11 +322,11 @@ private:
 
   size_t total_chunks;
 
-  std::vector<ga_over_upcxx_chunk*> local_chunks;
-  std::vector<ga_over_upcxx_chunk*> all_chunks;
+  std::vector<ga_over_upcxx_chunk<T>*> local_chunks;
+  std::vector<ga_over_upcxx_chunk<T>*> all_chunks;
 
 public:
-  typedef std::vector<ga_over_upcxx_chunk*>::iterator chunk_iterator;
+  typedef typename std::vector<ga_over_upcxx_chunk<T>*>::iterator chunk_iterator;
 
   ga_over_upcxx(int _ndims, int64_t* _dims, int64_t* _chunk_size, upcxx::team& t) {
     rank   = t.rank_me();
@@ -418,28 +419,28 @@ public:
       int64_t chunk_nelements =
         this_chunk_size[0] * this_chunk_size[1] * this_chunk_size[2] * this_chunk_size[3];
 
-      upcxx::global_ptr<double> ptr;
+      upcxx::global_ptr<T> ptr;
       if(owning_rank == rank) {
-        ptr = upcxx::new_array<double>(chunk_nelements);
+        ptr = upcxx::new_array<T>(chunk_nelements);
 
-        upcxx::dist_object<upcxx::global_ptr<double>> dobj(ptr, tid.here());
+        upcxx::dist_object<upcxx::global_ptr<T>> dobj(ptr, tid.here());
         upcxx::barrier(t);
 
-        ga_over_upcxx_chunk* new_chunk =
-          new ga_over_upcxx_chunk(lo[0], lo[1], lo[2], lo[3], this_chunk_size[0],
-                                  this_chunk_size[1], this_chunk_size[2], this_chunk_size[3], ptr);
+        ga_over_upcxx_chunk<T>* new_chunk = new ga_over_upcxx_chunk<T>(
+          lo[0], lo[1], lo[2], lo[3], this_chunk_size[0], this_chunk_size[1], this_chunk_size[2],
+          this_chunk_size[3], ptr);
         all_chunks.push_back(new_chunk);
         local_chunks.push_back(new_chunk);
         upcxx::barrier(t);
       }
       else {
-        upcxx::dist_object<upcxx::global_ptr<double>> dobj(ptr, tid.here());
+        upcxx::dist_object<upcxx::global_ptr<T>> dobj(ptr, tid.here());
         upcxx::barrier(t);
         ptr = dobj.fetch(owning_rank).wait();
 
-        ga_over_upcxx_chunk* new_chunk =
-          new ga_over_upcxx_chunk(lo[0], lo[1], lo[2], lo[3], this_chunk_size[0],
-                                  this_chunk_size[1], this_chunk_size[2], this_chunk_size[3], ptr);
+        ga_over_upcxx_chunk<T>* new_chunk = new ga_over_upcxx_chunk<T>(
+          lo[0], lo[1], lo[2], lo[3], this_chunk_size[0], this_chunk_size[1], this_chunk_size[2],
+          this_chunk_size[3], ptr);
         all_chunks.push_back(new_chunk);
         upcxx::barrier(t);
       }
@@ -488,7 +489,7 @@ public:
     for(auto i = local_chunks.begin(), e = local_chunks.end(); i != e; i++) {
       memset((*i)->local(), 0x00,
              (*i)->get_chunk_size(0) * (*i)->get_chunk_size(1) * (*i)->get_chunk_size(2) *
-               (*i)->get_chunk_size(3) * sizeof(double));
+               (*i)->get_chunk_size(3) * sizeof(T));
     }
     upcxx::barrier(tid.here());
   }
@@ -520,21 +521,21 @@ public:
 
     for(unsigned i = 0; i < local_chunks.size(); i++) {
       memcpy(dst->local_chunks[i]->local(), local_chunks[i]->local(),
-             local_chunks[i]->get_nelements() * sizeof(double));
+             local_chunks[i]->get_nelements() * sizeof(T));
     }
     upcxx::barrier(tid.here());
   }
 
-  ga_over_upcxx_chunk* find_chunk(int64_t lo0, int64_t lo1, int64_t lo2, int64_t lo3) {
+  ga_over_upcxx_chunk<T>* find_chunk(int64_t lo0, int64_t lo1, int64_t lo2, int64_t lo3) {
     for(auto i = all_chunks.begin(), e = all_chunks.end(); i != e; i++) {
-      ga_over_upcxx_chunk* c = *i;
+      ga_over_upcxx_chunk<T>* c = *i;
       if(c->contains(lo0, lo1, lo2, lo3)) { return c; }
     }
     return NULL;
   }
 
   void get(int64_t low0, int64_t low1, int64_t low2, int64_t low3, int64_t high0, int64_t high1,
-           int64_t high2, int64_t high3, double* out, int64_t* out_dims) {
+           int64_t high2, int64_t high3, T* out, int64_t* out_dims) {
     upcxx::future<> fut = upcxx::make_future();
     // Check that specified output dimensions match size of fetched
     // region
@@ -564,9 +565,9 @@ public:
             int64_t chunk_offset = i * chunks_per_dim[1] * chunks_per_dim[2] * chunks_per_dim[3] +
                                    j * chunks_per_dim[2] * chunks_per_dim[3] +
                                    k * chunks_per_dim[3] + l;
-            ga_over_upcxx_chunk* chunk = all_chunks[chunk_offset];
-            fut                        = upcxx::when_all(
-                                     fut, chunk->get_any(low0, low1, low2, low3, high0, high1, high2, high3, out));
+            ga_over_upcxx_chunk<T>* chunk = all_chunks[chunk_offset];
+            fut                           = upcxx::when_all(
+                                        fut, chunk->get_any(low0, low1, low2, low3, high0, high1, high2, high3, out));
           }
         }
       }
@@ -575,7 +576,7 @@ public:
   }
 
   void put(int64_t low0, int64_t low1, int64_t low2, int64_t low3, int64_t high0, int64_t high1,
-           int64_t high2, int64_t high3, double* in, int64_t* in_dims) {
+           int64_t high2, int64_t high3, T* in, int64_t* in_dims) {
     upcxx::future<> fut = upcxx::make_future();
 
     // Check that specified output dimensions match size of fetched
@@ -606,9 +607,9 @@ public:
             int64_t chunk_offset = i * chunks_per_dim[1] * chunks_per_dim[2] * chunks_per_dim[3] +
                                    j * chunks_per_dim[2] * chunks_per_dim[3] +
                                    k * chunks_per_dim[3] + l;
-            ga_over_upcxx_chunk* chunk = all_chunks[chunk_offset];
-            fut                        = upcxx::when_all(
-                                     fut, chunk->put_any(low0, low1, low2, low3, high0, high1, high2, high3, in));
+            ga_over_upcxx_chunk<T>* chunk = all_chunks[chunk_offset];
+            fut                           = upcxx::when_all(
+                                        fut, chunk->put_any(low0, low1, low2, low3, high0, high1, high2, high3, in));
           }
         }
       }

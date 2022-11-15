@@ -516,7 +516,7 @@ protected:
  */
 template<typename T>
 class SparseTensorImpl: public TensorBase {
-  public:
+public:
   using TensorBase::TensorBase;
   // Ctors
   SparseTensorImpl() = default;
@@ -611,7 +611,8 @@ class SparseTensorImpl: public TensorBase {
    * @param [in] t_spaces
    * @param [in] spin_mask
    */
-  SparseTensorImpl(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes): TensorBase(t_spaces) {
+  SparseTensorImpl(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes):
+    TensorBase(t_spaces) {
     // EXPECTS(t_spaces.size() == spin_mask.size());
     int spin_size_sum = std::accumulate(spin_sizes.begin(), spin_sizes.end(), 0);
     EXPECTS(t_spaces.size() >= spin_size_sum);

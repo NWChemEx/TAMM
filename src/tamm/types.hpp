@@ -100,7 +100,7 @@ enum class ElementType {
   double_complex
 };
 
-enum class DistributionKind { invalid, nw, dense, simple_round_robin, view, unit_tile };
+enum class DistributionKind { invalid, nw, dense, sparse, simple_round_robin, view, unit_tile };
 
 enum class MemoryManagerKind { invalid, ga, local };
 

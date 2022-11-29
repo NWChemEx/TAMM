@@ -563,6 +563,7 @@ public:
     has_spin_symmetry_    = false;
     has_spatial_symmetry_ = false;
     kind_                 = TensorBase::TensorKind::normal;
+    nnz_                  = dep_map_.size();
   }
 
   // SpinTensor related constructors
@@ -966,10 +967,13 @@ public:
 
   virtual bool is_block_cyclic() { return false; }
 
+  size_t nnz() { return nnz_; }
+
 protected:
   std::shared_ptr<Distribution> distribution_;  /**< shared pointer to associated Distribution */
   MemoryRegion*                 mpb_ = nullptr; /**< Raw pointer memory region (default null) */
   ProcList                      proc_list_ = {};
+  size_t                        nnz_ = 0; // Number of non-zero elements of the sparse tensor
 
 }; // SparseTensorImpl
 

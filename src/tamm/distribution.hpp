@@ -759,6 +759,265 @@ protected:
 
 }; // class Distribution_Dense
 
+class Distribution_Sparse: public Distribution {
+public:
+  /**
+   * @brief Constructor
+   *
+   * @param tensor_structure Tensor to be distributed
+   * @param nproc Number of ranks to be distributed into
+   */
+  Distribution_Sparse(const TensorBase* tensor_structure = nullptr, Proc nproc = Proc{1},
+                     ProcGrid pg = {}):
+    Distribution{tensor_structure, nproc, DistributionKind::sparse} {
+    EXPECTS(nproc > 0);
+    if(tensor_structure == nullptr) { return; }
+    EXPECTS(is_valid(tensor_structure, nproc));
+    nproc_ = nproc;
+    ndim_  = tensor_structure->num_modes();
+
+    if(pg.empty()) {
+      std::vector<Proc> proc_grid;
+      EXPECTS(tensor_structure != nullptr);
+      const int64_t        ndims = tensor_structure->num_modes();
+      std::vector<int64_t> ardims;
+      for(int i = 0; i < ndims; i++)
+        ardims.push_back(tensor_structure->tlabels()[i].tiled_index_space().max_num_indices());
+      auto pgrid = internal::compute_proc_grid(ndims, ardims, nproc.value(), 0.0, 0);
+      for(auto x: pgrid) proc_grid_.push_back(x);
+    }
+    else proc_grid_ = pg;
+    set_proc_grid(proc_grid_);
+    max_proc_with_data_ = 1;
+    for(const auto& p: proc_grid_) { max_proc_with_data_ *= p; }
+    tiss_ = tensor_structure->tiled_index_spaces();
+
+    max_proc_buf_size_ = 1;
+    // TODO: Implement
+    // for (int i = 0; i < ndim_; i++) {
+    //   Size dim = 0;
+    //   for (size_t j = 0; j + 1 < part_offsets_[i].size(); j++) {
+    //     dim = std::max(dim, part_offsets_[i][j + 1] - part_offsets_[i][j]);
+    //   }
+    //   max_proc_buf_size_ *= dim;
+    // }
+    max_block_size_ = 1;
+    for(int i = 0; i < ndim_; i++) {
+      size_t dim = 0;
+      for(size_t j = 0; j < tiss_[i].num_tiles(); j++) {
+        dim = std::max(dim, tiss_[i].tile_size(j));
+      }
+      max_block_size_ *= dim;
+    }
+
+    set_hash(compute_hash());
+  }
+
+  /**
+   * @brief Clone this distribution, but for a different configuration. The
+   * clone's internal data will match the new configuration desired, but will
+   * retain the distribution strategy.
+   *
+   * @param tensor_structure Tensor to be distributed
+   * @param nproc Number of ranks to distribute into
+   * @return Distribution* Cloned distrbution object for @param tensor_structure
+   * and @param nproc
+   */
+  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
+    /** @warning
+     *  totalview LD on following statement
+     *  back traced to tamm::Tensor<double>::alloc shared_ptr_base.h
+     *  backtraced to ccsd_driver<double> execution_context.h
+     *  back traced to main
+     */
+    return new Distribution_Sparse(tensor_structure, nproc, proc_grid_);
+  }
+
+  /**
+   * @brief Total size of buffer (in number of elements) on the given processor
+   *
+   * @param proc
+   * @return Size
+   */
+  Size buf_size(Proc proc) const override {
+    NOT_ALLOWED();
+    // EXPECTS(proc >= 0);
+    // EXPECTS(proc < nproc_);
+    // if (proc >= max_proc_with_data_) {
+    //   return {0};
+    // }
+    // Size result = 1;
+    // return result;
+  }
+
+  Size max_proc_buf_size() const override { return max_proc_buf_size_; }
+
+  Size max_block_size() const override { return max_block_size_; }
+
+  Size total_size() const override {
+    Size result{1};
+    for(size_t i = 0; i < ndim_; i++) { result *= tiss_[i].max_num_indices(); }
+    return result;
+  }
+
+  /**
+   * @brief Size (in number of elements) of given block
+   *
+   * @param blockid Index of queried block
+   * @return Size Number of elements in this block
+   *
+   * @pre blockid.size() == ndim_
+   * @pre forall i: blockid[i] >= 0 && blockid[i] < num_tiles_[i]
+   */
+  Size block_size(const IndexVector& blockid) const {
+    EXPECTS(blockid.size() == static_cast<uint64_t>(ndim_));
+    return Size{tensor_structure_->block_size(blockid)};
+  }
+
+  /**
+   * @brief Check if the given arguments are suited to construct a valid object.
+   *
+   * @param tensor_structure Tensor to be distributed
+   * @param proc Number of rank to be distributed into
+   * @return true if these arguments are valid
+   * @return false otherwise
+   */
+  static bool is_valid(const TensorBase* tensor_structure, Proc proc) {
+    EXPECTS(proc > 0);
+    // check that this is a dense tensor with no dependent spaces
+    // EXPECTS(!tensor_structure->has_spin());
+    // EXPECTS(!tensor_structure->has_spatial());
+    const std::vector<TiledIndexLabel>& tlabels = tensor_structure->tlabels();
+    for(const auto& tl: tlabels) { EXPECTS(!tl.is_dependent()); }
+    return true;
+  }
+
+  /**
+   * @brief Linearized of given block
+   *
+   * @param blockid Index of block to be located
+   * @return Offset Linearized offset of block with id @param blockid
+   *
+   * @pre blockid.size() == ndim_
+   * @pre forall i: blockid[i] >= 0 && blockid[i] < num_tiles_[i]
+   */
+  // Offset block_offset_within_proc(const IndexVector& blockid) const {
+  // }
+
+  /**
+   * @brief Determine the given block's location
+   *
+   * @param blockid Index of block to be located
+   * @return std::pair<Proc, Offset> Rank of process owning @param blockid and
+   * linearized offset in this process
+   *
+   * @pre blockid.size() == ndim_
+   * @pre forall i: blockid[i] >= 0 && blockid[i] < num_tiles_[i]
+   */
+  std::pair<Proc, Offset> locate(const IndexVector& blockid) const {
+    // return {block_owner(blockid), block_offset_within_proc(blockid)};
+    std::vector<int64_t> lo = compute_lo(blockid);
+    std::vector<int64_t> hi = compute_hi(blockid);
+    // EXPECTS(ga_ != -1);
+    int     procs[1];
+    int64_t map[14];
+    NGA_Locate_region64(ga_, &lo[0], &hi[0], map, procs);
+
+    std::ptrdiff_t off = -1;
+
+// TODO: Fix
+#if 0
+    const auto nproc = GA_Pgroup_nnodes(ga_);
+    if(GA_Nodeid()==(int)procs[0]%nproc) 
+    {
+      void* sptr = nullptr;
+      void* lptr = nullptr;
+      int64_t len;
+      int64_t ld_c[lo.size() - 1];
+      std::vector<int64_t> ld = compute_ld(blockid);
+      std::copy(ld.begin(), ld.end(), ld_c);
+
+      NGA_Access_block_segment64(ga_, procs[0]%nproc, &sptr, &len);
+      NGA_Access_block64(ga_, procs[0], &lptr, ld_c);
+      EXPECTS(sptr != nullptr && lptr != nullptr);
+
+      int     ga_type;
+      int     ndim;
+      int64_t dims[7];
+      NGA_Inquire64(ga_, &ga_type, &ndim, dims);
+
+      switch(ga_type) {
+        case C_FLOAT:
+          off = static_cast<float*>(lptr) - static_cast<float*>(sptr);
+          break;
+        case C_DBL:
+          off = static_cast<double*>(lptr) - static_cast<double*>(sptr);
+          break;
+        case C_SCPL:
+          off = static_cast<std::complex<float>*>(lptr) -
+                static_cast<std::complex<float>*>(sptr);
+          break;
+        case C_DCPL:
+          off = static_cast<std::complex<double>*>(lptr) -
+                static_cast<std::complex<double>*>(sptr);
+          break;
+        default: UNREACHABLE();
+      }
+    }
+#endif
+
+    return {Proc{procs[0]}, Offset{off}};
+  }
+
+  size_t compute_hash() const override {
+    size_t result = static_cast<size_t>(kind());
+    internal::hash_combine(result, get_dist_proc().value());
+    internal::hash_combine(result, tiss_.size());
+
+    for(const auto& tis: tiss_) { internal::hash_combine(result, tis.hash()); }
+
+    internal::hash_combine(result, max_proc_with_data_.value());
+    internal::hash_combine(result, max_proc_buf_size_.value());
+    internal::hash_combine(result, max_block_size_.value());
+
+    return result;
+  }
+
+  Proc                         nproc_; /**< Number of ranks */
+  std::vector<TiledIndexSpace> tiss_;  /**< TiledIndexSpace associated with each dimension */
+  int                          ndim_;  /**< Number of dimensions in underlying tensor */
+  Proc                         max_proc_with_data_; /**< Max ranks with any data */
+  Size                         max_proc_buf_size_;  /**< Max buffer size on any rank */
+  Size                         max_block_size_;     /**< Max size of a single block */
+  std::vector<Index>           num_tiles_;          /**< Number of tiles along each dimension */
+
+protected:
+  std::vector<int64_t> compute_lo(const IndexVector& blockid) const {
+    std::vector<int64_t> retv;
+    std::vector<size_t>  off = tensor_structure_->block_offsets(blockid);
+    for(const auto& i: off) { retv.push_back(static_cast<int64_t>(i)); }
+    return retv;
+  }
+
+  std::vector<int64_t> compute_hi(const IndexVector& blockid) const {
+    std::vector<int64_t> retv;
+    std::vector<size_t>  boff  = tensor_structure_->block_offsets(blockid);
+    std::vector<size_t>  bdims = tensor_structure_->block_dims(blockid);
+    for(size_t i = 0; i < boff.size(); i++) {
+      retv.push_back(static_cast<int64_t>(boff[i] + bdims[i] - 1));
+    }
+    return retv;
+  }
+
+  std::vector<int64_t> compute_ld(const IndexVector& blockid) const {
+    std::vector<size_t>  bdims = tensor_structure_->block_dims(blockid);
+    std::vector<int64_t> retv(bdims.size() - 1, 1);
+    for(size_t i = 1; i < bdims.size(); i++) retv[i - 1] = (int64_t) (bdims[i]);
+    return retv;
+  }
+
+}; // class Distribution_Sparse
+
 class ViewDistribution: public Distribution {
 public:
   using Func = std::function<IndexVector(const IndexVector&)>;

@@ -973,7 +973,7 @@ protected:
   std::shared_ptr<Distribution> distribution_;  /**< shared pointer to associated Distribution */
   MemoryRegion*                 mpb_ = nullptr; /**< Raw pointer memory region (default null) */
   ProcList                      proc_list_ = {};
-  size_t                        nnz_ = 0; // Number of non-zero elements of the sparse tensor
+  size_t                        nnz_       = 0; // Number of non-zero elements of the sparse tensor
 
 }; // SparseTensorImpl
 

@@ -768,7 +768,7 @@ public:
    * @param nproc Number of ranks to be distributed into
    */
   Distribution_Sparse(const TensorBase* tensor_structure = nullptr, Proc nproc = Proc{1},
-                     ProcGrid pg = {}):
+                      ProcGrid pg = {}):
     Distribution{tensor_structure, nproc, DistributionKind::sparse} {
     EXPECTS(nproc > 0);
     if(tensor_structure == nullptr) { return; }

@@ -55,7 +55,7 @@ struct TensorUpdate {
 
 class TensorBase {
 public:
-  enum class TensorKind { invalid, spin, dense, lambda, normal, view, unit_view };
+  enum class TensorKind { invalid, spin, dense, sparse, lambda, normal, view, unit_view };
 
   // Ctors
   TensorBase() = default;

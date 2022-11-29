@@ -345,6 +345,9 @@ public:
       case DistributionKind::dense:
         return std::make_unique<Distribution_Dense>(std::forward<Args>(args)...);
         break;
+      case DistributionKind::sparse:
+        return std::make_unique<Distribution_Sparse>(std::forward<Args>(args)...);
+        break;
       case DistributionKind::nw:
         return std::make_unique<Distribution_NW>(std::forward<Args>(args)...);
         break;

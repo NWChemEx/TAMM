@@ -90,6 +90,9 @@ using SizeVec  = std::vector<Size>;
 using ProcGrid = std::vector<Proc>;
 using ProcList = std::vector<int>;
 
+// Sparse tensor variable types
+using COOIndex = uint32_t;
+
 enum class AllocationStatus { invalid, created, attached, deallocated, orphaned };
 
 enum class ElementType {
@@ -102,7 +105,7 @@ enum class ElementType {
 
 enum class DistributionKind { invalid, nw, dense, sparse, simple_round_robin, view, unit_tile };
 
-enum class MemoryManagerKind { invalid, ga, local };
+enum class MemoryManagerKind { invalid, ga, local, sparse_local };
 
 template<typename T>
 constexpr ElementType tensor_element_type() {

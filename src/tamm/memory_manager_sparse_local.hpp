@@ -26,14 +26,15 @@ class MemoryManagerSparseLocal;
  */
 class MemoryRegionSparseLocal: public MemoryRegionImpl<MemoryManagerLocal> {
 public:
-  MemoryRegionSparseLocal(MemoryManagerSparseLocal& mgr): MemoryRegionImpl<MemoryManagerSparseLocal>(mgr) {}
+  MemoryRegionSparseLocal(MemoryManagerSparseLocal& mgr):
+    MemoryRegionImpl<MemoryManagerSparseLocal>(mgr) {}
 
 private:
-  size_t                     elsize_;
-  ElementType                eltype_;
-  std::vector<std::pair<std::vector<COOIndex>, ElementType>>>*   buf_;
-  size_t                     nnz_; // number of non-zeros
-  int                        nummodes_;
+  size_t      elsize_;
+  ElementType eltype_;
+  std::vector < std::pair < std::vector<COOIndex>, ElementType >>> *buf_;
+  size_t nnz_; // number of non-zeros
+  int    nummodes_;
 
   friend class MemoryManagerSparseLocal;
 }; // class MemoryRegionLocal
@@ -55,7 +56,9 @@ public:
    *
    * @pre pg is a TAMM process group wrapping just MPI_COMM_SELF
    */
-  static MemoryManagerSparseLocal* create_coll(ProcGroup pg) { return new MemoryManagerSparseLocal{pg}; }
+  static MemoryManagerSparseLocal* create_coll(ProcGroup pg) {
+    return new MemoryManagerSparseLocal{pg};
+  }
 
   /**
    * Collectively destroy this memory manager object
@@ -68,11 +71,11 @@ public:
    */
   MemoryRegion* alloc_coll(ElementType eltype, size_t nnz, int num_modes) override {
     MemoryRegionSparseLocal* ret = new MemoryRegionSparseLocal(*this);
-    ret->eltype_           = eltype;
-    ret->elsize_           = element_size(eltype);
-    ret->nnz_              = nnz;
-    ret->nummodes_         = num_modes;
-    ret->buf_              = new std::vector<std::pair<std::vector<COOIndex>, eltype>>>;
+    ret->eltype_                 = eltype;
+    ret->elsize_                 = element_size(eltype);
+    ret->nnz_                    = nnz;
+    ret->nummodes_               = num_modes;
+    ret->buf_                    = new std::vector < std::pair < std::vector<COOIndex>, eltype >>> ;
     ret->set_status(AllocationStatus::created);
     return ret;
   }

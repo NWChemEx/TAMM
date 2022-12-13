@@ -67,8 +67,8 @@ void dlpno_test(const json& params) {
 
   // 3 Center Integrals
   Tensor<T> dTEoo{LMOP, LMOP, DF};
-  Tensor<T> dTEov{LMOP, PNO, DF};
-  Tensor<T> dTEvv{PNO, PNO, DF};
+  Tensor<T> dTEov{LMOP, PAO, DF};
+  Tensor<T> dTEvv{PAO, PAO, DF};
 
   // Transformation tensors
   Tensor<T> d{LMOP, PAO, PNO};
@@ -80,9 +80,13 @@ void dlpno_test(const json& params) {
   // Register tensor names to the symbol table (required for printing operations)
   TAMM_REGISTER_SYMBOLS(symbol_table, dT1, dT2, dr1, dr2, dTEoo, dTEov, dTEvv, d, Sijkl, expand);
 
+  // clang-format off
   // Allocate all tensors
-  sch.allocate(dT1, dT2, dr1, dr2, dTEoo, dTEov, dTEvv, d, Sijkl, expand)(dr1() = 0.0)(dr2() = 0.0)
+  sch.allocate(dT1, dT2, dr1, dr2, dTEoo, dTEov, dTEvv, d, Sijkl, expand)
+  (dr1() = 0.0)
+  (dr2() = 0.0)
     .execute();
+  // clang-format on
   if(rank == 0)
     std::cout << "Allocated all tensors."
               << "\n";

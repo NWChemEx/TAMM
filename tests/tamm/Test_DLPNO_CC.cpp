@@ -81,9 +81,7 @@ void dlpno_test(const json& params) {
   TAMM_REGISTER_SYMBOLS(symbol_table, dT1, dT2, dr1, dr2, dTEoo, dTEov, dTEvv, d, Sijkl, expand);
 
   // Allocate all tensors
-  sch.allocate(dT1, dT2, dr1, dr2, dTEoo, dTEov, dTEvv, d, Sijkl, expand)
-  (dr1() = 0.0)
-  (dr2() = 0.0)
+  sch.allocate(dT1, dT2, dr1, dr2, dTEoo, dTEov, dTEvv, d, Sijkl, expand)(dr1() = 0.0)(dr2() = 0.0)
     .execute();
   if(rank == 0)
     std::cout << "Allocated all tensors."
@@ -217,86 +215,91 @@ void dlpno_test(const json& params) {
                      (LTOp) expand("i", "mi") * (LTOp) expand("i", "ij") * (LTOp) expand("j", "jj");
 
   dr2("a_ij", "b_ij", "ij").set(doubles_5);
-  if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_5.clone(), use_opmin);
+  if(rank == 0 && print_debug_info)
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_5.clone(), use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_5." << std::endl;
 
   dr2("a_ij", "b_ij", "ij").set(doubles_10);
-  if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_10.clone(), use_opmin);
+  if(rank == 0 && print_debug_info)
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_10.clone(), use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_10." << std::endl;
 
   dr2("a_ij", "b_ij", "ij").set(doubles_15);
-  if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_15.clone(), use_opmin);
+  if(rank == 0 && print_debug_info)
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_15.clone(), use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_15." << std::endl;
 
   // dr2("a_ij", "b_ij", "ij").set(doubles_16);
-  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_16.clone(), use_opmin);
-  // op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
+  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij",
+  // "ij"), doubles_16.clone(), use_opmin); op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   // if(rank == 0) std::cout << "Finished executing doubles_16." << std::endl;
 
   dr2("a_ij", "b_ij", "ij").set(doubles_37);
-  if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_37.clone(), use_opmin);
+  if(rank == 0 && print_debug_info)
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_37.clone(), use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_37." << std::endl;
 
   // dr2("a_ij", "b_ij", "ij").set(doubles_38);
-  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_38.clone(), use_opmin);
-  // op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
+  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij",
+  // "ij"), doubles_38.clone(), use_opmin); op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   // if(rank == 0) std::cout << "Finished executing doubles_38." << std::endl;
 
   dr2("a_ij", "b_ij", "ij").set(doubles_41);
-  if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_41.clone(), use_opmin);
+  if(rank == 0 && print_debug_info)
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_41.clone(), use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_41." << std::endl;
 
   // dr2("a_ij", "b_ij", "ij").set(doubles_42);
-  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_42.clone(), use_opmin);
-  // op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
+  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij",
+  // "ij"), doubles_42.clone(), use_opmin); op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   // if(rank == 0) std::cout << "Finished executing doubles_42." << std::endl;
 
   dr2("a_ij", "b_ij", "ij").set(doubles_65);
-  if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_65.clone(), use_opmin);
+  if(rank == 0 && print_debug_info)
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_65.clone(), use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_65." << std::endl;
 
   // dr2("a_ij", "b_ij", "ij").set(doubles_66);
-  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_66.clone(), use_opmin);
-  // op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
+  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij",
+  // "ij"), doubles_66.clone(), use_opmin); op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   // if(rank == 0) std::cout << "Finished executing doubles_66." << std::endl;
 
   // dr2("a_ij", "b_ij", "ij").set(doubles_79);
-  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_79.clone(), use_opmin);
-  // op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
+  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij",
+  // "ij"), doubles_79.clone(), use_opmin); op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   // if(rank == 0) std::cout << "Finished executing doubles_79." << std::endl;
 
   // dr2("a_ij", "b_ij", "ij").set(doubles_80);
-  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_80.clone(), use_opmin);
-  // op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
+  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij",
+  // "ij"), doubles_80.clone(), use_opmin); op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   // if(rank == 0) std::cout << "Finished executing doubles_80." << std::endl;
 
   dr2("a_ij", "b_ij", "ij").set(doubles_93);
-  if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_93.clone(), use_opmin);
+  if(rank == 0 && print_debug_info)
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_93.clone(), use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_93." << std::endl;
 
   // dr2("a_ij", "b_ij", "ij").set(doubles_94);
-  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_94.clone(), use_opmin);
-  // op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
+  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij",
+  // "ij"), doubles_94.clone(), use_opmin); op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   // if(rank == 0) std::cout << "Finished executing doubles_94." << std::endl;
 
   // dr2("a_ij", "b_ij", "ij").set(doubles_103);
-  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_103.clone(), use_opmin);
-  // op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
+  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij",
+  // "ij"), doubles_103.clone(), use_opmin); op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   // if(rank == 0) std::cout << "Finished executing doubles_103." << std::endl;
 
   // dr2("a_ij", "b_ij", "ij").set(doubles_104);
-  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_104.clone(), use_opmin);
-  // op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
+  // if(rank == 0 && print_debug_info) op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij",
+  // "ij"), doubles_104.clone(), use_opmin); op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   // if(rank == 0) std::cout << "Finished executing doubles_104." << std::endl;
-
-
 }
 
 int main(int argc, char* argv[]) {

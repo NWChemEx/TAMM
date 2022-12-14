@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
         backend:
           - ga
           - upcxx
@@ -27,37 +27,43 @@ jobs:
         fc:
           - gfortran-10
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             mpi_impl: openmpi
             cxx: g++-10
             cc: gcc-10
             fc: gfortran-10
             backend: ga
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             mpi_impl: openmpi
             cxx: g++-11
             cc: gcc-11
             fc: gfortran-11
             backend: ga
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             mpi_impl: openmpi
-            cxx: clang++-9
-            cc: clang-9
+            cxx: clang++-11
+            cc: clang-11
             fc: gfortran-10
             backend: ga
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
+            mpi_impl: openmpi
+            cxx: g++-11
+            cc: gcc-11
+            fc: gfortran-11
+            backend: upcxx
+        exclude:
+          - os: ubuntu-22.04
             mpi_impl: openmpi
             cxx: g++-9
             cc: gcc-9
             fc: gfortran-9
             backend: upcxx
-        exclude:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             mpi_impl: openmpi
             cxx: g++-10
             cc: gcc-10
             fc: gfortran-10
-            backend: upcxx       
+            backend: upcxx
       fail-fast: true
     env:
       MPI_IMPL: ${{ matrix.mpi_impl }}

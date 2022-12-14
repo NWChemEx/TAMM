@@ -1,0 +1,17 @@
+{
+  "dim_sizes": {
+    "AO": 28,
+    "MO": 28,
+    "MO_occ": 7,
+    "MO_virt": 21, 
+    "DF": 162,
+    "LMOP": 27,
+    "PAO": 28,
+    "PNO": 19
+  },
+  "tile_size": 15,
+  "use_opmin": true,
+  "do_profile": false,
+  "use_gpu": false,
+  "print_debug_info": true
+}

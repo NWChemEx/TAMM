@@ -30,7 +30,7 @@ void dlpno_test(const json& params) {
   size_t pao_size  = dim_sizes.at("PAO");
   size_t pno_size  = dim_sizes.at("PNO");
 
-  size_t tile_size = params.at("tile_size");
+  tamm::Tile tile_size = params.at("tile_size");
 
   bool use_opmin        = params.at("use_opmin");
   bool do_profile       = params.at("do_profile");

@@ -5,6 +5,7 @@
 #include "tamm/atomic_counter.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
+#include "memory_manager_sparse_local.hpp"
 //#include "tamm/distribution.hpp"
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 #include "tamm/gpu_streams.hpp"
@@ -373,6 +374,9 @@ public:
         return std::unique_ptr<MemoryManager>(new MemoryManagerLocal{pg_self_});
         //   return std::unique_ptr<MemoryManager>(new
         //   MemoryManagerLocal{std::forward<Args>(args)...});
+        break;
+      case MemoryManagerKind::local_sparse:
+        return std::unique_ptr<MemoryManager>(new MemoryManagerSparseLocal{pg_self_});
         break;
     }
     UNREACHABLE();

@@ -32,8 +32,9 @@ public:
 private:
   size_t      elsize_;
   ElementType eltype_;
-  std::vector < std::pair < std::vector<COOIndex>, ElementType >>> *buf_;
+  uint8_t*    buf_;
   size_t nnz_; // number of non-zeros
+  std::vector < std::pair < std::vector<COOIndex>, eltype >>> coordvec_;
   int    nummodes_;
 
   friend class MemoryManagerSparseLocal;
@@ -72,10 +73,11 @@ public:
   MemoryRegion* alloc_coll(ElementType eltype, size_t nnz, int num_modes) override {
     MemoryRegionSparseLocal* ret = new MemoryRegionSparseLocal(*this);
     ret->eltype_                 = eltype;
-    ret->elsize_                 = element_size(eltype);
+    ret->elsize_                 = element_size(eltype) + num_modes * sizeof(COOIndex);
     ret->nnz_                    = nnz;
     ret->nummodes_               = num_modes;
-    ret->buf_                    = new std::vector < std::pair < std::vector<COOIndex>, eltype >>> ;
+    ret->coordvec_               = new std::vector < std::pair < std::vector<COOIndex>, eltype >>> ;
+    ret->buf_                    = (uint8_t *)&coordvec_.front();
     ret->set_status(AllocationStatus::created);
     return ret;
   }
@@ -149,7 +151,7 @@ public:
     MemoryRegionSparseLocal& mp = static_cast<MemoryRegionSparseLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
-    std::copy_n(mp.buf_ + mp.elsize_ * off.value(), mp.elsize_ * nelements.value(),
+    std::copy_n(mp.buf_.begin() + mp.elsize_ * off.value(), mp.elsize_ * nelements.value(),
                 reinterpret_cast<uint8_t*>(to_buf));
   }
 

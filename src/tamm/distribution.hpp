@@ -792,15 +792,11 @@ public:
     for(const auto& p: proc_grid_) { max_proc_with_data_ *= p; }
     tiss_ = tensor_structure->tiled_index_spaces();
 
-    max_proc_buf_size_ = 1;
-    // TODO: Implement
-    // for (int i = 0; i < ndim_; i++) {
-    //   Size dim = 0;
-    //   for (size_t j = 0; j + 1 < part_offsets_[i].size(); j++) {
-    //     dim = std::max(dim, part_offsets_[i][j + 1] - part_offsets_[i][j]);
-    //   }
-    //   max_proc_buf_size_ *= dim;
-    // }
+    // # of Bytes?, if so then this will be (nnz * element_size(element_type))/nproc
+    // # of items
+    // TODO: Check types of nnz/nproc/max_proc_buf_size
+    max_proc_buf_size_ = nnz/nproc;
+
     max_block_size_ = 1;
     for(int i = 0; i < ndim_; i++) {
       size_t dim = 0;

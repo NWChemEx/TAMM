@@ -2,10 +2,10 @@
 
 #include "tamm/proc_group.hpp"
 //#include "tamm/tensor_impl.hpp"
+#include "memory_manager_sparse_local.hpp"
 #include "tamm/atomic_counter.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
-#include "memory_manager_sparse_local.hpp"
 //#include "tamm/distribution.hpp"
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 #include "tamm/gpu_streams.hpp"

@@ -33,9 +33,9 @@ private:
   size_t      elsize_;
   ElementType eltype_;
   uint8_t*    buf_;
-  size_t nnz_; // number of non-zeros
+  size_t      nnz_; // number of non-zeros
   std::vector < std::pair < std::vector<COOIndex>, eltype >>> coordvec_;
-  int    nummodes_;
+  int nummodes_;
 
   friend class MemoryManagerSparseLocal;
 }; // class MemoryRegionLocal
@@ -77,7 +77,7 @@ public:
     ret->nnz_                    = nnz;
     ret->nummodes_               = num_modes;
     ret->coordvec_               = new std::vector < std::pair < std::vector<COOIndex>, eltype >>> ;
-    ret->buf_                    = (uint8_t *)&coordvec_.front();
+    ret->buf_                    = (uint8_t*) &coordvec_.front();
     ret->set_status(AllocationStatus::created);
     return ret;
   }

@@ -38,12 +38,17 @@ void test_sparse_tensor() {
 
   /// @todo Fix compile errors before uncommenting these lines!
 
-  // MemoryManagerGA*    mgr = MemoryManagerSparseLocal::create_coll(pg);
+  // MemoryManagerSparseLocal*    mgr = MemoryManagerSparseLocal::create_coll(pg);
   // Distribution_Sparse distribution;
   // ExecutionContext    ec{pg, &distribution, mgr, &re};
   // Scheduler           sch{ec};
 
   // sch.allocate(T).execute();
+
+  // sch
+  // (T(j, i, a(i)) = 1.0)
+  // (T(j, i, a(i)) = 2.0 * T2(j, i, a(i)))
+  // .execute();
 }
 
 int main(int argc, char* argv[]) {

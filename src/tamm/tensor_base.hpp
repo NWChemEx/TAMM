@@ -194,6 +194,51 @@ public:
     return true;
   }
 
+  void rec_COO_coordinate(size_t index, IndexVector cur_vec,
+                          std::vector<IndexVector>& out_vec) const {
+    if(index >= block_indices_.size()) {
+      out_vec.push_back(cur_vec);
+      return;
+    }
+
+    auto tis = block_indices_[index];
+    if(tis.is_dependent()) {
+      auto        dep_vec = dep_map_.at(index);
+      IndexVector secondary_idx;
+
+      for(size_t i = 0; i < dep_vec.size(); i++) { secondary_idx.push_back(cur_vec[dep_vec[i]]); }
+
+      if(tis.tiled_dep_map().find(secondary_idx) == tis.tiled_dep_map().end()) {
+        rec_COO_coordinate(index + 1, cur_vec, out_vec);
+      }
+      else {
+        auto sub_tis = tis.tiled_dep_map().at(secondary_idx);
+
+        for(const auto& idx: sub_tis.ref_indices()) {
+          cur_vec[index] = idx;
+          rec_COO_coordinate(index + 1, cur_vec, out_vec);
+        }
+      }
+    }
+    else {
+      for(const auto& idx: tis.ref_indices()) {
+        cur_vec[index] = idx;
+        rec_COO_coordinate(index + 1, cur_vec, out_vec);
+      }
+    }
+  }
+
+  std::vector<IndexVector> construct_COO_coordinates() const {
+    EXPECTS(!dep_map_.empty());
+
+    std::vector<IndexVector> result;
+    auto                     tis_list = block_indices_;
+    IndexVector              temp(tis_list.size(), -1);
+    rec_COO_coordinate(0, temp, result);
+
+    return result;
+  }
+
   /// @todo refactor
   void construct_dep_map() {
     check_duplicates();

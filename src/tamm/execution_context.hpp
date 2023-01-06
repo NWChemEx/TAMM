@@ -2,7 +2,8 @@
 
 #include "tamm/proc_group.hpp"
 //#include "tamm/tensor_impl.hpp"
-#include "memory_manager_sparse_local.hpp"
+/// @todo fix compile errors for including below file!
+// #include "memory_manager_sparse_local.hpp"
 #include "tamm/atomic_counter.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
@@ -346,9 +347,10 @@ public:
       case DistributionKind::dense:
         return std::make_unique<Distribution_Dense>(std::forward<Args>(args)...);
         break;
-      case DistributionKind::sparse:
-        return std::make_unique<Distribution_Sparse>(std::forward<Args>(args)...);
-        break;
+      /// @todo fix compile errors on Distribution_Sparse for uncommenting below case!
+      // case DistributionKind::sparse:
+      //   return std::make_unique<Distribution_Sparse>(std::forward<Args>(args)...);
+      //   break;
       case DistributionKind::nw:
         return std::make_unique<Distribution_NW>(std::forward<Args>(args)...);
         break;
@@ -375,9 +377,10 @@ public:
         //   return std::unique_ptr<MemoryManager>(new
         //   MemoryManagerLocal{std::forward<Args>(args)...});
         break;
-      case MemoryManagerKind::local_sparse:
-        return std::unique_ptr<MemoryManager>(new MemoryManagerSparseLocal{pg_self_});
-        break;
+        /// @todo fix compile errors on MemoryManagerSparseLocal for uncommenting below case!
+        // case MemoryManagerKind::local_sparse:
+        //   return std::unique_ptr<MemoryManager>(new MemoryManagerSparseLocal{pg_self_});
+        //   break;
     }
     UNREACHABLE();
     return nullptr;

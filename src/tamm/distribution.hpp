@@ -795,7 +795,8 @@ public:
     // # of Bytes?, if so then this will be (nnz * element_size(element_type))/nproc
     // # of items
     // TODO: Check types of nnz/nproc/max_proc_buf_size
-    max_proc_buf_size_ = nnz / nproc;
+    /// @todo: fix compile errors for uncommenting line below!
+    // max_proc_buf_size_ = nnz / nproc;
 
     max_block_size_ = 1;
     for(int i = 0; i < ndim_; i++) {

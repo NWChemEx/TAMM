@@ -366,6 +366,18 @@ TEST_CASE("TiledIndexSpace operations") {
 
   TiledIndexSpace tSubAO_AO_C{AOs, {AOs}, dep_nu_mu_c};
 
+  auto [i, j] = MOs.labels<2>();
+  auto [a, b] = tSubAO_AO_Q.labels<2>();
+
+  Tensor<double> T{j, i, a(i)};
+
+  auto coo_coordinates = T.base_ptr()->construct_COO_coordinates();
+
+  for(const auto& cord: coo_coordinates) {
+    for(const auto& idx: cord) { std::cout << idx << "\t"; }
+    std::cout << "\n";
+  }
+
   std::cerr << "tSubAO_AO_Q ";
   print_dependency(tSubAO_AO_Q);
 

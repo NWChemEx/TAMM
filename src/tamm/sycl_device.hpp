@@ -18,10 +18,6 @@
 namespace sycl = cl::sycl;
 #endif
 
-#include <level_zero/ze_api.h>
-#include <level_zero/zes_api.h>
-#include <sycl/backend/level_zero.hpp>
-
 class device_ext: public sycl::device {
 public:
   device_ext(): sycl::device(), _ctx(*this) {}
@@ -70,23 +66,8 @@ public:
     int           current_devID = this->current_device();
     sycl::device* myDev         = get_sycl_device(current_devID);
 
-    ze_device_handle_t  ze_device  = sycl::get_native<sycl::backend::ext_oneapi_level_zero>(*myDev);
-    zes_device_handle_t zes_device = (zes_device_handle_t) ze_device;
-
-    uint32_t module_count = 0;
-    zesDeviceEnumMemoryModules(zes_device, &module_count, nullptr);
-    if(module_count > 0) {
-      std::vector<zes_mem_handle_t> module_list(module_count);
-      std::vector<zes_mem_state_t>  state_list(module_count);
-
-      zesDeviceEnumMemoryModules(zes_device, &module_count, module_list.data());
-
-      for(uint32_t i = 0; i < module_count; ++i) {
-        zesMemoryGetState(module_list[i], &(state_list[i]));
-        mfree += state_list[i].free;
-        mtotal += state_list[i].size;
-      }
-    }
+    mtotal = myDev->get_info<sycl::info::device::global_mem_size>();
+    mfree  = myDev->get_info<sycl::ext::intel::info::device::free_memory>();
 
     *m_free  = mfree;
     *m_total = mtotal;

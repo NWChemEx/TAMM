@@ -24,18 +24,18 @@ class MemoryManagerSparseLocal;
  * In particular, it allocates all its memory on the local rank. Thes can
  * be keep local copies of distributed memory regions, replicate tensors, etc.
  */
-class MemoryRegionSparseLocal: public MemoryRegionImpl<MemoryManagerLocal> {
+class MemoryRegionSparseLocal: public MemoryRegionImpl<MemoryManagerSparseLocal> {
 public:
   MemoryRegionSparseLocal(MemoryManagerSparseLocal& mgr):
     MemoryRegionImpl<MemoryManagerSparseLocal>(mgr) {}
 
 private:
-  size_t      elsize_;
-  ElementType eltype_;
-  uint8_t*    buf_;
-  size_t      nnz_; // number of non-zeros
-  std::vector < std::pair < std::vector<COOIndex>, eltype >>> coordvec_;
-  int nummodes_;
+  size_t                                       elsize_;
+  ElementType                                  eltype_;
+  uint8_t*                                     buf_;
+  size_t                                       nnz_; // number of non-zeros
+  std::vector<std::pair<IndexVector, eltype_>> coordvec_;
+  int                                          nummodes_;
 
   friend class MemoryManagerSparseLocal;
 }; // class MemoryRegionLocal
@@ -76,27 +76,27 @@ public:
     ret->elsize_                 = element_size(eltype) + num_modes * sizeof(COOIndex);
     ret->nnz_                    = nnz;
     ret->nummodes_               = num_modes;
-    ret->coordvec_               = new std::vector < std::pair < std::vector<COOIndex>, eltype >>> ;
-    ret->buf_                    = (uint8_t*) &coordvec_.front();
+    ret->coordvec_               = new std::vector<std::pair<IndexVector, eltype>>;
+    ret->buf_                    = (uint8_t*) ret->coordvec_.data();
     ret->set_status(AllocationStatus::created);
     return ret;
   }
 
-  MemoryRegion* alloc_coll_balanced(ElementType eltype, Size nelements,
+  MemoryRegion* alloc_coll_balanced(ElementType eltype, size_t nnz, int num_modes,
                                     ProcList proc_list = {}) override {
-    return alloc_coll(eltype, nelements);
+    return alloc_coll(eltype, nnz, num_modes);
   }
 
   /**
    * @copydoc MemoryManager::attach_coll
    */
   MemoryRegion* attach_coll(MemoryRegion& mpb) override {
-    MemoryRegionLocal& mp  = static_cast<MemoryRegionLocal&>(mpb);
-    MemoryRegionLocal* ret = new MemoryRegionLocal(*this);
-    ret->eltype_           = mp.eltype_;
-    ret->elsize_           = mp.elsize_;
-    ret->local_nelements_  = mp.local_nelements_;
-    ret->buf_              = mp.buf_;
+    MemoryRegionSparseLocal& mp  = static_cast<MemoryRegionSparseLocal&>(mpb);
+    MemoryRegionSparseLocal* ret = new MemoryRegionSparseLocal(*this);
+    ret->eltype_                 = mp.eltype_;
+    ret->elsize_                 = mp.elsize_;
+    ret->local_nelements_        = mp.local_nelements_;
+    ret->buf_                    = mp.buf_;
     ret->set_status(AllocationStatus::attached);
     return ret;
   }
@@ -111,7 +111,8 @@ public:
   ~MemoryManagerSparseLocal() {}
 
 protected:
-  explicit MemoryManagerSparseLocal(ProcGroup pg): MemoryManager{pg, MemoryManagerKind::local} {
+  explicit MemoryManagerSparseLocal(ProcGroup pg):
+    MemoryManager{pg, MemoryManagerKind::local_sparse} {
     // sequential. So process group size should be 1
     EXPECTS(pg.is_valid());
     EXPECTS(pg_.size() == 1);
@@ -122,7 +123,7 @@ public:
    * @copydoc MemoryManager::dealloc_coll
    */
   void dealloc_coll(MemoryRegion& mpb) override {
-    MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
+    MemoryRegionSparseLocal& mp = static_cast<MemoryRegionSparseLocal&>(mpb);
     delete[] mp.buf_;
     mp.buf_ = nullptr;
   }
@@ -131,7 +132,7 @@ public:
    * @copydoc MemoryManager::detach_coll
    */
   void detach_coll(MemoryRegion& mpb) override {
-    MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
+    MemoryRegionSparseLocal& mp = static_cast<MemoryRegionSparseLocal&>(mpb);
     delete[] mp.buf_;
     mp.buf_ = nullptr;
   }
@@ -140,7 +141,7 @@ public:
    * @copydoc MemoryManager::access
    */
   const void* access(const MemoryRegion& mpb, Offset off) const override {
-    const MemoryRegionLocal& mp = static_cast<const MemoryRegionLocal&>(mpb);
+    const MemoryRegionSparseLocal& mp = static_cast<const MemoryRegionSparseLocal&>(mpb);
     return &mp.buf_[mp.elsize_ * off.value()];
   }
 
@@ -151,7 +152,7 @@ public:
     MemoryRegionSparseLocal& mp = static_cast<MemoryRegionSparseLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
-    std::copy_n(mp.buf_.begin() + mp.elsize_ * off.value(), mp.elsize_ * nelements.value(),
+    std::copy_n(mp.buf_ + mp.elsize_ * off.value(), mp.elsize_ * nelements.value(),
                 reinterpret_cast<uint8_t*>(to_buf));
   }
 
@@ -172,7 +173,7 @@ public:
    */
   void put(MemoryRegion& mpb, Proc proc, Offset off, Size nelements,
            const void* from_buf) override {
-    MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
+    MemoryRegionSparseLocal& mp = static_cast<MemoryRegionSparseLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
     std::copy_n(reinterpret_cast<const uint8_t*>(from_buf), mp.elsize_ * nelements.value(),
@@ -184,7 +185,7 @@ public:
    */
   void nb_put(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, const void* from_buf,
               DataCommunicationHandlePtr data_comm_handle) override {
-    MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
+    MemoryRegionSparseLocal& mp = static_cast<MemoryRegionSparseLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
     std::copy_n(reinterpret_cast<const uint8_t*>(from_buf), mp.elsize_ * nelements.value(),
@@ -196,7 +197,7 @@ public:
    */
   void add(MemoryRegion& mpb, Proc proc, Offset off, Size nelements,
            const void* from_buf) override {
-    MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
+    MemoryRegionSparseLocal& mp = static_cast<MemoryRegionSparseLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
     int      hi     = nelements.value();
@@ -233,7 +234,7 @@ public:
    */
   void nb_add(MemoryRegion& mpb, Proc proc, Offset off, Size nelements, const void* from_buf,
               DataCommunicationHandlePtr data_comm_handle) override {
-    MemoryRegionLocal& mp = static_cast<MemoryRegionLocal&>(mpb);
+    MemoryRegionSparseLocal& mp = static_cast<MemoryRegionSparseLocal&>(mpb);
     EXPECTS(proc.value() == 0);
     EXPECTS(mp.buf_ != nullptr);
     int      hi     = nelements.value();
@@ -269,7 +270,7 @@ public:
    * @copydoc MemoryManager::print_coll
    */
   void print_coll(const MemoryRegion& mpb, std::ostream& os) override {
-    const MemoryRegionLocal& mp = static_cast<const MemoryRegionLocal&>(mpb);
+    const MemoryRegionSparseLocal& mp = static_cast<const MemoryRegionSparseLocal&>(mpb);
     EXPECTS(mp.buf_ != nullptr);
     os << "MemoryManagerSparseLocal. contents\n";
     for(size_t i = 0; i < mp.local_nelements().value(); i++) {

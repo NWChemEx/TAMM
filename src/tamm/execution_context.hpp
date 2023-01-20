@@ -2,8 +2,7 @@
 
 #include "tamm/proc_group.hpp"
 //#include "tamm/tensor_impl.hpp"
-/// @todo fix compile errors for including below file!
-// #include "memory_manager_sparse_local.hpp"
+#include "memory_manager_sparse_local.hpp"
 #include "tamm/atomic_counter.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"

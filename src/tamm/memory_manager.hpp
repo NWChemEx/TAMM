@@ -65,7 +65,8 @@ public:
    * @param nelements Number of elements to allocate on this rank
    * @return Allocated memory region
    */
-  virtual MemoryRegion* alloc_coll(ElementType eltype, Size nelements) = 0;
+  virtual MemoryRegion* alloc_coll(ElementType eltype, Size nelements)            = 0;
+  virtual MemoryRegion* alloc_coll(ElementType eltype, size_t nnz, int num_modes) = 0;
 
   /**
    * @brief Collective allocation of a memory region.
@@ -78,6 +79,8 @@ public:
    * @return Allocated memory region
    */
   virtual MemoryRegion* alloc_coll_balanced(ElementType eltype, Size max_nelements,
+                                            ProcList proc_list = {}) = 0;
+  virtual MemoryRegion* alloc_coll_balanced(ElementType eltype, size_t nnz, int num_modes,
                                             ProcList proc_list = {}) = 0;
 
   /**

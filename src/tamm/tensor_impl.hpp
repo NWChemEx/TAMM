@@ -1119,8 +1119,7 @@ public:
     int64_t j_offset = lo[1] - t.lo[1];
     int64_t k_offset = lo[2] - t.lo[2];
     int64_t l_offset = lo[3] - t.lo[3];
-    auto ss = t.dim[3]*(k_offset + t.dim[2]*(j_offset + t.dim[1]*i_offset));
-    int64_t tile_offset = l_offset + ss;
+    int64_t tile_offset = l_offset + t.dim[3]*(k_offset + t.dim[2]*(j_offset + t.dim[1]*i_offset));
     upcxx::global_ptr<uint8_t> remote_addr = gptrs_[t.rank] + (t.offset*elem_sz) + (tile_offset*elem_sz);
     auto a = (hi[3]-lo[3]+1);
     auto b = (hi[2]-lo[2]+1);
@@ -1142,8 +1141,7 @@ public:
             int64_t k_offset = k - t.lo[2];
             int64_t l_offset = l - t.lo[3];
             int64_t tile_offset = l_offset + t.dim[3]*(k_offset + t.dim[2]*(j_offset + t.dim[1]*i_offset));
-            upcxx::global_ptr<uint8_t> target = gptrs_[t.rank];
-            upcxx::global_ptr<uint8_t> remote_addr = target + (t.offset * elem_sz) + (tile_offset * elem_sz);
+            upcxx::global_ptr<uint8_t> remote_addr = gptrs_[t.rank] + (t.offset * elem_sz) + (tile_offset * elem_sz);
             uint8_t* local_addr  = ((uint8_t*) buf) + (next++ * elem_sz);
             upcxx::rget(remote_addr, local_addr, elem_sz).wait();
       }

@@ -149,7 +149,6 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   Tensor<CT> c_perm = permute_tensor<CT>(C, {1, 3, 2, 0});
   sch.deallocate(b_perm, c_perm).execute();
 
-#if defined(USE_UPCXX)
   // to_dense_tensor
   Tensor<T>  b_dens = tamm::to_dense_tensor(ec_dense, B);
   Tensor<CT> c_dens = tamm::to_dense_tensor(ec_dense, C);
@@ -180,8 +179,6 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   tamm::retile_tamm_tensor(C, c_ret);
 
   sch.deallocate(b_ret, c_ret).execute();
-#endif
-
   sch.deallocate(A, B, C).execute();
 }
 

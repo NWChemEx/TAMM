@@ -73,7 +73,7 @@ double compute_tensor_size(const Tensor<T>& tensor) {
 template<typename T>
 void print_tensor(const Tensor<T>& tensor, std::string filename = "") {
   std::stringstream tstring;
-  auto lt = tensor();
+  auto              lt = tensor();
 
   auto nz_check = [=](const T val) {
     if constexpr(tamm::internal::is_complex_v<T>) {
@@ -712,13 +712,11 @@ ga_over_upcxx<TensorType>* tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& 
 int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
 #endif
 {
-  int ndims = tensor.num_modes();
+  int                  ndims = tensor.num_modes();
   std::vector<int64_t> dims(4, 1), chnks(4, -1);
-  auto tis = tensor.tiled_index_spaces();
-  
-  for(int i = 0; i < ndims; ++i) {
-    dims[i] = tis[i].index_space().num_indices();
-  }
+  auto                 tis = tensor.tiled_index_spaces();
+
+  for(int i = 0; i < ndims; ++i) { dims[i] = tis[i].index_space().num_indices(); }
 
 #if defined(USE_UPCXX)
   if(ndims > 4) {
@@ -777,7 +775,6 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
 
   return ga_tens;
 }
-
 
 template<typename T>
 hid_t get_hdf5_dt() {
@@ -2984,21 +2981,22 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
 
   for(int i = 0; i < ndims; ++i) {
     dims[i] = tis[i].index_space().num_indices();
-    ld[i] = hi[i] - lo[i] + 1;
+    ld[i]   = hi[i] - lo[i] + 1;
   }
 
   std::vector<TensorType>    sbuf(btensor.size());
-  ga_over_upcxx<TensorType>* ga_stensor = new ga_over_upcxx<TensorType>(ndims, dims.data(), chnks.data(), upcxx::world());
+  ga_over_upcxx<TensorType>* ga_stensor =
+    new ga_over_upcxx<TensorType>(ndims, dims.data(), chnks.data(), upcxx::world());
 
   // Pad to 4D
-  for (int i = ndims; i < 4; ++i) {
+  for(int i = ndims; i < 4; ++i) {
     lo.insert(lo.begin(), 0);
     hi.insert(hi.begin(), 0);
   }
 
   tensor.get_raw_one(lo.data(), hi.data(), sbuf.data());
 
-  ga_stensor->put(0, 0, 0, 0, ld[0]-1, ld[1]-1, ld[2]-1, ld[3]-1, sbuf.data(), ld.data());
+  ga_stensor->put(0, 0, 0, 0, ld[0] - 1, ld[1] - 1, ld[2] - 1, ld[3] - 1, sbuf.data(), ld.data());
   ga_to_tamm(ec, btensor, ga_stensor);
   ga_stensor->destroy();
 #else
@@ -3160,14 +3158,14 @@ TensorType get_tensor_element(Tensor<TensorType> tensor, std::vector<int64_t> in
   const int ndims = tensor.num_modes();
   EXPECTS(tensor.kind() == TensorBase::TensorKind::dense);
 
-  TensorType val {};
+  TensorType val{};
 
 #if defined(USE_UPCXX)
   EXPECTS(ndims >= 1 && ndims <= 4);
 
   std::vector<int64_t> lo(4, 0), hi(4, 0);
 
-  for (int i = 4-ndims, j = 0; i < 4; ++i, ++j) {
+  for(int i = 4 - ndims, j = 0; i < 4; ++i, ++j) {
     lo[i] = index_id[j];
     hi[i] = index_id[j];
   }
@@ -3175,7 +3173,7 @@ TensorType get_tensor_element(Tensor<TensorType> tensor, std::vector<int64_t> in
   tensor.get_raw(lo.data(), hi.data(), &val);
 #else
   std::vector<int64_t> lo(ndims), hi(ndims);
-  std::vector<int64_t> ld(ndims-1, 1);
+  std::vector<int64_t> ld(ndims - 1, 1);
 
   for(int i = 0; i < ndims; i++) {
     lo[i] = index_id[i];
@@ -3195,10 +3193,11 @@ TensorType get_tensor_element(Tensor<TensorType> tensor, std::vector<int64_t> in
  * @param [in] tensor input Tensor object
  */
 template<typename T>
-void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<size_t>)> func, std::string filename = "", bool append = false) {
-  auto           lt    = tensor();
-  int            ndims = tensor.num_modes();
-  ExecutionContext& ec = get_ec(lt);
+void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<size_t>)> func,
+                        std::string filename = "", bool append = false) {
+  auto              lt    = tensor();
+  int               ndims = tensor.num_modes();
+  ExecutionContext& ec    = get_ec(lt);
 
   auto nz_check = [=](const T val) {
     if constexpr(tamm::internal::is_complex_v<T>) {
@@ -3228,14 +3227,14 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
       size_t c = 0;
       if(ndims == 1) {
         for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++, c++) {
-          if(func({i}) && nz_check(buf[c])) tstring << i << "   " << buf[c] << std::endl;
+          if(func({i}) && nz_check(buf[c])) tstring << i + 1 << "   " << buf[c] << std::endl;
         }
       }
       else if(ndims == 2) {
         for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
           for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++, c++) {
             if(func({i, j}) && nz_check(buf[c]))
-              tstring << i << "   " << j << "   " << buf[c] << std::endl;
+              tstring << i + 1 << "   " << j + 1 << "   " << buf[c] << std::endl;
           }
         }
       }
@@ -3244,7 +3243,7 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
           for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++) {
             for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++, c++) {
               if(func({i, j, k}) && nz_check(buf[c]))
-                tstring << i << "   " << j << "   " << k << "   " << buf[c]
+                tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << buf[c]
                         << std::endl;
             }
           }
@@ -3256,7 +3255,7 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
             for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++) {
               for(size_t l = block_offset[3]; l < block_offset[3] + block_dims[3]; l++, c++) {
                 if(func({i, j, k, l}) && nz_check(buf[c]))
-                  tstring << i << "   " << j << "   " << k << "   " << l << "   "
+                  tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << l + 1 << "   "
                           << buf[c] << std::endl;
               }
             }

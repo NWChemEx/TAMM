@@ -333,18 +333,16 @@ public:
     nranks = t.rank_n();
 
     if(_ndims >= 1 && _ndims <= 4) {
-
       memcpy(dims, _dims, _ndims * sizeof(dims[0]));
       memcpy(chunk_size, _chunk_size, _ndims * sizeof(chunk_size[0]));
 
-      for (int i = _ndims; i < 4; ++i) {
-        dims[i] = 1;
+      for(int i = _ndims; i < 4; ++i) {
+        dims[i]       = 1;
         chunk_size[i] = 1;
       }
     }
     else {
-      fprintf(stderr,
-              "ga_over_upcxx only supports 1,2,3,4D tensors, got _ndims=%d\n", _ndims);
+      fprintf(stderr, "ga_over_upcxx only supports 1,2,3,4D tensors, got _ndims=%d\n", _ndims);
       abort();
     }
 
@@ -597,7 +595,8 @@ public:
                                    j * chunks_per_dim[2] * chunks_per_dim[3] +
                                    k * chunks_per_dim[3] + l;
             ga_over_upcxx_chunk<T>* chunk = all_chunks[chunk_offset];
-            fut                           = upcxx::when_all(fut, chunk->put_any(low0, low1, low2, low3, high0, high1, high2, high3, in));
+            fut                           = upcxx::when_all(
+                                        fut, chunk->put_any(low0, low1, low2, low3, high0, high1, high2, high3, in));
           }
         }
       }

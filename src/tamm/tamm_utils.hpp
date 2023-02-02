@@ -73,13 +73,13 @@ double compute_tensor_size(const Tensor<T>& tensor) {
 template<typename T>
 void print_tensor(const Tensor<T>& tensor, std::string filename = "") {
   std::stringstream tstring;
-  auto              lt = tensor();
+  auto lt = tensor();
 
   auto nz_check = [=](const T val) {
     if constexpr(tamm::internal::is_complex_v<T>) {
-      if(val.real() > 0.0000000000001 || val.real() < -0.0000000000001) return true;
+      if(val.real() > 1e-12 || val.real() < -1e-12) return true;
     }
-    else if(val > 0.0000000000001 || val < -0.0000000000001) return true;
+    else if(val > 1e-12 || val < -1e-12) return true;
     return false;
   };
 
@@ -712,25 +712,22 @@ ga_over_upcxx<TensorType>* tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& 
 int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
 #endif
 {
-  int                  ndims = tensor.num_modes();
-  std::vector<int64_t> dims;
+  int ndims = tensor.num_modes();
+  std::vector<int64_t> dims(4, 1), chnks(4, -1);
+  auto tis = tensor.tiled_index_spaces();
+  
+  for(int i = 0; i < ndims; ++i) {
+    dims[i] = tis[i].index_space().num_indices();
+  }
 
-  for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
-
-  std::vector<int64_t> chnks(ndims, -1);
 #if defined(USE_UPCXX)
   if(ndims > 4) {
     fprintf(stderr, "Invalid ndims=%d, only support up to 4\n", ndims);
     abort();
   }
-  // pad out to 3 dimensions if we're less
-  for(int i = ndims; i < 4; i++) {
-    dims.push_back(1);
-    chnks.push_back(-1);
-  }
 
   ga_over_upcxx<TensorType>* ga_tens =
-    new ga_over_upcxx<TensorType>(4, &dims[0], &chnks[0], upcxx::world());
+    new ga_over_upcxx<TensorType>(4, dims.data(), chnks.data(), upcxx::world());
 #else
   int ga_pg_default = GA_Pgroup_get_default();
   GA_Pgroup_set_default(ec.pg().ga_pg());
@@ -750,8 +747,8 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
     const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
 
 #if defined(USE_UPCXX)
-    std::vector<int64_t> lo(4), hi(4);
-    std::vector<int64_t> ld(4);
+    std::vector<int64_t> lo(4, 0), hi(4, 0);
+    std::vector<int64_t> ld(4, 1);
 #else
     std::vector<int64_t> lo(ndims), hi(ndims);
     std::vector<int64_t> ld(ndims - 1);
@@ -759,13 +756,9 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
 
     for(size_t i = 0; i < ndims; i++) lo[i] = cd_ncast<size_t>(block_offset[i]);
     for(size_t i = 0; i < ndims; i++) hi[i] = cd_ncast<size_t>(block_offset[i] + block_dims[i] - 1);
+
 #if defined(USE_UPCXX)
     for(size_t i = 0; i < ndims; i++) ld[i] = cd_ncast<size_t>(block_dims[i]);
-    for(size_t i = ndims; i < 4; i++) {
-      lo[i] = 0;
-      hi[i] = 0;
-      ld[i] = 1;
-    }
 #else
     for(size_t i = 1; i < ndims; i++) ld[i - 1] = cd_ncast<size_t>(block_dims[i]);
 #endif
@@ -774,7 +767,7 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
     tensor.get(blockid, sbuf);
 
 #if defined(USE_UPCXX)
-    ga_tens->put(lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3], &sbuf[0], &ld[0]);
+    ga_tens->put(lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3], sbuf.data(), ld.data());
 #else
     NGA_Put64(ga_tens, &lo[0], &hi[0], &sbuf[0], &ld[0]);
 #endif
@@ -784,6 +777,7 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
 
   return ga_tens;
 }
+
 
 template<typename T>
 hid_t get_hdf5_dt() {
@@ -1285,8 +1279,8 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor,
     const tamm::TAMM_SIZE dsize = tensor.block_size(blockid);
 
 #if defined(USE_UPCXX)
-    std::vector<int64_t> lo(4), hi(4);
-    std::vector<int64_t> ld(4);
+    std::vector<int64_t> lo(4, 0), hi(4, 0);
+    std::vector<int64_t> ld(4, 1);
 #else
     std::vector<int64_t> lo(ndims), hi(ndims);
     std::vector<int64_t> ld(ndims - 1);
@@ -1294,20 +1288,16 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor,
 
     for(size_t i = 0; i < ndims; i++) lo[i] = cd_ncast<size_t>(block_offset[i]);
     for(size_t i = 0; i < ndims; i++) hi[i] = cd_ncast<size_t>(block_offset[i] + block_dims[i] - 1);
+
 #if defined(USE_UPCXX)
     for(size_t i = 0; i < ndims; i++) ld[i] = cd_ncast<size_t>(block_dims[i]);
-    for(size_t i = ndims; i < 4; i++) {
-      lo[i] = 0;
-      hi[i] = 0;
-      ld[i] = 1;
-    }
 #else
     for(size_t i = 1; i < ndims; i++) ld[i - 1] = cd_ncast<size_t>(block_dims[i]);
 #endif
 
     std::vector<TensorType> sbuf(dsize);
 #if defined(USE_UPCXX)
-    ga_tens->get(lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3], &sbuf[0], &ld[0]);
+    ga_tens->get(lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3], sbuf.data(), ld.data());
 #else
     NGA_Get64(ga_tens, &lo[0], &hi[0], &sbuf[0], &ld[0]);
 #endif
@@ -2838,7 +2828,7 @@ void to_block_cyclic_tensor(Tensor<TensorType> tensor, Tensor<TensorType> bc_ten
     std::vector<TensorType> sbuf(dsize);
     tensor.get(blockid, sbuf);
 #if defined(USE_UPCXX)
-    bc_tensor.put_raw(lo, hi, &sbuf[0], &ld);
+    bc_tensor.put_raw(lo, hi, sbuf.data());
 #else
     NGA_Put64(ga_tens, &lo[0], &hi[0], &sbuf[0], &ld[0]);
 #endif
@@ -2885,7 +2875,7 @@ void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> t
 
     std::vector<TensorType> sbuf(dsize);
 #if defined(USE_UPCXX)
-    bc_tensor.get_raw(lo, hi, &sbuf[0], &ld);
+    bc_tensor.get_raw(lo, hi, sbuf.data());
 #else
     NGA_Get64(ga_tens, &lo[0], &hi[0], &sbuf[0], &ld[0]);
 #endif
@@ -2956,10 +2946,6 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
                                 std::vector<int64_t> hi, std::vector<int> permute = {}) {
   const int ndims = tensor.num_modes();
 
-#if defined(USE_UPCXX)
-  // Only works for 2-D - for now
-  EXPECTS(ndims == 2);
-#endif
   EXPECTS(tensor.kind() == TensorBase::TensorKind::dense);
   EXPECTS(tensor.distribution().kind() == DistributionKind::dense);
 
@@ -2992,20 +2978,31 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
   Tensor<TensorType>::allocate(&ec, btensor);
 
 #if defined(USE_UPCXX)
-  std::vector<int64_t> chnks(ndims + 2, -1), dims(ndims + 2, 1), ld(ndims + 2, 1);
-  dims[0] = tis[0].index_space().num_indices();
-  dims[1] = tis[1].index_space().num_indices();
-  lo.push_back(0), lo.push_back(0), hi.push_back(0), hi.push_back(0);
-  ld[0] = hi[0] - lo[0] + 1;
-  ld[1] = hi[1] - lo[1] + 1;
+  EXPECTS(ndims >= 1 && ndims <= 4);
+
+  std::vector<int64_t> chnks(ndims, -1), dims(ndims, 1), ld(4, 1);
+
+  for(int i = 0; i < ndims; ++i) {
+    dims[i] = tis[i].index_space().num_indices();
+    ld[i] = hi[i] - lo[i] + 1;
+  }
+
   std::vector<TensorType>    sbuf(btensor.size());
-  ga_over_upcxx<TensorType>* ga_stensor =
-    new ga_over_upcxx<TensorType>(ndims + 2, dims.data(), chnks.data(), upcxx::world());
-  tensor.get_raw(lo.data(), hi.data(), sbuf.data(), ld.data());
-  ga_stensor->put(0, 0, 0, 0, ld[0] - 1, ld[1] - 1, 0, 0, sbuf.data(), ld.data());
+  ga_over_upcxx<TensorType>* ga_stensor = new ga_over_upcxx<TensorType>(ndims, dims.data(), chnks.data(), upcxx::world());
+
+  // Pad to 4D
+  for (int i = ndims; i < 4; ++i) {
+    lo.insert(lo.begin(), 0);
+    hi.insert(hi.begin(), 0);
+  }
+
+  tensor.get_raw_one(lo.data(), hi.data(), sbuf.data());
+
+  ga_stensor->put(0, 0, 0, 0, ld[0]-1, ld[1]-1, ld[2]-1, ld[3]-1, sbuf.data(), ld.data());
   ga_to_tamm(ec, btensor, ga_stensor);
   ga_stensor->destroy();
 #else
+
   int btensor_gah = btensor.ga_handle();
   int tensor_gah = tensor.ga_handle();
 
@@ -3163,20 +3160,29 @@ TensorType get_tensor_element(Tensor<TensorType> tensor, std::vector<int64_t> in
   const int ndims = tensor.num_modes();
   EXPECTS(tensor.kind() == TensorBase::TensorKind::dense);
 
-  TensorType val{};
+  TensorType val {};
 
+#if defined(USE_UPCXX)
+  EXPECTS(ndims >= 1 && ndims <= 4);
+
+  std::vector<int64_t> lo(4, 0), hi(4, 0);
+
+  for (int i = 4-ndims, j = 0; i < 4; ++i, ++j) {
+    lo[i] = index_id[j];
+    hi[i] = index_id[j];
+  }
+
+  tensor.get_raw(lo.data(), hi.data(), &val);
+#else
   std::vector<int64_t> lo(ndims), hi(ndims);
-  std::vector<int64_t> ld(ndims - 1, 1);
+  std::vector<int64_t> ld(ndims-1, 1);
 
   for(int i = 0; i < ndims; i++) {
     lo[i] = index_id[i];
     hi[i] = index_id[i];
   }
 
-#if defined(USE_UPCXX)
-  tensor.get_raw(&lo[0], &hi[0], &val, &ld[0]);
-#else
-  NGA_Get64(tensor.ga_handle(), &lo[0], &hi[0], &val, &ld[0]);
+  NGA_Get64(tensor.ga_handle(), lo.data(), hi.data(), &val, ld.data());
 #endif
 
   return val;
@@ -3189,29 +3195,28 @@ TensorType get_tensor_element(Tensor<TensorType> tensor, std::vector<int64_t> in
  * @param [in] tensor input Tensor object
  */
 template<typename T>
-void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<size_t>)> func,
-                        std::string filename = "", bool append = false) {
-  auto              lt    = tensor();
-  int               ndims = tensor.num_modes();
-  ExecutionContext& ec    = get_ec(lt);
+void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<size_t>)> func, std::string filename = "", bool append = false) {
+  auto           lt    = tensor();
+  int            ndims = tensor.num_modes();
+  ExecutionContext& ec = get_ec(lt);
 
   auto nz_check = [=](const T val) {
     if constexpr(tamm::internal::is_complex_v<T>) {
-      if(val.real() > 0.0000000000001 || val.real() < -0.0000000000001) return true;
+      if(val.real() > 1e-12 || val.real() < -1e-12) return true;
     }
-    else if(val > 0.0000000000001 || val < -0.0000000000001) return true;
+    else if(val > 1e-12 || val < -1e-12) return true;
     return false;
   };
 
   if(ec.pg().rank() == 0) {
     std::stringstream tstring;
-    EXPECTS(ndims > 0 && ndims <= 4);
-    std::vector<int64_t> dims;
-    for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
+    EXPECTS(ndims >= 1 && ndims <= 4);
 
     for(auto it: tensor.loop_nest()) {
       auto blockid = internal::translate_blockid(it, lt);
+
       if(!tensor.is_non_zero(blockid)) continue;
+
       TAMM_SIZE      size = tensor.block_size(blockid);
       std::vector<T> buf(size);
       tensor.get(blockid, buf);
@@ -3223,14 +3228,14 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
       size_t c = 0;
       if(ndims == 1) {
         for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++, c++) {
-          if(func({i}) && nz_check(buf[c])) tstring << i + 1 << "   " << buf[c] << std::endl;
+          if(func({i}) && nz_check(buf[c])) tstring << i << "   " << buf[c] << std::endl;
         }
       }
       else if(ndims == 2) {
         for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
           for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++, c++) {
             if(func({i, j}) && nz_check(buf[c]))
-              tstring << i + 1 << "   " << j + 1 << "   " << buf[c] << std::endl;
+              tstring << i << "   " << j << "   " << buf[c] << std::endl;
           }
         }
       }
@@ -3239,7 +3244,7 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
           for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++) {
             for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++, c++) {
               if(func({i, j, k}) && nz_check(buf[c]))
-                tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << buf[c]
+                tstring << i << "   " << j << "   " << k << "   " << buf[c]
                         << std::endl;
             }
           }
@@ -3251,7 +3256,7 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
             for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++) {
               for(size_t l = block_offset[3]; l < block_offset[3] + block_dims[3]; l++, c++) {
                 if(func({i, j, k, l}) && nz_check(buf[c]))
-                  tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << l + 1 << "   "
+                  tstring << i << "   " << j << "   " << k << "   " << l << "   "
                           << buf[c] << std::endl;
               }
             }

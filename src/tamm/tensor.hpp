@@ -267,12 +267,16 @@ public:
   // Tensor Accessors
 
 #if defined(USE_UPCXX)
-  void put_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) {
-    return impl_->put_raw(lo, hi, buf, buf_ld);
+  void put_raw(int64_t* lo, int64_t* hi, void* buf) {
+    return impl_->put_raw(lo, hi, buf);
   }
 
-  void get_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) {
-    return impl_->get_raw(lo, hi, buf, buf_ld);
+  void get_raw(int64_t* lo, int64_t* hi, void* buf) {
+    return impl_->get_raw(lo, hi, buf);
+  }
+  
+  void get_raw_one(int64_t* lo, int64_t* hi, void* buf) {
+    return impl_->get_raw_one(lo, hi, buf);
   }
 #else
   /**

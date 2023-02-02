@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include "ga/ga.h"
@@ -23,23 +22,26 @@ using gsl::span;
 #if defined(USE_UPCXX)
 class TensorTile {
 public:
-  int64_t lo[2];
-  int64_t dim[2];
+  int64_t lo[4];
+  int64_t dim[4];
   int64_t rank;
   int64_t offset;
 
-  TensorTile(int64_t lo_0, int64_t lo_1, int64_t dim_0, int64_t dim_1, int64_t _rank,
-             int64_t _offset) {
+  TensorTile(int64_t lo_0, int64_t lo_1, int64_t lo_2, int64_t lo_3, int64_t dim_0, int64_t dim_1, int64_t dim_2, int64_t dim_3, int64_t _rank, int64_t _offset) {
     lo[0]  = lo_0;
     lo[1]  = lo_1;
+    lo[2]  = lo_2;
+    lo[3]  = lo_3;
     dim[0] = dim_0;
     dim[1] = dim_1;
+    dim[2] = dim_2;
+    dim[3] = dim_3;
     rank   = _rank;
     offset = _offset;
   }
 
-  bool contains(int64_t i0, int64_t i1) {
-    return i0 >= lo[0] && i1 >= lo[1] && i0 < lo[0] + dim[0] && i1 < lo[1] + dim[1];
+  bool contains(int64_t i, int64_t j, int64_t k, int64_t l) {
+    return i >= lo[0] && j >= lo[1] && i < lo[0] + dim[0] && j < lo[1] + dim[1] && k >= lo[2] && l >= lo[3] && k < lo[2] + dim[2] && l < lo[3] + dim[3];
   }
 };
 #endif
@@ -461,9 +463,11 @@ public:
   }
 #endif
 
-  virtual void put_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) const { abort(); }
+  virtual void put_raw(int64_t* lo, int64_t* hi, void* buf) const { abort(); }
 
-  virtual void get_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) const { abort(); }
+  virtual void get_raw(int64_t* lo, int64_t* hi, void* buf) const { abort(); }
+  
+  virtual void get_raw_one(int64_t* lo, int64_t* hi, void* buf) const { abort(); }
 
   virtual T* access_local_buf() {
     EXPECTS(mpb_);
@@ -732,48 +736,68 @@ public:
 #if defined(USE_UPCXX)
     // Assert we are in the calling proc group
     EXPECTS(ec->pg().rank() >= 0 && ec->pg().rank() < ec->pg().size());
-
-    // All the code below only supports 2D tensors.
-    EXPECTS(num_modes() == 2);
-
-    ec_ = ec;
 #else
-    ec_ = ec;
     ga_ = NGA_Create_handle();
 #endif
+
+    ec_ = ec;
     const int ndims = num_modes();
 
-    auto          defd = ec->get_default_distribution();
-    Distribution* distribution =
-      ec->distribution(defd->get_tensor_base(), defd->get_dist_proc()); // defd->kind());
+    auto defd = ec->get_default_distribution();
+    Distribution *distribution = ec->distribution(defd->get_tensor_base(), defd->get_dist_proc());
+
     EXPECTS(distribution != nullptr);
-    if(!proc_grid_.empty()) distribution->set_proc_grid(proc_grid_);
+
+    if(!proc_grid_.empty())
+      distribution->set_proc_grid(proc_grid_);
+
     distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, ec->pg().size()));
     proc_grid_    = distribution_->proc_grid();
 
     auto tis_dims = tindices();
 
-    std::vector<bool> is_irreg_tis(ndims, false);
-    for(int i = 0; i < ndims; i++) is_irreg_tis[i] = !tis_dims[i].input_tile_sizes().empty();
-#if defined(USE_UPCXX)
-    for(auto tis: tis_dims) { tensor_dims_.push_back(tis.index_space().num_indices()); }
-    eltype_             = tensor_element_type<T>();
-    size_t element_size = MemoryManagerGA::get_element_size(eltype_);
+    std::vector<int64_t> bsize(ndims);
 
-    const bool is_irreg_tis1 = !tis_dims[0].input_tile_sizes().empty();
-    const bool is_irreg_tis2 = !tis_dims[1].input_tile_sizes().empty();
+    std::vector<bool> is_irreg_tis(ndims, false);
+    for(int i = 0; i < ndims; ++i) {
+      is_irreg_tis[i] = !tis_dims[i].input_tile_sizes().empty();
+      bsize[i] = tis_dims[i].input_tile_size();
+    }
+
+#if defined(USE_UPCXX)
+    // Irregular tile sizes not supported (for now)
+    EXPECTS(!std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; }));
+
+    eltype_ = tensor_element_type<T>();
+    size_t element_size = MemoryManagerGA::get_element_size(eltype_);
 
     int nranks = ec->pg().size().value();
 
-    std::vector<int64_t> bsize(2);
-    bsize[0] = tis_dims[0].input_tile_size();
-    bsize[1] = tis_dims[1].input_tile_size();
+    std::vector<int64_t> ntiles(ndims);
+    int64_t total_n_tiles = 1;
+    size_t tile_size_in_bytes = 1;
 
+    for(int i = 0; i < ndims; ++i) {
+      tensor_dims_.push_back(tis_dims[i].index_space().num_indices());
+      ntiles[i] = (tensor_dims_[i] + bsize[i] - 1) / bsize[i];
+      total_n_tiles *= ntiles[i];
+      tile_size_in_bytes *= bsize[i];
+    }
+    tile_size_in_bytes *= element_size;
+    
+    // Pad
+    for(int i = ndims; i < 4; ++i) {
+      is_irreg_tis.insert(is_irreg_tis.begin(), false);
+      bsize.insert(bsize.begin(), 1);
+      tensor_dims_.insert(tensor_dims_.begin(), 1);
+      ntiles.insert(ntiles.begin(), 1);
+    }
 #else
     std::vector<int64_t> dims;
-    for(auto tis: tis_dims) dims.push_back(tis.index_space().num_indices());
+    for(auto tis: tis_dims)
+      dims.push_back(tis.index_space().num_indices());
 
-    NGA_Set_data64(ga_, ndims, &dims[0], ga_eltype_);
+    NGA_Set_data64(ga_, ndims, dims.data(), ga_eltype_);
 
     if(proc_list_.size() > 0) {
       int nproc = proc_list_.size();
@@ -790,64 +814,46 @@ public:
        * processor grid with size (proc_grid_[0], proc_grid_[1]).
        */
 
-      // EXPECTS(ndims == 2);
-      std::vector<int64_t> bsize(2);
+      EXPECTS(ndims == 2);
+
       std::vector<int64_t> pgrid(2);
-#if defined(USE_UPCXX)
-      std::vector<int64_t> ntiles(2);
-#endif
-      {
-        // Cannot provide list of irreg tile sizes
-        EXPECTS(!is_irreg_tis[0] && !is_irreg_tis[1]);
+      pgrid[0] = proc_grid_[0].value();
+      pgrid[1] = proc_grid_[1].value();
 
-        bsize[0] = tis_dims[0].input_tile_size();
-        bsize[1] = tis_dims[1].input_tile_size();
-
-        pgrid[0] = proc_grid_[0].value();
-        pgrid[1] = proc_grid_[1].value();
-      }
 #if defined(USE_UPCXX)
       int64_t total_n_procs = pgrid[0] * pgrid[1];
-
-      ntiles[0]              = (tensor_dims_[0] + bsize[0] - 1) / bsize[0];
-      ntiles[1]              = (tensor_dims_[1] + bsize[1] - 1) / bsize[1];
-      int64_t total_n_tiles  = ntiles[0] * ntiles[1];
       int64_t tiles_per_proc = (total_n_tiles + total_n_procs - 1) / total_n_procs;
-
-      size_t tile_size_in_bytes = bsize[0] * bsize[1] * element_size;
 
       local_gptr_ = upcxx::new_array<uint8_t>(tiles_per_proc * tile_size_in_bytes);
       memset(local_gptr_.local(), 0x00, tiles_per_proc * tile_size_in_bytes);
 
       int64_t  owning_rank  = 0;
       int64_t* tile_offsets = new int64_t[nranks];
+
       memset(tile_offsets, 0x00, nranks * sizeof(*tile_offsets));
-      for(int64_t tile_row = 0; tile_row < tensor_dims_[0]; tile_row += bsize[0]) {
+
+      for(int64_t tile_row = 0; tile_row < tensor_dims_[0]; tile_row += bsize[0])
         for(int64_t tile_col = 0; tile_col < tensor_dims_[1]; tile_col += bsize[1]) {
-          tiles.push_back(TensorTile(tile_row, tile_col, bsize[0], bsize[1], owning_rank,
-                                     tile_offsets[owning_rank]));
-          tile_offsets[owning_rank] += (bsize[0] * bsize[1]);
+          tiles.push_back(TensorTile(0, 0, tile_row, tile_col, bsize[0], bsize[1], bsize[2], bsize[3], owning_rank, tile_offsets[owning_rank]));
+          tile_offsets[owning_rank] += tile_size_in_bytes / element_size;
           owning_rank = (owning_rank + 1) % nranks;
         }
-      }
-      delete tile_offsets;
+
+      delete[] tile_offsets;
 #else
       // blocks_ = block sizes for scalapack distribution
-      NGA_Set_block_cyclic_proc_grid64(ga_, &bsize[0], &pgrid[0]);
+      NGA_Set_block_cyclic_proc_grid64(ga_, bsize.data(), pgrid.data());
 #endif
+
     }
     else {
-      // only needed when irreg tile sizes are provided
-      const bool is_irreg_tens =
-        std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; });
-      if(is_irreg_tens) {
+      // Only needed when irreg tile sizes are provided
+      if(std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; })) {
+
 #if defined(USE_UPCXX)
-        /*
-         * Not supporting this on UPC++ for now, but
-         * can be added if a motivating use case arises.
-         */
         throw std::runtime_error("upcxx: irregular tile sizes not supported");
 #else
+
         std::vector<std::vector<Tile>> new_tiles(ndims);
         for(int i = 0; i < ndims; i++) {
           new_tiles[i] = is_irreg_tis[i] ? tis_dims[i].input_tile_sizes()
@@ -905,35 +911,38 @@ public:
         }
         NGA_Set_tiled_irreg_proc_grid64(ga_, &k_map[0], nblock, pgrid);
 #endif
+
       }
       else {
-        // fixed tilesize for both dims
+        // Fixed tilesize for all dims
+
 #if defined(USE_UPCXX)
-        int64_t chunk[2]          = {tis_dims[0].input_tile_size(), tis_dims[1].input_tile_size()};
-        int64_t chunks_per_dim[2] = {(tensor_dims_[0] + chunk[0] - 1) / chunk[0],
-                                     (tensor_dims_[1] + chunk[1] - 1) / chunk[1]};
-        int64_t total_chunks      = chunks_per_dim[0] * chunks_per_dim[1];
-        int64_t chunks_per_proc   = (total_chunks + nranks - 1) / nranks;
-        local_gptr_ =
-          upcxx::new_array<uint8_t>(chunks_per_proc * chunk[0] * chunk[1] * element_size);
-        memset(local_gptr_.local(), 0x00, chunks_per_proc * chunk[0] * chunk[1] * element_size);
+        int64_t tiles_per_proc = (total_n_tiles + nranks - 1) / nranks;
+
+        local_gptr_ = upcxx::new_array<uint8_t>(tiles_per_proc * tile_size_in_bytes);
+        memset(local_gptr_.local(), 0x00, tiles_per_proc * tile_size_in_bytes);
 
         int64_t  tile_index   = 0;
         int64_t* tile_offsets = new int64_t[nranks];
+
         memset(tile_offsets, 0x00, nranks * sizeof(*tile_offsets));
-        for(int64_t tile_row = 0; tile_row < tensor_dims_[0]; tile_row += bsize[0]) {
-          for(int64_t tile_col = 0; tile_col < tensor_dims_[1]; tile_col += bsize[1]) {
-            const int owning_rank = tile_index / chunks_per_proc;
-            tiles.push_back(TensorTile(tile_row, tile_col, bsize[0], bsize[1], owning_rank,
-                                       tile_offsets[owning_rank]));
-            tile_offsets[owning_rank] += (bsize[0] * bsize[1]);
-            tile_index++;
-          }
-        }
-        delete tile_offsets;
+
+        for(int64_t i = 0; i < tensor_dims_[0]; i += bsize[0])
+          for(int64_t j = 0; j < tensor_dims_[1]; j += bsize[1])
+            for(int64_t k = 0; k < tensor_dims_[2]; k += bsize[2])
+              for(int64_t l = 0; l < tensor_dims_[3]; l += bsize[3]) {
+                const int owning_rank = tile_index / tiles_per_proc;
+                tiles.push_back(TensorTile(i, j, k, l, bsize[0], bsize[1], bsize[2], bsize[3], owning_rank, tile_offsets[owning_rank]));
+                tile_offsets[owning_rank] += tile_size_in_bytes / element_size;
+                tile_index++;
+              }
+
+        delete[] tile_offsets;
 #else
         int64_t chunk[ndims];
-        for(int i = 0; i < ndims; i++) chunk[i] = tis_dims[i].input_tile_size();
+        for(int i = 0; i < ndims; i++)
+          chunk[i] = tis_dims[i].input_tile_size();
+
         GA_Set_chunk64(ga_, chunk);
 #endif
       }
@@ -941,10 +950,13 @@ public:
 
 #if defined(USE_UPCXX)
     gptrs_.resize(nranks);
-    upcxx::dist_object<upcxx::global_ptr<uint8_t>>* dobj =
-      new upcxx::dist_object<upcxx::global_ptr<uint8_t>>(local_gptr_, *ec->pg().team());
+    upcxx::dist_object<upcxx::global_ptr<uint8_t>>* dobj = new upcxx::dist_object<upcxx::global_ptr<uint8_t>>(local_gptr_, *ec->pg().team());
+
     ec->pg().barrier();
-    for(int r = 0; r < nranks; r++) { gptrs_[r] = dobj->fetch(r).wait(); }
+
+    for(int r = 0; r < nranks; r++)
+      gptrs_[r] = dobj->fetch(r).wait();
+
     ec->pg().barrier();
 #else
     NGA_Set_pgroup(ga_, ec->pg().ga_pg());
@@ -956,10 +968,10 @@ public:
   }
 
 #if defined(USE_UPCXX)
-  TensorTile find_tile(int64_t row, int64_t col) const {
-    for(auto i = tiles.begin(), e = tiles.end(); i != e; i++) {
-      TensorTile t = *i;
-      if(t.contains(row, col)) { return t; }
+  TensorTile find_tile(int64_t i, int64_t j, int64_t k, int64_t l) const {
+    for(auto tile = tiles.begin(), e = tiles.end(); tile != e; tile++) {
+      TensorTile t = *tile;
+      if(t.contains(i, j, k, l)) { return t; }
     }
     abort();
   }
@@ -967,12 +979,20 @@ public:
 
   void get(const IndexVector& blockid, span<T> buff_span) const {
     EXPECTS(allocation_status_ != AllocationStatus::invalid);
+    EXPECTS(block_size(blockid) <= buff_span.size());
+
     std::vector<int64_t> lo = compute_lo(blockid);
     std::vector<int64_t> hi = compute_hi(blockid);
     std::vector<int64_t> ld = compute_ld(blockid);
-    EXPECTS(block_size(blockid) <= buff_span.size());
+
 #if defined(USE_UPCXX)
-    get_raw(&lo[0], &hi[0], buff_span.data(), &ld[0]);
+    // Pad
+    for (int i = lo.size(); i < 4; ++i) {
+      lo.insert(lo.begin(), 0);
+      hi.insert(hi.begin(), 0);
+    }
+
+    get_raw(&lo[0], &hi[0], buff_span.data());
 #else
     NGA_Get64(ga_, &lo[0], &hi[0], buff_span.data(), &ld[0]);
 #endif
@@ -980,14 +1000,20 @@ public:
 
   void put(const IndexVector& blockid, span<T> buff_span) {
     EXPECTS(allocation_status_ != AllocationStatus::invalid);
+    EXPECTS(block_size(blockid) <= buff_span.size());
+
     std::vector<int64_t> lo = compute_lo(blockid);
     std::vector<int64_t> hi = compute_hi(blockid);
     std::vector<int64_t> ld = compute_ld(blockid);
 
-    EXPECTS(block_size(blockid) <= buff_span.size());
-
 #if defined(USE_UPCXX)
-    put_raw(&lo[0], &hi[0], buff_span.data(), &ld[0]);
+    // Pad
+    for (int i = lo.size(); i < 4; ++i) {
+      lo.insert(lo.begin(), 0);
+      hi.insert(hi.begin(), 0);
+    }
+
+    put_raw(&lo[0], &hi[0], buff_span.data());
 #else
     NGA_Put64(ga_, &lo[0], &hi[0], buff_span.data(), &ld[0]);
 #endif
@@ -1050,50 +1076,77 @@ public:
   }
 
 #if defined(USE_UPCXX)
-  void put_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) const {
+  void put_raw(int64_t* lo, int64_t* hi, void* buf) const {
     const auto elem_sz = MemoryManagerGA::get_element_size(eltype_);
-    int        i       = 0;
-    for(int64_t row = lo[0]; row <= hi[0]; row++) {
-      for(int64_t col = lo[1]; col <= hi[1]; col++) {
-        TensorTile t = find_tile(row, col);
+    //~ int next = 0;
+    //~ for(int64_t i = lo[0]; i <= hi[0]; ++i)
+      //~ for(int64_t j = lo[1]; j <= hi[1]; ++j)
+        //~ for(int64_t k = lo[2]; k <= hi[2]; ++k)
+          //~ for(int64_t l = lo[3]; l <= hi[3]; ++l) {
+            //~ TensorTile t = find_tile(i, j, k, l);
 
-        int64_t row_offset = row - t.lo[0];
-        int64_t col_offset = col - t.lo[1];
+            //~ int64_t i_offset = i - t.lo[0];
+            //~ int64_t j_offset = j - t.lo[1];
+            //~ int64_t k_offset = k - t.lo[2];
+            //~ int64_t l_offset = l - t.lo[3];
 
-        int64_t                    tile_offset = row_offset * t.dim[1] + col_offset;
-        upcxx::global_ptr<uint8_t> target      = gptrs_[t.rank];
-        upcxx::global_ptr<uint8_t> remote_addr =
-          target + (t.offset * elem_sz) + (tile_offset * elem_sz);
+            //~ int64_t tile_offset = l_offset + t.dim[3]*(k_offset + t.dim[2]*(j_offset + t.dim[1]*i_offset));
+            //~ upcxx::global_ptr<uint8_t> target = gptrs_[t.rank];
+            //~ upcxx::global_ptr<uint8_t> remote_addr = target + (t.offset * elem_sz) + (tile_offset * elem_sz);
 
-        int64_t  buff_offset = row * buf_ld[0] + col;
-        uint8_t* local_addr  = ((uint8_t*) buf) + (i++ * elem_sz);
+            //~ uint8_t* local_addr  = ((uint8_t*) buf) + (next++ * elem_sz);
 
-        upcxx::rput(local_addr, remote_addr, elem_sz).wait();
-      }
-    }
+            //~ upcxx::rput(local_addr, remote_addr, elem_sz).wait();
+      //~ }
+    TensorTile t = find_tile(lo[0], lo[1], lo[2], lo[3]);
+    int64_t i_offset = lo[0] - t.lo[0];
+    int64_t j_offset = lo[1] - t.lo[1];
+    int64_t k_offset = lo[2] - t.lo[2];
+    int64_t l_offset = lo[3] - t.lo[3];
+    int64_t tile_offset = l_offset + t.dim[3]*(k_offset + t.dim[2]*(j_offset + t.dim[1]*i_offset));
+    upcxx::global_ptr<uint8_t> remote_addr = gptrs_[t.rank] + (t.offset*elem_sz) + (tile_offset*elem_sz);
+    auto a = (hi[3]-lo[3]+1);
+    auto b = (hi[2]-lo[2]+1);
+    auto c = (hi[1]-lo[1]+1);
+    auto d = (hi[0]-lo[0]+1);
+    upcxx::rput((uint8_t*)buf, remote_addr, elem_sz*a*b*c*d).wait();
   }
 
-  void get_raw(int64_t* lo, int64_t* hi, void* buf, int64_t* buf_ld) const {
+  void get_raw(int64_t* lo, int64_t* hi, void* buf) const {
     const auto elem_sz = MemoryManagerGA::get_element_size(eltype_);
-    int        i       = 0;
-    for(int64_t row = lo[0]; row <= hi[0]; row++) {
-      for(int64_t col = lo[1]; col <= hi[1]; col++) {
-        TensorTile t = find_tile(row, col);
+    TensorTile t = find_tile(lo[0], lo[1], lo[2], lo[3]);
+    int64_t i_offset = lo[0] - t.lo[0];
+    int64_t j_offset = lo[1] - t.lo[1];
+    int64_t k_offset = lo[2] - t.lo[2];
+    int64_t l_offset = lo[3] - t.lo[3];
+    auto ss = t.dim[3]*(k_offset + t.dim[2]*(j_offset + t.dim[1]*i_offset));
+    int64_t tile_offset = l_offset + ss;
+    upcxx::global_ptr<uint8_t> remote_addr = gptrs_[t.rank] + (t.offset*elem_sz) + (tile_offset*elem_sz);
+    auto a = (hi[3]-lo[3]+1);
+    auto b = (hi[2]-lo[2]+1);
+    auto c = (hi[1]-lo[1]+1);
+    auto d = (hi[0]-lo[0]+1);
+    upcxx::rget(remote_addr, (uint8_t*)buf, elem_sz*a*b*c*d).wait();
+  }
 
-        int64_t row_offset = row - t.lo[0];
-        int64_t col_offset = col - t.lo[1];
-
-        int64_t                    tile_offset = row_offset * t.dim[1] + col_offset;
-        upcxx::global_ptr<uint8_t> target      = gptrs_[t.rank];
-        upcxx::global_ptr<uint8_t> remote_addr =
-          target + (t.offset * elem_sz) + (tile_offset * elem_sz);
-
-        int64_t  buff_offset = row * buf_ld[0] + col;
-        uint8_t* local_addr  = ((uint8_t*) buf) + (i++ * elem_sz);
-
-        upcxx::rget(remote_addr, local_addr, elem_sz).wait();
+  void get_raw_one(int64_t* lo, int64_t* hi, void* buf) const {
+    const auto elem_sz = MemoryManagerGA::get_element_size(eltype_);
+    int next = 0;
+    for(int64_t i = lo[0]; i <= hi[0]; ++i)
+      for(int64_t j = lo[1]; j <= hi[1]; ++j)
+        for(int64_t k = lo[2]; k <= hi[2]; ++k)
+          for(int64_t l = lo[3]; l <= hi[3]; ++l) {
+            TensorTile t = find_tile(i, j, k, l);
+            int64_t i_offset = i - t.lo[0];
+            int64_t j_offset = j - t.lo[1];
+            int64_t k_offset = k - t.lo[2];
+            int64_t l_offset = l - t.lo[3];
+            int64_t tile_offset = l_offset + t.dim[3]*(k_offset + t.dim[2]*(j_offset + t.dim[1]*i_offset));
+            upcxx::global_ptr<uint8_t> target = gptrs_[t.rank];
+            upcxx::global_ptr<uint8_t> remote_addr = target + (t.offset * elem_sz) + (tile_offset * elem_sz);
+            uint8_t* local_addr  = ((uint8_t*) buf) + (next++ * elem_sz);
+            upcxx::rget(remote_addr, local_addr, elem_sz).wait();
       }
-    }
   }
 #endif
 

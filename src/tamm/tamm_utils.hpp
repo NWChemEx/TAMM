@@ -1318,6 +1318,7 @@ Tensor<TensorType> redistribute_tensor(Tensor<TensorType> stensor, TiledIndexSpa
 
   Tensor<TensorType> dtensor{tis};
   if(spins.size() > 0) dtensor = Tensor<TensorType>{tis, spins};
+  if(stensor.kind() == TensorBase::TensorKind::dense) dtensor.set_dense();
   Tensor<TensorType>::allocate(&ec, dtensor);
 
   ga_to_tamm(ec, dtensor, wmn_ga);
@@ -2185,9 +2186,12 @@ void scale_ip(Tensor<TensorType> tensor, TensorType alpha) {
 template<typename TensorType>
 Tensor<TensorType> apply_ewise(LabeledTensor<TensorType>             oltensor,
                                std::function<TensorType(TensorType)> func, bool is_lt = true) {
-  ExecutionContext&         ec      = get_ec(oltensor);
-  Tensor<TensorType>        otensor = oltensor.tensor();
-  Tensor<TensorType>        tensor{oltensor.labels()};
+  ExecutionContext&  ec      = get_ec(oltensor);
+  Tensor<TensorType> otensor = oltensor.tensor();
+
+  Tensor<TensorType> tensor{oltensor.labels()};
+  if(otensor.kind() == TensorBase::TensorKind::dense) tensor.set_dense();
+
   LabeledTensor<TensorType> ltensor = tensor();
   Tensor<TensorType>::allocate(&ec, tensor);
   // if(is_lt) Scheduler{ec}(ltensor = oltensor).execute();

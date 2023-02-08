@@ -129,6 +129,10 @@ public:
 
   void set_proc_grid(std::vector<Proc> pg) { proc_grid_ = pg; }
 
+  void set_proc_buf_size(Size proc_buf_size) { proc_buf_size_ = proc_buf_size; }
+
+  void set_max_proc_buf_size(Size max_proc_buf_size) { max_proc_buf_size_ = max_proc_buf_size; }
+
   std::vector<Proc> proc_grid() const { return proc_grid_; }
 
   /**
@@ -173,6 +177,9 @@ protected:
   int ga_ = -1; /**< The GA handle */
 
   std::vector<Proc> proc_grid_; /**< Processor grid */
+
+  Size proc_buf_size_{0};     /**< buffer size on a given rank */
+  Size max_proc_buf_size_{0}; /**< Max buffer size on any rank */
 
 }; // class Distribution
 
@@ -348,12 +355,12 @@ private:
     return key;
   }
 
-  Size                       max_proc_buf_size_; /**< Max buffer size on any rank */
-  Size                       max_block_size_;    /**< Max size of any block */
-  Offset                     total_size_;        /**< Total size of the distribution */
-  std::vector<KeyOffsetPair> hash_;              /**< Vector of key and offset pairs  */
-  std::vector<Offset>        proc_offsets_;      /**< Vector of offsets for each process */
-  std::vector<Offset>        key_offsets_;       /**< Vector of offsets for each key value */
+  // Size                       max_proc_buf_size_; /**< Max buffer size on any rank */
+  Size                       max_block_size_; /**< Max size of any block */
+  Offset                     total_size_;     /**< Total size of the distribution */
+  std::vector<KeyOffsetPair> hash_;           /**< Vector of key and offset pairs  */
+  std::vector<Offset>        proc_offsets_;   /**< Vector of offsets for each process */
+  std::vector<Offset>        key_offsets_;    /**< Vector of offsets for each key value */
 
 }; // class Distribution_NW
 
@@ -487,13 +494,12 @@ private:
     return Proc{dist(rng) % nproc.value()};
   }
 
-  Offset              total_num_blocks_;  /**< Total number of blocks */
-  Size                max_proc_buf_size_; /**< Max buffer size on any rank */
-  Size                max_block_size_;    /**< Max size of any block */
-  std::vector<Offset> key_offsets_;       /**< Vector of offsets for each key value */
-  Proc                start_proc_;        /**< Proc with 0-th block */
-  Proc                step_proc_;         /**< Step size in distributing blocks */
-};                                        // class Distribution_SimpleRoundRobin
+  Offset              total_num_blocks_; /**< Total number of blocks */
+  Size                max_block_size_;   /**< Max size of any block */
+  std::vector<Offset> key_offsets_;      /**< Vector of offsets for each key value */
+  Proc                start_proc_;       /**< Proc with 0-th block */
+  Proc                step_proc_;        /**< Step size in distributing blocks */
+};                                       // class Distribution_SimpleRoundRobin
 
 /**
  * @brief Dense distribution logic for dense multidimensional tensors.
@@ -533,15 +539,6 @@ public:
     for(const auto& p: proc_grid_) { max_proc_with_data_ *= p; }
     tiss_ = tensor_structure->tiled_index_spaces();
 
-    max_proc_buf_size_ = 1;
-    // TODO: Implement
-    // for (int i = 0; i < ndim_; i++) {
-    //   Size dim = 0;
-    //   for (size_t j = 0; j + 1 < part_offsets_[i].size(); j++) {
-    //     dim = std::max(dim, part_offsets_[i][j + 1] - part_offsets_[i][j]);
-    //   }
-    //   max_proc_buf_size_ *= dim;
-    // }
     max_block_size_ = 1;
     for(int i = 0; i < ndim_; i++) {
       size_t dim = 0;
@@ -581,14 +578,10 @@ public:
    * @return Size
    */
   Size buf_size(Proc proc) const override {
-    NOT_ALLOWED();
-    // EXPECTS(proc >= 0);
-    // EXPECTS(proc < nproc_);
-    // if (proc >= max_proc_with_data_) {
-    //   return {0};
-    // }
-    // Size result = 1;
-    // return result;
+    EXPECTS(proc >= 0);
+    EXPECTS(proc < nproc_);
+    // if (proc >= max_proc_with_data_) { return {0}; }
+    return proc_buf_size_;
   }
 
   Size max_proc_buf_size() const override { return max_proc_buf_size_; }
@@ -728,7 +721,6 @@ public:
   std::vector<TiledIndexSpace> tiss_;  /**< TiledIndexSpace associated with each dimension */
   int                          ndim_;  /**< Number of dimensions in underlying tensor */
   Proc                         max_proc_with_data_; /**< Max ranks with any data */
-  Size                         max_proc_buf_size_;  /**< Max buffer size on any rank */
   Size                         max_block_size_;     /**< Max size of a single block */
   std::vector<Index>           num_tiles_;          /**< Number of tiles along each dimension */
 

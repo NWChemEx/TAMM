@@ -962,6 +962,25 @@ public:
     distribution_->set_ga_handle(ga_);
 #endif
 
+#if defined(USE_UPCXX)
+    // TODO
+#else
+    int64_t lo[ndims];
+    int64_t hi[ndims];
+    NGA_Distribution64(ga_, ec->pg().rank().value(), lo, hi);
+
+    int64_t pbs{1};
+    for(auto idim = 0; idim < ndims; idim++) {
+      auto val_ = hi[idim] - lo[idim] + 1;
+      if(val_ > 0) pbs *= val_;
+    }
+    if(pbs > 0) distribution_->set_proc_buf_size((Size) pbs);
+
+    int64_t lmax_pbs{pbs};
+    auto gmax_pbs = ec->pg().allreduce(&lmax_pbs, ReduceOp::max);
+    if(gmax_pbs > 0) distribution_->set_max_proc_buf_size((Size) gmax_pbs);
+#endif
+
     update_status(AllocationStatus::created);
   }
 

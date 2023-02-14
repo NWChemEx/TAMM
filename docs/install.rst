@@ -72,8 +72,6 @@ In addition to the build options chosen, there are various build configurations 
 
 - :ref:`Build instructions for Perlmutter and Polaris <build-perlmutter-and-polaris>`
 
-- :ref:`Build instructions for Cori <build-cori>`
-
 - :ref:`Build instructions for Theta <build-theta>`
 
 - :ref:`Building the DPCPP code path using Intel OneAPI SDK <build-dpcpp-using-intel-oneapi-sdk>`
@@ -224,79 +222,29 @@ Build instructions for Perlmutter and Polaris
 
 ::
 
+   module purge
    module load PrgEnv-gnu
-   module load cudatoolkit
-   module load cpe-cuda (perlmutter only)
-   module load gcc/9.3.0
+   module load craype-x86-milan
    module load cmake
+   module load cpe-cuda
+
+   module load cpe gpu (Perlmutter Only)
+   module load cudatoolkit-standalone (Polaris Only)
+
    export CRAYPE_LINK_TYPE=dynamic
 
-::
-
-   ##ADJUST CUBLAS_PATH IF NEEDED
-
-   export CUBLAS_PATH=$CUDA_HOME/../../math_libs/11.5/lib64
-   export CPATH=$CPATH:$CUBLAS_PATH/include
+.. note:: Currently need to add ``-DUSE_CRAYSHASTA=ON`` to the cmake line below for Polaris builds
 
 ::
 
    cd $REPO_ROOT_PATH/build
 
    cmake -DUSE_CUDA=ON -DBLIS_CONFIG=generic \
-   -DCMAKE_PREFIX_PATH=$CUBLAS_PATH/lib \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
 
    make -j3
    make install
 
-.. _build-cori:
-
-Build instructions for Cori
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
-
-   export CRAYPE_LINK_TYPE=dynamic
-   export HDF5_USE_FILE_LOCKING=FALSE
-
-CPU only build
-
-::
-
-   module unload PrgEnv-intel/6.0.5
-   module load PrgEnv-gnu/6.0.5
-   module swap gcc/8.3.0 
-   module swap craype/2.5.18
-   module swap cray-mpich/7.7.6
-   module unload cmake
-   module load cmake
-
-::
-
-   cd $REPO_ROOT_PATH/build
-
-   CC=cc CXX=CC FC=ftn cmake -DLINALG_VENDOR=IntelMKL \
-   -DLINALG_PREFIX=/opt/intel/mkl \
-   -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH -H$REPO_ROOT_PATH
-
-   make -j3
-   make install
-
-GPU build
-
-::
-
-   module purge && module load cgpu cuda gcc openmpi cmake
-
-::
-
-   cd $REPO_ROOT_PATH/build
-
-   CC=gcc CXX=g++ FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
-   -DUSE_CUDA=ON -DGPU_ARCH=70 -H$REPO_ROOT_PATH
-
-   make -j3
-   make install
 
 .. _build-theta:
 

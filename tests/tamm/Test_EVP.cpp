@@ -95,7 +95,7 @@ void test_evp(size_t N, size_t mb) {
     ProcGroup        pg = ProcGroup::create_coll(hf_comm);
     ExecutionContext ec{pg, DistributionKind::dense, MemoryManagerKind::ga};
 
-    TiledIndexSpace AO_sca{IndexSpace{range(N)}, mb};
+    TiledIndexSpace AO_sca{IndexSpace{range(N)}, static_cast<Tile>(mb)};
 
     int world_size = sca_nranks; // ec.pg().size().value();
 

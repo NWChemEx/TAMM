@@ -713,7 +713,7 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
 #endif
 {
   int                  ndims = tensor.num_modes();
-  std::vector<int64_t> dims(4, 1), chnks(4, -1);
+  std::vector<int64_t> dims(ndims, 1), chnks(ndims, -1);
   auto                 tis = tensor.tiled_index_spaces();
 
   for(int i = 0; i < ndims; ++i) { dims[i] = tis[i].index_space().num_indices(); }
@@ -2972,7 +2972,7 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
     max_ts[i] = is_irreg_tis[i] ? *max_element(tiles[i].begin(), tiles[i].end()) : tiles[i][0];
 
   TiledIndexSpaceVec btis(ndims);
-  for(int i = 0; i < ndims; i++) btis[i] = TiledIndexSpace{range(hi[i] + 1 - lo[i]), max_ts[i]};
+  for(int i = 0; i < ndims; i++) btis[i] = TiledIndexSpace{range(hi[i] - lo[i]), max_ts[i]};
 
   Tensor<TensorType> btensor{btis};
   btensor.set_dense();

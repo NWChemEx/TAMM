@@ -79,7 +79,7 @@ jobs:
       id: get-simd
       run: |
         chmod +x ${GITHUB_WORKSPACE}/.github/workflows/scripts/check_simd.sh
-        echo "::set-output name=simd::$(${GITHUB_WORKSPACE}/.github/workflows/scripts/check_simd.sh)"
+        echo "simd=$(${GITHUB_WORKSPACE}/.github/workflows/scripts/check_simd.sh)" >> $GITHUB_ENV
       shell: bash
 
     - name: Cache install steps (backend = ga)
@@ -89,7 +89,7 @@ jobs:
       with:
         path: |
           ~/tamm_cache
-        key: ${{ runner.os }}-${{ matrix.mpi_impl }}-${{ matrix.cc }}-${{ matrix.cxx }}-simd${{ steps.get-simd.outputs.simd }}-tamm
+        key: ${{ runner.os }}-${{ matrix.mpi_impl }}-${{ matrix.cc }}-${{ matrix.cxx }}-simd${{ env.simd }}-tamm
 
     - name: Cache install steps (backend = upcxx)
       if: ${{ matrix.backend == 'upcxx' }}
@@ -98,7 +98,7 @@ jobs:
       with:
         path: |
           ~/tamm_cache
-        key: ${{ runner.os }}-${{ matrix.mpi_impl }}-${{ matrix.cc }}-${{ matrix.cxx }}-simd${{ steps.get-simd.outputs.simd }}-tamm-upcxx
+        key: ${{ runner.os }}-${{ matrix.mpi_impl }}-${{ matrix.cc }}-${{ matrix.cxx }}-simd${{ env.simd }}-tamm-upcxx
 
     - name: install compilers
       run: |

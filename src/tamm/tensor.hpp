@@ -492,6 +492,19 @@ public:
 
   bool is_block_cyclic() const { return impl_->is_block_cyclic(); }
 
+  bool is_local_block(const IndexVector& blockid) const {
+    EXPECTS(is_allocated());
+    EXPECTS(impl_->execution_context());
+
+    if(!base_ptr()->is_non_zero(blockid)) return false;
+
+    auto my_rank = impl_->execution_context()->pg().rank();
+
+    auto [proc, offset] = distribution().locate(blockid);
+
+    return (proc == my_rank);
+  }
+
   void set_block_cyclic(ProcGrid pg) {
     EXPECTS(!is_allocated());
     auto new_tis_vec = tiled_index_spaces();

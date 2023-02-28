@@ -2954,7 +2954,6 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
 
   for(int i = 0; i < ndims; i++) {
     EXPECTS(hi[i] <= tis[i].index_space().num_indices() && lo[i] >= 0 && lo[i] < hi[i]);
-    hi[i]--;
   }
 
   LabeledTensor<TensorType> ltensor = tensor();
@@ -2973,7 +2972,7 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
     max_ts[i] = is_irreg_tis[i] ? *max_element(tiles[i].begin(), tiles[i].end()) : tiles[i][0];
 
   TiledIndexSpaceVec btis(ndims);
-  for(int i = 0; i < ndims; i++) btis[i] = TiledIndexSpace{range(hi[i] + 1 - lo[i]), max_ts[i]};
+  for(int i = 0; i < ndims; i++) btis[i] = TiledIndexSpace{range(hi[i] - lo[i]), max_ts[i]};
 
   Tensor<TensorType> btensor{btis};
   btensor.set_dense();

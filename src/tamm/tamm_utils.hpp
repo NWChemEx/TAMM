@@ -725,7 +725,7 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
   }
 
   ga_over_upcxx<TensorType>* ga_tens =
-    new ga_over_upcxx<TensorType>(4, dims.data(), chnks.data(), upcxx::world());
+    new ga_over_upcxx<TensorType>(ndims, dims.data(), chnks.data(), upcxx::world());
 #else
   int ga_pg_default = GA_Pgroup_get_default();
   GA_Pgroup_set_default(ec.pg().ga_pg());
@@ -2941,7 +2941,7 @@ Tensor<TensorType> permute_tensor(Tensor<TensorType> tensor, std::vector<int> pe
   return ptensor; // caller responsible for dellocating this tensor
 }
 
-// Extract block of a dense tensor given by [lo, hi]
+// Extract block of a dense tensor given by [lo, hi)
 template<typename TensorType>
 Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> lo,
                                 std::vector<int64_t> hi, std::vector<int> permute = {}) {
@@ -2981,11 +2981,12 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
 #if defined(USE_UPCXX)
   EXPECTS(ndims >= 1 && ndims <= 4);
 
-  std::vector<int64_t> chnks(ndims, -1), dims(ndims, 1), ld(4, 1);
+  std::vector<int64_t> chnks(ndims, -1), dims(ndims), ld(4, 1);
 
   for(int i = 0; i < ndims; ++i) {
     dims[i] = tis[i].index_space().num_indices();
-    ld[i]   = hi[i] - lo[i] + 1;
+    ld[i]   = hi[i] - lo[i];
+    hi[i]--;
   }
 
   std::vector<TensorType>    sbuf(btensor.size());

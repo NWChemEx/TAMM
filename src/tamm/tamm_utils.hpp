@@ -725,7 +725,7 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
   }
 
   ga_over_upcxx<TensorType>* ga_tens =
-    new ga_over_upcxx<TensorType>(4, dims.data(), chnks.data(), upcxx::world());
+    new ga_over_upcxx<TensorType>(ndims, dims.data(), chnks.data(), upcxx::world());
 #else
   int ga_pg_default = GA_Pgroup_get_default();
   GA_Pgroup_set_default(ec.pg().ga_pg());
@@ -2941,7 +2941,7 @@ Tensor<TensorType> permute_tensor(Tensor<TensorType> tensor, std::vector<int> pe
   return ptensor; // caller responsible for dellocating this tensor
 }
 
-// Extract block of a dense tensor given by [lo, hi]
+// Extract block of a dense tensor given by [lo, hi)
 template<typename TensorType>
 Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> lo,
                                 std::vector<int64_t> hi, std::vector<int> permute = {}) {
@@ -2953,7 +2953,8 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
   auto tis = tensor.tiled_index_spaces();
 
   for(int i = 0; i < ndims; i++) {
-    EXPECTS(hi[i] <= tis[i].index_space().num_indices() && lo[i] >= 0);
+    EXPECTS(hi[i] <= tis[i].index_space().num_indices() && lo[i] >= 0 && lo[i] < hi[i]);
+    hi[i]--;
   }
 
   LabeledTensor<TensorType> ltensor = tensor();
@@ -2972,7 +2973,7 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
     max_ts[i] = is_irreg_tis[i] ? *max_element(tiles[i].begin(), tiles[i].end()) : tiles[i][0];
 
   TiledIndexSpaceVec btis(ndims);
-  for(int i = 0; i < ndims; i++) btis[i] = TiledIndexSpace{range(hi[i] - lo[i]), max_ts[i]};
+  for(int i = 0; i < ndims; i++) btis[i] = TiledIndexSpace{range(hi[i] + 1 - lo[i]), max_ts[i]};
 
   Tensor<TensorType> btensor{btis};
   btensor.set_dense();
@@ -3231,14 +3232,14 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
       size_t c = 0;
       if(ndims == 1) {
         for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++, c++) {
-          if(func({i}) && nz_check(buf[c])) tstring << i + 1 << "   " << buf[c] << std::endl;
+          if(func({i}) && nz_check(buf[c])) tstring << i << "   " << buf[c] << std::endl;
         }
       }
       else if(ndims == 2) {
         for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
           for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++, c++) {
             if(func({i, j}) && nz_check(buf[c]))
-              tstring << i + 1 << "   " << j + 1 << "   " << buf[c] << std::endl;
+              tstring << i << "   " << j << "   " << buf[c] << std::endl;
           }
         }
       }
@@ -3247,8 +3248,7 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
           for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++) {
             for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++, c++) {
               if(func({i, j, k}) && nz_check(buf[c]))
-                tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << buf[c]
-                        << std::endl;
+                tstring << i << "   " << j << "   " << k << "   " << buf[c] << std::endl;
             }
           }
         }
@@ -3259,8 +3259,8 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
             for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++) {
               for(size_t l = block_offset[3]; l < block_offset[3] + block_dims[3]; l++, c++) {
                 if(func({i, j, k, l}) && nz_check(buf[c]))
-                  tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << l + 1 << "   "
-                          << buf[c] << std::endl;
+                  tstring << i << "   " << j << "   " << k << "   " << l << "   " << buf[c]
+                          << std::endl;
               }
             }
           }

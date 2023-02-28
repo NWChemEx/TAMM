@@ -3232,14 +3232,14 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
       size_t c = 0;
       if(ndims == 1) {
         for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++, c++) {
-          if(func({i}) && nz_check(buf[c])) tstring << i << "   " << buf[c] << std::endl;
+          if(func({i}) && nz_check(buf[c])) tstring << i + 1 << "   " << buf[c] << std::endl;
         }
       }
       else if(ndims == 2) {
         for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
           for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++, c++) {
             if(func({i, j}) && nz_check(buf[c]))
-              tstring << i << "   " << j << "   " << buf[c] << std::endl;
+              tstring << i + 1 << "   " << j + 1 << "   " << buf[c] << std::endl;
           }
         }
       }
@@ -3248,7 +3248,8 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
           for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++) {
             for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++, c++) {
               if(func({i, j, k}) && nz_check(buf[c]))
-                tstring << i << "   " << j << "   " << k << "   " << buf[c] << std::endl;
+                tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << buf[c]
+                        << std::endl;
             }
           }
         }
@@ -3259,8 +3260,8 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
             for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++) {
               for(size_t l = block_offset[3]; l < block_offset[3] + block_dims[3]; l++, c++) {
                 if(func({i, j, k, l}) && nz_check(buf[c]))
-                  tstring << i << "   " << j << "   " << k << "   " << l << "   " << buf[c]
-                          << std::endl;
+                  tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << l + 1 << "   "
+                          << buf[c] << std::endl;
               }
             }
           }

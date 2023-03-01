@@ -918,8 +918,6 @@ public:
 
         int64_t tiles_per_proc = (total_n_tiles + nranks - 1) / nranks;
 
-        local_nelems_ = tiles_per_proc * tile_size_in_bytes / element_size;
-
         local_gptr_ = upcxx::new_array<uint8_t>(tiles_per_proc * tile_size_in_bytes);
         memset(local_gptr_.local(), 0x00, tiles_per_proc * tile_size_in_bytes);
 

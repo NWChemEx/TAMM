@@ -915,7 +915,10 @@ public:
         // Fixed tilesize for all dims
 
 #if defined(USE_UPCXX)
+
         int64_t tiles_per_proc = (total_n_tiles + nranks - 1) / nranks;
+
+        local_nelems_ = tiles_per_proc * tile_size_in_bytes / element_size;
 
         local_gptr_ = upcxx::new_array<uint8_t>(tiles_per_proc * tile_size_in_bytes);
         memset(local_gptr_.local(), 0x00, tiles_per_proc * tile_size_in_bytes);
@@ -935,6 +938,8 @@ public:
                 tile_offsets[owning_rank] += tile_size_in_bytes / element_size;
                 tile_index++;
               }
+
+        local_nelems_ = tile_offsets[upcxx::rank_me()];
 
         delete[] tile_offsets;
 #else
@@ -1066,30 +1071,30 @@ public:
 
   /// @todo Should this be GA_Nodeid() or GA_Proup_nodeid(GA_Get_pgroup(ga_))
   T* access_local_buf() override {
-#if defined(USE_UPCXX)
-    throw std::runtime_error("upcxx: dense tensor - access_local_buf unsupported");
-#else
     EXPECTS(allocation_status_ != AllocationStatus::invalid);
     T* ptr;
+#if defined(USE_UPCXX)
+    ptr = reinterpret_cast<T*>(local_gptr_.local());
+#else
     int64_t len;
     NGA_Access_block_segment64(ga_, GA_Pgroup_nodeid(GA_Get_pgroup(ga_)),
                                reinterpret_cast<void*>(&ptr), &len);
-    return ptr;
 #endif
+    return ptr;
   }
 
   /// @todo Should this be GA_Nodeid() or GA_Proup_nodeid(GA_Get_pgroup(ga_))
   const T* access_local_buf() const override {
-#if defined(USE_UPCXX)
-    throw std::runtime_error("upcxx: dense tensor - access_local_buf unsupported");
-#else
     EXPECTS(allocation_status_ != AllocationStatus::invalid);
     T* ptr;
+#if defined(USE_UPCXX)
+    ptr = reinterpret_cast<T*>(local_gptr_.local());
+#else
     int64_t len;
     NGA_Access_block_segment64(ga_, GA_Pgroup_nodeid(GA_Get_pgroup(ga_)),
                                reinterpret_cast<void*>(&ptr), &len);
-    return ptr;
 #endif
+    return ptr;
   }
 
 #if defined(USE_UPCXX)
@@ -1174,17 +1179,18 @@ public:
 
   /// @todo Check for a GA method to get the local buf size?
   size_t local_buf_size() const override {
-#if defined(USE_UPCXX)
-    throw std::runtime_error("upcxx: dense tensor - local_buf_size unsupported");
-#else
     EXPECTS(allocation_status_ != AllocationStatus::invalid);
+    size_t res;
+#if defined(USE_UPCXX)
+    res = (size_t) local_nelems_;
+#else
     T* ptr;
     int64_t len;
     NGA_Access_block_segment64(ga_, GA_Pgroup_nodeid(GA_Get_pgroup(ga_)),
                                reinterpret_cast<void*>(&ptr), &len);
-    size_t res = (size_t) len;
-    return res;
+    res = (size_t) len;
 #endif
+    return res;
   }
 
   /// @todo implement accordingly
@@ -1227,6 +1233,7 @@ protected:
   std::vector<int64_t>                    tensor_dims_;
   ElementType                             eltype_;
   std::vector<TensorTile>                 tiles;
+  int64_t                                 local_nelems_;
 #else
   int ga_;
   ProcGrid proc_grid_;

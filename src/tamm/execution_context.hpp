@@ -334,6 +334,29 @@ public:
 
   int gpu_devid() const { return dev_id_; }
 
+  struct meminfo {
+    size_t gpu_mem_per_device; // single gpu mem (GiB)
+    size_t gpu_mem_per_node;   // total gpu mem across all gpus on single node (GiB)
+    size_t total_gpu_mem;      // total gpu mem across all gpus on all nodes (GiB)
+    size_t cpu_mem_per_node;   // cpu mem on single node (GiB)
+    size_t total_cpu_mem;      // total cpu mem across all nodes (GiB)
+  };
+
+  meminfo mem_info() const { return minfo_; }
+
+  void print_mem_info() {
+    if(pg_.rank() != 0) return;
+    std::cout << "{" << std::endl;
+    std::cout << " CPU memory per node (GiB): " << minfo_.cpu_mem_per_node << std::endl;
+    std::cout << " Total CPU memory (GiB): " << minfo_.total_cpu_mem << std::endl;
+    if(ngpu_ > 0) {
+      std::cout << " GPU memory per device (GiB): " << minfo_.gpu_mem_per_device << std::endl;
+      std::cout << " GPU memory per node (GiB): " << minfo_.gpu_mem_per_node << std::endl;
+      std::cout << " Total GPU memory (GiB): " << minfo_.total_gpu_mem << std::endl;
+    }
+    std::cout << "}" << std::endl;
+  }
+
   bool print() const { return (pg_.rank() == 0); }
 
   std::stringstream& get_profile_data() { return profile_data_; }
@@ -393,6 +416,7 @@ private:
   bool                           has_gpu_;
   int                            dev_id_ = -1;
   ExecutionHW                    exhw_;
+  meminfo                        minfo_;
 
   std::stringstream          profile_data_;
   std::vector<MemoryRegion*> mem_regs_to_dealloc_;

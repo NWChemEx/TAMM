@@ -1,4 +1,5 @@
 #include "ga/ga.h"
+#include "sys/sysinfo.h"
 #include <mpi.h>
 
 #include "distribution.hpp"
@@ -43,6 +44,14 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #endif
   nnodes_ = pg.size().value() / ranks_pn_;
 
+  {
+    struct sysinfo cpumeminfo_;
+    sysinfo(&cpumeminfo_);
+    minfo_.cpu_mem_per_node = cpumeminfo_.totalram * cpumeminfo_.mem_unit;
+  }
+  minfo_.cpu_mem_per_node /= (1024 * 1024 * 1024.0); // GiB
+  minfo_.total_cpu_mem = minfo_.cpu_mem_per_node * nnodes_;
+
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   tamm::getDeviceCount(&ngpu_);
 
@@ -58,6 +67,21 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     exhw_    = ExecutionHW::GPU;
   }
 #endif
+
+  {
+    size_t free_{};
+#if defined(USE_CUDA)
+    cudaMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
+#elif defined(USE_HIP)
+    hipMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
+#elif defined(USE_DPCPP)
+    syclMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
+#endif
+
+    minfo_.gpu_mem_per_device /= (1024 * 1024 * 1024.0); // GiB
+    minfo_.gpu_mem_per_node = minfo_.gpu_mem_per_device * ngpu_;
+    minfo_.total_gpu_mem    = minfo_.gpu_mem_per_node * nnodes_;
+  }
 
   if(ranks_pn_ > ngpu_) {
     if(pg.rank() == 0) {

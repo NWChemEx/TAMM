@@ -126,7 +126,7 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   sch.deallocate(b_scale, c_scale).execute();
 
   // random_ip
-  // tamm::random_ip(A);
+  tamm::random_ip(A);
   tamm::random_ip(B);
 
   // max_element,min_element
@@ -160,6 +160,13 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   // tensor_block
   Tensor<T>  b_block = tamm::tensor_block(b_dens, {0, 0, 0, 0}, {N / 2, N / 2, N / 2, N / 2});
   Tensor<CT> c_block = tamm::tensor_block(c_dens, {0, 0, 0, 0}, {N / 2, N / 2, N / 2, N / 2});
+
+  // local_buf_size and access_local_buf ... to be moved to a unit test
+  if(int(std::pow(N / tilesize, b_dens.num_modes())) % ec_dense.pg().size().value() == 0)
+    EXPECTS(std::pow(N, b_dens.num_modes()) / ec_dense.pg().size().value() ==
+            b_dens.local_buf_size());
+  if(ec_dense.pg().rank() == 0)
+    EXPECTS(*b_dens.access_local_buf() == tamm::get_tensor_element(b_dens, {0, 0, 0, 0}));
 
   sch.deallocate(b_dens, c_dens).execute();
   sch.deallocate(b_block, c_block).execute();

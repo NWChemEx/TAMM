@@ -2,8 +2,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "XL"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "Cray"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"
     OR CMAKE_CXX_COMPILER_ID STREQUAL "Intel" 
-    OR CMAKE_CXX_COMPILER_ID STREQUAL "PGI")
-    # OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    OR CMAKE_CXX_COMPILER_ID STREQUAL "PGI"
+    OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         message(FATAL_ERROR "TAMM cannot be currently built with ${CMAKE_CXX_COMPILER_ID} compilers.")
 endif()
 
@@ -49,8 +49,8 @@ endif()
 check_compiler_version(C Clang 9)
 check_compiler_version(CXX Clang 9)
 
-check_compiler_version(C AppleClang 13)
-check_compiler_version(CXX AppleClang 13)
+# check_compiler_version(C AppleClang 14)
+# check_compiler_version(CXX AppleClang 14)
 
 check_compiler_version(C GNU 9.1)
 check_compiler_version(CXX GNU 9.1)

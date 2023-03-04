@@ -8,7 +8,7 @@ Prerequisites
 -  cmake >= 3.22
 -  MPI Library
 -  C++17 compiler
--  CUDA >= 11.0 (OR) ROCM >= 5.0 (when building with Nvidia/AMD GPU
+-  CUDA >= 11.1 (OR) ROCM >= 5.1 (when building with Nvidia/AMD GPU
    support)
 
 Supported Compilers
@@ -16,7 +16,6 @@ Supported Compilers
 
 -  GCC versions >= 9.1
 -  LLVM Clang >= 9
--  Apple Clang >= 13
 
 Supported Configurations
 ========================
@@ -27,17 +26,16 @@ Supported Configurations
    -  GCC versions >= 9.1 + OpenMPI-2.x/MPICH-3.x built using the
       corresponding GCC versions.
    -  LLVM Clang versions >= 9 + OpenMPI-2.x/MPICH-3.x
-   -  Apple Clang versions >= 13 + OpenMPI-2.x/MPICH-3.x
 
 Installing Prerequisites
 ========================
 
-On Mac OSX:
+On Mac OSX
 ===========
 
 -  brew install gcc openmpi cmake autoconf automake libtool
 
-On Linux:
+On Linux
 =========
 
 We recommend using the `Spack package manager <https://spack.io>`__ to

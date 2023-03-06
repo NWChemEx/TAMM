@@ -100,7 +100,7 @@ Default build on MACOS
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. note::
-   The prerequisites for ``MACOS`` can be installed using ``brew`` as detailed `here <prerequisites.md#on-mac-osx>`__.
+   The prerequisites for ``MACOS`` can be installed using ``brew`` as detailed :doc:`here <prerequisites>`.
 
 ::
 
@@ -276,12 +276,6 @@ Build DPCPP code path using Intel OneAPI SDK
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 -  ``MPI:`` Only tested using ``MPICH``.
--  Set ``DPCPP_ROOT`` accordingly
-
-::
-
-   export DPCPP_ROOT=/opt/oneapi/compiler/latest/linux
-
 -  Set ROOT dir of the GCC installation (need gcc >= v9.1)
 
 ::

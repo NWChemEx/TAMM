@@ -61,19 +61,30 @@ public:
   }
   void deallocate(void* ptr, size_t size) {
     auto&& reuse_pool = memory_pool_[size];
+    gpuMemset(ptr, sizeInBytes, true);
     reuse_pool.push_back(ptr);
   }
 
-  void gpuMemset(void** ptr, size_t sizeInBytes) {
+  void gpuMemset(void* &ptr, size_t sizeInBytes, bool blocking=false) {
     gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
 
+    if (blocking) {
 #if defined(USE_DPCPP)
-    stream.memset(*ptr, 0, sizeInBytes);
+      stream.memset(ptr, 0, sizeInBytes).wait();
 #elif defined(USE_HIP)
-    hipMemsetAsync(*ptr, 0, sizeInBytes, stream);
+      hipMemset(ptr, 0, sizeInBytes);
 #elif defined(USE_CUDA)
-    cudaMemsetAsync(*ptr, 0, sizeInBytes, stream);
+      cudaMemset(ptr, 0, sizeInBytes);
 #endif
+    } else {
+#if defined(USE_DPCPP)
+      stream.memset(ptr, 0, sizeInBytes);
+#elif defined(USE_HIP)
+      hipMemsetAsync(ptr, 0, sizeInBytes, stream);
+#elif defined(USE_CUDA)
+      cudaMemsetAsync(ptr, 0, sizeInBytes, stream);
+#endif
+    }
   }
 
   void ReleaseAll() {

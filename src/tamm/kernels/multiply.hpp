@@ -85,22 +85,20 @@ void stream_synchronize(gpuStream_t& shandle) {
 
 template<typename T2, typename T3>
 void copy_data_to_gpu_trans(bool& isgpuOp, gpuStream_t& thandle, const T2* ainter_buf, size_t asize,
-                            T2* &ainter_buf_dev, const T3* binter_buf, size_t bsize,
-                            T3* &binter_buf_dev) {
+                            T2*& ainter_buf_dev, const T3* binter_buf, size_t bsize,
+                            T3*& binter_buf_dev) {
   if(!isgpuOp) return;
 
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
   // host-->device copy
-  gpuMemcpyAsync<T2>(ainter_buf_dev, ainter_buf, asize,
-                     gpuMemcpyHostToDevice, thandle);
-  gpuMemcpyAsync<T3>(binter_buf_dev, binter_buf, bsize,
-                     gpuMemcpyHostToDevice, thandle);
+  gpuMemcpyAsync<T2>(ainter_buf_dev, ainter_buf, asize, gpuMemcpyHostToDevice, thandle);
+  gpuMemcpyAsync<T3>(binter_buf_dev, binter_buf, bsize, gpuMemcpyHostToDevice, thandle);
 #endif
 }
 
 template<typename T2, typename T3>
 void copy_data_to_gpu(bool& isgpuOp, gpuStream_t& thandle, const std::vector<T2>& ainter_buf,
-                      T2* &ainter_buf_dev, const std::vector<T3>& binter_buf, T3* &binter_buf_dev) {
+                      T2*& ainter_buf_dev, const std::vector<T3>& binter_buf, T3*& binter_buf_dev) {
   copy_data_to_gpu_trans(isgpuOp, thandle, ainter_buf.data(), ainter_buf.size(), ainter_buf_dev,
                          binter_buf.data(), binter_buf.size(), binter_buf_dev);
 }
@@ -108,8 +106,8 @@ void copy_data_to_gpu(bool& isgpuOp, gpuStream_t& thandle, const std::vector<T2>
 template<typename T, typename T1, typename T2, typename T3>
 void gemm_wrapper(bool isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, int M, int N, int K,
                   T alpha, T beta, const std::vector<T2>& ainter_buf, const T2* ainter_buf_dev,
-                  const std::vector<T3>& binter_buf, const T3* binter_buf_dev, std::vector<T1>& cinter_buf,
-                  T1* &cinter_buf_dev) {
+                  const std::vector<T3>& binter_buf, const T3* binter_buf_dev,
+                  std::vector<T1>& cinter_buf, T1*& cinter_buf_dev) {
 #if defined(USE_CUDA) || defined(USE_HIP)
   auto& handle = tamm::GPUStreamPool::getInstance().getBlasHandle();
 #endif
@@ -203,13 +201,13 @@ void copy_result_to_host(ExecutionHW hw, gpuStream_t& thandle, std::vector<T1>& 
 
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
   // device-->host copy
-  gpuMemcpyAsync<T1>(cinter_buf.data(), cinter_buf_dev, cinter_buf.size(),
-                     gpuMemcpyDeviceToHost, thandle);
+  gpuMemcpyAsync<T1>(cinter_buf.data(), cinter_buf_dev, cinter_buf.size(), gpuMemcpyDeviceToHost,
+                     thandle);
 #endif
 }
 
 template<typename T>
-void allocate_device_buffers(ExecutionHW hw, T* &dev_buf, size_t buf_size) {
+void allocate_device_buffers(ExecutionHW hw, T*& dev_buf, size_t buf_size) {
   if(hw != ExecutionHW::GPU) return;
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
   auto& memPool = tamm::GPUPooledStorageManager::getInstance();
@@ -227,8 +225,9 @@ void free_device_buffers(ExecutionHW hw, T* dev_buf, std::size_t buf_size) {
 }
 
 template<typename T>
-void assign_gpu(gpuStream_t& thandle, T* &dst, const SizeVec& ddims, const IntLabelVec& dlabels,
-                T scale, const T* src, const SizeVec& sdims, const IntLabelVec& slabels, bool is_assign) {
+void assign_gpu(gpuStream_t& thandle, T*& dst, const SizeVec& ddims, const IntLabelVec& dlabels,
+                T scale, const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
+                bool is_assign) {
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
 
   const int ndim = sdims.size();
@@ -271,7 +270,7 @@ void assign_gpu(gpuStream_t& thandle, T* &dst, const SizeVec& ddims, const IntLa
   librettPlan(&plan, ndim, size, perm, sizeof(T), thandle);
 #endif
 
-  //ABB: following casts were required since librett API only accepts void* as args
+  // ABB: following casts were required since librett API only accepts void* as args
   librettExecute(plan, reinterpret_cast<void*>(const_cast<T*>(src)), reinterpret_cast<void*>(dst));
   librettDestroy(plan);
 #endif
@@ -283,8 +282,8 @@ bool transpose_inputs(bool& isgpuOp, gpuStream_t& thandle, std::vector<T2>& aint
                       size_t asize, const SizeVec& adims, const IntLabelVec& alabels,
                       std::vector<T3>& binter_buf, const SizeVec& binter_dims,
                       const IntLabelVec& binter_labels, const T3* bbuf, size_t bsize,
-                      const SizeVec& bdims, const IntLabelVec& blabels, T2* &ainter_buf_dev,
-                      T3* &binter_buf_dev) {
+                      const SizeVec& bdims, const IntLabelVec& blabels, T2*& ainter_buf_dev,
+                      T3*& binter_buf_dev) {
   bool gpu_trans = false;
 
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
@@ -294,7 +293,7 @@ bool transpose_inputs(bool& isgpuOp, gpuStream_t& thandle, std::vector<T2>& aint
     T2* ainter_buf_dev_in{nullptr};
     T3* binter_buf_dev_in{nullptr};
 
-    auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+    auto& memPool     = tamm::GPUPooledStorageManager::getInstance();
     ainter_buf_dev_in = static_cast<T2*>(memPool.allocate(asize * sizeof(T2)));
     binter_buf_dev_in = static_cast<T3*>(memPool.allocate(bsize * sizeof(T3)));
 
@@ -322,12 +321,12 @@ template<typename T1>
 void transpose_output(bool& isgpuOp, gpuStream_t& thandle, bool gpu_trans,
                       std::vector<T1>& cinter_buf, const SizeVec& cinter_dims,
                       const IntLabelVec& cinter_labels, T1* cbuf, const SizeVec& cdims,
-                      const IntLabelVec& clabels, T1* &cinter_buf_dev, T1* &cinter_tmp_buf_dev,
+                      const IntLabelVec& clabels, T1*& cinter_buf_dev, T1*& cinter_tmp_buf_dev,
                       bool is_assign) {
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
   if(isgpuOp) {
-    assign_gpu<T1>(thandle, cinter_buf_dev, cdims, clabels, T1{1}, cinter_tmp_buf_dev,
-                   cinter_dims, cinter_labels, is_assign);
+    assign_gpu<T1>(thandle, cinter_buf_dev, cdims, clabels, T1{1}, cinter_tmp_buf_dev, cinter_dims,
+                   cinter_labels, is_assign);
     return;
   }
 #endif
@@ -338,13 +337,13 @@ void transpose_output(bool& isgpuOp, gpuStream_t& thandle, bool gpu_trans,
 template<typename T, typename T1, typename T2, typename T3>
 void block_multiply(bool isgpuOp,
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-                    T2* &th_a, T3* &th_b,
+                    T2*& th_a, T3*& th_b,
 #endif
                     gpuStream_t& thandle, T alpha, const T2* abuf, const SizeVec& adims,
                     const IntLabelVec& alabels, const T3* bbuf, const SizeVec& bdims,
                     const IntLabelVec& blabels, T beta, T1* cbuf, const SizeVec& cdims,
-                    const IntLabelVec& clabels, ExecutionHW hw,
-                    bool has_gpu, bool is_assign, T1* &cinter_buf_dev, T1* &cinter_tmp_buf_dev) {
+                    const IntLabelVec& clabels, ExecutionHW hw, bool has_gpu, bool is_assign,
+                    T1*& cinter_buf_dev, T1*& cinter_tmp_buf_dev) {
 
   if(hw == ExecutionHW::GPU) isgpuOp = true;
   const Size asize = std::accumulate(adims.begin(), adims.end(), Size{1}, std::multiplies<Size>());

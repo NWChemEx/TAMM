@@ -951,14 +951,14 @@ public:
 
 #if defined(USE_UPCXX)
     gptrs_.resize(nranks);
-    upcxx::dist_object<upcxx::global_ptr<uint8_t>>* dobj =
-      new upcxx::dist_object<upcxx::global_ptr<uint8_t>>(local_gptr_, *ec->pg().team());
-
-    ec->pg().barrier();
-
-    for(int r = 0; r < nranks; r++) gptrs_[r] = dobj->fetch(r).wait();
-
-    ec->pg().barrier();
+    upcxx::promise<> p(nranks);
+    for(int r = 0; r < nranks; r++)
+      upcxx::broadcast(local_gptr_, r, *ec->pg().team())
+        .then([this, &p, r](upcxx::global_ptr<uint8_t> result) {
+          gptrs_[r] = result;
+          p.fulfill_anonymous(1);
+        });
+    p.get_future().wait();
 #else
     NGA_Set_pgroup(ga_, ec->pg().ga_pg());
     NGA_Allocate(ga_);
@@ -1040,14 +1040,29 @@ public:
   }
 
   void add(const IndexVector& blockid, span<T> buff_span) {
-#if defined(USE_UPCXX)
-    throw std::runtime_error("upcxx: dense tensor - add unsupported");
-#else
     EXPECTS(allocation_status_ != AllocationStatus::invalid);
-    std::vector<int64_t> lo = compute_lo(blockid);
-    std::vector<int64_t> hi = compute_hi(blockid);
-    std::vector<int64_t> ld = compute_ld(blockid);
     EXPECTS(block_size(blockid) <= buff_span.size());
+
+    std::vector<int64_t> lo = compute_lo(blockid);
+
+#if defined(USE_UPCXX)
+    for(size_t i = lo.size(); i < 4; ++i) lo.insert(lo.begin(), 0);
+
+    TensorTile t = find_tile(lo[0], lo[1], lo[2], lo[3]);
+
+    upcxx::rpc(
+      *ec_->pg().team(), t.rank,
+      [](const upcxx::global_ptr<T>& dst_buf, const upcxx::view<T>& src_buf) {
+        T*     dst = dst_buf.local();
+        size_t n   = src_buf.size();
+
+        for(size_t i = 0; i < n; ++i) dst[i] += src_buf[i];
+      },
+      upcxx::reinterpret_pointer_cast<T>(gptrs_[t.rank]) + t.offset,
+      upcxx::make_view((T*) buff_span.data(), (T*) buff_span.data() + block_size(blockid)))
+      .wait();
+
+#else
     void* alpha;
     switch(from_ga_eltype(ga_eltype_)) {
       case ElementType::single_precision: alpha = reinterpret_cast<void*>(&sp_alpha); break;
@@ -1057,6 +1072,10 @@ public:
       case ElementType::invalid:
       default: UNREACHABLE();
     }
+
+    std::vector<int64_t> hi = compute_hi(blockid);
+    std::vector<int64_t> ld = compute_ld(blockid);
+
     NGA_Acc64(ga_, &lo[0], &hi[0], reinterpret_cast<void*>(buff_span.data()), &ld[0], alpha);
 #endif
   }

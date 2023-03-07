@@ -23,8 +23,8 @@ private:
   ~GPUPooledStorageManager() { ReleaseAll(); }
 
 public:
-  void* allocate(size_t size) {
-    auto&& reuse_it = memory_pool_.find(size);
+  void* allocate(size_t sizeInBytes) {
+    auto&& reuse_it = memory_pool_.find(sizeInBytes);
     if(reuse_it == memory_pool_.end() || reuse_it->second.size() == 0) {
       size_t free{}, total{};
 
@@ -36,20 +36,22 @@ public:
       syclMemGetInfo(&free, &total);
 #endif
 
-      if(size > free - total * reserve_ / 100) ReleaseAll();
+      if(free <= total * reserve_ / 100 || sizeInBytes > free - total * reserve_ / 100) {
+        ReleaseAll();
+      }
 
       void* ret = nullptr;
 
 #if defined(USE_CUDA)
-      cudaMalloc(&ret, size);
+      cudaMalloc(&ret, sizeInBytes);
 #elif defined(USE_HIP)
-      hipMalloc(&ret, size);
+      hipMalloc(&ret, sizeInBytes);
 #elif defined(USE_DPCPP)
       gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
-      ret                 = sycl::malloc_device(size, stream);
+      ret                 = sycl::malloc_device(sizeInBytes, stream);
 #endif
 
-      used_memory_ += size;
+      used_memory_ += sizeInBytes;
       return ret;
     }
     else {
@@ -59,16 +61,16 @@ public:
       return ret;
     }
   }
-  void deallocate(void* ptr, size_t size) {
-    auto&& reuse_pool = memory_pool_[size];
+  void deallocate(void* ptr, size_t sizeInBytes) {
+    auto&& reuse_pool = memory_pool_[sizeInBytes];
     gpuMemset(ptr, sizeInBytes, true);
     reuse_pool.push_back(ptr);
   }
 
-  void gpuMemset(void*& ptr, size_t sizeInBytes, bool blocking = false) {
+  void gpuMemset(void* &ptr, size_t sizeInBytes, bool blocking=false) {
     gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
 
-    if(blocking) {
+    if (blocking) {
 #if defined(USE_DPCPP)
       stream.memset(ptr, 0, sizeInBytes).wait();
 #elif defined(USE_HIP)
@@ -76,8 +78,7 @@ public:
 #elif defined(USE_CUDA)
       cudaMemset(ptr, 0, sizeInBytes);
 #endif
-    }
-    else {
+    } else {
 #if defined(USE_DPCPP)
       stream.memset(ptr, 0, sizeInBytes);
 #elif defined(USE_HIP)

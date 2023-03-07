@@ -21,13 +21,23 @@ namespace tamm {
 using gpuStream_t     = hipStream_t;
 using gpuEvent_t      = hipEvent_t;
 using gpuBlasHandle_t = rocblas_handle;
+using gpuMemcpyKind = hipMemcpyKind;
+using gpuMemcpyHostToDevice = hipMemcpyHostToDevice;
+using gpuMemcpyDeviceToHost = hipMemcpyDeviceToHost;
 #elif defined(USE_CUDA)
 using gpuStream_t     = cudaStream_t;
 using gpuEvent_t      = cudaEvent_t;
 using gpuBlasHandle_t = cublasHandle_t;
+using gpuMemcpyKind   = cudaMemcpyKind;
+using gpuMemcpyHostToDevice = cudaMemcpyHostToDevice;
+using gpuMemcpyDeviceToHost = cudaMemcpyDeviceToHost;
 #elif defined(USE_DPCPP)
 using gpuStream_t = sycl::queue;
 using gpuEvent_t  = sycl::event;
+using gpuMemcpyKind = int;
+#define gpuMemcpyHostToDevice 0
+#define gpuMemcpyDeviceToHost 1
+#define gpuMemcpyDeviceToDevice 2
 
 auto sycl_asynchandler = [](sycl::exception_list exceptions) {
   for(std::exception_ptr const& e: exceptions) {
@@ -58,6 +68,22 @@ static inline void gpuSetDevice(int active_device) {
   hipSetDevice(active_device);
 #elif defined(USE_DPCPP)
   syclSetDevice(active_device);
+#endif
+}
+
+template <typename T>
+static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kind, gpuStream_t& stream) {
+#if defined(USE_DPCPP)
+  if (kind==gpuMemcpyDeviceToDevice) {
+    stream.copy(src, dst, count);
+  }
+  else {
+    stream.memcpy(dst, src, count * sizeof(T));
+  }
+#elif defined(USE_CUDA)
+  CUDA_CHECK(cudaMemcpyAsync(dst, src, count * sizeof(T), kind, stream));
+#elif defined(USE_HIP)
+  HIP_CHECK(hipMemcpyAsync(dst, src, count * sizeof(T), kind, stream));
 #endif
 }
 

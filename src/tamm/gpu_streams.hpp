@@ -18,13 +18,13 @@
 namespace tamm {
 
 #if defined(USE_HIP)
-using gpuStream_t           = hipStream_t;
-using gpuEvent_t            = hipEvent_t;
-using gpuBlasHandle_t       = rocblas_handle;
-using gpuMemcpyKind         = hipMemcpyKind;
-#define gpuMemcpyHostToDevice  hipMemcpyHostToDevice
-#define gpuMemcpyDeviceToHost  hipMemcpyDeviceToHost
-#define gpuMemcpyDeviceToDevice  hipMemcpyDeviceToDevice    
+using gpuStream_t     = hipStream_t;
+using gpuEvent_t      = hipEvent_t;
+using gpuBlasHandle_t = rocblas_handle;
+using gpuMemcpyKind   = hipMemcpyKind;
+#define gpuMemcpyHostToDevice hipMemcpyHostToDevice
+#define gpuMemcpyDeviceToHost hipMemcpyDeviceToHost
+#define gpuMemcpyDeviceToDevice hipMemcpyDeviceToDevice
 
 #define HIP_CHECK(err)                                                                      \
   do {                                                                                      \
@@ -35,15 +35,15 @@ using gpuMemcpyKind         = hipMemcpyKind;
       throw std::runtime_error("hip runtime error");                                        \
     }                                                                                       \
   } while(0)
-    
+
 #elif defined(USE_CUDA)
-using gpuStream_t           = cudaStream_t;
-using gpuEvent_t            = cudaEvent_t;
-using gpuBlasHandle_t       = cublasHandle_t;
-using gpuMemcpyKind         = cudaMemcpyKind;
-#define gpuMemcpyHostToDevice  cudaMemcpyHostToDevice
-#define gpuMemcpyDeviceToHost  cudaMemcpyDeviceToHost
-#define gpuMemcpyDeviceToDevice  cudaMemcpyDeviceToDevice    
+using gpuStream_t     = cudaStream_t;
+using gpuEvent_t      = cudaEvent_t;
+using gpuBlasHandle_t = cublasHandle_t;
+using gpuMemcpyKind   = cudaMemcpyKind;
+#define gpuMemcpyHostToDevice cudaMemcpyHostToDevice
+#define gpuMemcpyDeviceToHost cudaMemcpyDeviceToHost
+#define gpuMemcpyDeviceToDevice cudaMemcpyDeviceToDevice
 
 #define CUDA_CHECK(err)                                                                       \
   do {                                                                                        \
@@ -54,7 +54,7 @@ using gpuMemcpyKind         = cudaMemcpyKind;
       throw std::runtime_error("cuda runtime error");                                         \
     }                                                                                         \
   } while(0)
-    
+
 #elif defined(USE_DPCPP)
 using gpuStream_t   = sycl::queue;
 using gpuEvent_t    = sycl::event;
@@ -77,9 +77,9 @@ auto sycl_asynchandler = [](sycl::exception_list exceptions) {
 
 static inline void getDeviceCount(int* id) {
 #if defined(USE_CUDA)
-    CUDA_CHECK(cudaGetDeviceCount(id));
+  CUDA_CHECK(cudaGetDeviceCount(id));
 #elif defined(USE_HIP)
-    HIP_CHECK(hipGetDeviceCount(id));
+  HIP_CHECK(hipGetDeviceCount(id));
 #elif defined(USE_DPCPP)
   syclGetDeviceCount(id);
 #endif
@@ -87,9 +87,9 @@ static inline void getDeviceCount(int* id) {
 
 static inline void gpuSetDevice(int active_device) {
 #ifdef USE_CUDA
-    CUDA_CHECK(cudaSetDevice(active_device));
+  CUDA_CHECK(cudaSetDevice(active_device));
 #elif defined(USE_HIP)
-    HIP_CHECK(hipSetDevice(active_device));
+  HIP_CHECK(hipSetDevice(active_device));
 #elif defined(USE_DPCPP)
   syclSetDevice(active_device);
 #endif

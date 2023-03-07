@@ -30,16 +30,6 @@ using gpuStream_t = int; // not used
       throw std::runtime_error("cublas error");                                        \
     }                                                                                  \
   } while(0)
-
-#define CUDA_CHECK(err)                                                                       \
-  do {                                                                                        \
-    cudaError_t err_ = (err);                                                                 \
-    if(err_ != cudaSuccess) {                                                                 \
-      std::printf("CUDA Exception code: %s at %s : %d\n", cudaGetErrorString(err_), __FILE__, \
-                  __LINE__);                                                                  \
-      throw std::runtime_error("cuda runtime error");                                         \
-    }                                                                                         \
-  } while(0)
 #endif // USE_CUDA
 
 #if defined(USE_HIP)
@@ -51,16 +41,6 @@ using gpuStream_t = int; // not used
       std::printf("ROCBLAS Exception code: %d at %s:%d\n", err_, __FILE__, __LINE__); \
       throw std::runtime_error("rocblas error");                                      \
     }                                                                                 \
-  } while(0)
-
-#define HIP_CHECK(err)                                                                      \
-  do {                                                                                      \
-    hipError_t err_ = (err);                                                                \
-    if(err_ != hipSuccess) {                                                                \
-      std::printf("HIP Exception code: %s at %s : %d\n", hipGetErrorString(err_), __FILE__, \
-                  __LINE__);                                                                \
-      throw std::runtime_error("hip runtime error");                                        \
-    }                                                                                       \
   } while(0)
 #endif // USE_HIP
 

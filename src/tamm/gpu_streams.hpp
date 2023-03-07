@@ -21,13 +21,47 @@ namespace tamm {
 using gpuStream_t     = hipStream_t;
 using gpuEvent_t      = hipEvent_t;
 using gpuBlasHandle_t = rocblas_handle;
+using gpuMemcpyKind   = hipMemcpyKind;
+#define gpuMemcpyHostToDevice hipMemcpyHostToDevice
+#define gpuMemcpyDeviceToHost hipMemcpyDeviceToHost
+#define gpuMemcpyDeviceToDevice hipMemcpyDeviceToDevice
+
+#define HIP_CHECK(err)                                                                      \
+  do {                                                                                      \
+    hipError_t err_ = (err);                                                                \
+    if(err_ != hipSuccess) {                                                                \
+      std::printf("HIP Exception code: %s at %s : %d\n", hipGetErrorString(err_), __FILE__, \
+                  __LINE__);                                                                \
+      throw std::runtime_error("hip runtime error");                                        \
+    }                                                                                       \
+  } while(0)
+
 #elif defined(USE_CUDA)
 using gpuStream_t     = cudaStream_t;
 using gpuEvent_t      = cudaEvent_t;
 using gpuBlasHandle_t = cublasHandle_t;
+using gpuMemcpyKind   = cudaMemcpyKind;
+#define gpuMemcpyHostToDevice cudaMemcpyHostToDevice
+#define gpuMemcpyDeviceToHost cudaMemcpyDeviceToHost
+#define gpuMemcpyDeviceToDevice cudaMemcpyDeviceToDevice
+
+#define CUDA_CHECK(err)                                                                       \
+  do {                                                                                        \
+    cudaError_t err_ = (err);                                                                 \
+    if(err_ != cudaSuccess) {                                                                 \
+      std::printf("CUDA Exception code: %s at %s : %d\n", cudaGetErrorString(err_), __FILE__, \
+                  __LINE__);                                                                  \
+      throw std::runtime_error("cuda runtime error");                                         \
+    }                                                                                         \
+  } while(0)
+
 #elif defined(USE_DPCPP)
-using gpuStream_t = sycl::queue;
-using gpuEvent_t  = sycl::event;
+using gpuStream_t   = sycl::queue;
+using gpuEvent_t    = sycl::event;
+using gpuMemcpyKind = int;
+#define gpuMemcpyHostToDevice 0
+#define gpuMemcpyDeviceToHost 1
+#define gpuMemcpyDeviceToDevice 2
 
 auto sycl_asynchandler = [](sycl::exception_list exceptions) {
   for(std::exception_ptr const& e: exceptions) {
@@ -43,9 +77,9 @@ auto sycl_asynchandler = [](sycl::exception_list exceptions) {
 
 static inline void getDeviceCount(int* id) {
 #if defined(USE_CUDA)
-  cudaGetDeviceCount(id);
+  CUDA_CHECK(cudaGetDeviceCount(id));
 #elif defined(USE_HIP)
-  hipGetDeviceCount(id);
+  HIP_CHECK(hipGetDeviceCount(id));
 #elif defined(USE_DPCPP)
   syclGetDeviceCount(id);
 #endif
@@ -53,11 +87,24 @@ static inline void getDeviceCount(int* id) {
 
 static inline void gpuSetDevice(int active_device) {
 #ifdef USE_CUDA
-  cudaSetDevice(active_device);
+  CUDA_CHECK(cudaSetDevice(active_device));
 #elif defined(USE_HIP)
-  hipSetDevice(active_device);
+  HIP_CHECK(hipSetDevice(active_device));
 #elif defined(USE_DPCPP)
   syclSetDevice(active_device);
+#endif
+}
+
+template<typename T>
+static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kind,
+                           gpuStream_t& stream) {
+#if defined(USE_DPCPP)
+  if(kind == gpuMemcpyDeviceToDevice) { stream.copy(src, dst, count); }
+  else { stream.memcpy(dst, src, count * sizeof(T)); }
+#elif defined(USE_CUDA)
+  CUDA_CHECK(cudaMemcpyAsync(dst, src, count * sizeof(T), kind, stream));
+#elif defined(USE_HIP)
+  HIP_CHECK(hipMemcpyAsync(dst, src, count * sizeof(T), kind, stream));
 #endif
 }
 
@@ -89,7 +136,7 @@ private:
       gpuStream_t* stream = nullptr;
 #if defined(USE_CUDA)
       stream = new cudaStream_t;
-      cudaStreamCreate(stream);
+      CUDA_CHECK(cudaStreamCreate(stream));
 
       gpuBlasHandle_t* handle = new gpuBlasHandle_t;
       cublasCreate(handle);
@@ -97,7 +144,7 @@ private:
       _devID2Handle[devID] = handle;
 #elif defined(USE_HIP)
       stream = new hipStream_t;
-      hipStreamCreate(stream);
+      HIP_CHECK(hipStreamCreate(stream));
 
       gpuBlasHandle_t* handle = new gpuBlasHandle_t;
       rocblas_create_handle(handle);
@@ -123,13 +170,13 @@ private:
       // 1. destroy gpu-streams, gpu-blas handles per GPU
       gpuStream_t* stream = _devID2Stream[devID];
 #if defined(USE_CUDA)
-      cudaStreamDestroy(*stream);
+      CUDA_CHECK(cudaStreamDestroy(*stream));
 
       gpuBlasHandle_t* handle = _devID2Handle[devID];
       cublasDestroy(*handle);
       handle = nullptr;
 #elif defined(USE_HIP)
-      hipStreamDestroy(*stream);
+      HIP_CHECK(hipStreamDestroy(*stream));
 
       gpuBlasHandle_t* handle = _devID2Handle[devID];
       rocblas_destroy_handle(*handle);

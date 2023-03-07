@@ -473,26 +473,25 @@ public:
           TensorElType1* cbuf_tmp_dev_ptr{nullptr};
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
           auto& memPool = tamm::GPUPooledStorageManager::getInstance();
-          cbuf_dev_ptr =
-            static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
-          cbuf_tmp_dev_ptr =
-            static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
-          th_a = static_cast<TensorElType2*>(memPool.allocate(asize * sizeof(TensorElType2)));
-          th_b = static_cast<TensorElType3*>(memPool.allocate(bsize * sizeof(TensorElType3)));
 
-          memPool.gpuMemset(reinterpret_cast<void**>(&cbuf_dev_ptr), csize * sizeof(TensorElType1));
-          memPool.gpuMemset(reinterpret_cast<void**>(&cbuf_tmp_dev_ptr),
-                            csize * sizeof(TensorElType1));
+          if(hw == ExecutionHW::GPU) {
+            cbuf_dev_ptr =
+              static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
+            cbuf_tmp_dev_ptr =
+              static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
+            th_a = static_cast<TensorElType2*>(memPool.allocate(asize * sizeof(TensorElType2)));
+            th_b = static_cast<TensorElType3*>(memPool.allocate(bsize * sizeof(TensorElType3)));
+          }
 #endif
           TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
           kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
             ab->isgpu_,
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-            &th_a, &th_b,
+            th_a, th_b,
 #endif
             thandle, alpha_, abuf.data(), adims_sz, rhs1_int_labels_, bbuf.data(), bdims_sz,
             rhs2_int_labels_, cscale, (ab->cbuf_).data(), cdims_sz, lhs_int_labels_, hw,
-            ec.has_gpu(), true, &cbuf_dev_ptr, &cbuf_tmp_dev_ptr);
+            ec.has_gpu(), true, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
 
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
           if(hw == ExecutionHW::GPU) {
@@ -501,12 +500,12 @@ public:
             // cbuf+=cbuf_tmp
             kernels::stream_synchronize<TensorElType1>(thandle);
             blas::axpy(csize, TensorElType1{1}, cbuf_tmp.data(), 1, (ab->cbuf_).data(), 1);
-          }
 
-          memPool.deallocate(static_cast<void*>(th_a), asize * sizeof(TensorElType2));
-          memPool.deallocate(static_cast<void*>(th_b), bsize * sizeof(TensorElType3));
-          memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
-          memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
+            memPool.deallocate(static_cast<void*>(th_a), asize * sizeof(TensorElType2));
+            memPool.deallocate(static_cast<void*>(th_b), bsize * sizeof(TensorElType3));
+            memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
+            memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
+          }
 #endif
         }
 
@@ -720,10 +719,6 @@ public:
             static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
           cbuf_tmp_dev_ptr =
             static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
-
-          memPool.gpuMemset(reinterpret_cast<void**>(&cbuf_dev_ptr), csize * sizeof(TensorElType1));
-          memPool.gpuMemset(reinterpret_cast<void**>(&cbuf_tmp_dev_ptr),
-                            csize * sizeof(TensorElType1));
         }
 #endif
 
@@ -824,11 +819,11 @@ public:
             kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
               abptr->isgpu_,
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-              &(abptr->ta_), &(abptr->tb_),
+              abptr->ta_, abptr->tb_,
 #endif
               thandle, alpha_, (abptr->abuf_).data(), adims_sz, rhs1_int_labels_,
               (abptr->bbuf_).data(), bdims_sz, rhs2_int_labels_, cscale, cbuf.data(), cdims_sz,
-              lhs_int_labels_, hw, ec.has_gpu(), false, &cbuf_dev_ptr, &cbuf_tmp_dev_ptr);
+              lhs_int_labels_, hw, ec.has_gpu(), false, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
           }
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
           if(hw == ExecutionHW::GPU) {

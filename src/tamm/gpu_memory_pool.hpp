@@ -67,10 +67,10 @@ public:
     reuse_pool.push_back(ptr);
   }
 
-  void gpuMemset(void* &ptr, size_t sizeInBytes, bool blocking=false) {
+  void gpuMemset(void*& ptr, size_t sizeInBytes, bool blocking = false) {
     gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
 
-    if (blocking) {
+    if(blocking) {
 #if defined(USE_DPCPP)
       stream.memset(ptr, 0, sizeInBytes).wait();
 #elif defined(USE_HIP)
@@ -78,7 +78,8 @@ public:
 #elif defined(USE_CUDA)
       cudaMemset(ptr, 0, sizeInBytes);
 #endif
-    } else {
+    }
+    else {
 #if defined(USE_DPCPP)
       stream.memset(ptr, 0, sizeInBytes);
 #elif defined(USE_HIP)

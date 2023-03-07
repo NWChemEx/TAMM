@@ -951,9 +951,6 @@ public:
 
 #if defined(USE_UPCXX)
     gptrs_.resize(nranks);
-    upcxx::dist_object<upcxx::global_ptr<uint8_t>>* dobj =
-      new upcxx::dist_object<upcxx::global_ptr<uint8_t>>(local_gptr_, *ec->pg().team());
-
     upcxx::promise<> p(nranks);
     for(int r = 0; r < nranks; r++)
       upcxx::broadcast(local_gptr_, r, *ec->pg().team())

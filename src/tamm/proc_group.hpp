@@ -375,13 +375,36 @@ public:
 
   template<typename T>
   void allgather(const T* sbuf, T* rbuf) {
-    throw std::runtime_error("allgather unsupported");
+    EXPECTS(sbuf != nullptr);
+
+    auto             nranks = size().value();
+    upcxx::promise<> p(nranks);
+
+    for(int r = 0; r < nranks; ++r)
+      upcxx::broadcast(*sbuf, r, *team()).then([&rbuf, &p, r](T result) {
+        rbuf[r] = result;
+        p.fulfill_anonymous(1);
+      });
+
+    p.get_future().wait();
   }
 
   template<typename T>
   void allgather(const T* sbuf, int scount, T* rbuf, int rcount) {
-    throw std::runtime_error("allgather unsupported");
+    EXPECTS(sbuf != nullptr);
+
+    auto nranks = size().value();
+
+    memcpy(rbuf + rank().value() * rcount, sbuf, sizeof(T) * scount);
+
+    upcxx::future<> all_done = upcxx::make_future();
+
+    for(int r = 0; r < nranks; ++r)
+      all_done = upcxx::when_all(all_done, upcxx::broadcast(rbuf + r * rcount, scount, r, *team()));
+
+    all_done.wait();
   }
+
 #else
   template<typename T>
   void gather(const T* sbuf, T* rbuf, int root) {

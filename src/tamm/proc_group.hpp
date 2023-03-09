@@ -375,34 +375,24 @@ public:
 
   template<typename T>
   void allgather(const T* sbuf, T* rbuf) {
-    EXPECTS(sbuf != nullptr);
-
-    auto             nranks = size().value();
-    upcxx::promise<> p(nranks);
-
-    for(int r = 0; r < nranks; ++r)
-      upcxx::broadcast(*sbuf, r, *team()).then([&rbuf, &p, r](T result) {
-        rbuf[r] = result;
-        p.fulfill_anonymous(1);
-      });
-
-    p.get_future().wait();
+    allgather<T>(sbuf, 1, rbuf, 1);
   }
 
   template<typename T>
   void allgather(const T* sbuf, int scount, T* rbuf, int rcount) {
     EXPECTS(sbuf != nullptr);
+    EXPECTS(scount == rcount);
 
     auto nranks = size().value();
 
     memcpy(rbuf + rank().value() * rcount, sbuf, sizeof(T) * scount);
 
-    upcxx::future<> all_done = upcxx::make_future();
+    upcxx::promise<> p;
 
     for(int r = 0; r < nranks; ++r)
-      all_done = upcxx::when_all(all_done, upcxx::broadcast(rbuf + r * rcount, scount, r, *team()));
+      upcxx::broadcast(rbuf + r * rcount, scount, r, *team(), upcxx::operation_cx::as_promise(p));
 
-    all_done.wait();
+    p.finalize().wait();
   }
 
 #else

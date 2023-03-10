@@ -1,5 +1,4 @@
 #include "ga/ga.h"
-#include "sys/sysinfo.h"
 #include <mpi.h>
 
 #include "distribution.hpp"
@@ -8,6 +7,12 @@
 #include "memory_manager.hpp"
 #include "proc_group.hpp"
 #include "runtime_engine.hpp"
+
+#if __APPLE__
+#include <sys/sysctl.h>
+#else
+#include <sys/sysinfo.h>
+#endif
 
 namespace tamm {
 ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_kind,
@@ -44,11 +49,18 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #endif
   nnodes_ = pg.size().value() / ranks_pn_;
 
+  #if __APPLE__
+  {
+    size_t size_mpn = sizeof(minfo_.cpu_mem_per_node);
+    sysctlbyname("hw.memsize", &(minfo_.cpu_mem_per_node), &size_mpn, nullptr, 0);
+  }
+  #else
   {
     struct sysinfo cpumeminfo_;
     sysinfo(&cpumeminfo_);
     minfo_.cpu_mem_per_node = cpumeminfo_.totalram * cpumeminfo_.mem_unit;
   }
+  #endif
   minfo_.cpu_mem_per_node /= (1024 * 1024 * 1024.0); // GiB
   minfo_.total_cpu_mem = minfo_.cpu_mem_per_node * nnodes_;
 

@@ -195,7 +195,7 @@ jobs:
         export PATH=$PATH:$GITHUB_WORKSPACE/install/bin
         $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/ctest -VV
     - name: gcovr
-      if: ${{ matrix.backend == 'ga' }}
+      if: ${{ matrix.backend == 'ga' && matrix.cc != 'clang-11' }}
       run: |
         cd $GITHUB_WORKSPACE/build
         gcovr --root ./stage/$INSTALL_PATH . --xml ../coverage.xml

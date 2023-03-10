@@ -834,8 +834,8 @@ public:
 
       for(int64_t tile_row = 0; tile_row < tensor_dims_[0]; tile_row += bsize[0])
         for(int64_t tile_col = 0; tile_col < tensor_dims_[1]; tile_col += bsize[1]) {
-          tiles.push_back(TensorTile(0, 0, tile_row, tile_col, bsize[0], bsize[1], bsize[2],
-                                     bsize[3], owning_rank, tile_offsets[owning_rank]));
+          tiles_.push_back(TensorTile(0, 0, tile_row, tile_col, bsize[0], bsize[1], bsize[2],
+                                      bsize[3], owning_rank, tile_offsets[owning_rank]));
           tile_offsets[owning_rank] += tile_size_in_bytes / element_size;
           owning_rank = (owning_rank + 1) % nranks;
         }
@@ -931,8 +931,8 @@ public:
             for(int64_t k = 0; k < tensor_dims_[2]; k += bsize[2])
               for(int64_t l = 0; l < tensor_dims_[3]; l += bsize[3]) {
                 const int owning_rank = tile_index / tiles_per_proc;
-                tiles.push_back(TensorTile(i, j, k, l, bsize[0], bsize[1], bsize[2], bsize[3],
-                                           owning_rank, tile_offsets[owning_rank]));
+                tiles_.push_back(TensorTile(i, j, k, l, bsize[0], bsize[1], bsize[2], bsize[3],
+                                            owning_rank, tile_offsets[owning_rank]));
                 tile_offsets[owning_rank] += tile_size_in_bytes / element_size;
                 tile_index++;
               }
@@ -989,7 +989,7 @@ public:
 
 #if defined(USE_UPCXX)
   TensorTile find_tile(int64_t i, int64_t j, int64_t k, int64_t l) const {
-    for(auto tile = tiles.begin(), e = tiles.end(); tile != e; tile++) {
+    for(auto tile = tiles_.begin(), e = tiles_.end(); tile != e; tile++) {
       TensorTile t = *tile;
       if(t.contains(i, j, k, l)) { return t; }
     }
@@ -1249,7 +1249,7 @@ protected:
   ProcGrid                                proc_grid_;
   std::vector<int64_t>                    tensor_dims_;
   ElementType                             eltype_;
-  std::vector<TensorTile>                 tiles;
+  std::vector<TensorTile>                 tiles_;
   int64_t                                 local_nelems_;
 #else
   int ga_;

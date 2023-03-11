@@ -481,6 +481,10 @@ public:
               static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
             th_a = static_cast<TensorElType2*>(memPool.allocate(asize * sizeof(TensorElType2)));
             th_b = static_cast<TensorElType3*>(memPool.allocate(bsize * sizeof(TensorElType3)));
+            memPool.gpuMemset(reinterpret_cast<void*&>(cbuf_dev_ptr),
+                              csize * sizeof(TensorElType1));
+            memPool.gpuMemset(reinterpret_cast<void*&>(cbuf_tmp_dev_ptr),
+                              csize * sizeof(TensorElType1));
           }
 #endif
           TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
@@ -719,6 +723,10 @@ public:
             static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
           cbuf_tmp_dev_ptr =
             static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
+
+          memPool.gpuMemset(reinterpret_cast<void*&>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
+          memPool.gpuMemset(reinterpret_cast<void*&>(cbuf_tmp_dev_ptr),
+                            csize * sizeof(TensorElType1));
         }
 #endif
 

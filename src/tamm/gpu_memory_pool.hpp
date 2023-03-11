@@ -63,7 +63,7 @@ public:
   }
   void deallocate(void* ptr, size_t sizeInBytes) {
     auto&& reuse_pool = memory_pool_[sizeInBytes];
-    gpuMemset(ptr, sizeInBytes, true);
+    //     gpuMemset(ptr, sizeInBytes, true);
     reuse_pool.push_back(ptr);
   }
 

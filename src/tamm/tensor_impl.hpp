@@ -765,14 +765,14 @@ public:
       bsize[i]        = tis_dims[i].input_tile_size();
     }
 
+    int nranks = ec->pg().size().value();
+
 #if defined(USE_UPCXX)
     // Irregular tile sizes not supported (for now)
     EXPECTS(!std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; }));
 
     eltype_             = tensor_element_type<T>();
     size_t element_size = MemoryManagerGA::get_element_size(eltype_);
-
-    int nranks = ec->pg().size().value();
 
     std::vector<int64_t> ntiles(ndims);
     int64_t              total_n_tiles      = 1;
@@ -854,61 +854,75 @@ public:
 #else
 
         std::vector<std::vector<Tile>> new_tiles(ndims);
+        std::vector<std::vector<Tile>> tiles_for_fixed_ts_dim(ndims);
+
         for(int i = 0; i < ndims; i++) {
-          new_tiles[i] = is_irreg_tis[i] ? tis_dims[i].input_tile_sizes()
-                                         : std::vector<Tile>{tis_dims[i].input_tile_size()};
+          if(is_irreg_tis[i]) continue;
+          auto toff = tis_dims[i].tile_offsets();
+          for(size_t x = 0; x < toff.size() - 1; x++)
+            tiles_for_fixed_ts_dim[i].push_back(toff[x + 1] - toff[x]);
+        }
+        for(int i = 0; i < ndims; i++) {
+          new_tiles[i] =
+            is_irreg_tis[i]
+              ? tis_dims[i].input_tile_sizes()
+              : tiles_for_fixed_ts_dim[i]; // std::vector<Tile>{tis_dims[i].input_tile_size()};
         }
 
-        int64_t size_map;
+        int64_t nblocks;
         int64_t pgrid[ndims];
         int64_t nblock[ndims];
-        std::vector<std::vector<Tile>> tiles(ndims);
 
         for(int i = 0; i < ndims; i++) pgrid[i] = proc_grid_[i].value();
 
-        for(int i = 0; i < new_tiles.size(); i++) {
-          int64_t dimc = 0;
-          for(int j = 0; j < new_tiles[i].size(); j++) {
-            tiles[i].push_back(new_tiles[i][j]);
-            dimc += new_tiles[i][j];
-            if(dimc >= dims[i]) break;
-          }
+#if 0 // tiled-irreg
+        for(int i = 0; i < ndims; i++) { nblock[i] = new_tiles[i].size(); }
+
+        nblocks = std::accumulate(nblock, nblock + ndims, (int) 1, std::multiplies<int>());
+        if(nblocks <= nranks) {
+          int proclist_c[nblocks];
+          std::iota(proclist_c, proclist_c + nblocks, 0);
+          GA_Set_restricted(ga_, proclist_c, nblocks);
+          // for(int i = 0; i < ndims; i++) {
+          //   pgrid[i] = nblock[i];
+          //   proc_grid_[i] = nblock[i];
+          // }
         }
+#else
+        for(int i = 0; i < ndims; i++) nblock[i] = pgrid[i];
+#endif
 
-        for(int i = 0; i < ndims; i++) {
-          nblock[i] = is_irreg_tis[i] ? tiles[i].size() : std::ceil(dims[i] * 1.0 / tiles[i][0]);
-          // assert nblock[i] >= pgrid[i], if not, restrict ga to subset of procs
-          if(pgrid[i] > nblock[i]) {
-            pgrid[i] = nblock[i];
-            proc_grid_[i] = nblock[i];
-          }
-        }
-        distribution->set_proc_grid(proc_grid_);
+        // distribution->set_proc_grid(proc_grid_);
 
-        {
-          int nproc_restricted =
-            std::accumulate(pgrid, pgrid + ndims, (int) 1, std::multiplies<int>());
-          int proclist_c[nproc_restricted];
-          std::iota(proclist_c, proclist_c + nproc_restricted, 0);
-          GA_Set_restricted(ga_, proclist_c, nproc_restricted);
-        }
-
-        size_map = std::accumulate(nblock, nblock + ndims, (int64_t) 0);
-
-        // create map
-        std::vector<int64_t> k_map(size_map);
+        auto map_size = std::accumulate(nblock, nblock + ndims, (int64_t) 0);
+        std::vector<int64_t> k_map(map_size);
         {
           auto mi = 0;
+#if 0 // tiled-irreg
           for(auto idim = 0; idim < ndims; idim++) {
-            auto size_blk = (dims[idim] / nblock[idim]);
-            // regular tile size
-            for(auto i = 0; i < nblock[idim]; i++) {
+            int64_t boff = 0;
+            k_map[mi] = boff;
+            mi++;
+            for(auto i = 0; i < new_tiles[idim].size() - 1; i++) {
+              boff += new_tiles[idim][i];
+              k_map[mi] = boff;
+              mi++;
+            }
+          }
+#else
+          for(auto count_dim = 0; count_dim < ndims; count_dim++) {
+            auto size_blk = dims[count_dim] / nblock[count_dim];
+            for(auto i = 0; i < nblock[count_dim]; i++) {
               k_map[mi] = size_blk * i;
               mi++;
             }
           }
+#endif
         }
-        NGA_Set_tiled_irreg_proc_grid64(ga_, &k_map[0], nblock, pgrid);
+
+        // if(nblocks <= nranks)
+        NGA_Set_irreg_distr64(ga_, &k_map[0], nblock);
+        // else NGA_Set_tiled_irreg_proc_grid64(ga_, &k_map[0], nblock, pgrid);
 #endif
       }
       else {

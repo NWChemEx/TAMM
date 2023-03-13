@@ -528,9 +528,16 @@ public:
       EXPECTS(tensor_structure != nullptr);
       const int64_t        ndims = tensor_structure->num_modes();
       std::vector<int64_t> ardims;
-      for(int i = 0; i < ndims; i++)
-        ardims.push_back(tensor_structure->tlabels()[i].tiled_index_space().max_num_indices());
-      auto pgrid = internal::compute_proc_grid(ndims, ardims, nproc.value(), 0.0, 0);
+      auto                 tis_dims = tensor_structure->tiled_index_spaces();
+      for(int i = 0; i < ndims; i++) ardims.push_back(tis_dims[i].max_num_indices());
+
+      std::vector<int64_t> blk(ndims, -1);
+      for(int i = 0; i < ndims; ++i) {
+        if(!tis_dims[i].input_tile_sizes().empty()) continue; // list of tiles
+        auto ts_i = tis_dims[i].input_tile_size();
+        if(ts_i == ardims[i]) blk[i] = ts_i; // special case when there is a single tile
+      }
+      auto pgrid = internal::compute_proc_grid(ndims, ardims, nproc.value(), 0.0, 0, blk);
       for(auto x: pgrid) proc_grid_.push_back(x);
     }
     else proc_grid_ = pg;
@@ -653,9 +660,37 @@ public:
     std::vector<int64_t> lo = compute_lo(blockid);
     std::vector<int64_t> hi = compute_hi(blockid);
     // EXPECTS(ga_ != -1);
-    int     procs[1];
-    int64_t map[14];
-    NGA_Locate_region64(ga_, &lo[0], &hi[0], map, procs);
+    // int     procs[1];
+    // int64_t map[28];
+    // NGA_Locate_region64(ga_, &lo[0], &hi[0], map, procs);
+    int ndims  = blockid.size();
+    int blk    = NGA_Locate64(ga_, &lo[0]);
+    int procid = 0;
+    int nblocks[ndims];
+    for(int i = 0; i < ndims; i++)
+      nblocks[i] = (tensor_structure_->tiled_index_spaces()[i]).num_tiles();
+
+    {
+      int indices[ndims];
+      int btmp = blk;
+      int idim = 0;
+      int fac  = 1;
+
+      while(idim < ndims) {
+        indices[idim] = btmp % nblocks[idim];
+        blk           = (blk - indices[idim]) / nblocks[idim];
+        idim++;
+      }
+
+      for(idim = 0; idim < ndims; idim++) {
+        indices[idim] = indices[idim] % proc_grid_[idim].value();
+      }
+
+      for(idim = 0; idim < ndims; idim++) {
+        procid += fac * indices[idim];
+        fac *= proc_grid_[idim].value();
+      }
+    }
 
     std::ptrdiff_t off = -1;
 
@@ -700,7 +735,7 @@ public:
     }
 #endif
 
-    return {Proc{procs[0]}, Offset{off}};
+    return {Proc{procid}, Offset{off}};
   }
 
   size_t compute_hash() const override {

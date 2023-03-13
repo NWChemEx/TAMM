@@ -194,9 +194,9 @@ static void ddb_ex(const int64_t ndims, const std::vector<int64_t> ardims, const
 
 static std::vector<int64_t> compute_proc_grid(const int64_t              ndims,
                                               const std::vector<int64_t> ardims, const int64_t npes,
-                                              double threshold, const int64_t bias) {
+                                              double threshold, const int64_t bias,
+                                              std::vector<int64_t> blk) {
   std::vector<int64_t> pedims(ndims, 1);
-  std::vector<int64_t> blk(ndims, -1);
 
   // if (ndim > 0) {
   //   proc_grid[0] = nproc;

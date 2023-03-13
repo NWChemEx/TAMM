@@ -241,8 +241,8 @@ static inline MPI_Datatype mpi_type_loc() {
   using std::is_same_v;
 
   if constexpr(is_same_v<int, T>) return MPI_2INT;
-  else if constexpr(is_same_v<float, T>) return MPI_FLOAT_INT;
-  else if constexpr(is_same_v<double, T>) return MPI_DOUBLE_INT;
+  else if constexpr(is_same_v<float, T>) return MPI_2REAL;
+  else if constexpr(is_same_v<double, T>) return MPI_2DOUBLE_PRECISION;
   else NOT_IMPLEMENTED(); // unhandled type
 }
 

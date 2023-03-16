@@ -656,6 +656,8 @@ public:
    * @pre forall i: blockid[i] >= 0 && blockid[i] < num_tiles_[i]
    */
   std::pair<Proc, Offset> locate(const IndexVector& blockid) const {
+    throw std::runtime_error("distribution locate is not supported for dense tensors");
+    // Dense tensors have default distribution created by GA.
     // return {block_owner(blockid), block_offset_within_proc(blockid)};
     std::vector<int64_t> lo = compute_lo(blockid);
     std::vector<int64_t> hi = compute_hi(blockid);

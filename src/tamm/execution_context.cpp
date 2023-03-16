@@ -74,10 +74,10 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #else
   dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
   if(ngpu_ == 1) dev_id_ = 0;
-  if((pg.rank().value() % ranks_pn_) < ngpu_) {
-    has_gpu_ = true;
-    exhw_    = ExecutionHW::GPU;
-  }
+  // if((pg.rank().value() % ranks_pn_) < ngpu_) {
+  has_gpu_ = true;
+  exhw_    = ExecutionHW::GPU;
+  // }
 #endif
 
   {
@@ -95,16 +95,16 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     minfo_.total_gpu_mem    = minfo_.gpu_mem_per_node * nnodes_;
   }
 
-  if(ranks_pn_ > ngpu_) {
-    if(pg.rank() == 0) {
-      std::string msg = "#ranks per node(" + std::to_string(ranks_pn_) + ") > #gpus(" +
-                        std::to_string(ngpu_) + ") per node ... terminating program.";
-      std::cout << msg << std::endl << std::endl;
-    }
-    GA_Terminate();
-    MPI_Finalize();
-    exit(0);
-  }
+  // if(ranks_pn_ > ngpu_) {
+  //   if(pg.rank() == 0) {
+  //     std::string msg = "#ranks per node(" + std::to_string(ranks_pn_) + ") > #gpus(" +
+  //                       std::to_string(ngpu_) + ") per node ... terminating program.";
+  //     std::cout << msg << std::endl << std::endl;
+  //   }
+  //   GA_Terminate();
+  //   MPI_Finalize();
+  //   exit(0);
+  // }
 #endif
 
   // GPUStreamPool as singleton object

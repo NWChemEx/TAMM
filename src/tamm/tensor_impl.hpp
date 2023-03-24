@@ -736,7 +736,6 @@ public:
     EXPECTS(allocation_status_ == AllocationStatus::invalid);
 
 #if defined(USE_UPCXX)
-    // Assert we are in the calling proc group
     EXPECTS(ec->pg().rank() >= 0 && ec->pg().rank() < ec->pg().size());
 #else
     ga_ = NGA_Create_handle();
@@ -757,43 +756,46 @@ public:
 
     auto tis_dims = tindices();
 
-    std::vector<int64_t> bsize(ndims);
+    std::vector<std::vector<Tile>> new_tiles(ndims);
+    std::vector<std::vector<Tile>> tiles_for_fixed_ts_dim(ndims);
+    std::vector<bool>              is_irreg_tis(ndims);
 
-    std::vector<bool> is_irreg_tis(ndims, false);
-    for(int i = 0; i < ndims; ++i) {
+    for(int i = 0; i < ndims; i++) {
       is_irreg_tis[i] = !tis_dims[i].input_tile_sizes().empty();
-      bsize[i]        = tis_dims[i].input_tile_size();
+
+      if(is_irreg_tis[i]) continue;
+
+      auto toff = tis_dims[i].tile_offsets();
+
+      for(size_t j = 0; j < toff.size() - 1; ++j)
+        tiles_for_fixed_ts_dim[i].push_back(toff[j + 1] - toff[j]);
     }
+
+    for(int i = 0; i < ndims; i++)
+      new_tiles[i] = is_irreg_tis[i] ? tis_dims[i].input_tile_sizes() : tiles_for_fixed_ts_dim[i];
 
     int nranks = ec->pg().size().value();
 
 #if defined(USE_UPCXX)
-    // Irregular tile sizes not supported (for now)
-    EXPECTS(!std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; }));
 
-    eltype_             = tensor_element_type<T>();
-    size_t element_size = MemoryManagerGA::get_element_size(eltype_);
-
-    std::vector<int64_t> ntiles(ndims);
-    int64_t              total_n_tiles      = 1;
-    size_t               tile_size_in_bytes = 1;
+    eltype_               = tensor_element_type<T>();
+    size_t  element_size  = MemoryManagerGA::get_element_size(eltype_);
+    int64_t total_n_tiles = 1;
 
     for(int i = 0; i < ndims; ++i) {
       tensor_dims_.push_back(tis_dims[i].index_space().num_indices());
-      ntiles[i] = (tensor_dims_[i] + bsize[i] - 1) / bsize[i];
-      total_n_tiles *= ntiles[i];
-      tile_size_in_bytes *= bsize[i];
+      total_n_tiles *= new_tiles[i].size();
     }
-    tile_size_in_bytes *= element_size;
 
     // Pad
     for(int i = ndims; i < 4; ++i) {
       is_irreg_tis.insert(is_irreg_tis.begin(), false);
-      bsize.insert(bsize.begin(), 1);
+      new_tiles.insert(new_tiles.begin(), {1});
       tensor_dims_.insert(tensor_dims_.begin(), 1);
-      ntiles.insert(ntiles.begin(), 1);
     }
+
 #else
+
     std::vector<int64_t> dims;
     for(auto tis: tis_dims) dims.push_back(tis.index_space().num_indices());
 
@@ -805,6 +807,7 @@ public:
       std::copy(proc_list_.begin(), proc_list_.end(), proclist_c);
       GA_Set_restricted(ga_, proclist_c, nproc);
     }
+
 #endif
 
     if(is_block_cyclic_) {
@@ -821,21 +824,26 @@ public:
       pgrid[1] = proc_grid_[1].value();
 
 #if defined(USE_UPCXX)
+
       int64_t total_n_procs  = pgrid[0] * pgrid[1];
       int64_t tiles_per_proc = (total_n_tiles + total_n_procs - 1) / total_n_procs;
+
+      size_t tile_size_in_bytes = 1;
+      for(int i = 0; i < new_tiles.size(); ++i) tile_size_in_bytes *= new_tiles[i][0];
+      tile_size_in_bytes *= element_size;
 
       local_gptr_ = upcxx::new_array<uint8_t>(tiles_per_proc * tile_size_in_bytes);
       memset(local_gptr_.local(), 0x00, tiles_per_proc * tile_size_in_bytes);
 
       int64_t  owning_rank  = 0;
-      int64_t* tile_offsets = new int64_t[nranks];
+      int64_t* tile_offsets = new int64_t[nranks]();
 
       memset(tile_offsets, 0x00, nranks * sizeof(*tile_offsets));
 
-      for(int64_t tile_row = 0; tile_row < tensor_dims_[0]; tile_row += bsize[0])
-        for(int64_t tile_col = 0; tile_col < tensor_dims_[1]; tile_col += bsize[1]) {
-          tiles_.push_back(TensorTile(0, 0, tile_row, tile_col, bsize[0], bsize[1], bsize[2],
-                                      bsize[3], owning_rank, tile_offsets[owning_rank]));
+      for(int64_t i = 0; i < tensor_dims_[2]; i += new_tiles[2][0])
+        for(int64_t j = 0; j < tensor_dims_[3]; j += new_tiles[3][0]) {
+          tiles_.push_back(TensorTile(0, 0, i, j, new_tiles[0][0], new_tiles[1][0], new_tiles[2][0],
+                                      new_tiles[3][0], owning_rank, tile_offsets[owning_rank]));
           tile_offsets[owning_rank] += tile_size_in_bytes / element_size;
           owning_rank = (owning_rank + 1) % nranks;
         }
@@ -843,32 +851,39 @@ public:
       delete[] tile_offsets;
 #else
       // blocks_ = block sizes for scalapack distribution
-      NGA_Set_block_cyclic_proc_grid64(ga_, bsize.data(), pgrid.data());
+      NGA_Set_block_cyclic_proc_grid64(
+        ga_, std::vector<int64_t>{new_tiles[0][0], new_tiles[1][0]}.data(), pgrid.data());
 #endif
     }
     else {
-      // Only needed when irreg tile sizes are provided
-      if(std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; })) {
 #if defined(USE_UPCXX)
-        throw std::runtime_error("upcxx: irregular tile sizes not supported");
+      int64_t  tile_index     = 0;
+      int64_t* tile_offsets   = new int64_t[nranks]();
+      int64_t  tiles_per_proc = (total_n_tiles + nranks - 1) / nranks;
+
+      for(int64_t i = 0, ii = 0; i < tensor_dims_[0]; i += new_tiles[0][ii], ++ii)
+        for(int64_t j = 0, jj = 0; j < tensor_dims_[1]; j += new_tiles[1][jj], ++jj)
+          for(int64_t k = 0, kk = 0; k < tensor_dims_[2]; k += new_tiles[2][kk], ++kk)
+            for(int64_t l = 0, ll = 0; l < tensor_dims_[3]; l += new_tiles[3][ll], ++ll) {
+              const int owning_rank = tile_index / tiles_per_proc;
+              tiles_.push_back(TensorTile(i, j, k, l, new_tiles[0][ii], new_tiles[1][jj],
+                                          new_tiles[2][kk], new_tiles[3][ll], owning_rank,
+                                          tile_offsets[owning_rank]));
+              tile_offsets[owning_rank] +=
+                new_tiles[0][ii] * new_tiles[1][jj] * new_tiles[2][kk] * new_tiles[3][ll];
+              tile_index++;
+            }
+
+      local_nelems_ = tile_offsets[upcxx::rank_me()];
+
+      local_gptr_ = upcxx::new_array<uint8_t>(local_nelems_ * element_size);
+      memset(local_gptr_.local(), 0x00, local_nelems_ * element_size);
+
+      delete[] tile_offsets;
 #else
 
-        std::vector<std::vector<Tile>> new_tiles(ndims);
-        std::vector<std::vector<Tile>> tiles_for_fixed_ts_dim(ndims);
-
-        for(int i = 0; i < ndims; i++) {
-          if(is_irreg_tis[i]) continue;
-          auto toff = tis_dims[i].tile_offsets();
-          for(size_t x = 0; x < toff.size() - 1; x++)
-            tiles_for_fixed_ts_dim[i].push_back(toff[x + 1] - toff[x]);
-        }
-        for(int i = 0; i < ndims; i++) {
-          new_tiles[i] =
-            is_irreg_tis[i]
-              ? tis_dims[i].input_tile_sizes()
-              : tiles_for_fixed_ts_dim[i]; // std::vector<Tile>{tis_dims[i].input_tile_size()};
-        }
-
+      // Only needed when irreg tile sizes are provided
+      if(std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; })) {
         int64_t nblocks;
         int64_t pgrid[ndims];
         int64_t nblock[ndims];
@@ -919,51 +934,23 @@ public:
           }
 #endif
         }
-
         // if(nblocks <= nranks)
         NGA_Set_irreg_distr64(ga_, &k_map[0], nblock);
         // else NGA_Set_tiled_irreg_proc_grid64(ga_, &k_map[0], nblock, pgrid);
-#endif
       }
       else {
         // Fixed tilesize for all dims
-
-#if defined(USE_UPCXX)
-
-        int64_t tiles_per_proc = (total_n_tiles + nranks - 1) / nranks;
-
-        local_gptr_ = upcxx::new_array<uint8_t>(tiles_per_proc * tile_size_in_bytes);
-        memset(local_gptr_.local(), 0x00, tiles_per_proc * tile_size_in_bytes);
-
-        int64_t  tile_index   = 0;
-        int64_t* tile_offsets = new int64_t[nranks];
-
-        memset(tile_offsets, 0x00, nranks * sizeof(*tile_offsets));
-
-        for(int64_t i = 0; i < tensor_dims_[0]; i += bsize[0])
-          for(int64_t j = 0; j < tensor_dims_[1]; j += bsize[1])
-            for(int64_t k = 0; k < tensor_dims_[2]; k += bsize[2])
-              for(int64_t l = 0; l < tensor_dims_[3]; l += bsize[3]) {
-                const int owning_rank = tile_index / tiles_per_proc;
-                tiles_.push_back(TensorTile(i, j, k, l, bsize[0], bsize[1], bsize[2], bsize[3],
-                                            owning_rank, tile_offsets[owning_rank]));
-                tile_offsets[owning_rank] += tile_size_in_bytes / element_size;
-                tile_index++;
-              }
-
-        local_nelems_ = tile_offsets[upcxx::rank_me()];
-
-        delete[] tile_offsets;
-#else
         int64_t chunk[ndims];
         for(int i = 0; i < ndims; i++) chunk[i] = tis_dims[i].input_tile_size();
 
         GA_Set_chunk64(ga_, chunk);
-#endif
       }
+
+#endif
     }
 
 #if defined(USE_UPCXX)
+
     gptrs_.resize(nranks);
     upcxx::promise<> p(nranks);
     for(int r = 0; r < nranks; r++)
@@ -973,15 +960,13 @@ public:
           p.fulfill_anonymous(1);
         });
     p.get_future().wait();
+
 #else
+
     NGA_Set_pgroup(ga_, ec->pg().ga_pg());
     NGA_Allocate(ga_);
     distribution_->set_ga_handle(ga_);
-#endif
 
-#if defined(USE_UPCXX)
-    // TODO
-#else
     int64_t lo[ndims];
     int64_t hi[ndims];
     NGA_Distribution64(ga_, ec->pg().rank().value(), lo, hi);
@@ -996,6 +981,7 @@ public:
     int64_t lmax_pbs{pbs};
     auto gmax_pbs = ec->pg().allreduce(&lmax_pbs, ReduceOp::max);
     if(gmax_pbs > 0) distribution_->set_max_proc_buf_size((Size) gmax_pbs);
+
 #endif
 
     update_status(AllocationStatus::created);

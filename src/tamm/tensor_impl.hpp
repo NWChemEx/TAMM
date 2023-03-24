@@ -852,7 +852,7 @@ public:
 #else
       // blocks_ = block sizes for scalapack distribution
       NGA_Set_block_cyclic_proc_grid64(
-        ga_, std::vector<Tile>{new_tiles[0][0], new_tiles[1][0]}.data(), pgrid.data());
+        ga_, std::vector<int64_t>{new_tiles[0][0], new_tiles[1][0]}.data(), pgrid.data());
 #endif
     }
     else {

@@ -117,10 +117,6 @@ jobs:
       run:  sudo apt-get install make wget curl rsync tree software-properties-common libxml2-dev libxslt-dev
     - name: get-blas-lapack
       run:  sudo apt-get install libopenblas-base libopenblas-dev libgslcblas0 libgsl-dev liblapacke liblapacke-dev
-    - name: get-boost
-      run:  sudo apt-get install libboost-dev libboost-all-dev
-    - name: get-eigen3
-      run:  sudo apt-get install libeigen3-dev
     - name: get-openmpi
       run: |
         sudo apt-get install openmpi-bin libopenmpi-dev
@@ -167,6 +163,7 @@ jobs:
       id: build_tamm
       run: |
         export INSTALL_PATH=$GITHUB_WORKSPACE/install
+        export CPATH=$CPATH:$INSTALL_PATH/include/eigen3
         $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DENABLE_COVERAGE=ON
         cd build
         make -j2
@@ -182,6 +179,7 @@ jobs:
         export PATH=$PATH:$GITHUB_WORKSPACE/install/bin
         upcxx --version
         export CPATH=$CPATH:/usr/lib/x86_64-linux-gnu/openmpi/include
+        export CPATH=$CPATH:$INSTALL_PATH/include/eigen3
         UPCXX_CODEMODE=O3 CXX=upcxx $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DENABLE_COVERAGE=ON -DUSE_UPCXX=ON -DJOB_LAUNCH_CMD="upcxx-run"
         cd build
         UPCXX_CODEMODE=O3 make -j2

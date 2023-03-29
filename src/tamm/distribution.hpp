@@ -524,21 +524,31 @@ public:
     ndim_  = tensor_structure->num_modes();
 
     if(pg.empty()) {
-      std::vector<Proc> proc_grid;
+      proc_grid_.resize(ndim_, 1);
       EXPECTS(tensor_structure != nullptr);
-      const int64_t        ndims = tensor_structure->num_modes();
       std::vector<int64_t> ardims;
       auto                 tis_dims = tensor_structure->tiled_index_spaces();
-      for(int i = 0; i < ndims; i++) ardims.push_back(tis_dims[i].max_num_indices());
+      for(int i = 0; i < ndim_; i++) ardims.push_back(tis_dims[i].max_num_indices());
 
-      std::vector<int64_t> blk(ndims, -1);
-      for(int i = 0; i < ndims; ++i) {
+      std::vector<int64_t> chnk(ndim_, -1);
+      for(int i = 0; i < ndim_; ++i) {
         if(!tis_dims[i].input_tile_sizes().empty()) continue; // list of tiles
         auto ts_i = tis_dims[i].input_tile_size();
-        if(ts_i == ardims[i]) blk[i] = ts_i; // special case when there is a single tile
+        if(ts_i == ardims[i]) {
+          chnk[i]   = -2; // special case when there is a single tile
+          ardims[i] = -2;
+        }
       }
-      auto pgrid = internal::compute_proc_grid(ndims, ardims, nproc.value(), 0.0, 0, blk);
-      for(auto x: pgrid) proc_grid_.push_back(x);
+      auto nchnk = chnk;
+      nchnk.erase(std::remove(nchnk.begin(), nchnk.end(), -2), nchnk.end());
+      ardims.erase(std::remove(ardims.begin(), ardims.end(), -2), ardims.end());
+      auto pgrid = internal::compute_proc_grid(ardims.size(), ardims, nproc.value(), 0.0, 0, nchnk);
+      int  pgi   = 0;
+      for(int i = 0; i < ndim_; ++i) {
+        if(chnk[i] == -2) continue;
+        proc_grid_[i] = pgrid[pgi];
+        pgi++;
+      }
     }
     else proc_grid_ = pg;
     set_proc_grid(proc_grid_);

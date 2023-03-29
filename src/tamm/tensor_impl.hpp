@@ -884,8 +884,6 @@ public:
 
       // Only needed when irreg tile sizes are provided
       if(std::any_of(is_irreg_tis.begin(), is_irreg_tis.end(), [](bool v) { return v; })) {
-
-#if IRREG_PG
         int64_t nblocks;
         int64_t pgrid[ndims];
         int64_t nblock[ndims];
@@ -939,15 +937,6 @@ public:
         // if(nblocks <= nranks)
         NGA_Set_irreg_distr64(ga_, &k_map[0], nblock);
         // else NGA_Set_tiled_irreg_proc_grid64(ga_, &k_map[0], nblock, pgrid);
-#endif
-        std::vector<int64_t> chunk(ndims, -1);
-        for(int i = 0; i < ndims; ++i) {
-          if(!tis_dims[i].input_tile_sizes().empty()) continue; // list of tiles
-          auto ts_i = tis_dims[i].input_tile_size();
-          if(ts_i == dims[i]) chunk[i] = ts_i; // special case when there is a single tile
-        }
-
-        GA_Set_chunk64(ga_, chunk.data());
       }
       else {
         // Fixed tilesize for all dims

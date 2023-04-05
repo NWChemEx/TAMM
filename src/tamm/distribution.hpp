@@ -540,10 +540,13 @@ public:
         }
       }
       auto nchnk = chnk;
+      auto pgrid = internal::compute_proc_grid(ardims.size(), ardims, nproc.value(), 0.0, 0, nchnk);
       nchnk.erase(std::remove(nchnk.begin(), nchnk.end(), -2), nchnk.end());
       ardims.erase(std::remove(ardims.begin(), ardims.end(), -2), ardims.end());
-      auto pgrid = internal::compute_proc_grid(ardims.size(), ardims, nproc.value(), 0.0, 0, nchnk);
-      int  pgi   = 0;
+      auto rndim = ardims.size();
+      if(rndim > 0 && rndim < ndim_)
+        pgrid = internal::compute_proc_grid(rndim, ardims, nproc.value(), 0.0, 0, nchnk);
+      int pgi = 0;
       for(int i = 0; i < ndim_; ++i) {
         if(chnk[i] == -2) continue;
         proc_grid_[i] = pgrid[pgi];

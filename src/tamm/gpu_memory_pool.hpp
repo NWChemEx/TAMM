@@ -42,6 +42,8 @@ public:
       hipMalloc(&ret, sizeInBytes);
 #elif defined(USE_DPCPP)
       gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
+      // ABB: Do we have a case where the memory returned from pool need to be memset ?
+      //     gpuMemset(ptr, sizeInBytes, true);
       ret                 = sycl::malloc_device(sizeInBytes, stream);
 #endif
 
@@ -57,7 +59,6 @@ public:
   }
   void deallocate(void* ptr, size_t sizeInBytes) {
     auto&& reuse_pool = memory_pool_[sizeInBytes];
-    //     gpuMemset(ptr, sizeInBytes, true);
     reuse_pool.push_back(ptr);
   }
 
@@ -93,6 +94,7 @@ public:
         hipFree(j);
 #elif defined(USE_DPCPP)
         gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
+        stream.wait();
         sycl::free(j, stream);
 #endif
         used_memory_ -= i.first;

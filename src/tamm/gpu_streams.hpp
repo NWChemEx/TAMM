@@ -155,7 +155,9 @@ protected:
 private:
   GPUStreamPool() {
     // Assert here if multi-GPUs are detected
-    EXPECTS((getDeviceCount() == 1), "Error: More than 1 GPU-device found per rank!");
+    int ngpus{0};
+    getDeviceCount(&ngpus);
+    EXPECTS_STR((ngpus == 1), "Error: More than 1 GPU-device found per rank!");
 
     gpuSetDevice(default_deviceID);
 
@@ -188,15 +190,15 @@ private:
 #if defined(USE_CUDA)
     CUDA_CHECK(cudaStreamDestroy(*_devStream));
     CUBLAS_CHECK(cublasDestroy(*_devHandle));
-    handle = nullptr;
+    _devHandle = nullptr;
 #elif defined(USE_HIP)
     HIP_CHECK(hipStreamDestroy(*_devStream));
     ROCBLAS_CHECK(rocblas_destroy_handle(*_devHandle));
-    handle = nullptr;
+    _devHandle = nullptr;
 #elif defined(USE_DPCPP)
-    delete stream;
+    delete _devStream;
 #endif
-    stream = nullptr;
+    _devStream = nullptr;
   }
 
 public:

@@ -36,14 +36,14 @@ using gpuMemcpyKind   = hipMemcpyKind;
     }                                                                                       \
   } while(0)
 
-#define ROCBLAS_CHECK(err)                                                                      \
-  do {                                                                                      \
-    rocblas_status err_ = (err);                                            \
-    if(err_ != rocblas_status_success) {                                                                \
-      std::printf("rocblas Exception code: %s at %s : %d\n", rocblas_status_to_string(err_), __FILE__, \
-                  __LINE__);                                                                \
-      throw std::runtime_error("rocblas runtime error");                                        \
-    }                                                                                       \
+#define ROCBLAS_CHECK(err)                                                                   \
+  do {                                                                                       \
+    rocblas_status err_ = (err);                                                             \
+    if(err_ != rocblas_status_success) {                                                     \
+      std::printf("rocblas Exception code: %s at %s : %d\n", rocblas_status_to_string(err_), \
+                  __FILE__, __LINE__);                                                       \
+      throw std::runtime_error("rocblas runtime error");                                     \
+    }                                                                                        \
   } while(0)
 
 #elif defined(USE_CUDA)
@@ -65,14 +65,14 @@ using gpuMemcpyKind   = cudaMemcpyKind;
     }                                                                                         \
   } while(0)
 
-#define CUBLAS_CHECK(err)                                               \
-  do {                                                                  \
-    cublasStatus_t err_ = (err);                                        \
-    if(err_ != CUBLAS_STATUS_SUCCESS) {                                 \
+#define CUBLAS_CHECK(err)                                                                          \
+  do {                                                                                             \
+    cublasStatus_t err_ = (err);                                                                   \
+    if(err_ != CUBLAS_STATUS_SUCCESS) {                                                            \
       std::printf("cublas Exception code: %s at %s : %d\n", cublasGetStatusString(err_), __FILE__, \
-                  __LINE__);                                            \
-      throw std::runtime_error("cublas runtime error");                 \
-    }                                                                   \
+                  __LINE__);                                                                       \
+      throw std::runtime_error("cublas runtime error");                                            \
+    }                                                                                              \
   } while(0)
 
 #elif defined(USE_DPCPP)
@@ -155,7 +155,7 @@ protected:
 private:
   GPUStreamPool() {
     // Assert here if multi-GPUs are detected
-    EXPECTS( (getDeviceCount() == 1), "Error: More than 1 GPU-device found per rank!" );
+    EXPECTS((getDeviceCount() == 1), "Error: More than 1 GPU-device found per rank!");
 
     gpuSetDevice(default_deviceID);
 
@@ -174,7 +174,8 @@ private:
     ROCBLAS_CHECK(rocblas_create_handle(_devHandle));
     ROCBLAS_CHECK(rocblas_set_stream(*_devHandle, *_devStream));
 #elif defined(USE_DPCPP)
-    _devStream = new sycl::queue(*sycl_get_context(default_deviceID), *sycl_get_device(default_deviceID), sycl_asynchandler,
+    _devStream = new sycl::queue(*sycl_get_context(default_deviceID),
+                                 *sycl_get_device(default_deviceID), sycl_asynchandler,
                                  sycl::property_list{sycl::property::queue::in_order{}});
 #endif
 
@@ -200,15 +201,11 @@ private:
 
 public:
   /// Returns a GPU stream
-  gpuStream_t& getStream() {
-    return *_devStream;
-  }
+  gpuStream_t& getStream() { return *_devStream; }
 
 #if !defined(USE_DPCPP)
   /// Returns a GPU BLAS handle that is valid only for the CUDA and HIP builds
-  gpuBlasHandle_t& getBlasHandle() {
-    return *_devHandle;
-  }
+  gpuBlasHandle_t& getBlasHandle() { return *_devHandle; }
 #endif
 
   /// Returns the instance of device manager singleton.

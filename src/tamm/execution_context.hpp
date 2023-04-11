@@ -93,7 +93,6 @@ public:
   //     // //   default_distribution_.reset(default_distribution->clone(nullptr, Proc{1}));
   //     }
   //     pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
-  //     ngpu_ = 0;
   //     has_gpu_ = false;
   //     ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
   //     //nnodes_ = {GA_Cluster_nnodes()};
@@ -323,8 +322,6 @@ public:
 
   void set_ac(IndexedAC ac) { ac_ = ac; }
 
-  int num_gpu() const { return ngpu_; }
-
   bool has_gpu() const { return has_gpu_; }
 
   ExecutionHW exhw() const { return exhw_; }
@@ -332,12 +329,8 @@ public:
   int num_nodes() const { return nnodes_; }
   int ppn() const { return ranks_pn_; }
 
-  int gpu_devid() const { return dev_id_; }
-
   struct meminfo {
     size_t gpu_mem_per_device; // single gpu mem (GiB)
-    size_t gpu_mem_per_node;   // total gpu mem across all gpus on single node (GiB)
-    size_t total_gpu_mem;      // total gpu mem across all gpus on all nodes (GiB)
     size_t cpu_mem_per_node;   // cpu mem on single node (GiB)
     size_t total_cpu_mem;      // total cpu mem across all nodes (GiB)
   };
@@ -349,11 +342,6 @@ public:
     std::cout << "{" << std::endl;
     std::cout << " CPU memory per node (GiB): " << minfo_.cpu_mem_per_node << std::endl;
     std::cout << " Total CPU memory (GiB): " << minfo_.total_cpu_mem << std::endl;
-    if(ngpu_ > 0) {
-      std::cout << " GPU memory per device (GiB): " << minfo_.gpu_mem_per_device << std::endl;
-      std::cout << " GPU memory per node (GiB): " << minfo_.gpu_mem_per_node << std::endl;
-      std::cout << " Total GPU memory (GiB): " << minfo_.total_gpu_mem << std::endl;
-    }
     std::cout << "}" << std::endl;
   }
 
@@ -410,11 +398,9 @@ private:
   // MemoryManagerLocal* memory_manager_local_;
   IndexedAC                      ac_;
   std::shared_ptr<RuntimeEngine> re_;
-  int                            ngpu_;
   int                            nnodes_;
   int                            ranks_pn_;
   bool                           has_gpu_;
-  int                            dev_id_ = -1;
   ExecutionHW                    exhw_;
   meminfo                        minfo_;
 

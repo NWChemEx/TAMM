@@ -28,13 +28,7 @@ public:
     if(reuse_it == memory_pool_.end() || reuse_it->second.size() == 0) {
       size_t free{}, total{};
 
-#if defined(USE_CUDA)
-      cudaMemGetInfo(&free, &total);
-#elif defined(USE_HIP)
-      hipMemGetInfo(&free, &total);
-#elif defined(USE_DPCPP)
-      syclMemGetInfo(&free, &total);
-#endif
+      gpuMemGetInfo(&free, &total);
 
       if(free <= total * reserve_ / 100 || sizeInBytes > free - total * reserve_ / 100) {
         ReleaseAll();

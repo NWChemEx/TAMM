@@ -3,7 +3,7 @@
 #include "tamm/errors.hpp"
 #include <map>
 
-#ifdef USE_CUDA
+#if defined(USE_CUDA)
 #include <cublas_v2.h>
 #include <cuda.h>
 #include <cuda_runtime.h>

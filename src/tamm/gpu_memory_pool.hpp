@@ -28,13 +28,7 @@ public:
     if(reuse_it == memory_pool_.end() || reuse_it->second.size() == 0) {
       size_t free{}, total{};
 
-#if defined(USE_CUDA)
-      cudaMemGetInfo(&free, &total);
-#elif defined(USE_HIP)
-      hipMemGetInfo(&free, &total);
-#elif defined(USE_DPCPP)
-      syclMemGetInfo(&free, &total);
-#endif
+      gpuMemGetInfo(&free, &total);
 
       if(free <= total * reserve_ / 100 || sizeInBytes > free - total * reserve_ / 100) {
         ReleaseAll();
@@ -48,7 +42,9 @@ public:
       hipMalloc(&ret, sizeInBytes);
 #elif defined(USE_DPCPP)
       gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
-      ret                 = sycl::malloc_device(sizeInBytes, stream);
+      // ABB: Do we have a case where the memory returned from pool need to be memset ?
+      //     gpuMemset(ptr, sizeInBytes, true);
+      ret = sycl::malloc_device(sizeInBytes, stream);
 #endif
 
       used_memory_ += sizeInBytes;
@@ -63,7 +59,6 @@ public:
   }
   void deallocate(void* ptr, size_t sizeInBytes) {
     auto&& reuse_pool = memory_pool_[sizeInBytes];
-    //     gpuMemset(ptr, sizeInBytes, true);
     reuse_pool.push_back(ptr);
   }
 
@@ -99,6 +94,7 @@ public:
         hipFree(j);
 #elif defined(USE_DPCPP)
         gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
+        stream.wait();
         sycl::free(j, stream);
 #endif
         used_memory_ -= i.first;

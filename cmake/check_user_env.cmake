@@ -105,7 +105,7 @@ if(USE_CUDA)
         message(FATAL_ERROR "CUDA Toolkit not found.")
     endif()
 
-    set(_CUDA_MIN "11.0")
+    set(_CUDA_MIN "11.5")
     # if(GPU_ARCH LESS 80)
     #     set(_CUDA_MIN "10.1")
     # endif()

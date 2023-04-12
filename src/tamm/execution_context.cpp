@@ -38,10 +38,6 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   pg_self_  = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
 #endif
 
-  ngpu_    = 0;
-  has_gpu_ = false;
-  exhw_    = ExecutionHW::CPU;
-
 #if defined(USE_UPCXX)
   ranks_pn_ = upcxx::local_team().rank_n();
 #else
@@ -65,52 +61,14 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   minfo_.total_cpu_mem = minfo_.cpu_mem_per_node * nnodes_;
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  tamm::getDeviceCount(&ngpu_);
-
-#if defined(USE_UPCXX)
-  dev_id_  = upcxx::rank_me() % ngpu_;
   has_gpu_ = true;
   exhw_    = ExecutionHW::GPU;
-#else
-  dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
-  if(ngpu_ == 1) dev_id_ = 0;
-  // if((pg.rank().value() % ranks_pn_) < ngpu_) {
-  has_gpu_ = true;
-  exhw_    = ExecutionHW::GPU;
-  // }
-#endif
 
   {
     size_t free_{};
-#if defined(USE_CUDA)
-    cudaMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
-#elif defined(USE_HIP)
-    hipMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
-#elif defined(USE_DPCPP)
-    syclMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
-#endif
-
+    gpuMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
     minfo_.gpu_mem_per_device /= (1024 * 1024 * 1024.0); // GiB
-    minfo_.gpu_mem_per_node = minfo_.gpu_mem_per_device * ngpu_;
-    minfo_.total_gpu_mem    = minfo_.gpu_mem_per_node * nnodes_;
   }
-
-  // if(ranks_pn_ > ngpu_) {
-  //   if(pg.rank() == 0) {
-  //     std::string msg = "#ranks per node(" + std::to_string(ranks_pn_) + ") > #gpus(" +
-  //                       std::to_string(ngpu_) + ") per node ... terminating program.";
-  //     std::cout << msg << std::endl << std::endl;
-  //   }
-  //   GA_Terminate();
-  //   MPI_Finalize();
-  //   exit(0);
-  // }
-#endif
-
-  // GPUStreamPool as singleton object
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  auto& pool = tamm::GPUStreamPool::getInstance();
-  pool.set_device(dev_id_);
 #endif
 }
 

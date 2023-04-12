@@ -38,9 +38,6 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   pg_self_  = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
 #endif
 
-  has_gpu_ = false;
-  exhw_    = ExecutionHW::CPU;
-
 #if defined(USE_UPCXX)
   ranks_pn_ = upcxx::local_team().rank_n();
 #else
@@ -70,8 +67,8 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   {
     size_t free_{};
     gpuMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
-
     minfo_.gpu_mem_per_device /= (1024 * 1024 * 1024.0); // GiB
+    minfo_.total_gpu_mem = minfo_.gpu_mem_per_device * nnodes_ * ranks_pn_;
   }
 #endif
 }

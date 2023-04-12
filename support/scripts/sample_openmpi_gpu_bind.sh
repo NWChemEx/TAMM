@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Add the number of Nvidia GPUs per node here
+# Add the number of GPUs per node here
 num_gpus=
 
 if test -z "$num_gpus"

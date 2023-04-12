@@ -85,6 +85,16 @@ static inline void getDeviceCount(int* id) {
 #endif
 }
 
+static inline void gpuMemGetInfo(size_t* free, size_t* total) {
+#if defined(USE_CUDA)
+  cudaMemGetInfo(free, total);
+#elif defined(USE_HIP)
+  hipMemGetInfo(free, total);
+#elif defined(USE_DPCPP)
+  syclMemGetInfo(free, total);
+#endif
+}
+
 static inline void gpuSetDevice(int active_device) {
 #ifdef USE_CUDA
   CUDA_CHECK(cudaSetDevice(active_device));

@@ -142,72 +142,91 @@ class GPUStreamPool {
 protected:
   bool _initialized{false};
 
-  // default Device ID
-  int default_deviceID{0};
+  int _ngpus{0};
+  // Active GPU set by a given MPI-rank from execution context ctor
+  int _active_device{0};
 
-  // GPU stream
-  gpuStream_t* _devStream{nullptr};
+  // Map of GPU-IDs and stream
+  std::map<int, gpuStream_t*> _devID2Stream;
+
 #if defined(USE_CUDA) || defined(USE_HIP)
-  // blashandle
-  gpuBlasHandle_t* _devHandle{nullptr};
+  // Map of GPU-IDs and blashandle
+  std::map<int, gpuBlasHandle_t*> _devID2Handle;
 #endif
 
 private:
   GPUStreamPool() {
-    // Assert here if multi-GPUs are detected
-    int ngpus{0};
-    getDeviceCount(&ngpus);
-    EXPECTS_STR((ngpus == 1), "Error: More than 1 GPU-device found per rank!");
+    getDeviceCount(&_ngpus);
+    // EXPECTS_STR((_ngpus == 1), "Error: More than 1 GPU-device found per rank!");
 
-    gpuSetDevice(default_deviceID);
+    for(int devID = 0; devID < _ngpus; devID++) {
+      gpuSetDevice(devID);
 
+      // populate gpu-streams, gpu-blas handles per GPU
+      gpuStream_t* _devStream = nullptr;
 #if defined(USE_CUDA)
-    _devStream = new cudaStream_t;
-    CUDA_CHECK(cudaStreamCreateWithFlags(_devStream, cudaStreamNonBlocking));
+      _devStream = new cudaStream_t;
+      CUDA_CHECK(cudaStreamCreateWithFlags(_devStream, cudaStreamNonBlocking));
 
-    _devHandle = new gpuBlasHandle_t;
-    CUBLAS_CHECK(cublasCreate(_devHandle));
-    CUBLAS_CHECK(cublasSetStream(*_devHandle, *_devStream));
+      gpuBlasHandle_t* _devHandle = new gpuBlasHandle_t;
+      CUBLAS_CHECK(cublasCreate(_devHandle));
+      CUBLAS_CHECK(cublasSetStream(*_devHandle, *_devStream));
+      _devID2Handle[devID] = _devHandle;
 #elif defined(USE_HIP)
-    _devStream = new hipStream_t;
-    HIP_CHECK(hipStreamCreateWithFlags(_devStream, hipStreamNonBlocking));
+      _devStream = new hipStream_t;
+      HIP_CHECK(hipStreamCreateWithFlags(_devStream, hipStreamNonBlocking));
 
-    _devHandle = new gpuBlasHandle_t;
-    ROCBLAS_CHECK(rocblas_create_handle(_devHandle));
-    ROCBLAS_CHECK(rocblas_set_stream(*_devHandle, *_devStream));
+      gpuBlasHandle_t* _devHandle = new gpuBlasHandle_t;
+      ROCBLAS_CHECK(rocblas_create_handle(_devHandle));
+      ROCBLAS_CHECK(rocblas_set_stream(*_devHandle, *_devStream));
+      _devID2Handle[devID] = _devHandle;
 #elif defined(USE_DPCPP)
-    _devStream = new sycl::queue(*sycl_get_context(default_deviceID),
-                                 *sycl_get_device(default_deviceID), sycl_asynchandler,
-                                 sycl::property_list{sycl::property::queue::in_order{}});
+      _devStream = new sycl::queue(*sycl_get_context(devID), *sycl_get_device(devID),
+                                   sycl_asynchandler,
+                                   sycl::property_list{sycl::property::queue::in_order{}});
 #endif
 
-    _initialized = true;
+      _devID2Stream[devID] = _devStream;
+    }
+
+    _initialized = (_ngpus == 1) ? true : false;
   }
 
   ~GPUStreamPool() {
     _initialized = false;
 
+    for(int devID = 0; devID < _ngpus; devID++) {
+      gpuSetDevice(devID);
+      gpuStream_t* _devStream = _devID2Stream[devID];
 #if defined(USE_CUDA)
-    CUDA_CHECK(cudaStreamDestroy(*_devStream));
-    CUBLAS_CHECK(cublasDestroy(*_devHandle));
-    _devHandle = nullptr;
+      CUDA_CHECK(cudaStreamDestroy(*_devStream));
+      CUBLAS_CHECK(cublasDestroy(*_devID2Handle[devID]));
 #elif defined(USE_HIP)
-    HIP_CHECK(hipStreamDestroy(*_devStream));
-    ROCBLAS_CHECK(rocblas_destroy_handle(*_devHandle));
-    _devHandle = nullptr;
+      HIP_CHECK(hipStreamDestroy(*_devStream));
+      ROCBLAS_CHECK(rocblas_destroy_handle(*_devID2Handle[devID]));
 #elif defined(USE_DPCPP)
-    delete _devStream;
+      delete _devStream;
 #endif
-    _devStream = nullptr;
+      _devStream = nullptr;
+    }
   }
 
 public:
+  /// sets an active device for getting streams and blas handles
+  void set_device(int device) {
+    if(!_initialized) {
+      _active_device = device;
+      gpuSetDevice(_active_device);
+      _initialized = true;
+    }
+  }
+
   /// Returns a GPU stream
-  gpuStream_t& getStream() { return *_devStream; }
+  gpuStream_t& getStream() { return *(_devID2Stream[_active_device]); }
 
 #if !defined(USE_DPCPP)
   /// Returns a GPU BLAS handle that is valid only for the CUDA and HIP builds
-  gpuBlasHandle_t& getBlasHandle() { return *_devHandle; }
+  gpuBlasHandle_t& getBlasHandle() { return *(_devID2Handle[_active_device]); }
 #endif
 
   /// Returns the instance of device manager singleton.

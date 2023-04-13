@@ -61,6 +61,11 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   minfo_.total_cpu_mem = minfo_.cpu_mem_per_node * nnodes_;
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+  int ngpu_{0};
+  tamm::getDeviceCount(&ngpu_);
+  int dev_id_ = ((pg.rank().value() % ranks_pn_) % ngpu_);
+  if(ngpu_ == 1) dev_id_ = 0;
+
   has_gpu_ = true;
   exhw_    = ExecutionHW::GPU;
 
@@ -68,6 +73,14 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     size_t free_{};
     gpuMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
     minfo_.gpu_mem_per_device /= (1024 * 1024 * 1024.0); // GiB
+  }
+#endif
+
+  // GPUStreamPool as singleton object
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+  if(ngpu_ > 1) {
+    auto& pool = tamm::GPUStreamPool::getInstance();
+    pool.set_device(dev_id_);
   }
 #endif
 }

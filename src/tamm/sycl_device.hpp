@@ -88,8 +88,7 @@ private:
   mutable std::mutex m_mutex;
 
   dev_mgr() {
-    std::vector<sycl::device> sycl_all_devs
-      sycl::device::get_devices(sycl::info::device_type::gpu);
+    std::vector<sycl::device> sycl_all_devs sycl::device::get_devices(sycl::info::device_type::gpu);
     for(auto& dev: sycl_all_devs) {
       _devs.push_back(
         std::make_pair(std::make_shared<device_ext>(dev), std::make_shared<sycl::context>(dev)));

@@ -43,6 +43,8 @@ if(USE_CUDA OR USE_HIP OR USE_DPCPP)
   set(ENABLE_CUDA ${USE_CUDA})
   set(ENABLE_HIP  ${USE_HIP})
   set(ENABLE_SYCL ${USE_DPCPP})
+  set(ENABLE_OPENMP ${USE_OPENMP})
+  set(ENABLE_TESTS OFF)
   include(FetchContent)
   FetchContent_Declare(
       umpire

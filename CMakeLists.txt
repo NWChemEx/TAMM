@@ -38,6 +38,27 @@ endif()
 
 if(USE_CUDA OR USE_HIP OR USE_DPCPP)
   list(APPEND TAMM_DEPENDENCIES Librett)
+
+  # install Umpire
+  set(ENABLE_CUDA ${USE_CUDA})
+  set(ENABLE_HIP  ${USE_HIP})
+  set(ENABLE_SYCL ${USE_DPCPP})
+  include(FetchContent)
+  FetchContent_Declare(
+      umpire
+      GIT_REPOSITORY      https://github.com/LLNL/Umpire.git
+      GIT_TAG             develop
+    )
+  FetchContent_MakeAvailable(umpire)
+  FetchContent_GetProperties(umpire
+      SOURCE_DIR UMPIRE_SOURCE_DIR
+      BINARY_DIR UMPIRE_BINARY_DIR
+    )
+  FetchContent_MakeAvailable(umpire)
+  FetchContent_GetProperties(umpire
+      SOURCE_DIR UMPIRE_SOURCE_DIR
+      BINARY_DIR UMPIRE_BINARY_DIR
+    )
 endif()
 
 list(APPEND TAMM_DEPENDENCIES GlobalArrays) #BLAS LAPACK
@@ -55,4 +76,3 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 build_cmsb_module(${CMAKE_CURRENT_LIST_DIR})
-

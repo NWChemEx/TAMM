@@ -7,6 +7,9 @@
 #include <unordered_map>
 #include <vector>
 
+// #include <umpire/Allocator.hpp>
+// #include <umpire/ResourceManager.hpp>
+
 namespace tamm {
 
 class GPUPooledStorageManager {

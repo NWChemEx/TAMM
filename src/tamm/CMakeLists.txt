@@ -3,11 +3,11 @@ project(TAMM VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For cmsb_add_library
 
 if(USE_CUDA)
-    set(tamm_gpu_INCS gpu_streams.hpp gpu_memory_pool.hpp)
+    set(tamm_gpu_INCS gpu_streams.hpp gpu_memory_pool.hpp umpire_memory_pool.hpp)
 elseif(USE_HIP)
     set(tamm_gpu_INCS gpu_streams.hpp gpu_memory_pool.hpp umpire_memory_pool.hpp)
 elseif(USE_DPCPP)
-    set(tamm_gpu_INCS sycl_device.hpp gpu_streams.hpp gpu_memory_pool.hpp)
+    set(tamm_gpu_INCS sycl_device.hpp gpu_streams.hpp gpu_memory_pool.hpp umpire_memory_pool.hpp)
 endif()
 
 #Add the current directory's sources to the list

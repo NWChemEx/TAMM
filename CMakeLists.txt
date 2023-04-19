@@ -17,8 +17,9 @@ if( NOT ${CMakeBuild_FOUND} )
 
   FetchContent_Declare(
     CMakeBuild
-    GIT_REPOSITORY https://github.com/NWChemEx-Project/CMakeBuild.git
-    GIT_TAG ${CMSB_TAG}
+    GIT_REPOSITORY https://github.com/abagusetty/CMakeBuild.git
+    #GIT_TAG ${CMSB_TAG}
+    GIT_TAG develop
   )
 
   FetchContent_MakeAvailable( CMakeBuild )
@@ -36,33 +37,14 @@ if(BUILD_LIBINT)
   list(APPEND TAMM_DEPENDENCIES LibInt2)
 endif()
 
+if(USE_CUDA OR USE_HIP OR USE_DPCPP)
+  list(APPEND TAMM_DEPENDENCIES Librett Umpire)
+endif()
+
 list(APPEND TAMM_DEPENDENCIES GlobalArrays) #BLAS LAPACK
 
 if(USE_GAUXC)
   list(APPEND TAMM_DEPENDENCIES GauXC)
-endif()
-
-if(USE_CUDA OR USE_HIP OR USE_DPCPP)
-  list(APPEND TAMM_DEPENDENCIES Librett)
-
-  # Fetch and install Umpire
-  set(ENABLE_CUDA ${USE_CUDA})
-  set(ENABLE_HIP  ${USE_HIP})
-  set(ENABLE_SYCL ${USE_DPCPP})
-  set(ENABLE_OPENMP ${USE_OPENMP})
-  set(ENABLE_TESTS Off)
-  set(ENABLE_BENCHMARKS Off)
-  set(ENABLE_FORTRAN Off)
-  FetchContent_Declare(
-      Umpire
-      GIT_REPOSITORY      https://github.com/LLNL/Umpire.git
-      GIT_TAG             develop
-  )
-  FetchContent_MakeAvailable(Umpire)
-  set(TAMM_USING_UMPIRE true)
-
-  # better to add it to tamm target only
-  include_directories("${umpire_SOURCE_DIR}")
 endif()
 
 set(BUILD_METHODS OFF)

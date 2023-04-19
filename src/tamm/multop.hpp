@@ -453,7 +453,7 @@ public:
         TensorElType3* th_b{nullptr};
         TensorElType1* th_c{nullptr};
 
-        auto&          thandle = GPUStreamPool::getInstance().getStream();
+        auto& thandle = GPUStreamPool::getInstance().getStream();
 #endif
         bool isgpu = false;
 
@@ -473,11 +473,11 @@ public:
           TensorElType1* cbuf_dev_ptr{nullptr};
           TensorElType1* cbuf_tmp_dev_ptr{nullptr};
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-          #ifdef TAMM_USING_UMPIRE
+#ifdef TAMM_USING_UMPIRE
           auto& memPool = memory::internal::getUmpireDeviceAllocator();
-          #else
+#else
           auto& memPool = GPUPooledStorageManager::getInstance();
-          #endif
+#endif
 
           if(hw == ExecutionHW::GPU) {
             cbuf_dev_ptr =
@@ -486,10 +486,8 @@ public:
               static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
             th_a = static_cast<TensorElType2*>(memPool.allocate(asize * sizeof(TensorElType2)));
             th_b = static_cast<TensorElType3*>(memPool.allocate(bsize * sizeof(TensorElType3)));
-            gpuMemset(reinterpret_cast<void*&>(cbuf_dev_ptr),
-                              csize * sizeof(TensorElType1));
-            gpuMemset(reinterpret_cast<void*&>(cbuf_tmp_dev_ptr),
-                              csize * sizeof(TensorElType1));
+            gpuMemset(reinterpret_cast<void*&>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
+            gpuMemset(reinterpret_cast<void*&>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
           }
 #endif
           TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
@@ -721,11 +719,11 @@ public:
         TensorElType1* cbuf_dev_ptr{nullptr};
         TensorElType1* cbuf_tmp_dev_ptr{nullptr};
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-        #ifdef TAMM_USING_UMPIRE
+#ifdef TAMM_USING_UMPIRE
         auto& memPool = memory::internal::getUmpireDeviceAllocator();
-        #else
+#else
         auto& memPool = GPUPooledStorageManager::getInstance();
-        #endif
+#endif
 
         if(hw == ExecutionHW::GPU) {
           cbuf_dev_ptr =
@@ -734,8 +732,7 @@ public:
             static_cast<TensorElType1*>(memPool.allocate(csize * sizeof(TensorElType1)));
 
           gpuMemset(reinterpret_cast<void*&>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
-          gpuMemset(reinterpret_cast<void*&>(cbuf_tmp_dev_ptr),
-                            csize * sizeof(TensorElType1));
+          gpuMemset(reinterpret_cast<void*&>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
         }
 #endif
 
@@ -864,12 +861,12 @@ public:
             kernels::stream_synchronize<TensorElType1>(thandle);
             blas::axpy(csize, TensorElType1{1}, cbuf_tmp.data(), 1, cbuf.data(), 1);
 
-            // free cbuf_dev_ptr
-            #ifdef TAMM_USING_UMPIRE
+// free cbuf_dev_ptr
+#ifdef TAMM_USING_UMPIRE
             auto& memPool = memory::internal::getUmpireDeviceAllocator();
-            #else
+#else
             auto& memPool = GPUPooledStorageManager::getInstance();
-            #endif
+#endif
 
             memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
             memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));

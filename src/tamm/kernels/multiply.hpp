@@ -14,7 +14,7 @@
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 #include "librett/librett.h"
 #include "tamm/gpu_memory_pool.hpp"
-#include "tamm/umpire.hpp"
+#include "tamm/umpire_memory_pool.hpp"
 #else
 namespace tamm {
 using gpuStream_t = int; // not used

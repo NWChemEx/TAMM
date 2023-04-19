@@ -36,10 +36,16 @@ if(BUILD_LIBINT)
   list(APPEND TAMM_DEPENDENCIES LibInt2)
 endif()
 
+list(APPEND TAMM_DEPENDENCIES GlobalArrays) #BLAS LAPACK
+
+if(USE_GAUXC)
+  list(APPEND TAMM_DEPENDENCIES GauXC)
+endif()
+
 if(USE_CUDA OR USE_HIP OR USE_DPCPP)
   list(APPEND TAMM_DEPENDENCIES Librett)
 
-  # install Umpire
+  # Fetch and install Umpire
   set(UMPIRE_ENABLE_CUDA ${USE_CUDA})
   set(UMPIRE_ENABLE_HIP  ${USE_HIP})
   set(UMPIRE_ENABLE_SYCL ${USE_DPCPP})
@@ -48,29 +54,17 @@ if(USE_CUDA OR USE_HIP OR USE_DPCPP)
   set(UMPIRE_ENABLE_BENCHMARKS OFF)
   set(UMPIRE_ENABLE_EXAMPLES OFF)
   set(UMPIRE_ENABLE_FORTRAN OFF)
-  include(FetchContent)
   FetchContent_Declare(
-      umpire
+      Umpire
       GIT_REPOSITORY      https://github.com/LLNL/Umpire.git
       GIT_TAG             develop
-    )
-  FetchContent_MakeAvailable(umpire)
-  FetchContent_GetProperties(umpire
-      SOURCE_DIR UMPIRE_SOURCE_DIR
-      BINARY_DIR UMPIRE_BINARY_DIR
-    )
-  FetchContent_MakeAvailable(umpire)
-  FetchContent_GetProperties(umpire
-      SOURCE_DIR UMPIRE_SOURCE_DIR
-      BINARY_DIR UMPIRE_BINARY_DIR
-      )
+  )
+  FetchContent_MakeAvailable(Umpire)
   set(TAMM_USING_UMPIRE true)
-endif()
+  list(APPEND TAMM_DEPENDENCIES Umpire)
 
-list(APPEND TAMM_DEPENDENCIES GlobalArrays) #BLAS LAPACK
-
-if(USE_GAUXC)
-  list(APPEND TAMM_DEPENDENCIES GauXC)
+  # better to add it to tamm target only
+  include_directories("${umpire_SOURCE_DIR}")
 endif()
 
 set(BUILD_METHODS OFF)

@@ -17,6 +17,8 @@
 
 namespace tamm {
 
+class GPUStreamPool;
+
 #if defined(USE_HIP)
 using gpuStream_t     = hipStream_t;
 using gpuEvent_t      = hipEvent_t;
@@ -138,32 +140,9 @@ static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kin
 #endif
 }
 
-void gpuMemset(void*& ptr, size_t sizeInBytes, bool blocking = false) {
-    gpuStream_t& stream = GPUStreamPool::getInstance().getStream();
-
-    if(blocking) {
-#if defined(USE_DPCPP)
-        stream.memset(ptr, 0, sizeInBytes).wait();
-#elif defined(USE_HIP)
-        hipMemset(ptr, 0, sizeInBytes);
-#elif defined(USE_CUDA)
-        cudaMemset(ptr, 0, sizeInBytes);
-#endif
-    }
-    else {
-#if defined(USE_DPCPP)
-        stream.memset(ptr, 0, sizeInBytes);
-#elif defined(USE_HIP)
-        hipMemsetAsync(ptr, 0, sizeInBytes, stream);
-#elif defined(USE_CUDA)
-        cudaMemsetAsync(ptr, 0, sizeInBytes, stream);
-#endif
-    }
-}
-
 
 class GPUStreamPool {
-Tprotected:
+protected:
   bool _initialized{false};
 
   // default Device ID
@@ -245,5 +224,33 @@ public:
   GPUStreamPool(GPUStreamPool&&)                 = delete;
   GPUStreamPool& operator=(GPUStreamPool&&)      = delete;
 };
+
+
+
+// This API needs to be defined after the class GPUStreamPool since the classs
+// is only declared and defined before this method
+void gpuMemset(void*& ptr, size_t sizeInBytes, bool blocking = false) {
+  gpuStream_t& stream = GPUStreamPool::getInstance().getStream();
+
+  if(blocking) {
+#if defined(USE_DPCPP)
+    stream.memset(ptr, 0, sizeInBytes).wait();
+#elif defined(USE_HIP)
+    hipMemset(ptr, 0, sizeInBytes);
+#elif defined(USE_CUDA)
+    cudaMemset(ptr, 0, sizeInBytes);
+#endif
+  }
+  else {
+#if defined(USE_DPCPP)
+    stream.memset(ptr, 0, sizeInBytes);
+#elif defined(USE_HIP)
+    hipMemsetAsync(ptr, 0, sizeInBytes, stream);
+#elif defined(USE_CUDA)
+    cudaMemsetAsync(ptr, 0, sizeInBytes, stream);
+#endif
+  }
+}
+
 
 } // namespace tamm

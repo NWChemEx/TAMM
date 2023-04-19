@@ -138,8 +138,32 @@ static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kin
 #endif
 }
 
+void gpuMemset(void*& ptr, size_t sizeInBytes, bool blocking = false) {
+    gpuStream_t& stream = GPUStreamPool::getInstance().getStream();
+
+    if(blocking) {
+#if defined(USE_DPCPP)
+        stream.memset(ptr, 0, sizeInBytes).wait();
+#elif defined(USE_HIP)
+        hipMemset(ptr, 0, sizeInBytes);
+#elif defined(USE_CUDA)
+        cudaMemset(ptr, 0, sizeInBytes);
+#endif
+    }
+    else {
+#if defined(USE_DPCPP)
+        stream.memset(ptr, 0, sizeInBytes);
+#elif defined(USE_HIP)
+        hipMemsetAsync(ptr, 0, sizeInBytes, stream);
+#elif defined(USE_CUDA)
+        cudaMemsetAsync(ptr, 0, sizeInBytes, stream);
+#endif
+    }
+}
+
+
 class GPUStreamPool {
-protected:
+Tprotected:
   bool _initialized{false};
 
   // default Device ID

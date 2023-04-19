@@ -63,7 +63,8 @@ if(USE_CUDA OR USE_HIP OR USE_DPCPP)
   FetchContent_GetProperties(umpire
       SOURCE_DIR UMPIRE_SOURCE_DIR
       BINARY_DIR UMPIRE_BINARY_DIR
-    )
+      )
+  set(TAMM_USING_UMPIRE true)
 endif()
 
 list(APPEND TAMM_DEPENDENCIES GlobalArrays) #BLAS LAPACK

@@ -14,6 +14,7 @@
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 #include "librett/librett.h"
 #include "tamm/gpu_memory_pool.hpp"
+#include "tamm/umpire.hpp"
 #else
 namespace tamm {
 using gpuStream_t = int; // not used
@@ -190,7 +191,12 @@ template<typename T>
 void allocate_device_buffers(ExecutionHW hw, T*& dev_buf, size_t buf_size) {
   if(hw != ExecutionHW::GPU) return;
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+  #ifdef TAMM_USING_UMPIRE
+  auto& memPool = memory::internal::getUmpireDeviceAllocator();
+  #else
+  auto& memPool = GPUPooledStorageManager::getInstance();
+  #endif
+
   dev_buf       = static_cast<T*>(memPool.allocate(buf_size * sizeof(T)));
 #endif
 }
@@ -199,7 +205,12 @@ template<typename T>
 void free_device_buffers(ExecutionHW hw, T* dev_buf, std::size_t buf_size) {
   if(hw != ExecutionHW::GPU) return;
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-  auto& memPool = tamm::GPUPooledStorageManager::getInstance();
+  #ifdef TAMM_USING_UMPIRE
+  auto& memPool = memory::internal::getUmpireDeviceAllocator();
+  #else
+  auto& memPool = GPUPooledStorageManager::getInstance();
+  #endif
+
   memPool.deallocate(static_cast<void*>(dev_buf), buf_size * sizeof(T));
 #endif
 }
@@ -273,7 +284,11 @@ bool transpose_inputs(bool& isgpuOp, gpuStream_t& thandle, std::vector<T2>& aint
     T2* ainter_buf_dev_in{nullptr};
     T3* binter_buf_dev_in{nullptr};
 
-    auto& memPool     = tamm::GPUPooledStorageManager::getInstance();
+    #ifdef TAMM_USING_UMPIRE
+    auto& memPool = memory::internal::getUmpireDeviceAllocator();
+    #else
+    auto& memPool = GPUPooledStorageManager::getInstance();
+    #endif
     ainter_buf_dev_in = static_cast<T2*>(memPool.allocate(asize * sizeof(T2)));
     binter_buf_dev_in = static_cast<T3*>(memPool.allocate(bsize * sizeof(T3)));
 

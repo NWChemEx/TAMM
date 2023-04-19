@@ -61,7 +61,6 @@ if(USE_CUDA OR USE_HIP OR USE_DPCPP)
   )
   FetchContent_MakeAvailable(Umpire)
   set(TAMM_USING_UMPIRE true)
-  list(APPEND TAMM_DEPENDENCIES Umpire)
 
   # better to add it to tamm target only
   include_directories("${umpire_SOURCE_DIR}")

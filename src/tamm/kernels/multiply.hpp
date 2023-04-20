@@ -200,11 +200,11 @@ template<typename T>
 void allocate_device_buffers(ExecutionHW hw, T*& dev_buf, size_t buf_size) {
   if(hw != ExecutionHW::GPU) return;
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-#ifdef TAMM_USING_UMPIRE
+// #ifdef TAMM_USING_UMPIRE
   auto& memPool = UmpireMemoryManager::getInstance().getUmpireDeviceAllocator();
-#else
-  auto& memPool = GPUPooledStorageManager::getInstance();
-#endif
+// #else
+//   auto& memPool = GPUPooledStorageManager::getInstance();
+// #endif
 
   dev_buf = static_cast<T*>(memPool.allocate(buf_size * sizeof(T)));
 #endif
@@ -214,13 +214,14 @@ template<typename T>
 void free_device_buffers(ExecutionHW hw, T* dev_buf, std::size_t buf_size) {
   if(hw != ExecutionHW::GPU) return;
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-#ifdef TAMM_USING_UMPIRE
+// #ifdef TAMM_USING_UMPIRE
   auto& memPool = UmpireMemoryManager::getInstance().getUmpireDeviceAllocator();
-#else
-  auto& memPool = GPUPooledStorageManager::getInstance();
-#endif
+// #else
+//   auto& memPool = GPUPooledStorageManager::getInstance();
+// #endif
 
-  memPool.deallocate(static_cast<void*>(dev_buf), buf_size * sizeof(T));
+   // memPool.deallocate(static_cast<void*>(dev_buf), buf_size * sizeof(T));
+   memPool.deallocate(dev_buf);      
 #endif
 }
 
@@ -293,11 +294,11 @@ bool transpose_inputs(bool& isgpuOp, gpuStream_t& thandle, std::vector<T2>& aint
     T2* ainter_buf_dev_in{nullptr};
     T3* binter_buf_dev_in{nullptr};
 
-#ifdef TAMM_USING_UMPIRE
+// #ifdef TAMM_USING_UMPIRE
     auto& memPool = UmpireMemoryManager::getInstance().getUmpireDeviceAllocator();
-#else
-    auto& memPool = GPUPooledStorageManager::getInstance();
-#endif
+// #else
+//     auto& memPool = GPUPooledStorageManager::getInstance();
+// #endif
     ainter_buf_dev_in = static_cast<T2*>(memPool.allocate(asize * sizeof(T2)));
     binter_buf_dev_in = static_cast<T3*>(memPool.allocate(bsize * sizeof(T3)));
 
@@ -309,8 +310,10 @@ bool transpose_inputs(bool& isgpuOp, gpuStream_t& thandle, std::vector<T2>& aint
     assign_gpu<T3>(thandle, binter_buf_dev, binter_dims, binter_labels, T3{1}, binter_buf_dev_in,
                    bdims, blabels, true);
 
-    memPool.deallocate(static_cast<void*>(ainter_buf_dev_in), asize * sizeof(T2));
-    memPool.deallocate(static_cast<void*>(binter_buf_dev_in), bsize * sizeof(T3));
+    // memPool.deallocate(static_cast<void*>(ainter_buf_dev_in), asize * sizeof(T2));
+    // memPool.deallocate(static_cast<void*>(binter_buf_dev_in), bsize * sizeof(T3));
+    memPool.deallocate(ainter_buf_dev_in);
+    memPool.deallocate(binter_buf_dev_in);
 
     return gpu_trans;
   }

@@ -2,6 +2,7 @@
 
 #include <tamm/gpu_streams.hpp>
 
+#include <umpire/Umpire.hpp>
 #include <umpire/ResourceManager.hpp>
 #include <umpire/strategy/QuickPool.hpp>
 #include <umpire/strategy/ThreadSafeAllocator.hpp>
@@ -41,7 +42,7 @@ private:
 		    "DEVICE_pool", umpire::ResourceManager::getInstance().getAllocator("DEVICE"), initial_device_bytes);
 	    auto pooled_pinned_host_allocator =
 		umpire::ResourceManager::getInstance().makeAllocator<umpire::strategy::QuickPool>(
-		    "PINNED_pool", pinned_host_allocator, initial_pinned_host_bytes);
+		    "PINNED_pool", umpire::ResourceManager::getInstance().getAllocator("PINNED"), initial_pinned_host_bytes);
 
 #ifdef ENABLE_UMPIRE_THREADSAFE
 	    auto thread_safe_pooled_host_allocator =

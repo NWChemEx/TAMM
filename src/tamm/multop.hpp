@@ -27,6 +27,14 @@ namespace tamm {
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 class MultOp;
 
+// namespace memory {
+// namespace internal {
+// umpire::Allocator& getUmpirePinnedHostAllocator();
+// umpire::Allocator& getUmpireHostAllocator();
+// umpire::Allocator& getUmpireDeviceAllocator();
+// }
+// }
+    
 } // namespace tamm
 
 namespace tamm::internal {
@@ -474,7 +482,7 @@ public:
           TensorElType1* cbuf_tmp_dev_ptr{nullptr};
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
 #ifdef TAMM_USING_UMPIRE
-          auto& memPool = memory::internal::getUmpireDeviceAllocator();
+          auto& memPool = UmpireMemoryManager::getInstance().getUmpireDeviceAllocator();
 #else
           auto& memPool = GPUPooledStorageManager::getInstance();
 #endif
@@ -720,7 +728,7 @@ public:
         TensorElType1* cbuf_tmp_dev_ptr{nullptr};
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
 #ifdef TAMM_USING_UMPIRE
-        auto& memPool = memory::internal::getUmpireDeviceAllocator();
+        auto& memPool = UmpireMemoryManager::getInstance().getUmpireDeviceAllocator();
 #else
         auto& memPool = GPUPooledStorageManager::getInstance();
 #endif
@@ -863,7 +871,7 @@ public:
 
 // free cbuf_dev_ptr
 #ifdef TAMM_USING_UMPIRE
-            auto& memPool = memory::internal::getUmpireDeviceAllocator();
+            auto& memPool = UmpireMemoryManager::getInstance().getUmpireDeviceAllocator();
 #else
             auto& memPool = GPUPooledStorageManager::getInstance();
 #endif

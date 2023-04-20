@@ -52,20 +52,20 @@ void initialize(int argc, char* argv[]) {
   //   MA_init(MT_DBL, 8000000, 20000000);
 #endif
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  // Initialize the Umpire memory manager
-  size_t free{}, total{};
-  gpuMemGetInfo(&free, &total);
+// #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+//   // Initialize the Umpire memory manager
+//   size_t free{}, total{};
+//   gpuMemGetInfo(&free, &total);
 
-  // Allocate 45% of total free memory on GPU
-  // Similarly allocate the same size for the CPU pool too
-  // For the host-pinned memory allcoate 5% of the free memory reported
-  // Motivation: When 2 GA progress-ranks are used per GPU
-  // the GPU might furnish the memory-pools apporiately for each rank
-  memory::internal::initializeUmpireHostAllocator(0.45 * free);
-  memory::internal::initializeUmpireDeviceAllocator(0.45 * free);
-  memory::internal::initializeUmpirePinnedHostAllocator(0.05 * free);
-#endif
+//   // Allocate 45% of total free memory on GPU
+//   // Similarly allocate the same size for the CPU pool too
+//   // For the host-pinned memory allcoate 5% of the free memory reported
+//   // Motivation: When 2 GA progress-ranks are used per GPU
+//   // the GPU might furnish the memory-pools apporiately for each rank
+//   memory::internal::initializeUmpireHostAllocator(0.45 * free);
+//   memory::internal::initializeUmpireDeviceAllocator(0.45 * free);
+//   memory::internal::initializeUmpirePinnedHostAllocator(0.05 * free);
+// #endif
 }
 
 void finalize() {

@@ -1,8 +1,5 @@
 #include <chrono>
 #include <tamm/tamm.hpp>
-#if defined(USE_UPCXX)
-#include <upcxx/upcxx.hpp>
-#endif
 
 using namespace tamm;
 

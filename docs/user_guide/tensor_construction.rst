@@ -6,71 +6,11 @@ tensor notation in TAMM. This section also describes how sparse
 tensor construction and usage is done in TAMM through dependent
 ``TiledIndexSpace`` objects.
 
-This section first provides a brief description of the
-``TiledIndexSpace`` (both independent and dependent) as it will be used
-in ``Tensor`` construction. More details can be found in the 
-:doc:`Index Space documentation <index_spaces>`. The tensor construction details
-are discussed after describing the ``TiledIndexSpace``.
-
-
-TiledIndexSpace Description
----------------------------
-
-Given an ``IndexSpace`` and a tiling size (this can be single tile or
-custom list of sizes with full coverage on the indices),
-``TiledIndexSpace``, is the tiled version of the index space where each
-tile has multiple indices. Theoretically, an ``IndexSpace`` is a single
-tiled ``TiledIndexSpace``. By default independent ``TiledIndexSpace``\ s
-(as well as ``TiledIndexLabel``\ s) are used to construct *dense*
-tensors.
-
-.. code:: cpp
-
-   IndexSpace AUX_is{/*...*/}
-   IndexSpace AO_is{/*...*/};
-   IndexSpace MO_is{/*...*/};
-
-   size_t tile_size = /*some positive value*/;
-   std::vector<size_t> tile_sizes = {/*multiple positive values*/}; 
-
-   TiledIndexSpace AUX{AUX_is, tile_size};
-   TiledIndexSpace AO{AO_is, tile_size};
-   TiledIndexSpace MO{MO_is, tile_sizes};
-
-Constructing sparse tensors needs extra information to represent the
-sparsity as a dependency map between indices on different dimensions of
-the tensors. For this purpose, TAMM has *dependent* ``TiledIndexSpace``
-constructors, that will construct relation between different
-``TiledIndexSpace``\ s. The main constructor requires a reference
-``TiledIndexSpace`` which will be the root/parent for the constructed
-relation. In other words this will be the **domain** of the dependency
-relation, for each indices in the dependency relation the domain will be
-a subset of this ``TiledIndexSpace``. Second argument for the
-constructor is a set of ``TiledIndexSpace``\ s where the dependencies
-are defined on, in other words this will be the **range** of the
-dependency relation. And as the final argument for constructing the
-dependent ``TiledIndexSpace`` is the dependency map description (of type
-``std::map<IndexVector, TiledIndexSpace>``). **Note that** the
-dependency map is defined over the tile indices, not actual indices in
-the ``IndexSpace`` definition.
-
-.. code:: cpp
-
-   // Assuming TiledIndexSpace MO has 4 tiles one can describe
-   // the dependency for each tilex index (0-3), the key point
-   // is the dependency is always on a subspace of AO which
-   // are constructed by TiledIndexSpace construction within 
-   // the dependency pairs. (range for continious tiles,
-   // IndexVector for selected tiles.)
-   auto dep_rel = {
-     {{0}, TiledIndexSpace{AO, range(0,3)}},
-     {{1}, TiledIndexSpace{AO, range(2,5)}},
-     {{2}, TiledIndexSpace{AO, IndexVector{0, 2, 4}}}
-   };
-
-   // Dependent TiledIndexSpace where range of the dependencies
-   // are defined over MO indices, and the domain is subset of AO
-   TiledIndexSpace depAO{AO, {MO}, dep_rel};
+Tensor is the main computation and storage data structure in TAMM. The
+main constructs for creating a ``Tensor`` object is using
+``TiledIndexSpace``\ s or ``TiledIndexLabel``\ s for each dimension. For
+dense case, the construction uses independent ``TiledIndexSpace``\ s or
+labels related to these spaces. 
 
 Using Labels
 ------------
@@ -230,7 +170,7 @@ distribution:
 
    // Constructing process group, memory manager, distribution to construct 
    // an execution context for allocation
-   ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+   ProcGroup pg = ProcGroup::create_world_coll();
    auto manager = MemoryManagerGA::create_coll(pg);
    Distribution_NW distribution{};
    ExecutionContext ec{pg, &distribution, manager};
@@ -436,37 +376,11 @@ will correspond to the tile ID for each mode of ``Tensor`` object.
    }
    ``` -->
 
-Tensor Construction
--------------------
-
-Tensor is the main computation and storage data structure in TAMM. The
-main constructs for creating a ``Tensor`` object is using
-``TiledIndexSpace``\ s or ``TiledIndexLabel``\ s for each dimension. For
-dense case, the construction uses independent ``TiledIndexSpace``\ s or
-labels related to these spaces. As an ease of usage, if the users give a
-dependent label without secondary labels the tensor will be constructed
-over the reference ``TiledIndexSpace`` of the given dependent
-``TiledIndexSpace``.
-
-.. code:: cpp
-
-   using tensor_type = Tensor<double>;
-   auto [i, j] = MO.labels<2>("all");
-   auto [A, B] = AO.labels<2>("all");
-   auto [mu, nu] = depAO.labels<2>("all");
-
-   // Dense tensor construction
-   tensor_type T1{i, j};     // MO x MO Tensor
-   tensor_type T2{i, A};     // MO x AO Tensor
-   tensor_type T3{mu, nu};   // AO x AO Tensor
-   tensor_type T4{mu, i};    // AO x MO Tensor
-
-   // Sparse tensor construction
-   // mu(i) will construct a dependent TiledIndexLabel which is validated internally.
-   tensor_type T5{i, mu(i)}; // MO x depAO Tensor 
-
 Example Tensor Constructions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------
+
+Basic examples
+~~~~~~~~~~~~~~
 
    1. scalar
 
@@ -754,6 +668,32 @@ Example Tensor Constructions
    // elements then splitted as the row and tiled index space 
    // from 3 a columns
    Tensor T20{tis1_20, tis2_3};
+
+
+Dependent Index Spaces
+~~~~~~~~~~~~~~~~~~~~~~
+
+For ease of use, if the user provides a
+dependent label without secondary labels the tensor will be constructed
+over the reference ``TiledIndexSpace`` of the given dependent
+``TiledIndexSpace``.
+
+.. code:: cpp
+
+   using tensor_type = Tensor<double>;
+   auto [i, j] = MO.labels<2>("all");
+   auto [A, B] = AO.labels<2>("all");
+   auto [mu, nu] = depAO.labels<2>("all");
+
+   // Dense tensor construction
+   tensor_type T1{i, j};     // MO x MO Tensor
+   tensor_type T2{i, A};     // MO x AO Tensor
+   tensor_type T3{mu, nu};   // AO x AO Tensor
+   tensor_type T4{mu, i};    // AO x MO Tensor
+
+   // Sparse tensor construction
+   // mu(i) will construct a dependent TiledIndexLabel which is validated internally.
+   tensor_type T5{i, mu(i)}; // MO x depAO Tensor 
 
 .. raw:: html
 

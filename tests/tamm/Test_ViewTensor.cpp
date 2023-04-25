@@ -51,7 +51,7 @@ void test_view_tensor(size_t size, size_t tile_size) {
     return translated_id;
   };
 
-  ProcGroup        pg  = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup        pg  = ProcGroup::create_world_coll();
   MemoryManagerGA* mgr = MemoryManagerGA::create_coll(pg);
   Distribution_NW  distribution;
   RuntimeEngine    re;

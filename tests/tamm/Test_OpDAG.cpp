@@ -616,7 +616,7 @@ void test_binarized_execution(){
 
 
 
-  ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup pg = ProcGroup::create_world_coll();
   auto mgr     = MemoryManagerGA::create_coll(pg);
   Distribution_NW distribution;
   ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
@@ -688,7 +688,7 @@ void new_ops_ccsd_e() {
   LTOp t2_p1_p2_h3_h4 = t2(p1, p2, h3, h4);
   LTOp v2_h3_h4_p1_p2 = v2(h3, h4, p1, p2);
 
-  ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup pg = ProcGroup::create_world_coll();
   auto mgr     = MemoryManagerGA::create_coll(pg);
   Distribution_NW distribution;
   ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
@@ -729,7 +729,7 @@ void test_new_ops() {
   TiledIndexSpace MO{MO_IS, {2, 3, 2, 3, 2, 3, 2, 3}};
   TiledIndexSpace AUX{IndexSpace{range(aux_size)}};
 
-  ProcGroup         pg  = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup         pg  = ProcGroup::create_world_coll();
   auto              mgr = MemoryManagerGA::create_coll(pg);
   Distribution_NW   distribution;
   ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
@@ -821,7 +821,7 @@ void test_gfcc_failed_case() {
   TiledIndexSpace MO{MO_IS, {2, 3, 2, 3, 2, 3, 2, 3}};
   TiledIndexSpace AUX{IndexSpace{range(aux_size)}};
 
-  ProcGroup         pg  = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup         pg  = ProcGroup::create_world_coll();
   auto              mgr = MemoryManagerGA::create_coll(pg);
   Distribution_NW   distribution;
   ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};

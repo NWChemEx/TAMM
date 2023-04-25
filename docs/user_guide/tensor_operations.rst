@@ -417,13 +417,54 @@ Examples using labels:
          T1[i_idx][j_idx] = T5[i_idx][mu_idx] * T6[mu_idx][j_idx];
 
 
+Multi-operand Tensor Operations (New)
+--------------------------------------
+
+TAMM has a new multi-operand tensor operation syntax that allows users
+to define complex operations that have more than single tensor operation in it. 
+Using this syntax users can define tensor operations as a separate object and 
+associate them with output tensors. Once all the updates on the output tensors
+are finished, one can directly call an execute on any output tensor to start 
+executing each update. 
+
+.. code:: cpp
+
+  // Construct operation using multi operand syntax. Cast to LTOp is required for time being
+  auto op_1 = (LTOp) A(i, l) * (LTOp)  B(l, a) * (LTOp) C(j, a) * (LTOp) D(j, b);
+  auto op_2 = /* ... */;
+
+  // Associate each operation with an output tensor
+  E(i, b).set(op_1);      // assign (=)
+  E(i, b).update(op_2);   // accumulate (+=)
+
+  // Construct composite operations that includes tensor contraction and addition
+  auto energy_op = 2.0 * (LTOp) F(m, e) * (LTOp) t1(e, m) +
+                   2.0 * (LTOp) V(m, n, e, f) * (LTOp) t2(e, f, m, n) +
+                   2.0 * (LTOp) V(m, n, e, f) * (LTOp) t1(e, m) * (LTOp) t1(f, n) +
+                  -1.0 * (LTOp) V(m, n, f, e) * (LTOp) t2(e, f, m, n) +
+                  -1.0 * (LTOp) V(m, n, f, e) * (LTOp) t1(e, m) * (LTOp) t1(f, n);
+  
+  // Associate energy operation with a scalar tensor
+  energy().set(energy_op);
+
+  // Execute on output tensors
+  OpExecutor op_executor(/*...*/);
+  op_executor.execute(E);
+  op_executor.execute(energy);
+
+
+TAMM employs an operation minimization algorithm that will find the most 
+efficient binarization and construct corresponding intermediate tensors automatically. 
+TAMM also automatically takes care of allocation/deallocation of these intermediates. 
+**Note:** TAMM provides a new execution construct (OpExecutor) for this type of opeation execution.
+
 Tensor utility routines
 ------------------------
 
 As tensors are the main construct for the computation, TAMM provides a
-set of utility functionality. These are basically tensor-wise update and
+set of utilities. These are basically tensor-wise update and
 access methods as well as point-wise operations over each element in the
-tensor. All these methods
+tensor. Also included are parallel I/O routines.
 
 Updating using lambda functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -532,3 +573,12 @@ are collective.
    power
 -  ``scale(...)`` updates each element in a tensor by a scale factor
    ``alpha``
+
+Parallel IO operations
+~~~~~~~~~~~~~~~~~~~~~~~
+
+- ``tamm::write_to_disk(A,"filename")`` writes a distributed tamm tensor ``A`` to disk in parallel.
+- ``tamm::read_from_disk(A,"filename")`` reads a distributed tamm tensor ``A`` from disk in parallel.
+
+- ``read_from_disk_group(ec, tensor_list, filename_list)`` and ``write_to_disk_group(ec, tensor_list, filename_list)`` 
+  for reading and writing a batch of distributed tamm tensors concurrently over different process groups.

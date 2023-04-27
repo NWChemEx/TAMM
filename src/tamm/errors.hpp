@@ -10,32 +10,31 @@ namespace tamm {
 /**
  * @brief Mark code options that are not yet implemented.
  */
-#define NOT_IMPLEMENTED()                                                   \
-    do {                                                                    \
-        std::cerr << "ERROR: "                                              \
-                  << "file:" << __FILE__ << "function:" << __func__         \
-                  << " line:" << __LINE__ << ". This is not implemented\n"; \
+#define NOT_IMPLEMENTED()                                               \
+    do {                                                                \
+        std::cerr << "ERROR: (Not implemented)"                         \
+                  << "file:" << __FILE__ << "function:" << __func__     \
+                  << " line:" << __LINE__ << std::endl;                 \
     } while(0)
 
 /**
  * @brief Mark code options that are not yet allowed.
  */
-#define NOT_ALLOWED()                                                       \
-    do {                                                                    \
-        std::cerr << "ERROR: "                                              \
-                  << "file:" << __FILE__ << "function:" << __func__         \
-                  << " line:" << __LINE__ << ". This is not implemented\n"; \
+#define NOT_ALLOWED()                                                   \
+    do {                                                                \
+        std::cerr << "ERROR: (Not allowed)"                             \
+                  << "file:" << __FILE__ << "function:" << __func__     \
+                  << " line:" << __LINE__ << std::endl;                 \
     } while(0)
 
 /**
  * @brief Mark code paths that should be unreachable
  */
-#define UNREACHABLE()                                               \
-    do {                                                            \
-        std::cerr << "ERROR: "                                      \
-                  << "file:" << __FILE__ << "function:" << __func__ \
-                  << " line:" << __LINE__                           \
-                  << ". This line should be unreachable\n";         \
+#define UNREACHABLE()                                                   \
+    do {                                                                \
+        std::cerr << "ERROR: (unreachable)"                             \
+                  << "file:" << __FILE__ << "function:" << __func__     \
+                  << " line:" << __LINE__ << std::endl;                 \
     } while(0)
 
 /**

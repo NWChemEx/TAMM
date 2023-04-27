@@ -13,20 +13,10 @@
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 #include "librett/librett.h"
-#include "tamm/gpu_memory_pool.hpp"
-#include "tamm/umpire_memory_pool.hpp"
+#include "tamm/rmm_memory_pool.hpp"
 #else
 namespace tamm {
 using gpuStream_t = int; // not used
-
-// namespace memory {
-// namespace internal {
-// umpire::Allocator& getUmpirePinnedHostAllocator();
-// umpire::Allocator& getUmpireHostAllocator();
-// umpire::Allocator& getUmpireDeviceAllocator();
-// }
-// }
-    
 }
 #endif
 
@@ -200,12 +190,7 @@ template<typename T>
 void allocate_device_buffers(ExecutionHW hw, T*& dev_buf, size_t buf_size) {
   if(hw != ExecutionHW::GPU) return;
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-// #ifdef TAMM_USING_UMPIRE
-  auto& memPool = UmpireMemoryManager::getInstance().getUmpireDeviceAllocator();
-// #else
-//   auto& memPool = GPUPooledStorageManager::getInstance();
-// #endif
-
+  auto& memPool = RMMMemoryManager::getInstance().getMemoryPool();
   dev_buf = static_cast<T*>(memPool.allocate(buf_size * sizeof(T)));
 #endif
 }
@@ -214,14 +199,8 @@ template<typename T>
 void free_device_buffers(ExecutionHW hw, T* dev_buf, std::size_t buf_size) {
   if(hw != ExecutionHW::GPU) return;
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-// #ifdef TAMM_USING_UMPIRE
-  auto& memPool = UmpireMemoryManager::getInstance().getUmpireDeviceAllocator();
-// #else
-//   auto& memPool = GPUPooledStorageManager::getInstance();
-// #endif
-
-   // memPool.deallocate(static_cast<void*>(dev_buf), buf_size * sizeof(T));
-   memPool.deallocate(dev_buf);      
+  auto& memPool = RMMMemoryManager::getInstance().getMemoryPool();
+  memPool.deallocate(dev_buf, buf_size * sizeof(T));
 #endif
 }
 
@@ -263,17 +242,17 @@ void assign_gpu(gpuStream_t& thandle, T*& dst, const SizeVec& ddims, const IntLa
   }
 
   // create plan
-  librettHandle plan;
-#if defined(USE_DPCPP)
-  sycl::queue* ptrQueue = &thandle;
-  librettPlan(&plan, ndim, size, perm, sizeof(T), ptrQueue);
-#else
-  librettPlan(&plan, ndim, size, perm, sizeof(T), thandle);
-#endif
+//   librettHandle plan;
+// #if defined(USE_DPCPP)
+//   sycl::queue* ptrQueue = &thandle;
+//   librettPlan(&plan, ndim, size, perm, sizeof(T), ptrQueue);
+// #else
+//   librettPlan(&plan, ndim, size, perm, sizeof(T), thandle);
+// #endif
 
-  // ABB: following casts were required since librett API only accepts void* as args
-  librettExecute(plan, reinterpret_cast<void*>(const_cast<T*>(src)), reinterpret_cast<void*>(dst));
-  librettDestroy(plan);
+//   // ABB: following casts were required since librett API only accepts void* as args
+//   librettExecute(plan, reinterpret_cast<void*>(const_cast<T*>(src)), reinterpret_cast<void*>(dst));
+//   librettDestroy(plan);
 #endif
 }
 
@@ -294,11 +273,7 @@ bool transpose_inputs(bool& isgpuOp, gpuStream_t& thandle, std::vector<T2>& aint
     T2* ainter_buf_dev_in{nullptr};
     T3* binter_buf_dev_in{nullptr};
 
-// #ifdef TAMM_USING_UMPIRE
-    auto& memPool = UmpireMemoryManager::getInstance().getUmpireDeviceAllocator();
-// #else
-//     auto& memPool = GPUPooledStorageManager::getInstance();
-// #endif
+    auto& memPool = RMMMemoryManager::getInstance().getMemoryPool();
     ainter_buf_dev_in = static_cast<T2*>(memPool.allocate(asize * sizeof(T2)));
     binter_buf_dev_in = static_cast<T3*>(memPool.allocate(bsize * sizeof(T3)));
 
@@ -310,10 +285,8 @@ bool transpose_inputs(bool& isgpuOp, gpuStream_t& thandle, std::vector<T2>& aint
     assign_gpu<T3>(thandle, binter_buf_dev, binter_dims, binter_labels, T3{1}, binter_buf_dev_in,
                    bdims, blabels, true);
 
-    // memPool.deallocate(static_cast<void*>(ainter_buf_dev_in), asize * sizeof(T2));
-    // memPool.deallocate(static_cast<void*>(binter_buf_dev_in), bsize * sizeof(T3));
-    memPool.deallocate(ainter_buf_dev_in);
-    memPool.deallocate(binter_buf_dev_in);
+    memPool.deallocate(static_cast<void*>(ainter_buf_dev_in), asize * sizeof(T2));
+    memPool.deallocate(static_cast<void*>(binter_buf_dev_in), bsize * sizeof(T3));
 
     return gpu_trans;
   }

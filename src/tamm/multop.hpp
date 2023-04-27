@@ -26,15 +26,6 @@ namespace tamm {
 
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 class MultOp;
-
-// namespace memory {
-// namespace internal {
-// umpire::Allocator& getUmpirePinnedHostAllocator();
-// umpire::Allocator& getUmpireHostAllocator();
-// umpire::Allocator& getUmpireDeviceAllocator();
-// }
-// }
-    
 } // namespace tamm
 
 namespace tamm::internal {
@@ -481,11 +472,7 @@ public:
           TensorElType1* cbuf_dev_ptr{nullptr};
           TensorElType1* cbuf_tmp_dev_ptr{nullptr};
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-// #ifdef TAMM_USING_UMPIRE
-          auto& memPool = UmpireMemoryManager::getInstance().getUmpireDeviceAllocator();
-// #else
-//           auto& memPool = GPUPooledStorageManager::getInstance();
-// #endif
+          auto& memPool = RMMMemoryManager::getInstance().getMemoryPool();
 
           if(hw == ExecutionHW::GPU) {
             cbuf_dev_ptr =
@@ -516,15 +503,10 @@ public:
             kernels::stream_synchronize<TensorElType1>(thandle);
             blas::axpy(csize, TensorElType1{1}, cbuf_tmp.data(), 1, (ab->cbuf_).data(), 1);
 
-            // memPool.deallocate(static_cast<void*>(th_a), asize * sizeof(TensorElType2));
-            // memPool.deallocate(static_cast<void*>(th_b), bsize * sizeof(TensorElType3));
-            // memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
-            // memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
-
-            memPool.deallocate(th_a);
-            memPool.deallocate(th_b);
-            memPool.deallocate(cbuf_dev_ptr);
-            memPool.deallocate(cbuf_tmp_dev_ptr);	    
+            memPool.deallocate(static_cast<void*>(th_a), asize * sizeof(TensorElType2));
+            memPool.deallocate(static_cast<void*>(th_b), bsize * sizeof(TensorElType3));
+            memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
+            memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
           }
 #endif
         }
@@ -732,11 +714,7 @@ public:
         TensorElType1* cbuf_dev_ptr{nullptr};
         TensorElType1* cbuf_tmp_dev_ptr{nullptr};
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-// #ifdef TAMM_USING_UMPIRE
-        auto& memPool = UmpireMemoryManager::getInstance().getUmpireDeviceAllocator();
-// #else
-//         auto& memPool = GPUPooledStorageManager::getInstance();
-// #endif
+        auto& memPool = RMMMemoryManager::getInstance().getMemoryPool();
 
         if(hw == ExecutionHW::GPU) {
           cbuf_dev_ptr =
@@ -854,13 +832,8 @@ public:
           }
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
           if(hw == ExecutionHW::GPU) {
-            // memPool.deallocate(static_cast<void*>(ab->ta_),
-            //                    (ab->abuf_).size() * sizeof(TensorElType2));
-            // memPool.deallocate(static_cast<void*>(ab->tb_),
-            //                    (ab->bbuf_).size() * sizeof(TensorElType3));
-
-	      memPool.deallocate(ab->ta_);
-	      memPool.deallocate(ab->tb_);	    
+	      memPool.deallocate(static_cast<void*>(ab->ta_), asize * sizeof(TensorElType2));
+	      memPool.deallocate(static_cast<void*>(ab->tb_), bsize * sizeof(TensorElType3));
           }
 #endif
           slc++;
@@ -878,16 +851,9 @@ public:
             blas::axpy(csize, TensorElType1{1}, cbuf_tmp.data(), 1, cbuf.data(), 1);
 
 // free cbuf_dev_ptr
-// #ifdef TAMM_USING_UMPIRE
-            auto& memPool = UmpireMemoryManager::getInstance().getUmpireDeviceAllocator();
-// #else
-//             auto& memPool = GPUPooledStorageManager::getInstance();
-// #endif
-
-            // memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
-            // memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
-            memPool.deallocate(cbuf_dev_ptr);
-            memPool.deallocate(cbuf_tmp_dev_ptr);	    
+            auto& memPool = RMMMemoryManager::getInstance().getMemoryPool();
+            memPool.deallocate(static_cast<void*>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
+            memPool.deallocate(static_cast<void*>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
           }
 #endif
           {

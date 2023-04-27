@@ -17,9 +17,8 @@ if( NOT ${CMakeBuild_FOUND} )
 
   FetchContent_Declare(
     CMakeBuild
-    GIT_REPOSITORY https://github.com/abagusetty/CMakeBuild.git
-    #GIT_TAG ${CMSB_TAG}
-    GIT_TAG develop
+    GIT_REPOSITORY https://github.com/NWChemEx-Project/CMakeBuild.git
+    GIT_TAG ${CMSB_TAG}
   )
 
   FetchContent_MakeAvailable( CMakeBuild )
@@ -38,7 +37,7 @@ if(BUILD_LIBINT)
 endif()
 
 if(USE_CUDA OR USE_HIP OR USE_DPCPP)
-  list(APPEND TAMM_DEPENDENCIES Librett Umpire)
+  list(APPEND TAMM_DEPENDENCIES Librett)
 endif()
 
 list(APPEND TAMM_DEPENDENCIES GlobalArrays) #BLAS LAPACK

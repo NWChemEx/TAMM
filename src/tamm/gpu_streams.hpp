@@ -17,8 +17,6 @@
 
 namespace tamm {
 
-class GPUStreamPool;
-
 #if defined(USE_HIP)
 using gpuStream_t     = hipStream_t;
 using gpuEvent_t      = hipEvent_t;
@@ -127,6 +125,16 @@ static inline void gpuSetDevice(int active_device) {
 #endif
 }
 
+static inline void gpuGetDevice(int* active_device) {
+#ifdef USE_CUDA
+  CUDA_CHECK(cudaGetDevice(active_device));
+#elif defined(USE_HIP)
+  HIP_CHECK(hipGetDevice(active_device));
+#elif defined(USE_DPCPP)
+  syclGetDevice(active_device);
+#endif
+}
+
 template<typename T>
 static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kind,
                            gpuStream_t& stream) {
@@ -140,6 +148,55 @@ static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kin
 #endif
 }
 
+static inline void gpuStreamWaitEvent(gpuStream_t stream, gpuEvent_t event) {
+#if defined(USE_DPCPP)
+    auto retEvent = stream.ext_oneapi_submit_barrier(event);
+    // retEvent.wait();
+    event.wait();
+#elif defined(USE_HIP)
+    hipStreamWaitEvent(stream, event);
+#elif defined(USE_CUDA)
+    cudaStreamWaitEvent(stream, event);
+#endif
+}
+
+static inline void gpuEventRecord(gpuEvent_t event, gpuStream_t stream) {
+#if defined(USE_DPCPP)
+    // auto retEvent = stream.ext_oneapi_submit_barrier(event);
+    // retEvent.wait();
+    event.wait();
+#elif defined(USE_HIP)
+    hipEventRecord(event, stream);
+#elif defined(USE_CUDA)
+    cudaEventRecord(event, stream);
+#endif
+}
+
+static inline void gpuEventCreateWithFlags(gpuEvent_t* event) {
+#if defined(USE_HIP)
+    hipEventCreateWithFlags(event, hipEventDisableTiming);
+#elif defined(USE_CUDA)
+    cudaEventCreateWithFlags(event, cudaEventDisableTiming);
+#endif
+}
+
+static inline void gpuEventDestroy(gpuEvent_t event) {
+#if defined(USE_HIP)
+    hipEventDestroy(event);
+#elif defined(USE_CUDA)
+    cudaEventDestroy(event);
+#endif
+}
+
+static inline void gpuEventSynchronize(gpuEvent_t event) {
+#if defined(USE_DPCPP)
+    event.wait();
+#elif defined(USE_HIP)
+    hipEventSynchronize(event);
+#elif defined(USE_CUDA)
+    cudaEventSynchronize(event);
+#endif
+}
 
 class GPUStreamPool {
 protected:
@@ -226,7 +283,6 @@ public:
 };
 
 
-
 // This API needs to be defined after the class GPUStreamPool since the classs
 // is only declared and defined before this method
 static inline void gpuMemset(void*& ptr, size_t sizeInBytes, bool blocking = false) {
@@ -251,6 +307,5 @@ static inline void gpuMemset(void*& ptr, size_t sizeInBytes, bool blocking = fal
 #endif
   }
 }
-
 
 } // namespace tamm

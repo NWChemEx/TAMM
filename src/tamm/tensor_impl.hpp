@@ -465,11 +465,13 @@ public:
   }
 #endif
 
+  virtual void put_raw_contig(int64_t* lo, int64_t* hi, void* buf) const { abort(); }
+
   virtual void put_raw(int64_t* lo, int64_t* hi, void* buf) const { abort(); }
 
-  virtual void get_raw(int64_t* lo, int64_t* hi, void* buf) const { abort(); }
+  virtual void get_raw_contig(int64_t* lo, int64_t* hi, void* buf) const { abort(); }
 
-  virtual void get_raw_one(int64_t* lo, int64_t* hi, void* buf) const { abort(); }
+  virtual void get_raw(int64_t* lo, int64_t* hi, void* buf) const { abort(); }
 
   virtual T* access_local_buf() {
     EXPECTS(mpb_);
@@ -1012,7 +1014,7 @@ public:
       hi.insert(hi.begin(), 0);
     }
 
-    get_raw(&lo[0], &hi[0], buff_span.data());
+    get_raw_contig(&lo[0], &hi[0], buff_span.data());
 #else
     NGA_Get64(ga_, &lo[0], &hi[0], buff_span.data(), &ld[0]);
 #endif
@@ -1033,7 +1035,7 @@ public:
       hi.insert(hi.begin(), 0);
     }
 
-    put_raw(&lo[0], &hi[0], buff_span.data());
+    put_raw_contig(&lo[0], &hi[0], buff_span.data());
 #else
     NGA_Put64(ga_, &lo[0], &hi[0], buff_span.data(), &ld[0]);
 #endif
@@ -1115,29 +1117,8 @@ public:
   }
 
 #if defined(USE_UPCXX)
-  void put_raw(int64_t* lo, int64_t* hi, void* buf) const {
-    const auto elem_sz = MemoryManagerGA::get_element_size(eltype_);
-    //~ int next = 0;
-    //~ for(int64_t i = lo[0]; i <= hi[0]; ++i)
-    //~ for(int64_t j = lo[1]; j <= hi[1]; ++j)
-    //~ for(int64_t k = lo[2]; k <= hi[2]; ++k)
-    //~ for(int64_t l = lo[3]; l <= hi[3]; ++l) {
-    //~ TensorTile t = find_tile(i, j, k, l);
-
-    //~ int64_t i_offset = i - t.lo[0];
-    //~ int64_t j_offset = j - t.lo[1];
-    //~ int64_t k_offset = k - t.lo[2];
-    //~ int64_t l_offset = l - t.lo[3];
-
-    //~ int64_t tile_offset = l_offset + t.dim[3]*(k_offset + t.dim[2]*(j_offset +
-    // t.dim[1]*i_offset)); ~ upcxx::global_ptr<uint8_t> target = gptrs_[t.rank]; ~
-    // upcxx::global_ptr<uint8_t> remote_addr = target + (t.offset * elem_sz) + (tile_offset *
-    // elem_sz);
-
-    //~ uint8_t* local_addr  = ((uint8_t*) buf) + (next++ * elem_sz);
-
-    //~ upcxx::rput(local_addr, remote_addr, elem_sz).wait();
-    //~ }
+  void put_raw_contig(int64_t* lo, int64_t* hi, void* buf) const {
+    const auto elem_sz  = MemoryManagerGA::get_element_size(eltype_);
     TensorTile t        = find_tile(lo[0], lo[1], lo[2], lo[3]);
     int64_t    i_offset = lo[0] - t.lo[0];
     int64_t    j_offset = lo[1] - t.lo[1];
@@ -1154,7 +1135,30 @@ public:
     upcxx::rput((uint8_t*) buf, remote_addr, elem_sz * a * b * c * d).wait();
   }
 
-  void get_raw(int64_t* lo, int64_t* hi, void* buf) const {
+  void put_raw(int64_t* lo, int64_t* hi, void* buf) const {
+    const auto       elem_sz = MemoryManagerGA::get_element_size(eltype_);
+    int              next    = 0;
+    upcxx::promise<> p;
+    for(int64_t i = lo[0]; i <= hi[0]; ++i)
+      for(int64_t j = lo[1]; j <= hi[1]; ++j)
+        for(int64_t k = lo[2]; k <= hi[2]; ++k)
+          for(int64_t l = lo[3]; l <= hi[3]; ++l) {
+            TensorTile t        = find_tile(i, j, k, l);
+            int64_t    i_offset = i - t.lo[0];
+            int64_t    j_offset = j - t.lo[1];
+            int64_t    k_offset = k - t.lo[2];
+            int64_t    l_offset = l - t.lo[3];
+            int64_t    tile_offset =
+              l_offset + t.dim[3] * (k_offset + t.dim[2] * (j_offset + t.dim[1] * i_offset));
+            upcxx::global_ptr<uint8_t> remote_addr =
+              gptrs_[t.rank] + (t.offset * elem_sz) + (tile_offset * elem_sz);
+            uint8_t* local_addr = ((uint8_t*) buf) + (next++ * elem_sz);
+            upcxx::rput(local_addr, remote_addr, elem_sz, upcxx::operation_cx::as_promise(p));
+          }
+    p.finalize().wait();
+  }
+
+  void get_raw_contig(int64_t* lo, int64_t* hi, void* buf) const {
     const auto elem_sz  = MemoryManagerGA::get_element_size(eltype_);
     TensorTile t        = find_tile(lo[0], lo[1], lo[2], lo[3]);
     int64_t    i_offset = lo[0] - t.lo[0];
@@ -1172,9 +1176,10 @@ public:
     upcxx::rget(remote_addr, (uint8_t*) buf, elem_sz * a * b * c * d).wait();
   }
 
-  void get_raw_one(int64_t* lo, int64_t* hi, void* buf) const {
-    const auto elem_sz = MemoryManagerGA::get_element_size(eltype_);
-    int        next    = 0;
+  void get_raw(int64_t* lo, int64_t* hi, void* buf) const {
+    const auto       elem_sz = MemoryManagerGA::get_element_size(eltype_);
+    int              next    = 0;
+    upcxx::promise<> p;
     for(int64_t i = lo[0]; i <= hi[0]; ++i)
       for(int64_t j = lo[1]; j <= hi[1]; ++j)
         for(int64_t k = lo[2]; k <= hi[2]; ++k)
@@ -1189,8 +1194,9 @@ public:
             upcxx::global_ptr<uint8_t> remote_addr =
               gptrs_[t.rank] + (t.offset * elem_sz) + (tile_offset * elem_sz);
             uint8_t* local_addr = ((uint8_t*) buf) + (next++ * elem_sz);
-            upcxx::rget(remote_addr, local_addr, elem_sz).wait();
+            upcxx::rget(remote_addr, local_addr, elem_sz, upcxx::operation_cx::as_promise(p));
           }
+    p.finalize().wait();
   }
 #endif
 

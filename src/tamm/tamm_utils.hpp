@@ -2809,7 +2809,7 @@ void to_block_cyclic_tensor(Tensor<TensorType> tensor, Tensor<TensorType> bc_ten
     std::vector<TensorType> sbuf(dsize);
     tensor.get(blockid, sbuf);
 #if defined(USE_UPCXX)
-    bc_tensor.put_raw(lo, hi, sbuf.data());
+    bc_tensor.put_raw_contig(lo, hi, sbuf.data());
 #else
     NGA_Put64(ga_tens, &lo[0], &hi[0], &sbuf[0], &ld[0]);
 #endif
@@ -2856,7 +2856,7 @@ void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> t
 
     std::vector<TensorType> sbuf(dsize);
 #if defined(USE_UPCXX)
-    bc_tensor.get_raw(lo, hi, sbuf.data());
+    bc_tensor.get_raw_contig(lo, hi, sbuf.data());
 #else
     NGA_Get64(ga_tens, &lo[0], &hi[0], &sbuf[0], &ld[0]);
 #endif
@@ -2918,12 +2918,12 @@ Tensor<TensorType> permute_tensor(Tensor<TensorType> tensor, std::vector<int> pe
   ExecutionContext& ec = get_ec(tensor());
   Scheduler{ec}.allocate(ptensor)(ptensor(ptil) = tensor(til)).execute();
 
-  return ptensor; // caller responsible for dellocating this tensor
+  return ptensor; // caller responsible for deallocating this tensor
 }
 
 // Extract block of a dense tensor given by [lo, hi)
 template<typename TensorType>
-Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> lo,
+Tensor<TensorType> tensor_block(Tensor<TensorType>& tensor, std::vector<int64_t> lo,
                                 std::vector<int64_t> hi, std::vector<int> permute = {}) {
   const int ndims = tensor.num_modes();
 
@@ -2932,20 +2932,18 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
 
   auto tis = tensor.tiled_index_spaces();
 
-  for(int i = 0; i < ndims; i++) {
-    EXPECTS(hi[i] <= tis[i].index_space().num_indices() && lo[i] >= 0);
-  }
+  for(int i = 0; i < ndims; i++) EXPECTS(hi[i] <= tis[i].index_space().num_indices() && lo[i] >= 0);
 
   LabeledTensor<TensorType> ltensor = tensor();
   ExecutionContext&         ec      = get_ec(ltensor);
   std::vector<bool>         is_irreg_tis(ndims, false);
+
   for(int i = 0; i < ndims; i++) is_irreg_tis[i] = !tis[i].input_tile_sizes().empty();
 
   std::vector<std::vector<Tile>> tiles(ndims);
-  for(int i = 0; i < ndims; i++) {
+  for(int i = 0; i < ndims; i++)
     tiles[i] = is_irreg_tis[i] ? tis[i].input_tile_sizes()
                                : std::vector<Tile>{tis[i].input_tile_size()};
-  }
 
   std::vector<Tile> max_ts(ndims);
   for(int i = 0; i < ndims; i++)
@@ -2959,31 +2957,27 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
   Tensor<TensorType>::allocate(&ec, btensor);
 
 #if defined(USE_UPCXX)
+
   EXPECTS(ndims >= 1 && ndims <= 4);
 
-  std::vector<int64_t> chnks(ndims, -1), dims(ndims), ld(4, 1);
+  std::vector<int64_t> ld(ndims);
 
   for(int i = 0; i < ndims; ++i) {
-    dims[i] = tis[i].index_space().num_indices();
-    ld[i]   = hi[i] - lo[i];
+    ld[i] = hi[i] - lo[i] - 1;
     hi[i]--;
   }
-
-  std::vector<TensorType>    sbuf(btensor.size());
-  ga_over_upcxx<TensorType>* ga_stensor =
-    new ga_over_upcxx<TensorType>(ndims, dims.data(), chnks.data(), upcxx::world());
 
   // Pad to 4D
   for(int i = ndims; i < 4; ++i) {
     lo.insert(lo.begin(), 0);
     hi.insert(hi.begin(), 0);
+    ld.insert(ld.begin(), 0);
   }
 
-  tensor.get_raw_one(lo.data(), hi.data(), sbuf.data());
+  std::vector<TensorType> sbuf(btensor.size());
+  tensor.get_raw(lo.data(), hi.data(), sbuf.data());
+  btensor.put_raw(std::vector<int64_t>(4, 0).data(), ld.data(), sbuf.data());
 
-  ga_stensor->put(0, 0, 0, 0, ld[0] - 1, ld[1] - 1, ld[2] - 1, ld[3] - 1, sbuf.data(), ld.data());
-  ga_to_tamm(ec, btensor, ga_stensor);
-  ga_stensor->destroy();
 #else
 
   int btensor_gah = btensor.ga_handle();
@@ -2996,6 +2990,7 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
     lo_src[i] = lo[i];
     hi_src[i] = hi[i] - 1;
   }
+
   for(int i = 0; i < ndims; i++) {
     lo_dst[i] = 0;
     hi_dst[i] = hi_src[i] - lo_src[i];
@@ -3009,13 +3004,9 @@ Tensor<TensorType> tensor_block(Tensor<TensorType> tensor, std::vector<int64_t> 
   GA_Pgroup_set_default(ga_pg_default);
 #endif
 
-  Tensor<TensorType> pbtensor = btensor;
-  if(!permute.empty()) {
-    pbtensor = permute_tensor<TensorType>(btensor, permute);
-    Tensor<TensorType>::deallocate(btensor);
-  }
+  if(!permute.empty()) btensor = permute_tensor<TensorType>(btensor, permute);
 
-  return pbtensor; // Caller responsible for dellocating this tensor
+  return btensor; // Caller responsible for deallocating this tensor
 }
 
 inline TiledIndexLabel compose_lbl(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {
@@ -3134,7 +3125,7 @@ Tensor<TensorType> to_dense_tensor(ExecutionContext& ec_dense, Tensor<TensorType
   NGA_Destroy(ga_stensor);
 #endif
 
-  return btensor; // Caller responsible for dellocating this tensor
+  return btensor; // Caller responsible for deallocating this tensor
 }
 
 // Extract a single value specified by index_id from a dense tensor
@@ -3155,7 +3146,7 @@ TensorType get_tensor_element(Tensor<TensorType> tensor, std::vector<int64_t> in
     hi[i] = index_id[j];
   }
 
-  tensor.get_raw(lo.data(), hi.data(), &val);
+  tensor.get_raw_contig(lo.data(), hi.data(), &val);
 #else
   std::vector<int64_t> lo(ndims), hi(ndims);
   std::vector<int64_t> ld(ndims - 1, 1);

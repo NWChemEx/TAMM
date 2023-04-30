@@ -267,11 +267,17 @@ public:
   // Tensor Accessors
 
 #if defined(USE_UPCXX)
+  void put_raw_contig(int64_t* lo, int64_t* hi, void* buf) {
+    return impl_->put_raw_contig(lo, hi, buf);
+  }
+
   void put_raw(int64_t* lo, int64_t* hi, void* buf) { return impl_->put_raw(lo, hi, buf); }
 
-  void get_raw(int64_t* lo, int64_t* hi, void* buf) { return impl_->get_raw(lo, hi, buf); }
+  void get_raw_contig(int64_t* lo, int64_t* hi, void* buf) {
+    return impl_->get_raw_contig(lo, hi, buf);
+  }
 
-  void get_raw_one(int64_t* lo, int64_t* hi, void* buf) { return impl_->get_raw_one(lo, hi, buf); }
+  void get_raw(int64_t* lo, int64_t* hi, void* buf) { return impl_->get_raw(lo, hi, buf); }
 #else
   /**
    * Access the underlying global array

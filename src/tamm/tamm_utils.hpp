@@ -659,7 +659,7 @@ std::tuple<int, int, int> get_agg_info(ExecutionContext& gec, const int nranks,
 #if defined(USE_UPCXX)
   const int nnodes = upcxx::local_team().rank_n();
 #else
-  // gec.num_nodes() fails with sub-groups
+  // TODO: gec.nnodes() fails with sub-groups ?
   const int nnodes = GA_Cluster_nnodes();
 #endif
   const int ppn         = gec.ppn();

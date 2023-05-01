@@ -326,7 +326,7 @@ public:
 
   ExecutionHW exhw() const { return exhw_; }
 
-  int num_nodes() const { return nnodes_; }
+  int nnodes() const { return nnodes_; }
   int ppn() const { return ranks_pn_; }
 
   struct meminfo {

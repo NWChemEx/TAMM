@@ -1139,6 +1139,10 @@ public:
     const auto       elem_sz = MemoryManagerGA::get_element_size(eltype_);
     int              next    = 0;
     upcxx::promise<> p;
+    std::unordered_map<upcxx::intrank_t,
+                       std::pair<std::vector<uint8_t*>, std::vector<upcxx::global_ptr<uint8_t>>>>
+      all_puts;
+
     for(int64_t i = lo[0]; i <= hi[0]; ++i)
       for(int64_t j = lo[1]; j <= hi[1]; ++j)
         for(int64_t k = lo[2]; k <= hi[2]; ++k)
@@ -1153,8 +1157,16 @@ public:
             upcxx::global_ptr<uint8_t> remote_addr =
               gptrs_[t.rank] + (t.offset * elem_sz) + (tile_offset * elem_sz);
             uint8_t* local_addr = ((uint8_t*) buf) + (next++ * elem_sz);
-            upcxx::rput(local_addr, remote_addr, elem_sz, upcxx::operation_cx::as_promise(p));
+
+            all_puts[t.rank].first.push_back(local_addr);
+            all_puts[t.rank].second.push_back(remote_addr);
           }
+
+    for(const auto& x: all_puts)
+      upcxx::rput_regular(x.second.first.begin(), x.second.first.end(), elem_sz,
+                          x.second.second.begin(), x.second.second.end(), elem_sz,
+                          upcxx::operation_cx::as_promise(p));
+
     p.finalize().wait();
   }
 
@@ -1180,6 +1192,10 @@ public:
     const auto       elem_sz = MemoryManagerGA::get_element_size(eltype_);
     int              next    = 0;
     upcxx::promise<> p;
+    std::unordered_map<upcxx::intrank_t,
+                       std::pair<std::vector<upcxx::global_ptr<uint8_t>>, std::vector<uint8_t*>>>
+      all_gets;
+
     for(int64_t i = lo[0]; i <= hi[0]; ++i)
       for(int64_t j = lo[1]; j <= hi[1]; ++j)
         for(int64_t k = lo[2]; k <= hi[2]; ++k)
@@ -1194,8 +1210,16 @@ public:
             upcxx::global_ptr<uint8_t> remote_addr =
               gptrs_[t.rank] + (t.offset * elem_sz) + (tile_offset * elem_sz);
             uint8_t* local_addr = ((uint8_t*) buf) + (next++ * elem_sz);
-            upcxx::rget(remote_addr, local_addr, elem_sz, upcxx::operation_cx::as_promise(p));
+
+            all_gets[t.rank].first.push_back(remote_addr);
+            all_gets[t.rank].second.push_back(local_addr);
           }
+
+    for(const auto& x: all_gets)
+      upcxx::rget_regular(x.second.first.begin(), x.second.first.end(), elem_sz,
+                          x.second.second.begin(), x.second.second.end(), elem_sz,
+                          upcxx::operation_cx::as_promise(p));
+
     p.finalize().wait();
   }
 #endif

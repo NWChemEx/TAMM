@@ -1158,8 +1158,11 @@ public:
               gptrs_[t.rank] + (t.offset * elem_sz) + (tile_offset * elem_sz);
             uint8_t* local_addr = ((uint8_t*) buf) + (next++ * elem_sz);
 
-            all_puts[t.rank].first.push_back(local_addr);
-            all_puts[t.rank].second.push_back(remote_addr);
+            if(remote_addr.is_local()) { *((T*) remote_addr.local()) = *(T*) local_addr; }
+            else {
+              all_puts[t.rank].first.push_back(local_addr);
+              all_puts[t.rank].second.push_back(remote_addr);
+            }
           }
 
     for(const auto& x: all_puts)
@@ -1211,8 +1214,11 @@ public:
               gptrs_[t.rank] + (t.offset * elem_sz) + (tile_offset * elem_sz);
             uint8_t* local_addr = ((uint8_t*) buf) + (next++ * elem_sz);
 
-            all_gets[t.rank].first.push_back(remote_addr);
-            all_gets[t.rank].second.push_back(local_addr);
+            if(remote_addr.is_local()) { *(T*) local_addr = *((T*) remote_addr.local()); }
+            else {
+              all_gets[t.rank].first.push_back(remote_addr);
+              all_gets[t.rank].second.push_back(local_addr);
+            }
           }
 
     for(const auto& x: all_gets)

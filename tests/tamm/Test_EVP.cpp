@@ -50,7 +50,7 @@ std::tuple<int, int, int, int, int, int> sca_get_subgroup_info(const size_t N) {
 
 // TEST_CASE("Testing EVP")
 void test_evp(size_t N, size_t mb) {
-  ProcGroup        gpg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup        gpg = ProcGroup::create_world_coll();
   ExecutionContext gec{gpg, DistributionKind::nw, MemoryManagerKind::ga};
 
   auto [nnodes, hf_nnodes, ppn, hf_nranks, sca_nnodes, sca_nranks] = sca_get_subgroup_info(N);

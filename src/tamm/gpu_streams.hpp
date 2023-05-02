@@ -170,7 +170,7 @@ static inline void gpuStreamSynchronize(gpuStream_t stream) {
     cudaStreamSynchronize(stream);
 #endif
 }
-  
+
 static inline void gpuEventRecord(gpuEvent_t event, gpuStream_t stream) {
 #if defined(USE_DPCPP)
     // auto retEvent = stream.ext_oneapi_submit_barrier(event);
@@ -212,7 +212,6 @@ static inline void gpuEventSynchronize(gpuEvent_t event) {
 class GPUStreamPool {
 protected:
   bool _initialized{false};
-
   // default Device ID
   int default_deviceID{0};
 

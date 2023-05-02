@@ -1,17 +1,12 @@
 Index Spaces
 ====================
 
-Terminology
------------
 
-Index
-~~~~~
-
-``Index`` is an integral type to index into a tensor. Typically,
+An ``Index`` is an integral type to index into a tensor. Typically,
 an ``int`` or a typed version thereof.
 
 IndexSpace
-~~~~~~~~~~
+----------
 
 -  An index space maps the values (referred to as indices) in an
    integer interval to a collection of indices.
@@ -128,10 +123,9 @@ IndexSpace
    **NOTE:** An index space is treated as a read-only object after it is
    constructed.
 
---------------
 
 IndexSpace Specialization
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 -  **Attributes:** An index space might partition its indices into
    groups, each of which is associated with a set of attributes. All
@@ -178,6 +172,19 @@ IndexSpace Specialization
         // is17("alpha") => is15("alpha") + is16("alpha") ~ {25,...,49,75,...,99,125,...,149,175,...,199}
         // is17("beta")  => is15("beta") + is16("beta") ~ {0,...,24,50,...,74,100,...,124,...,150,...,174}
 
+
+Tiled Index Spaces
+------------------
+
+This section describes the ``TiledIndexSpace`` (both independent and dependent) as it will be used
+in ``Tensor`` construction. Given an ``IndexSpace`` and a tiling size (this can be single tile or
+a list of tile sizes with full coverage on the indices),
+``TiledIndexSpace``, is the tiled version of the index space where each
+tile has multiple indices. An ``IndexSpace`` is simply a single
+tiled ``TiledIndexSpace``. By default independent ``TiledIndexSpace``\ s
+(as well as ``TiledIndexLabel``\ s) are used to construct *dense*
+tensors.
+
 -  **TiledIndexSpace:** A tiled index space segments an index space.
    Specifically, it maps values (referred to as tile indices) in an
    integer to a index interval. A valid tiling ensures that all indices
@@ -211,6 +218,19 @@ IndexSpace Specialization
 
          // TiledIndexSpace construction with a set of tile sizes 
          TiledIndexSpace tis4{is1, {2,5,3}}  // tiles = [{0,1}, {2,3,4,5,6}, {7,8,9}]  && tile_sizes = [2,5,3]
+
+      .. code:: cpp
+
+         IndexSpace AUX_is{/*...*/}
+         IndexSpace AO_is{/*...*/};
+         IndexSpace MO_is{/*...*/};
+
+         size_t tile_size = /*some positive value*/;
+         std::vector<size_t> tile_sizes = {/*multiple positive values*/}; 
+
+         TiledIndexSpace AUX{AUX_is, tile_size};
+         TiledIndexSpace AO{AO_is, tile_size};
+         TiledIndexSpace MO{MO_is, tile_sizes};
 
    -  **Sub-space:** A TiledIndexSpace can be a constructed from
       another TiledIndexSpace by choosing a permuted sub-list of tiles
@@ -249,12 +269,33 @@ IndexSpace Specialization
          // Identifier "all" will implicitly return itself
          TiledIndexSpace& N = tis_mo("all");   // tis_mo("all")  =>  [{0,1,2},{3,4},{5,6,7},{8,9}]
 
+
+Dependent index space
+---------------------
+
 -  **Dependent index space:** An index space can depend on other tiled
    index spaces. In this case, the index space becomes a relation that,
    given a specific value of its dependent index space tiles, returns an
    index space. **Note that** the dependency map used to construct the
    dependent index space is based on tiles from a tiled index space to
    another index space.
+
+   Constructing sparse tensors needs extra information to represent the
+   sparsity as a dependency map between indices on different dimensions of
+   the tensors. For this purpose, TAMM has *dependent* ``TiledIndexSpace``
+   constructors, that will construct relation between different
+   ``TiledIndexSpace``\ s. The main constructor requires a reference
+   ``TiledIndexSpace`` which will be the root/parent for the constructed
+   relation. In other words this will be the **domain** of the dependency
+   relation, for each indices in the dependency relation the domain will be
+   a subset of this ``TiledIndexSpace``. Second argument for the
+   constructor is a set of ``TiledIndexSpace``\ s where the dependencies
+   are defined on, in other words this will be the **range** of the
+   dependency relation. And as the final argument for constructing the
+   dependent ``TiledIndexSpace`` is the dependency map description (of type
+   ``std::map<IndexVector, TiledIndexSpace>``). **Note that** the
+   dependency map is defined over the tile indices, not actual indices in
+   the ``IndexSpace`` definition.
 
    .. code:: cpp
 
@@ -315,8 +356,9 @@ IndexSpace Specialization
       // reference dependency relation in the parent TiledIndexSpace
       TiledIndexSpace sub_dep_tis{dep_tis, sub_relation};
 
-   .. rubric:: Labeling on TiledIndexSpaces
-      :name: labeling-on-tiledindexspaces
+
+Labeling on Tiled IndexSpaces
+------------------------------
 
 -  **TiledIndexLabel:** A TiledIndexLabel pairs a TiledIndexSpace with
    an integer label. These labels can be created using TiledIndexSpace

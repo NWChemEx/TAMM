@@ -394,7 +394,7 @@ TEST_CASE("Spin Tensor Construction") {
     TiledIndexSpace TIS{IS, 2};
 
     Tensor<T>        A{TIS, TIS};
-    ProcGroup        pg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup        pg = ProcGroup::create_world_coll();
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     A.allocate(&ec);
@@ -412,7 +412,7 @@ TEST_CASE("Spin Tensor Construction") {
     TiledIndexSpace MO{MO_IS, 2};
 
     Tensor<T>        C{AO, MO};
-    ProcGroup        pg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup        pg = ProcGroup::create_world_coll();
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     tamm::Scheduler  sch{ec};
 
@@ -602,7 +602,7 @@ TEST_CASE("GitHub Issues") {
 TEST_CASE("Slack Issues") {
   using tensor_type = Tensor<double>;
   std::cerr << "Slack Issue Start" << std::endl;
-  ProcGroup        pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
   Scheduler        sch{ec};
 
@@ -671,7 +671,7 @@ TEST_CASE("Slicing examples") {
   Tensor<double> A{tMOs};
   Tensor<double> B{tMOs, tMOs};
 
-  ProcGroup        pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   Scheduler sch{ec};
@@ -703,7 +703,7 @@ TEST_CASE("Fill tensors using lambda functions") {
   Tensor<double> A{tAOs, tAOs};
   Tensor<double> B{tMOs, tMOs};
 
-  ProcGroup        pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   A.allocate(&ec);
@@ -800,7 +800,7 @@ TEST_CASE("SCF Example Implementation") {
     tensor_type D{mu, nu_for_D(mu)};
     tensor_type C{X, mu, nu_for_C(mu)};
 
-    ProcGroup pg = ProcGroup::create_coll(GA_MPI_Comm());
+    ProcGroup pg = ProcGroup::create_world_coll();
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
     Scheduler sch{ec};
 
@@ -869,7 +869,7 @@ Tensor<T> cholesky(const Tensor<T>& tens) {
 
 TEST_CASE("Sample code for Local HF") {
   // TAMM Scheduler construction
-  ProcGroup        pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
   Scheduler        sch{ec};
 
@@ -1192,7 +1192,7 @@ TEST_CASE("Test case for getting ExecutionContext from a Tensor") {
   Tensor<double> T0{AO, AO};
   Tensor<double> T1{AO, AO};
 
-  ProcGroup        pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   T0.allocate(&ec);
@@ -1248,7 +1248,7 @@ TEST_CASE("Testing Dependent TiledIndexSpace contractions") {
   auto [mu_k, nu_j]   = MO_AO_2.labels<2>("all");
   auto [mu_nu, nu_mu] = MO_MO_1.labels<2>("all");
 
-  ProcGroup        pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
   Scheduler        sch{ec};
 
@@ -1306,7 +1306,7 @@ TEST_CASE("Test for apply_ewise") {
 
   Tensor<double> T{i, j};
 
-  ProcGroup        pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   Scheduler sch{ec};
@@ -1340,7 +1340,7 @@ TEST_CASE("Testing fill_sparse_tensor") {
   auto [mu, nu]     = MO.labels<2>("all");
   auto [mu_i, nu_i] = MO_AO_1.labels<2>("all");
 
-  ProcGroup        pg = ProcGroup::create_coll(GA_MPI_Comm());
+  ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
   Scheduler        sch{ec};
 

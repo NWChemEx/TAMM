@@ -68,13 +68,15 @@ In addition to the build options chosen, there are various build configurations 
 
 - :ref:`Build instructions for Summit using ESSL and UPC++ <build-summit-using-essl-and-upc++>`
 
-- :ref:`Build instructions for Crusher <build-crusher>`
+- :ref:`Build instructions for Frontier <build-frontier>`
 
 - :ref:`Build instructions for Perlmutter and Polaris <build-perlmutter-and-polaris>`
 
 - :ref:`Build instructions for Theta <build-theta>`
 
-- :ref:`Building the DPCPP code path using Intel OneAPI SDK <build-dpcpp-using-intel-oneapi-sdk>`
+- :ref:`SYCL build instructions <build-sycl>`
+
+- :ref:`Build instructions for Sunspot <build-sunspot>`
 
 
 
@@ -186,18 +188,15 @@ Build instructions for Summit using ESSL and UPC++
    UPCXX_CODEMODE=O3 make -j3
    UPCXX_CODEMODE=O3 make install
 
-.. _build-crusher:
+.. _build-frontier:
 
-Build instructions for Crusher
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Build instructions for Frontier
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
-   module load cmake
-   module load craype-accel-amd-gfx90a
-   module load PrgEnv-amd
-   module load rocm
-   module unload cray-libsci
+   module load cray-python cmake amd-mixed 
+   module load cray-hdf5-parallel
    export CRAYPE_LINK_TYPE=dynamic
    export HDF5_USE_FILE_LOCKING=FALSE
 
@@ -209,7 +208,8 @@ Build instructions for Crusher
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DGPU_ARCH=gfx90a \
    -DUSE_HIP=ON -DROCM_ROOT=$ROCM_PATH \
-   -DGCCROOT=/opt/cray/pe/gcc/10.3.0/snos ..
+   -DGCCROOT=/opt/cray/pe/gcc/10.3.0/snos \
+   -DHDF5_ROOT=$HDF5_ROOT ..
 
    make -j3
    make install
@@ -218,7 +218,7 @@ Build instructions for Crusher
 .. _build-perlmutter-and-polaris:
 
 Build instructions for Perlmutter and Polaris
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
@@ -270,10 +270,10 @@ Build instructions for Theta
    make -j3
    make install
 
-.. _build-dpcpp-using-intel-oneapi-sdk:
+.. _build-sycl:
 
-Build DPCPP code path using Intel OneAPI SDK
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+SYCL build instructions using Intel OneAPI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 -  ``MPI:`` Only tested using ``MPICH``.
 -  Set ROOT dir of the GCC installation (need gcc >= v9.1)
@@ -286,11 +286,55 @@ Build DPCPP code path using Intel OneAPI SDK
 
    cd $REPO_ROOT_PATH/build 
 
-   CC=icx CXX=dpcpp FC=ifx cmake \
+   CC=icx CXX=icpx FC=ifx cmake \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=/opt/oneapi/mkl/latest \
    -DUSE_DPCPP=ON -DGCCROOT=$GCC_ROOT_PATH \
-   -DTAMM_CXX_FLAGS="-fsycl-device-code-split=per_kernel"
+   -DTAMM_CXX_FLAGS="-fma -ffast-math -fsycl -fsycl-default-sub-group-size 16 -fsycl-unnamed-lambda -fsycl-device-code-split=per_kernel -sycl-std=2020"
+
+   make -j3
+   make install
+
+.. _build-sunspot:
+
+Build instructions for Sunspot
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+   module load spack cmake
+   module load mpich
+   ONEAPI_MPICH_GPU=NO_GPU module load oneapi/eng-compiler/2022.12.30.003
+   module load tools/xpu-smi/1.2.1
+   export GCC_ROOT_PATH=/opt/cray/pe/gcc/11.2.0/snos
+
+::
+
+   unset EnableWalkerPartition
+   export ZE_ENABLE_PCI_ID_DEVICE_ORDER=1
+   export ONEAPI_MPICH_GPU=NO_GPU
+   export MPIR_CVAR_ENABLE_GPU=0
+
+   export FI_CXI_DEFAULT_CQ_SIZE=131072
+   export FI_CXI_CQ_FILL_PERCENT=20
+
+   export SYCL_PROGRAM_COMPILE_OPTIONS=" -ze-opt-large-register-file -ze-opt-greater-than-4GB-buffer-required"
+   export SYCL_PI_LEVEL_ZERO_SINGLE_THREAD_MODE=1
+   export ZES_ENABLE_SYSMAN=1
+   export SYCL_CACHE_PERSISTENT=1
+   unset SYCL_DEVICE_FILTER
+   export ONEAPI_DEVICE_SELECTOR=level_zero:*
+   export SYCL_PI_LEVEL_ZERO_USE_IMMEDIATE_COMMANDLISTS=1
+
+::
+
+   cd $REPO_ROOT_PATH/build
+
+   CC=icx CXX=icpx FC=ifx cmake \
+   -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
+   -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=$MKLROOT \
+   -DUSE_DPCPP=ON -DGCCROOT=$GCC_ROOT_PATH \
+   -DTAMM_CXX_FLAGS="-fma -ffast-math -fsycl -fsycl-default-sub-group-size 16 -fsycl-unnamed-lambda -fsycl-device-code-split=per_kernel -sycl-std=2020"
 
    make -j3
    make install

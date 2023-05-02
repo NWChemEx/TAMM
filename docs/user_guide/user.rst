@@ -7,8 +7,11 @@ TAMM User Guide
     :caption: Contents
  
     index_spaces
-    tis_operations
     tensor_construction
     tensor_operations
     code_recipes
+
+..    
+    tis_operations
+
 

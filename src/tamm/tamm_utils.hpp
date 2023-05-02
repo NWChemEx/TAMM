@@ -3004,9 +3004,13 @@ Tensor<TensorType> tensor_block(Tensor<TensorType>& tensor, std::vector<int64_t>
   GA_Pgroup_set_default(ga_pg_default);
 #endif
 
-  if(!permute.empty()) btensor = permute_tensor<TensorType>(btensor, permute);
+  Tensor<TensorType> pbtensor = btensor;
+  if(!permute.empty()) {
+    pbtensor = permute_tensor<TensorType>(btensor, permute);
+    Tensor<TensorType>::deallocate(btensor);
+  }
 
-  return btensor; // Caller responsible for deallocating this tensor
+  return pbtensor; // Caller responsible for deallocating this tensor
 }
 
 inline TiledIndexLabel compose_lbl(const TiledIndexLabel& lhs, const TiledIndexLabel& rhs) {

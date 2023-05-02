@@ -13,6 +13,7 @@
 #include <rocblas.h>
 #elif defined(USE_DPCPP)
 #include "sycl_device.hpp"
+#include <oneapi/mkl/blas.hpp>
 #endif
 
 namespace tamm {
@@ -154,12 +155,22 @@ static inline void gpuStreamWaitEvent(gpuStream_t stream, gpuEvent_t event) {
     // retEvent.wait();
     event.wait();
 #elif defined(USE_HIP)
-    hipStreamWaitEvent(stream, event);
+    hipStreamWaitEvent(stream, event, 0);
 #elif defined(USE_CUDA)
-    cudaStreamWaitEvent(stream, event);
+    cudaStreamWaitEvent(stream, event, 0);
 #endif
 }
 
+static inline void gpuStreamSynchronize(gpuStream_t stream) {
+#if defined(USE_DPCPP)
+    stream.wait();
+#elif defined(USE_HIP)
+    hipStreamSynchronize(stream);
+#elif defined(USE_CUDA)
+    cudaStreamSynchronize(stream);
+#endif
+}
+  
 static inline void gpuEventRecord(gpuEvent_t event, gpuStream_t stream) {
 #if defined(USE_DPCPP)
     // auto retEvent = stream.ext_oneapi_submit_barrier(event);

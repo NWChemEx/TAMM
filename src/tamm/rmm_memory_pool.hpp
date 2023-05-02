@@ -4,39 +4,49 @@
 
 #include "tamm/mr/device_memory_resource.hpp"
 #include "tamm/mr/gpu_memory_resource.hpp"
+#include "tamm/mr/host_memory_resource.hpp"
+#include "tamm/mr/new_delete_resource.hpp"
 #include "tamm/mr/per_device_resource.hpp"
+#include "tamm/mr/pinned_memory_resource.hpp"
 #include "tamm/mr/pool_memory_resource.hpp"
 
 namespace tamm {
 
 class RMMMemoryManager {
 protected:
-    using device_pool_mr = rmm::mr::pool_memory_resource<rmm::mr::device_memory_resource>;
-    std::unique_ptr<device_pool_mr> deviceMR;
+  using device_pool_mr = rmm::mr::pool_memory_resource<rmm::mr::device_memory_resource>;
+  using host_pool_mr   = rmm::mr::pool_memory_resource<rmm::mr::host_memory_resource>;
+  std::unique_ptr<device_pool_mr> deviceMR;
+  std::unique_ptr<host_pool_mr>   hostMR;
+  std::unique_ptr<host_pool_mr>   pinnedHostMR;
 
 private:
-    RMMMemoryManager() {
-	size_t free{}, total{};
-	gpuMemGetInfo(&free, &total);
+  RMMMemoryManager() {
+    size_t free{}, total{};
+    gpuMemGetInfo(&free, &total);
 
-	// Allocate 45% of total free memory on GPU
-	// Similarly allocate the same size for the CPU pool too
-	// For the host-pinned memory allcoate 5% of the free memory reported
-	// Motivation: When 2 GA progress-ranks are used per GPU
-	// the GPU might furnish the memory-pools apporiately for each rank
-	size_t max_device_bytes = 0.40 * free;
-	size_t max_host_bytes = 0.40 * free;
-	size_t max_pinned_host_bytes = 0.05 * free;
+    // Allocate 45% of total free memory on GPU
+    // Similarly allocate the same size for the CPU pool too
+    // For the host-pinned memory allcoate 5% of the free memory reported
+    // Motivation: When 2 GA progress-ranks are used per GPU
+    // the GPU might furnish the memory-pools apporiately for each rank
+    size_t max_device_bytes      = 0.30 * free;
+    size_t max_host_bytes        = 0.30 * free;
+    size_t max_pinned_host_bytes = 0.05 * free;
 
-	deviceMR = std::make_unique<device_pool_mr>( rmm::mr::get_per_device_resource(0),
-						     max_device_bytes );
-    }
+    deviceMR = std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
+    hostMR   = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
+    pinnedHostMR =
+      std::make_unique<host_pool_mr>(new rmm::mr::pinned_memory_resource, max_pinned_host_bytes);
+  }
 
 public:
-  /// Returns a RMM or default pool handle
-  device_pool_mr& getMemoryPool() {
-      return *(deviceMR.get());
-  }
+  /// Returns a RMM device pool handle
+  device_pool_mr& getDeviceMemoryPool() { return *(deviceMR.get()); }
+  /// Returns a RMM host pool handle
+  host_pool_mr& getHostMemoryPool() { return *(hostMR.get()); }
+  /// Returns a RMM pinnedHost pool handle
+  host_pool_mr& getPinnedMemoryPool() { return *(pinnedHostMR.get()); }
 
   /// Returns the instance of device manager singleton.
   inline static RMMMemoryManager& getInstance() {

@@ -8,11 +8,14 @@ if(USE_CUDA OR USE_HIP OR USE_DPCPP)
     mr/aligned.hpp
     mr/gpu_memory_resource.hpp
     mr/device_memory_resource.hpp
+    mr/host_memory_resource.hpp
+    mr/pinned_memory_resource.hpp
+    mr/new_delete_resource.hpp
     mr/pool_memory_resource.hpp
     mr/coalescing_free_list.hpp
     mr/free_list.hpp
     mr/stream_ordered_memory_resource.hpp
-    mr/per_device_resource.hpp    
+    mr/per_device_resource.hpp
     rmm_memory_pool.hpp
   )
 endif()
@@ -29,7 +32,7 @@ set(TAMM_INCLUDES
     work.hpp
     tamm.hpp
     types.hpp
-    errors.hpp 
+    errors.hpp
     strong_num.hpp
     proc_grid.hpp
     boundvec.hpp
@@ -102,4 +105,3 @@ set(TAMM_CFLAGS )
 set(TAMM_LFLAGS )
 
 cmsb_add_library(tamm TAMM_SRCS TAMM_INCLUDES TAMM_CFLAGS TAMM_LFLAGS)
-

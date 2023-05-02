@@ -13,7 +13,6 @@
 #endif
 
 #include <map>
-#include <mutex>
 
 /**
  * @file per_device_resource.hpp
@@ -78,11 +77,6 @@ inline device_memory_resource* initial_resource() {
   return &mr;
 }
 
-inline std::mutex& map_lock() {
-  static std::mutex map_lock;
-  return map_lock;
-}
-
 // Must have default visibility, see: https://github.com/rapidsai/rmm/issues/826
 RMM_EXPORT inline auto& get_map() {
   static std::map<int, device_memory_resource*> device_id_to_resource;
@@ -113,78 +107,9 @@ RMM_EXPORT inline auto& get_map() {
  * @return Pointer to the current `device_memory_resource` for device `id`
  */
 inline device_memory_resource* get_per_device_resource(int device_id) {
-  std::lock_guard<std::mutex> lock{detail::map_lock()};
   auto&                       map = detail::get_map();
   // If a resource was never set for `id`, set to the initial resource
   auto const found = map.find(device_id);
   return (found == map.end()) ? (map[device_id] = detail::initial_resource()) : found->second;
-}
-
-/**
- * @brief Set the `device_memory_resource` for the specified device.
- *
- * If `new_mr` is not `nullptr`, sets the memory resource pointer for the device specified by `id`
- * to `new_mr`. Otherwise, resets `id`s resource to the initial `gpu_memory_resource`.
- *
- * `id.value()` must be in the range `[0, cudaGetDeviceCount())`, otherwise behavior is undefined.
- *
- * The object pointed to by `new_mr` must outlive the last use of the resource, otherwise behavior
- * is undefined. It is the caller's responsibility to maintain the lifetime of the resource
- * object.
- *
- * This function is thread-safe with respect to concurrent calls to `set_per_device_resource`,
- * `get_per_device_resource`, `get_current_device_resource`, and `set_current_device_resource`.
- * Concurrent calls to any of these functions will result in a valid state, but the order of
- * execution is undefined.
- *
- * @note The resource passed in `new_mr` must have been created when device `id` was the current
- * CUDA device (e.g. set using `cudaSetDevice()`). The behavior of a device_memory_resource is
- * undefined if used while the active CUDA device is a different device from the one that was active
- * when the device_memory_resource was created.
- *
- * @param id The id of the target device
- * @param new_mr If not `nullptr`, pointer to new `device_memory_resource` to use as new resource
- * for `id`
- * @return Pointer to the previous memory resource for `id`
- */
-inline device_memory_resource* set_per_device_resource(int                     device_id,
-                                                       device_memory_resource* new_mr) {
-  std::lock_guard<std::mutex> lock{detail::map_lock()};
-  auto&                       map     = detail::get_map();
-  auto const                  old_itr = map.find(device_id);
-  // If a resource didn't previously exist for `id`, return pointer to initial_resource
-  auto* old_mr   = (old_itr == map.end()) ? detail::initial_resource() : old_itr->second;
-  map[device_id] = (new_mr == nullptr) ? detail::initial_resource() : new_mr;
-  return old_mr;
-}
-
-/**
- * @brief Set the memory resource for the current device.
- *
- * If `new_mr` is not `nullptr`, sets the resource pointer for the current device to
- * `new_mr`. Otherwise, resets the resource to the initial `gpu_memory_resource`.
- *
- * The "current device" is the device returned by `cudaGetDevice`.
- *
- * The object pointed to by `new_mr` must outlive the last use of the resource, otherwise behavior
- * is undefined. It is the caller's responsibility to maintain the lifetime of the resource
- * object.
- *
- * This function is thread-safe with respect to concurrent calls to `set_per_device_resource`,
- * `get_per_device_resource`, `get_current_device_resource`, and `set_current_device_resource`.
- * Concurrent calls to any of these functions will result in a valid state, but the order of
- * execution is undefined.
- *
- * @note The resource passed in `new_mr` must have been created for the current CUDA device. The
- * behavior of a device_memory_resource is undefined if used while the active CUDA device is a
- * different device from the one that was active when the device_memory_resource was created.
- *
- * @param new_mr If not `nullptr`, pointer to new resource to use for the current device
- * @return Pointer to the previous resource for the current device
- */
-inline device_memory_resource* set_current_device_resource(device_memory_resource* new_mr) {
-  int currentDeviceId{-1};
-  gpuGetDevice(&currentDeviceId);
-  return set_per_device_resource(currentDeviceId, new_mr);
 }
 } // namespace tamm::rmm::mr

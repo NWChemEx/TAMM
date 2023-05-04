@@ -26,8 +26,7 @@ namespace kernels {
 
 template<typename T2, typename T3>
 void copy_data_to_gpu(bool& isgpuOp, gpuStream_t& thandle, const T2* ainter_buf, size_t asize,
-                      T2* ainter_buf_dev, const T3* binter_buf, size_t bsize,
-                      T3* binter_buf_dev) {
+                      T2* ainter_buf_dev, const T3* binter_buf, size_t bsize, T3* binter_buf_dev) {
   if(!isgpuOp) return;
 
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
@@ -143,16 +142,24 @@ void copy_result_to_host(ExecutionHW hw, gpuStream_t& thandle, T1* cinter_buf,
 template<typename T>
 void allocate_host_buffers(ExecutionHW hw, bool isgpuOp, T*& host_buf, size_t buf_size) {
   if(hw != ExecutionHW::GPU || !isgpuOp) {
-    auto& memPool = RMMMemoryManager::getInstance().getHostMemoryPool();
-    host_buf      = static_cast<T*>(memPool.allocate(buf_size * sizeof(T)));
+    if(buf_size == 1) { // scalar value, allocate it on stack
+      T stack_var{0};
+      host_buf = &stack_var;
+    }
+    else {
+      auto& memPool = RMMMemoryManager::getInstance().getHostMemoryPool();
+      host_buf      = static_cast<T*>(memPool.allocate(buf_size * sizeof(T)));
+    }
   }
 }
 
 template<typename T>
-void free_host_buffers(ExecutionHW hw, bool isgpuOp, T* host_buf, std::size_t buf_size) {
+void free_host_buffers(ExecutionHW hw, bool isgpuOp, T*& host_buf, std::size_t buf_size) {
   if(hw != ExecutionHW::GPU || !isgpuOp) {
-    auto& memPool = RMMMemoryManager::getInstance().getHostMemoryPool();
-    memPool.deallocate(host_buf, buf_size * sizeof(T));
+    if(buf_size != 1) { // vars not allocated on stack
+      auto& memPool = RMMMemoryManager::getInstance().getHostMemoryPool();
+      memPool.deallocate(host_buf, buf_size * sizeof(T));
+    }
   }
 }
 
@@ -166,7 +173,7 @@ void allocate_device_buffers(ExecutionHW hw, T*& dev_buf, size_t buf_size) {
 }
 
 template<typename T>
-void free_device_buffers(ExecutionHW hw, T* dev_buf, std::size_t buf_size) {
+void free_device_buffers(ExecutionHW hw, T*& dev_buf, std::size_t buf_size) {
   if(hw != ExecutionHW::GPU) return;
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
   auto& memPool = RMMMemoryManager::getInstance().getDeviceMemoryPool();
@@ -264,7 +271,7 @@ bool transpose_inputs(bool& isgpuOp, gpuStream_t& thandle, T2* ainter_buf,
 }
 
 template<typename T1>
-void transpose_output(bool& isgpuOp, gpuStream_t& thandle, bool gpu_trans, T1* cinter_buf,
+void transpose_output(bool& isgpuOp, gpuStream_t& thandle, bool gpu_trans, T1*& cinter_buf,
                       const SizeVec& cinter_dims, const IntLabelVec& cinter_labels, T1* cbuf,
                       const SizeVec& cdims, const IntLabelVec& clabels, T1* cinter_buf_dev,
                       T1* cinter_tmp_buf_dev, bool is_assign) {
@@ -412,8 +419,14 @@ void block_multiply(bool isgpuOp,
 
   auto bmult_lambda = [&]() {
     bool gpu_trans = false;
-    T1*  cinter_buf{nullptr};
-    allocate_host_buffers(hw, isgpuOp, cinter_buf, csize.value());
+
+    T1* cinter_buf{nullptr};
+    allocate_host_buffers(hw, isgpuOp, cinter_buf, static_cast<size_t>(csize.value()));
+    if(hw != ExecutionHW::GPU || !isgpuOp) {
+      if(csize.value() != 1)
+        std::memset(static_cast<void*>(cinter_buf), 0,
+                    static_cast<size_t>(csize.value() * sizeof(T1)));
+    }
 
     T2* ainter_buf_dev{nullptr};
     T3* binter_buf_dev{nullptr};
@@ -428,7 +441,6 @@ void block_multiply(bool isgpuOp,
       T3* binter_buf{nullptr};
       allocate_host_buffers(hw, isgpuOp, ainter_buf, asize.value());
       allocate_host_buffers(hw, isgpuOp, binter_buf, bsize.value());
-
       gpu_trans = transpose_inputs(isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                    asize.value(), adims, alabels, binter_buf, binter_dims,
                                    binter_labels, bbuf, bsize.value(), bdims, blabels,

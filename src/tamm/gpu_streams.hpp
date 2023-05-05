@@ -1,7 +1,7 @@
 #pragma once
 
 #include "tamm/errors.hpp"
-#include <map>
+#include <vector>
 
 #if defined(USE_CUDA)
 #include <cublas_v2.h>
@@ -211,19 +211,18 @@ static inline void gpuEventSynchronize(gpuEvent_t event) {
 
 class GPUStreamPool {
 protected:
-  bool _initialized{false};
-  // default Device ID
   int default_deviceID{0};
+  int nstreams{4};
 
   // GPU stream
-  gpuStream_t* _devStream{nullptr};
+  std::vector<gpuStream_t*> _devStream;
 #if defined(USE_CUDA) || defined(USE_HIP)
   // blashandle
-  gpuBlasHandle_t* _devHandle{nullptr};
+  std::vector<gpuBlasHandle_t*> _devHandle;
 #endif
 
 private:
-  GPUStreamPool() {
+    GPUStreamPool() : _devStream(nstreams), _devHandle(nstreams) {
     // Assert here if multi-GPUs are detected
     int ngpus{0};
     getDeviceCount(&ngpus);
@@ -231,53 +230,52 @@ private:
 
     gpuSetDevice(default_deviceID);
 
+    for (int j=0; j<nstreams; j++) {
 #if defined(USE_CUDA)
-    _devStream = new cudaStream_t;
-    CUDA_CHECK(cudaStreamCreateWithFlags(_devStream, cudaStreamNonBlocking));
+	_devStream[j] = new cudaStream_t;
+	CUDA_CHECK(cudaStreamCreateWithFlags(_devStream[j], cudaStreamNonBlocking));
 
-    _devHandle = new gpuBlasHandle_t;
-    CUBLAS_CHECK(cublasCreate(_devHandle));
-    CUBLAS_CHECK(cublasSetStream(*_devHandle, *_devStream));
+	_devHandle[j] = new gpuBlasHandle_t;
+	CUBLAS_CHECK(cublasCreate(_devHandle[j]));
+	CUBLAS_CHECK(cublasSetStream(*_devHandle[j], *_devStream[j]));
 #elif defined(USE_HIP)
-    _devStream = new hipStream_t;
-    HIP_CHECK(hipStreamCreateWithFlags(_devStream, hipStreamNonBlocking));
+	_devStream[j] = new hipStream_t;
+	HIP_CHECK(hipStreamCreateWithFlags(_devStream[j], hipStreamNonBlocking));
 
-    _devHandle = new gpuBlasHandle_t;
-    ROCBLAS_CHECK(rocblas_create_handle(_devHandle));
-    ROCBLAS_CHECK(rocblas_set_stream(*_devHandle, *_devStream));
+	_devHandle[j] = new gpuBlasHandle_t;
+	ROCBLAS_CHECK(rocblas_create_handle(_devHandle[j]));
+	ROCBLAS_CHECK(rocblas_set_stream(*_devHandle[j], *_devStream[j]));
 #elif defined(USE_DPCPP)
-    _devStream = new sycl::queue(*sycl_get_context(default_deviceID),
-                                 *sycl_get_device(default_deviceID), sycl_asynchandler,
-                                 sycl::property_list{sycl::property::queue::in_order{}});
+	_devStream[j] = new sycl::queue(*sycl_get_context(default_deviceID),
+					*sycl_get_device(default_deviceID), sycl_asynchandler,
+					sycl::property_list{sycl::property::queue::in_order{}});
 #endif
-
-    _initialized = true;
+    }
   }
 
   ~GPUStreamPool() {
-    _initialized = false;
-
+    for (int j=0; j<nstreams; j++) {
 #if defined(USE_CUDA)
-    CUDA_CHECK(cudaStreamDestroy(*_devStream));
-    CUBLAS_CHECK(cublasDestroy(*_devHandle));
-    _devHandle = nullptr;
+	CUDA_CHECK(cudaStreamDestroy(*_devStream[j]));
+	CUBLAS_CHECK(cublasDestroy(*_devHandle[j]));
+	_devHandle[j] = nullptr;
 #elif defined(USE_HIP)
-    HIP_CHECK(hipStreamDestroy(*_devStream));
-    ROCBLAS_CHECK(rocblas_destroy_handle(*_devHandle));
-    _devHandle = nullptr;
+	HIP_CHECK(hipStreamDestroy(*_devStream[j]));
+	ROCBLAS_CHECK(rocblas_destroy_handle(*_devHandle[j]));
+	_devHandle[j] = nullptr;
 #elif defined(USE_DPCPP)
-    delete _devStream;
+	delete _devStream[j];
 #endif
-    _devStream = nullptr;
+    }
   }
 
 public:
   /// Returns a GPU stream
-  gpuStream_t& getStream() { return *_devStream; }
+  gpuStream_t& getStream() { return *_devStream[0]; }
 
 #if !defined(USE_DPCPP)
   /// Returns a GPU BLAS handle that is valid only for the CUDA and HIP builds
-  gpuBlasHandle_t& getBlasHandle() { return *_devHandle; }
+  gpuBlasHandle_t& getBlasHandle() { return *_devHandle[0]; }
 #endif
 
   /// Returns the instance of device manager singleton.

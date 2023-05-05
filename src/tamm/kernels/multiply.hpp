@@ -8,6 +8,7 @@
 #include <complex>
 #include <numeric>
 #include <vector>
+#include <cstring>
 
 #include "ga/ga_linalg.h"
 

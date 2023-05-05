@@ -7,6 +7,7 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <cstring>
 
 // #include "tamm/block_operations.hpp"
 #include "tamm/block_mult_plan.hpp"

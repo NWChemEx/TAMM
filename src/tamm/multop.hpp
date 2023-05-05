@@ -173,19 +173,18 @@ namespace tamm {
 template<typename T1, typename T2, typename T3>
 struct AddBuf {
   // AddBuf() = default;
-  AddBuf(bool isgpu, gpuStream_t* tt, T2* ta, T3* tb, T1* tc, T1* cbuf, const IndexVector& blockid):
-    blockid_{blockid}, cbuf_{cbuf}, thandle_{tt}, ta_{ta}, tb_{tb}, tc_{tc}, isgpu_{isgpu} {}
+  AddBuf(bool isgpu, T2* ta, T3* tb, T1* tc, T1* cbuf, const IndexVector& blockid):
+    blockid_{blockid}, cbuf_{cbuf}, ta_{ta}, tb_{tb}, tc_{tc}, isgpu_{isgpu} {}
   ~AddBuf() {}
 
-  T1*          cbuf_;
-  T2*          abuf_;
-  T3*          bbuf_;
-  IndexVector  blockid_;
-  bool         isgpu_;
-  gpuStream_t* thandle_;
-  T2*          ta_;
-  T3*          tb_;
-  T1*          tc_;
+  T1*         cbuf_;
+  T2*         abuf_;
+  T3*         bbuf_;
+  IndexVector blockid_;
+  bool        isgpu_;
+  T2*         ta_;
+  T3*         tb_;
+  T1*         tc_;
 };
 #else
 template<typename T1, typename T2, typename T3>
@@ -400,7 +399,7 @@ public:
          !btensor.is_non_zero(translated_bblockid))
         return;
 
-      auto& memHostPool = RMMMemoryManager::getInstance().getHostMemoryPool();
+      auto& memHostPool   = RMMMemoryManager::getInstance().getHostMemoryPool();
       auto& memDevicePool = RMMMemoryManager::getInstance().getDeviceMemoryPool();
 
       {
@@ -465,9 +464,8 @@ public:
         AddBuf<TensorElType1, TensorElType2, TensorElType3>* ab{nullptr};
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
-          isgpu, &thandle, th_a, th_b, th_c, cbuf, translated_cblockid};
+          isgpu, th_a, th_b, th_c, cbuf, translated_cblockid};
 #else
-        gpuStream_t thandle{};
         ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{isgpu, ctensor, cbuf,
                                                                      translated_cblockid};
 #endif
@@ -636,7 +634,7 @@ public:
     int64_t n_lhs_blocks, nranks_per_lhs_block, lhs_counter;
 #endif
 
-    auto& memHostPool = RMMMemoryManager::getInstance().getHostMemoryPool();
+    auto& memHostPool   = RMMMemoryManager::getInstance().getHostMemoryPool();
     auto& memDevicePool = RMMMemoryManager::getInstance().getDeviceMemoryPool();
 
     // function to compute one block
@@ -662,35 +660,25 @@ public:
 
       bool isgpu = false;
 
+      AddBuf<TensorElType1, TensorElType2, TensorElType3>* ab{nullptr};
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       TensorElType2* th_a{nullptr};
       TensorElType3* th_b{nullptr};
       TensorElType1* th_c{nullptr};
       auto&          thandle = GPUStreamPool::getInstance().getStream();
 
-      AddBuf<TensorElType1, TensorElType2, TensorElType3>* ab{nullptr};
-      if(hw == ExecutionHW::GPU) {
-        ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
-          isgpu, &thandle, th_a, th_b, th_c, {}, translated_cblockid};
-      }
-      else {
-        ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
-          isgpu, &thandle, th_a, th_b, th_c, {}, translated_cblockid};
-      }
+      ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
+        isgpu, th_a, th_b, th_c, {}, translated_cblockid};
       add_bufs.push_back(ab);
 #else
-      gpuStream_t                                          thandle{};
-      AddBuf<TensorElType1, TensorElType2, TensorElType3>* ab =
-        new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
-          isgpu, ctensor, {}, translated_cblockid};
+      ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
+        isgpu, ctensor, {}, translated_cblockid};
       add_bufs.push_back(ab);
 #endif
 
       {
         // LabelLoopNest inner_loop{reduction_lbls};
         LabelLoopNest inner_loop{reduction_labels};
-
-        // TimerGuard tg_total{&oprof.multOpTime};
 
         int loop_counter = 0;
 #if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)

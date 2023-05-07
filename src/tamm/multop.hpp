@@ -4,10 +4,10 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <vector>
-#include <cstring>
 
 // #include "tamm/block_operations.hpp"
 #include "tamm/block_mult_plan.hpp"
@@ -174,15 +174,14 @@ namespace tamm {
 template<typename T1, typename T2, typename T3>
 struct AddBuf {
   // AddBuf() = default;
-  AddBuf(bool isgpu, T2* ta, T3* tb, T1* tc, T1* cbuf, const IndexVector& blockid):
-    blockid_{blockid}, cbuf_{cbuf}, ta_{ta}, tb_{tb}, tc_{tc}, isgpu_{isgpu} {}
+  AddBuf(T2* ta, T3* tb, T1* tc, T1* cbuf, const IndexVector& blockid):
+    blockid_{blockid}, cbuf_{cbuf}, ta_{ta}, tb_{tb}, tc_{tc} {}
   ~AddBuf() {}
 
   T1*         cbuf_;
   T2*         abuf_;
   T3*         bbuf_;
   IndexVector blockid_;
-  bool        isgpu_;
   T2*         ta_;
   T3*         tb_;
   T1*         tc_;
@@ -191,8 +190,8 @@ struct AddBuf {
 template<typename T1, typename T2, typename T3>
 struct AddBuf {
   // AddBuf() = default;
-  AddBuf(bool isgpu, Tensor<T1> tensor, T1* cbuf, const IndexVector& blockid):
-    tensor_{tensor}, blockid_{blockid}, cbuf_{cbuf}, isgpu_{isgpu} {}
+  AddBuf(Tensor<T1> tensor, T1* cbuf, const IndexVector& blockid):
+    tensor_{tensor}, blockid_{blockid}, cbuf_{cbuf} {}
   ~AddBuf() { assert(nbhdl_.getCompletionStatus() == true); }
   bool is_done() { return true; }
   void wait() {
@@ -203,7 +202,6 @@ struct AddBuf {
   T2*                     abuf_;
   T3*                     bbuf_;
   IndexVector             blockid_;
-  bool                    isgpu_;
   Tensor<T1>              tensor_;
   DataCommunicationHandle nbhdl_;
 };
@@ -460,14 +458,13 @@ public:
 
         auto& thandle = GPUStreamPool::getInstance().getStream();
 #endif
-        bool isgpu = false;
 
         AddBuf<TensorElType1, TensorElType2, TensorElType3>* ab{nullptr};
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-        ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
-          isgpu, th_a, th_b, th_c, cbuf, translated_cblockid};
+        ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{th_a, th_b, th_c, cbuf,
+                                                                     translated_cblockid};
 #else
-        ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{isgpu, ctensor, cbuf,
+        ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{ctensor, cbuf,
                                                                      translated_cblockid};
 #endif
         add_bufs.push_back(ab);
@@ -491,13 +488,11 @@ public:
 #endif
           TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
           kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
-            ab->isgpu_,
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-            th_a, th_b,
+            th_a, th_b, thandle,
 #endif
-            thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
-            cscale, ab->cbuf_, cdims_sz, lhs_int_labels_, hw, ec.has_gpu(), true, cbuf_dev_ptr,
-            cbuf_tmp_dev_ptr);
+            alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_, cscale,
+            ab->cbuf_, cdims_sz, lhs_int_labels_, hw, true, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
 
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
           if(hw == ExecutionHW::GPU) {
@@ -659,8 +654,6 @@ public:
       SizeVec cdims_sz;
       for(const auto v: cdims) { cdims_sz.push_back(v); }
 
-      bool isgpu = false;
-
       AddBuf<TensorElType1, TensorElType2, TensorElType3>* ab{nullptr};
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       TensorElType2* th_a{nullptr};
@@ -669,11 +662,11 @@ public:
       auto&          thandle = GPUStreamPool::getInstance().getStream();
 
       ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
-        isgpu, th_a, th_b, th_c, {}, translated_cblockid};
+        th_a, th_b, th_c, {}, translated_cblockid};
       add_bufs.push_back(ab);
 #else
-      ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
-        isgpu, ctensor, {}, translated_cblockid};
+      ab =
+        new AddBuf<TensorElType1, TensorElType2, TensorElType3>{ctensor, {}, translated_cblockid};
       add_bufs.push_back(ab);
 #endif
 
@@ -797,13 +790,12 @@ public:
 
             TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
             kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
-              abptr->isgpu_,
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-              abptr->ta_, abptr->tb_,
+              abptr->ta_, abptr->tb_, thandle,
 #endif
-              thandle, alpha_, abptr->abuf_, adims_sz, rhs1_int_labels_, abptr->bbuf_, bdims_sz,
-              rhs2_int_labels_, cscale, cbuf, cdims_sz, lhs_int_labels_, hw, ec.has_gpu(), false,
-              cbuf_dev_ptr, cbuf_tmp_dev_ptr);
+              alpha_, abptr->abuf_, adims_sz, rhs1_int_labels_, abptr->bbuf_, bdims_sz,
+              rhs2_int_labels_, cscale, cbuf, cdims_sz, lhs_int_labels_, hw, false, cbuf_dev_ptr,
+              cbuf_tmp_dev_ptr);
 
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
             if(hw == ExecutionHW::GPU) {

@@ -94,6 +94,17 @@ auto sycl_asynchandler = [](sycl::exception_list exceptions) {
     }
   }
 };
+
+#define ONEMKLBLAS_CHECK(err)                                                                  \
+  do {                                                                                         \
+    try {                                                                                      \
+      (err)                                                                                    \
+    } catch(oneapi::mkl::exception const& ex) {                                                \
+      std::printf("onemklblas Exception code: %s at %s : %dn", ex.what(), __FILE__, __LINE__); \
+      throw std::runtime_error("onemklblas runtime error");                                    \
+    }                                                                                          \
+  } while(0)
+
 #endif
 
 static inline void getDeviceCount(int* id) {
@@ -151,61 +162,61 @@ static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kin
 
 static inline void gpuStreamWaitEvent(gpuStream_t stream, gpuEvent_t event) {
 #if defined(USE_DPCPP)
-    auto retEvent = stream.ext_oneapi_submit_barrier(event);
-    // retEvent.wait();
-    event.wait();
+  auto retEvent = stream.ext_oneapi_submit_barrier(event);
+  // retEvent.wait();
+  event.wait();
 #elif defined(USE_HIP)
-    hipStreamWaitEvent(stream, event, 0);
+  hipStreamWaitEvent(stream, event, 0);
 #elif defined(USE_CUDA)
-    cudaStreamWaitEvent(stream, event, 0);
+  cudaStreamWaitEvent(stream, event, 0);
 #endif
 }
 
 static inline void gpuStreamSynchronize(gpuStream_t stream) {
 #if defined(USE_DPCPP)
-    stream.wait();
+  stream.wait();
 #elif defined(USE_HIP)
-    hipStreamSynchronize(stream);
+  hipStreamSynchronize(stream);
 #elif defined(USE_CUDA)
-    cudaStreamSynchronize(stream);
+  cudaStreamSynchronize(stream);
 #endif
 }
 
 static inline void gpuEventRecord(gpuEvent_t event, gpuStream_t stream) {
 #if defined(USE_DPCPP)
-    // auto retEvent = stream.ext_oneapi_submit_barrier(event);
-    // retEvent.wait();
-    event.wait();
+  // auto retEvent = stream.ext_oneapi_submit_barrier(event);
+  // retEvent.wait();
+  event.wait();
 #elif defined(USE_HIP)
-    hipEventRecord(event, stream);
+  hipEventRecord(event, stream);
 #elif defined(USE_CUDA)
-    cudaEventRecord(event, stream);
+  cudaEventRecord(event, stream);
 #endif
 }
 
 static inline void gpuEventCreateWithFlags(gpuEvent_t* event) {
 #if defined(USE_HIP)
-    hipEventCreateWithFlags(event, hipEventDisableTiming);
+  hipEventCreateWithFlags(event, hipEventDisableTiming);
 #elif defined(USE_CUDA)
-    cudaEventCreateWithFlags(event, cudaEventDisableTiming);
+  cudaEventCreateWithFlags(event, cudaEventDisableTiming);
 #endif
 }
 
 static inline void gpuEventDestroy(gpuEvent_t event) {
 #if defined(USE_HIP)
-    hipEventDestroy(event);
+  hipEventDestroy(event);
 #elif defined(USE_CUDA)
-    cudaEventDestroy(event);
+  cudaEventDestroy(event);
 #endif
 }
 
 static inline void gpuEventSynchronize(gpuEvent_t event) {
 #if defined(USE_DPCPP)
-    event.wait();
+  event.wait();
 #elif defined(USE_HIP)
-    hipEventSynchronize(event);
+  hipEventSynchronize(event);
 #elif defined(USE_CUDA)
-    cudaEventSynchronize(event);
+  cudaEventSynchronize(event);
 #endif
 }
 
@@ -222,7 +233,7 @@ protected:
 #endif
 
 private:
-    GPUStreamPool() : _devStream(nstreams), _devHandle(nstreams) {
+  GPUStreamPool(): _devStream(nstreams), _devHandle(nstreams) {
     // Assert here if multi-GPUs are detected
     int ngpus{0};
     getDeviceCount(&ngpus);
@@ -230,41 +241,41 @@ private:
 
     gpuSetDevice(default_deviceID);
 
-    for (int j=0; j<nstreams; j++) {
+    for(int j = 0; j < nstreams; j++) {
 #if defined(USE_CUDA)
-	_devStream[j] = new cudaStream_t;
-	CUDA_CHECK(cudaStreamCreateWithFlags(_devStream[j], cudaStreamNonBlocking));
+      _devStream[j] = new cudaStream_t;
+      CUDA_CHECK(cudaStreamCreateWithFlags(_devStream[j], cudaStreamNonBlocking));
 
-	_devHandle[j] = new gpuBlasHandle_t;
-	CUBLAS_CHECK(cublasCreate(_devHandle[j]));
-	CUBLAS_CHECK(cublasSetStream(*_devHandle[j], *_devStream[j]));
+      _devHandle[j] = new gpuBlasHandle_t;
+      CUBLAS_CHECK(cublasCreate(_devHandle[j]));
+      CUBLAS_CHECK(cublasSetStream(*_devHandle[j], *_devStream[j]));
 #elif defined(USE_HIP)
-	_devStream[j] = new hipStream_t;
-	HIP_CHECK(hipStreamCreateWithFlags(_devStream[j], hipStreamNonBlocking));
+      _devStream[j] = new hipStream_t;
+      HIP_CHECK(hipStreamCreateWithFlags(_devStream[j], hipStreamNonBlocking));
 
-	_devHandle[j] = new gpuBlasHandle_t;
-	ROCBLAS_CHECK(rocblas_create_handle(_devHandle[j]));
-	ROCBLAS_CHECK(rocblas_set_stream(*_devHandle[j], *_devStream[j]));
+      _devHandle[j] = new gpuBlasHandle_t;
+      ROCBLAS_CHECK(rocblas_create_handle(_devHandle[j]));
+      ROCBLAS_CHECK(rocblas_set_stream(*_devHandle[j], *_devStream[j]));
 #elif defined(USE_DPCPP)
-	_devStream[j] = new sycl::queue(*sycl_get_context(default_deviceID),
-					*sycl_get_device(default_deviceID), sycl_asynchandler,
-					sycl::property_list{sycl::property::queue::in_order{}});
+      _devStream[j] = new sycl::queue(*sycl_get_context(default_deviceID),
+                                      *sycl_get_device(default_deviceID), sycl_asynchandler,
+                                      sycl::property_list{sycl::property::queue::in_order{}});
 #endif
     }
   }
 
   ~GPUStreamPool() {
-    for (int j=0; j<nstreams; j++) {
+    for(int j = 0; j < nstreams; j++) {
 #if defined(USE_CUDA)
-	CUDA_CHECK(cudaStreamDestroy(*_devStream[j]));
-	CUBLAS_CHECK(cublasDestroy(*_devHandle[j]));
-	_devHandle[j] = nullptr;
+      CUDA_CHECK(cudaStreamDestroy(*_devStream[j]));
+      CUBLAS_CHECK(cublasDestroy(*_devHandle[j]));
+      _devHandle[j] = nullptr;
 #elif defined(USE_HIP)
-	HIP_CHECK(hipStreamDestroy(*_devStream[j]));
-	ROCBLAS_CHECK(rocblas_destroy_handle(*_devHandle[j]));
-	_devHandle[j] = nullptr;
+      HIP_CHECK(hipStreamDestroy(*_devStream[j]));
+      ROCBLAS_CHECK(rocblas_destroy_handle(*_devHandle[j]));
+      _devHandle[j] = nullptr;
 #elif defined(USE_DPCPP)
-	delete _devStream[j];
+      delete _devStream[j];
 #endif
     }
   }
@@ -289,7 +300,6 @@ public:
   GPUStreamPool(GPUStreamPool&&)                 = delete;
   GPUStreamPool& operator=(GPUStreamPool&&)      = delete;
 };
-
 
 // This API needs to be defined after the class GPUStreamPool since the classs
 // is only declared and defined before this method

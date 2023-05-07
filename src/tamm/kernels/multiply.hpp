@@ -6,9 +6,9 @@
 
 #include <algorithm>
 #include <complex>
+#include <cstring>
 #include <numeric>
 #include <vector>
-#include <cstring>
 
 #include "ga/ga_linalg.h"
 
@@ -288,16 +288,16 @@ void transpose_output(bool& isgpuOp, gpuStream_t& thandle, bool gpu_trans, T1*& 
 }
 
 template<typename T, typename T1, typename T2, typename T3>
-void block_multiply(bool isgpuOp,
+void block_multiply(
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-                    T2* th_a, T3* th_b,
+                    T2* th_a, T3* th_b, gpuStream_t& thandle,
 #endif
-                    gpuStream_t& thandle, T alpha, const T2* abuf, const SizeVec& adims,
-                    const IntLabelVec& alabels, const T3* bbuf, const SizeVec& bdims,
-                    const IntLabelVec& blabels, T beta, T1* cbuf, const SizeVec& cdims,
-                    const IntLabelVec& clabels, ExecutionHW hw, bool has_gpu, bool is_assign,
-                    T1* cinter_buf_dev, T1* cinter_tmp_buf_dev) {
+                    T alpha, const T2* abuf, const SizeVec& adims, const IntLabelVec& alabels,
+                    const T3* bbuf, const SizeVec& bdims, const IntLabelVec& blabels, T beta,
+                    T1* cbuf, const SizeVec& cdims, const IntLabelVec& clabels, ExecutionHW hw,
+                    bool is_assign, T1* cinter_buf_dev, T1* cinter_tmp_buf_dev) {
 
+  bool isgpuOp{false};
   if(hw == ExecutionHW::GPU) isgpuOp = true;
   const Size asize = std::accumulate(adims.begin(), adims.end(), Size{1}, std::multiplies<Size>());
   const Size bsize = std::accumulate(bdims.begin(), bdims.end(), Size{1}, std::multiplies<Size>());

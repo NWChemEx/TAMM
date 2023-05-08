@@ -57,7 +57,6 @@ class new_delete_resource final : public host_memory_resource {
                   ? alignment
                   : rmm::detail::RMM_DEFAULT_HOST_ALIGNMENT;
 
-    std::cout << "allocating host memory from new_delete_resource: " << bytes << std::endl;
     return rmm::detail::aligned_allocate(
       bytes, alignment, [](std::size_t size) { return ::operator new(size); });
   }
@@ -81,7 +80,6 @@ class new_delete_resource final : public host_memory_resource {
                      std::size_t bytes,
                      std::size_t alignment = rmm::detail::RMM_DEFAULT_HOST_ALIGNMENT) override
   {
-    std::cout << "deallocating host memory from new_delete_resource: " << bytes << std::endl;    
     rmm::detail::aligned_deallocate(
       ptr, bytes, alignment, [](void* ptr) { ::operator delete(ptr); });
   }

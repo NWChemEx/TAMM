@@ -27,24 +27,26 @@ using gpuMemcpyKind   = hipMemcpyKind;
 #define gpuMemcpyDeviceToHost hipMemcpyDeviceToHost
 #define gpuMemcpyDeviceToDevice hipMemcpyDeviceToDevice
 
-#define HIP_CHECK(err)                                                                      \
-  do {                                                                                      \
-    hipError_t err_ = (err);                                                                \
-    if(err_ != hipSuccess) {                                                                \
-      std::printf("HIP Exception code: %s at %s : %d\n", hipGetErrorString(err_), __FILE__, \
-                  __LINE__);                                                                \
-      throw std::runtime_error("hip runtime error");                                        \
-    }                                                                                       \
+#define HIP_CHECK(err)                                                                            \
+  do {                                                                                            \
+    hipError_t err_ = (err);                                                                      \
+    if(err_ != hipSuccess) {                                                                      \
+      std::ostringstream msg;                                                                     \
+      msg << "HIP Error: " << hipGetErrorString(err_) << ", at " << __FILE__ << " : " << __LINE__ \
+          << std::endl;                                                                           \
+      throw std::runtime_error(msg.str());                                                        \
+    }                                                                                             \
   } while(0)
 
-#define ROCBLAS_CHECK(err)                                                                   \
-  do {                                                                                       \
-    rocblas_status err_ = (err);                                                             \
-    if(err_ != rocblas_status_success) {                                                     \
-      std::printf("rocblas Exception code: %s at %s : %d\n", rocblas_status_to_string(err_), \
-                  __FILE__, __LINE__);                                                       \
-      throw std::runtime_error("rocblas runtime error");                                     \
-    }                                                                                        \
+#define ROCBLAS_CHECK(err)                                                                       \
+  do {                                                                                           \
+    rocblas_status err_ = (err);                                                                 \
+    if(err_ != rocblas_status_success) {                                                         \
+      std::ostringstream msg;                                                                    \
+      msg << "ROCBLAS Error: " << rocblas_status_to_string(err_) << ", at " << __FILE__ << " : " \
+          << __LINE__ << std::endl;                                                              \
+      throw std::runtime_error(msg.str());                                                       \
+    }                                                                                            \
   } while(0)
 
 #elif defined(USE_CUDA)
@@ -56,24 +58,26 @@ using gpuMemcpyKind   = cudaMemcpyKind;
 #define gpuMemcpyDeviceToHost cudaMemcpyDeviceToHost
 #define gpuMemcpyDeviceToDevice cudaMemcpyDeviceToDevice
 
-#define CUDA_CHECK(err)                                                                       \
-  do {                                                                                        \
-    cudaError_t err_ = (err);                                                                 \
-    if(err_ != cudaSuccess) {                                                                 \
-      std::printf("CUDA Exception code: %s at %s : %d\n", cudaGetErrorString(err_), __FILE__, \
-                  __LINE__);                                                                  \
-      throw std::runtime_error("cuda runtime error");                                         \
-    }                                                                                         \
+#define CUDA_CHECK(err)                                                                 \
+  do {                                                                                  \
+    cudaError_t err_ = (err);                                                           \
+    if(err_ != cudaSuccess) {                                                           \
+      std::ostringstream msg;                                                           \
+      msg << "CUDA Error: " << cudaGetErrorString(err_) << ", at " << __FILE__ << " : " \
+          << __LINE__ << std::endl;                                                     \
+      throw std::runtime_error(msg.str());                                              \
+    }                                                                                   \
   } while(0)
 
-#define CUBLAS_CHECK(err)                                                                          \
-  do {                                                                                             \
-    cublasStatus_t err_ = (err);                                                                   \
-    if(err_ != CUBLAS_STATUS_SUCCESS) {                                                            \
-      std::printf("cublas Exception code: %s at %s : %d\n", cublasGetStatusString(err_), __FILE__, \
-                  __LINE__);                                                                       \
-      throw std::runtime_error("cublas runtime error");                                            \
-    }                                                                                              \
+#define CUBLAS_CHECK(err)                                                                  \
+  do {                                                                                     \
+    cublasStatus_t err_ = (err);                                                           \
+    if(err_ != CUBLAS_STATUS_SUCCESS) {                                                    \
+      std::ostringstream msg;                                                              \
+      msg << "CUDA Error: " << cublasGetStatusString(err_) << ", at " << __FILE__ << " : " \
+          << __LINE__ << std::endl;                                                        \
+      throw std::runtime_error(msg.str());                                                 \
+    }                                                                                      \
   } while(0)
 
 #elif defined(USE_DPCPP)
@@ -95,14 +99,16 @@ auto sycl_asynchandler = [](sycl::exception_list exceptions) {
   }
 };
 
-#define ONEMKLBLAS_CHECK(err)                                                                  \
-  do {                                                                                         \
-    try {                                                                                      \
-      (err)                                                                                    \
-    } catch(oneapi::mkl::exception const& ex) {                                                \
-      std::printf("onemklblas Exception code: %s at %s : %dn", ex.what(), __FILE__, __LINE__); \
-      throw std::runtime_error("onemklblas runtime error");                                    \
-    }                                                                                          \
+#define ONEMKLBLAS_CHECK(err)                                                          \
+  do {                                                                                 \
+    try {                                                                              \
+      (err)                                                                            \
+    } catch(oneapi::mkl::exception const& ex) {                                        \
+      std::ostringstream msg;                                                          \
+      msg << "oenMKL Error: " << ex.what() << ", at " << __FILE__ << " : " << __LINE__ \
+          << std::endl;                                                                \
+      throw std::runtime_error(msg.str());                                             \
+    }                                                                                  \
   } while(0)
 
 #endif

@@ -44,7 +44,7 @@ CMake options for developers (optional)
 
    -DUSE_GA_PROFILER=ON #Enable GA's profiling feature (GCC Only).
 
-   -DBUILD_LIBINT=ON (OFF by default)
+   -DMODULES="CC" (empty by default)
 
 Building TAMM
 --------------

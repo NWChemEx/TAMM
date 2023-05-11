@@ -42,8 +42,6 @@ public:
       hipMalloc(&ret, sizeInBytes);
 #elif defined(USE_DPCPP)
       gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
-      // ABB: Do we have a case where the memory returned from pool need to be memset ?
-      //     gpuMemset(ptr, sizeInBytes, true);
       ret = sycl::malloc_device(sizeInBytes, stream);
 #endif
 

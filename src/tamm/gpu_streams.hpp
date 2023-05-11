@@ -166,6 +166,16 @@ static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kin
 #endif
 }
 
+static inline void gpuMemsetAsync(void*& ptr, size_t sizeInBytes, gpuStream_t stream) {
+#if defined(USE_DPCPP)
+  stream.memset(ptr, 0, sizeInBytes);
+#elif defined(USE_HIP)
+  hipMemsetAsync(ptr, 0, sizeInBytes, stream);
+#elif defined(USE_CUDA)
+  cudaMemsetAsync(ptr, 0, sizeInBytes, stream);
+#endif
+}
+
 static inline void gpuStreamWaitEvent(gpuStream_t stream, gpuEvent_t event) {
 #if defined(USE_DPCPP)
   auto retEvent = stream.ext_oneapi_submit_barrier(event);
@@ -309,27 +319,4 @@ public:
 
 // This API needs to be defined after the class GPUStreamPool since the classs
 // is only declared and defined before this method
-static inline void gpuMemset(void*& ptr, size_t sizeInBytes, bool blocking = false) {
-  if(blocking) {
-#if defined(USE_DPCPP)
-    gpuStream_t& stream = GPUStreamPool::getInstance().getStream();
-    stream.memset(ptr, 0, sizeInBytes).wait();
-#elif defined(USE_HIP)
-    hipMemset(ptr, 0, sizeInBytes);
-#elif defined(USE_CUDA)
-    cudaMemset(ptr, 0, sizeInBytes);
-#endif
-  }
-  else {
-    gpuStream_t& stream = GPUStreamPool::getInstance().getStream();
-#if defined(USE_DPCPP)
-    stream.memset(ptr, 0, sizeInBytes);
-#elif defined(USE_HIP)
-    hipMemsetAsync(ptr, 0, sizeInBytes, stream);
-#elif defined(USE_CUDA)
-    cudaMemsetAsync(ptr, 0, sizeInBytes, stream);
-#endif
-  }
-}
-
 } // namespace tamm

@@ -482,8 +482,10 @@ public:
               static_cast<TensorElType2*>(memDevicePool.allocate(asize * sizeof(TensorElType2)));
             th_b =
               static_cast<TensorElType3*>(memDevicePool.allocate(bsize * sizeof(TensorElType3)));
-            gpuMemset(reinterpret_cast<void*&>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
-            gpuMemset(reinterpret_cast<void*&>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
+            gpuMemsetAsync(reinterpret_cast<void*&>(cbuf_dev_ptr), csize * sizeof(TensorElType1),
+                           thandle);
+            gpuMemsetAsync(reinterpret_cast<void*&>(cbuf_tmp_dev_ptr),
+                           csize * sizeof(TensorElType1), thandle);
           }
 #endif
           TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
@@ -500,7 +502,6 @@ public:
             cbuf_tmp =
               static_cast<TensorElType1*>(memHostPool.allocate(csize * sizeof(TensorElType1)));
             std::memset(static_cast<void*>(cbuf_tmp), 0, csize * sizeof(TensorElType1));
-
             kernels::copy_result_to_host(hw, thandle, cbuf_tmp, csize, cbuf_dev_ptr);
             // cbuf+=cbuf_tmp
             gpuStreamSynchronize(thandle);
@@ -663,12 +664,11 @@ public:
 
       ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
         th_a, th_b, th_c, {}, translated_cblockid};
-      add_bufs.push_back(ab);
 #else
       ab =
         new AddBuf<TensorElType1, TensorElType2, TensorElType3>{ctensor, {}, translated_cblockid};
-      add_bufs.push_back(ab);
 #endif
+      add_bufs.push_back(ab);
 
       {
         // LabelLoopNest inner_loop{reduction_lbls};
@@ -689,8 +689,10 @@ public:
           cbuf_tmp_dev_ptr =
             static_cast<TensorElType1*>(memDevicePool.allocate(csize * sizeof(TensorElType1)));
 
-          gpuMemset(reinterpret_cast<void*&>(cbuf_dev_ptr), csize * sizeof(TensorElType1));
-          gpuMemset(reinterpret_cast<void*&>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1));
+          gpuMemsetAsync(reinterpret_cast<void*&>(cbuf_dev_ptr), csize * sizeof(TensorElType1),
+                         thandle);
+          gpuMemsetAsync(reinterpret_cast<void*&>(cbuf_tmp_dev_ptr), csize * sizeof(TensorElType1),
+                         thandle);
         }
 #endif
 
@@ -825,6 +827,9 @@ public:
             blas::axpy(csize, TensorElType1{1}, cbuf_tmp, 1, cbuf, 1);
 
             memHostPool.deallocate(cbuf_tmp, csize * sizeof(TensorElType1));
+
+            memDevicePool.deallocate(cbuf_dev_ptr, csize * sizeof(TensorElType1));
+            memDevicePool.deallocate(cbuf_tmp_dev_ptr, csize * sizeof(TensorElType1));
           }
 #endif
           {
@@ -837,14 +842,6 @@ public:
         for(auto& ab: add_bufs) delete ab;
         add_bufs.clear();
 #endif
-
-#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-        if(hw == ExecutionHW::GPU) {
-          memDevicePool.deallocate(cbuf_dev_ptr, csize * sizeof(TensorElType1));
-          memDevicePool.deallocate(cbuf_tmp_dev_ptr, csize * sizeof(TensorElType1));
-        }
-#endif
-
       } // multoptime
 
       memHostPool.deallocate(cbuf, csize * sizeof(TensorElType1));

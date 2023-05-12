@@ -55,24 +55,24 @@ using gpuMemcpyKind   = cudaMemcpyKind;
 #define gpuMemcpyDeviceToHost cudaMemcpyDeviceToHost
 #define gpuMemcpyDeviceToDevice cudaMemcpyDeviceToDevice
 
-#define CUDA_CHECK(err)                                                                       \
-  do {                                                                                        \
-    cudaError_t err_ = (err);                                                                 \
-    if(err_ != cudaSuccess) {                                                                 \
-      std::printf("CUDA Exception code: %s at %s : %d\n", cudaGetErrorString(err_), __FILE__, \
-                  __LINE__);                                                                  \
-      throw std::runtime_error("cuda runtime error");                                         \
-    }                                                                                         \
+#define CUDA_CHECK(err)                                                                            \
+  do {                                                                                             \
+    cudaError_t err_ = (err);                                                                      \
+    if(err_ != cudaSuccess) {                                                                      \
+      std::printf("CUDA Exception code: %s at %s : %d\n", /*cudaGetErrorString*/ (err_), __FILE__, \
+                  __LINE__);                                                                       \
+      throw std::runtime_error("cuda runtime error");                                              \
+    }                                                                                              \
   } while(0)
 
-#define CUBLAS_CHECK(err)                                                                          \
-  do {                                                                                             \
-    cublasStatus_t err_ = (err);                                                                   \
-    if(err_ != CUBLAS_STATUS_SUCCESS) {                                                            \
-      std::printf("cublas Exception code: %s at %s : %d\n", cublasGetStatusString(err_), __FILE__, \
-                  __LINE__);                                                                       \
-      throw std::runtime_error("cublas runtime error");                                            \
-    }                                                                                              \
+#define CUBLAS_CHECK(err)                                                                     \
+  do {                                                                                        \
+    cublasStatus_t err_ = (err);                                                              \
+    if(err_ != CUBLAS_STATUS_SUCCESS) {                                                       \
+      std::printf("cublas Exception code: %s at %s : %d\n", /*cublasGetStatusString*/ (err_), \
+                  __FILE__, __LINE__);                                                        \
+      throw std::runtime_error("cublas runtime error");                                       \
+    }                                                                                         \
   } while(0)
 
 #elif defined(USE_DPCPP)

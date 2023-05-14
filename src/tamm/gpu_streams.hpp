@@ -178,7 +178,7 @@ static inline void gpuMemsetAsync(void*& ptr, size_t sizeInBytes, gpuStream_t st
 
 static inline void gpuStreamWaitEvent(gpuStream_t stream, gpuEvent_t event) {
 #if defined(USE_DPCPP)
-  auto retEvent = stream.ext_oneapi_submit_barrier(event);
+  auto retEvent = stream.ext_oneapi_submit_barrier({event});
   // retEvent.wait();
   event.wait();
 #elif defined(USE_HIP)
@@ -249,7 +249,11 @@ protected:
 #endif
 
 private:
-  GPUStreamPool(): _devStream(nstreams), _devHandle(nstreams) {
+  GPUStreamPool(): _devStream(nstreams)
+                   #ifndef USE_DPCPP
+                 , _devHandle(nstreams)
+                   #endif
+  {
     // Assert here if multi-GPUs are detected
     int ngpus{0};
     getDeviceCount(&ngpus);

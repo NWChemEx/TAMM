@@ -838,7 +838,6 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
 #if !defined(USE_UPCXX)
   size_t            ndims = tensor.num_modes();
   const std::string nppn  = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
-  if(rank == 0 && profile) std::cout << "write to disk using: " << nppn << std::endl;
 
   int64_t tensor_dims[7] = {1, 1, 1, 1, 1, 1, 1};
   int     ndim{1}, itype{};
@@ -848,6 +847,11 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
   // if ndim>1, this is an nD GA and assumed to be dense.
   int64_t tensor_size =
     std::accumulate(tensor_dims, tensor_dims + ndim, (int64_t) 1, std::multiplies<int64_t>());
+
+  if(rank == 0 && profile)
+    std::cout << "tensor size: " << std::fixed << std::setprecision(2)
+              << (tensor_size * 8.0) / (1024 * 1024 * 1024.0)
+              << "GiB, write to disk using: " << nppn << std::endl;
 
   hid_t hdf5_dt = get_hdf5_dt<TensorType>();
 

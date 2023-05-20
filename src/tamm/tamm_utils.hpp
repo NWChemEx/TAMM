@@ -2379,7 +2379,7 @@ TensorType sum(LabeledTensor<TensorType> ltensor) {
       const tamm::TAMM_SIZE   dsize   = tensor.block_size(blockid);
       std::vector<TensorType> dbuf(dsize);
       tensor.get(blockid, dbuf);
-      for(TensorType val: dbuf) lsumsq += val * val;
+      for(TensorType val: dbuf) lsumsq += val;
     };
     block_for(ec, ltensor, getsum);
 

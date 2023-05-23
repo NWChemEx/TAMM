@@ -243,20 +243,59 @@ void print_max_above_threshold(const Tensor<T>& tensor, double printtol,
   for(auto it: tensor.loop_nest()) {
     auto blockid = internal::translate_blockid(it, lt);
     if(!tensor.is_non_zero(blockid)) continue;
-    TAMM_SIZE      size = tensor.block_size(blockid);
+    auto           block_dims   = tensor.block_dims(blockid);
+    auto           block_offset = tensor.block_offsets(blockid);
+    TAMM_SIZE      size         = tensor.block_size(blockid);
     std::vector<T> buf(size);
     tensor.get(blockid, buf);
-    auto bdims = tensor.block_dims(blockid);
+    auto bdims  = tensor.block_dims(blockid);
+    auto nmodes = tensor.num_modes();
 
-    for(TAMM_SIZE i = 0; i < size; i++) {
-      if constexpr(tamm::internal::is_complex_v<T>) {
-        if(std::abs(buf[i].real()) > printtol) tstring << buf[i] << std::endl;
-      }
-      else {
-        if(std::abs(buf[i]) > printtol) tstring << buf[i] << std::endl;
+    size_t c = 0;
+
+    if(nmodes == 1) {
+      for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++, c++) {
+        if(std::abs(buf[c]) > printtol)
+          tstring << i << "   " << std::fixed << std::setprecision(12) << std::right
+                  << std::setw(18) << buf[c] << std::endl;
       }
     }
-    // tstring << std::endl;
+    else if(nmodes == 2) {
+      for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
+        for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++, c++) {
+          if(std::abs(buf[c]) > printtol)
+            tstring << i << "   " << j << "   " << std::fixed << std::setprecision(12) << std::right
+                    << std::setw(18) << buf[c] << std::endl;
+        }
+      }
+    }
+    else if(nmodes == 3) {
+      for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
+        for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++) {
+          for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++, c++) {
+            if(std::abs(buf[c]) > printtol)
+              tstring << i << "   " << j << "   " << k << "   " << std::fixed
+                      << std::setprecision(12) << std::right << std::setw(18) << buf[c]
+                      << std::endl;
+          }
+        }
+      }
+    }
+    else if(nmodes == 4) {
+      for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
+        for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++) {
+          for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++) {
+            for(size_t l = block_offset[3]; l < block_offset[3] + block_dims[3]; l++, c++) {
+              if(std::abs(buf[c]) > printtol)
+                tstring << i << "   " << j << "   " << k << "   " << l << "   " << std::fixed
+                        << std::setprecision(12) << std::right << std::setw(18) << buf[c]
+                        << std::endl;
+            }
+          }
+        }
+      }
+    }
+    else NOT_IMPLEMENTED();
   }
 
   if(!filename.empty()) {
@@ -838,7 +877,6 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
 #if !defined(USE_UPCXX)
   size_t            ndims = tensor.num_modes();
   const std::string nppn  = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
-  if(rank == 0 && profile) std::cout << "write to disk using: " << nppn << std::endl;
 
   int64_t tensor_dims[7] = {1, 1, 1, 1, 1, 1, 1};
   int     ndim{1}, itype{};
@@ -848,6 +886,11 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
   // if ndim>1, this is an nD GA and assumed to be dense.
   int64_t tensor_size =
     std::accumulate(tensor_dims, tensor_dims + ndim, (int64_t) 1, std::multiplies<int64_t>());
+
+  if(rank == 0 && profile)
+    std::cout << "tensor size: " << std::fixed << std::setprecision(2)
+              << (tensor_size * 8.0) / (1024 * 1024 * 1024.0)
+              << "GiB, write to disk using: " << nppn << std::endl;
 
   hid_t hdf5_dt = get_hdf5_dt<TensorType>();
 
@@ -2331,16 +2374,14 @@ TensorType sum(LabeledTensor<TensorType> ltensor) {
 #else
   ExecutionContext& ec = gec;
 #endif
-    auto getnorm = [&](const IndexVector& bid) {
+    auto getsum = [&](const IndexVector& bid) {
       const IndexVector       blockid = internal::translate_blockid(bid, ltensor);
       const tamm::TAMM_SIZE   dsize   = tensor.block_size(blockid);
       std::vector<TensorType> dbuf(dsize);
       tensor.get(blockid, dbuf);
-      if constexpr(std::is_same_v<TensorType, std::complex<double>> ||
-                   std::is_same_v<TensorType, std::complex<float>>)
-        for(auto val: dbuf) lsumsq += val;
+      for(TensorType val: dbuf) lsumsq += val;
     };
-    block_for(ec, ltensor, getnorm);
+    block_for(ec, ltensor, getsum);
 
 #ifdef TU_SG
     ec.flush_and_sync();

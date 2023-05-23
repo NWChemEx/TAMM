@@ -190,31 +190,42 @@ void test_io_4d(Scheduler& sch, TiledIndexSpace tis, TiledIndexSpace tis_i) {
 }
 
 int main(int argc, char* argv[]) {
-  if(argc < 3) {
-    std::cout << "Please provide an index space size and tile size!\n";
+  if(argc < 2) {
+    std::cout << "Please provide a dimension size!\n";
     return 0;
   }
-
-  TAMM_SIZE noa = atoi(argv[1]);
-  TAMM_SIZE nva = atoi(argv[2]);
-
-  // if (is_size < tile_size) {
-  //   std::cout << "Tile size should be less then index space size" << std::endl;
-  //   return 1;
-  // }
 
   tamm::initialize(argc, argv);
 
   ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
+  ExecutionContext ec_dense{ec.pg(), DistributionKind::dense, MemoryManagerKind::ga};
 
-  Scheduler sch{ec};
+  Scheduler sch{ec_dense};
+  Tile      nbf = atoi(argv[1]);
+  Tile      ts_ = std::max(30, (int) (nbf * 0.05));
 
-  auto [TIS, TIS_I, total_orbitals] = setupTIS(noa, nva);
+  // auto [TIS, TIS_I, total_orbitals] = setupTIS(nbf, ts_);
 
-  test_io_2d<T>(sch, TIS, TIS_I);
-  test_io_3d<T>(sch, TIS, TIS_I);
-  test_io_4d<T>(sch, TIS, TIS_I);
+  // test_io_2d<T>(sch, TIS, TIS_I);
+  // test_io_3d<T>(sch, TIS, TIS_I);
+  // test_io_4d<T>(sch, TIS, TIS_I);
+
+  std::vector<Tile> gc_tiles;
+  Tile              est_nt    = nbf / ts_;
+  Tile              last_tile = nbf % ts_;
+  for(tamm::Tile x = 0; x < est_nt; x++) gc_tiles.push_back(ts_);
+  if(last_tile > 0) gc_tiles.push_back(last_tile);
+
+  TiledIndexSpace tc_ij{IndexSpace{range(nbf)}, gc_tiles};
+  TiledIndexSpace tci{IndexSpace{range(12 * nbf)}, 12 * nbf};
+  Tensor<double>  gc{tc_ij, tc_ij, tci};
+  gc.set_dense();
+  sch.allocate(gc).execute();
+  if(ec.print()) std::cout << "Writing a 3D tensor of size (NxNx12N) to disk ... " << std::endl;
+  write_to_disk(gc, "tensor3d", true, true);
+
+  sch.deallocate(gc).execute();
 
   tamm::finalize();
 

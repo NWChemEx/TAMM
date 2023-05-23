@@ -4,10 +4,7 @@
 #include "tamm/kernels/assign.hpp"
 #include "tamm/types.hpp"
 
-#include <algorithm>
 #include <complex>
-#include <cstring>
-#include <numeric>
 #include <vector>
 
 #include "ga/ga_linalg.h"
@@ -26,9 +23,9 @@ namespace tamm {
 namespace kernels {
 
 template<typename T2, typename T3>
-void copy_data_to_gpu(bool& isgpuOp, gpuStream_t& thandle, const T2* ainter_buf, size_t asize,
+void copy_data_to_gpu(ExecutionHW hw, gpuStream_t& thandle, const T2* ainter_buf, size_t asize,
                       T2* ainter_buf_dev, const T3* binter_buf, size_t bsize, T3* binter_buf_dev) {
-  if(!isgpuOp) return;
+  if(hw == ExecutionHW::CPU) return;
 
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
   // host-->device copy
@@ -38,7 +35,7 @@ void copy_data_to_gpu(bool& isgpuOp, gpuStream_t& thandle, const T2* ainter_buf,
 }
 
 template<typename T, typename T1, typename T2, typename T3>
-void gemm_wrapper(bool isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, int M, int N, int K,
+void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, int M, int N, int K,
                   T alpha, T beta, const T2* ainter_buf, const T2* ainter_buf_dev,
                   const T3* binter_buf, const T3* binter_buf_dev, T1* cinter_buf,
                   T1* cinter_buf_dev) {
@@ -59,7 +56,7 @@ void gemm_wrapper(bool isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, int
     for(size_t bri = 0; bri < BR; bri++) {
       for(size_t i = 0; i < B; i++) {
 #if defined(USE_DPCPP)
-        if(isgpuOp) {
+        if(hw == ExecutionHW::GPU) {
           try {
             auto dgemm = oneapi::mkl::blas::column_major::gemm(
               thandle, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
@@ -76,7 +73,7 @@ void gemm_wrapper(bool isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, int
           continue;
         }
 #elif defined(USE_CUDA)
-        if(isgpuOp) {
+        if(hw == ExecutionHW::GPU) {
           if constexpr(internal::is_complex_v<T1> && internal::is_complex_v<T2> &&
                        internal::is_complex_v<T3>) {
             CUBLAS_CHECK(cublasZgemm(
@@ -95,7 +92,7 @@ void gemm_wrapper(bool isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, int
           continue;
         }
 #elif defined(USE_HIP)
-        if(isgpuOp) {
+        if(hw == ExecutionHW::GPU) {
           if constexpr(internal::is_complex_v<T1> && internal::is_complex_v<T2> &&
                        internal::is_complex_v<T3>) {
             ROCBLAS_CHECK(rocblas_zgemm(
@@ -117,7 +114,8 @@ void gemm_wrapper(bool isgpuOp, gpuStream_t& thandle, int AR, int BR, int B, int
           continue;
         }
 #endif
-        // CPU only ops (i.e., for CPU builds or isgpuOp=false)
+
+        // CPU only ops
         blas::gemm(blas::Layout::RowMajor, blas::Op::NoTrans, blas::Op::NoTrans, M, N, K, alpha,
                    ainter_buf + ari * areduce_ld + i * abatch_ld, ainter_ld,
                    binter_buf + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
@@ -234,7 +232,7 @@ void assign_gpu(gpuStream_t& thandle, T* dst, const SizeVec& ddims, const IntLab
 }
 
 template<typename T2, typename T3>
-bool transpose_inputs(ExecutionHW hw, bool& isgpuOp, gpuStream_t& thandle, T2* ainter_buf,
+bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, T2* ainter_buf,
                       const SizeVec& ainter_dims, const IntLabelVec& ainter_labels, const T2* abuf,
                       size_t asize, const SizeVec& adims, const IntLabelVec& alabels,
                       T3* binter_buf, const SizeVec& binter_dims, const IntLabelVec& binter_labels,
@@ -243,7 +241,7 @@ bool transpose_inputs(ExecutionHW hw, bool& isgpuOp, gpuStream_t& thandle, T2* a
   bool gpu_trans = false;
 
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-  if(isgpuOp) {
+  if(hw == ExecutionHW::GPU) {
     gpu_trans = true;
 
     T2* ainter_buf_dev_in{nullptr};
@@ -251,8 +249,7 @@ bool transpose_inputs(ExecutionHW hw, bool& isgpuOp, gpuStream_t& thandle, T2* a
     allocate_device_buffers(hw, ainter_buf_dev_in, asize);
     allocate_device_buffers(hw, binter_buf_dev_in, bsize);
 
-    copy_data_to_gpu(isgpuOp, thandle, abuf, asize, ainter_buf_dev_in, bbuf, bsize,
-                     binter_buf_dev_in);
+    copy_data_to_gpu(hw, thandle, abuf, asize, ainter_buf_dev_in, bbuf, bsize, binter_buf_dev_in);
 
     assign_gpu<T2>(thandle, ainter_buf_dev, ainter_dims, ainter_labels, T2{1}, ainter_buf_dev_in,
                    adims, alabels, true);
@@ -272,12 +269,12 @@ bool transpose_inputs(ExecutionHW hw, bool& isgpuOp, gpuStream_t& thandle, T2* a
 }
 
 template<typename T1>
-void transpose_output(bool& isgpuOp, gpuStream_t& thandle, bool gpu_trans, T1*& cinter_buf,
+void transpose_output(ExecutionHW hw, gpuStream_t& thandle, bool gpu_trans, T1*& cinter_buf,
                       const SizeVec& cinter_dims, const IntLabelVec& cinter_labels, T1* cbuf,
                       const SizeVec& cdims, const IntLabelVec& clabels, T1* cinter_buf_dev,
                       T1* cinter_tmp_buf_dev, bool is_assign) {
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
-  if(isgpuOp) {
+  if(hw == ExecutionHW::GPU) {
     assign_gpu<T1>(thandle, cinter_buf_dev, cdims, clabels, T1{1}, cinter_tmp_buf_dev, cinter_dims,
                    cinter_labels, is_assign);
     return;
@@ -297,8 +294,6 @@ void block_multiply(
   const IntLabelVec& clabels, ExecutionHW hw, bool is_assign, T1* cinter_buf_dev,
   T1* cinter_tmp_buf_dev) {
 
-  bool isgpuOp{false};
-  if(hw == ExecutionHW::GPU) isgpuOp = true;
   const Size asize = std::accumulate(adims.begin(), adims.end(), Size{1}, std::multiplies<Size>());
   const Size bsize = std::accumulate(bdims.begin(), bdims.end(), Size{1}, std::multiplies<Size>());
   const Size csize = std::accumulate(cdims.begin(), cdims.end(), Size{1}, std::multiplies<Size>());
@@ -442,20 +437,20 @@ void block_multiply(
       T3* binter_buf{nullptr};
       allocate_host_buffers(hw, ainter_buf, asize.value());
       allocate_host_buffers(hw, binter_buf, bsize.value());
-      gpu_trans = transpose_inputs(hw, isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels,
-                                   abuf, asize.value(), adims, alabels, binter_buf, binter_dims,
+      gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
+                                   asize.value(), adims, alabels, binter_buf, binter_dims,
                                    binter_labels, bbuf, bsize.value(), bdims, blabels,
                                    ainter_buf_dev, binter_buf_dev);
 
       if(!gpu_trans)
-        copy_data_to_gpu(isgpuOp, thandle, ainter_buf, asize.value(), ainter_buf_dev, binter_buf,
+        copy_data_to_gpu(hw, thandle, ainter_buf, asize.value(), ainter_buf_dev, binter_buf,
                          bsize.value(), binter_buf_dev);
 
-      gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
+      gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
                    binter_buf, binter_buf_dev, cinter_buf, cinter_tmp_buf_dev);
 
-      transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
-                       cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+      transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
+                       clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
       free_host_buffers(hw, ainter_buf, asize.value());
       free_host_buffers(hw, binter_buf, bsize.value());
@@ -481,22 +476,21 @@ void block_multiply(
           T1* bbuf_complex_dev{nullptr};
           allocate_device_buffers(hw, bbuf_complex_dev, bsize.value());
 
-          gpu_trans = transpose_inputs(hw, isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels,
-                                       abuf, asize.value(), adims, alabels, binter_buf, binter_dims,
+          gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
+                                       asize.value(), adims, alabels, binter_buf, binter_dims,
                                        binter_labels, bbuf_complex, bsize.value(), bdims, blabels,
                                        ainter_buf_dev, bbuf_complex_dev);
 
           if(!gpu_trans) {
             bbuf_complex = binter_buf;
-            copy_data_to_gpu(isgpuOp, thandle, ainter_buf, asize.value(), ainter_buf_dev,
-                             bbuf_complex, bsize.value(), bbuf_complex_dev);
+            copy_data_to_gpu(hw, thandle, ainter_buf, asize.value(), ainter_buf_dev, bbuf_complex,
+                             bsize.value(), bbuf_complex_dev);
           }
 
-          gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf,
-                       ainter_buf_dev, bbuf_complex, bbuf_complex_dev, cinter_buf,
-                       cinter_tmp_buf_dev);
-          transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels,
-                           cbuf, cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+          gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
+                       bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_tmp_buf_dev);
+          transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+                           cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
           free_device_buffers(hw, bbuf_complex_dev, bsize.value());
           free_host_buffers(hw, bbuf_complex, bsize.value());
@@ -511,21 +505,21 @@ void block_multiply(
           T1* bbuf_real_dev{nullptr};
           allocate_device_buffers(hw, bbuf_real_dev, bsize.value());
 
-          gpu_trans = transpose_inputs(hw, isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels,
-                                       abuf, asize.value(), adims, alabels, binter_buf, binter_dims,
+          gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
+                                       asize.value(), adims, alabels, binter_buf, binter_dims,
                                        binter_labels, bbuf_real, bsize.value(), bdims, blabels,
                                        ainter_buf_dev, bbuf_real_dev);
 
           if(!gpu_trans) {
             bbuf_real = binter_buf;
-            copy_data_to_gpu(isgpuOp, thandle, ainter_buf, asize.value(), ainter_buf_dev, bbuf_real,
+            copy_data_to_gpu(hw, thandle, ainter_buf, asize.value(), ainter_buf_dev, bbuf_real,
                              bsize.value(), bbuf_real_dev);
           }
 
-          gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf,
-                       ainter_buf_dev, bbuf_real, bbuf_real_dev, cinter_buf, cinter_tmp_buf_dev);
-          transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels,
-                           cbuf, cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+          gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
+                       bbuf_real, bbuf_real_dev, cinter_buf, cinter_tmp_buf_dev);
+          transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+                           cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
           free_device_buffers(hw, bbuf_real_dev, bsize.value());
           free_host_buffers(hw, bbuf_real, bsize.value());
@@ -550,22 +544,21 @@ void block_multiply(
           T1* abuf_complex_dev{nullptr};
           allocate_device_buffers(hw, abuf_complex_dev, asize.value());
 
-          gpu_trans = transpose_inputs(hw, isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels,
+          gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels,
                                        abuf_complex, asize.value(), adims, alabels, binter_buf,
                                        binter_dims, binter_labels, bbuf, bsize.value(), bdims,
                                        blabels, abuf_complex_dev, binter_buf_dev);
 
           if(!gpu_trans) {
             abuf_complex = ainter_buf;
-            copy_data_to_gpu(isgpuOp, thandle, abuf_complex, asize.value(), abuf_complex_dev,
-                             binter_buf, bsize.value(), binter_buf_dev);
+            copy_data_to_gpu(hw, thandle, abuf_complex, asize.value(), abuf_complex_dev, binter_buf,
+                             bsize.value(), binter_buf_dev);
           }
 
-          gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex,
-                       abuf_complex_dev, binter_buf, binter_buf_dev, cinter_buf,
-                       cinter_tmp_buf_dev);
-          transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels,
-                           cbuf, cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+          gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex, abuf_complex_dev,
+                       binter_buf, binter_buf_dev, cinter_buf, cinter_tmp_buf_dev);
+          transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+                           cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
           free_device_buffers(hw, abuf_complex_dev, asize.value());
           free_host_buffers(hw, abuf_complex, asize.value());
@@ -580,21 +573,21 @@ void block_multiply(
           T1* abuf_real_dev{nullptr};
           allocate_device_buffers(hw, abuf_real_dev, asize.value());
 
-          gpu_trans = transpose_inputs(hw, isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels,
+          gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels,
                                        abuf_real, asize.value(), adims, alabels, binter_buf,
                                        binter_dims, binter_labels, bbuf, bsize.value(), bdims,
                                        blabels, abuf_real_dev, binter_buf_dev);
 
           if(!gpu_trans) {
             abuf_real = ainter_buf;
-            copy_data_to_gpu(isgpuOp, thandle, abuf_real, asize.value(), abuf_real_dev, binter_buf,
+            copy_data_to_gpu(hw, thandle, abuf_real, asize.value(), abuf_real_dev, binter_buf,
                              bsize.value(), binter_buf_dev);
           }
 
-          gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_real, abuf_real_dev,
+          gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_real, abuf_real_dev,
                        binter_buf, binter_buf_dev, cinter_buf, cinter_tmp_buf_dev);
-          transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels,
-                           cbuf, cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+          transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+                           cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
           free_device_buffers(hw, abuf_real_dev, asize.value());
           free_host_buffers(hw, abuf_real, asize.value());
@@ -624,7 +617,7 @@ void block_multiply(
         allocate_device_buffers(hw, abuf_complex_dev, asize.value());
         allocate_device_buffers(hw, bbuf_complex_dev, bsize.value());
 
-        gpu_trans = transpose_inputs(hw, isgpuOp, thandle, ainter_buf, ainter_dims, ainter_labels,
+        gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels,
                                      abuf_complex, asize.value(), adims, alabels, binter_buf,
                                      binter_dims, binter_labels, bbuf_complex, bsize.value(), bdims,
                                      blabels, abuf_complex_dev, bbuf_complex_dev);
@@ -632,13 +625,13 @@ void block_multiply(
         if(!gpu_trans) {
           abuf_complex = ainter_buf;
           bbuf_complex = binter_buf;
-          copy_data_to_gpu(isgpuOp, thandle, abuf_complex, asize.value(), abuf_complex_dev,
-                           bbuf_complex, bsize.value(), bbuf_complex_dev);
+          copy_data_to_gpu(hw, thandle, abuf_complex, asize.value(), abuf_complex_dev, bbuf_complex,
+                           bsize.value(), bbuf_complex_dev);
         }
 
-        gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex,
-                     abuf_complex_dev, bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_buf_dev);
-        transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+        gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex, abuf_complex_dev,
+                     bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_buf_dev);
+        transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
         free_device_buffers(hw, abuf_complex_dev, asize.value());

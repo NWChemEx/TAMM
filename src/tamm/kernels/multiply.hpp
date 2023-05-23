@@ -4,6 +4,7 @@
 #include "tamm/kernels/assign.hpp"
 #include "tamm/types.hpp"
 
+#include <cstring>
 #include <complex>
 #include <vector>
 

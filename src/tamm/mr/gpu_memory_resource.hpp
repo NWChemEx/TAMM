@@ -33,7 +33,6 @@ private:
     void* ptr{nullptr};
 #if defined(USE_CUDA)
     cudaMalloc(&ptr, bytes);
-    std::cout << "calling cudaMalloc to allocate bytes: " << ptr << ", " << bytes << std::endl;
 #elif defined(USE_HIP)
     hipMalloc(&ptr, bytes);
 #elif defined(USE_DPCPP)
@@ -52,7 +51,6 @@ private:
    */
   void do_deallocate(void* ptr, std::size_t bytes) override {
 #if defined(USE_CUDA)
-      std::cout << "calling cudaFree to allocate bytes: " << ptr << std::endl;
     cudaFree(ptr);
 #elif defined(USE_HIP)
     hipFree(ptr);

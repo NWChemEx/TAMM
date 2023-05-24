@@ -468,7 +468,7 @@ public:
         {
           TensorElType1* cbuf_dev_ptr{nullptr};
           TensorElType1* cbuf_tmp_dev_ptr{nullptr};
-#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
           if(hw == ExecutionHW::GPU) {
             cbuf_dev_ptr =
               static_cast<TensorElType1*>(memDevicePool.allocate(csize * sizeof(TensorElType1)));
@@ -482,13 +482,13 @@ public:
           }
 #endif
           kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
-#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
             th_a, th_b, thandle,
 #endif
             alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_, cscale,
             ab->cbuf_, cdims_sz, lhs_int_labels_, hw, true, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
 
-#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
           if(hw == ExecutionHW::GPU) {
             TensorElType1* cbuf_tmp{nullptr};
             cbuf_tmp =
@@ -672,7 +672,7 @@ public:
 
         TensorElType1* cbuf_dev_ptr{nullptr};
         TensorElType1* cbuf_tmp_dev_ptr{nullptr};
-#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         if(hw == ExecutionHW::GPU) {
           cbuf_dev_ptr =
             static_cast<TensorElType1*>(memDevicePool.allocate(csize * sizeof(TensorElType1)));
@@ -782,7 +782,7 @@ public:
               alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_, cscale,
               cbuf, cdims_sz, lhs_int_labels_, hw, false, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
 
-#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
             if(hw == ExecutionHW::GPU) {
               memDevicePool.deallocate(abuf_dev, asize * sizeof(TensorElType2));
               memDevicePool.deallocate(bbuf_dev, bsize * sizeof(TensorElType3));
@@ -797,7 +797,7 @@ public:
 
         // add the computed update to the tensor
         {
-#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
           // copy to host
           if(hw == ExecutionHW::GPU) {
             TensorElType1* cbuf_tmp{nullptr};
@@ -818,7 +818,7 @@ public:
           }
         }
 
-#if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         if(hw == ExecutionHW::GPU) {
           memDevicePool.deallocate(cbuf_dev_ptr, csize * sizeof(TensorElType1));
           memDevicePool.deallocate(cbuf_tmp_dev_ptr, csize * sizeof(TensorElType1));

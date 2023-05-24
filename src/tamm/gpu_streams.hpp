@@ -1,8 +1,8 @@
 #pragma once
 
 #include "tamm/errors.hpp"
-#include <vector>
 #include <sstream>
+#include <vector>
 
 #if defined(USE_CUDA)
 #include <cublas_v2.h>

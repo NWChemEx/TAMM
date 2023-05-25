@@ -1030,7 +1030,7 @@ public:
     });
 
     if(t != tiles_.cend()) return *t;
-    else abort();
+    abort();
   }
 
   std::optional<TensorTile> find_local_tile(int64_t i, int64_t j, int64_t k, int64_t l) const {
@@ -1039,7 +1039,7 @@ public:
                    [i, j, k, l](const TensorTile& tile) { return tile.contains(i, j, k, l); });
 
     if(t != local_tiles_.cend()) return *t;
-    else return std::nullopt;
+    return std::nullopt;
   }
 #endif
 

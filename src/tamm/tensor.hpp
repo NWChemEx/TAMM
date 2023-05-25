@@ -490,6 +490,7 @@ public:
     return impl_->local_element_offsets(i, j, k, l);
   }
 
+#ifdef USE_UPCXX
   std::vector<TensorTile>::const_iterator local_tiles_begin() const {
     return impl_->local_tiles_begin();
   }
@@ -497,6 +498,7 @@ public:
   std::vector<TensorTile>::const_iterator local_tiles_end() const {
     return impl_->local_tiles_end();
   }
+#endif
 
   MemoryRegion* memory_region() const { return impl_->memory_region(); }
 

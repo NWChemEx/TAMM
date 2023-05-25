@@ -476,9 +476,11 @@ public:
     abort();
   }
 
+#ifdef USE_UPCXX
   virtual std::vector<TensorTile>::const_iterator local_tiles_begin() const { abort(); }
 
   virtual std::vector<TensorTile>::const_iterator local_tiles_end() const { abort(); }
+#endif
 
   virtual void put_raw_contig(int64_t* lo, int64_t* hi, void* buf) const { abort(); }
 
@@ -1211,23 +1213,13 @@ public:
 #endif
   }
 
+#ifdef USE_UPCXX
   std::vector<TensorTile>::const_iterator local_tiles_begin() const {
-#ifdef USE_UPCXX
     return local_tiles_.cbegin();
-#else
-    throw std::runtime_error("Function local_tiles_begin not defined for GA backend.");
-#endif
   }
 
-  std::vector<TensorTile>::const_iterator local_tiles_end() const {
-#ifdef USE_UPCXX
-    return local_tiles_.cend();
-#else
-    throw std::runtime_error("Function local_tiles_end not defined for GA backend.");
-#endif
-  }
+  std::vector<TensorTile>::const_iterator local_tiles_end() const { return local_tiles_.cend(); }
 
-#if defined(USE_UPCXX)
   void put_raw_contig(int64_t* lo, int64_t* hi, void* buf) const {
     const auto elem_sz  = MemoryManagerGA::get_element_size(eltype_);
     TensorTile t        = find_tile(lo[0], lo[1], lo[2], lo[3]);

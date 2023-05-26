@@ -265,8 +265,7 @@ public:
   }
 
   // Tensor Accessors
-
-#if defined(USE_UPCXX)
+#ifdef USE_UPCXX
   void put_raw_contig(int64_t* lo, int64_t* hi, void* buf) {
     return impl_->put_raw_contig(lo, hi, buf);
   }
@@ -477,6 +476,29 @@ public:
   size_t local_buf_size() const { return impl_->local_buf_size(); }
 
   size_t total_buf_size(Proc proc) const { return impl_->total_buf_size(proc); }
+
+  std::vector<int64_t> local_buf_dims() const { return impl_->local_buf_dims(); }
+
+  bool is_local_element(int64_t i, int64_t j, int64_t k, int64_t l) const {
+    return impl_->is_local_element(i, j, k, l);
+  }
+
+  std::vector<int64_t> local_tiles_offsets() const { return impl_->local_tiles_offsets(); }
+
+  std::pair<int64_t, int64_t> local_element_offsets(int64_t i, int64_t j, int64_t k,
+                                                    int64_t l) const {
+    return impl_->local_element_offsets(i, j, k, l);
+  }
+
+#ifdef USE_UPCXX
+  std::vector<TensorTile>::const_iterator local_tiles_begin() const {
+    return impl_->local_tiles_begin();
+  }
+
+  std::vector<TensorTile>::const_iterator local_tiles_end() const {
+    return impl_->local_tiles_end();
+  }
+#endif
 
   MemoryRegion* memory_region() const { return impl_->memory_region(); }
 

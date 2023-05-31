@@ -3147,28 +3147,21 @@ inline size_t hash_tensor(Tensor<TensorType> tensor) {
 // Convert regular tamm tensor to dense tamm tensor
 template<typename TensorType>
 Tensor<TensorType> to_dense_tensor(ExecutionContext& ec_dense, Tensor<TensorType> tensor) {
-  const int ndims = tensor.num_modes();
   EXPECTS(tensor.distribution().kind() == DistributionKind::nw);
   EXPECTS(tensor.kind() == TensorBase::TensorKind::normal ||
           tensor.kind() == TensorBase::TensorKind::spin);
 
-  auto tis = tensor.tiled_index_spaces();
-
-  LabeledTensor<TensorType> ltensor = tensor();
-  ExecutionContext&         ec      = get_ec(ltensor);
-
-  Tensor<TensorType> btensor{tis};
+  Tensor<TensorType> btensor{tensor.tiled_index_spaces()};
   btensor.set_dense();
   Tensor<TensorType>::allocate(&ec_dense, btensor);
-#if defined(USE_UPCXX)
-  ga_over_upcxx<TensorType>* ga_stensor = tamm_to_ga(ec_dense, tensor);
-  ga_to_tamm(ec_dense, btensor, ga_stensor);
-  ga_stensor->destroy();
-#else
-  int ga_stensor = tamm_to_ga(ec_dense, tensor);
-  ga_to_tamm(ec_dense, btensor, ga_stensor);
-  NGA_Destroy(ga_stensor);
-#endif
+
+  auto f = [&](const auto& blockid) {
+    std::vector<TensorType> buffer(tensor.block_size(blockid));
+    tensor.get(blockid, buffer);
+    btensor.put(blockid, buffer);
+  };
+
+  block_for(ec_dense, tensor(), f);
 
   return btensor; // Caller responsible for deallocating this tensor
 }

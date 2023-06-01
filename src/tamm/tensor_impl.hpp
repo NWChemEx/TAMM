@@ -1049,7 +1049,6 @@ public:
 
     std::vector<int64_t> lo = compute_lo(blockid);
     std::vector<int64_t> hi = compute_hi(blockid);
-    std::vector<int64_t> ld = compute_ld(blockid);
 
 #if defined(USE_UPCXX)
     // Pad
@@ -1058,9 +1057,10 @@ public:
       hi.insert(hi.begin(), 0);
     }
 
-    get_raw_contig(&lo[0], &hi[0], buff_span.data());
+    get_raw_contig(&lo[0], &hi[0], &buff_span[0]);
 #else
-    NGA_Get64(ga_, &lo[0], &hi[0], buff_span.data(), &ld[0]);
+    std::vector<int64_t> ld = compute_ld(blockid);
+    NGA_Get64(ga_, &lo[0], &hi[0], &buff_span[0], &ld[0]);
 #endif
   }
 
@@ -1070,7 +1070,6 @@ public:
 
     std::vector<int64_t> lo = compute_lo(blockid);
     std::vector<int64_t> hi = compute_hi(blockid);
-    std::vector<int64_t> ld = compute_ld(blockid);
 
 #if defined(USE_UPCXX)
     // Pad
@@ -1079,9 +1078,10 @@ public:
       hi.insert(hi.begin(), 0);
     }
 
-    put_raw_contig(&lo[0], &hi[0], buff_span.data());
+    put_raw_contig(&lo[0], &hi[0], &buff_span[0]);
 #else
-    NGA_Put64(ga_, &lo[0], &hi[0], buff_span.data(), &ld[0]);
+    std::vector<int64_t> ld = compute_ld(blockid);
+    NGA_Put64(ga_, &lo[0], &hi[0], &buff_span[0], &ld[0]);
 #endif
   }
 

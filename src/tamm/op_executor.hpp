@@ -302,7 +302,7 @@ public:
           for(auto& tens_info: used_tensors) {
             if(!tens_info.tensor_.is_allocated()) { tens_info.tensor_.allocate(sch_); }
             if(tens_info.tensor_.has_ops()) {
-              sch_.execute();
+              sch_.execute(execute_on, profile);
               execute(tens_info.tensor_, use_opmin, execute_on, profile);
             }
           }

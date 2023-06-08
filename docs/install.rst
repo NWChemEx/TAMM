@@ -16,10 +16,11 @@ Depdendencies
 
 **The remaining depdendencies are automatically built and do not need to be installed explicitly:**
 
-* GlobalArrays (also builds BLAS++ and LAPACK++)
+* GlobalArrays
 * HPTT, Librett
 * HDF5
 * BLAS/LAPACK (BLIS and netlib-lapack are automatically built if no vendor BLAS libraries are provided)
+* BLAS++ and LAPACK++
 * Eigen3, doctest
 
 

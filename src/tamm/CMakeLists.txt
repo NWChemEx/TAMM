@@ -55,6 +55,7 @@ set(TAMM_INCLUDES
     op_dag.hpp
     interfaces.hpp
     op_profiler.hpp
+    mem_profiler.hpp
     op_attributes.hpp
     op_visitors.hpp
     scalar.hpp

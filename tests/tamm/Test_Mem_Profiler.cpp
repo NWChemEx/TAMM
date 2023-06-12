@@ -28,9 +28,9 @@ void report_mem_usage(ExecutionContext& ec) {
 }
 
 void test_tensor_allocate(Scheduler& sch) {
-  TiledIndexSpace tis{IndexSpace{range(100)}, 40};
-  TiledIndexSpace tis2{IndexSpace{range(200)}, 40};
-  TiledIndexSpace tis3{IndexSpace{range(400)}, 40};
+  TiledIndexSpace tis{IndexSpace{range(10)}, 10};
+  TiledIndexSpace tis2{IndexSpace{range(20)}, 20};
+  TiledIndexSpace tis3{IndexSpace{range(100)}, 20};
 
   Tensor<double> A{tis, tis, tis, tis};
   Tensor<double> B{tis, tis, tis, tis};

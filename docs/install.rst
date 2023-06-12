@@ -1,13 +1,28 @@
 The prerequisites needed to build this repository can be found
-:doc:`here <prerequisites>`.
 
 Build Instructions
 ==================
 
-::
+Depdendencies
+-------------
 
-   export REPO_ROOT_PATH=$HOME/TAMM
-   export REPO_INSTALL_PATH=$HOME/tamm_install
+**External depdendencies**
+
+* cmake >= 3.22
+* MPI 
+* C++17 compiler (information on supported compilers here :doc:`here <prerequisites>`.)
+* CUDA >= 11.4 (Required only for CUDA builds)
+* ROCM >= 5.4  (Required only for ROCM builds)
+
+**The remaining depdendencies are automatically built and do not need to be installed explicitly:**
+
+* GlobalArrays
+* HPTT, Librett
+* HDF5
+* BLAS/LAPACK (BLIS and netlib-lapack are automatically built if no vendor BLAS libraries are provided)
+* BLAS++ and LAPACK++
+* Eigen3, doctest
+
 
 Choose Build Options
 --------------------
@@ -48,6 +63,11 @@ CMake options for developers (optional)
 
 Building TAMM
 --------------
+
+::
+
+   export REPO_ROOT_PATH=$HOME/TAMM
+   export REPO_INSTALL_PATH=$HOME/tamm_install
 
 ::
 

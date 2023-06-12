@@ -1,16 +1,5 @@
 :orphan:
 
-Prerequisites
-=============
-
--  Git
--  autotools
--  cmake >= 3.22
--  MPI Library
--  C++17 compiler
--  CUDA >= 11.1 (OR) ROCM >= 5.1 (when building with Nvidia/AMD GPU
-   support)
-
 Supported Compilers
 ===================
 

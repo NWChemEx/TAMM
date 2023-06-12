@@ -7,7 +7,7 @@ using namespace tamm;
 
 using DependencyMap = std::map<IndexVector, TiledIndexSpace>;
 
-template <typename T>
+template<typename T>
 std::string mem_to_string(double mem_size) {
   return std::to_string((mem_size * sizeof(T)) / std::pow(2, 30)) + " GBs";
 }
@@ -21,9 +21,9 @@ void report_mem_usage(ExecutionContext& ec) {
     std::cout << "dealloc_counter : " << memprof.dealloc_counter << "\n";
     std::cout << "mem_allocated : " << mem_to_string<T>(memprof.mem_allocated) << "\n";
     std::cout << "mem_deallocated : " << mem_to_string<T>(memprof.mem_deallocated) << "\n";
-    std::cout << "max_in_single_allocate : " << mem_to_string<T>(memprof.max_in_single_allocate) << "\n";
-    std::cout << "max_total_allocated : " << mem_to_string<T>(memprof.max_total_allocated)
+    std::cout << "max_in_single_allocate : " << mem_to_string<T>(memprof.max_in_single_allocate)
               << "\n";
+    std::cout << "max_total_allocated : " << mem_to_string<T>(memprof.max_total_allocated) << "\n";
   }
 }
 
@@ -45,7 +45,6 @@ void test_tensor_allocate(Scheduler& sch) {
   report_mem_usage<double>(sch.ec());
 }
 
-
 int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);
 
@@ -53,7 +52,6 @@ int main(int argc, char* argv[]) {
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
   Scheduler sch{ec};
-
 
   test_tensor_allocate(sch);
 

@@ -229,7 +229,7 @@ public:
   virtual void deallocate() {
     EXPECTS(allocation_status_ == AllocationStatus::created);
     EXPECTS(mpb_);
-    // get memory profiler instance  
+    // get memory profiler instance
     auto& memprof = MemProfiler::instance();
 
     ec_->unregister_for_dealloc(mpb_);
@@ -1041,7 +1041,7 @@ public:
 #endif
 
     update_status(AllocationStatus::created);
-    // get memory profiler instance  
+    // get memory profiler instance
     auto& memprof = MemProfiler::instance();
     // update memory profiler instance
     memprof.mem_deallocated += size();

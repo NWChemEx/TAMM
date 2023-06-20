@@ -415,8 +415,8 @@ public:
    *
    * @return maximum number of indices in the TiledIndexSpace
    */
-  size_t max_num_indices() const { return index_space().num_indices(); }
-  // size_t max_num_indices() const { return tiled_info_->max_num_indices(); }
+  // size_t max_num_indices() const { return index_space().num_indices(); }
+  size_t max_num_indices() const { return tiled_info_->max_num_indices(); }
 
   /**
    * @brief Get the maximum tile size of TiledIndexSpace

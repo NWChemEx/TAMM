@@ -3298,7 +3298,7 @@ void print_dense_tensor(const Tensor<T>& tensor, std::string filename = "") {
 }
 
 template<typename T>
-void print_memory_usage(const int64_t rank) {
+void print_memory_usage(const int64_t rank, std::string mstring = "") {
   auto& memprof = tamm::MemProfiler::instance();
 
   auto mem_to_string = [&](double mem_size) {
@@ -3306,7 +3306,8 @@ void print_memory_usage(const int64_t rank) {
   };
 
   if(rank == 0) {
-    std::cout << "Memory stats" << std::endl << std::string(13, '-') << std::endl;
+    if(mstring.empty()) mstring = "Memory stats";
+    std::cout << mstring << std::endl << std::string(mstring.length(), '-') << std::endl;
     std::cout << "allocation count: " << memprof.alloc_counter << std::endl;
     std::cout << "deallocation count: " << memprof.dealloc_counter << std::endl;
     std::cout << "total memory allocated: " << mem_to_string(memprof.mem_allocated) << std::endl;

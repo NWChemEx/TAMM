@@ -7,26 +7,6 @@ using namespace tamm;
 
 using DependencyMap = std::map<IndexVector, TiledIndexSpace>;
 
-template<typename T>
-std::string mem_to_string(double mem_size) {
-  return std::to_string((mem_size * sizeof(T)) / std::pow(2, 30)) + " GBs";
-}
-
-template<typename T>
-void report_mem_usage(ExecutionContext& ec) {
-  auto& memprof = tamm::MemProfiler::instance();
-
-  if(ec.pg().rank() == 0) {
-    std::cout << "alloc_counter : " << memprof.alloc_counter << "\n";
-    std::cout << "dealloc_counter : " << memprof.dealloc_counter << "\n";
-    std::cout << "mem_allocated : " << mem_to_string<T>(memprof.mem_allocated) << "\n";
-    std::cout << "mem_deallocated : " << mem_to_string<T>(memprof.mem_deallocated) << "\n";
-    std::cout << "max_in_single_allocate : " << mem_to_string<T>(memprof.max_in_single_allocate)
-              << "\n";
-    std::cout << "max_total_allocated : " << mem_to_string<T>(memprof.max_total_allocated) << "\n";
-  }
-}
-
 void test_tensor_allocate(Scheduler& sch) {
   TiledIndexSpace tis{IndexSpace{range(10)}, 10};
   TiledIndexSpace tis2{IndexSpace{range(20)}, 20};
@@ -42,7 +22,7 @@ void test_tensor_allocate(Scheduler& sch) {
 
   sch.allocate(D, E).execute();
 
-  report_mem_usage<double>(sch.ec());
+  print_memory_usage<double>(sch.ec().pg().rank().value());
 }
 
 int main(int argc, char* argv[]) {

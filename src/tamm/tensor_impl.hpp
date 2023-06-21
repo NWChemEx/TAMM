@@ -6,6 +6,7 @@
 #include "tamm/execution_context.hpp"
 #include "tamm/index_loop_nest.hpp"
 #include "tamm/index_space.hpp"
+#include "tamm/mem_profiler.hpp"
 #include "tamm/memory_manager_local.hpp"
 #include "tamm/tensor_base.hpp"
 #include <functional>
@@ -228,11 +229,17 @@ public:
   virtual void deallocate() {
     EXPECTS(allocation_status_ == AllocationStatus::created);
     EXPECTS(mpb_);
+    // get memory profiler instance
+    auto& memprof = MemProfiler::instance();
+
     ec_->unregister_for_dealloc(mpb_);
     mpb_->dealloc_coll();
     delete mpb_;
     mpb_ = nullptr;
     update_status(AllocationStatus::deallocated);
+    // update memory profiler instance
+    memprof.mem_deallocated += size();
+    memprof.dealloc_counter++;
   }
 
   /**
@@ -243,6 +250,9 @@ public:
   virtual void allocate(ExecutionContext* ec) {
     {
       EXPECTS(allocation_status_ == AllocationStatus::invalid);
+      // get memory profiler instance
+      auto& memprof = MemProfiler::instance();
+
       auto          defd = ec->get_default_distribution();
       Distribution* distribution =
         ec->distribution(defd->get_tensor_base(), defd->get_dist_proc()); // defd->kind());
@@ -280,6 +290,17 @@ public:
       EXPECTS(mpb_ != nullptr);
       ec_->register_for_dealloc(mpb_);
       update_status(AllocationStatus::created);
+
+      // update memory profiler instance
+      memprof.alloc_counter++;
+      const auto tsize = size();
+      memprof.mem_allocated += tsize;
+      memprof.max_in_single_allocate =
+        tsize > memprof.max_in_single_allocate ? tsize : memprof.max_in_single_allocate;
+      memprof.max_total_allocated = (memprof.mem_allocated - memprof.mem_deallocated) >
+                                        memprof.max_total_allocated
+                                      ? (memprof.mem_allocated - memprof.mem_deallocated)
+                                      : memprof.max_total_allocated;
     }
   }
 
@@ -754,6 +775,11 @@ public:
     ga_ = -1;
 #endif
     update_status(AllocationStatus::deallocated);
+    // get memory profiler instance
+    auto& memprof = MemProfiler::instance();
+    // update memory profiler instance
+    memprof.mem_deallocated += size();
+    memprof.dealloc_counter++;
   }
 
   void allocate(ExecutionContext* ec) {
@@ -1021,6 +1047,18 @@ public:
 #endif
 
     update_status(AllocationStatus::created);
+    // get memory profiler instance
+    auto& memprof = MemProfiler::instance();
+    // update memory profiler instance
+    memprof.alloc_counter++;
+    const auto tsize = size();
+    memprof.mem_allocated += tsize;
+    memprof.max_in_single_allocate =
+      tsize > memprof.max_in_single_allocate ? tsize : memprof.max_in_single_allocate;
+    memprof.max_total_allocated = (memprof.mem_allocated - memprof.mem_deallocated) >
+                                      memprof.max_total_allocated
+                                    ? (memprof.mem_allocated - memprof.mem_deallocated)
+                                    : memprof.max_total_allocated;
   }
 
 #ifdef USE_UPCXX

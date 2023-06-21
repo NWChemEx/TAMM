@@ -3297,4 +3297,27 @@ void print_dense_tensor(const Tensor<T>& tensor, std::string filename = "") {
   print_dense_tensor(tensor, func, filename);
 }
 
+template<typename T>
+void print_memory_usage(const int64_t rank, std::string mstring = "") {
+  auto& memprof = tamm::MemProfiler::instance();
+
+  auto mem_to_string = [&](double mem_size) {
+    return std::to_string((mem_size * sizeof(T)) / 1073741824.0) + " GiB";
+  };
+
+  if(rank == 0) {
+    if(mstring.empty()) mstring = "Memory stats";
+    std::cout << mstring << std::endl << std::string(mstring.length(), '-') << std::endl;
+    std::cout << "allocation count: " << memprof.alloc_counter << std::endl;
+    std::cout << "deallocation count: " << memprof.dealloc_counter << std::endl;
+    std::cout << "total memory allocated: " << mem_to_string(memprof.mem_allocated) << std::endl;
+    std::cout << "total memory deallocated: " << mem_to_string(memprof.mem_deallocated)
+              << std::endl;
+    std::cout << "maximum memory in single allocation: "
+              << mem_to_string(memprof.max_in_single_allocate) << std::endl;
+    std::cout << "maximum memory consumption: " << mem_to_string(memprof.max_total_allocated)
+              << std::endl;
+  }
+}
+
 } // namespace tamm

@@ -293,9 +293,10 @@ public:
 
       // update memory profiler instance
       memprof.alloc_counter++;
-      memprof.mem_allocated += size();
+      const auto tsize = size();
+      memprof.mem_allocated += tsize;
       memprof.max_in_single_allocate =
-        size() > memprof.max_in_single_allocate ? size() : memprof.max_in_single_allocate;
+        tsize > memprof.max_in_single_allocate ? tsize : memprof.max_in_single_allocate;
       memprof.max_total_allocated = (memprof.mem_allocated - memprof.mem_deallocated) >
                                         memprof.max_total_allocated
                                       ? (memprof.mem_allocated - memprof.mem_deallocated)
@@ -774,6 +775,11 @@ public:
     ga_ = -1;
 #endif
     update_status(AllocationStatus::deallocated);
+    // get memory profiler instance
+    auto& memprof = MemProfiler::instance();
+    // update memory profiler instance
+    memprof.mem_deallocated += size();
+    memprof.dealloc_counter++;
   }
 
   void allocate(ExecutionContext* ec) {
@@ -1044,8 +1050,15 @@ public:
     // get memory profiler instance
     auto& memprof = MemProfiler::instance();
     // update memory profiler instance
-    memprof.mem_deallocated += size();
-    memprof.dealloc_counter++;
+    memprof.alloc_counter++;
+    const auto tsize = size();
+    memprof.mem_allocated += tsize;
+    memprof.max_in_single_allocate =
+      tsize > memprof.max_in_single_allocate ? tsize : memprof.max_in_single_allocate;
+    memprof.max_total_allocated = (memprof.mem_allocated - memprof.mem_deallocated) >
+                                      memprof.max_total_allocated
+                                    ? (memprof.mem_allocated - memprof.mem_deallocated)
+                                    : memprof.max_total_allocated;
   }
 
 #ifdef USE_UPCXX

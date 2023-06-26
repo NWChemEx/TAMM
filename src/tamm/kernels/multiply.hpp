@@ -4,12 +4,12 @@
 #include "tamm/kernels/assign.hpp"
 #include "tamm/types.hpp"
 
-#include <cstring> // for std::memset
 #include <complex>
+#include <cstring> // for std::memset
 #include <numeric>
 #include <vector>
 
-#include "ga/ga_linalg.h"
+#include "tamm_blas.hpp"
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 #include "librett/librett.h"
@@ -40,10 +40,6 @@ void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, i
                   T alpha, T beta, const T2* ainter_buf, const T2* ainter_buf_dev,
                   const T3* binter_buf, const T3* binter_buf_dev, T1*& cinter_buf,
                   T1*& cinter_buf_dev) {
-#if defined(USE_CUDA) || defined(USE_HIP)
-  auto& handle = tamm::GPUStreamPool::getInstance().getBlasHandle();
-#endif
-
   int ainter_ld  = K;
   int binter_ld  = N;
   int cinter_ld  = N;
@@ -56,71 +52,17 @@ void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, i
   for(size_t ari = 0; ari < AR; ari++) {
     for(size_t bri = 0; bri < BR; bri++) {
       for(size_t i = 0; i < B; i++) {
-#if defined(USE_DPCPP)
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         if(hw == ExecutionHW::GPU) {
-          try {
-            auto dgemm = oneapi::mkl::blas::column_major::gemm(
-              thandle, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N, N, M, K, alpha,
-              binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
-              ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, beta,
-              cinter_buf_dev + i * cbatch_ld, cinter_ld);
-            dgemm.wait();
-          } catch(oneapi::mkl::exception const& ex) {
-            std::stringstream msg;
-            msg << "oneMKL Exception at " << __FILE__ << " : " << __LINE__ << std::endl;
-            throw(std::runtime_error(ex.what()));
-          }
-
-          continue;
-        }
-#elif defined(USE_CUDA)
-        if(hw == ExecutionHW::GPU) {
-          if constexpr(internal::is_complex_v<T1> && internal::is_complex_v<T2> &&
-                       internal::is_complex_v<T3>) {
-            CUBLAS_CHECK(cublasZgemm(
-              handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, (cuDoubleComplex*) &alpha,
-              (cuDoubleComplex*) binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
-              (cuDoubleComplex*) ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
-              (cuDoubleComplex*) &beta, (cuDoubleComplex*) cinter_buf_dev + i * cbatch_ld,
-              cinter_ld));
-          }
-          else {
-            CUBLAS_CHECK(cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha,
-                                     binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
-                                     ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                                     &beta, cinter_buf_dev + i * cbatch_ld, cinter_ld));
-          }
-          continue;
-        }
-#elif defined(USE_HIP)
-        if(hw == ExecutionHW::GPU) {
-          if constexpr(internal::is_complex_v<T1> && internal::is_complex_v<T2> &&
-                       internal::is_complex_v<T3>) {
-            ROCBLAS_CHECK(rocblas_zgemm(
-              handle, rocblas_operation_none, rocblas_operation_none, N, M, K,
-              (rocblas_double_complex*) &alpha,
-              (rocblas_double_complex*) binter_buf_dev + bri * breduce_ld + i * bbatch_ld,
-              binter_ld,
-              (rocblas_double_complex*) ainter_buf_dev + ari * areduce_ld + i * abatch_ld,
-              ainter_ld, (rocblas_double_complex*) &beta,
-              (rocblas_double_complex*) cinter_buf_dev + i * cbatch_ld, cinter_ld));
-          }
-          else {
-            ROCBLAS_CHECK(
-              rocblas_dgemm(handle, rocblas_operation_none, rocblas_operation_none, N, M, K, &alpha,
-                            binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
-                            ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, &beta,
-                            cinter_buf_dev + i * cbatch_ld, cinter_ld));
-          }
+          gpu::blas(N, M, K, alpha, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
+                    ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, beta,
+                    cinter_buf_dev + i * cbatch_ld, cinter_ld, thandle);
           continue;
         }
 #endif
-
-        // CPU only ops
-        blas::gemm(blas::Layout::RowMajor, blas::Op::NoTrans, blas::Op::NoTrans, M, N, K, alpha,
-                   ainter_buf + ari * areduce_ld + i * abatch_ld, ainter_ld,
-                   binter_buf + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
-                   cinter_buf + i * cbatch_ld, cinter_ld);
+        cpu::blas(M, N, K, alpha, ainter_buf + ari * areduce_ld + i * abatch_ld, ainter_ld,
+                  binter_buf + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
+                  cinter_buf + i * cbatch_ld, cinter_ld);
 
       } // for-i
     }   // for-bri
@@ -217,7 +159,7 @@ void assign_gpu(gpuStream_t& thandle, T*& dst, const SizeVec& ddims, const IntLa
   // create plan
   librettHandle plan;
 #if defined(USE_DPCPP)
-  sycl::queue* ptrQueue = &thandle;
+  sycl::queue* ptrQueue = &(thandle.first);
   librettPlan(&plan, ndim, size, perm, sizeof(T), ptrQueue);
 #else
   librettPlan(&plan, ndim, size, perm, sizeof(T), thandle);
@@ -466,8 +408,8 @@ void block_multiply(
         // copy B to complex buffer
         T1* bbuf_complex{nullptr};
         allocate_host_buffers(hw, bbuf_complex, bsize.value());
-        T3* bbuf_comp_ptr = reinterpret_cast<T3*>(bbuf_complex);
-        blas::copy(bsize.value(), bbufp, 1, bbuf_comp_ptr, 2);
+        // T3* bbuf_comp_ptr = reinterpret_cast<T3*>(bbuf_complex);
+        // blas::copy(bsize.value(), bbufp, 1, bbuf_comp_ptr, 2);
 
         T1* bbuf_complex_dev{nullptr};
         allocate_device_buffers(hw, bbuf_complex_dev, bsize.value());
@@ -495,8 +437,8 @@ void block_multiply(
         // T1,T2 (C,A) are real, T3 (B) is complex
         T1* bbuf_real{nullptr};
         allocate_host_buffers(hw, bbuf_real, bsize.value());
-        T1* bbuf_comp_ptr = reinterpret_cast<T1*>(bbufp);
-        blas::copy(bsize.value(), bbuf_comp_ptr, 2, bbuf_real, 1);
+        // T1* bbuf_comp_ptr = reinterpret_cast<T1*>(bbufp);
+        // blas::copy(bsize.value(), bbuf_comp_ptr, 2, bbuf_real, 1);
 
         T1* bbuf_real_dev{nullptr};
         allocate_device_buffers(hw, bbuf_real_dev, bsize.value());
@@ -534,8 +476,8 @@ void block_multiply(
       if constexpr(internal::is_complex_v<T1>) {
         T1* abuf_complex{nullptr};
         allocate_host_buffers(hw, abuf_complex, asize.value());
-        T2* abuf_comp_ptr = reinterpret_cast<T2*>(abuf_complex);
-        blas::copy(asize.value(), abufp, 1, abuf_comp_ptr, 2);
+        // T2* abuf_comp_ptr = reinterpret_cast<T2*>(abuf_complex);
+        // blas::copy(asize.value(), abufp, 1, abuf_comp_ptr, 2);
 
         T1* abuf_complex_dev{nullptr};
         allocate_device_buffers(hw, abuf_complex_dev, asize.value());
@@ -563,9 +505,8 @@ void block_multiply(
         // T1,T3 (C,B) are real, T2 (A) is complex
         T1* abuf_real{nullptr};
         allocate_host_buffers(hw, abuf_real, asize.value());
-
-        T1* abuf_comp_ptr = reinterpret_cast<T1*>(abufp);
-        blas::copy(asize.value(), abuf_comp_ptr, 2, abuf_real, 1);
+        // T1* abuf_comp_ptr = reinterpret_cast<T1*>(abufp);
+        // blas::copy(asize.value(), abuf_comp_ptr, 2, abuf_real, 1);
 
         T1* abuf_real_dev{nullptr};
         allocate_device_buffers(hw, abuf_real_dev, asize.value());
@@ -604,11 +545,10 @@ void block_multiply(
       T1* bbuf_complex{nullptr};
       allocate_host_buffers(hw, abuf_complex, asize.value());
       allocate_host_buffers(hw, bbuf_complex, bsize.value());
-      T2* abuf_comp_ptr = reinterpret_cast<T2*>(abuf_complex);
-      T2* bbuf_comp_ptr = reinterpret_cast<T2*>(bbuf_complex);
-
-      blas::copy(asize.value(), abufp, 1, abuf_comp_ptr, 2);
-      blas::copy(bsize.value(), bbufp, 1, bbuf_comp_ptr, 2);
+      // T2* abuf_comp_ptr = reinterpret_cast<T2*>(abuf_complex);
+      // T2* bbuf_comp_ptr = reinterpret_cast<T2*>(bbuf_complex);
+      // blas::copy(asize.value(), abufp, 1, abuf_comp_ptr, 2);
+      // blas::copy(bsize.value(), bbufp, 1, bbuf_comp_ptr, 2);
 
       T1* abuf_complex_dev{nullptr};
       T1* bbuf_complex_dev{nullptr};

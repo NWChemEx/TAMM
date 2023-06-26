@@ -36,7 +36,7 @@ private:
 #elif defined(USE_HIP)
     hipMalloc(&ptr, bytes);
 #elif defined(USE_DPCPP)
-    ptr = sycl::malloc_device(bytes, GPUStreamPool::getInstance().getStream());
+    ptr = sycl::malloc_device(bytes, GPUStreamPool::getInstance().getStream().first);
 #endif
 
     return ptr;
@@ -55,7 +55,7 @@ private:
 #elif defined(USE_HIP)
     hipFree(ptr);
 #elif defined(USE_DPCPP)
-    sycl::free(ptr, GPUStreamPool::getInstance().getStream());
+    sycl::free(ptr, GPUStreamPool::getInstance().getStream().first);
 #endif
   }
 

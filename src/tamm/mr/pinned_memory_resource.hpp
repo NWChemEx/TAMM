@@ -70,7 +70,7 @@ class pinned_memory_resource final : public host_memory_resource {
       auto status = hipMallocHost(&ptr, size);
       if (hipSuccess != status) { throw std::bad_alloc{}; }
 #elif defined(USE_DPCPP)
-      ptr = sycl::malloc_host(size, GPUStreamPool::getInstance().getStream());
+      ptr = sycl::malloc_host(size, GPUStreamPool::getInstance().getStream().first);
       if (ptr == nullptr) { throw std::bad_alloc{}; }
 #endif
       return ptr;
@@ -104,7 +104,7 @@ class pinned_memory_resource final : public host_memory_resource {
 #elif defined(USE_HIP)
         hipFreeHost(ptr);
 #elif defined(USE_DPCPP)
-        sycl::free(ptr, GPUStreamPool::getInstance().getStream());
+        sycl::free(ptr, GPUStreamPool::getInstance().getStream().first);
 #endif
       });
   }

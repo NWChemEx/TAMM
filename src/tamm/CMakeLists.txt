@@ -24,7 +24,7 @@ if(USE_DPCPP)
 endif()
 
 #Add the current directory's sources to the list
-set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp)
+set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp kernels/cpu_blas.cpp kernels/gpu_blas.cpp)
 
 #Add the current directory's header files to the list
 set(TAMM_INCLUDES
@@ -65,6 +65,7 @@ set(TAMM_INCLUDES
     lru_cache.hpp
     kernels/assign.hpp
     kernels/multiply.hpp
+    kernels/tamm_blas.hpp    
     op_dag.hpp
     interfaces.hpp
     op_profiler.hpp

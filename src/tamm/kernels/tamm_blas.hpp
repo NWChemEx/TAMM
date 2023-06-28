@@ -12,7 +12,7 @@ void blas(int m, int n, int k, const T alpha, const T2* A, int lda, const T3* B,
 
 namespace gpu {
 template<typename T, typename T1, typename T2, typename T3>
-void blas(int m, int n, int k, const T alpha, const T2* A, int lda, const T3* B, int ldb,
+void blas(int n, int m, int k, const T alpha, const T3* B, int ldb, const T2* A, int lda,
           const T beta, T1* C, int ldc, gpuStream_t& blashandle);
 } // namespace gpu
 

@@ -1,10 +1,10 @@
 #pragma once
 
 #include "tamm/errors.hpp"
-#include <sstream>
-#include <vector>
-#include <utility>
 #include <optional>
+#include <sstream>
+#include <utility>
+#include <vector>
 
 #if defined(USE_CUDA)
 #include <cublas_v2.h>
@@ -21,10 +21,12 @@
 
 namespace tamm {
 
+class GPUStreamPool;
+
 #if defined(USE_HIP)
-using gpuStream_t     = std::pair<hipStream_t, rocblas_handle>;
-using gpuEvent_t      = hipEvent_t;
-using gpuMemcpyKind   = hipMemcpyKind;
+using gpuStream_t   = std::pair<hipStream_t, rocblas_handle>;
+using gpuEvent_t    = hipEvent_t;
+using gpuMemcpyKind = hipMemcpyKind;
 #define gpuMemcpyHostToDevice hipMemcpyHostToDevice
 #define gpuMemcpyDeviceToHost hipMemcpyDeviceToHost
 #define gpuMemcpyDeviceToDevice hipMemcpyDeviceToDevice
@@ -42,9 +44,9 @@ using gpuMemcpyKind   = hipMemcpyKind;
 #endif // USE_HIP
 
 #if defined(USE_CUDA)
-using gpuStream_t     = std::pair<cudaStream_t, cublasHandle_t>;
-using gpuEvent_t      = cudaEvent_t;
-using gpuMemcpyKind   = cudaMemcpyKind;
+using gpuStream_t   = std::pair<cudaStream_t, cublasHandle_t>;
+using gpuEvent_t    = cudaEvent_t;
+using gpuMemcpyKind = cudaMemcpyKind;
 #define gpuMemcpyHostToDevice cudaMemcpyHostToDevice
 #define gpuMemcpyDeviceToHost cudaMemcpyDeviceToHost
 #define gpuMemcpyDeviceToDevice cudaMemcpyDeviceToDevice
@@ -206,13 +208,12 @@ static inline void gpuEventSynchronize(gpuEvent_t event) {
 
 class GPUStreamPool {
 protected:
-  int default_deviceID{0};
-  int nstreams{4};
+  int                      default_deviceID{0};
+  int                      nstreams{4};
   std::vector<gpuStream_t> _devStream;
 
 private:
-  GPUStreamPool()
-  {
+  GPUStreamPool() {
     // Assert here if multi-GPUs are detected
     int ngpus{0};
     getDeviceCount(&ngpus);
@@ -240,10 +241,10 @@ private:
 
       _devStream.push_back(std::make_pair(gpu_stream, gpu_blashandle));
 #elif defined(USE_DPCPP)
-      _devStream.push_back(std::make_pair(sycl::queue(*sycl_get_context(default_deviceID),
-                                                      *sycl_get_device(default_deviceID), sycl_asynchandler,
-                                                      sycl::property_list{sycl::property::queue::in_order{}}),
-                                          std::nullopt));
+      _devStream.push_back(std::make_pair(
+        sycl::queue(*sycl_get_context(default_deviceID), *sycl_get_device(default_deviceID),
+                    sycl_asynchandler, sycl::property_list{sycl::property::queue::in_order{}}),
+        std::nullopt));
 #endif
     }
   }
@@ -263,6 +264,8 @@ private:
 public:
   /// Returns a GPU stream
   gpuStream_t& getStream() { return _devStream[0]; }
+  /// Returns all GPU stream
+  std::vector<gpuStream_t>& getAllStream() { return _devStream; }
 
   /// Returns the instance of device manager singleton.
   inline static GPUStreamPool& getInstance() {
@@ -275,6 +278,17 @@ public:
   GPUStreamPool(GPUStreamPool&&)                 = delete;
   GPUStreamPool& operator=(GPUStreamPool&&)      = delete;
 };
+
+static inline void gpuDeviceSynchronize() {
+#if defined(USE_DPCPP)
+  auto streams = tamm::GPUStreamPool::getInstance().getAllStream();
+  for(auto& str: streams) { str.first.wait(); }
+#elif defined(USE_HIP)
+  hipDeviceSynchronize();
+#elif defined(USE_CUDA)
+  cudaDeviceSynchronize();
+#endif
+}
 
 // This API needs to be defined after the class GPUStreamPool since the classs
 // is only declared and defined before this method

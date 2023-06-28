@@ -15,20 +15,35 @@
  */
 #pragma once
 
-#include "host_memory_resource.hpp"
 #include "aligned.hpp"
+#include "host_memory_resource.hpp"
 
 #include <cstddef>
 #include <utility>
 
+// Guards added since HBM availability is only for ALCF Aurora
+#ifdef USE_MEMKIND
+#include <hbwmalloc.h>
+#endif
+
 namespace tamm::rmm::mr {
+
+  // TAMM_USE_MEMKIND = 0,1
+static const uint32_t tamm_use_memkind = [] {
+  const char *tammUseMemkind = std::getenv("TAMM_USE_MEMKIND");
+  uint32_t usingMemkind = 0;
+  if (tammUseMemkind) {
+    usingMemkind = std::atoi(tammUseMemkind);
+  }
+  return usingMemkind;
+}();
 
 /**
  * @brief A `host_memory_resource` that uses the global `operator new` and `operator delete` to
  * allocate host memory.
  */
-class new_delete_resource final : public host_memory_resource {
- public:
+class new_delete_resource final: public host_memory_resource {
+public:
   new_delete_resource()                                      = default;
   ~new_delete_resource() override                            = default;
   new_delete_resource(new_delete_resource const&)            = default;
@@ -36,7 +51,7 @@ class new_delete_resource final : public host_memory_resource {
   new_delete_resource& operator=(new_delete_resource const&) = default;
   new_delete_resource& operator=(new_delete_resource&&)      = default;
 
- private:
+private:
   /**
    * @brief Allocates memory on the host of size at least `bytes` bytes.
    *
@@ -50,15 +65,20 @@ class new_delete_resource final : public host_memory_resource {
    * @return Pointer to the newly allocated memory
    */
   void* do_allocate(std::size_t bytes,
-                    std::size_t alignment = rmm::detail::RMM_DEFAULT_HOST_ALIGNMENT) override
-  {
+                    std::size_t alignment = rmm::detail::RMM_DEFAULT_HOST_ALIGNMENT) override {
     // If the requested alignment isn't supported, use default
     alignment = (rmm::detail::is_supported_alignment(alignment))
                   ? alignment
                   : rmm::detail::RMM_DEFAULT_HOST_ALIGNMENT;
 
-    return rmm::detail::aligned_allocate(
-      bytes, alignment, [](std::size_t size) { return ::operator new(size); });
+#if defined(USE_MEMKIND)
+    if(tamm_use_memkind && (hbw_check_available() == 0)) { // returns zero if hbw_malloc is availiable.
+      return rmm::detail::aligned_allocate(bytes, alignment,
+                                           [](std::size_t size) { return hbw_malloc(size); });
+    }
+#endif
+    return rmm::detail::aligned_allocate(bytes, alignment,
+                                         [](std::size_t size) { return ::operator new(size); });
   }
 
   /**
@@ -76,13 +96,17 @@ class new_delete_resource final : public host_memory_resource {
    * @param alignment Alignment of the allocation. This must be equal to the value of `alignment`
    *                  that was passed to the `allocate` call that returned `ptr`.
    */
-  void do_deallocate(void* ptr,
-                     std::size_t bytes,
-                     std::size_t alignment = rmm::detail::RMM_DEFAULT_HOST_ALIGNMENT) override
-  {
-    rmm::detail::aligned_deallocate(
-      ptr, bytes, alignment, [](void* ptr) { ::operator delete(ptr); });
+  void do_deallocate(void* ptr, std::size_t bytes,
+                     std::size_t alignment = rmm::detail::RMM_DEFAULT_HOST_ALIGNMENT) override {
+#if defined(USE_MEMKIND)
+    if(tamm_use_memkind && (hbw_check_available() == 0)) { // returns zero if hbw_malloc is availiable.
+      rmm::detail::aligned_deallocate(ptr, bytes, alignment, [](void* ptr) { hbw_free(ptr); });
+      return;
+    }
+#endif
+    rmm::detail::aligned_deallocate(ptr, bytes, alignment,
+                                    [](void* ptr) { ::operator delete(ptr); });
   }
 };
 
-}  // namespace rmm::mr
+} // namespace tamm::rmm::mr

@@ -101,7 +101,7 @@ void tamm::kernels::gpu::blas(int n, int m, int k, const T alpha, const T3* B, i
 }
 
 // Explicit template instantiations (for SYCL-BLAS APIs, complex-types are not supported yet)
-#ifdef USE_SYCL_BLAS
+#if defined(USE_SYCL_BLAS)
 extern template blas::SB_Handle::event_t
 blas::_gemm(blas::SB_Handle& sb_handle, char _TransA, char _TransB, int _M, int _N, int _K,
             double _alpha, double* a_, int _lda, double* b_, int _ldb, double _beta, double* _C,
@@ -118,7 +118,7 @@ blas::_gemm(blas::SB_Handle& sb_handle, char _TransA, char _TransB, int _M, int 
 // std::complex<float> _alpha, std::complex<float> * a_, int _lda, std::complex<float> * b_, int
 // _ldb, std::complex<float> _beta, std::complex<float>* _C, int _ldc, const
 // blas::SB_Handle::event_t& _dependencies = {});
-#endif
+#endif // USE_SYCL_BLAS
 
 template void tamm::kernels::gpu::blas(int n, int m, int k, const double alpha, const double* B,
                                        int ldb, const double* A, int lda, const double beta,

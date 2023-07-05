@@ -58,7 +58,7 @@ using U64 = uint64_t;
 
 // get next greater subset of set with
 // Same Number Of One Bits
-U64 snoob(U64 sub, U64 set) {
+inline U64 snoob(U64 sub, U64 set) {
   U64 tmp = sub - 1;
   U64 rip = set & (tmp + (sub & (0 - sub)) - set);
   for(sub = (tmp & sub) ^ rip; sub &= sub - 1; rip ^= tmp, set ^= tmp) tmp = set & (0 - set);
@@ -82,7 +82,7 @@ void enumerate_power_set_minus_empty_set(unsigned n, Fn&& fn, Args&&... args) {
 
 constexpr std::uint32_t intlog2(std::uint32_t n) { return (n > 1) ? 1 + intlog2(n >> 1) : 0; }
 
-unsigned int get_first_bit_pos(uint64_t n) { return intlog2(n & -n) + 1; }
+inline unsigned int get_first_bit_pos(uint64_t n) { return intlog2(n & -n) + 1; }
 } // namespace opmin::internal
 
 #if 0

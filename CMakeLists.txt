@@ -45,7 +45,7 @@ if(USE_CUDA OR USE_HIP OR USE_DPCPP)
   endif()
 
   if(USE_SYCL_BLAS)
-    list(APPEND TAMM_DEPENDENCIES sycl-blas)
+    #list(APPEND TAMM_DEPENDENCIES sycl-blas)
   endif()
 
   list(APPEND TAMM_DEPENDENCIES Librett)

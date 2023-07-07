@@ -7,7 +7,7 @@
 #elif defined(USE_DPCPP)
 #include <oneapi/mkl/blas.hpp>
 #if defined(USE_SYCL_BLAS)
-#include <sycl_blas.h>
+#include <sycl_blas.hpp>
 #endif // USE_SYCL_BLAS
 #endif // USE_DPCPP
 
@@ -58,8 +58,9 @@ void tamm::kernels::gpu::blas(int n, int m, int k, const T alpha, const T3* B, i
 
 #ifdef USE_SYCL_BLAS
   blas::SB_Handle sb_handle(handle.first);
-  blas::_gemm(sb_handle, 'n', 'n', n, m, k, alpha, const_cast<T3*>(B), ldb, const_cast<T2*>(A), lda,
-              beta, C, ldc, {});
+  blas::internal::_gemm(sb_handle, 'n', 'n', n, m, k, alpha, const_cast<T3*>(B), ldb, const_cast<T2*>(A), lda,
+                        beta, C, ldc, {});
+  handle.first.wait();
 #else
   try {
     auto dgemm = oneapi::mkl::blas::column_major::gemm(handle.first, oneapi::mkl::transpose::N,
@@ -99,26 +100,6 @@ void tamm::kernels::gpu::blas(int n, int m, int k, const T alpha, const T3* B, i
   }
 #endif
 }
-
-// Explicit template instantiations (for SYCL-BLAS APIs, complex-types are not supported yet)
-#if defined(USE_SYCL_BLAS)
-extern template blas::SB_Handle::event_t
-blas::_gemm(blas::SB_Handle& sb_handle, char _TransA, char _TransB, int _M, int _N, int _K,
-            double _alpha, double* a_, int _lda, double* b_, int _ldb, double _beta, double* _C,
-            int _ldc, const blas::SB_Handle::event_t& _dependencies = {});
-extern template blas::SB_Handle::event_t
-blas::_gemm(blas::SB_Handle& sb_handle, char _TransA, char _TransB, int _M, int _N, int _K,
-            float _alpha, float* a_, int _lda, float* b_, int _ldb, float _beta, float* _C,
-            int _ldc, const blas::SB_Handle::event_t& _dependencies = {});
-// extern template blas::SB_Handle::event_t blas::_gemm(blas::SB_Handle& sb_handle, char _TransA,
-// char _TransB, int _M, int _N, int _K, std::complex<double> _alpha, std::complex<double> * a_, int
-// _lda, std::complex<double> * b_, int _ldb, std::complex<double> _beta, std::complex<double>* _C,
-// int _ldc, const blas::SB_Handle::event_t& _dependencies = {}); template blas::SB_Handle::event_t
-// blas::_gemm(blas::SB_Handle& sb_handle, char _TransA, char _TransB, int _M, int _N, int _K,
-// std::complex<float> _alpha, std::complex<float> * a_, int _lda, std::complex<float> * b_, int
-// _ldb, std::complex<float> _beta, std::complex<float>* _C, int _ldc, const
-// blas::SB_Handle::event_t& _dependencies = {});
-#endif // USE_SYCL_BLAS
 
 template void tamm::kernels::gpu::blas(int n, int m, int k, const double alpha, const double* B,
                                        int ldb, const double* A, int lda, const double beta,

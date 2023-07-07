@@ -186,6 +186,9 @@ public:
    */
   TiledIndexSpace operator()(std::string id) const {
     if(id == "all") { return (*this); }
+    EXPECTS_STR(tiled_info_->tiled_named_subspaces_.find(id) !=
+                  tiled_info_->tiled_named_subspaces_.end(),
+                "Named sub-space doesn't exist!");
 
     return tiled_info_->tiled_named_subspaces_.at(id);
   }

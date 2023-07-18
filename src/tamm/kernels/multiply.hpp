@@ -407,7 +407,7 @@ void block_multiply(
       if constexpr(internal::is_complex_v<T1>) {
         // copy B to complex buffer
         T1* bbuf_complex{nullptr};
-        allocate_host_buffers(hw, bbuf_complex, bsize.value());
+        allocate_host_buffers(ExecutionHW::CPU, bbuf_complex, bsize.value());
         // T3* bbuf_comp_ptr = reinterpret_cast<T3*>(bbuf_complex);
         // blas::copy(bsize.value(), bbufp, 1, bbuf_comp_ptr, 2);
 
@@ -431,12 +431,12 @@ void block_multiply(
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
         free_device_buffers(hw, bbuf_complex_dev, bsize.value());
-        free_host_buffers(hw, bbuf_complex, bsize.value());
+        free_host_buffers(ExecutionHW::CPU, bbuf_complex, bsize.value());
       } // is_complex<T1>
       else {
         // T1,T2 (C,A) are real, T3 (B) is complex
         T1* bbuf_real{nullptr};
-        allocate_host_buffers(hw, bbuf_real, bsize.value());
+        allocate_host_buffers(ExecutionHW::CPU, bbuf_real, bsize.value());
         // T1* bbuf_comp_ptr = reinterpret_cast<T1*>(bbufp);
         // blas::copy(bsize.value(), bbuf_comp_ptr, 2, bbuf_real, 1);
 
@@ -460,7 +460,7 @@ void block_multiply(
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
         free_device_buffers(hw, bbuf_real_dev, bsize.value());
-        free_host_buffers(hw, bbuf_real, bsize.value());
+        free_host_buffers(ExecutionHW::CPU, bbuf_real, bsize.value());
       } // is_real<T1>
 
       free_host_buffers(hw, ainter_buf, asize.value());
@@ -475,7 +475,7 @@ void block_multiply(
       // T3 (matrix B) is complex, T2 (A) is real
       if constexpr(internal::is_complex_v<T1>) {
         T1* abuf_complex{nullptr};
-        allocate_host_buffers(hw, abuf_complex, asize.value());
+        allocate_host_buffers(ExecutionHW::CPU, abuf_complex, asize.value());
         // T2* abuf_comp_ptr = reinterpret_cast<T2*>(abuf_complex);
         // blas::copy(asize.value(), abufp, 1, abuf_comp_ptr, 2);
 
@@ -499,12 +499,12 @@ void block_multiply(
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
         free_device_buffers(hw, abuf_complex_dev, asize.value());
-        free_host_buffers(hw, abuf_complex, asize.value());
+        free_host_buffers(ExecutionHW::CPU, abuf_complex, asize.value());
       }
       else {
         // T1,T3 (C,B) are real, T2 (A) is complex
         T1* abuf_real{nullptr};
-        allocate_host_buffers(hw, abuf_real, asize.value());
+        allocate_host_buffers(ExecutionHW::CPU, abuf_real, asize.value());
         // T1* abuf_comp_ptr = reinterpret_cast<T1*>(abufp);
         // blas::copy(asize.value(), abuf_comp_ptr, 2, abuf_real, 1);
 
@@ -528,7 +528,7 @@ void block_multiply(
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
         free_device_buffers(hw, abuf_real_dev, asize.value());
-        free_host_buffers(hw, abuf_real, asize.value());
+        free_host_buffers(ExecutionHW::CPU, abuf_real, asize.value());
       }
 
       free_host_buffers(hw, ainter_buf, asize.value());
@@ -543,8 +543,8 @@ void block_multiply(
 
       T1* abuf_complex{nullptr};
       T1* bbuf_complex{nullptr};
-      allocate_host_buffers(hw, abuf_complex, asize.value());
-      allocate_host_buffers(hw, bbuf_complex, bsize.value());
+      allocate_host_buffers(ExecutionHW::CPU, abuf_complex, asize.value());
+      allocate_host_buffers(ExecutionHW::CPU, bbuf_complex, bsize.value());
       // T2* abuf_comp_ptr = reinterpret_cast<T2*>(abuf_complex);
       // T2* bbuf_comp_ptr = reinterpret_cast<T2*>(bbuf_complex);
       // blas::copy(asize.value(), abufp, 1, abuf_comp_ptr, 2);
@@ -574,8 +574,8 @@ void block_multiply(
 
       free_device_buffers(hw, abuf_complex_dev, asize.value());
       free_device_buffers(hw, bbuf_complex_dev, bsize.value());
-      free_host_buffers(hw, abuf_complex, asize.value());
-      free_host_buffers(hw, bbuf_complex, bsize.value());
+      free_host_buffers(ExecutionHW::CPU, abuf_complex, asize.value());
+      free_host_buffers(ExecutionHW::CPU, bbuf_complex, bsize.value());
       free_host_buffers(hw, ainter_buf, asize.value());
       free_host_buffers(hw, binter_buf, bsize.value());
     }

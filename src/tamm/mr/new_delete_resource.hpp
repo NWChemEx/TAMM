@@ -73,6 +73,7 @@ private:
 
 #if defined(USE_MEMKIND)
     if(tamm_use_memkind && (hbw_check_available() == 0)) { // returns zero if hbw_malloc is availiable.
+      hbw_set_policy(HBW_POLICY_BIND);
       return rmm::detail::aligned_allocate(bytes, alignment,
                                            [](std::size_t size) { return hbw_malloc(size); });
     }

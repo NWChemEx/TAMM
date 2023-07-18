@@ -25,13 +25,11 @@ private:
     size_t free{}, total{};
     gpuMemGetInfo(&free, &total);
 
-    // Allocate 45% of total free memory on GPU
+    // Allocate 80% of total free memory on GPU
     // Similarly allocate the same size for the CPU pool too
     // For the host-pinned memory allcoate 5% of the free memory reported
-    // Motivation: When 2 GA progress-ranks are used per GPU
-    // the GPU might furnish the memory-pools apporiately for each rank
-    size_t max_device_bytes      = 0.30 * free;
-    size_t max_host_bytes        = 0.30 * free;
+    size_t max_device_bytes      = 0.80 * free;
+    size_t max_host_bytes        = 0.80 * free;
     size_t max_pinned_host_bytes = 0.05 * free;
 
     deviceMR = std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);

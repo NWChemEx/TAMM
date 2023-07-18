@@ -160,7 +160,9 @@ static inline void gpuStreamWaitEvent(gpuStream_t stream, gpuEvent_t event) {
 
 static inline void gpuStreamSynchronize(gpuStream_t stream) {
 #if defined(USE_DPCPP)
-  stream.first.wait();
+  if (!stream.first.ext_oneapi_empty()) {
+    stream.first.wait();
+  }
 #elif defined(USE_HIP)
   hipStreamSynchronize(stream.first);
 #elif defined(USE_CUDA)

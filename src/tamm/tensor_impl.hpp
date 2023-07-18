@@ -762,6 +762,7 @@ public:
   void deallocate() {
     EXPECTS(allocation_status_ == AllocationStatus::created);
 #if defined(USE_UPCXX)
+    local_nelems_ = 0;
     gptrs_.clear();
     tensor_dims_.clear();
     local_buf_dims_.clear();

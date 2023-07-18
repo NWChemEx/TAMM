@@ -77,7 +77,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   // GPUStreamPool as singleton object
   if(ngpu_ > 1) {
     auto& pool = tamm::GPUStreamPool::getInstance();
-    pool.set_device(dev_id_);
+    tamm::gpuSetDevice(dev_id_);
   }
 #endif
 }

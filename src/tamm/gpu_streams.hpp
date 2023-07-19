@@ -41,6 +41,17 @@ using gpuMemcpyKind = hipMemcpyKind;
       throw std::runtime_error(msg.str());                                                        \
     }                                                                                             \
   } while(0)
+
+#define ROCBLAS_CHECK(FUNC)                                                                      \
+  do {                                                                                           \
+    rocblas_status err_ = (FUNC);                                                                \
+    if(err_ != rocblas_status_success) {                                                         \
+      std::ostringstream msg;                                                                    \
+      msg << "ROCBLAS Error: " << rocblas_status_to_string(err_) << ", at " << __FILE__ << " : " \
+          << __LINE__ << std::endl;                                                              \
+      throw std::runtime_error(msg.str());                                                       \
+    }                                                                                            \
+  } while(0)
 #endif // USE_HIP
 
 #if defined(USE_CUDA)
@@ -60,6 +71,17 @@ using gpuMemcpyKind = cudaMemcpyKind;
           << __LINE__ << std::endl;                                                     \
       throw std::runtime_error(msg.str());                                              \
     }                                                                                   \
+  } while(0)
+
+#define CUBLAS_CHECK(FUNC)                                                                   \
+  do {                                                                                       \
+    cublasStatus_t err_ = (FUNC);                                                            \
+    if(err_ != CUBLAS_STATUS_SUCCESS) {                                                      \
+      std::ostringstream msg;                                                                \
+      msg << "CUBLAS Error: " << cublasGetStatusString(err_) << ", at " << __FILE__ << " : " \
+          << __LINE__ << std::endl;                                                          \
+      throw std::runtime_error(msg.str());                                                   \
+    }                                                                                        \
   } while(0)
 #endif // USE_CUDA
 
@@ -160,9 +182,7 @@ static inline void gpuStreamWaitEvent(gpuStream_t stream, gpuEvent_t event) {
 
 static inline void gpuStreamSynchronize(gpuStream_t stream) {
 #if defined(USE_DPCPP)
-  if (!stream.first.ext_oneapi_empty()) {
-    stream.first.wait();
-  }
+  if(!stream.first.ext_oneapi_empty()) { stream.first.wait(); }
 #elif defined(USE_HIP)
   hipStreamSynchronize(stream.first);
 #elif defined(USE_CUDA)

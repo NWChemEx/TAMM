@@ -162,7 +162,7 @@ void assign_gpu(gpuStream_t& thandle, T*& dst, const SizeVec& ddims, const IntLa
   sycl::queue* ptrQueue = &(thandle.first);
   librettPlan(&plan, ndim, size, perm, sizeof(T), ptrQueue);
 #else
-  librettPlan(&plan, ndim, size, perm, sizeof(T), thandle);
+  librettPlan(&plan, ndim, size, perm, sizeof(T), thandle.first);
 #endif
 
   // ABB: following casts were required since librett API only accepts void* as args

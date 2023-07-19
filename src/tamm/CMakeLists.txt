@@ -18,13 +18,15 @@ if(USE_CUDA OR USE_HIP OR USE_DPCPP)
     mr/per_device_resource.hpp
     rmm_memory_pool.hpp
   )
+
+  set(tamm_gpu_SRCS kernels/gpu_blas.cpp)
 endif()
 if(USE_DPCPP)
   list(APPEND tamm_gpu_INCS sycl_device.hpp)
 endif()
 
 #Add the current directory's sources to the list
-set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp kernels/cpu_blas.cpp kernels/gpu_blas.cpp)
+set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp kernels/cpu_blas.cpp "${tamm_gpu_SRCS}")
 
 #Add the current directory's header files to the list
 set(TAMM_INCLUDES

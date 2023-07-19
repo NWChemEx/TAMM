@@ -25,7 +25,6 @@
 
 using namespace tamm;
 
-using complex_single = std::complex<float>;
 using complex_double = std::complex<double>;
 
 template<typename T>
@@ -1145,18 +1144,6 @@ TEST_CASE("setop with double") {
   // test_setop_with_T<double>(3);
 }
 
-TEST_CASE("setop with float") {
-  test_setop_with_T<float>(1);
-  ///@todo with the new block ops the check value method should be updated
-  /// with respect to repeating index labels
-  // test_setop_with_T<float>(3);
-}
-
-// TEST_CASE("setop with single complex") {
-//     test_setop_with_T<complex_single>(1);
-//     test_setop_with_T<complex_single>(3);
-// }
-
 // TEST_CASE("setop with double complex") {
 //     test_setop_with_T<complex_double>(1);
 //     test_setop_with_T<complex_double>(3);
@@ -1167,16 +1154,6 @@ TEST_CASE("mapop with double") {
   test_mapop_with_T<double>(3);
 }
 
-TEST_CASE("mapop with float") {
-  test_mapop_with_T<float>(1);
-  test_mapop_with_T<float>(3);
-}
-
-// TEST_CASE("mapop with single complex") {
-//     test_mapop_with_T<complex_single>(1);
-//     test_mapop_with_T<complex_single>(3);
-// }
-
 // TEST_CASE("mapop with double complex") {
 //     test_mapop_with_T<complex_double>(1);
 //     test_mapop_with_T<complex_double>(3);
@@ -1185,16 +1162,6 @@ TEST_CASE("mapop with float") {
 TEST_CASE("addop with double") {
   test_addop_with_T<double>(1);
   test_addop_with_T<double>(3);
-}
-
-// TEST_CASE("addop with float") {
-//   test_addop_with_T<float>(1);
-//   test_addop_with_T<float>(3);
-// }
-
-TEST_CASE("addop with single complex") {
-  test_addop_with_T<complex_single>(1);
-  test_addop_with_T<complex_single>(3);
 }
 
 TEST_CASE("addop with double complex") {

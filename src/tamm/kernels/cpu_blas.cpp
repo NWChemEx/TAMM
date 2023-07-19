@@ -18,11 +18,3 @@ template void tamm::kernels::cpu::blas(int m, int n, int k, const std::complex<d
                                        const std::complex<double>* B, int ldb,
                                        const std::complex<double> beta, std::complex<double>* C,
                                        int ldc);
-template void tamm::kernels::cpu::blas(int m, int n, int k, const float alpha, const float* A,
-                                       int lda, const float* B, int ldb, const float beta, float* C,
-                                       int ldc);
-template void tamm::kernels::cpu::blas(int m, int n, int k, const std::complex<float> alpha,
-                                       const std::complex<float>* A, int lda,
-                                       const std::complex<float>* B, int ldb,
-                                       const std::complex<float> beta, std::complex<float>* C,
-                                       int ldc);

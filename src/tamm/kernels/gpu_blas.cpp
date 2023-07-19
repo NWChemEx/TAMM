@@ -1,3 +1,4 @@
+#include "tamm/utils.hpp"
 #include "tamm_blas.hpp"
 
 #if defined(USE_CUDA)
@@ -10,32 +11,6 @@
 #include <sycl_blas.hpp>
 #endif // USE_SYCL_BLAS
 #endif // USE_DPCPP
-
-#if defined(USE_HIP)
-#define ROCBLAS_CHECK(FUNC)                                                                      \
-  do {                                                                                           \
-    rocblas_status err_ = (FUNC);                                                                \
-    if(err_ != rocblas_status_success) {                                                         \
-      std::ostringstream msg;                                                                    \
-      msg << "ROCBLAS Error: " << rocblas_status_to_string(err_) << ", at " << __FILE__ << " : " \
-          << __LINE__ << std::endl;                                                              \
-      throw std::runtime_error(msg.str());                                                       \
-    }                                                                                            \
-  } while(0)
-#endif // USE_HIP
-
-#if defined(USE_CUDA)
-#define CUBLAS_CHECK(FUNC)                                                                   \
-  do {                                                                                       \
-    cublasStatus_t err_ = (FUNC);                                                            \
-    if(err_ != CUBLAS_STATUS_SUCCESS) {                                                      \
-      std::ostringstream msg;                                                                \
-      msg << "CUBLAS Error: " << cublasGetStatusString(err_) << ", at " << __FILE__ << " : " \
-          << __LINE__ << std::endl;                                                          \
-      throw std::runtime_error(msg.str());                                                   \
-    }                                                                                        \
-  } while(0)
-#endif // USE_CUDA
 
 #if defined(USE_DPCPP)
 #define ONEMKLBLAS_CHECK(FUNC)                                                         \
@@ -52,14 +27,14 @@
 #endif // USE_DPCPP
 
 template<typename T, typename T1, typename T2, typename T3>
-void tamm::kernels::gpu::blas(int n, int m, int k, const T alpha, const T3* B, int ldb,
-                              const T2* A, int lda, const T beta, T1* C, int ldc, gpuStream_t& handle) {
+void tamm::kernels::gpu::blas(int n, int m, int k, const T alpha, const T3* B, int ldb, const T2* A,
+                              int lda, const T beta, T1* C, int ldc, gpuStream_t& handle) {
 #if defined(USE_DPCPP)
 
 #ifdef USE_SYCL_BLAS
   blas::SB_Handle sb_handle(handle.first);
-  blas::internal::_gemm(sb_handle, 'n', 'n', n, m, k, alpha, const_cast<T3*>(B), ldb, const_cast<T2*>(A), lda,
-                        beta, C, ldc, {});
+  blas::internal::_gemm(sb_handle, 'n', 'n', n, m, k, alpha, const_cast<T3*>(B), ldb,
+                        const_cast<T2*>(A), lda, beta, C, ldc, {});
   handle.first.wait();
 #else
   try {
@@ -75,8 +50,8 @@ void tamm::kernels::gpu::blas(int n, int m, int k, const T alpha, const T3* B, i
 #endif // USE_SYCL_BLAS
 
 #elif defined(USE_CUDA)
-  if constexpr(internal::is_complex_v<T1> && internal::is_complex_v<T2> &&
-               internal::is_complex_v<T3>) {
+  if constexpr(tamm::internal::is_complex_v<T1> && tamm::internal::is_complex_v<T2> &&
+               tamm::internal::is_complex_v<T3>) {
     CUBLAS_CHECK(cublasZgemm(handle.second, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k,
                              (cuDoubleComplex*) &alpha, (cuDoubleComplex*) B, ldb,
                              (cuDoubleComplex*) A, lda, (cuDoubleComplex*) &beta,
@@ -104,12 +79,8 @@ void tamm::kernels::gpu::blas(int n, int m, int k, const T alpha, const T3* B, i
 template void tamm::kernels::gpu::blas(int n, int m, int k, const double alpha, const double* B,
                                        int ldb, const double* A, int lda, const double beta,
                                        double* C, int ldc, gpuStream_t& handle);
-template void tamm::kernels::gpu::blas(int n, int m, int k, const float alpha, const float* B,
-                                       int ldb, const float* A, int lda, const float beta,
-                                       float* C, int ldc, gpuStream_t& handle);
-template void tamm::kernels::gpu::blas(int n, int m, int k, const std::complex<double> alpha, const std::complex<double>* B,
-                                       int ldb, const std::complex<double>* A, int lda, const std::complex<double> beta,
-                                       std::complex<double>* C, int ldc, gpuStream_t& handle);
-template void tamm::kernels::gpu::blas(int n, int m, int k, const std::complex<float> alpha, const std::complex<float>* B,
-                                       int ldb, const std::complex<float>* A, int lda, const std::complex<float> beta,
-                                       std::complex<float>* C, int ldc, gpuStream_t& handle);
+template void tamm::kernels::gpu::blas(int n, int m, int k, const std::complex<double> alpha,
+                                       const std::complex<double>* B, int ldb,
+                                       const std::complex<double>* A, int lda,
+                                       const std::complex<double> beta, std::complex<double>* C,
+                                       int ldc, gpuStream_t& handle);

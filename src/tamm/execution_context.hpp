@@ -339,13 +339,14 @@ public:
 
   void print_mem_info() {
     if(pg_.rank() != 0) return;
+    std::cout << "Memory information" << std::endl;
     std::cout << "{" << std::endl;
     std::cout << " CPU memory per node (GiB): " << minfo_.cpu_mem_per_node << std::endl;
     std::cout << " Total CPU memory (GiB): " << minfo_.total_cpu_mem << std::endl;
-    std::cout << "}" << std::endl;
     if(has_gpu_) {
       std::cout << " GPU memory per device (GiB): " << minfo_.gpu_mem_per_device << std::endl;
     }
+    std::cout << "}" << std::endl;
   }
 
   bool print() const { return (pg_.rank() == 0); }

@@ -24,3 +24,11 @@ Mutlu, Erdal; Panyala, Ajay; Gawande, Nitin; Bagusetty, Abhishek; Glabe, Jeffrey
 ## External Contributors
 
 * [Johnny Corbino](https://crd.lbl.gov/divisions/amcr/computer-science-amcr/class/members/class-staff/johnny-corbino), [The UPC++ Team](https://bitbucket.org/berkeleylab/upcxx/wiki/Home) (UPC++ port)
+
+## Acknowledgments
+
+The development of TAMM (core infrastructure and optimizations) was supported by the NWChemEx project, funded through the [Exascale Computing Project ECP](https://www.exascaleproject.org) (17-SC-20-SC), a collaborative effort of the U.S. Department of Energy Office of Science and the National Nuclear Security Administration.
+
+The development of additional infrastructure extensions and optimizations are supported by the Center for Scalable Predictive Methods for Excitations and Correlated Phenomena [(SPEC)](https://spec.labworks.org/home) under FWP 70942.
+SPEC is funded as part of the Computational Chemical Sciences (CCS) program by the U.S. Department of Energy (DOE), Office of Science, Office of Basic Energy Sciences (BES), Division of Chemical Sciences, Geosciences and Biosciences at PNNL. PNNL is a multi-program national laboratory operated by Battelle Memorial Institute for the United States Department of Energy under DOE contract number DE-AC05-76RL01830.
+

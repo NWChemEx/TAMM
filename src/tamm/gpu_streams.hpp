@@ -10,7 +10,7 @@
 #include <cuda_runtime_api.h>
 #elif defined(USE_HIP)
 #include <hip/hip_runtime.h>
-#include <rocblas.h>
+#include <rocblas/rocblas.h>
 #elif defined(USE_DPCPP)
 #include "sycl_device.hpp"
 #endif

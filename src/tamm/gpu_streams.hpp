@@ -159,7 +159,6 @@ static inline void gpuEventSynchronize(gpuEvent_t event) {
 #endif
 }
 
-
 class GPUStreamPool {
 protected:
   bool _initialized{false};

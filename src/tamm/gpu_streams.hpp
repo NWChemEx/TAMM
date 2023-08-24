@@ -13,7 +13,7 @@
 #include <cuda_runtime_api.h>
 #elif defined(USE_HIP)
 #include <hip/hip_runtime.h>
-#include <rocblas.h>
+#include <rocblas/rocblas.h>
 #elif defined(USE_DPCPP)
 #include "sycl_device.hpp"
 #include <oneapi/mkl/blas.hpp>
@@ -215,6 +215,27 @@ static inline void gpuEventDestroy(gpuEvent_t event) {
   hipEventDestroy(event);
 #elif defined(USE_CUDA)
   cudaEventDestroy(event);
+#endif
+}
+
+static inline void gpuEventSynchronize(gpuEvent_t event) {
+#if defined(USE_DPCPP)
+  event.wait();
+#elif defined(USE_HIP)
+  hipEventSynchronize(event);
+#elif defined(USE_CUDA)
+  cudaEventSynchronize(event);
+#endif
+}
+
+static inline bool gpuEventQuery(gpuEvent_t event) {
+#if defined(USE_DPCPP)
+  (event.get_info<sycl::info::event::command_execution_status>() ==
+   sycl::info::event_command_status::complete);
+#elif defined(USE_HIP)
+  (hipEventQuery(event) == hipSuccess);
+#elif defined(USE_CUDA)
+  (cudaEventQuery(event) == cudaSuccess);
 #endif
 }
 

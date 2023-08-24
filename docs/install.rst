@@ -215,10 +215,11 @@ Build instructions for Frontier
 
 ::
 
-   module load cray-python cmake amd-mixed 
+   module load cray-python cmake 
    module load cray-hdf5-parallel
+   module load cpe/23.05
+   module load rocm/5.5.1
    export CRAYPE_LINK_TYPE=dynamic
-   export HDF5_USE_FILE_LOCKING=FALSE
 
 ::
 
@@ -228,7 +229,7 @@ Build instructions for Frontier
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DGPU_ARCH=gfx90a \
    -DUSE_HIP=ON -DROCM_ROOT=$ROCM_PATH \
-   -DGCCROOT=/opt/cray/pe/gcc/10.3.0/snos \
+   -DGCCROOT=/opt/gcc/12.2.0/snos \
    -DHDF5_ROOT=$HDF5_ROOT ..
 
    make -j3

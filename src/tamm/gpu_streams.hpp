@@ -239,16 +239,6 @@ static inline bool gpuEventQuery(gpuEvent_t event) {
 #endif
 }
 
-static inline void gpuEventSynchronize(gpuEvent_t event) {
-#if defined(USE_DPCPP)
-  event.wait();
-#elif defined(USE_HIP)
-  hipEventSynchronize(event);
-#elif defined(USE_CUDA)
-  cudaEventSynchronize(event);
-#endif
-}
-
 class GPUStreamPool {
 protected:
   int                      default_deviceID{0};

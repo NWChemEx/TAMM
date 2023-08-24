@@ -138,6 +138,28 @@ static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kin
 #endif
 }
 
+static inline bool gpuEventQuery(gpuEvent_t event) {
+#if defined(USE_DPCPP)
+  (event.get_info<sycl::info::event::command_execution_status>() ==
+   sycl::info::event_command_status::complete);
+#elif defined(USE_HIP)
+  (hipEventQuery(event) == hipSuccess);
+#elif defined(USE_CUDA)
+  (cudaEventQuery(event) == cudaSuccess);
+#endif
+}
+
+static inline void gpuEventSynchronize(gpuEvent_t event) {
+#if defined(USE_DPCPP)
+  event.wait();
+#elif defined(USE_HIP)
+  hipEventSynchronize(event);
+#elif defined(USE_CUDA)
+  cudaEventSynchronize(event);
+#endif
+}
+
+
 class GPUStreamPool {
 protected:
   bool _initialized{false};

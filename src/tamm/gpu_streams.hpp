@@ -141,7 +141,7 @@ static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kin
 static inline bool gpuEventQuery(gpuEvent_t event) {
 #if defined(USE_DPCPP)
   return (event.get_info<sycl::info::event::command_execution_status>() ==
-   sycl::info::event_command_status::complete);
+          sycl::info::event_command_status::complete);
 #elif defined(USE_HIP)
   return (hipEventQuery(event) == hipSuccess);
 #elif defined(USE_CUDA)

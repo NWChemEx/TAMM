@@ -655,7 +655,7 @@ void block_multiply(bool isgpuOp,
         }
 
         gemm_wrapper(isgpuOp, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex,
-                     abuf_complex_dev, bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_buf_dev);
+                     abuf_complex_dev, bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_tmp_buf_dev);
         transpose_output(isgpuOp, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 

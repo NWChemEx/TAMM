@@ -163,6 +163,21 @@ void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
 }
 
 template<typename T>
+void norm_check(Tensor<T> tensor, bool ci_check) {
+  if(!ci_check) return;
+  T      tnorm = tamm::norm(tensor);
+  double tval  = 0;
+  if constexpr(tamm::internal::is_complex_v<T>) tval = tnorm.real();
+  else tval = tnorm;
+  const bool mop_pass = (std::fabs(tval - 2.625e8) <= 1e-9);
+  if(!mop_pass) {
+    if(tensor.execution_context()->pg().rank() == 0)
+      std::cout << "norm value: " << tval << ", expected: 2.625e8" << std::endl;
+    EXPECTS(mop_pass);
+  }
+}
+
+template<typename T>
 void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_hw, bool profile) {
   TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
 
@@ -191,7 +206,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
     if(sch.ec().pg().rank() == 0)
       std::cout << "4-D Tensor contraction (R=RxR) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
-
+    norm_check(C, N == 50);
     sch.deallocate(A, B, C).execute();
   }
 
@@ -217,6 +232,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
       std::cout << "4-D Tensor contraction (C=RxR) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
+    norm_check(C, N == 50);
     sch.deallocate(A, B, C).execute();
   }
 
@@ -242,6 +258,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
       std::cout << "4-D Tensor contraction (C=RxC) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
+    norm_check(C, N == 50);
     sch.deallocate(A, B, C).execute();
   }
 
@@ -267,6 +284,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
       std::cout << "4-D Tensor contraction (C=CxR) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
+    norm_check(C, N == 50);
     sch.deallocate(A, B, C).execute();
   }
 
@@ -292,6 +310,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
       std::cout << "4-D Tensor contraction (R=CxR) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
+    norm_check(C, N == 50);
     sch.deallocate(A, B, C).execute();
   }
 
@@ -317,6 +336,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
       std::cout << "4-D Tensor contraction (R=RxC) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
+    norm_check(C, N == 50);
     sch.deallocate(A, B, C).execute();
   }
 
@@ -342,6 +362,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
       std::cout << "4-D Tensor contraction (C=CxC) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
+    norm_check(C, N == 50);
     sch.deallocate(A, B, C).execute();
   }
 }

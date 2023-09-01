@@ -24,8 +24,8 @@ jobs:
         inplace: True
     - uses: EndBug/add-and-commit@v4
       with:
-        author_name: Clang Robot
-        author_email: robot@example.com
+        author_name: TAMM developers
+        author_email: exachem23@gmail.com
         message: 'Committing clang-format changes'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

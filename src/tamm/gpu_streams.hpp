@@ -168,7 +168,7 @@ static inline void gpuMemsetAsync(void*& ptr, size_t sizeInBytes, gpuStream_t st
 #endif
 }
 
-static inline void gpuStreamWaitEvent(gpuStream_t stream, gpuEvent_t event) {
+static inline void gpuStreamWaitEvent(gpuStream_t stream, gpuEvent_t& event) {
 #if defined(USE_DPCPP)
   auto retEvent = stream.first.ext_oneapi_submit_barrier({event});
   // retEvent.wait();
@@ -190,7 +190,7 @@ static inline void gpuStreamSynchronize(gpuStream_t stream) {
 #endif
 }
 
-static inline void gpuEventRecord(gpuEvent_t event, gpuStream_t stream) {
+static inline void gpuEventRecord(gpuEvent_t& event, gpuStream_t stream) {
 #if defined(USE_DPCPP)
   // auto retEvent = stream.first.ext_oneapi_submit_barrier(event);
   // retEvent.wait();
@@ -210,7 +210,7 @@ static inline void gpuEventCreateWithFlags(gpuEvent_t* event) {
 #endif
 }
 
-static inline void gpuEventDestroy(gpuEvent_t event) {
+static inline void gpuEventDestroy(gpuEvent_t& event) {
 #if defined(USE_HIP)
   hipEventDestroy(event);
 #elif defined(USE_CUDA)
@@ -218,7 +218,7 @@ static inline void gpuEventDestroy(gpuEvent_t event) {
 #endif
 }
 
-static inline void gpuEventSynchronize(gpuEvent_t event) {
+static inline void gpuEventSynchronize(gpuEvent_t& event) {
 #if defined(USE_DPCPP)
   event.wait();
 #elif defined(USE_HIP)
@@ -228,7 +228,7 @@ static inline void gpuEventSynchronize(gpuEvent_t event) {
 #endif
 }
 
-static inline bool gpuEventQuery(gpuEvent_t event) {
+static inline bool gpuEventQuery(gpuEvent_t& event) {
 #if defined(USE_DPCPP)
   return (event.get_info<sycl::info::event::command_execution_status>() ==
           sycl::info::event_command_status::complete);
@@ -242,7 +242,8 @@ static inline bool gpuEventQuery(gpuEvent_t event) {
 class GPUStreamPool {
 protected:
   int                      default_deviceID{0};
-  int                      nstreams{4};
+  uint32_t                 nstreams{2};
+  uint32_t                 streamCount{0};
   std::vector<gpuStream_t> _devStream;
 
 private:
@@ -254,7 +255,7 @@ private:
 
     gpuSetDevice(default_deviceID);
 
-    for(int j = 0; j < nstreams; j++) {
+    for(uint32_t j = 0; j < nstreams; j++) {
 #if defined(USE_CUDA)
       cudaStream_t gpu_stream;
       CUDA_CHECK(cudaStreamCreateWithFlags(&gpu_stream, cudaStreamNonBlocking));
@@ -283,7 +284,7 @@ private:
   }
 
   ~GPUStreamPool() {
-    for(int j = 0; j < nstreams; j++) {
+    for(uint32_t j = 0; j < nstreams; j++) {
 #if defined(USE_CUDA)
       cudaStreamDestroy(_devStream[j].first);
       cublasDestroy(_devStream[j].second);
@@ -297,6 +298,8 @@ private:
 public:
   /// Returns a GPU stream
   gpuStream_t& getStream() { return _devStream[0]; }
+  /// Returns a round-robin GPU stream
+  gpuStream_t& getRRStream() { return _devStream[ streamCount++ % nstreams ]; }
   /// Returns all GPU stream
   std::vector<gpuStream_t>& getAllStream() { return _devStream; }
 

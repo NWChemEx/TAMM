@@ -493,9 +493,8 @@ void block_multiply(
                            bsize.value(), binter_buf_dev);
         }
 
-        // This is where some recent commits to Complex is done! check it
         gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex, abuf_complex_dev,
-                     bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_tmp_buf_dev);
+                     binter_buf, binter_buf_dev, cinter_buf, cinter_tmp_buf_dev);
         transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 

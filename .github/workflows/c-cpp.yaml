@@ -180,7 +180,8 @@ jobs:
         upcxx --version
         export CPATH=$CPATH:/usr/lib/x86_64-linux-gnu/openmpi/include
         export CPATH=$CPATH:$INSTALL_PATH/include/eigen3
-        UPCXX_CODEMODE=O3 CXX=upcxx $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DENABLE_COVERAGE=ON -DUSE_UPCXX=ON -DJOB_LAUNCH_CMD="upcxx-run"
+        echo "UPCXX_SHARED_HEAP_SIZE=MAX" >> $GITHUB_ENV
+        UPCXX_CODEMODE=O3 CXX=upcxx $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DUSE_UPCXX=ON -DJOB_LAUNCH_CMD="upcxx-run"
         cd build
         UPCXX_CODEMODE=O3 make -j2
         UPCXX_CODEMODE=O3 make install
@@ -193,7 +194,7 @@ jobs:
         export PATH=$PATH:$GITHUB_WORKSPACE/install/bin
         $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/ctest -VV
     - name: gcovr
-      if: ${{ matrix.backend == 'ga' && matrix.cc != 'clang-11' }}
+      if: ${{ matrix.backend == 'ga' && matrix.cc != 'clang-11' && matrix.cc != 'gcc-11' }}
       run: |
         cd $GITHUB_WORKSPACE/build
         gcovr --root ./stage/$INSTALL_PATH . --xml ../coverage.xml

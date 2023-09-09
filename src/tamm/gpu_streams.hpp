@@ -230,12 +230,12 @@ static inline void gpuEventSynchronize(gpuEvent_t event) {
 
 static inline bool gpuEventQuery(gpuEvent_t event) {
 #if defined(USE_DPCPP)
-  (event.get_info<sycl::info::event::command_execution_status>() ==
-   sycl::info::event_command_status::complete);
+  return (event.get_info<sycl::info::event::command_execution_status>() ==
+          sycl::info::event_command_status::complete);
 #elif defined(USE_HIP)
-  (hipEventQuery(event) == hipSuccess);
+  return (hipEventQuery(event) == hipSuccess);
 #elif defined(USE_CUDA)
-  (cudaEventQuery(event) == cudaSuccess);
+  return (cudaEventQuery(event) == cudaSuccess);
 #endif
 }
 

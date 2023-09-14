@@ -260,6 +260,16 @@ public:
   GPUStreamPool& operator=(const GPUStreamPool&) = delete;
   GPUStreamPool(GPUStreamPool&&)                 = delete;
   GPUStreamPool& operator=(GPUStreamPool&&)      = delete;
+
+  static inline void gpuDeviceSynchronize() {
+#if defined(USE_DPCPP)
+    tamm::GPUStreamPool::getInstance().getStream().wait();
+#elif defined(USE_HIP)
+    hipDeviceSynchronize();
+#elif defined(USE_CUDA)
+    cudaDeviceSynchronize();
+#endif
+  }
 };
 
 } // namespace tamm

@@ -168,18 +168,6 @@ static inline void gpuMemsetAsync(void*& ptr, size_t sizeInBytes, gpuStream_t st
 #endif
 }
 
-static inline void gpuStreamWaitEvent(gpuStream_t stream, gpuEvent_t& event) {
-#if defined(USE_DPCPP)
-  auto retEvent = stream.first.ext_oneapi_submit_barrier({event});
-  // retEvent.wait();
-  event.wait();
-#elif defined(USE_HIP)
-  hipStreamWaitEvent(stream.first, event, 0);
-#elif defined(USE_CUDA)
-  cudaStreamWaitEvent(stream.first, event, 0);
-#endif
-}
-
 static inline void gpuStreamSynchronize(gpuStream_t stream) {
 #if defined(USE_DPCPP)
   if(!stream.first.ext_oneapi_empty()) { stream.first.wait(); }

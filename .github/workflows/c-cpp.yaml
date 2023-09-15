@@ -158,13 +158,18 @@ jobs:
         rsync -av  ~/tamm_cache/* ${INSTALL_PATH}/.
         ls -lrt ${INSTALL_PATH} || true
 
+    - name: enable coverage
+      if: ${{ matrix.backend == 'ga' && matrix.cc != 'clang-11' && matrix.cc != 'gcc-11' }}
+      run: |
+        echo "CI_COVERAGE=ON" >> $GITHUB_ENV
+
     - name: build tamm (backend = ga)
       if: ${{ matrix.backend == 'ga' }}
       id: build_tamm
       run: |
         export INSTALL_PATH=$GITHUB_WORKSPACE/install
         export CPATH=$CPATH:$INSTALL_PATH/include/eigen3
-        $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DENABLE_COVERAGE=ON
+        $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DENABLE_COVERAGE=${{ env.CI_COVERAGE }}
         cd build
         make -j2
         make install

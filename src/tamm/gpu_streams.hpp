@@ -238,6 +238,14 @@ private:
   GPUStreamPool() {
     // Assert here if multi-GPUs are detected
     int ngpus{0};
+
+
+    // Some work-around needed for Frontier before calling any other APIs:
+    // https://docs.olcf.ornl.gov/systems/crusher_quick_start_guide.html#olcfdev-1655-occasional-seg-fault-during-mpi-init
+#if defined(USE_HIP)
+    hipInit(0);
+#endif
+
     getDeviceCount(&ngpus);
     EXPECTS_STR((ngpus == 1), "Error: More than 1 GPU-device found per rank!");
 

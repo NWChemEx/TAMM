@@ -19,7 +19,7 @@ add_mpi_unit_test(Test_IO 2 "10 10" )
 add_mpi_unit_test(Test_EVP 2 "10 10" )
 add_mpi_unit_test(Test_Unit_Tiled_View_Tensor 2 "")
 add_mpi_unit_test(Test_Mem_Profiler 2 "")
-# add_mpi_unit_test(Test_CCSD 2 "10 40 60 40")
+add_mpi_unit_test(Test_CCSD 2 "10 40 60 40")
 
 # add_mpi_unit_test(Test_ViewTensor 2 "")
 # add_mpi_unit_test(Test_QR 2 "")

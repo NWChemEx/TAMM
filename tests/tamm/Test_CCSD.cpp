@@ -443,20 +443,23 @@ int main(int argc, char* argv[]) {
                                  _a017, _a019, _a020, _a021, _a022);
   sch.execute();
 
-  // // clang-format off
-  // sch
-  //     (_a004("aaaa")(p1_va, p2_va, h4_oa, h3_oa) = 1.0 * chol3d_ov("aa")(h4_oa, p1_va, cind) *
-  //     chol3d_ov("aa")(h3_oa, p2_va, cind)) .exact_copy(_a004("abab")(p1_va, p1_vb, h3_oa, h3_ob),
-  //     _a004("aaaa")(p1_va, p1_vb, h3_oa, h3_ob))
-  //     ;
-  // // clang-format on
+  tamm::random_ip(chol3d_vv("aa"));
+  tamm::random_ip(chol3d_vv("bb"));
 
-  // sch.execute(exhw);
+  // clang-format off
+  sch
+      (_a004("aaaa")(p1_va, p2_va, h4_oa, h3_oa) = 1.0 * chol3d_ov("aa")(h4_oa, p1_va, cind) *
+      chol3d_ov("aa")(h3_oa, p2_va, cind)) .exact_copy(_a004("abab")(p1_va, p1_vb, h3_oa, h3_ob),
+      _a004("aaaa")(p1_va, p1_vb, h3_oa, h3_ob))
+      ;
+  // clang-format on
+
+  sch.execute(exhw);
 
   const auto timer_start = std::chrono::high_resolution_clock::now();
 
-  // ccsd_e_cs(sch, MO, CI, d_e, t1_aa, t2_abab, t2_aaaa, f1_se, chol3d_se);
-  // ccsd_t1_cs(sch, MO, CI, r1_aa, t1_aa, t2_abab, f1_se, chol3d_se);
+  ccsd_e_cs(sch, MO, CI, d_e, t1_aa, t2_abab, t2_aaaa, f1_se, chol3d_se);
+  ccsd_t1_cs(sch, MO, CI, r1_aa, t1_aa, t2_abab, f1_se, chol3d_se);
   ccsd_t2_cs(sch, MO, CI, r2_abab, t1_aa, t2_abab, t2_aaaa, f1_se, chol3d_se);
 
   sch.execute(exhw, profile);
@@ -477,6 +480,12 @@ int main(int argc, char* argv[]) {
     pds << header << std::endl;
     pds << ec.get_profile_data().str() << std::endl;
     pds.close();
+  }
+
+  if(profile) {
+    ExecutionContext ec_dense{ec.pg(), DistributionKind::dense, MemoryManagerKind::ga};
+    Tensor<T>        c3dvv_dense = tamm::to_dense_tensor(ec_dense, chol3d_vv("bb"));
+    print_dense_tensor(c3dvv_dense, "c3d_vv_bb_dense");
   }
 
   // deallocate all intermediates

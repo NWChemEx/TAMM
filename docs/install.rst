@@ -3,10 +3,10 @@ The prerequisites needed to build this repository can be found
 Build Instructions
 ==================
 
-Depdendencies
--------------
+Dependencies
+------------
 
-**External depdendencies**
+**External dependencies**
 
 * cmake >= 3.22
 * MPI 
@@ -14,7 +14,7 @@ Depdendencies
 * CUDA >= 11.4 (Required only for CUDA builds)
 * ROCM >= 5.4  (Required only for ROCM builds)
 
-**The remaining depdendencies are automatically built and do not need to be installed explicitly:**
+**The remaining dependencies are automatically built and do not need to be installed explicitly:**
 
 * GlobalArrays
 * HPTT, Librett

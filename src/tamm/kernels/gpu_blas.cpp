@@ -26,8 +26,29 @@
   } while(0)
 #endif // USE_DPCPP
 
+template<typename T>
+void tamm::kernels::gpu::axpy(const int64_t n, const T* src, const int incx,
+                              T*& dst, const int incy, gpuStream_t& thandle) {
+  T alpha = 1.0;
+#if defined(USE_DPCPP)
+  try {
+    auto oneapi_axpy =
+      oneapi::mkl::blas::column_major::axpy(thandle.first, n, alpha, src, incx, dst, incy);
+    oneapi_axpy.wait();
+  } catch(oneapi::mkl::exception const& ex) {
+    std::stringstream msg;
+    msg << "oneMKL Exception at " << __FILE__ << " : " << __LINE__ << std::endl;
+    throw(std::runtime_error(ex.what()));
+  }
+#elif defined(USE_CUDA)
+  CUBLAS_CHECK(cublasDaxpy(handle.second, n, &alpha, src, incx, dst, incy));
+#elif defined(USE_HIP)
+  ROCBLAS_CHECK(rocblas_daxpy(handle.second, n, &alpha, src, incx, dst, incy));
+#endif
+}
+
 template<typename T, typename T1, typename T2, typename T3>
-void tamm::kernels::gpu::blas(int n, int m, int k, const T alpha, const T3* B, int ldb, const T2* A,
+void tamm::kernels::gpu::gemm(int n, int m, int k, const T alpha, const T3* B, int ldb, const T2* A,
                               int lda, const T beta, T1* C, int ldc, gpuStream_t& handle) {
 #if defined(USE_DPCPP)
 
@@ -76,10 +97,13 @@ void tamm::kernels::gpu::blas(int n, int m, int k, const T alpha, const T3* B, i
 #endif
 }
 
-template void tamm::kernels::gpu::blas(int n, int m, int k, const double alpha, const double* B,
+template void tamm::kernels::gpu::axpy(const int64_t n, const double* src, const int incx,
+                                       double*& dst, const int incy, gpuStream_t& thandle);
+
+template void tamm::kernels::gpu::gemm(int n, int m, int k, const double alpha, const double* B,
                                        int ldb, const double* A, int lda, const double beta,
                                        double* C, int ldc, gpuStream_t& handle);
-template void tamm::kernels::gpu::blas(int n, int m, int k, const std::complex<double> alpha,
+template void tamm::kernels::gpu::gemm(int n, int m, int k, const std::complex<double> alpha,
                                        const std::complex<double>* B, int ldb,
                                        const std::complex<double>* A, int lda,
                                        const std::complex<double> beta, std::complex<double>* C,

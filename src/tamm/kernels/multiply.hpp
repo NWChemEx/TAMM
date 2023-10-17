@@ -54,13 +54,13 @@ void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, i
       for(size_t i = 0; i < B; i++) {
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         if(hw == ExecutionHW::GPU) {
-          gpu::blas(N, M, K, alpha, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
+          gpu::gemm(N, M, K, alpha, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
                     ainter_buf_dev + ari * areduce_ld + i * abatch_ld, ainter_ld, beta,
                     cinter_buf_dev + i * cbatch_ld, cinter_ld, thandle);
           continue;
         }
 #endif
-        cpu::blas(M, N, K, alpha, ainter_buf + ari * areduce_ld + i * abatch_ld, ainter_ld,
+        cpu::gemm(M, N, K, alpha, ainter_buf + ari * areduce_ld + i * abatch_ld, ainter_ld,
                   binter_buf + bri * breduce_ld + i * bbatch_ld, binter_ld, beta,
                   cinter_buf + i * cbatch_ld, cinter_ld);
 
@@ -536,48 +536,48 @@ void block_multiply(
     } // is_same_v<T1,T3>
 
     else if constexpr(internal::is_complex_v<T1> && std::is_same_v<T2, T3>) {
-      T1* ainter_buf{nullptr};
-      T1* binter_buf{nullptr};
+      T2* ainter_buf{nullptr};
+      T2* binter_buf{nullptr};
+      T2* cinter_buf_real{nullptr};
       allocate_host_buffers(hw, ainter_buf, asize.value());
       allocate_host_buffers(hw, binter_buf, bsize.value());
+      allocate_host_buffers(hw, cinter_buf, csize.value());
 
-      T1* abuf_complex{nullptr};
-      T1* bbuf_complex{nullptr};
-      allocate_host_buffers(ExecutionHW::CPU, abuf_complex, asize.value());
-      allocate_host_buffers(ExecutionHW::CPU, bbuf_complex, bsize.value());
-      // T2* abuf_comp_ptr = reinterpret_cast<T2*>(abuf_complex);
-      // T2* bbuf_comp_ptr = reinterpret_cast<T2*>(bbuf_complex);
-      // blas::copy(asize.value(), abufp, 1, abuf_comp_ptr, 2);
-      // blas::copy(bsize.value(), bbufp, 1, bbuf_comp_ptr, 2);
-
-      T1* abuf_complex_dev{nullptr};
-      T1* bbuf_complex_dev{nullptr};
-      allocate_device_buffers(hw, abuf_complex_dev, asize.value());
-      allocate_device_buffers(hw, bbuf_complex_dev, bsize.value());
+      T2* cbuf_tmp_real_dev{nullptr};
+      allocate_device_buffers(hw, cbuf_tmp_real_dev, csize.value());
+      gpuMemsetAsync(reinterpret_cast<void*&>(cbuf_tmp_real_dev), csize.value() * sizeof(T2), thandle);
 
       gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels,
-                                   abuf_complex, asize.value(), adims, alabels, binter_buf,
-                                   binter_dims, binter_labels, bbuf_complex, bsize.value(), bdims,
-                                   blabels, abuf_complex_dev, bbuf_complex_dev);
+                                   abuf, asize.value(), adims, alabels, binter_buf,
+                                   binter_dims, binter_labels, bbuf, bsize.value(), bdims,
+                                   blabels, ainter_buf_dev, binter_buf_dev);
 
       if(!gpu_trans) {
-        abuf_complex = ainter_buf;
-        bbuf_complex = binter_buf;
-        copy_data_to_gpu(hw, thandle, abuf_complex, asize.value(), abuf_complex_dev, bbuf_complex,
-                         bsize.value(), bbuf_complex_dev);
+        copy_data_to_gpu(hw, thandle, ainter_buf, asize.value(),
+                         ainter_buf_dev, binter_buf, bsize.value(),
+                         binter_buf_dev);
       }
 
-      gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex, abuf_complex_dev,
-                   bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_buf_dev);
-      transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
-                       clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+      gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha.real(), beta.real(), ainter_buf, ainter_buf_dev,
+                   binter_buf, binter_buf_dev, cinter_buf_real, cbuf_tmp_real_dev);
 
-      free_device_buffers(hw, abuf_complex_dev, asize.value());
-      free_device_buffers(hw, bbuf_complex_dev, bsize.value());
-      free_host_buffers(ExecutionHW::CPU, abuf_complex, asize.value());
-      free_host_buffers(ExecutionHW::CPU, bbuf_complex, bsize.value());
+      if(hw == ExecutionHW::GPU) {
+        gpu::axpy(csize.value(), cbuf_tmp_real_dev, 1,
+                  reinterpret_cast<T2*&>(cinter_tmp_buf_dev), 2, thandle);
+      }
+      else {
+        T2* cinter_buf_real_ptr = reinterpret_cast<T2*>(cinter_buf);
+        // blas::copy(csize.value(), cinter_buf_real.data(), 1, cinter_buf_real_ptr, 2);
+      }
+
+      transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels,
+                       cbuf, cdims, clabels, cinter_buf_dev,
+                       reinterpret_cast<T1*&>(cinter_tmp_buf_dev), is_assign);
+
+      free_device_buffers(hw, cbuf_tmp_real_dev, csize.value());
       free_host_buffers(hw, ainter_buf, asize.value());
       free_host_buffers(hw, binter_buf, bsize.value());
+      free_host_buffers(hw, cinter_buf, csize.value());      
     }
 
     else NOT_IMPLEMENTED();

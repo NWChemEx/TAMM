@@ -91,19 +91,8 @@ private:
     std::vector<sycl::device> sycl_all_devs =
       sycl::device::get_devices(sycl::info::device_type::gpu);
     for(auto& dev: sycl_all_devs) {
-      if(dev.get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-        auto subDevicesDomainNuma =
-          dev.create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
-            sycl::info::partition_affinity_domain::numa);
-        for(auto& tile: subDevicesDomainNuma) {
-          _devs.push_back(std::make_pair(std::make_shared<device_ext>(tile),
-                                         std::make_shared<sycl::context>(tile)));
-        }
-      }
-      else {
-        _devs.push_back(
-          std::make_pair(std::make_shared<device_ext>(dev), std::make_shared<sycl::context>(dev)));
-      }
+      _devs.push_back(
+        std::make_pair(std::make_shared<device_ext>(dev), std::make_shared<sycl::context>(dev)));
     }
   }
 

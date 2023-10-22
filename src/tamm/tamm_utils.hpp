@@ -862,7 +862,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
   int               rank  = gec.pg().rank().value();
 
 #ifdef TU_SG_IO
-  auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor);
+  auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor, nagg_hint);
 #if defined(USE_UPCXX)
   upcxx::team* io_comm = new upcxx::team(
     gec.pg().team()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
@@ -1420,7 +1420,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
   auto              io_t1 = std::chrono::high_resolution_clock::now();
   int               rank  = gec.pg().rank().value();
 #ifdef TU_SG_IO
-  auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor);
+  auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor, nagg_hint);
   MPI_Comm io_comm;
   subcomm_from_subranks(gec, subranks, io_comm);
 #else
@@ -2860,10 +2860,11 @@ void to_block_cyclic_tensor(Tensor<TensorType> tensor, Tensor<TensorType> bc_ten
 }
 
 template<typename TensorType>
-void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> tensor) {
+void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> tensor,
+                              bool is_bc = true) {
   const auto ndims = bc_tensor.num_modes();
   EXPECTS(ndims == 2);
-  EXPECTS(bc_tensor.is_block_cyclic());
+  if(is_bc) EXPECTS(bc_tensor.is_block_cyclic());
   EXPECTS(bc_tensor.kind() == TensorBase::TensorKind::dense);
   EXPECTS(bc_tensor.distribution().kind() == DistributionKind::dense);
 
@@ -2905,6 +2906,12 @@ void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> t
   };
 
   block_for(ec, tensor(), tamm_bc_lambda);
+}
+
+// convert dense tamm tensor to regular tamm tensor
+template<typename TensorType>
+void from_dense_tensor(Tensor<TensorType> d_tensor, Tensor<TensorType> tensor) {
+  from_block_cyclic_tensor(d_tensor, tensor, false);
 }
 
 template<typename TensorType>

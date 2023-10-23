@@ -1069,6 +1069,12 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
 #endif
 }
 
+template<typename TensorType>
+void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool profile,
+                   int nagg_hint = 0) {
+  write_to_disk(tensor, filename, true, profile, nagg_hint);
+}
+
 /**
  * @brief Write batch of tensors to disk using HDF5.
  *        Uses process groups for concurrent writes.
@@ -1617,6 +1623,12 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
 #endif
 }
 
+template<typename TensorType>
+void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool profile,
+                    int nagg_hint = 0) {
+  read_from_disk(tensor, filename, true, {}, profile, nagg_hint);
+}
+
 /**
  * @brief Read batch of tensors from disk using HDF5.
  *        Uses process groups for concurrent reads.
@@ -1825,6 +1837,12 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
     std::cout << "Total Time for reading tensors"
               << " from disk: " << io_time << " secs" << std::endl;
 #endif
+}
+
+template<typename TensorType>
+void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> tensors,
+                          std::vector<std::string> filenames, bool profile, int nagg_hint = 0) {
+  read_from_disk_group(gec, tensors, filenames, {}, profile, nagg_hint);
 }
 
 template<typename T>

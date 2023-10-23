@@ -1102,6 +1102,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
   int prev_subranks = 0;
 
   std::vector<int> rankspertensor;
+  if(nagg_hint > 0) nagg_hint = nagg_hint / tensors.size();
   for(size_t i = 0; i < tensors.size(); i++) {
     auto [nagg, ppn, subranks] = get_agg_info(gec, gec.pg().size().value(), tensors[i], nagg_hint);
     rankspertensor.push_back(subranks);
@@ -1656,6 +1657,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
   int prev_subranks = 0;
 
   std::vector<int> rankspertensor;
+  if(nagg_hint > 0) nagg_hint = nagg_hint / tensors.size();
   for(size_t i = 0; i < tensors.size(); i++) {
     auto [nagg, ppn, subranks] = get_agg_info(gec, gec.pg().size().value(), tensors[i], nagg_hint);
     rankspertensor.push_back(subranks);

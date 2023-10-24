@@ -18,7 +18,8 @@ protected:
   using host_pool_mr   = rmm::mr::pool_memory_resource<rmm::mr::host_memory_resource>;
   std::unique_ptr<device_pool_mr> deviceMR;
   std::unique_ptr<host_pool_mr>   hostMR;
-  std::unique_ptr<host_pool_mr>   pinnedHostMR;
+  // ABB: 10/24/2023 Pinned memory is commented out because of no-use yet
+  // std::unique_ptr<host_pool_mr>   pinnedHostMR;
 
 private:
   RMMMemoryManager() {
@@ -34,8 +35,8 @@ private:
 
     deviceMR = std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
     hostMR   = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
-    pinnedHostMR =
-      std::make_unique<host_pool_mr>(new rmm::mr::pinned_memory_resource, max_pinned_host_bytes);
+    // pinnedHostMR =
+    //   std::make_unique<host_pool_mr>(new rmm::mr::pinned_memory_resource, max_pinned_host_bytes);
   }
 
 public:
@@ -43,8 +44,8 @@ public:
   device_pool_mr& getDeviceMemoryPool() { return *(deviceMR.get()); }
   /// Returns a RMM host pool handle
   host_pool_mr& getHostMemoryPool() { return *(hostMR.get()); }
-  /// Returns a RMM pinnedHost pool handle
-  host_pool_mr& getPinnedMemoryPool() { return *(pinnedHostMR.get()); }
+  // /// Returns a RMM pinnedHost pool handle
+  // host_pool_mr& getPinnedMemoryPool() { return *(pinnedHostMR.get()); }
 
   /// Returns the instance of device manager singleton.
   inline static RMMMemoryManager& getInstance() {

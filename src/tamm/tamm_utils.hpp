@@ -862,7 +862,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
   int               rank  = gec.pg().rank().value();
 
 #ifdef TU_SG_IO
-  auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor);
+  auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor, nagg_hint);
 #if defined(USE_UPCXX)
   upcxx::team* io_comm = new upcxx::team(
     gec.pg().team()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
@@ -1069,6 +1069,12 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
 #endif
 }
 
+template<typename TensorType>
+void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool profile,
+                   int nagg_hint = 0) {
+  write_to_disk(tensor, filename, true, profile, nagg_hint);
+}
+
 /**
  * @brief Write batch of tensors to disk using HDF5.
  *        Uses process groups for concurrent writes.
@@ -1096,6 +1102,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
   int prev_subranks = 0;
 
   std::vector<int> rankspertensor;
+  if(nagg_hint > 0) nagg_hint = nagg_hint / tensors.size();
   for(size_t i = 0; i < tensors.size(); i++) {
     auto [nagg, ppn, subranks] = get_agg_info(gec, gec.pg().size().value(), tensors[i], nagg_hint);
     rankspertensor.push_back(subranks);
@@ -1420,7 +1427,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
   auto              io_t1 = std::chrono::high_resolution_clock::now();
   int               rank  = gec.pg().rank().value();
 #ifdef TU_SG_IO
-  auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor);
+  auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor, nagg_hint);
   MPI_Comm io_comm;
   subcomm_from_subranks(gec, subranks, io_comm);
 #else
@@ -1617,6 +1624,12 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
 #endif
 }
 
+template<typename TensorType>
+void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool profile,
+                    int nagg_hint = 0) {
+  read_from_disk(tensor, filename, true, {}, profile, nagg_hint);
+}
+
 /**
  * @brief Read batch of tensors from disk using HDF5.
  *        Uses process groups for concurrent reads.
@@ -1644,6 +1657,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
   int prev_subranks = 0;
 
   std::vector<int> rankspertensor;
+  if(nagg_hint > 0) nagg_hint = nagg_hint / tensors.size();
   for(size_t i = 0; i < tensors.size(); i++) {
     auto [nagg, ppn, subranks] = get_agg_info(gec, gec.pg().size().value(), tensors[i], nagg_hint);
     rankspertensor.push_back(subranks);
@@ -1825,6 +1839,12 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
     std::cout << "Total Time for reading tensors"
               << " from disk: " << io_time << " secs" << std::endl;
 #endif
+}
+
+template<typename TensorType>
+void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> tensors,
+                          std::vector<std::string> filenames, bool profile, int nagg_hint = 0) {
+  read_from_disk_group(gec, tensors, filenames, {}, profile, nagg_hint);
 }
 
 template<typename T>
@@ -2860,10 +2880,11 @@ void to_block_cyclic_tensor(Tensor<TensorType> tensor, Tensor<TensorType> bc_ten
 }
 
 template<typename TensorType>
-void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> tensor) {
+void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> tensor,
+                              bool is_bc = true) {
   const auto ndims = bc_tensor.num_modes();
   EXPECTS(ndims == 2);
-  EXPECTS(bc_tensor.is_block_cyclic());
+  if(is_bc) EXPECTS(bc_tensor.is_block_cyclic());
   EXPECTS(bc_tensor.kind() == TensorBase::TensorKind::dense);
   EXPECTS(bc_tensor.distribution().kind() == DistributionKind::dense);
 
@@ -2905,6 +2926,12 @@ void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> t
   };
 
   block_for(ec, tensor(), tamm_bc_lambda);
+}
+
+// convert dense tamm tensor to regular tamm tensor
+template<typename TensorType>
+void from_dense_tensor(Tensor<TensorType> d_tensor, Tensor<TensorType> tensor) {
+  from_block_cyclic_tensor(d_tensor, tensor, false);
 }
 
 template<typename TensorType>

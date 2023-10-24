@@ -76,9 +76,7 @@ protected:
    *
    * @param block The block to insert into the pool.
    */
-  void insert_block(block_type const& block) {
-      this->free_blocks_.insert(block);
-  }
+  void insert_block(block_type const& block) { this->free_blocks_.insert(block); }
 
   /**
    * @brief Allocates memory of size at least `bytes`.
@@ -151,9 +149,7 @@ private:
    *
    * Note: only called by destructor.
    */
-  void release() {
-    free_blocks_.clear();
-  }
+  void release() { free_blocks_.clear(); }
 
   free_list free_blocks_;
 }; // namespace detail

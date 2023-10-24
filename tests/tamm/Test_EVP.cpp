@@ -1,7 +1,3 @@
-#include "ga/ga-mpi.h"
-#include "ga/ga.h"
-#include "ga/macdecls.h"
-#include "mpi.h"
 #include <tamm/tamm.hpp>
 
 #if defined(USE_SCALAPACK)
@@ -24,10 +20,10 @@ struct ScalapackInfo {
   ExecutionContext                                ec;
 };
 
-std::tuple<int, int, int, int, int, int> sca_get_subgroup_info(const size_t N) {
-  // auto nranks = GA_Nnodes();
-  auto nnodes = GA_Cluster_nnodes();
-  auto ppn    = GA_Cluster_nprocs(0);
+std::tuple<int, int, int, int, int, int> sca_get_subgroup_info(ExecutionContext& gec,
+                                                               const size_t      N) {
+  auto nnodes = gec.nnodes();
+  auto ppn    = gec.ppn();
 
   int hf_guessranks = std::ceil(0.9 * N);
   int hf_nnodes     = hf_guessranks / ppn;
@@ -53,7 +49,7 @@ void test_evp(size_t N, size_t mb) {
   ProcGroup        gpg = ProcGroup::create_world_coll();
   ExecutionContext gec{gpg, DistributionKind::nw, MemoryManagerKind::ga};
 
-  auto [nnodes, hf_nnodes, ppn, hf_nranks, sca_nnodes, sca_nranks] = sca_get_subgroup_info(N);
+  auto [nnodes, hf_nnodes, ppn, hf_nranks, sca_nnodes, sca_nranks] = sca_get_subgroup_info(gec, N);
 
   auto rank = gec.pg().rank();
   gec.pg().barrier();
@@ -62,8 +58,7 @@ void test_evp(size_t N, size_t mb) {
     cout << "problem size = " << N << endl;
     cout << "block size   = " << mb << endl;
     cout << std::endl
-         << "Number of nodes, mpi ranks per node provided: " << nnodes << ", "
-         << GA_Cluster_nprocs(0) << endl;
+         << "Number of nodes, mpi ranks per node provided: " << nnodes << ", " << gec.ppn() << endl;
     cout << "Number of nodes, mpi ranks per node used for calculation: " << hf_nnodes << ", " << ppn
          << endl;
     cout << "Number of nodes, mpi ranks per node, total ranks used for Scalapack: " << sca_nnodes

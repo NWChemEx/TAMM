@@ -107,7 +107,7 @@ RMM_EXPORT inline auto& get_map() {
  * @return Pointer to the current `device_memory_resource` for device `id`
  */
 inline device_memory_resource* get_per_device_resource(int device_id) {
-  auto&                       map = detail::get_map();
+  auto& map = detail::get_map();
   // If a resource was never set for `id`, set to the initial resource
   auto const found = map.find(device_id);
   return (found == map.end()) ? (map[device_id] = detail::initial_resource()) : found->second;

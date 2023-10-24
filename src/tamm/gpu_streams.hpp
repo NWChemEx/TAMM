@@ -239,7 +239,6 @@ private:
     // Assert here if multi-GPUs are detected
     int ngpus{0};
 
-
     // Some work-around needed for Frontier before calling any other APIs:
     // https://docs.olcf.ornl.gov/systems/crusher_quick_start_guide.html#olcfdev-1655-occasional-seg-fault-during-mpi-init
 #if defined(USE_HIP)
@@ -295,7 +294,7 @@ public:
   /// Returns a GPU stream
   gpuStream_t& getStream() { return _devStream[0]; }
   /// Returns a round-robin GPU stream
-  gpuStream_t& getRRStream() { return _devStream[ streamCount++ % nstreams ]; }
+  gpuStream_t& getRRStream() { return _devStream[streamCount++ % nstreams]; }
   /// Returns all GPU stream
   std::vector<gpuStream_t>& getAllStream() { return _devStream; }
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "tamm/block_span.hpp"
 #include "ga/ga_linalg.h"
+#include "tamm/block_span.hpp"
 //#include "tamm/kernels/multiply.hpp"
 #include "tamm/types.hpp"
 #include "tamm/utils.hpp"

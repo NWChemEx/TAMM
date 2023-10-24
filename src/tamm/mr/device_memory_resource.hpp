@@ -82,7 +82,7 @@ public:
    * @param bytes The size of the allocation
    * @return void* Pointer to the newly allocated memory
    */
-    void* allocate(std::size_t bytes) {
+  void* allocate(std::size_t bytes) {
     return do_allocate(rmm::detail::align_up(bytes, allocation_size_alignment));
   }
 

@@ -45,7 +45,7 @@ namespace tamm::rmm::mr {
  *
  */
 class host_memory_resource {
- public:
+public:
   host_memory_resource()                                           = default;
   virtual ~host_memory_resource()                                  = default;
   host_memory_resource(host_memory_resource const&)                = default;
@@ -65,8 +65,7 @@ class host_memory_resource {
    * @param alignment Alignment of the allocation
    * @return void* Pointer to the newly allocated memory
    */
-  void* allocate(std::size_t bytes, std::size_t alignment = alignof(std::max_align_t))
-  {
+  void* allocate(std::size_t bytes, std::size_t alignment = alignof(std::max_align_t)) {
     return do_allocate(bytes, alignment);
   }
 
@@ -86,8 +85,7 @@ class host_memory_resource {
    *                  that was passed to the `allocate` call that returned `ptr`.
    * @param stream Stream on which to perform deallocation
    */
-  void deallocate(void* ptr, std::size_t bytes, std::size_t alignment = alignof(std::max_align_t))
-  {
+  void deallocate(void* ptr, std::size_t bytes, std::size_t alignment = alignof(std::max_align_t)) {
     do_deallocate(ptr, bytes, alignment);
   }
 
@@ -103,12 +101,11 @@ class host_memory_resource {
    * @param other The other resource to compare to
    * @returns true if the two resources are equivalent
    */
-  [[nodiscard]] bool is_equal(host_memory_resource const& other) const noexcept
-  {
+  [[nodiscard]] bool is_equal(host_memory_resource const& other) const noexcept {
     return do_is_equal(other);
   }
 
- private:
+private:
   /**
    * @brief Allocates memory on the host of size at least `bytes` bytes.
    *
@@ -139,8 +136,7 @@ class host_memory_resource {
    * @param alignment Alignment of the allocation. This must be equal to the value of `alignment`
    *                  that was passed to the `allocate` call that returned `ptr`.
    */
-  virtual void do_deallocate(void* ptr,
-                             std::size_t bytes,
+  virtual void do_deallocate(void* ptr, std::size_t bytes,
                              std::size_t alignment = alignof(std::max_align_t)) = 0;
 
   /**
@@ -155,9 +151,8 @@ class host_memory_resource {
    * @param other The other resource to compare to
    * @return true If the two resources are equivalent
    */
-  [[nodiscard]] virtual bool do_is_equal(host_memory_resource const& other) const noexcept
-  {
+  [[nodiscard]] virtual bool do_is_equal(host_memory_resource const& other) const noexcept {
     return this == &other;
   }
 };
-}  // namespace tamm::rmm::mr
+} // namespace tamm::rmm::mr

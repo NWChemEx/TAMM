@@ -53,14 +53,12 @@ public:
    * @param maximum_pool_size Maximum size, in bytes, that the pool can grow to. Defaults to all
    * of the available memory on the current device.
    */
-  explicit pool_memory_resource(Upstream* upstream_mr, 
-                                std::size_t maximum_pool_size):
+  explicit pool_memory_resource(Upstream* upstream_mr, std::size_t maximum_pool_size):
     upstream_mr_{[upstream_mr]() {
       if(upstream_mr == nullptr) { std::logic_error("Unexpected null upstream pointer."); }
       return upstream_mr;
     }()} {
-    if(!rmm::detail::is_aligned(maximum_pool_size,
-                                rmm::detail::CUDA_ALLOCATION_ALIGNMENT)) {
+    if(!rmm::detail::is_aligned(maximum_pool_size, rmm::detail::CUDA_ALLOCATION_ALIGNMENT)) {
       std::logic_error("Error, Maximum pool size required to be a multiple of 256 bytes");
     }
 
@@ -103,7 +101,7 @@ protected:
   [[nodiscard]] std::size_t get_maximum_allocation_size() const {
     return std::numeric_limits<std::size_t>::max();
   }
-    
+
   /**
    * @brief Allocate initial memory for the pool
    *
@@ -115,11 +113,8 @@ protected:
    */
   void initialize_pool(std::size_t maximum_size) {
     auto const block = block_from_upstream(maximum_size);
-    if(block.has_value()) {
-	this->insert_block(block.value());		
-    } else {
-	std::cout << "RMM: initialize_pool failed() \n";
-    }
+    if(block.has_value()) { this->insert_block(block.value()); }
+    else { std::cout << "RMM: initialize_pool failed() \n"; }
   }
 
   /**
@@ -180,7 +175,7 @@ protected:
   }
 
 private:
-  Upstream* upstream_mr_; // The "heap" to allocate the pool from
+  Upstream*   upstream_mr_; // The "heap" to allocate the pool from
   std::size_t maximum_pool_size_{};
 
   // blocks allocated from upstream

@@ -29,8 +29,8 @@ namespace tamm::rmm::mr {
  *
  * See https://devblogs.nvidia.com/how-optimize-data-transfers-cuda-cc/
  */
-class pinned_memory_resource final : public host_memory_resource {
- public:
+class pinned_memory_resource final: public host_memory_resource {
+public:
   pinned_memory_resource()                                         = default;
   ~pinned_memory_resource() override                               = default;
   pinned_memory_resource(pinned_memory_resource const&)            = default;
@@ -38,7 +38,7 @@ class pinned_memory_resource final : public host_memory_resource {
   pinned_memory_resource& operator=(pinned_memory_resource const&) = default;
   pinned_memory_resource& operator=(pinned_memory_resource&&)      = default;
 
- private:
+private:
   /**
    * @brief Allocates pinned memory on the host of size at least `bytes` bytes.
    *
@@ -51,10 +51,9 @@ class pinned_memory_resource final : public host_memory_resource {
    * @param alignment Alignment of the allocation
    * @return void* Pointer to the newly allocated memory
    */
-  void* do_allocate(std::size_t bytes, std::size_t alignment = alignof(std::max_align_t)) override
-  {
+  void* do_allocate(std::size_t bytes, std::size_t alignment = alignof(std::max_align_t)) override {
     // don't allocate anything if the user requested zero bytes
-    if (0 == bytes) { return nullptr; }
+    if(0 == bytes) { return nullptr; }
 
     // If the requested alignment isn't supported, use default
     alignment = (rmm::detail::is_supported_alignment(alignment))
@@ -65,7 +64,7 @@ class pinned_memory_resource final : public host_memory_resource {
       void* ptr{nullptr};
 #if defined(USE_CUDA)
       auto status = cudaMallocHost(&ptr, size);
-      if (cudaSuccess != status) { throw std::bad_alloc{}; }
+      if(cudaSuccess != status) { throw std::bad_alloc{}; }
 #elif defined(USE_HIP)
       auto status = hipMallocHost(&ptr, size);
       if (hipSuccess != status) { throw std::bad_alloc{}; }
@@ -92,21 +91,18 @@ class pinned_memory_resource final : public host_memory_resource {
    * @param alignment Alignment of the allocation. This must be equal to the value of `alignment`
    *                  that was passed to the `allocate` call that returned `ptr`.
    */
-  void do_deallocate(void* ptr,
-                     std::size_t bytes,
-                     std::size_t alignment = alignof(std::max_align_t)) override
-  {
-    if (nullptr == ptr) { return; }
-    rmm::detail::aligned_deallocate(
-      ptr, bytes, alignment, [](void* ptr) {
+  void do_deallocate(void* ptr, std::size_t bytes,
+                     std::size_t alignment = alignof(std::max_align_t)) override {
+    if(nullptr == ptr) { return; }
+    rmm::detail::aligned_deallocate(ptr, bytes, alignment, [](void* ptr) {
 #if defined(USE_CUDA)
-        cudaFreeHost(ptr);
+      cudaFreeHost(ptr);
 #elif defined(USE_HIP)
         hipFreeHost(ptr);
 #elif defined(USE_DPCPP)
         sycl::free(ptr, GPUStreamPool::getInstance().getStream().first);
 #endif
-      });
+    });
   }
 };
-}  // namespace rmm::mr
+} // namespace tamm::rmm::mr

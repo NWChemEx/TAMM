@@ -16,7 +16,7 @@
 #define ONEMKLBLAS_CHECK(FUNC)                                                         \
   do {                                                                                 \
     try {                                                                              \
-      (FUNC)                                                                           \
+      (FUNC);                                                                          \
     } catch(oneapi::mkl::exception const& ex) {                                        \
       std::ostringstream msg;                                                          \
       msg << "oneMKL Error: " << ex.what() << ", at " << __FILE__ << " : " << __LINE__ \
@@ -31,15 +31,7 @@ void tamm::kernels::gpu::axpy(const int64_t n, const T* src, const int incx,
                               T*& dst, const int incy, gpuStream_t& thandle) {
   T alpha = 1.0;
 #if defined(USE_DPCPP)
-  try {
-    auto oneapi_axpy =
-      oneapi::mkl::blas::column_major::axpy(thandle.first, n, alpha, src, incx, dst, incy);
-    oneapi_axpy.wait();
-  } catch(oneapi::mkl::exception const& ex) {
-    std::stringstream msg;
-    msg << "oneMKL Exception at " << __FILE__ << " : " << __LINE__ << std::endl;
-    throw(std::runtime_error(ex.what()));
-  }
+  ONEMKLBLAS_CHECK(oneapi::mkl::blas::column_major::axpy(thandle.first, n, alpha, src, incx, dst, incy));
 #elif defined(USE_CUDA)
   CUBLAS_CHECK(cublasDaxpy(handle.second, n, &alpha, src, incx, dst, incy));
 #elif defined(USE_HIP)
@@ -56,18 +48,11 @@ void tamm::kernels::gpu::gemm(int n, int m, int k, const T alpha, const T3* B, i
   blas::SB_Handle sb_handle(handle.first);
   blas::internal::_gemm(sb_handle, 'n', 'n', n, m, k, alpha, const_cast<T3*>(B), ldb,
                         const_cast<T2*>(A), lda, beta, C, ldc, {});
-  handle.first.wait();
+  //handle.first.wait();
 #else
-  try {
-    auto dgemm = oneapi::mkl::blas::column_major::gemm(handle.first, oneapi::mkl::transpose::N,
-                                                       oneapi::mkl::transpose::N, n, m, k, alpha, B,
-                                                       ldb, A, lda, beta, C, ldc);
-    dgemm.wait();
-  } catch(oneapi::mkl::exception const& ex) {
-    std::stringstream msg;
-    msg << "oneMKL Exception at " << __FILE__ << " : " << __LINE__ << std::endl;
-    throw(std::runtime_error(ex.what()));
-  }
+  ONEMKLBLAS_CHECK(oneapi::mkl::blas::column_major::gemm(handle.first, oneapi::mkl::transpose::N,
+                                                         oneapi::mkl::transpose::N, n, m, k, alpha, B,
+                                                         ldb, A, lda, beta, C, ldc));
 #endif // USE_SYCL_BLAS
 
 #elif defined(USE_CUDA)

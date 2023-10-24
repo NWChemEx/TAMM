@@ -170,7 +170,7 @@ static inline void gpuMemsetAsync(void*& ptr, size_t sizeInBytes, gpuStream_t st
 
 static inline void gpuStreamSynchronize(gpuStream_t stream) {
 #if defined(USE_DPCPP)
-  if(!stream.first.ext_oneapi_empty()) { stream.first.wait(); }
+  if(!stream.first.ext_oneapi_empty()) stream.first.ext_oneapi_submit_barrier();
 #elif defined(USE_HIP)
   hipStreamSynchronize(stream.first);
 #elif defined(USE_CUDA)
@@ -230,7 +230,7 @@ static inline bool gpuEventQuery(gpuEvent_t& event) {
 class GPUStreamPool {
 protected:
   int                      default_deviceID{0};
-  uint32_t                 nstreams{2};
+  uint32_t                 nstreams{1};
   uint32_t                 streamCount{0};
   std::vector<gpuStream_t> _devStream;
 

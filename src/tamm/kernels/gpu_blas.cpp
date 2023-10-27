@@ -7,9 +7,9 @@
 #include <rocblas.h>
 #elif defined(USE_DPCPP)
 #include <oneapi/mkl/blas.hpp>
-#if defined(USE_SYCL_BLAS)
-#include <sycl_blas.hpp>
-#endif // USE_SYCL_BLAS
+#if defined(USE_PORT_BLAS)
+#include <portblas.hpp>
+#endif // USE_PORT_BLAS
 #endif // USE_DPCPP
 
 #if defined(USE_DPCPP)
@@ -44,16 +44,16 @@ void tamm::kernels::gpu::gemm(int n, int m, int k, const T alpha, const T3* B, i
                               int lda, const T beta, T1* C, int ldc, gpuStream_t& handle) {
 #if defined(USE_DPCPP)
 
-#ifdef USE_SYCL_BLAS
+#ifdef USE_PORT_BLAS
   blas::SB_Handle sb_handle(handle.first);
   blas::internal::_gemm(sb_handle, 'n', 'n', n, m, k, alpha, const_cast<T3*>(B), ldb,
                         const_cast<T2*>(A), lda, beta, C, ldc, {});
-  //handle.first.wait();
+  handle.first.wait();
 #else
   ONEMKLBLAS_CHECK(oneapi::mkl::blas::column_major::gemm(handle.first, oneapi::mkl::transpose::N,
                                                          oneapi::mkl::transpose::N, n, m, k, alpha, B,
                                                          ldb, A, lda, beta, C, ldc));
-#endif // USE_SYCL_BLAS
+#endif // USE_PORT_BLAS
 
 #elif defined(USE_CUDA)
   if constexpr(tamm::internal::is_complex_v<T1> && tamm::internal::is_complex_v<T2> &&
@@ -88,8 +88,10 @@ template void tamm::kernels::gpu::axpy(const int64_t n, const double* src, const
 template void tamm::kernels::gpu::gemm(int n, int m, int k, const double alpha, const double* B,
                                        int ldb, const double* A, int lda, const double beta,
                                        double* C, int ldc, gpuStream_t& handle);
+#if !defined(USE_PORT_BLAS)
 template void tamm::kernels::gpu::gemm(int n, int m, int k, const std::complex<double> alpha,
                                        const std::complex<double>* B, int ldb,
                                        const std::complex<double>* A, int lda,
                                        const std::complex<double> beta, std::complex<double>* C,
                                        int ldc, gpuStream_t& handle);
+#endif //USE_PORT_BLAS

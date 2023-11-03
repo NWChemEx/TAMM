@@ -50,9 +50,10 @@ void tamm::kernels::gpu::gemm(int n, int m, int k, const T alpha, const T3* B, i
                         const_cast<T2*>(A), lda, beta, C, ldc, {});
   handle.first.wait();
 #else
-  ONEMKLBLAS_CHECK(oneapi::mkl::blas::column_major::gemm(handle.first, oneapi::mkl::transpose::N,
-                                                         oneapi::mkl::transpose::N, n, m, k, alpha, B,
-                                                         ldb, A, lda, beta, C, ldc));
+  auto gemm_event = oneapi::mkl::blas::column_major::gemm(handle.first, oneapi::mkl::transpose::N,
+                                                          oneapi::mkl::transpose::N, n, m, k, alpha, B,
+                                                          ldb, A, lda, beta, C, ldc);
+  gemm_event.wait();
 #endif // USE_PORT_BLAS
 
 #elif defined(USE_CUDA)

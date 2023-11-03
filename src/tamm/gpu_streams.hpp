@@ -170,7 +170,7 @@ static inline void gpuMemsetAsync(void*& ptr, size_t sizeInBytes, gpuStream_t st
 
 static inline void gpuStreamSynchronize(gpuStream_t stream) {
 #if defined(USE_DPCPP)
-  if(!stream.first.ext_oneapi_empty()) stream.first.ext_oneapi_submit_barrier();
+  if(!stream.first.ext_oneapi_empty()) stream.first.wait();
 #elif defined(USE_HIP)
   hipStreamSynchronize(stream.first);
 #elif defined(USE_CUDA)

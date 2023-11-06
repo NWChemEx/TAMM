@@ -542,6 +542,27 @@ TensorType trace_sqr(LabeledTensor<TensorType> ltensor) {
 }
 
 /**
+ * @brief method for converting std::vector to tamm 1D tensor
+ */
+template<typename TensorType>
+void vector_to_tamm_tensor(Tensor<TensorType> tensor, std::vector<TensorType> svec) {
+  EXPECTS(tensor.num_modes() == 1);
+
+  for(const auto& blockid: tensor.loop_nest()) {
+    const tamm::TAMM_SIZE   size = tensor.block_size(blockid);
+    std::vector<TensorType> buf(size);
+    tensor.get(blockid, buf);
+    auto   block_dims   = tensor.block_dims(blockid);
+    auto   block_offset = tensor.block_offsets(blockid);
+    size_t c            = 0;
+    for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++, c++) {
+      buf[c] = svec[i];
+    }
+    tensor.put(blockid, buf);
+  }
+}
+
+/**
  * @brief method for getting the diagonal values in a Tensor
  *
  * @returns the diagonal values

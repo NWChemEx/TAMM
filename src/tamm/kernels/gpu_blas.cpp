@@ -28,10 +28,10 @@
 
 template<typename T>
 void tamm::kernels::gpu::axpy(const int64_t n, const T* src, const int incx,
-                              T*& dst, const int incy, gpuStream_t& thandle) {
+                              T*& dst, const int incy, gpuStream_t& handle) {
   T alpha = 1.0;
 #if defined(USE_DPCPP)
-  ONEMKLBLAS_CHECK(oneapi::mkl::blas::column_major::axpy(thandle.first, n, alpha, src, incx, dst, incy));
+  ONEMKLBLAS_CHECK(oneapi::mkl::blas::column_major::axpy(handle.first, n, alpha, src, incx, dst, incy));
 #elif defined(USE_CUDA)
   CUBLAS_CHECK(cublasDaxpy(handle.second, n, &alpha, src, incx, dst, incy));
 #elif defined(USE_HIP)

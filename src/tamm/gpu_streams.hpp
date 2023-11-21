@@ -145,6 +145,19 @@ static inline void gpuGetDevice(int* active_device) {
 #endif
 }
 
+// ABB (11/20/23): Added to be used by the CCSD-(T) kernel
+// template<typename T>
+// static void gpuMemcpyToSymbolAsync(T* dst, const T* src, size_t count, size_t offset,
+//                                    gpuMemcpyKind kind, gpuStream_t& stream) {
+// #if defined(USE_DPCPP)
+//   stream.first.memcpy(sycl::ext::oneapi::experimental::device_global<T, decltype(sycl::ext::oneapi::experimental::properties(sycl::ext::oneapi::experimental::device_image_scope))>(dst), src, count * sizeof(T), 0, {});
+// #elif defined(USE_CUDA)
+//   CUDA_CHECK(cudaMemcpyToSymbolAsync(dst, src, count * sizeof(T), 0, kind, stream.first));
+// #elif defined(USE_HIP)
+//   HIP_CHECK(hipMemcpyToSymbolAsync(dst, src, count * sizeof(T), 0, kind, stream.first));
+// #endif
+// }
+
 template<typename T>
 static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kind,
                            gpuStream_t& stream) {
@@ -180,9 +193,7 @@ static inline void gpuStreamSynchronize(gpuStream_t stream) {
 
 static inline void gpuEventRecord(gpuEvent_t& event, gpuStream_t stream) {
 #if defined(USE_DPCPP)
-  // auto retEvent = stream.first.ext_oneapi_submit_barrier(event);
-  // retEvent.wait();
-  event.wait();
+  event = stream.first.ext_oneapi_submit_barrier();
 #elif defined(USE_HIP)
   hipEventRecord(event, stream.first);
 #elif defined(USE_CUDA)

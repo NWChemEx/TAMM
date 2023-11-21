@@ -403,13 +403,12 @@ void block_multiply(
       allocate_host_buffers(hw, ainter_buf, asize.value());
       allocate_host_buffers(hw, binter_buf, bsize.value());
 
-      // T2 (matrix A) is complex, T3 (B) is real
+      // T2 (matrix A) is complex, T3 (B) is real, C=CxR
       if constexpr(internal::is_complex_v<T1>) {
         // copy B to complex buffer
         T1* bbuf_complex{nullptr};
         allocate_host_buffers(ExecutionHW::CPU, bbuf_complex, bsize.value());
-        // T3* bbuf_comp_ptr = reinterpret_cast<T3*>(bbuf_complex);
-        // blas::copy(bsize.value(), bbufp, 1, bbuf_comp_ptr, 2);
+        std::copy(bbufp, bbufp + bsize.value(), bbuf_complex);
 
         T1* bbuf_complex_dev{nullptr};
         allocate_device_buffers(hw, bbuf_complex_dev, bsize.value());
@@ -434,11 +433,10 @@ void block_multiply(
         free_host_buffers(ExecutionHW::CPU, bbuf_complex, bsize.value());
       } // is_complex<T1>
       else {
-        // T1,T2 (C,A) are real, T3 (B) is complex
+        // T1,T2 (C,A) are real, T3 (B) is complex, R=RxC
         T1* bbuf_real{nullptr};
         allocate_host_buffers(ExecutionHW::CPU, bbuf_real, bsize.value());
-        // T1* bbuf_comp_ptr = reinterpret_cast<T1*>(bbufp);
-        // blas::copy(bsize.value(), bbuf_comp_ptr, 2, bbuf_real, 1);
+        std::transform(bbufp, bbufp + bsize.value(), bbuf_real, [](const T3& val) { return val.real(); });
 
         T1* bbuf_real_dev{nullptr};
         allocate_device_buffers(hw, bbuf_real_dev, bsize.value());
@@ -476,8 +474,7 @@ void block_multiply(
       if constexpr(internal::is_complex_v<T1>) {
         T1* abuf_complex{nullptr};
         allocate_host_buffers(ExecutionHW::CPU, abuf_complex, asize.value());
-        // T2* abuf_comp_ptr = reinterpret_cast<T2*>(abuf_complex);
-        // blas::copy(asize.value(), abufp, 1, abuf_comp_ptr, 2);
+        std::copy(abufp, abufp + asize.value(), abuf_complex);
 
         T1* abuf_complex_dev{nullptr};
         allocate_device_buffers(hw, abuf_complex_dev, asize.value());
@@ -502,11 +499,10 @@ void block_multiply(
         free_host_buffers(ExecutionHW::CPU, abuf_complex, asize.value());
       }
       else {
-        // T1,T3 (C,B) are real, T2 (A) is complex
+        // T1,T3 (C,B) are real, T2 (A) is complex, //R=CxR
         T1* abuf_real{nullptr};
         allocate_host_buffers(ExecutionHW::CPU, abuf_real, asize.value());
-        // T1* abuf_comp_ptr = reinterpret_cast<T1*>(abufp);
-        // blas::copy(asize.value(), abuf_comp_ptr, 2, abuf_real, 1);
+        std::transform(abufp, abufp + asize.value(), abuf_real, [](const T2& val) { return val.real(); });
 
         T1* abuf_real_dev{nullptr};
         allocate_device_buffers(hw, abuf_real_dev, asize.value());
@@ -541,7 +537,7 @@ void block_multiply(
       T2* cinter_buf_real{nullptr};
       allocate_host_buffers(hw, ainter_buf, asize.value());
       allocate_host_buffers(hw, binter_buf, bsize.value());
-      allocate_host_buffers(hw, cinter_buf, csize.value());
+      allocate_host_buffers(hw, cinter_buf_real, csize.value());
 
       T2* cbuf_tmp_real_dev{nullptr};
       allocate_device_buffers(hw, cbuf_tmp_real_dev, csize.value());
@@ -567,7 +563,7 @@ void block_multiply(
       }
       else {
         T2* cinter_buf_real_ptr = reinterpret_cast<T2*>(cinter_buf);
-        // blas::copy(csize.value(), cinter_buf_real.data(), 1, cinter_buf_real_ptr, 2);
+        std::copy(cinter_buf_real, cinter_buf_real + csize.value(), cinter_buf_real_ptr);
       }
 
       transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
@@ -577,7 +573,7 @@ void block_multiply(
       free_device_buffers(hw, cbuf_tmp_real_dev, csize.value());
       free_host_buffers(hw, ainter_buf, asize.value());
       free_host_buffers(hw, binter_buf, bsize.value());
-      free_host_buffers(hw, cinter_buf, csize.value());
+      free_host_buffers(hw, cinter_buf_real, csize.value());
     }
 
     else NOT_IMPLEMENTED();

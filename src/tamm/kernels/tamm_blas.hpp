@@ -1,6 +1,8 @@
 #pragma once
 
-#include "tamm/gpu_streams.hpp"
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#include <tamm/gpu_streams.hpp>
+#endif
 
 namespace tamm::kernels {
 

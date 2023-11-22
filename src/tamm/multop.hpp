@@ -386,18 +386,22 @@ public:
       }
 
 #else
-      const auto translated_cblockid = internal::translate_blockid(cblockid, lhs_);
-      const auto translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
-      const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
+      const auto  translated_cblockid = internal::translate_blockid(cblockid, lhs_);
+      const auto  translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
+      const auto  translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
 
 #endif
       if(!ctensor.is_non_zero(translated_cblockid) || !atensor.is_non_zero(translated_ablockid) ||
          !btensor.is_non_zero(translated_bblockid))
         return;
 
-      auto& memHostPool   = RMMMemoryManager::getInstance().getHostMemoryPool();
+      auto& memHostPool = RMMMemoryManager::getInstance().getHostMemoryPool();
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       auto& memDevicePool = RMMMemoryManager::getInstance().getDeviceMemoryPool();
       auto& thandle       = GPUStreamPool::getInstance().getStream();
+#else
+      gpuStream_t thandle{};
+#endif
 
       {
         // determine set of all labels
@@ -483,10 +487,10 @@ public:
 #endif
           kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-            th_a, th_b, thandle,
+            th_a, th_b,
 #endif
-            alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_, cscale,
-            ab->cbuf_, cdims_sz, lhs_int_labels_, hw, true, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
+            thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
+            cscale, ab->cbuf_, cdims_sz, lhs_int_labels_, hw, true, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
           if(hw == ExecutionHW::GPU) {
@@ -507,9 +511,10 @@ public:
 #endif
         }
 
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         memDevicePool.deallocate(th_a, asize * sizeof(TensorElType2));
         memDevicePool.deallocate(th_b, bsize * sizeof(TensorElType3));
-
+#endif
         memHostPool.deallocate(cbuf, csize * sizeof(TensorElType1));
         memHostPool.deallocate(abuf, asize * sizeof(TensorElType2));
         memHostPool.deallocate(bbuf, bsize * sizeof(TensorElType3));
@@ -623,9 +628,13 @@ public:
     int64_t n_lhs_blocks, nranks_per_lhs_block, lhs_counter;
 #endif
 
-    auto& memHostPool   = RMMMemoryManager::getInstance().getHostMemoryPool();
+    auto& memHostPool = RMMMemoryManager::getInstance().getHostMemoryPool();
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
     auto& memDevicePool = RMMMemoryManager::getInstance().getDeviceMemoryPool();
     auto& thandle       = GPUStreamPool::getInstance().getStream();
+#else
+    gpuStream_t thandle{};
+#endif
 
     // function to compute one block
     auto lambda = [&](const IndexVector itval) { // i, j
@@ -777,10 +786,10 @@ public:
 
             kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-              abuf_dev, bbuf_dev, thandle,
+              abuf_dev, bbuf_dev,
 #endif
-              alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_, cscale,
-              cbuf, cdims_sz, lhs_int_labels_, hw, false, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
+              thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
+              cscale, cbuf, cdims_sz, lhs_int_labels_, hw, false, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
             if(hw == ExecutionHW::GPU) {

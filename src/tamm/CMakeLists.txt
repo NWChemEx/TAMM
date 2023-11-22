@@ -5,18 +5,9 @@ include(TargetMacros) #For cmsb_add_library
 if(USE_CUDA OR USE_HIP OR USE_DPCPP)
   set(tamm_gpu_INCS
     gpu_streams.hpp
-    mr/aligned.hpp
     mr/gpu_memory_resource.hpp
-    mr/device_memory_resource.hpp
-    mr/host_memory_resource.hpp
     mr/pinned_memory_resource.hpp
-    mr/new_delete_resource.hpp
-    mr/pool_memory_resource.hpp
-    mr/coalescing_free_list.hpp
-    mr/free_list.hpp
-    mr/stream_ordered_memory_resource.hpp
     mr/per_device_resource.hpp
-    rmm_memory_pool.hpp
   )
 
   set(tamm_gpu_SRCS kernels/gpu_blas.cpp)
@@ -30,6 +21,15 @@ set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp ker
 
 #Add the current directory's header files to the list
 set(TAMM_INCLUDES
+  rmm_memory_pool.hpp
+    mr/device_memory_resource.hpp
+    mr/stream_ordered_memory_resource.hpp
+    mr/aligned.hpp
+    mr/new_delete_resource.hpp
+    mr/pool_memory_resource.hpp
+    mr/host_memory_resource.hpp
+    mr/coalescing_free_list.hpp
+    mr/free_list.hpp
     atomic_counter.hpp
     work.hpp
     tamm.hpp
@@ -67,7 +67,7 @@ set(TAMM_INCLUDES
     lru_cache.hpp
     kernels/assign.hpp
     kernels/multiply.hpp
-    kernels/tamm_blas.hpp    
+    kernels/tamm_blas.hpp
     op_dag.hpp
     interfaces.hpp
     op_profiler.hpp

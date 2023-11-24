@@ -32,6 +32,7 @@
 
 namespace tamm {
 void initialize(int argc, char* argv[]);
+void initialize_tm(int argc, char* argv[]);
 void finalize();
 void tamm_terminate(std::string msg);
 } // namespace tamm

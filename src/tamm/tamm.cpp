@@ -1,44 +1,18 @@
 #include "tamm/tamm.hpp"
-#include "ga/ga.h"
-#include "ga/macdecls.h"
-#include "mpi.h"
 
 #if defined(USE_UPCXX)
 upcxx::team* team_self = NULL;
 #endif
-
-static volatile bool finalized = false;
-static pthread_t     progress_thread;
-static pthread_t     abort_thread;
-
-static void* abort_func(void*) {
-  auto start_time = std::chrono::high_resolution_clock::now();
-
-  while(!finalized) {
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto elapsed_time =
-      std::chrono::duration_cast<std::chrono::duration<double>>((end_time - start_time)).count();
-    if(elapsed_time > 40 * 60) {
-      fprintf(stderr, "Aborting due to time out!\n");
-      abort();
-    }
-  }
-}
 
 namespace tamm {
 
 void initialize(int argc, char* argv[]) {
 #if defined(USE_UPCXX)
   upcxx::init();
-
   // Must be called with master persona
   team_self = new upcxx::team(upcxx::local_team().split(upcxx::rank_me(), 0));
   // if (upcxx::rank_me() == 0) {
   // int err = pthread_create(&abort_thread, NULL, abort_func, NULL);
-  // if (err != 0) {
-  //     fprintf(stderr, "Error launching abort thread\n");
-  //     abort();
-  // }
   // }
 #else
   int flag;
@@ -48,14 +22,29 @@ void initialize(int argc, char* argv[]) {
     GA_Initialize();
     (void) ProcGroup::self_ga_pgroup(true);
   }
-  // if (!MA_initialized()) {
-  //   MA_init(MT_DBL, 8000000, 20000000);
+#endif
+}
+
+// MPI_THREAD_MULTIPLE
+void initialize_tm(int argc, char* argv[]) {
+#if defined(USE_UPCXX)
+  upcxx::init();
+  team_self = new upcxx::team(upcxx::local_team().split(upcxx::rank_me(), 0));
+#else
+  int flag;
+  MPI_Initialized(&flag);
+  if(!flag) {
+    int prov;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &prov);
+  }
+  if(!GA_Initialized()) {
+    GA_Initialize();
+    (void) ProcGroup::self_ga_pgroup(true);
+  }
 #endif
 }
 
 void finalize() {
-  finalized = true;
-
 #if defined(USE_UPCXX)
   upcxx::finalize();
 #else

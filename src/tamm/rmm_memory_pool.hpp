@@ -37,7 +37,7 @@ protected:
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   using device_pool_mr = rmm::mr::pool_memory_resource<rmm::mr::device_memory_resource>;
   std::unique_ptr<device_pool_mr> deviceMR;
-  // std::unique_ptr<host_pool_mr>   pinnedHostMR;
+  std::unique_ptr<host_pool_mr>   pinnedHostMR;
 #endif
 
 private:
@@ -49,7 +49,7 @@ private:
     gpuMemGetInfo(&free, &total);
 
     size_t max_device_bytes{0};
-    // size_t max_pinned_host_bytes{0};
+    size_t max_pinned_host_bytes{0};
     if(tamm_gpu_poolsize) {
       // sets the GPU & CPU pool size as requested by the env variable TAMM_GPU_POOLSIZE
       EXPECTS(tamm_gpu_poolsize < free);
@@ -61,15 +61,15 @@ private:
       // Allocate 80% of total free memory on GPU
       // Similarly allocate the same size for the CPU pool too
       // For the host-pinned memory allcoate 5% of the free memory reported
-      max_device_bytes = 0.80 * free;
-      max_host_bytes   = 0.80 * free;
-      // max_pinned_host_bytes = 0.05 * free;
+      max_device_bytes      = 0.80 * free;
+      max_host_bytes        = 0.80 * free;
+      max_pinned_host_bytes = 0.05 * free;
     }
 
     deviceMR = std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
     hostMR   = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
-    // pinnedHostMR =
-    //   std::make_unique<host_pool_mr>(new rmm::mr::pinned_memory_resource, max_pinned_host_bytes);
+    pinnedHostMR =
+      std::make_unique<host_pool_mr>(new rmm::mr::pinned_memory_resource, max_pinned_host_bytes);
 #else
     struct sysinfo cpumeminfo_;
     sysinfo(&cpumeminfo_);
@@ -85,8 +85,8 @@ public:
   /// Returns a RMM device pool handle
   device_pool_mr& getDeviceMemoryPool() { return *(deviceMR.get()); }
 
-  // /// Returns a RMM pinnedHost pool handle
-  // host_pool_mr& getPinnedMemoryPool() { return *(pinnedHostMR.get()); }
+  /// Returns a RMM pinnedHost pool handle
+  host_pool_mr& getPinnedMemoryPool() { return *(pinnedHostMR.get()); }
 #endif
 
   /// Returns a RMM host pool handle

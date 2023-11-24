@@ -84,12 +84,13 @@ public:
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   /// Returns a RMM device pool handle
   device_pool_mr& getDeviceMemoryPool() { return *(deviceMR.get()); }
+
+  // /// Returns a RMM pinnedHost pool handle
+  // host_pool_mr& getPinnedMemoryPool() { return *(pinnedHostMR.get()); }
 #endif
 
   /// Returns a RMM host pool handle
   host_pool_mr& getHostMemoryPool() { return *(hostMR.get()); }
-  // /// Returns a RMM pinnedHost pool handle
-  // host_pool_mr& getPinnedMemoryPool() { return *(pinnedHostMR.get()); }
 
   /// Returns the instance of device manager singleton.
   inline static RMMMemoryManager& getInstance() {

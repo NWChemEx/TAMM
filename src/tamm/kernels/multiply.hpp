@@ -547,7 +547,9 @@ void block_multiply(
       allocate_host_buffers(hw, ainter_buf, asize.value());
       allocate_host_buffers(hw, binter_buf, bsize.value());
       allocate_host_buffers(hw, cinter_buf_real, csize.value());
+#if !defined(USE_CUDA) && !defined(USE_HIP) && !defined(USE_DPCPP)
       std::memset(static_cast<void*>(cinter_buf_real), 0, csize.value() * sizeof(T2));
+#endif
 
       T2* cbuf_tmp_real_dev{nullptr};
       allocate_device_buffers(hw, cbuf_tmp_real_dev, csize.value());

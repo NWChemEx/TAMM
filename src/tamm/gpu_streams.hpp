@@ -150,7 +150,9 @@ static inline void gpuGetDevice(int* active_device) {
 // static void gpuMemcpyToSymbolAsync(T* dst, const T* src, size_t count, size_t offset,
 //                                    gpuMemcpyKind kind, gpuStream_t& stream) {
 // #if defined(USE_DPCPP)
-//   stream.first.memcpy(sycl::ext::oneapi::experimental::device_global<T, decltype(sycl::ext::oneapi::experimental::properties(sycl::ext::oneapi::experimental::device_image_scope))>(dst), src, count * sizeof(T), 0, {});
+//   stream.first.memcpy(sycl::ext::oneapi::experimental::device_global<T,
+//   decltype(sycl::ext::oneapi::experimental::properties(sycl::ext::oneapi::experimental::device_image_scope))>(dst),
+//   src, count * sizeof(T), 0, {});
 // #elif defined(USE_CUDA)
 //   CUDA_CHECK(cudaMemcpyToSymbolAsync(dst, src, count * sizeof(T), 0, kind, stream.first));
 // #elif defined(USE_HIP)
@@ -248,18 +250,12 @@ protected:
 private:
   GPUStreamPool() {
     // Assert here if multi-GPUs are detected
-    int ngpus{0};
+    // int ngpus{0};
+    // getDeviceCount(&ngpus);
+    // EXPECTS_STR((ngpus == 1), "Error: More than 1 GPU-device found per rank!");
+    // gpuSetDevice(default_deviceID);
 
-    // Some work-around needed for Frontier before calling any other APIs:
-    // https://docs.olcf.ornl.gov/systems/crusher_quick_start_guide.html#olcfdev-1655-occasional-seg-fault-during-mpi-init
-#if defined(USE_HIP)
-    hipInit(0);
-#endif
-
-    getDeviceCount(&ngpus);
-    EXPECTS_STR((ngpus == 1), "Error: More than 1 GPU-device found per rank!");
-
-    gpuSetDevice(default_deviceID);
+    gpuGetDevice(&default_deviceID);
 
     for(uint32_t j = 0; j < nstreams; j++) {
 #if defined(USE_CUDA)

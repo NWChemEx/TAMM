@@ -58,12 +58,12 @@ private:
       max_host_bytes   = tamm_gpu_poolsize;
     }
     else {
-      // Allocate 80% of total free memory on GPU
+      // Allocate 75% of total free memory on GPU
       // Similarly allocate the same size for the CPU pool too
-      // For the host-pinned memory allcoate 5% of the free memory reported
-      max_device_bytes      = 0.80 * free;
-      max_host_bytes        = 0.80 * free;
-      max_pinned_host_bytes = 0.05 * free;
+      // For the host-pinned memory allcoate 15% of the free memory reported
+      max_device_bytes      = 0.75 * free;
+      max_host_bytes        = 0.75 * free;
+      max_pinned_host_bytes = 0.15 * free;
     }
 
     deviceMR = std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);

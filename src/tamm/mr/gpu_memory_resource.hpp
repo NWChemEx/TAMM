@@ -32,11 +32,14 @@ private:
   void* do_allocate(std::size_t bytes) override {
     void* ptr{nullptr};
 #if defined(USE_CUDA)
-    cudaMalloc(&ptr, bytes);
+    auto status = cudaMalloc(&ptr, bytes);
+    if(cudaSuccess != status) { throw std::bad_alloc{}; }
 #elif defined(USE_HIP)
     hipMalloc(&ptr, bytes);
+    if(hipSuccess != status) { throw std::bad_alloc{}; }
 #elif defined(USE_DPCPP)
     ptr = sycl::malloc_device(bytes, GPUStreamPool::getInstance().getStream().first);
+    if(ptr == nullptr) { throw std::bad_alloc{}; }
 #endif
 
     return ptr;

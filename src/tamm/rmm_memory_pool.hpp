@@ -31,6 +31,7 @@ static const uint32_t tamm_gpu_poolsize = [] {
 
 class RMMMemoryManager {
 protected:
+  bool invalid_state{true};
   using host_pool_mr = rmm::mr::pool_memory_resource<rmm::mr::host_memory_resource>;
   std::unique_ptr<host_pool_mr> hostMR;
 
@@ -41,44 +42,7 @@ protected:
 #endif
 
 private:
-  RMMMemoryManager() {
-    size_t max_host_bytes{0};
-
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-    size_t free{}, total{};
-    gpuMemGetInfo(&free, &total);
-
-    size_t max_device_bytes{0};
-    size_t max_pinned_host_bytes{0};
-    if(tamm_gpu_poolsize) {
-      // sets the GPU & CPU pool size as requested by the env variable TAMM_GPU_POOLSIZE
-      EXPECTS(tamm_gpu_poolsize < free);
-
-      max_device_bytes = tamm_gpu_poolsize;
-      max_host_bytes   = tamm_gpu_poolsize;
-    }
-    else {
-      // Allocate 75% of total free memory on GPU
-      // Similarly allocate the same size for the CPU pool too
-      // For the host-pinned memory allcoate 15% of the free memory reported
-      max_device_bytes      = 0.75 * free;
-      max_host_bytes        = 0.75 * free;
-      max_pinned_host_bytes = 0.15 * free;
-    }
-
-    deviceMR = std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
-    hostMR   = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
-    pinnedHostMR =
-      std::make_unique<host_pool_mr>(new rmm::mr::pinned_memory_resource, max_pinned_host_bytes);
-#else
-    struct sysinfo cpumeminfo_;
-    sysinfo(&cpumeminfo_);
-    max_host_bytes = cpumeminfo_.totalram * cpumeminfo_.mem_unit;
-
-    max_host_bytes *= 0.05;
-    hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
-#endif
-  }
+  RMMMemoryManager() { initialize(); }
 
 public:
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
@@ -98,10 +62,69 @@ public:
     return d_m;
   }
 
+  void reset() {
+    hostMR.reset();
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+    deviceMR.reset();
+    pinnedHostMR.reset();
+#endif
+
+    this->invalid_state = true;
+  }
+
+  void initialize() {
+    if(this->invalid_state) {
+      size_t max_host_bytes{0};
+
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+      size_t free{}, total{};
+      gpuMemGetInfo(&free, &total);
+
+      size_t max_device_bytes{0};
+      size_t max_pinned_host_bytes{0};
+      if(tamm_gpu_poolsize) {
+        // sets the GPU & CPU pool size as requested by the env variable TAMM_GPU_POOLSIZE
+        EXPECTS(tamm_gpu_poolsize < free);
+
+        max_device_bytes = tamm_gpu_poolsize;
+        max_host_bytes   = tamm_gpu_poolsize;
+      }
+      else {
+        // Allocate 75% of total free memory on GPU
+        // Similarly allocate the same size for the CPU pool too
+        // For the host-pinned memory allcoate 15% of the free memory reported
+        max_device_bytes      = 0.75 * free;
+        max_host_bytes        = 0.75 * free;
+        max_pinned_host_bytes = 0.15 * free;
+      }
+
+      deviceMR =
+        std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
+      hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
+      pinnedHostMR =
+        std::make_unique<host_pool_mr>(new rmm::mr::pinned_memory_resource, max_pinned_host_bytes);
+#else
+      struct sysinfo cpumeminfo_;
+      sysinfo(&cpumeminfo_);
+      max_host_bytes = cpumeminfo_.totalram * cpumeminfo_.mem_unit;
+
+      max_host_bytes *= 0.05;
+      hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
+#endif
+
+      // after setting up the pool: change the invalid_state to FALSE
+      invalid_state = false;
+    }
+  }
+
   RMMMemoryManager(const RMMMemoryManager&)            = delete;
   RMMMemoryManager& operator=(const RMMMemoryManager&) = delete;
   RMMMemoryManager(RMMMemoryManager&&)                 = delete;
   RMMMemoryManager& operator=(RMMMemoryManager&&)      = delete;
 };
+
+static inline void reset_rmm_pool() { RMMMemoryManager::getInstance().reset(); }
+
+static inline void reinitialize_rmm_pool() { RMMMemoryManager::getInstance().initialize(); }
 
 } // namespace tamm

@@ -89,9 +89,6 @@ void allocate_host_buffers(ExecutionHW hw, T*& host_buf, size_t buf_size) {
   // else {
   auto& memPool = RMMMemoryManager::getInstance().getHostMemoryPool();
   host_buf      = static_cast<T*>(memPool.allocate(buf_size * sizeof(T)));
-  // std::memset(static_cast<void*>(host_buf), 0, buf_size * sizeof(T));
-  //  host_buf = new T[buf_size];
-  //  }
 }
 
 template<typename T>
@@ -355,10 +352,6 @@ void block_multiply(
   int breduce_ld = B * bbatch_ld;
 
   bool gpu_trans = false;
-
-  // std::vector<T1> cinter_buf_vec;
-  // if(hw != ExecutionHW::GPU) cinter_buf_vec.resize(static_cast<size_t>(csize.value()));
-  // // T1* cinter_buf = cinter_buf_vec.data();
 
   T1* cinter_buf{nullptr};
   allocate_host_buffers(hw, cinter_buf, static_cast<size_t>(csize.value()));

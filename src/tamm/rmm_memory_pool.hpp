@@ -38,7 +38,8 @@ protected:
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   using device_pool_mr = rmm::mr::pool_memory_resource<rmm::mr::device_memory_resource>;
   std::unique_ptr<device_pool_mr> deviceMR;
-  std::unique_ptr<host_pool_mr>   pinnedHostMR;
+  using pinned_pool_mr = rmm::mr::pool_memory_resource<rmm::mr::pinned_memory_resource>;
+  std::unique_ptr<pinned_pool_mr> pinnedHostMR;
 #endif
 
 private:
@@ -50,7 +51,7 @@ public:
   device_pool_mr& getDeviceMemoryPool() { return *(deviceMR.get()); }
 
   /// Returns a RMM pinnedHost pool handle
-  host_pool_mr& getPinnedMemoryPool() { return *(pinnedHostMR.get()); }
+  pinned_pool_mr& getPinnedMemoryPool() { return *(pinnedHostMR.get()); }
 #endif
 
   /// Returns a RMM host pool handle
@@ -90,19 +91,19 @@ public:
         max_host_bytes   = tamm_gpu_poolsize;
       }
       else {
-        // Allocate 75% of total free memory on GPU
+        // Allocate 35% of total free memory on GPU
         // Similarly allocate the same size for the CPU pool too
         // For the host-pinned memory allcoate 15% of the free memory reported
-        max_device_bytes      = 0.75 * free;
-        max_host_bytes        = 0.75 * free;
-        max_pinned_host_bytes = 0.15 * free;
+        max_device_bytes      = 0.30 * free;
+        max_host_bytes        = 0.30 * free;
+        max_pinned_host_bytes = 0.18 * free;
       }
 
       deviceMR =
         std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
       hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
-      pinnedHostMR =
-        std::make_unique<host_pool_mr>(new rmm::mr::pinned_memory_resource, max_pinned_host_bytes);
+      pinnedHostMR = std::make_unique<pinned_pool_mr>(new rmm::mr::pinned_memory_resource,
+                                                      max_pinned_host_bytes);
 #else
       struct sysinfo cpumeminfo_;
       sysinfo(&cpumeminfo_);
@@ -123,6 +124,7 @@ public:
   RMMMemoryManager& operator=(RMMMemoryManager&&)      = delete;
 };
 
+// The reset pool & reinitialize only is being used for the (T) segement of cannonical
 static inline void reset_rmm_pool() { RMMMemoryManager::getInstance().reset(); }
 
 static inline void reinitialize_rmm_pool() { RMMMemoryManager::getInstance().initialize(); }

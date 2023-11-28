@@ -98,9 +98,9 @@ private:
 #if defined(USE_CUDA)
       cudaFreeHost(ptr);
 #elif defined(USE_HIP)
-        hipFreeHost(ptr);
+      hipFreeHost(ptr);
 #elif defined(USE_DPCPP)
-        sycl::free(ptr, GPUStreamPool::getInstance().getStream().first);
+      sycl::free(ptr, GPUStreamPool::getInstance().getStream().first);
 #endif
     });
   }

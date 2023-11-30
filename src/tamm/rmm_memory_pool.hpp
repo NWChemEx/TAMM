@@ -38,6 +38,8 @@ protected:
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   using device_pool_mr = rmm::mr::pool_memory_resource<rmm::mr::device_memory_resource>;
   std::unique_ptr<device_pool_mr> deviceMR;
+#endif
+#if defined(USE_CUDA) || defined(USE_HIP)
   using pinned_pool_mr = rmm::mr::pool_memory_resource<rmm::mr::pinned_memory_resource>;
   std::unique_ptr<pinned_pool_mr> pinnedHostMR;
 #endif
@@ -49,9 +51,14 @@ public:
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   /// Returns a RMM device pool handle
   device_pool_mr& getDeviceMemoryPool() { return *(deviceMR.get()); }
+#endif
 
+#if defined(USE_CUDA) || defined(USE_HIP)
   /// Returns a RMM pinnedHost pool handle
   pinned_pool_mr& getPinnedMemoryPool() { return *(pinnedHostMR.get()); }
+#elif defined(USE_DPCPP)
+  /// Returns a RMM pinnedHost pool handle
+  host_pool_mr& getPinnedMemoryPool() { return *(hostMR.get()); }
 #endif
 
   /// Returns a RMM host pool handle
@@ -67,6 +74,7 @@ public:
     hostMR.reset();
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
     deviceMR.reset();
+#elif defined(USE_CUDA) || defined(USE_HIP)
     pinnedHostMR.reset();
 #endif
 
@@ -82,7 +90,10 @@ public:
       gpuMemGetInfo(&free, &total);
 
       size_t max_device_bytes{0};
+#if defined(USE_CUDA) || defined(USE_HIP)
       size_t max_pinned_host_bytes{0};
+#endif
+
       if(tamm_gpu_poolsize) {
         // sets the GPU & CPU pool size as requested by the env variable TAMM_GPU_POOLSIZE
         EXPECTS(tamm_gpu_poolsize < free);
@@ -94,16 +105,28 @@ public:
         // Allocate 35% of total free memory on GPU
         // Similarly allocate the same size for the CPU pool too
         // For the host-pinned memory allcoate 15% of the free memory reported
-        max_device_bytes      = 0.30 * free;
-        max_host_bytes        = 0.30 * free;
+        max_device_bytes = 0.30 * free;
+#ifdef USE_MEMKIND
+        // Idea is to allocate 0.15 * 64Gb=~9Gb per rank. Such that 6 ranks from
+        // 1 Aurora socket maps to 54Gb of HBM out of 64Gb capacity per socket.
+        max_host_bytes = 0.15 * free;
+#else
+        max_host_bytes = 0.30 * free;
+#endif
+
+#if defined(USE_CUDA) || defined(USE_HIP)
         max_pinned_host_bytes = 0.18 * free;
+#endif
       }
 
       deviceMR =
         std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
       hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
+#if defined(USE_CUDA) || defined(USE_HIP)
       pinnedHostMR = std::make_unique<pinned_pool_mr>(new rmm::mr::pinned_memory_resource,
                                                       max_pinned_host_bytes);
+#endif
+
 #else
       struct sysinfo cpumeminfo_;
       sysinfo(&cpumeminfo_);

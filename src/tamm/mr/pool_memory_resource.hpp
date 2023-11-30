@@ -58,8 +58,9 @@ public:
       if(upstream_mr == nullptr) { std::logic_error("Unexpected null upstream pointer."); }
       return upstream_mr;
     }()} {
-    if(!rmm::detail::is_aligned(maximum_pool_size, rmm::detail::CUDA_ALLOCATION_ALIGNMENT)) {
-      std::logic_error("Error, Maximum pool size required to be a multiple of 256 bytes");
+    if(!rmm::detail::is_aligned(maximum_pool_size, rmm::detail::GPU_ALLOCATION_ALIGNMENT)) {
+      std::logic_error(
+        "Error, Maximum pool size required to be a multiple of 256/std::max_align_t bytes");
     }
 
     initialize_pool(maximum_pool_size);
@@ -106,7 +107,7 @@ protected:
    * @brief Allocate initial memory for the pool
    *
    * If initial_size is unset, then queries the upstream memory resource for available memory if
-   * upstream supports `get_mem_info`, or queries the device (using CUDA API) for available memory
+   * upstream supports `get_mem_info`, or queries the device (using GPU API) for available memory
    * if not. Then attempts to initialize to half the available memory.
    *
    * @param maximum_size The optional maximum size for the pool

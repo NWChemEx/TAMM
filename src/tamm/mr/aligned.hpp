@@ -15,10 +15,15 @@ namespace tamm::rmm::detail {
 static constexpr std::size_t RMM_DEFAULT_HOST_ALIGNMENT{alignof(std::max_align_t)};
 
 /**
- * @brief Default alignment used for CUDA memory allocation.
+ * @brief Default alignment used for GPU memory allocation.
  *
  */
-static constexpr std::size_t CUDA_ALLOCATION_ALIGNMENT{256};
+#if defined(USE_DPCPP)
+// SYCL to comply with C++ alignment
+static constexpr std::size_t GPU_ALLOCATION_ALIGNMENT{alignof(std::max_align_t)};
+#else
+static constexpr std::size_t GPU_ALLOCATION_ALIGNMENT{256};
+#endif
 
 /**
  * @brief Returns whether or not `n` is a power of 2.
@@ -71,7 +76,7 @@ constexpr bool is_aligned(std::size_t value, std::size_t alignment) noexcept {
   return value == align_down(value, alignment);
 }
 
-inline bool is_pointer_aligned(void* ptr, std::size_t alignment = CUDA_ALLOCATION_ALIGNMENT) {
+inline bool is_pointer_aligned(void* ptr, std::size_t alignment = GPU_ALLOCATION_ALIGNMENT) {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   return rmm::detail::is_aligned(reinterpret_cast<ptrdiff_t>(ptr), alignment);
 }
@@ -105,7 +110,7 @@ inline bool is_pointer_aligned(void* ptr, std::size_t alignment = CUDA_ALLOCATIO
  */
 template<typename Alloc>
 void* aligned_allocate(std::size_t bytes, std::size_t alignment, Alloc alloc) {
-  assert(is_pow2(alignment));
+  EXPECTS(is_pow2(alignment));
 
   // allocate memory for bytes, plus potential alignment correction,
   // plus store of the correction offset

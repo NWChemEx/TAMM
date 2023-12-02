@@ -6,9 +6,9 @@
 #include "tamm/mr/gpu_memory_resource.hpp"
 #include "tamm/mr/per_device_resource.hpp"
 #include "tamm/mr/pinned_memory_resource.hpp"
-#else
-#include <sys/sysinfo.h>
 #endif
+
+#include <sys/sysinfo.h>
 
 #include <tamm/errors.hpp>
 
@@ -20,13 +20,16 @@
 namespace tamm {
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-// TAMM_GPU_POOLSIZE (sets poolsize in GB for GPU)
-static const uint32_t tamm_gpu_poolsize = [] {
-  const char* tammGpupoolsize  = std::getenv("TAMM_GPU_POOLSIZE");
-  uint32_t    usingGpupoolSize = 0;
-  if(tammGpupoolsize) { usingGpupoolSize = std::atoi(tammGpupoolsize); }
-  return usingGpupoolSize;
-}();
+  // Check for TAMM_RANKS_PER_GPU environment variable
+  static int tamm_ranks_per_gpu = [] {
+    const char* env = std::getenv("TAMM_RANKS_PER_GPU");
+    int rpg{1}; // atleast 1 rank per GPU
+    if ( env != nullptr ) {
+      rpg = std::atoi(env);
+      return rpg;
+    }
+    return rpg;
+  }();
 #endif
 
 class RMMMemoryManager {
@@ -83,57 +86,36 @@ public:
 
   void initialize() {
     if(this->invalid_state) {
+
+      // Allocate CPU memory pool sizes
       size_t max_host_bytes{0};
+#ifdef USE_MEMKIND
+      size_t sizeof_hbm_stack{66571993088}; // particularly on Aurora, using 62 Gb
+      // Idea is to allocate 0.15 * 64Gb=~9Gb per rank. Such that 6 ranks from
+      // 1 Aurora socket maps to 54Gb of HBM out of 64Gb capacity per socket.
+      max_host_bytes = 0.16 * sizeof_hbm_stack;
+#else
+      struct sysinfo cpumeminfo_;
+      sysinfo(&cpumeminfo_);
+      max_host_bytes = cpumeminfo_.freeram * cpumeminfo_.mem_unit; // gets the max CPU-mem per node
+      max_host_bytes *= 0.44; // factor only ~44% since, ~50% is occupied by GA-posix tensor mapping
+#endif
+      max_host_bytes /= tamm_ranks_per_gpu; // divide such that each rank gets fair amount of mem      
+      hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
+
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       size_t free{}, total{};
       gpuMemGetInfo(&free, &total);
-
-      size_t max_device_bytes{0};
-      // #if defined(USE_CUDA) || defined(USE_HIP)
-      //       size_t max_pinned_host_bytes{0};
-      // #endif
-
-      if(tamm_gpu_poolsize) {
-        // sets the GPU & CPU pool size as requested by the env variable TAMM_GPU_POOLSIZE
-        EXPECTS(tamm_gpu_poolsize < free);
-
-        max_device_bytes = tamm_gpu_poolsize;
-        max_host_bytes   = tamm_gpu_poolsize;
-      }
-      else {
-        // Allocate 35% of total free memory on GPU
-        // Similarly allocate the same size for the CPU pool too
-        // For the host-pinned memory allcoate 15% of the free memory reported
-        max_device_bytes = 0.30 * free;
-#ifdef USE_MEMKIND
-        // Idea is to allocate 0.15 * 64Gb=~9Gb per rank. Such that 6 ranks from
-        // 1 Aurora socket maps to 54Gb of HBM out of 64Gb capacity per socket.
-        max_host_bytes = 0.15 * free;
-#else
-        max_host_bytes = 0.30 * free;
-#endif
-
-        // #if defined(USE_CUDA) || defined(USE_HIP)
-        //         max_pinned_host_bytes = 0.18 * free;
-        // #endif
-      }
-
+      size_t max_device_bytes = (0.90 * free)/tamm_ranks_per_gpu;
       deviceMR =
         std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
-      hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
+
       // #if defined(USE_CUDA) || defined(USE_HIP)
+      // size_t max_pinned_host_bytes = (0.18 * free) / tamm_ranks_per_gpu;
       //       pinnedHostMR = std::make_unique<pinned_pool_mr>(new rmm::mr::pinned_memory_resource,
       //                                                       max_pinned_host_bytes);
       // #endif
-
-#else
-      struct sysinfo cpumeminfo_;
-      sysinfo(&cpumeminfo_);
-      max_host_bytes = cpumeminfo_.totalram * cpumeminfo_.mem_unit;
-
-      max_host_bytes *= 0.05;
-      hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
 #endif
 
       // after setting up the pool: change the invalid_state to FALSE

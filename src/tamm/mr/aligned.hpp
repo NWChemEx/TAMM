@@ -19,11 +19,7 @@ static const uint32_t tamm_use_memkind = [] {
   if(tammUseMemkind != nullptr) { usingMemkind = std::atoi(tammUseMemkind); }
   return usingMemkind;
 }();
-<<<<<<< HEAD
 
-=======
-  
->>>>>>> ec80516091fb52685df0be008d796477daa6a643
 /**
  * @brief Default alignment used for host memory allocated by RMM.
  *
@@ -147,7 +143,6 @@ void* aligned_allocate(std::size_t bytes, std::size_t alignment, Alloc alloc) {
   // Store the offset immediately before the aligned pointer
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   *(static_cast<std::ptrdiff_t*>(aligned) - 1) = offset;
-<<<<<<< HEAD
 
 #ifdef USE_MEMKIND
   std::memset(original, 'c', padded_allocation_size);
@@ -155,15 +150,6 @@ void* aligned_allocate(std::size_t bytes, std::size_t alignment, Alloc alloc) {
     EXPECTS_STR(0, "HBM memory allocation falls into non-HBM location!");
   }
 #endif
-  =======
-
-    std::memset(original, 'c', padded_allocation_size);
-#ifdef USE_MEMKIND
-  if(tamm_use_memkind && (0 != hbw_verify_memory_region(original, padded_allocation_size, 0))) {
-    EXPECTS_STR(0, "HBM memory allocation falls into non-HBM location!");
-  }
-#endif
-  >>>>>>> ec80516091fb52685df0be008d796477daa6a643 return aligned;
 }
 
 /**

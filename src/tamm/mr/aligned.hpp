@@ -3,10 +3,22 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <new>
 
+#ifdef USE_MEMKIND
+#include <hbwmalloc.h>
+#endif
 namespace tamm::rmm::detail {
+
+// TAMM_USE_MEMKIND = 0,1
+static const uint32_t tamm_use_memkind = [] {
+  const char* tammUseMemkind = std::getenv("TAMM_USE_MEMKIND");
+  uint32_t    usingMemkind   = 0;
+  if(tammUseMemkind != nullptr) { usingMemkind = std::atoi(tammUseMemkind); }
+  return usingMemkind;
+}();
 
 /**
  * @brief Default alignment used for host memory allocated by RMM.
@@ -132,6 +144,12 @@ void* aligned_allocate(std::size_t bytes, std::size_t alignment, Alloc alloc) {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   *(static_cast<std::ptrdiff_t*>(aligned) - 1) = offset;
 
+#ifdef USE_MEMKIND
+  std::memset(original, 'c', padded_allocation_size);
+  if(tamm_use_memkind && (0 != hbw_verify_memory_region(original, padded_allocation_size, 0))) {
+    EXPECTS_STR(0, "HBM memory allocation falls into non-HBM location!");
+  }
+#endif
   return aligned;
 }
 

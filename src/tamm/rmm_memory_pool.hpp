@@ -24,10 +24,7 @@ namespace tamm {
   static int tamm_ranks_per_gpu = [] {
     const char* env = std::getenv("TAMM_RANKS_PER_GPU");
     int rpg{1}; // atleast 1 rank per GPU
-    if ( env != nullptr ) {
-      rpg = std::atoi(env);
-      return rpg;
-    }
+    if ( env != nullptr ) { rpg = std::atoi(env); }
     return rpg;
   }();
 #endif
@@ -89,16 +86,16 @@ public:
 
       // Allocate CPU memory pool sizes
       size_t max_host_bytes{0};
-#ifdef USE_MEMKIND
+#if defined(USE_MEMKIND)
       size_t sizeof_hbm_stack{66571993088}; // particularly on Aurora, using 62 Gb
       // Idea is to allocate 0.15 * 64Gb=~9Gb per rank. Such that 6 ranks from
       // 1 Aurora socket maps to 54Gb of HBM out of 64Gb capacity per socket.
-      max_host_bytes = 0.16 * sizeof_hbm_stack;
+      max_host_bytes = 0.15 * sizeof_hbm_stack;
 #else
       struct sysinfo cpumeminfo_;
       sysinfo(&cpumeminfo_);
       max_host_bytes = cpumeminfo_.freeram * cpumeminfo_.mem_unit; // gets the max CPU-mem per node
-      max_host_bytes *= 0.44; // factor only ~44% since, ~50% is occupied by GA-posix tensor mapping
+      max_host_bytes *= 0.30; // factor only ~30% since, ~50% is occupied by GA-posix tensor mapping
 #endif
       max_host_bytes /= tamm_ranks_per_gpu; // divide such that each rank gets fair amount of mem      
       hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);

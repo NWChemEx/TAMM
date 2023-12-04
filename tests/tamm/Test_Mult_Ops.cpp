@@ -446,7 +446,13 @@ int main(int argc, char* argv[]) {
 
   Scheduler sch{ec};
 
-  if(ec.pg().rank() == 0) std::cout << "tilesize = " << tile_size << std::endl;
+  if(ec.pg().rank() == 0) {
+    std::cout << "tilesize = " << tile_size << std::endl;
+    std::cout << "nnodes: " << ec.nnodes() << ", ";
+    std::cout << "nproc: " << ec.nnodes() * ec.ppn() << std::endl;
+    ec.print_mem_info();
+    std::cout << std::endl << std::endl;
+  }
 
   const bool profile = true;
   // test_2_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);

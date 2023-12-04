@@ -35,7 +35,7 @@ private:
     auto status = cudaMalloc(&ptr, bytes);
     if(cudaSuccess != status) { throw std::bad_alloc{}; }
 #elif defined(USE_HIP)
-    hipMalloc(&ptr, bytes);
+    auto status = hipMalloc(&ptr, bytes);
     if(hipSuccess != status) { throw std::bad_alloc{}; }
 #elif defined(USE_DPCPP)
     ptr = sycl::malloc_device(bytes, GPUStreamPool::getInstance().getStream().first);

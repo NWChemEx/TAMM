@@ -19,6 +19,32 @@
 
 namespace tamm {
 
+namespace detail {
+// TAMM_GPU_POOL
+static const uint32_t tamm_gpu_pool = [] {
+  const char* tammGpupoolsize = std::getenv("TAMM_GPU_POOL");
+  uint32_t    usinggpupool    = 80;
+  if(tammGpupoolsize != nullptr) { usinggpupool = std::atoi(tammGpupoolsize); }
+  return usinggpupool;
+}();
+
+// TAMM_CPU_POOL
+static const uint32_t tamm_cpu_pool = [] {
+  const char* tammCpupoolsize = std::getenv("TAMM_CPU_POOL");
+  uint32_t    usingcpupool    = 36;
+  if(tammCpupoolsize != nullptr) { usingcpupool = std::atoi(tammCpupoolsize); }
+  return usingcpupool;
+}();
+
+// TAMM_RANKS_PER_GPU_POOL
+static const uint32_t tamm_rpg = [] {
+  const char* tammrpg  = std::getenv("TAMM_RANKS_PER_GPU_POOL");
+  uint32_t    usingrpg = 1;
+  if(tammrpg != nullptr) { usingrpg = std::atoi(tammrpg); }
+  return usingrpg;
+}();
+} // namespace detail
+
 class RMMMemoryManager {
 protected:
   bool invalid_state{true};
@@ -83,13 +109,13 @@ public:
       // Allocate 35% of total free memory on GPU
       // Similarly allocate the same size for the CPU pool too
       // For the host-pinned memory allcoate 15% of the free memory reported
-      max_device_bytes = 0.30 * free;
+      max_device_bytes = ((detail::tamm_gpu_pool / 100.0) * free) / detail::tamm_rpg;
 #ifdef USE_MEMKIND
       // Idea is to allocate 0.15 * 64Gb=~9Gb per rank. Such that 6 ranks from
       // 1 Aurora socket maps to 54Gb of HBM out of 64Gb capacity per socket.
       max_host_bytes = 0.15 * free;
 #else
-      max_host_bytes = 0.30 * free;
+      max_host_bytes = ((detail::tamm_cpu_pool / 100.0) * free) / detail::tamm_rpg;
 #endif
 
       deviceMR =
@@ -105,7 +131,7 @@ public:
 #else // CPU-only
       struct sysinfo cpumeminfo_;
       sysinfo(&cpumeminfo_);
-      max_host_bytes = cpumeminfo_.totalram * cpumeminfo_.mem_unit;
+      max_host_bytes = cpumeminfo_.freeram * cpumeminfo_.mem_unit;
 
       max_host_bytes *= 0.05;
       hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);

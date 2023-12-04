@@ -902,6 +902,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
   int64_t tensor_dims[7] = {1, 1, 1, 1, 1, 1, 1};
   int     ndim{1}, itype{};
   int     ga_tens = tensor.ga_handle();
+  if(!tammio) ga_tens = tamm_to_ga(gec, tensor);
   NGA_Inquire64(ga_tens, &itype, &ndim, tensor_dims);
 
   // if ndim>1, this is an nD GA and assumed to be dense.
@@ -1080,6 +1081,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
 #endif
 
   gec.pg().barrier();
+  if(!tammio) NGA_Destroy(ga_tens);
   auto io_t2 = std::chrono::high_resolution_clock::now();
 
   double io_time =
@@ -1459,6 +1461,17 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
   if(rank == 0 && profile) std::cout << "read from disk using: " << nppn << std::endl;
 
   int ga_tens = tensor.ga_handle();
+  if(!tammio) {
+    auto tis_dims = tensor.tiled_index_spaces();
+
+    int                  ndims = tensor.num_modes();
+    std::vector<int64_t> dims;
+    std::vector<int64_t> chnks(ndims, -1);
+    for(auto tis: tis_dims) dims.push_back(tis.index_space().num_indices());
+
+    ga_tens = NGA_Create64(to_ga_eltype(tensor_element_type<TensorType>()), ndims, &dims[0],
+                           const_cast<char*>("iotemp"), &chnks[0]);
+  }
 
   hid_t hdf5_dt = get_hdf5_dt<TensorType>();
 
@@ -1634,6 +1647,11 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
   tensor = tensor_back;
 
   gec.pg().barrier();
+
+  if(!tammio) {
+    ga_to_tamm(gec, tensor, ga_tens);
+    NGA_Destroy(ga_tens);
+  }
 
   auto io_t2 = std::chrono::high_resolution_clock::now();
 

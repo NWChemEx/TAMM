@@ -109,13 +109,16 @@ public:
       // Allocate 35% of total free memory on GPU
       // Similarly allocate the same size for the CPU pool too
       // For the host-pinned memory allcoate 15% of the free memory reported
-      max_device_bytes = ((detail::tamm_gpu_pool / 100.0) * free) / detail::tamm_rpg;
+      // max_device_bytes = ((detail::tamm_gpu_pool / 100.0) * free) / detail::tamm_rpg;
+      max_device_bytes = 0.80 * free;
+
 #ifdef USE_MEMKIND
       // Idea is to allocate 0.15 * 64Gb=~9Gb per rank. Such that 6 ranks from
       // 1 Aurora socket maps to 54Gb of HBM out of 64Gb capacity per socket.
       max_host_bytes = 0.15 * free;
 #else
-      max_host_bytes = ((detail::tamm_cpu_pool / 100.0) * free) / detail::tamm_rpg;
+      // max_host_bytes = ((detail::tamm_cpu_pool / 100.0) * free) / detail::tamm_rpg;
+      max_host_bytes = 0.36 * free;
 #endif
 
       deviceMR =

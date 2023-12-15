@@ -69,24 +69,9 @@ void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, i
   }     // for-ari
 }
 
-template<typename T1>
-void copy_result_to_host(ExecutionHW hw, gpuStream_t& thandle, T1*& cinter_buf, size_t csize,
-                         const T1* cinter_buf_dev) {
-  if(hw == ExecutionHW::CPU) return;
-
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-  gpuMemcpyAsync<T1>(cinter_buf, cinter_buf_dev, csize, gpuMemcpyDeviceToHost, thandle);
-#endif
-}
-
 template<typename T>
 void allocate_host_buffers(ExecutionHW hw, T*& host_buf, size_t buf_size) {
   if(hw == ExecutionHW::GPU) return;
-  // if(buf_size == 1) { // scalar value, allocate it on stack
-  //   T stack_var{0};
-  //   host_buf = &stack_var;
-  // }
-  // else {
   auto& memPool = RMMMemoryManager::getInstance().getHostMemoryPool();
   host_buf      = static_cast<T*>(memPool.allocate(buf_size * sizeof(T)));
 }
@@ -94,10 +79,8 @@ void allocate_host_buffers(ExecutionHW hw, T*& host_buf, size_t buf_size) {
 template<typename T>
 void free_host_buffers(ExecutionHW hw, T*& host_buf, std::size_t buf_size) {
   if(hw == ExecutionHW::GPU) return;
-  // if(buf_size != 1) { // vars not allocated on stack
   auto& memPool = RMMMemoryManager::getInstance().getHostMemoryPool();
   memPool.deallocate(host_buf, buf_size * sizeof(T));
-  // }
 }
 
 template<typename T>

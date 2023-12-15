@@ -497,8 +497,9 @@ public:
             TensorElType1* cbuf_tmp{nullptr};
             cbuf_tmp =
               static_cast<TensorElType1*>(memHostPool.allocate(csize * sizeof(TensorElType1)));
-            std::memset(static_cast<void*>(cbuf_tmp), 0, csize * sizeof(TensorElType1));
-            kernels::copy_result_to_host(hw, thandle, cbuf_tmp, csize, cbuf_dev_ptr);
+            std::memset(cbuf_tmp, 0, csize * sizeof(TensorElType1));
+            gpuMemcpyAsync<TensorElType1>(cbuf_tmp, cbuf_dev_ptr, csize, gpuMemcpyDeviceToHost,
+                                          thandle);
             // cbuf+=cbuf_tmp
             gpuStreamSynchronize(thandle);
             blas::axpy(csize, TensorElType1{1}, cbuf_tmp, 1, ab->cbuf_, 1);
@@ -812,8 +813,9 @@ public:
             TensorElType1* cbuf_tmp{nullptr};
             cbuf_tmp =
               static_cast<TensorElType1*>(memHostPool.allocate(csize * sizeof(TensorElType1)));
-            std::memset(static_cast<void*>(cbuf_tmp), 0, csize * sizeof(TensorElType1));
-            kernels::copy_result_to_host(hw, thandle, cbuf_tmp, csize, cbuf_dev_ptr);
+            std::memset(cbuf_tmp, 0, csize * sizeof(TensorElType1));
+            gpuMemcpyAsync<TensorElType1>(cbuf_tmp, cbuf_dev_ptr, csize, gpuMemcpyDeviceToHost,
+                                          thandle);
             // cbuf+=cbuf_tmp
             gpuStreamSynchronize(thandle);
             blas::axpy(csize, TensorElType1{1}, cbuf_tmp, 1, cbuf, 1);

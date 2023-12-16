@@ -31,9 +31,11 @@ static constexpr std::size_t RMM_DEFAULT_HOST_ALIGNMENT{alignof(std::max_align_t
  *
  */
 #if defined(USE_DPCPP)
-// SYCL to comply with C++ alignment
-static constexpr std::size_t GPU_ALLOCATION_ALIGNMENT{alignof(std::max_align_t)};
-#else
+// currently L0 uses 4 bytes alignment (default)
+static constexpr std::size_t GPU_ALLOCATION_ALIGNMENT{4};
+#elif defined(USE_HIP)
+static constexpr std::size_t GPU_ALLOCATION_ALIGNMENT{128};
+#elif defined(USE_CUDA)
 static constexpr std::size_t GPU_ALLOCATION_ALIGNMENT{256};
 #endif
 
@@ -122,7 +124,7 @@ inline bool is_pointer_aligned(void* ptr, std::size_t alignment = GPU_ALLOCATION
  */
 template<typename Alloc>
 void* aligned_allocate(std::size_t bytes, std::size_t alignment, Alloc alloc) {
-  EXPECTS(is_pow2(alignment));
+  assert(is_pow2(alignment));
 
   // allocate memory for bytes, plus potential alignment correction,
   // plus store of the correction offset

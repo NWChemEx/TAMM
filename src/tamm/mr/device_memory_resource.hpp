@@ -83,7 +83,7 @@ public:
    * @return void* Pointer to the newly allocated memory
    */
   void* allocate(std::size_t bytes) {
-    return do_allocate(rmm::detail::align_up(bytes, allocation_size_alignment));
+    return do_allocate(rmm::detail::align_up(bytes, rmm::detail::GPU_ALLOCATION_ALIGNMENT));
   }
 
   /**
@@ -101,7 +101,7 @@ public:
    * value of `bytes` that was passed to the `allocate` call that returned `p`.
    */
   void deallocate(void* ptr, std::size_t bytes) {
-    do_deallocate(ptr, rmm::detail::align_up(bytes, allocation_size_alignment));
+    do_deallocate(ptr, rmm::detail::align_up(bytes, rmm::detail::GPU_ALLOCATION_ALIGNMENT));
   }
 
   /**
@@ -122,9 +122,6 @@ public:
   }
 
 private:
-  // All allocations are padded to a multiple of allocation_size_alignment bytes.
-  static constexpr auto allocation_size_alignment = std::size_t{8};
-
   /**
    * @brief Allocates memory of size at least \p bytes.
    *

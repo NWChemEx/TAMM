@@ -28,8 +28,9 @@ void initialize(int argc, char* argv[]) {
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   int ngpu_{0};
   tamm::getDeviceCount(&ngpu_);
-  int dev_id_{0};
+  if(ngpu_ == 0) { tamm_terminate("ERROR: GPU devices not available!"); }
 
+  int dev_id_{0};
 #if defined(USE_UPCXX)
   int ranks_pn_ = upcxx::local_team().rank_n();
   dev_id_       = ((upcxx::rank_me() % ranks_pn_) % ngpu_);

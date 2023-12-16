@@ -93,10 +93,9 @@ protected:
 
     size = rmm::detail::align_up(size, rmm::detail::GPU_ALLOCATION_ALIGNMENT);
     if(!(size <= this->underlying().get_maximum_allocation_size())) {
-      std::cerr << "Maximum allocation size exceeded! \n";
+      EXPECTS_STR(0,"Maximum allocation size exceeded!");
     }
     auto const block = this->underlying().get_block(size);
-
     return block.pointer();
   }
 
@@ -113,7 +112,6 @@ protected:
 
     size             = rmm::detail::align_up(size, rmm::detail::GPU_ALLOCATION_ALIGNMENT);
     auto const block = this->underlying().free_block(ptr, size);
-
     free_blocks_.insert(block);
   }
 
@@ -141,7 +139,7 @@ private:
   block_type get_block(std::size_t size) {
     block_type const block = free_blocks_.get_block(size);
     if(block.is_valid()) { return allocate_and_insert_remainder(block, size); }
-    std::cout << "ERROR! no block found...crash here \n";
+    EXPECTS_STR(0, "ERROR! no block found...crash here!");
   }
 
   /**

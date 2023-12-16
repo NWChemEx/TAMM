@@ -115,7 +115,7 @@ protected:
   void initialize_pool(std::size_t maximum_size) {
     auto const block = block_from_upstream(maximum_size);
     if(block.has_value()) { this->insert_block(block.value()); }
-    else { std::cout << "RMM: initialize_pool failed() \n"; }
+    else { EXPECTS_STR(0, "RMM: initialize_pool failed()!"); }
   }
 
   /**

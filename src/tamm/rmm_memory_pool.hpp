@@ -1,13 +1,19 @@
 #pragma once
 
+#include <sys/sysinfo.h>
+
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#if defined(USE_UPCXX)
+#include <upcxx/upcxx.hpp>
+#else
+#include <ga/ga.h>
+#endif
+
 #include <tamm/gpu_streams.hpp>
 
 #include "tamm/mr/gpu_memory_resource.hpp"
 #include "tamm/mr/per_device_resource.hpp"
 #include "tamm/mr/pinned_memory_resource.hpp"
-#else
-#include <sys/sysinfo.h>
 #endif
 
 #include <tamm/errors.hpp>
@@ -22,25 +28,22 @@ namespace tamm {
 namespace detail {
 // TAMM_GPU_POOL
 static const uint32_t tamm_gpu_pool = [] {
-  const char* tammGpupoolsize = std::getenv("TAMM_GPU_POOL");
-  uint32_t    usinggpupool    = 80;
-  if(tammGpupoolsize != nullptr) { usinggpupool = std::atoi(tammGpupoolsize); }
+  uint32_t usinggpupool = 80;
+  if(const char* tammGpupoolsize = std::getenv("TAMM_GPU_POOL")) { usinggpupool = std::atoi(tammGpupoolsize); }
   return usinggpupool;
 }();
 
 // TAMM_CPU_POOL
 static const uint32_t tamm_cpu_pool = [] {
-  const char* tammCpupoolsize = std::getenv("TAMM_CPU_POOL");
-  uint32_t    usingcpupool    = 36;
-  if(tammCpupoolsize != nullptr) { usingcpupool = std::atoi(tammCpupoolsize); }
+  uint32_t usingcpupool = 80;
+  if(const char* tammCpupoolsize = std::getenv("TAMM_CPU_POOL")) { usingcpupool = std::atoi(tammCpupoolsize); }
   return usingcpupool;
 }();
 
 // TAMM_RANKS_PER_GPU_POOL
 static const uint32_t tamm_rpg = [] {
-  const char* tammrpg  = std::getenv("TAMM_RANKS_PER_GPU_POOL");
   uint32_t    usingrpg = 1;
-  if(tammrpg != nullptr) { usingrpg = std::atoi(tammrpg); }
+  if(const char* tammrpg  = std::getenv("TAMM_RANKS_PER_GPU_POOL")) { usingrpg = std::atoi(tammrpg); }
   return usingrpg;
 }();
 } // namespace detail
@@ -99,46 +102,46 @@ public:
 
   void initialize() {
     if(this->invalid_state) {
+
+      // Set the CPU memory-pool
       size_t max_host_bytes{0};
+      // Number of user-MPI ranks is needed for efficient CPU-pool size
+      int ranks_pn_=0;
+#if defined(USE_UPCXX)
+      ranks_pn_ = upcxx::local_team().rank_n();
+#else
+      ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_nodeid());
+#endif
+
+      struct sysinfo cpumeminfo_;
+      sysinfo(&cpumeminfo_);
+      // 50% allocation was reserved for the GA distributed arrays followed by the
+      // memory pool creation
+      max_host_bytes = 0.5 * cpumeminfo_.freeram * cpumeminfo_.mem_unit;
+      // Use only "tamm_cpu_pool" percent of the free memory let
+      max_host_bytes *= (detail::tamm_cpu_pool/100.0);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       size_t free{}, total{};
       gpuMemGetInfo(&free, &total);
-
       size_t max_device_bytes{0};
-      // Allocate 35% of total free memory on GPU
-      // Similarly allocate the same size for the CPU pool too
-      // For the host-pinned memory allcoate 15% of the free memory reported
-      // max_device_bytes = ((detail::tamm_gpu_pool / 100.0) * free) / detail::tamm_rpg;
-      max_device_bytes = 0.80 * free;
+      max_device_bytes = ( (detail::tamm_gpu_pool/100.0) * free ) / detail::tamm_rpg;
 
-#ifdef USE_MEMKIND
-      // Idea is to allocate 0.15 * 64Gb=~9Gb per rank. Such that 6 ranks from
-      // 1 Aurora socket maps to 54Gb of HBM out of 64Gb capacity per socket.
-      max_host_bytes = 0.15 * free;
-#else
-      // max_host_bytes = ((detail::tamm_cpu_pool / 100.0) * free) / detail::tamm_rpg;
-      max_host_bytes = 0.36 * free;
-#endif
+      #ifdef USE_MEMKIND
+      max_host_bytes = 128849018880; // 120 GB (on both socket os Aurora)
+      #endif
 
       deviceMR =
         std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
-      hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
       // #if defined(USE_CUDA) || defined(USE_HIP)
       //       size_t max_pinned_host_bytes{0};
       //       max_pinned_host_bytes = 0.18 * free;
       //       pinnedHostMR = std::make_unique<pinned_pool_mr>(new rmm::mr::pinned_memory_resource,
       //                                                       max_pinned_host_bytes);
       // #endif
-
-#else // CPU-only
-      struct sysinfo cpumeminfo_;
-      sysinfo(&cpumeminfo_);
-      max_host_bytes = cpumeminfo_.freeram * cpumeminfo_.mem_unit;
-
-      max_host_bytes *= 0.05;
-      hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
 #endif
+      max_host_bytes /= ranks_pn_;
+      hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
 
       // after setting up the pool: change the invalid_state to FALSE
       invalid_state = false;

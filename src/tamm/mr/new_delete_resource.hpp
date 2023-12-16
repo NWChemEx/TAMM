@@ -50,11 +50,11 @@ private:
    * @return Pointer to the newly allocated memory
    */
   void* do_allocate(std::size_t bytes,
-                    std::size_t alignment = rmm::detail::RMM_DEFAULT_HOST_ALIGNMENT) override {
+                    std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) override {
     // If the requested alignment isn't supported, use default
     alignment = (rmm::detail::is_supported_alignment(alignment))
                   ? alignment
-                  : rmm::detail::RMM_DEFAULT_HOST_ALIGNMENT;
+                  : rmm::detail::RMM_ALLOCATION_ALIGNMENT;
 
 #if defined(USE_MEMKIND)
     if(tamm::rmm::detail::tamm_use_memkind &&
@@ -84,7 +84,7 @@ private:
    *                  that was passed to the `allocate` call that returned `ptr`.
    */
   void do_deallocate(void* ptr, std::size_t bytes,
-                     std::size_t alignment = rmm::detail::RMM_DEFAULT_HOST_ALIGNMENT) override {
+                     std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) override {
 #if defined(USE_MEMKIND)
     if(tamm::rmm::detail::tamm_use_memkind &&
        (hbw_check_available() == 0)) { // returns zero if hbw_malloc is availiable.

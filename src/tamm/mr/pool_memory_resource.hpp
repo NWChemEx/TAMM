@@ -58,7 +58,7 @@ public:
       if(upstream_mr == nullptr) { std::logic_error("Unexpected null upstream pointer."); }
       return upstream_mr;
     }()} {
-    if(!rmm::detail::is_aligned(maximum_pool_size, rmm::detail::GPU_ALLOCATION_ALIGNMENT)) {
+    if(!rmm::detail::is_aligned(maximum_pool_size, rmm::detail::RMM_ALLOCATION_ALIGNMENT)) {
       std::logic_error(
         "Error, Maximum pool size required to be a multiple of 256/std::max_align_t bytes");
     }

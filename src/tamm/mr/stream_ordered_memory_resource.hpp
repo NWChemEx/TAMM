@@ -91,9 +91,9 @@ protected:
   void* do_allocate(std::size_t size) override {
     if(size <= 0) { return nullptr; }
 
-    size = rmm::detail::align_up(size, rmm::detail::GPU_ALLOCATION_ALIGNMENT);
+    size = rmm::detail::align_up(size, rmm::detail::RMM_ALLOCATION_ALIGNMENT);
     if(!(size <= this->underlying().get_maximum_allocation_size())) {
-      EXPECTS_STR(0,"Maximum allocation size exceeded!");
+      EXPECTS_STR(0, "Maximum allocation size exceeded!");
     }
     auto const block = this->underlying().get_block(size);
     return block.pointer();
@@ -110,7 +110,7 @@ protected:
   void do_deallocate(void* ptr, std::size_t size) override {
     if(size <= 0 || ptr == nullptr) { return; }
 
-    size             = rmm::detail::align_up(size, rmm::detail::GPU_ALLOCATION_ALIGNMENT);
+    size             = rmm::detail::align_up(size, rmm::detail::RMM_ALLOCATION_ALIGNMENT);
     auto const block = this->underlying().free_block(ptr, size);
     free_blocks_.insert(block);
   }

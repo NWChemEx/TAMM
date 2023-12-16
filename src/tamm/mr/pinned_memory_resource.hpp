@@ -58,7 +58,7 @@ private:
     // If the requested alignment isn't supported, use default
     alignment = (rmm::detail::is_supported_alignment(alignment))
                   ? alignment
-                  : rmm::detail::RMM_DEFAULT_HOST_ALIGNMENT;
+                  : rmm::detail::RMM_ALLOCATION_ALIGNMENT;
 
     return rmm::detail::aligned_allocate(bytes, alignment, [](std::size_t size) {
       void* ptr{nullptr};

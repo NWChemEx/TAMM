@@ -21,22 +21,22 @@ static const uint32_t tamm_use_memkind = [] {
 }();
 
 /**
- * @brief Default alignment used for host memory allocated by RMM.
- *
- */
-static constexpr std::size_t RMM_DEFAULT_HOST_ALIGNMENT{alignof(std::max_align_t)};
-
-/**
  * @brief Default alignment used for GPU memory allocation.
  *
  */
 #if defined(USE_DPCPP)
 // currently L0 uses 4 bytes alignment (default)
-static constexpr std::size_t GPU_ALLOCATION_ALIGNMENT{4};
+static constexpr std::size_t RMM_ALLOCATION_ALIGNMENT{4};
 #elif defined(USE_HIP)
-static constexpr std::size_t GPU_ALLOCATION_ALIGNMENT{128};
+static constexpr std::size_t RMM_ALLOCATION_ALIGNMENT{128};
 #elif defined(USE_CUDA)
-static constexpr std::size_t GPU_ALLOCATION_ALIGNMENT{256};
+static constexpr std::size_t RMM_ALLOCATION_ALIGNMENT{256};
+#else
+/**
+ * @brief Default alignment used for host memory allocated by RMM.
+ *
+ */
+static constexpr std::size_t RMM_ALLOCATION_ALIGNMENT{alignof(std::max_align_t)};
 #endif
 
 /**
@@ -90,7 +90,7 @@ constexpr bool is_aligned(std::size_t value, std::size_t alignment) noexcept {
   return value == align_down(value, alignment);
 }
 
-inline bool is_pointer_aligned(void* ptr, std::size_t alignment = GPU_ALLOCATION_ALIGNMENT) {
+inline bool is_pointer_aligned(void* ptr, std::size_t alignment = RMM_ALLOCATION_ALIGNMENT) {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
   return rmm::detail::is_aligned(reinterpret_cast<ptrdiff_t>(ptr), alignment);
 }

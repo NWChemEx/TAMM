@@ -39,7 +39,15 @@ set(CMSB_PROJECTS TAMM)
 
 set(TAMM_DEPENDENCIES NJSON MSGSL DOCTEST SPDLOG Eigen3 HPTT HDF5)
 
+if(USE_MEMKIND)
+  list(APPEND TAMM_DEPENDENCIES memkind)
+endif()
+
 if(USE_CUDA OR USE_HIP OR USE_DPCPP)
+  if(USE_SYCL_BLAS)
+    #list(APPEND TAMM_DEPENDENCIES sycl-blas)
+  endif()
+
   list(APPEND TAMM_DEPENDENCIES Librett)
 endif()
 
@@ -67,4 +75,3 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 build_cmsb_module(${CMAKE_CURRENT_LIST_DIR})
-

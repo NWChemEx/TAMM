@@ -1,7 +1,10 @@
 #pragma once
 
 #include "tamm/errors.hpp"
-#include <map>
+#include <optional>
+#include <sstream>
+#include <utility>
+#include <vector>
 
 #if defined(USE_CUDA)
 #include <cublas_v2.h>
@@ -13,70 +16,77 @@
 #include <rocblas/rocblas.h>
 #elif defined(USE_DPCPP)
 #include "sycl_device.hpp"
+#include <oneapi/mkl/blas.hpp>
 #endif
 
 namespace tamm {
 
+class GPUStreamPool;
+
 #if defined(USE_HIP)
-using gpuStream_t     = hipStream_t;
-using gpuEvent_t      = hipEvent_t;
-using gpuBlasHandle_t = rocblas_handle;
-using gpuMemcpyKind   = hipMemcpyKind;
+using gpuStream_t   = std::pair<hipStream_t, rocblas_handle>;
+using gpuEvent_t    = hipEvent_t;
+using gpuMemcpyKind = hipMemcpyKind;
 #define gpuMemcpyHostToDevice hipMemcpyHostToDevice
 #define gpuMemcpyDeviceToHost hipMemcpyDeviceToHost
 #define gpuMemcpyDeviceToDevice hipMemcpyDeviceToDevice
 
-#define HIP_CHECK(err)                                                                      \
-  do {                                                                                      \
-    hipError_t err_ = (err);                                                                \
-    if(err_ != hipSuccess) {                                                                \
-      std::printf("HIP Exception code: %s at %s : %d\n", hipGetErrorString(err_), __FILE__, \
-                  __LINE__);                                                                \
-      throw std::runtime_error("hip runtime error");                                        \
-    }                                                                                       \
+#define HIP_CHECK(FUNC)                                                                           \
+  do {                                                                                            \
+    hipError_t err_ = (FUNC);                                                                     \
+    if(err_ != hipSuccess) {                                                                      \
+      std::ostringstream msg;                                                                     \
+      msg << "HIP Error: " << hipGetErrorString(err_) << ", at " << __FILE__ << " : " << __LINE__ \
+          << std::endl;                                                                           \
+      throw std::runtime_error(msg.str());                                                        \
+    }                                                                                             \
   } while(0)
 
-#define ROCBLAS_CHECK(err)                                                                   \
-  do {                                                                                       \
-    rocblas_status err_ = (err);                                                             \
-    if(err_ != rocblas_status_success) {                                                     \
-      std::printf("rocblas Exception code: %s at %s : %d\n", rocblas_status_to_string(err_), \
-                  __FILE__, __LINE__);                                                       \
-      throw std::runtime_error("rocblas runtime error");                                     \
-    }                                                                                        \
+#define ROCBLAS_CHECK(FUNC)                                                                      \
+  do {                                                                                           \
+    rocblas_status err_ = (FUNC);                                                                \
+    if(err_ != rocblas_status_success) {                                                         \
+      std::ostringstream msg;                                                                    \
+      msg << "ROCBLAS Error: " << rocblas_status_to_string(err_) << ", at " << __FILE__ << " : " \
+          << __LINE__ << std::endl;                                                              \
+      throw std::runtime_error(msg.str());                                                       \
+    }                                                                                            \
   } while(0)
+#endif // USE_HIP
 
-#elif defined(USE_CUDA)
-using gpuStream_t     = cudaStream_t;
-using gpuEvent_t      = cudaEvent_t;
-using gpuBlasHandle_t = cublasHandle_t;
-using gpuMemcpyKind   = cudaMemcpyKind;
+#if defined(USE_CUDA)
+using gpuStream_t   = std::pair<cudaStream_t, cublasHandle_t>;
+using gpuEvent_t    = cudaEvent_t;
+using gpuMemcpyKind = cudaMemcpyKind;
 #define gpuMemcpyHostToDevice cudaMemcpyHostToDevice
 #define gpuMemcpyDeviceToHost cudaMemcpyDeviceToHost
 #define gpuMemcpyDeviceToDevice cudaMemcpyDeviceToDevice
 
-#define CUDA_CHECK(err)                                                                            \
-  do {                                                                                             \
-    cudaError_t err_ = (err);                                                                      \
-    if(err_ != cudaSuccess) {                                                                      \
-      std::printf("CUDA Exception code: %s at %s : %d\n", /*cudaGetErrorString*/ (err_), __FILE__, \
-                  __LINE__);                                                                       \
-      throw std::runtime_error("cuda runtime error");                                              \
-    }                                                                                              \
+#define CUDA_CHECK(FUNC)                                                                \
+  do {                                                                                  \
+    cudaError_t err_ = (FUNC);                                                          \
+    if(err_ != cudaSuccess) {                                                           \
+      std::ostringstream msg;                                                           \
+      msg << "CUDA Error: " << cudaGetErrorString(err_) << ", at " << __FILE__ << " : " \
+          << __LINE__ << std::endl;                                                     \
+      throw std::runtime_error(msg.str());                                              \
+    }                                                                                   \
   } while(0)
 
-#define CUBLAS_CHECK(err)                                                                     \
-  do {                                                                                        \
-    cublasStatus_t err_ = (err);                                                              \
-    if(err_ != CUBLAS_STATUS_SUCCESS) {                                                       \
-      std::printf("cublas Exception code: %s at %s : %d\n", /*cublasGetStatusString*/ (err_), \
-                  __FILE__, __LINE__);                                                        \
-      throw std::runtime_error("cublas runtime error");                                       \
-    }                                                                                         \
+#define CUBLAS_CHECK(FUNC)                                                                   \
+  do {                                                                                       \
+    cublasStatus_t err_ = (FUNC);                                                            \
+    if(err_ != CUBLAS_STATUS_SUCCESS) {                                                      \
+      std::ostringstream msg;                                                                \
+      msg << "CUBLAS Error: " << cublasGetStatusString(err_) << ", at " << __FILE__ << " : " \
+          << __LINE__ << std::endl;                                                          \
+      throw std::runtime_error(msg.str());                                                   \
+    }                                                                                        \
   } while(0)
+#endif // USE_CUDA
 
-#elif defined(USE_DPCPP)
-using gpuStream_t   = sycl::queue;
+#if defined(USE_DPCPP)
+using gpuStream_t   = std::pair<sycl::queue, std::nullopt_t>;
 using gpuEvent_t    = sycl::event;
 using gpuMemcpyKind = int;
 #define gpuMemcpyHostToDevice 0
@@ -93,7 +103,7 @@ auto sycl_asynchandler = [](sycl::exception_list exceptions) {
     }
   }
 };
-#endif
+#endif // USE_DPCPP
 
 static inline void getDeviceCount(int* id) {
 #if defined(USE_CUDA)
@@ -125,20 +135,101 @@ static inline void gpuSetDevice(int active_device) {
 #endif
 }
 
+static inline void gpuGetDevice(int* active_device) {
+#ifdef USE_CUDA
+  CUDA_CHECK(cudaGetDevice(active_device));
+#elif defined(USE_HIP)
+  HIP_CHECK(hipGetDevice(active_device));
+#elif defined(USE_DPCPP)
+  syclGetDevice(active_device);
+#endif
+}
+
+// ABB (11/20/23): Added to be used by the CCSD-(T) kernel
+// template<typename T>
+// static void gpuMemcpyToSymbolAsync(T* dst, const T* src, size_t count, size_t offset,
+//                                    gpuMemcpyKind kind, gpuStream_t& stream) {
+// #if defined(USE_DPCPP)
+//   stream.first.memcpy(sycl::ext::oneapi::experimental::device_global<T,
+//   decltype(sycl::ext::oneapi::experimental::properties(sycl::ext::oneapi::experimental::device_image_scope))>(dst),
+//   src, count * sizeof(T), 0, {});
+// #elif defined(USE_CUDA)
+//   CUDA_CHECK(cudaMemcpyToSymbolAsync(dst, src, count * sizeof(T), 0, kind, stream.first));
+// #elif defined(USE_HIP)
+//   HIP_CHECK(hipMemcpyToSymbolAsync(dst, src, count * sizeof(T), 0, kind, stream.first));
+// #endif
+// }
+
 template<typename T>
 static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kind,
                            gpuStream_t& stream) {
 #if defined(USE_DPCPP)
-  if(kind == gpuMemcpyDeviceToDevice) { stream.copy(src, dst, count); }
-  else { stream.memcpy(dst, src, count * sizeof(T)); }
+  if(kind == gpuMemcpyDeviceToDevice) { stream.first.copy(src, dst, count); }
+  else { stream.first.memcpy(dst, src, count * sizeof(T)); }
 #elif defined(USE_CUDA)
-  CUDA_CHECK(cudaMemcpyAsync(dst, src, count * sizeof(T), kind, stream));
+  CUDA_CHECK(cudaMemcpyAsync(dst, src, count * sizeof(T), kind, stream.first));
 #elif defined(USE_HIP)
-  HIP_CHECK(hipMemcpyAsync(dst, src, count * sizeof(T), kind, stream));
+  HIP_CHECK(hipMemcpyAsync(dst, src, count * sizeof(T), kind, stream.first));
 #endif
 }
 
-static inline bool gpuEventQuery(gpuEvent_t event) {
+static inline void gpuMemsetAsync(void*& ptr, size_t sizeInBytes, gpuStream_t stream) {
+#if defined(USE_DPCPP)
+  stream.first.memset(ptr, 0, sizeInBytes);
+#elif defined(USE_HIP)
+  hipMemsetAsync(ptr, 0, sizeInBytes, stream.first);
+#elif defined(USE_CUDA)
+  cudaMemsetAsync(ptr, 0, sizeInBytes, stream.first);
+#endif
+}
+
+static inline void gpuStreamSynchronize(gpuStream_t stream) {
+#if defined(USE_DPCPP)
+  if(!stream.first.ext_oneapi_empty()) stream.first.wait();
+#elif defined(USE_HIP)
+  hipStreamSynchronize(stream.first);
+#elif defined(USE_CUDA)
+  cudaStreamSynchronize(stream.first);
+#endif
+}
+
+static inline void gpuEventRecord(gpuEvent_t& event, gpuStream_t stream) {
+#if defined(USE_DPCPP)
+  event = stream.first.ext_oneapi_submit_barrier();
+#elif defined(USE_HIP)
+  hipEventRecord(event, stream.first);
+#elif defined(USE_CUDA)
+  cudaEventRecord(event, stream.first);
+#endif
+}
+
+static inline void gpuEventCreateWithFlags(gpuEvent_t* event) {
+#if defined(USE_HIP)
+  hipEventCreateWithFlags(event, hipEventDisableTiming);
+#elif defined(USE_CUDA)
+  cudaEventCreateWithFlags(event, cudaEventDisableTiming);
+#endif
+}
+
+static inline void gpuEventDestroy(gpuEvent_t& event) {
+#if defined(USE_HIP)
+  hipEventDestroy(event);
+#elif defined(USE_CUDA)
+  cudaEventDestroy(event);
+#endif
+}
+
+static inline void gpuEventSynchronize(gpuEvent_t& event) {
+#if defined(USE_DPCPP)
+  event.wait();
+#elif defined(USE_HIP)
+  hipEventSynchronize(event);
+#elif defined(USE_CUDA)
+  cudaEventSynchronize(event);
+#endif
+}
+
+static inline bool gpuEventQuery(gpuEvent_t& event) {
 #if defined(USE_DPCPP)
   return (event.get_info<sycl::info::event::command_execution_status>() ==
           sycl::info::event_command_status::complete);
@@ -149,106 +240,70 @@ static inline bool gpuEventQuery(gpuEvent_t event) {
 #endif
 }
 
-static inline void gpuEventSynchronize(gpuEvent_t event) {
-#if defined(USE_DPCPP)
-  event.wait();
-#elif defined(USE_HIP)
-  hipEventSynchronize(event);
-#elif defined(USE_CUDA)
-  cudaEventSynchronize(event);
-#endif
-}
-
 class GPUStreamPool {
 protected:
-  bool _initialized{false};
-
-  int _ngpus{0};
-  // Active GPU set by a given MPI-rank from execution context ctor
-  int _active_device{0};
-
-  // Map of GPU-IDs and stream
-  std::map<int, gpuStream_t*> _devID2Stream;
-
-#if defined(USE_CUDA) || defined(USE_HIP)
-  // Map of GPU-IDs and blashandle
-  std::map<int, gpuBlasHandle_t*> _devID2Handle;
-#endif
+  int                      default_deviceID{0};
+  uint32_t                 nstreams{1};
+  uint32_t                 streamCount{0};
+  std::vector<gpuStream_t> _devStream;
 
 private:
   GPUStreamPool() {
-    getDeviceCount(&_ngpus);
-    // EXPECTS_STR((_ngpus == 1), "Error: More than 1 GPU-device found per rank!");
+    // Assert here if multi-GPUs are detected
+    // int ngpus{0};
+    // getDeviceCount(&ngpus);
+    // EXPECTS_STR((ngpus == 1), "Error: More than 1 GPU-device found per rank!");
+    // gpuSetDevice(default_deviceID);
 
-    for(int devID = 0; devID < _ngpus; devID++) {
-      gpuSetDevice(devID);
+    gpuGetDevice(&default_deviceID);
 
-      // populate gpu-streams, gpu-blas handles per GPU
-      gpuStream_t* _devStream = nullptr;
+    for(uint32_t j = 0; j < nstreams; j++) {
 #if defined(USE_CUDA)
-      _devStream = new cudaStream_t;
-      CUDA_CHECK(cudaStreamCreateWithFlags(_devStream, cudaStreamNonBlocking));
+      cudaStream_t gpu_stream;
+      CUDA_CHECK(cudaStreamCreateWithFlags(&gpu_stream, cudaStreamNonBlocking));
 
-      gpuBlasHandle_t* _devHandle = new gpuBlasHandle_t;
-      CUBLAS_CHECK(cublasCreate(_devHandle));
-      CUBLAS_CHECK(cublasSetStream(*_devHandle, *_devStream));
-      _devID2Handle[devID] = _devHandle;
+      cublasHandle_t gpu_blashandle;
+      CUBLAS_CHECK(cublasCreate(&gpu_blashandle));
+      CUBLAS_CHECK(cublasSetStream(gpu_blashandle, gpu_stream));
+
+      _devStream.push_back(std::make_pair(gpu_stream, gpu_blashandle));
 #elif defined(USE_HIP)
-      _devStream = new hipStream_t;
-      HIP_CHECK(hipStreamCreateWithFlags(_devStream, hipStreamNonBlocking));
+      hipStream_t gpu_stream;
+      HIP_CHECK(hipStreamCreateWithFlags(&gpu_stream, hipStreamNonBlocking));
 
-      gpuBlasHandle_t* _devHandle = new gpuBlasHandle_t;
-      ROCBLAS_CHECK(rocblas_create_handle(_devHandle));
-      ROCBLAS_CHECK(rocblas_set_stream(*_devHandle, *_devStream));
-      _devID2Handle[devID] = _devHandle;
+      rocblas_handle gpu_blashandle;
+      ROCBLAS_CHECK(rocblas_create_handle(&gpu_blashandle));
+      ROCBLAS_CHECK(rocblas_set_stream(gpu_blashandle, gpu_stream));
+
+      _devStream.push_back(std::make_pair(gpu_stream, gpu_blashandle));
 #elif defined(USE_DPCPP)
-      _devStream = new sycl::queue(*sycl_get_context(devID), *sycl_get_device(devID),
-                                   sycl_asynchandler,
-                                   sycl::property_list{sycl::property::queue::in_order{}});
+      _devStream.push_back(std::make_pair(
+        sycl::queue(*sycl_get_context(default_deviceID), *sycl_get_device(default_deviceID),
+                    sycl_asynchandler, sycl::property_list{sycl::property::queue::in_order{}}),
+        std::nullopt));
 #endif
-
-      _devID2Stream[devID] = _devStream;
     }
-
-    _initialized = (_ngpus == 1) ? true : false;
   }
 
   ~GPUStreamPool() {
-    _initialized = false;
-
-    for(int devID = 0; devID < _ngpus; devID++) {
-      gpuSetDevice(devID);
-      gpuStream_t* _devStream = _devID2Stream[devID];
+    for(uint32_t j = 0; j < nstreams; j++) {
 #if defined(USE_CUDA)
-      CUDA_CHECK(cudaStreamDestroy(*_devStream));
-      CUBLAS_CHECK(cublasDestroy(*_devID2Handle[devID]));
+      cudaStreamDestroy(_devStream[j].first);
+      cublasDestroy(_devStream[j].second);
 #elif defined(USE_HIP)
-      HIP_CHECK(hipStreamDestroy(*_devStream));
-      ROCBLAS_CHECK(rocblas_destroy_handle(*_devID2Handle[devID]));
-#elif defined(USE_DPCPP)
-      delete _devStream;
+      hipStreamDestroy(_devStream[j].first);
+      rocblas_destroy_handle(_devStream[j].second);
 #endif
-      _devStream = nullptr;
     }
   }
 
 public:
-  /// sets an active device for getting streams and blas handles
-  void set_device(int device) {
-    if(!_initialized) {
-      _active_device = device;
-      gpuSetDevice(_active_device);
-      _initialized = true;
-    }
-  }
-
   /// Returns a GPU stream
-  gpuStream_t& getStream() { return *(_devID2Stream[_active_device]); }
-
-#if !defined(USE_DPCPP)
-  /// Returns a GPU BLAS handle that is valid only for the CUDA and HIP builds
-  gpuBlasHandle_t& getBlasHandle() { return *(_devID2Handle[_active_device]); }
-#endif
+  gpuStream_t& getStream() { return _devStream[0]; }
+  /// Returns a round-robin GPU stream
+  gpuStream_t& getRRStream() { return _devStream[streamCount++ % nstreams]; }
+  /// Returns all GPU stream
+  std::vector<gpuStream_t>& getAllStream() { return _devStream; }
 
   /// Returns the instance of device manager singleton.
   inline static GPUStreamPool& getInstance() {
@@ -264,7 +319,8 @@ public:
 
 static inline void gpuDeviceSynchronize() {
 #if defined(USE_DPCPP)
-  tamm::GPUStreamPool::getInstance().getStream().wait();
+  auto streams = tamm::GPUStreamPool::getInstance().getAllStream();
+  for(auto& str: streams) { str.first.wait(); }
 #elif defined(USE_HIP)
   hipDeviceSynchronize();
 #elif defined(USE_CUDA)
@@ -272,4 +328,6 @@ static inline void gpuDeviceSynchronize() {
 #endif
 }
 
+// This API needs to be defined after the class GPUStreamPool since the classs
+// is only declared and defined before this method
 } // namespace tamm

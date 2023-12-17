@@ -2,24 +2,39 @@ cmake_minimum_required(VERSION ${CMAKE_VERSION})
 project(TAMM VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For cmsb_add_library
 
-if(USE_CUDA)
-    set(tamm_gpu_INCS gpu_streams.hpp gpu_memory_pool.hpp)
-elseif(USE_HIP)
-    set(tamm_gpu_INCS gpu_streams.hpp gpu_memory_pool.hpp)
-elseif(USE_DPCPP)
-    set(tamm_gpu_INCS sycl_device.hpp gpu_streams.hpp gpu_memory_pool.hpp)
+if(USE_CUDA OR USE_HIP OR USE_DPCPP)
+  set(tamm_gpu_INCS
+    gpu_streams.hpp
+    mr/gpu_memory_resource.hpp
+    mr/pinned_memory_resource.hpp
+    mr/per_device_resource.hpp
+  )
+
+  set(tamm_gpu_SRCS kernels/gpu_blas.cpp)
+endif()
+if(USE_DPCPP)
+  list(APPEND tamm_gpu_INCS sycl_device.hpp)
 endif()
 
 #Add the current directory's sources to the list
-set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp)
+set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp kernels/cpu_blas.cpp "${tamm_gpu_SRCS}")
 
 #Add the current directory's header files to the list
 set(TAMM_INCLUDES
+  rmm_memory_pool.hpp
+    mr/device_memory_resource.hpp
+    mr/stream_ordered_memory_resource.hpp
+    mr/aligned.hpp
+    mr/new_delete_resource.hpp
+    mr/pool_memory_resource.hpp
+    mr/host_memory_resource.hpp
+    mr/coalescing_free_list.hpp
+    mr/free_list.hpp
     atomic_counter.hpp
     work.hpp
     tamm.hpp
     types.hpp
-    errors.hpp 
+    errors.hpp
     strong_num.hpp
     proc_grid.hpp
     boundvec.hpp
@@ -52,6 +67,7 @@ set(TAMM_INCLUDES
     lru_cache.hpp
     kernels/assign.hpp
     kernels/multiply.hpp
+    kernels/tamm_blas.hpp
     op_dag.hpp
     interfaces.hpp
     op_profiler.hpp
@@ -93,4 +109,3 @@ set(TAMM_CFLAGS )
 set(TAMM_LFLAGS )
 
 cmsb_add_library(tamm TAMM_SRCS TAMM_INCLUDES TAMM_CFLAGS TAMM_LFLAGS)
-

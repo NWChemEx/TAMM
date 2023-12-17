@@ -29,21 +29,27 @@ namespace detail {
 // TAMM_GPU_POOL
 static const uint32_t tamm_gpu_pool = [] {
   uint32_t usinggpupool = 80;
-  if(const char* tammGpupoolsize = std::getenv("TAMM_GPU_POOL")) { usinggpupool = std::atoi(tammGpupoolsize); }
+  if(const char* tammGpupoolsize = std::getenv("TAMM_GPU_POOL")) {
+    usinggpupool = std::atoi(tammGpupoolsize);
+  }
   return usinggpupool;
 }();
 
 // TAMM_CPU_POOL
 static const uint32_t tamm_cpu_pool = [] {
   uint32_t usingcpupool = 80;
-  if(const char* tammCpupoolsize = std::getenv("TAMM_CPU_POOL")) { usingcpupool = std::atoi(tammCpupoolsize); }
+  if(const char* tammCpupoolsize = std::getenv("TAMM_CPU_POOL")) {
+    usingcpupool = std::atoi(tammCpupoolsize);
+  }
   return usingcpupool;
 }();
 
 // TAMM_RANKS_PER_GPU_POOL
 static const uint32_t tamm_rpg = [] {
-  uint32_t    usingrpg = 1;
-  if(const char* tammrpg  = std::getenv("TAMM_RANKS_PER_GPU_POOL")) { usingrpg = std::atoi(tammrpg); }
+  uint32_t usingrpg = 1;
+  if(const char* tammrpg = std::getenv("TAMM_RANKS_PER_GPU_POOL")) {
+    usingrpg = std::atoi(tammrpg);
+  }
   return usingrpg;
 }();
 } // namespace detail
@@ -102,11 +108,10 @@ public:
 
   void initialize() {
     if(this->invalid_state) {
-
       // Set the CPU memory-pool
       size_t max_host_bytes{0};
       // Number of user-MPI ranks is needed for efficient CPU-pool size
-      int ranks_pn_=0;
+      int ranks_pn_ = 0;
 #if defined(USE_UPCXX)
       ranks_pn_ = upcxx::local_team().rank_n();
 #else
@@ -119,17 +124,17 @@ public:
       // memory pool creation
       max_host_bytes = 0.5 * cpumeminfo_.freeram * cpumeminfo_.mem_unit;
       // Use only "tamm_cpu_pool" percent of the free memory let
-      max_host_bytes *= (detail::tamm_cpu_pool/100.0);
+      max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       size_t free{}, total{};
       gpuMemGetInfo(&free, &total);
       size_t max_device_bytes{0};
-      max_device_bytes = ( (detail::tamm_gpu_pool/100.0) * free ) / detail::tamm_rpg;
+      max_device_bytes = ((detail::tamm_gpu_pool / 100.0) * free) / detail::tamm_rpg;
 
-      #ifdef USE_MEMKIND
+#ifdef USE_MEMKIND
       max_host_bytes = 128849018880; // 120 GB (on both socket os Aurora)
-      #endif
+#endif
 
       deviceMR =
         std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);

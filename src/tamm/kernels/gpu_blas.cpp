@@ -27,11 +27,12 @@
 #endif // USE_DPCPP
 
 template<typename T>
-void tamm::kernels::gpu::axpy(const int64_t n, const T* src, const int incx,
-                              T*& dst, const int incy, gpuStream_t& handle) {
+void tamm::kernels::gpu::axpy(const int64_t n, const T* src, const int incx, T*& dst,
+                              const int incy, gpuStream_t& handle) {
   T alpha = 1.0;
 #if defined(USE_DPCPP)
-  ONEMKLBLAS_CHECK(oneapi::mkl::blas::column_major::axpy(handle.first, n, alpha, src, incx, dst, incy));
+  ONEMKLBLAS_CHECK(
+    oneapi::mkl::blas::column_major::axpy(handle.first, n, alpha, src, incx, dst, incy));
 #elif defined(USE_CUDA)
   CUBLAS_CHECK(cublasDaxpy(handle.second, n, &alpha, src, incx, dst, incy));
 #elif defined(USE_HIP)
@@ -51,8 +52,8 @@ void tamm::kernels::gpu::gemm(int n, int m, int k, const T alpha, const T3* B, i
   handle.first.wait();
 #else
   auto gemm_event = oneapi::mkl::blas::column_major::gemm(handle.first, oneapi::mkl::transpose::N,
-                                                          oneapi::mkl::transpose::N, n, m, k, alpha, B,
-                                                          ldb, A, lda, beta, C, ldc);
+                                                          oneapi::mkl::transpose::N, n, m, k, alpha,
+                                                          B, ldb, A, lda, beta, C, ldc);
   gemm_event.wait();
 #endif // USE_PORT_BLAS
 
@@ -95,4 +96,4 @@ template void tamm::kernels::gpu::gemm(int n, int m, int k, const std::complex<d
                                        const std::complex<double>* A, int lda,
                                        const std::complex<double> beta, std::complex<double>* C,
                                        int ldc, gpuStream_t& handle);
-#endif //USE_PORT_BLAS
+#endif // USE_PORT_BLAS

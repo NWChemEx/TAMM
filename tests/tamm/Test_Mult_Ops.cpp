@@ -1,7 +1,7 @@
-#include "ga/macdecls.h"
-#include "mpi.h"
 #include <chrono>
 #include <tamm/tamm.hpp>
+#include <tamm/tamm_git.hpp>
+
 #if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
@@ -445,6 +445,8 @@ int main(int argc, char* argv[]) {
   ExecutionHW ex_hw = ec.exhw();
 
   Scheduler sch{ec};
+
+  if(ec.pg().rank() == 0) { std::cout << tamm_git_info() << std::endl; }
 
   if(ec.pg().rank() == 0) {
     std::cout << "tilesize = " << tile_size << std::endl;

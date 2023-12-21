@@ -1,0 +1,24 @@
+
+#pragma once
+
+#include <string>
+
+inline std::string tamm_git_info() {
+    std::string gitinfo{};
+    gitinfo += "\nTAMM Git Information\n{\n";
+    gitinfo += " Branch: @GIT_BRANCH@\n"; 
+    gitinfo += " Commit Hash: @GIT_DESCRIBE@";
+    gitinfo += " [@GIT_HEAD_SHA1@]\n";
+    gitinfo += " Commit Date: @GIT_COMMIT_DATE_ISO8601@\n"; 
+    gitinfo += " Commit Message: @GIT_COMMIT_SUBJECT@\n"; 
+
+    if(@GIT_IS_DIRTY@) {
+        gitinfo += "\n WARNING: The following TAMM sources have uncommitted changes at build-time.\n\n";
+        gitinfo += R"(@GIT_STATUS@)";
+        gitinfo += "\n\n";
+        gitinfo += R"(@GIT_DIFF_MINIMAL@)";
+        gitinfo += "\n\n";
+    }
+    gitinfo += "}\n";
+    return gitinfo;
+}

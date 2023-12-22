@@ -76,7 +76,7 @@ private:
   void do_deallocate(void* ptr, std::size_t bytes,
                      std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) override {
     rmm::detail::aligned_deallocate(ptr, bytes, alignment,
-                                    [](void* ptr) { numa_free(ptr, bytes); });
+                                    [bytes](void* ptr) { numa_free(ptr, bytes); });
   }
 };
 

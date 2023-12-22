@@ -115,7 +115,6 @@ public:
   void initialize() {
     if(this->invalid_state) {
       // Set the CPU memory-pool
-      size_t max_host_bytes{0};
       EXPECTS_STR((numa_available() != -1), "[TAMM ERR]: numa APIs are not available!");
 
       // Number of user-MPI ranks is needed for efficient CPU-pool size
@@ -154,7 +153,7 @@ public:
 
         numNumaNodes /= 2; // This is done for the Aurora nodes only
 
-        if(tamm_enable_sprhbm) {
+        if(detail::tamm_enable_sprhbm) {
           numa_id = it->first;
           numa_set_preferred(numa_id);
           numa_total_size = numa_node_size(numa_id, &max_host_bytes);

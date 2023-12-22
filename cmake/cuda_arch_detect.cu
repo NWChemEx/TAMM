@@ -2,7 +2,7 @@
 
 int main(int argc, char **argv){
     cudaDeviceProp dP;
-    float min_cc = 5.0;
+    float min_cc = 7.0;
 
     int rc = cudaGetDeviceProperties(&dP, 0);
     if(rc != cudaSuccess) {

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <sys/sysinfo.h>
-
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 #if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
@@ -26,6 +24,14 @@
 namespace tamm {
 
 namespace detail {
+// TAMM_ENABLE_SPRHBM = 0(default), 1
+static const uint32_t tamm_enable_sprhbm = [] {
+  const char* tammEnableSprHBM = std::getenv("TAMM_ENABLE_SPRHBM");
+  uint32_t    usinghbm         = 0;
+  if(tammEnableSprHBM != nullptr) { usinghbm = std::atoi(tammEnableSprHBM); }
+  return usinghbm;
+}();
+
 // TAMM_GPU_POOL
 static const uint32_t tamm_gpu_pool = [] {
   uint32_t usinggpupool = 80;
@@ -37,7 +43,7 @@ static const uint32_t tamm_gpu_pool = [] {
 
 // TAMM_CPU_POOL
 static const uint32_t tamm_cpu_pool = [] {
-  uint32_t usingcpupool = 80;
+  uint32_t usingcpupool = 100;
   if(const char* tammCpupoolsize = std::getenv("TAMM_CPU_POOL")) {
     usingcpupool = std::atoi(tammCpupoolsize);
   }
@@ -110,6 +116,8 @@ public:
     if(this->invalid_state) {
       // Set the CPU memory-pool
       size_t max_host_bytes{0};
+      EXPECTS_STR((numa_available() != -1), "[TAMM ERR]: numa APIs are not available!");
+
       // Number of user-MPI ranks is needed for efficient CPU-pool size
       int ranks_pn_ = 0;
 #if defined(USE_UPCXX)
@@ -118,23 +126,53 @@ public:
       ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_nodeid());
 #endif
 
-      struct sysinfo cpumeminfo_;
-      sysinfo(&cpumeminfo_);
-      // 50% allocation was reserved for the GA distributed arrays followed by the
-      // memory pool creation
-      max_host_bytes = 0.5 * cpumeminfo_.freeram * cpumeminfo_.mem_unit;
-      // Use only "tamm_cpu_pool" percent of the free memory let
-      max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
+#if defined(LIBNUMA_API_VERSION) && (LIBNUMA_API_VERSION >= 2)
+      numa_set_bind_policy(1);
+      unsigned        numNumaNodes = numa_num_task_nodes();
+      struct bitmask* nodes        = numa_get_run_node_mask();
+      numa_bind(nodes);
+      int  numa_id = numa_preferred();
+      long numa_total_size{0}, max_host_bytes{0};
+      numa_total_size = numa_node_size(numa_id, &max_host_bytes);
+      max_host_bytes *= 0.40; // reserve 40% only of the free numa-node memory (reserving rest of
+                              // GA, non-pool allocations)
+
+      // Identify the NUMA distance for faster numa-regions
+      std::map<int, int> numadist_id;
+      for(int j = 0; j < numNumaNodes; j++) {
+        if(numa_id != j) { numadist_id[j] = numa_distance(numa_id, j); }
+      }
+      int  val    = numadist_id.begin()->second;
+      auto result = std::all_of(
+        std::next(numadist_id.begin()), numadist_id.end(),
+        [val](typename std::map<int, int>::const_reference t) { return t.second == val; });
+      if(!result) { // There are some faster NUMA domains available than the defaults (only for
+                    // Aurora)
+        auto it =
+          std::min_element(numadist_id.begin(), numadist_id.end(),
+                           [](const auto& l, const auto& r) { return l.second < r.second; });
+
+        numNumaNodes /= 2; // This is done for the Aurora nodes only
+
+        if(tamm_enable_sprhbm) {
+          numa_id = it->first;
+          numa_set_preferred(numa_id);
+          numa_total_size = numa_node_size(numa_id, &max_host_bytes);
+          max_host_bytes *=
+            0.90; // One can use full HBM memory capacity, since the DDR is left for GA
+        }
+      }
+#endif
+
+      max_host_bytes *=
+        (detail::tamm_cpu_pool / 100.0); // Use only "tamm_cpu_pool" percent of the left-overs
+      max_host_bytes /= (ranks_pn_ / numNumaNodes);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       size_t free{}, total{};
       gpuMemGetInfo(&free, &total);
       size_t max_device_bytes{0};
       max_device_bytes = ((detail::tamm_gpu_pool / 100.0) * free) / detail::tamm_rpg;
-
-#ifdef USE_MEMKIND
-      max_host_bytes = 128849018880; // 120 GB (on both socket os Aurora)
-#endif
 
       deviceMR =
         std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);

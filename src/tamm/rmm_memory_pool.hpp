@@ -128,8 +128,9 @@ public:
 #if defined(LIBNUMA_API_VERSION) && (LIBNUMA_API_VERSION >= 2)
       numa_set_bind_policy(1);
       unsigned        numNumaNodes = numa_num_task_nodes();
-      struct bitmask* nodes        = numa_get_run_node_mask();
-      numa_bind(nodes);
+      struct bitmask* numaNodes    = numa_get_mems_allowed();
+      numa_bind(numaNodes);
+
       int  numa_id = numa_preferred();
       long numa_total_size{0}, max_host_bytes{0};
       numa_total_size = numa_node_size(numa_id, &max_host_bytes);
@@ -158,7 +159,7 @@ public:
           numa_set_preferred(numa_id);
           numa_total_size = numa_node_size(numa_id, &max_host_bytes);
           max_host_bytes *=
-            0.90; // One can use full HBM memory capacity, since the DDR is left for GA
+            0.94; // One can use full HBM memory capacity, since the DDR is left for GA
         }
       }
 #endif

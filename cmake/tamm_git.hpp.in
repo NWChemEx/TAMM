@@ -2,6 +2,8 @@
 #pragma once
 
 #include <string>
+#include <sstream>
+#include <fstream>
 
 inline std::string tamm_git_info() {
     std::string gitinfo{};
@@ -22,7 +24,13 @@ inline std::string tamm_git_info() {
         gitinfo += "\n WARNING: The following TAMM sources have uncommitted changes at build-time.\n\n";
         gitinfo += R"(@GIT_STATUS@)";
         gitinfo += "\n\n";
-        gitinfo += R"(@GIT_DIFF_MINIMAL@)";
+        std::ifstream gdiff("@GIT_DIFF_MINIMAL@");
+        std::stringstream diff_text;
+        if(gdiff.is_open()) {
+            diff_text << gdiff.rdbuf();
+            gitinfo += diff_text.str();
+        }
+        else gitinfo += " The detailed list of changes to the above sources could not be provided!";
         gitinfo += "\n\n";
     }
     gitinfo += "}\n";

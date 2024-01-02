@@ -115,7 +115,10 @@ protected:
   void initialize_pool(std::size_t maximum_size) {
     auto const block = block_from_upstream(maximum_size);
     if(block.has_value()) { this->insert_block(block.value()); }
-    else { EXPECTS_STR(0, "RMM: initialize_pool failed()!"); }
+    else {
+      EXPECTS_STR(0, "RMM: initialize_pool failed(), please set the env variable "
+                     "TAMM_RANKS_PER_GPU_POOL to the value [processes_per_node/num_gpus] !");
+    }
   }
 
   /**

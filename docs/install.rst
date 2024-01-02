@@ -92,11 +92,9 @@ In addition to the build options chosen, there are various build configurations 
 
 - :ref:`Build instructions for Perlmutter and Polaris <build-perlmutter-and-polaris>`
 
-- :ref:`Build instructions for Theta <build-theta>`
-
 - :ref:`SYCL build instructions <build-sycl>`
 
-- :ref:`Build instructions for Sunspot <build-sunspot>`
+- :ref:`Build instructions for Aurora <build-aurora>`
 
 
 
@@ -105,7 +103,7 @@ In addition to the build options chosen, there are various build configurations 
 Default build using BLIS and NETLIB LAPACK
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To enable CUDA build, add ``-DUSE_CUDA=ON``
+To enable CUDA build, add ``-DUSE_CUDA=ON`` and ``-DGPU_ARCH=<value>``
 
 
 ::
@@ -127,7 +125,7 @@ Default build on MACOS
 ::
 
    cd $REPO_ROOT_PATH/build 
-   CC=gcc-10 CXX=g++-10 FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
+   CC=gcc-12 CXX=g++-12 FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
 
    make -j3
    make install
@@ -139,7 +137,7 @@ Build using Intel MKL
 
 .. _to-enable-cuda-build-add--duse_cudaon-1:
 
-To enable CUDA build, add ``-DUSE_CUDA=ON``
+To enable CUDA build, add ``-DUSE_CUDA=ON`` and ``-DGPU_ARCH=<value>``
 
 ::
 
@@ -243,49 +241,26 @@ Build instructions for Perlmutter and Polaris
 
 ::
 
-   module purge
    module load PrgEnv-gnu
    module load craype-x86-milan
    module load cmake
    module load cpe-cuda
 
-   module load cpe gpu (Perlmutter Only)
+   module load cudatoolkit (Perlmutter Only)
    module load cudatoolkit-standalone (Polaris Only)
 
-   export CRAYPE_LINK_TYPE=dynamic
+   module unload craype-accel-nvidia80
 
-.. note:: Currently need to add ``-DUSE_CRAYSHASTA=ON`` to the cmake line below for Polaris builds
+   export CRAYPE_LINK_TYPE=dynamic
+   export MPICH_GPU_SUPPORT_ENABLED=0
+
+.. note:: Currently need to add ``-DUSE_CRAYSHASTA=ON`` to the cmake line below only for Polaris builds.
 
 ::
 
    cd $REPO_ROOT_PATH/build
 
-   cmake -DUSE_CUDA=ON -DBLIS_CONFIG=generic \
-   -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
-
-   make -j3
-   make install
-
-
-.. _build-theta:
-
-Build instructions for Theta
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
-
-   module unload PrgEnv-intel/6.0.7
-   module load PrgEnv-gnu/6.0.7
-   module unload cmake
-   module load cmake
-   export CRAYPE_LINK_TYPE=dynamic
-
-::
-
-   cd $REPO_ROOT_PATH/build
-
-   CC=cc CXX=CC FC=ftn cmake -DLINALG_VENDOR=IntelMKL \
-   -DLINALG_PREFIX=/opt/intel/mkl \
+   cmake -DUSE_CUDA=ON -DGPU_ARCH=80 -DBLIS_CONFIG=generic \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
 
    make -j3
@@ -316,36 +291,17 @@ SYCL build instructions using Intel OneAPI
    make -j3
    make install
 
-.. _build-sunspot:
+.. _build-aurora:
 
-Build instructions for Sunspot
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Build instructions for Aurora
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:: 
 
-::
-
-   module load spack cmake
-   module load mpich
-   ONEAPI_MPICH_GPU=NO_GPU module load oneapi/eng-compiler/2022.12.30.003
-   module load tools/xpu-smi/1.2.1
-   export GCC_ROOT_PATH=/opt/cray/pe/gcc/11.2.0/snos
-
-::
-
-   unset EnableWalkerPartition
-   export ZE_ENABLE_PCI_ID_DEVICE_ORDER=1
-   export ONEAPI_MPICH_GPU=NO_GPU
+   module use /soft/modulefiles/
+   module load spack-pe-gcc/0.4-rc1 numactl/2.0.14-gcc-testing cmake
+   module load oneapi/release/2023.12.15.001
    export MPIR_CVAR_ENABLE_GPU=0
-
-   export FI_CXI_DEFAULT_CQ_SIZE=131072
-   export FI_CXI_CQ_FILL_PERCENT=20
-
-   export SYCL_PROGRAM_COMPILE_OPTIONS=" -ze-opt-large-register-file -ze-opt-greater-than-4GB-buffer-required"
-   export SYCL_PI_LEVEL_ZERO_SINGLE_THREAD_MODE=1
-   export ZES_ENABLE_SYSMAN=1
-   export SYCL_CACHE_PERSISTENT=1
-   unset SYCL_DEVICE_FILTER
-   export ONEAPI_DEVICE_SELECTOR=level_zero:*
-   export SYCL_PI_LEVEL_ZERO_USE_IMMEDIATE_COMMANDLISTS=1
+   export GCC_ROOT_PATH=/opt/cray/pe/gcc/11.2.0/snos
 
 ::
 
@@ -354,8 +310,8 @@ Build instructions for Sunspot
    CC=icx CXX=icpx FC=ifx cmake \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=$MKLROOT \
-   -DUSE_DPCPP=ON -DGCCROOT=$GCC_ROOT_PATH \
-   -DTAMM_CXX_FLAGS="-fma -ffast-math -fsycl -fsycl-default-sub-group-size 16 -fsycl-unnamed-lambda -fsycl-device-code-split=per_kernel -sycl-std=2020"
+   -DUSE_DPCPP=ON -DUSE_MEMKIND=ON -DGCCROOT=$GCC_ROOT_PATH \
+   -DTAMM_CXX_FLAGS="-march=sapphirerapids -mtune=sapphirerapids -ffast-math -fsycl -fsycl-default-sub-group-size 16 -fsycl-unnamed-lambda -fsycl-device-code-split=per_kernel -sycl-std=2020"
 
-   make -j3
+   make -j12
    make install

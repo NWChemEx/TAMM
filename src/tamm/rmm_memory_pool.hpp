@@ -166,7 +166,7 @@ public:
 
       max_host_bytes *=
         (detail::tamm_cpu_pool / 100.0); // Use only "tamm_cpu_pool" percent of the left-overs
-      max_host_bytes /= (ranks_pn_ / numNumaNodes);
+      max_host_bytes /= ( (ranks_pn_ > 1) ? (ranks_pn_/numNumaNodes) : ranks_pn_ );
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       size_t free{}, total{};

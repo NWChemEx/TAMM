@@ -1,9 +1,9 @@
 name: TAMM_CI
 
-on: 
+on:
   push:
     paths-ignore:
-      - docs  
+      - docs
   pull_request:
     branches:
       - main
@@ -73,13 +73,18 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - uses: actions/setup-python@v4
-      with: 
+      with:
         python-version: '3.x'
     - name: Check SIMD
       id: get-simd
       run: |
         chmod +x ${GITHUB_WORKSPACE}/.github/workflows/scripts/check_simd.sh
         echo "simd=$(${GITHUB_WORKSPACE}/.github/workflows/scripts/check_simd.sh)" >> $GITHUB_ENV
+      shell: bash
+    - name: Setup TAMM env
+      id: tamm-env-setup
+      run: |
+        echo "TAMM_CPU_POOL=10" >> $GITHUB_ENV
       shell: bash
 
     - name: Cache install steps (backend = ga)

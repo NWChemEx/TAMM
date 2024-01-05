@@ -125,10 +125,15 @@ public:
       ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_nodeid());
 #endif
 
-#if defined(LIBNUMA_API_VERSION) && (LIBNUMA_API_VERSION >= 2)
       numa_set_bind_policy(1);
-      unsigned        numNumaNodes = numa_num_task_nodes();
-      struct bitmask* numaNodes    = numa_get_mems_allowed();
+      unsigned numNumaNodes = numa_num_task_nodes();
+      if(ranks_pn_ > 1) {
+        // for ranks_pn_=1, there is no need to check the mapping to numa-nodes (mostly used for CI)
+        // for ranks_pn_ > 1, it has to be divisble by the number of numa-domains in the system
+        EXPECTS_STR((ranks_pn_ % numNumaNodes == 0),
+                    "[TAMM ERR]: number of user MPI_ranks is not a multiple of numa-nodes!");
+      }
+      struct bitmask* numaNodes = numa_get_mems_allowed();
       numa_bind(numaNodes);
 
       int  numa_id = numa_preferred();
@@ -162,11 +167,10 @@ public:
             0.94; // One can use full HBM memory capacity, since the DDR is left for GA
         }
       }
-#endif
 
       max_host_bytes *=
         (detail::tamm_cpu_pool / 100.0); // Use only "tamm_cpu_pool" percent of the left-overs
-      max_host_bytes /= ( (ranks_pn_ > 1) ? (ranks_pn_/numNumaNodes) : ranks_pn_ );
+      max_host_bytes /= ((ranks_pn_ > 1) ? (ranks_pn_ / numNumaNodes) : ranks_pn_);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       size_t free{}, total{};

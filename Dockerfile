@@ -25,4 +25,4 @@ RUN export INSTALL_PATH=`pwd`/install; cmake-3.24.1-Linux-x86_64/bin/cmake -H. -
 # OpenMPI developers are allergic about anyone running programs as root.
 # Now we have to set two environment variables to get around their sensitivities,
 # even though in a Docker container this is the reasonable thing to do.
-RUN export OMPI_ALLOW_RUN_AS_ROOT=1; export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1; cd build; make VERBOSE=1; ../cmake-3.24.1-Linux-x86_64/bin/ctest -VV
+RUN export OMPI_ALLOW_RUN_AS_ROOT=1; export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1; cd build; make VERBOSE=1; TAMM_CPU_POOL=20 ../cmake-3.24.1-Linux-x86_64/bin/ctest -VV

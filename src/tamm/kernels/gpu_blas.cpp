@@ -4,7 +4,7 @@
 #if defined(USE_CUDA)
 #include <cublas_v2.h>
 #elif defined(USE_HIP)
-#include <rocblas.h>
+#include <rocblas/rocblas.h>
 #elif defined(USE_DPCPP)
 #include <oneapi/mkl/blas.hpp>
 #if defined(USE_PORT_BLAS)

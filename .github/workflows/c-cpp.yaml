@@ -8,6 +8,9 @@ on:
     branches:
       - main
       - develop
+  repository_dispatch:
+    types: [backend_automation]
+  workflow_dispatch:
 
 jobs:
   build:

@@ -12,7 +12,7 @@ Dependencies
 * MPI 
 * C++17 compiler (information on supported compilers here :doc:`here <prerequisites>`.)
 * CUDA >= 11.4 (Required only for CUDA builds)
-* ROCM >= 5.4  (Required only for ROCM builds)
+* ROCM >= 5.5  (Required only for ROCM builds)
 
 **The remaining dependencies are automatically built and do not need to be installed explicitly:**
 

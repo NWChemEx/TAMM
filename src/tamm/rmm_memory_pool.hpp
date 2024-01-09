@@ -142,32 +142,34 @@ public:
       max_host_bytes *= 0.40; // reserve 40% only of the free numa-node memory (reserving rest of
                               // GA, non-pool allocations)
 
-      // Identify the NUMA distance for faster numa-regions
-      std::map<int, int> numadist_id;
-      for(int j = 0; j < numNumaNodes; j++) {
-        if(numa_id != j) { numadist_id[j] = numa_distance(numa_id, j); }
-      }
-      int  val    = numadist_id.begin()->second;
-      auto result = std::all_of(
-        std::next(numadist_id.begin()), numadist_id.end(),
-        [val](typename std::map<int, int>::const_reference t) { return t.second == val; });
-      if(!result) { // There are some faster NUMA domains available than the defaults (only for
-                    // Aurora)
-        auto it =
-          std::min_element(numadist_id.begin(), numadist_id.end(),
-                           [](const auto& l, const auto& r) { return l.second < r.second; });
-
-        numNumaNodes /= 2; // This is done for the Aurora nodes only
-
-        if(detail::tamm_enable_sprhbm) {
-          numa_id = it->first;
-          numa_set_preferred(numa_id);
-          numa_total_size = numa_node_size(numa_id, &max_host_bytes);
-          max_host_bytes *=
-            0.94; // One can use full HBM memory capacity, since the DDR is left for GA
+      if (numNumaNodes > 1) { // please the systems with just 1 Numa partitions
+        // Identify the NUMA distance for faster numa-regions
+        std::map<int, int> numadist_id;
+        for(int j = 0; j < numNumaNodes; j++) {
+          if(numa_id != j) { numadist_id[j] = numa_distance(numa_id, j); }
         }
-      }
-
+        int  val    = numadist_id.begin()->second;
+        auto result = std::all_of(
+          std::next(numadist_id.begin()), numadist_id.end(),
+          [val](typename std::map<int, int>::const_reference t) { return t.second == val; });
+        if(!result) { // There are some faster NUMA domains available than the defaults (only for
+                      // Aurora)
+          auto it =
+            std::min_element(numadist_id.begin(), numadist_id.end(),
+                             [](const auto& l, const auto& r) { return l.second < r.second; });
+  
+          numNumaNodes /= 2; // This is done for the Aurora nodes only
+  
+          if(detail::tamm_enable_sprhbm) {
+            numa_id = it->first;
+            numa_set_preferred(numa_id);
+            numa_total_size = numa_node_size(numa_id, &max_host_bytes);
+            max_host_bytes *=
+              0.94; // One can use full HBM memory capacity, since the DDR is left for GA
+          }
+        }
+      } // numNumaNodes > 1
+  
       max_host_bytes *=
         (detail::tamm_cpu_pool / 100.0); // Use only "tamm_cpu_pool" percent of the left-overs
       max_host_bytes /= ((ranks_pn_ > 1) ? (ranks_pn_ / numNumaNodes) : ranks_pn_);

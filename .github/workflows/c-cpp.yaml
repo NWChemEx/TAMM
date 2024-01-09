@@ -84,11 +84,6 @@ jobs:
         chmod +x ${GITHUB_WORKSPACE}/.github/workflows/scripts/check_simd.sh
         echo "simd=$(${GITHUB_WORKSPACE}/.github/workflows/scripts/check_simd.sh)" >> $GITHUB_ENV
       shell: bash
-    - name: Setup TAMM env
-      id: tamm-env-setup
-      run: |
-        echo "TAMM_CPU_POOL=10" >> $GITHUB_ENV
-      shell: bash
 
     - name: Cache install steps (backend = ga)
       if: ${{ matrix.backend == 'ga' }}

@@ -1,6 +1,10 @@
 #pragma once
 
+#if __APPLE__
+#include <sys/sysctl.h>
+#else
 #include <sys/sysinfo.h>
+#endif
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 #if defined(USE_UPCXX)
@@ -118,11 +122,23 @@ public:
       ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_nodeid());
 #endif
 
-      struct sysinfo cpumeminfo_;
-      sysinfo(&cpumeminfo_);
-      // 50% allocation was reserved for the GA distributed arrays followed by the
-      // memory pool creation
-      max_host_bytes = 0.5 * cpumeminfo_.freeram * cpumeminfo_.mem_unit;
+#if __APPLE__
+      {
+        size_t cpu_mem_per_node;
+        size_t size_mpn = sizeof(cpu_mem_per_node);
+        // TODO: query for freeram, not total
+        sysctlbyname("hw.memsize", &(cpu_mem_per_node), &size_mpn, nullptr, 0);
+        max_host_bytes = 0.5 * cpu_mem_per_node;
+      }
+#else
+      {
+        struct sysinfo cpumeminfo_;
+        sysinfo(&cpumeminfo_);
+        // 50% allocation was reserved for the GA distributed arrays followed by the
+        // memory pool creation
+        max_host_bytes = 0.5 * cpumeminfo_.freeram * cpumeminfo_.mem_unit;
+      }
+#endif
       // Use only "tamm_cpu_pool" percent of the free memory let
       max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
 

@@ -128,7 +128,7 @@ void test_unit_tiled_view_tensor(ExecutionContext& ec, size_t size, size_t tile_
 
   sch(T_copy(X, Y, Z) = T_full(X, Y, Z)).execute();
 
-  print_tensor_all(T_full);
+  // print_tensor_all(T_full);
 
   Tensor<double> T_unit_1{T_full, 1};
 
@@ -254,7 +254,7 @@ void test_unit_tiled_view_tensor(ExecutionContext& ec, size_t size, size_t tile_
 
   random_ip(T);
 
-  print_tensor(T);
+  // print_tensor(T);
 
   Tensor<double> T_ut{T, 2};
   Tensor<double> tmp2{};

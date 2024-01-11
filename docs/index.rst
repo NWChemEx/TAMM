@@ -9,7 +9,7 @@ Tensor Algebra for Many-body Methods (TAMM)
    install
    user_guide/user
    
-.. developer_guide/developer
+   developer_guide/developer
 
 
 .. Indices and tables

@@ -10,6 +10,7 @@ TAMM User Guide
     tensor_construction
     tensor_operations
     code_recipes
+    runtime_parameters
 
 ..    
     tis_operations

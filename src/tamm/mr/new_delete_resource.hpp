@@ -17,9 +17,7 @@
 
 #include "aligned.hpp"
 #include "host_memory_resource.hpp"
-
-#include <cstddef>
-#include <utility>
+#include <numa.h>
 
 namespace tamm::rmm::mr {
 
@@ -56,16 +54,8 @@ private:
                   ? alignment
                   : rmm::detail::RMM_ALLOCATION_ALIGNMENT;
 
-#if defined(USE_MEMKIND)
-    if(tamm::rmm::detail::tamm_use_memkind &&
-       (0 == hbw_check_available())) { // returns zero if hbw_malloc is availiable.
-      hbw_set_policy(HBW_POLICY_BIND);
-      return rmm::detail::aligned_allocate(bytes, alignment,
-                                           [](std::size_t size) { return hbw_malloc(size); });
-    }
-#endif
-    return rmm::detail::aligned_allocate(bytes, alignment,
-                                         [](std::size_t size) { return ::operator new(size); });
+    return rmm::detail::aligned_allocate(
+      bytes, alignment, [](std::size_t size) { return numa_alloc_onnode(size, numa_preferred()); });
   }
 
   /**
@@ -85,15 +75,8 @@ private:
    */
   void do_deallocate(void* ptr, std::size_t bytes,
                      std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) override {
-#if defined(USE_MEMKIND)
-    if(tamm::rmm::detail::tamm_use_memkind &&
-       (hbw_check_available() == 0)) { // returns zero if hbw_malloc is availiable.
-      rmm::detail::aligned_deallocate(ptr, bytes, alignment, [](void* ptr) { hbw_free(ptr); });
-      return;
-    }
-#endif
     rmm::detail::aligned_deallocate(ptr, bytes, alignment,
-                                    [](void* ptr) { ::operator delete(ptr); });
+                                    [bytes](void* ptr) { numa_free(ptr, bytes); });
   }
 };
 

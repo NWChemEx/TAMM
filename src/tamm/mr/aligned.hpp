@@ -7,21 +7,10 @@
 #include <memory>
 #include <new>
 
-#ifdef USE_MEMKIND
-#include <hbwmalloc.h>
-#endif
 namespace tamm::rmm::detail {
 
-// TAMM_USE_MEMKIND = 0,1
-static const uint32_t tamm_use_memkind = [] {
-  const char* tammUseMemkind = std::getenv("TAMM_USE_MEMKIND");
-  uint32_t    usingMemkind   = 0;
-  if(tammUseMemkind != nullptr) { usingMemkind = std::atoi(tammUseMemkind); }
-  return usingMemkind;
-}();
-
 /**
- * @brief Default alignment used for GPU memory allocation.
+ * @brief Default alignment used for CPU/GPU memory allocation.
  *
  */
 #if defined(USE_DPCPP)
@@ -32,10 +21,7 @@ static constexpr std::size_t RMM_ALLOCATION_ALIGNMENT{128};
 #elif defined(USE_CUDA)
 static constexpr std::size_t RMM_ALLOCATION_ALIGNMENT{256};
 #else
-/**
- * @brief Default alignment used for host memory allocated by RMM.
- *
- */
+// Default alignment used for host memory allocated by RMM.
 static constexpr std::size_t RMM_ALLOCATION_ALIGNMENT{alignof(std::max_align_t)};
 #endif
 

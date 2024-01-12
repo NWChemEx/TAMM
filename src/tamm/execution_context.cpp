@@ -8,7 +8,7 @@
 #include "proc_group.hpp"
 #include "runtime_engine.hpp"
 
-#if __APPLE__
+#if defined(__APPLE__)
 #include <sys/sysctl.h>
 #else
 #include <sys/sysinfo.h>
@@ -45,7 +45,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #endif
   nnodes_ = pg.size().value() / ranks_pn_;
 
-#if __APPLE__
+#if defined(__APPLE__)
   {
     size_t size_mpn = sizeof(minfo_.cpu_mem_per_node);
     sysctlbyname("hw.memsize", &(minfo_.cpu_mem_per_node), &size_mpn, nullptr, 0);

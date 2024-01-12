@@ -114,9 +114,6 @@ public:
 
   void initialize() {
     if(this->invalid_state) {
-      // Set the CPU memory-pool
-      EXPECTS_STR((numa_available() != -1), "[TAMM ERR]: numa APIs are not available!");
-
       // Number of user-MPI ranks is needed for efficient CPU-pool size
       int ranks_pn_ = 0;
 #if defined(USE_UPCXX)
@@ -125,11 +122,26 @@ public:
       ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_nodeid());
 #endif
 
+      long max_host_bytes{0};
+
+#if defined(__APPLE__)
+      size_t cpu_mem_per_node;
+      size_t size_mpn = sizeof(cpu_mem_per_node);
+      // TODO: query for freeram, not total
+      sysctlbyname("hw.memsize", &(cpu_mem_per_node), &size_mpn, nullptr, 0);
+      max_host_bytes = 0.5 * cpu_mem_per_node;
+      // Use only "tamm_cpu_pool" percent of the remaining memory
+      max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
+#else
+      // Set the CPU memory-pool
+      EXPECTS_STR((numa_available() != -1), "[TAMM ERROR]: numa APIs are not available!");
+
       numa_set_bind_policy(1);
       unsigned numNumaNodes = numa_num_task_nodes();
 
       // for ranks_pn_=1, there is no need to check the mapping to numa-nodes (mostly used for CI)
-      // for ranks_pn_ > numNumaNodes, it has to be divisble by the number of numa-domains in the system
+      // for ranks_pn_ > numNumaNodes, it has to be divisble by the number of numa-domains in the
+      // system
       if(ranks_pn_ >= numNumaNodes && ranks_pn_ > 1) {
         EXPECTS_STR((ranks_pn_ % numNumaNodes == 0),
                     "[TAMM ERROR]: number of user ranks is not a multiple of numa-nodes!");
@@ -137,13 +149,12 @@ public:
       struct bitmask* numaNodes = numa_get_mems_allowed();
       numa_bind(numaNodes);
 
-      int  numa_id = numa_preferred();
-      long numa_total_size{0}, max_host_bytes{0};
-      numa_total_size = numa_node_size(numa_id, &max_host_bytes);
+      int  numa_id         = numa_preferred();
+      long numa_total_size = numa_node_size(numa_id, &max_host_bytes);
       max_host_bytes *= 0.40; // reserve 40% only of the free numa-node memory (reserving rest of
                               // GA, non-pool allocations)
 
-      if (numNumaNodes > 1) { // please the systems with just 1 Numa partitions
+      if(numNumaNodes > 1) { // please the systems with just 1 Numa partitions
         // Identify the NUMA distance for faster numa-regions
         std::map<int, int> numadist_id;
         for(int j = 0; j < numNumaNodes; j++) {
@@ -158,9 +169,9 @@ public:
           auto it =
             std::min_element(numadist_id.begin(), numadist_id.end(),
                              [](const auto& l, const auto& r) { return l.second < r.second; });
-  
+
           numNumaNodes /= 2; // This is done for the Aurora nodes only
-  
+
           if(detail::tamm_enable_sprhbm) {
             numa_id = it->first;
             numa_set_preferred(numa_id);
@@ -170,10 +181,13 @@ public:
           }
         }
       } // numNumaNodes > 1
-  
+
       max_host_bytes *=
         (detail::tamm_cpu_pool / 100.0); // Use only "tamm_cpu_pool" percent of the left-overs
-      max_host_bytes /= ((numNumaNodes > 1) ? ((ranks_pn_ >= numNumaNodes) ? (ranks_pn_ / numNumaNodes) : 1) : ranks_pn_);
+      max_host_bytes /= ((numNumaNodes > 1)
+                           ? ((ranks_pn_ >= numNumaNodes) ? (ranks_pn_ / numNumaNodes) : 1)
+                           : ranks_pn_);
+#endif
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       size_t free{}, total{};

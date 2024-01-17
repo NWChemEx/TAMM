@@ -11,6 +11,10 @@ void check_indices(IndexSpace is, IndexVector iv) {
   for(const auto& index: is) { REQUIRE(index == iv[i++]); }
 }
 
+void check_spin_attributes(IndexSpace is, IndexVector iv, Spin sval) {
+  for(auto idx: iv) { REQUIRE(sval.value() == is.spin(idx).value()); }
+}
+
 TEST_CASE("/* Test Case Description */") {
   IndexSpace is1{range(10)};
   IndexSpace is2{range(0, 10)};
@@ -298,4 +302,39 @@ TEST_CASE("IndexSpace construction for sub AO space dependent over ATOM index sp
   CHECK_NOTHROW(IndexSpace{/*dependent spaces*/ {T_ATOM},
                            /*reference space*/ AO,
                            /*relation*/ ao_atom_relation});
+}
+
+TEST_CASE("IndexSpace construction with Spin for all sub-spaces") {
+  IndexSpace is{
+    range(100),                                  // is15("all")   => {0,...,99}
+    {{"occ", {range(0, 50)}},                    // is15("occ")   => {0,...,49}
+     {"virt", {range(50, 100)}},                 // is15("virt")  => {50,...,99}
+     {"alpha", {range(0, 25), range(50, 75)}},   // is15("alpha") => {0,...,25,50,...,74}
+     {"beta", {range(25, 50), range(75, 100)}}}, // is15("beta")  => {25,...,49,75,...,100}
+    {{Spin{1}, {range(0, 25), range(50, 75)}}, {Spin{2}, {range(25, 50), range(75, 100)}}}};
+
+  IndexVector full_indices  = construct_index_vector(range(100));
+  IndexVector alpha_indices = construct_index_vector({range(0, 25), range(50, 75)});
+  IndexVector beta_indices  = construct_index_vector({range(25, 50), range(75, 100)});
+
+  // check indices for created (sub)IndexSpace
+  check_indices(is, full_indices);
+  // check indices for subspace name "all"
+  check_indices(is("all"), full_indices);
+  // check indices for subspace name "occ"
+  check_indices(is("occ"), construct_index_vector(range(0, 50)));
+  // check indices for subspace name "virt"
+  check_indices(is("virt"), construct_index_vector(range(50, 100)));
+  // check indices for subspace name "alpha"
+  check_indices(is("alpha"), alpha_indices);
+  // check indices for subspace name "beta"
+  check_indices(is("beta"), beta_indices);
+
+  // check spin values for indices
+  check_spin_attributes(is, alpha_indices, Spin{1});
+  check_spin_attributes(is, beta_indices, Spin{2});
+  check_spin_attributes(is("occ"), construct_index_vector(range(0, 25)), Spin{1});
+  check_spin_attributes(is("occ"), construct_index_vector(range(25, 50)), Spin{2});
+  check_spin_attributes(is("virt"), construct_index_vector(range(0, 25)), Spin{1});
+  check_spin_attributes(is("virt"), construct_index_vector(range(25, 50)), Spin{2});
 }

@@ -438,7 +438,12 @@ protected:
             }
           }
 
-          if(!temp_vec.empty()) { temp_attr.insert({attr, temp_vec}); }
+          if(!temp_vec.empty()) {
+            if(temp_attr.find(attr) != temp_attr.end()) {
+              for(auto range: temp_vec) { temp_attr[attr].push_back(range); }
+            }
+            else temp_attr.insert({attr, temp_vec});
+          }
         }
         for(auto& i: construct_index_vector(range)) { temp_indices.push_back(indices_[i]); }
       }

@@ -209,6 +209,21 @@ static inline IndexVector construct_index_vector(const Range& range) {
 }
 
 /**
+ * @brief Helper method for constructing IndexVector for a given Range
+ *
+ * @param [in] ranges vector of Range type argument
+ * @returns an IndexVector for the corresponding range
+ */
+static inline IndexVector construct_index_vector(const std::vector<Range>& ranges) {
+  IndexVector ret;
+  for(auto& range: ranges) {
+    for(Index i = range.lo(); i < range.hi(); i += range.step()) { ret.push_back(i); }
+  }
+
+  return ret;
+}
+
+/**
  * @brief Type definition for the map between range names
  *        and corresponding set of ranges (e.g. "occ", "virt")
  *

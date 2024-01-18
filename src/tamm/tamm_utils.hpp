@@ -8,7 +8,11 @@
 #if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
+
+#if defined(USE_HDF5)
 #include <hdf5.h>
+#endif
+
 #include <iomanip>
 
 #include "eigen_includes.hpp"
@@ -19,6 +23,8 @@
 #define TU_SG_IO true
 
 namespace tamm {
+
+void tamm_terminate(std::string msg);
 
 // From integer type to integer type
 template<typename from>
@@ -836,6 +842,7 @@ int tamm_to_ga(ExecutionContext& ec, Tensor<TensorType>& tensor)
   return ga_tens;
 }
 
+#if defined(USE_HDF5)
 template<typename T>
 hid_t get_hdf5_dt() {
   using std::is_same_v;
@@ -867,6 +874,7 @@ hid_t get_hdf5_dt() {
     return complex_id;
   }
 }
+#endif
 
 /**
  * @brief write tensor to disk using HDF5
@@ -878,9 +886,13 @@ hid_t get_hdf5_dt() {
 template<typename TensorType>
 void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool tammio = true,
                    bool profile = false, int nagg_hint = 0) {
-  ExecutionContext& gec   = get_ec(tensor());
-  auto              io_t1 = std::chrono::high_resolution_clock::now();
-  int               rank  = gec.pg().rank().value();
+#if !defined(USE_HDF5)
+  tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
+#else
+
+  ExecutionContext& gec = get_ec(tensor());
+  auto io_t1 = std::chrono::high_resolution_clock::now();
+  int rank = gec.pg().rank().value();
 
 #ifdef TU_SG_IO
   auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor, nagg_hint);
@@ -896,12 +908,12 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
 #endif
 
 #if !defined(USE_UPCXX)
-  size_t            ndims = tensor.num_modes();
-  const std::string nppn  = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
+  size_t ndims = tensor.num_modes();
+  const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
 
   int64_t tensor_dims[7] = {1, 1, 1, 1, 1, 1, 1};
-  int     ndim{1}, itype{};
-  int     ga_tens = tensor.ga_handle();
+  int ndim{1}, itype{};
+  int ga_tens = tensor.ga_handle();
   if(!tammio) ga_tens = tamm_to_ga(gec, tensor);
   NGA_Inquire64(ga_tens, &itype, &ndim, tensor_dims);
 
@@ -918,12 +930,12 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
 
 #ifdef TU_SG_IO
   if(rank < subranks) {
-    ProcGroup        pg = ProcGroup::create_coll(io_comm);
+    ProcGroup pg = ProcGroup::create_coll(io_comm);
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 #else
   ExecutionContext& ec       = gec;
 #endif
-    auto          ltensor = tensor();
+    auto ltensor = tensor();
     LabelLoopNest loop_nest{ltensor.labels()};
 
     int ierr;
@@ -946,16 +958,16 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
     // ierr = MPI_Info_set(info, "cb_buffer_size", "4194304");
 
     /* tell the HDF5 library that we want to use MPI-IO to do the writing */
-    ierr                 = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
+    ierr = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
     auto file_identifier = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, acc_template);
 
     /* release the file access template */
     ierr = H5Pclose(acc_template);
     ierr = MPI_Info_free(&info);
 
-    int     tensor_rank = 1;
-    hsize_t dimens_1d   = tensor_size;
-    auto    dataspace   = H5Screate_simple(tensor_rank, &dimens_1d, NULL);
+    int tensor_rank = 1;
+    hsize_t dimens_1d = tensor_size;
+    auto dataspace = H5Screate_simple(tensor_rank, &dimens_1d, NULL);
     /* create a dataset collectively */
     auto dataset = H5Dcreate(file_identifier, "tensor", hdf5_dt, dataspace, H5P_DEFAULT,
                              H5P_DEFAULT, H5P_DEFAULT);
@@ -973,7 +985,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
     hid_t xfer_plist;
     /* set up the collective transfer properties list */
     xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-    auto ret   = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
+    auto ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
 
     if(/*is_irreg &&*/ tammio) {
       auto lambda = [&](const IndexVector& bid) {
@@ -991,7 +1003,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
         }
 
         // const tamm::TAMM_SIZE
-        hsize_t                 dsize = tensor.block_size(blockid);
+        hsize_t dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
         tensor.get(blockid, dbuf);
 
@@ -999,8 +1011,8 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
         // dsize << std::endl;
 
         hsize_t stride = 1;
-        herr_t  ret    = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
-                                             &dsize, NULL); // stride=NULL?
+        herr_t ret = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
+                                         &dsize, NULL); // stride=NULL?
 
         // /* create a memory dataspace independently */
         auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
@@ -1031,7 +1043,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
 
         // file_offset = file_offset*sizeof(TensorType);
 
-        auto block_dims   = tensor.block_dims(blockid);
+        auto block_dims = tensor.block_dims(blockid);
         auto block_offset = tensor.block_offsets(blockid);
 
         hsize_t dsize = tensor.block_size(blockid);
@@ -1049,8 +1061,8 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
         //     static_cast<int>(dsize),mpi_type<TensorType>(),&status);
 
         hsize_t stride = 1;
-        herr_t  ret    = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
-                                             &dsize, NULL); // stride=NULL?
+        herr_t ret = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
+                                         &dsize, NULL); // stride=NULL?
 
         // /* create a memory dataspace independently */
         auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
@@ -1090,6 +1102,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
     std::cout << "Time for writing " << filename << " to disk (" << nppn << "): " << io_time
               << " secs" << std::endl;
 #endif
+#endif
 }
 
 template<typename TensorType>
@@ -1111,17 +1124,20 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
                          int nagg_hint = 0) {
   EXPECTS(tensors.size() == filenames.size());
 
+#if !defined(USE_HDF5)
+  tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
+#else
 #if !defined(USE_UPCXX)
   auto io_t1 = std::chrono::high_resolution_clock::now();
 
   hid_t hdf5_dt = get_hdf5_dt<TensorType>();
 
-  const int  world_rank = gec.pg().rank().value();
+  const int world_rank = gec.pg().rank().value();
   const auto world_size = gec.pg().size().value();
-  auto       world_comm = gec.pg().comm();
+  auto world_comm = gec.pg().comm();
 
-  int nranks        = world_size;
-  int color         = -1;
+  int nranks = world_size;
+  int color = -1;
   int prev_subranks = 0;
 
   std::vector<int> rankspertensor;
@@ -1147,11 +1163,11 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
   AtomicCounter* ac = new AtomicCounterGA(gec.pg(), 1);
   ac->allocate(0);
   int64_t taskcount = 0;
-  int64_t next      = -1;
+  int64_t next = -1;
   // int total_pi_pg = 0;
 
   if(io_comm != MPI_COMM_NULL) {
-    ProcGroup        pg = ProcGroup::create_coll(io_comm);
+    ProcGroup pg = ProcGroup::create_coll(io_comm);
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     int root_ppi = -1;
@@ -1163,12 +1179,12 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
 
     for(size_t i = 0; i < tensors.size(); i++) {
       if(next == taskcount) {
-        Tensor<TensorType> tensor   = tensors[i];
-        auto               filename = filenames[i];
+        Tensor<TensorType> tensor = tensors[i];
+        auto filename = filenames[i];
 
         auto io_t1 = std::chrono::high_resolution_clock::now();
 
-        int    ga_tens;
+        int ga_tens;
         size_t ndims = tensor.num_modes();
         // const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
         // if(root_ppi == 0 && profile)
@@ -1176,7 +1192,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
         //   " ranks" << std::endl;
 
         int64_t tensor_dims[7] = {1, 1, 1, 1, 1, 1, 1};
-        int     ndim{1}, itype{};
+        int ndim{1}, itype{};
         ga_tens = tensor.ga_handle();
         NGA_Inquire64(ga_tens, &itype, &ndim, tensor_dims);
 
@@ -1184,7 +1200,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
         int64_t tensor_size =
           std::accumulate(tensor_dims, tensor_dims + ndim, (int64_t) 1, std::multiplies<int64_t>());
 
-        auto          ltensor = tensor();
+        auto ltensor = tensor();
         LabelLoopNest loop_nest{ltensor.labels()};
 
         int ierr;
@@ -1215,9 +1231,9 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
         ierr = H5Pclose(acc_template);
         ierr = MPI_Info_free(&info);
 
-        int     tensor_rank = 1;
-        hsize_t dimens_1d   = tensor_size;
-        auto    dataspace   = H5Screate_simple(tensor_rank, &dimens_1d, NULL);
+        int tensor_rank = 1;
+        hsize_t dimens_1d = tensor_size;
+        auto dataspace = H5Screate_simple(tensor_rank, &dimens_1d, NULL);
         /* create a dataset collectively */
         auto dataset = H5Dcreate(file_identifier, "tensor", hdf5_dt, dataspace, H5P_DEFAULT,
                                  H5P_DEFAULT, H5P_DEFAULT);
@@ -1236,7 +1252,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
         hid_t xfer_plist;
         /* set up the collective transfer properties list */
         xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-        auto ret   = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
+        auto ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
 
         auto lambda = [&](const IndexVector& bid) {
           const IndexVector blockid = internal::translate_blockid(bid, ltensor);
@@ -1252,13 +1268,13 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
             file_offset += tensor.block_size(pbid);
           }
 
-          hsize_t                 dsize = tensor.block_size(blockid);
+          hsize_t dsize = tensor.block_size(blockid);
           std::vector<TensorType> dbuf(dsize);
           tensor.get(blockid, dbuf);
 
           hsize_t stride = 1;
-          herr_t  ret = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
-                                            &dsize, NULL); // stride=NULL?
+          herr_t ret = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
+                                           &dsize, NULL); // stride=NULL?
 
           // /* create a memory dataspace independently */
           auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
@@ -1314,6 +1330,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
   if(world_rank == 0 && profile)
     std::cout << "Total Time for writing tensors"
               << " to disk: " << io_time << " secs" << std::endl;
+#endif
 #endif
 }
 
@@ -1445,10 +1462,13 @@ void retile_tamm_tensor(Tensor<TensorType> stensor, Tensor<TensorType>& dtensor,
 template<typename TensorType>
 void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool tammio = true,
                     Tensor<TensorType> wtensor = {}, bool profile = false, int nagg_hint = 0) {
+#if !defined(USE_HDF5)
+  tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
+#else
 #if !defined(USE_UPCXX)
-  ExecutionContext& gec   = get_ec(tensor());
-  auto              io_t1 = std::chrono::high_resolution_clock::now();
-  int               rank  = gec.pg().rank().value();
+  ExecutionContext& gec = get_ec(tensor());
+  auto io_t1 = std::chrono::high_resolution_clock::now();
+  int rank = gec.pg().rank().value();
 #ifdef TU_SG_IO
   auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor, nagg_hint);
   MPI_Comm io_comm;
@@ -1464,7 +1484,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
   if(!tammio) {
     auto tis_dims = tensor.tiled_index_spaces();
 
-    int                  ndims = tensor.num_modes();
+    int ndims = tensor.num_modes();
     std::vector<int64_t> dims;
     std::vector<int64_t> chnks(ndims, -1);
     for(auto tis: tis_dims) dims.push_back(tis.index_space().num_indices());
@@ -1479,7 +1499,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
 
 #ifdef TU_SG_IO
   if(io_comm != MPI_COMM_NULL) {
-    ProcGroup        pg = ProcGroup::create_coll(io_comm);
+    ProcGroup pg = ProcGroup::create_coll(io_comm);
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 #else
   ExecutionContext& ec       = gec;
@@ -1487,7 +1507,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
 
     if(wtensor.num_modes() > 0) tensor = wtensor;
 
-    auto          ltensor = tensor();
+    auto ltensor = tensor();
     LabelLoopNest loop_nest{ltensor.labels()};
 
     int ierr;
@@ -1507,7 +1527,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
     auto acc_template = H5Pcreate(H5P_FILE_ACCESS);
 
     /* tell the HDF5 library that we want to use MPI-IO to do the reading */
-    ierr                 = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
+    ierr = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
     auto file_identifier = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, acc_template);
 
     /* release the file access template */
@@ -1530,7 +1550,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
     hid_t xfer_plist;
     /* set up the collective transfer properties list */
     xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-    auto ret   = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
+    auto ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
 
     if(/*is_irreg &&*/ tammio) {
       auto lambda = [&](const IndexVector& bid) {
@@ -1549,15 +1569,15 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
 
         // file_offset = file_offset*sizeof(TensorType);
 
-        hsize_t                 dsize = tensor.block_size(blockid);
+        hsize_t dsize = tensor.block_size(blockid);
         std::vector<TensorType> dbuf(dsize);
 
         // std::cout << "READ: rank, file_offset, size = " << rank << "," << file_offset << ", " <<
         // dsize << std::endl;
 
         hsize_t stride = 1;
-        herr_t  ret    = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
-                                             &dsize, NULL); // stride=NULL?
+        herr_t ret = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
+                                         &dsize, NULL); // stride=NULL?
 
         // /* create a memory dataspace independently */
         auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
@@ -1592,12 +1612,12 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
 
         // file_offset = file_offset*sizeof(TensorType);
 
-        auto block_dims   = tensor.block_dims(blockid);
+        auto block_dims = tensor.block_dims(blockid);
         auto block_offset = tensor.block_offsets(blockid);
 
         hsize_t dsize = tensor.block_size(blockid);
 
-        size_t               ndims = block_dims.size();
+        size_t ndims = block_dims.size();
         std::vector<int64_t> lo(ndims), hi(ndims), ld(ndims - 1);
 
         for(size_t i = 0; i < ndims; i++) lo[i] = cd_ncast<size_t>(block_offset[i]);
@@ -1610,8 +1630,8 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
         // MPI_File_read_at(fh,file_offset,reinterpret_cast<void*>(&sbuf[0]),
         //             static_cast<int>(dsize),mpi_type<TensorType>(),&status);
         hsize_t stride = 1;
-        herr_t  ret    = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
-                                             &dsize, NULL); // stride=NULL?
+        herr_t ret = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
+                                         &dsize, NULL); // stride=NULL?
 
         // /* create a memory dataspace independently */
         auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
@@ -1661,6 +1681,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
     std::cout << "Time for reading " << filename << " from disk (" << nppn << "): " << io_time
               << " secs" << std::endl;
 #endif
+#endif
 }
 
 template<typename TensorType>
@@ -1681,18 +1702,21 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
                           std::vector<std::string>        filenames,
                           std::vector<Tensor<TensorType>> wtensors = {}, bool profile = false,
                           int nagg_hint = 0) {
+#if !defined(USE_HDF5)
+  tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
+#else
   EXPECTS(tensors.size() == filenames.size());
 #if !defined(USE_UPCXX)
   auto io_t1 = std::chrono::high_resolution_clock::now();
 
   hid_t hdf5_dt = get_hdf5_dt<TensorType>();
 
-  const int  world_rank = gec.pg().rank().value();
+  const int world_rank = gec.pg().rank().value();
   const auto world_size = gec.pg().size().value();
-  auto       world_comm = gec.pg().comm();
+  auto world_comm = gec.pg().comm();
 
-  int nranks        = world_size;
-  int color         = -1;
+  int nranks = world_size;
+  int color = -1;
   int prev_subranks = 0;
 
   std::vector<int> rankspertensor;
@@ -1718,11 +1742,11 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
   AtomicCounter* ac = new AtomicCounterGA(gec.pg(), 1);
   ac->allocate(0);
   int64_t taskcount = 0;
-  int64_t next      = -1;
+  int64_t next = -1;
   // int total_pi_pg = 0;
 
   if(io_comm != MPI_COMM_NULL) {
-    ProcGroup        pg = ProcGroup::create_coll(io_comm);
+    ProcGroup pg = ProcGroup::create_coll(io_comm);
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
     int root_ppi = -1;
@@ -1737,8 +1761,8 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
       if(next == taskcount) {
         auto io_t1 = std::chrono::high_resolution_clock::now();
 
-        Tensor<TensorType> tensor   = tensors[i];
-        auto               filename = filenames[i];
+        Tensor<TensorType> tensor = tensors[i];
+        auto filename = filenames[i];
 
         // auto tensor_back = tensor;
 
@@ -1746,7 +1770,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
           if(wtensors[i].num_modes() > 0) tensor = wtensors[i];
         }
 
-        auto          ltensor = tensor();
+        auto ltensor = tensor();
         LabelLoopNest loop_nest{ltensor.labels()};
 
         int ierr;
@@ -1766,7 +1790,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
         auto acc_template = H5Pcreate(H5P_FILE_ACCESS);
 
         /* tell the HDF5 library that we want to use MPI-IO to do the reading */
-        ierr                 = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
+        ierr = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
         auto file_identifier = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, acc_template);
 
         /* release the file access template */
@@ -1789,7 +1813,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
         hid_t xfer_plist;
         /* set up the collective transfer properties list */
         xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-        auto ret   = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
+        auto ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
 
         auto lambda = [&](const IndexVector& bid) {
           const IndexVector blockid = internal::translate_blockid(bid, ltensor);
@@ -1807,15 +1831,15 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
 
           // file_offset = file_offset*sizeof(TensorType);
 
-          hsize_t                 dsize = tensor.block_size(blockid);
+          hsize_t dsize = tensor.block_size(blockid);
           std::vector<TensorType> dbuf(dsize);
 
           // std::cout << "READ: rank, file_offset, size = " << rank << "," << file_offset << ", "
           // << dsize << std::endl;
 
           hsize_t stride = 1;
-          herr_t  ret = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
-                                            &dsize, NULL); // stride=NULL?
+          herr_t ret = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
+                                           &dsize, NULL); // stride=NULL?
 
           // /* create a memory dataspace independently */
           auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
@@ -1877,6 +1901,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
   if(world_rank == 0 && profile)
     std::cout << "Total Time for reading tensors"
               << " from disk: " << io_time << " secs" << std::endl;
+#endif
 #endif
 }
 
@@ -1997,7 +2022,7 @@ TensorType linf_norm(LabeledTensor<TensorType> ltensor) {
   upcxx::team* sub_comm =
     new upcxx::team(gec.pg().team()->split(rank < subranks ? 0 : upcxx::team::color_none, 0));
 #else
-  MPI_Comm          sub_comm;
+  MPI_Comm sub_comm;
   subcomm_from_subranks(gec, subranks, sub_comm);
 #endif
 
@@ -2051,16 +2076,19 @@ template<typename T>
 void write_to_disk_hdf5(
   Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> eigen_tensor,
   std::string filename, bool write1D = false) {
+#if !defined(USE_HDF5)
+  tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
+#else
   std::string outputfile = filename + ".data";
-  hid_t       file_id    = H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t file_id = H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
-  T*    buf = eigen_tensor.data();
+  T* buf = eigen_tensor.data();
   hid_t dataspace_id;
 
   std::vector<hsize_t> dims(2);
-  dims[0]      = eigen_tensor.rows();
-  dims[1]      = eigen_tensor.cols();
-  int rank     = 2;
+  dims[0] = eigen_tensor.rows();
+  dims[1] = eigen_tensor.cols();
+  int rank = 2;
   dataspace_id = H5Screate_simple(rank, dims.data(), NULL);
 
   hid_t dataset_id = H5Dcreate(file_id, "data", get_hdf5_dt<T>(), dataspace_id, H5P_DEFAULT,
@@ -2070,8 +2098,8 @@ void write_to_disk_hdf5(
 
   /* Create and write attribute information - reduced dims */
   std::vector<int> reduced_dims{static_cast<int>(dims[0]), static_cast<int>(dims[1])};
-  hsize_t          attr_size      = reduced_dims.size();
-  auto             attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
+  hsize_t attr_size = reduced_dims.size();
+  auto attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
   auto attr_dataset = H5Dcreate(file_id, "rdims", H5T_NATIVE_INT, attr_dataspace, H5P_DEFAULT,
                                 H5P_DEFAULT, H5P_DEFAULT);
   H5Dwrite(attr_dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, reduced_dims.data());
@@ -2081,18 +2109,22 @@ void write_to_disk_hdf5(
   H5Dclose(dataset_id);
   H5Sclose(dataspace_id);
   H5Fclose(file_id);
+#endif
 }
 
 template<typename T, int N>
 void write_to_disk_hdf5(Eigen::Tensor<T, N, Eigen::RowMajor> eigen_tensor, std::string filename,
                         bool write1D = false) {
+#if !defined(USE_HDF5)
+  tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
+#else
   std::string outputfile = filename + ".data";
-  hid_t       file_id    = H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t file_id = H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
   T* buf = eigen_tensor.data();
 
   hid_t dataspace_id;
-  auto  dims = eigen_tensor.dimensions();
+  auto dims = eigen_tensor.dimensions();
 
   if(write1D) {
     hsize_t total_size = 1;
@@ -2102,7 +2134,7 @@ void write_to_disk_hdf5(Eigen::Tensor<T, N, Eigen::RowMajor> eigen_tensor, std::
   else {
     std::vector<hsize_t> hdims;
     for(int i = 0; i < N; i++) { hdims.push_back(dims[i]); }
-    int rank     = eigen_tensor.NumDimensions;
+    int rank = eigen_tensor.NumDimensions;
     dataspace_id = H5Screate_simple(rank, hdims.data(), NULL);
   }
 
@@ -2113,8 +2145,8 @@ void write_to_disk_hdf5(Eigen::Tensor<T, N, Eigen::RowMajor> eigen_tensor, std::
 
   /* Create and write attribute information - reduced dims */
   std::vector<int> reduced_dims{static_cast<int>(dims[0]), static_cast<int>(dims[1])};
-  hsize_t          attr_size      = reduced_dims.size();
-  auto             attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
+  hsize_t attr_size = reduced_dims.size();
+  auto attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
   auto attr_dataset = H5Dcreate(file_id, "rdims", H5T_NATIVE_INT, attr_dataspace, H5P_DEFAULT,
                                 H5P_DEFAULT, H5P_DEFAULT);
   H5Dwrite(attr_dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, reduced_dims.data());
@@ -2124,16 +2156,20 @@ void write_to_disk_hdf5(Eigen::Tensor<T, N, Eigen::RowMajor> eigen_tensor, std::
   H5Dclose(dataset_id);
   H5Sclose(dataspace_id);
   H5Fclose(file_id);
+#endif
 }
 
 template<typename T, int N>
 void write_to_disk_hdf5(Tensor<T> tensor, std::string filename, bool write1D = false) {
+#if !defined(USE_HDF5)
+  tamm::tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
+#else
   std::string outputfile = filename + ".data";
-  hid_t       file_id    = H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t file_id = H5Fcreate(outputfile.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
 
   // Eigen::Tensor<T, N, Eigen::RowMajor> eigen_tensor = tamm_to_eigen_tensor<T,N>(tensor);
   std::array<Eigen::Index, N> dims;
-  const auto&                 tindices = tensor.tiled_index_spaces();
+  const auto& tindices = tensor.tiled_index_spaces();
   for(int i = 0; i < N; i++) { dims[i] = tindices[i].max_num_indices(); }
   Eigen::Tensor<T, N, Eigen::RowMajor> eigen_tensor;
   eigen_tensor = eigen_tensor.reshape(dims);
@@ -2152,7 +2188,7 @@ void write_to_disk_hdf5(Tensor<T> tensor, std::string filename, bool write1D = f
   else {
     std::vector<hsize_t> hdims;
     for(int i = 0; i < N; i++) { hdims.push_back(dims[i]); }
-    int rank     = eigen_tensor.NumDimensions;
+    int rank = eigen_tensor.NumDimensions;
     dataspace_id = H5Screate_simple(rank, hdims.data(), NULL);
   }
 
@@ -2163,8 +2199,8 @@ void write_to_disk_hdf5(Tensor<T> tensor, std::string filename, bool write1D = f
 
   /* Create and write attribute information - reduced dims */
   std::vector<int> reduced_dims{static_cast<int>(dims[0]), static_cast<int>(dims[1])};
-  hsize_t          attr_size      = reduced_dims.size();
-  auto             attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
+  hsize_t attr_size = reduced_dims.size();
+  auto attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
   auto attr_dataset = H5Dcreate(file_id, "rdims", H5T_NATIVE_INT, attr_dataspace, H5P_DEFAULT,
                                 H5P_DEFAULT, H5P_DEFAULT);
   H5Dwrite(attr_dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, reduced_dims.data());
@@ -2174,6 +2210,7 @@ void write_to_disk_hdf5(Tensor<T> tensor, std::string filename, bool write1D = f
   H5Dclose(dataset_id);
   H5Sclose(dataspace_id);
   H5Fclose(file_id);
+#endif
 }
 
 /**

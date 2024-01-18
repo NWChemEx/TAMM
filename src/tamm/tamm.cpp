@@ -6,7 +6,7 @@ upcxx::team* team_self = NULL;
 
 namespace tamm {
 
-void initialize(int argc, char* argv[]) {
+void initialize(int argc, char* argv[], bool is_mpi_tm) {
 #if defined(USE_UPCXX)
   upcxx::init();
   // Must be called with master persona
@@ -17,7 +17,13 @@ void initialize(int argc, char* argv[]) {
 #else
   int flag;
   MPI_Initialized(&flag);
-  if(!flag) { MPI_Init(&argc, &argv); }
+  if(!flag) {
+    if(!is_mpi_tm) MPI_Init(&argc, &argv);
+    else {
+      int prov;
+      MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &prov);
+    }
+  }
   if(!GA_Initialized()) {
     GA_Initialize();
     (void) ProcGroup::self_ga_pgroup(true);
@@ -48,33 +54,16 @@ void initialize(int argc, char* argv[]) {
 #endif // USE_CUDA, USE_HIP, USE_DPCPP
 }
 
-// MPI_THREAD_MULTIPLE
-void initialize_tm(int argc, char* argv[]) {
-#if defined(USE_UPCXX)
-  upcxx::init();
-  team_self = new upcxx::team(upcxx::local_team().split(upcxx::rank_me(), 0));
-#else
-  int flag;
-  MPI_Initialized(&flag);
-  if(!flag) {
-    int prov;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &prov);
-  }
-  if(!GA_Initialized()) {
-    GA_Initialize();
-    (void) ProcGroup::self_ga_pgroup(true);
-  }
-#endif
-}
-
-void finalize() {
+void finalize(bool tamm_mpi_finalize) {
 #if defined(USE_UPCXX)
   upcxx::finalize();
 #else
   if(GA_Initialized()) { GA_Terminate(); }
-  int flag;
-  MPI_Initialized(&flag);
-  if(flag) { MPI_Finalize(); }
+  if(tamm_mpi_finalize) {
+    int flag;
+    MPI_Initialized(&flag);
+    if(flag) { MPI_Finalize(); }
+  }
 #endif
 }
 

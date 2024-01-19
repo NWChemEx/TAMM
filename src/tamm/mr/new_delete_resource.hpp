@@ -20,6 +20,8 @@
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
+#elif defined(TAMM_DISABLE_LIBNUMA)
+#include <sys/sysinfo.h>
 #else
 #include <numa.h>
 #endif
@@ -59,7 +61,7 @@ private:
                   ? alignment
                   : rmm::detail::RMM_ALLOCATION_ALIGNMENT;
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(TAMM_DISABLE_LIBNUMA)
     return rmm::detail::aligned_allocate(bytes, alignment,
                                          [](std::size_t size) { return ::operator new(size); });
 #else
@@ -85,7 +87,7 @@ private:
    */
   void do_deallocate(void* ptr, std::size_t bytes,
                      std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) override {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(TAMM_DISABLE_LIBNUMA)
     rmm::detail::aligned_deallocate(ptr, bytes, alignment,
                                     [](void* ptr) { ::operator delete(ptr); });
 #else

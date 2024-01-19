@@ -132,6 +132,14 @@ public:
       max_host_bytes = 0.5 * cpu_mem_per_node;
       // Use only "tamm_cpu_pool" percent of the remaining memory
       max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
+#elif defined(TAMM_DISABLE_LIBNUMA)
+      struct sysinfo cpumeminfo_;
+      sysinfo(&cpumeminfo_);
+      // 50% allocation was reserved for the GA distributed arrays followed by the
+      // memory pool creation
+      max_host_bytes = 0.5 * cpumeminfo_.freeram * cpumeminfo_.mem_unit;
+      // Use only "tamm_cpu_pool" percent of the remaining memory
+      max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
 #else
       // Set the CPU memory-pool
       EXPECTS_STR((numa_available() != -1), "[TAMM ERROR]: numa APIs are not available!");

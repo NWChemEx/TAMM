@@ -225,7 +225,7 @@ static inline MPI_Datatype mpi_type() {
   using std::is_same_v;
 
   if constexpr(is_same_v<int, T>) return MPI_INT;
-  else if constexpr(is_same_v<bool, T>) return MPI_INT;
+  else if constexpr(is_same_v<bool, T>) return MPI_C_BOOL;
   else if constexpr(is_same_v<char, T>) return MPI_CHAR;
   else if constexpr(is_same_v<int64_t, T>) return MPI_INT64_T;
   else if constexpr(is_same_v<uint32_t, T>) return MPI_UNSIGNED;

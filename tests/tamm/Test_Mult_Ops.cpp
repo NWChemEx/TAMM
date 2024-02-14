@@ -2,10 +2,6 @@
 #include <tamm/tamm.hpp>
 #include <tamm/tamm_git.hpp>
 
-#if defined(USE_UPCXX)
-#include <upcxx/upcxx.hpp>
-#endif
-
 using namespace tamm;
 
 template<typename T>

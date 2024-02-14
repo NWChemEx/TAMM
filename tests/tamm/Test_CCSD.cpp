@@ -20,15 +20,13 @@ setupTensors_cs(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> d_f1) {
   const int otiles  = O.num_tiles();
   const int vtiles  = V.num_tiles();
   const int oatiles = MO("occ_alpha").num_tiles();
-  const int obtiles = MO("occ_beta").num_tiles();
   const int vatiles = MO("virt_alpha").num_tiles();
-  const int vbtiles = MO("virt_beta").num_tiles();
 
   TiledIndexSpace o_alpha, v_alpha, o_beta, v_beta;
   o_alpha = {MO("occ"), range(oatiles)};
   v_alpha = {MO("virt"), range(vatiles)};
-  o_beta  = {MO("occ"), range(obtiles, otiles)};
-  v_beta  = {MO("virt"), range(vbtiles, vtiles)};
+  o_beta  = {MO("occ"), range(oatiles, otiles)};
+  v_beta  = {MO("virt"), range(vatiles, vtiles)};
 
   std::vector<T> p_evl_sorted = tamm::diagonal(d_f1);
 
@@ -373,14 +371,12 @@ int main(int argc, char* argv[]) {
   const int otiles  = O.num_tiles();
   const int vtiles  = V.num_tiles();
   const int oatiles = MO("occ_alpha").num_tiles();
-  const int obtiles = MO("occ_beta").num_tiles();
   const int vatiles = MO("virt_alpha").num_tiles();
-  const int vbtiles = MO("virt_beta").num_tiles();
 
   o_alpha = {MO("occ"), range(oatiles)};
   v_alpha = {MO("virt"), range(vatiles)};
-  o_beta  = {MO("occ"), range(obtiles, otiles)};
-  v_beta  = {MO("virt"), range(vbtiles, vtiles)};
+  o_beta  = {MO("occ"), range(oatiles, otiles)};
+  v_beta  = {MO("virt"), range(vatiles, vtiles)};
 
   auto [p1_va, p2_va] = v_alpha.labels<2>("all");
   auto [p1_vb, p2_vb] = v_beta.labels<2>("all");

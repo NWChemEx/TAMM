@@ -1,5 +1,3 @@
-#include "ga/macdecls.h"
-#include "mpi.h"
 #include <chrono>
 #include <tamm/tamm.hpp>
 

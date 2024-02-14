@@ -1,7 +1,3 @@
-#include "ga/ga-mpi.h"
-#include "ga/ga.h"
-#include "ga/macdecls.h"
-#include "mpi.h"
 #include <chrono>
 #include <random>
 #include <tamm/block_plan.hpp>

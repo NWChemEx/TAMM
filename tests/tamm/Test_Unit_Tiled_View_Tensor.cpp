@@ -1,6 +1,4 @@
-#include "ga/ga.h"
-#include "tamm/tamm.hpp"
-#include <chrono>
+#include <tamm/tamm.hpp>
 
 using namespace tamm;
 

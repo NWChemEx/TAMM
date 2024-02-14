@@ -11,7 +11,7 @@ if( NOT ${CMakeBuild_FOUND} )
   if (NOT CMSB_TAG)
     set(CMSB_TAG main)
     if (ENABLE_DEV_MODE)
-      set(CMSB_TAG develop)
+      set(CMSB_TAG main)
     endif()
   endif()
 

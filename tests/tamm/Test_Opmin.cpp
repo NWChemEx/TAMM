@@ -1,4 +1,3 @@
-#include "ga/ga.h"
 #include <chrono>
 
 #include <tamm/op_executor.hpp>

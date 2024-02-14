@@ -2,15 +2,7 @@
 
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest/doctest.h"
-#include "ga/ga-mpi.h"
-#include "ga/ga.h"
-#include "ga/macdecls.h"
-#include "mpi.h"
-#include "tamm/eigen_utils.hpp"
 #include "tamm/tamm.hpp"
-#if defined(USE_UPCXX)
-#include <upcxx/upcxx.hpp>
-#endif
 
 #include <string>
 

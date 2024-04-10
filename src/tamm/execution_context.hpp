@@ -8,6 +8,7 @@
 //#include "tamm/distribution.hpp"
 
 #include <cpuid.h>
+#include <cstring>
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 #include "tamm/gpu_streams.hpp"
 #endif

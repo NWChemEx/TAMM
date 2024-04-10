@@ -115,7 +115,7 @@ static inline void getDeviceCount(int* id) {
 #endif
 }
 
-static inline std::string gpuDeviceName() {
+static inline std::string getDeviceName() {
 #if defined(USE_CUDA)
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, 0);

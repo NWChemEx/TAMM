@@ -25,6 +25,25 @@ extern upcxx::team* team_self;
 
 namespace tamm {
 
+inline std::string getHostName() {
+  char         CPUBrandString[0x40];
+  unsigned int CPUInfo[4] = {0, 0, 0, 0};
+
+  __cpuid(0x80000000, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
+  unsigned int nExIds = CPUInfo[0];
+
+  memset(CPUBrandString, 0, sizeof(CPUBrandString));
+
+  for(unsigned int i = 0x80000000; i <= nExIds; ++i) {
+    __cpuid(i, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
+
+    if(i == 0x80000002) memcpy(CPUBrandString, CPUInfo, sizeof(CPUInfo));
+    else if(i == 0x80000003) memcpy(CPUBrandString + 16, CPUInfo, sizeof(CPUInfo));
+    else if(i == 0x80000004) memcpy(CPUBrandString + 32, CPUInfo, sizeof(CPUInfo));
+  }
+  return CPUBrandString;
+}
+
 struct IndexedAC {
   AtomicCounter* ac_;
   size_t         idx_;
@@ -341,24 +360,20 @@ public:
   meminfo mem_info() const { return minfo_; }
 
   std::string getHostName() {
-    char CPUBrandString[0x40];
-    unsigned int CPUInfo[4] = {0,0,0,0};
+    char         CPUBrandString[0x40];
+    unsigned int CPUInfo[4] = {0, 0, 0, 0};
 
     __cpuid(0x80000000, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
     unsigned int nExIds = CPUInfo[0];
 
     memset(CPUBrandString, 0, sizeof(CPUBrandString));
 
-    for (unsigned int i = 0x80000000; i <= nExIds; ++i)
-    {
-	__cpuid(i, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
+    for(unsigned int i = 0x80000000; i <= nExIds; ++i) {
+      __cpuid(i, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
 
-	if (i == 0x80000002)
-	    memcpy(CPUBrandString, CPUInfo, sizeof(CPUInfo));
-	else if (i == 0x80000003)
-	    memcpy(CPUBrandString + 16, CPUInfo, sizeof(CPUInfo));
-	else if (i == 0x80000004)
-	    memcpy(CPUBrandString + 32, CPUInfo, sizeof(CPUInfo));
+      if(i == 0x80000002) memcpy(CPUBrandString, CPUInfo, sizeof(CPUInfo));
+      else if(i == 0x80000003) memcpy(CPUBrandString + 16, CPUInfo, sizeof(CPUInfo));
+      else if(i == 0x80000004) memcpy(CPUBrandString + 32, CPUInfo, sizeof(CPUInfo));
     }
     return CPUBrandString;
   }
@@ -367,11 +382,11 @@ public:
     if(pg_.rank() != 0) return;
     std::cout << "Memory information" << std::endl;
     std::cout << "{" << std::endl;
-    std::cout << "[" << get_host_name() << "] : " << std::endl;
+    std::cout << "[" << getHostName() << "] : " << std::endl;
     std::cout << "  CPU memory per node (GiB): " << minfo_.cpu_mem_per_node << std::endl;
     std::cout << "  Total CPU memory (GiB): " << minfo_.total_cpu_mem << std::endl;
     if(has_gpu_) {
-      std::cout << "[" << gpuDeviceName() << "] : " << std::endl;
+      std::cout << "[" << getDeviceName() << "] : " << std::endl;
       std::cout << "  GPU memory per device (GiB): " << minfo_.gpu_mem_per_device << std::endl;
     }
     std::cout << "}" << std::endl;

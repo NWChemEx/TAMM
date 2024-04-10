@@ -339,7 +339,7 @@ public:
 
   meminfo mem_info() const { return minfo_; }
 
-  std::string get_host_name() {
+  std::string getHostName() {
     char CPUBrandString[0x40];
     unsigned int CPUInfo[4] = {0,0,0,0};
 

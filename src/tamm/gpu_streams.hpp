@@ -120,14 +120,10 @@ static inline std::string gpuDeviceName() {
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, 0);
   return prop.name;
-  // std::string result = prop.name;
-  // std::copy(result.begin(), result.end(), deviceName);
 #elif defined(USE_HIP)
   hipDeviceProp prop;
   hipGetDeviceProperties(&prop, 0);
   return prop.name;
-  // std::string result = prop.name;
-  // std::copy(result.begin(), result.end(), deviceName);
 #elif defined(USE_DPCPP)
   return sycl_get_device(0)->get_info<sycl::info::device::name>();
 #endif

@@ -115,6 +115,24 @@ static inline void getDeviceCount(int* id) {
 #endif
 }
 
+static inline std::string gpuDeviceName() {
+#if defined(USE_CUDA)
+  cudaDeviceProp prop;
+  cudaGetDeviceProperties(&prop, 0);
+  return prop.name;
+  // std::string result = prop.name;
+  // std::copy(result.begin(), result.end(), deviceName);
+#elif defined(USE_HIP)
+  hipDeviceProp prop;
+  hipGetDeviceProperties(&prop, 0);
+  return prop.name;
+  // std::string result = prop.name;
+  // std::copy(result.begin(), result.end(), deviceName);
+#elif defined(USE_DPCPP)
+  return sycl_get_device(0)->get_info<sycl::info::device::name>();
+#endif
+}
+
 static inline void gpuMemGetInfo(size_t* free, size_t* total) {
 #if defined(USE_CUDA)
   cudaMemGetInfo(free, total);

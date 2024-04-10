@@ -352,9 +352,11 @@ public:
   int ppn() const { return ranks_pn_; }
 
   struct meminfo {
-    size_t gpu_mem_per_device; // single gpu mem per rank (GiB)
-    size_t cpu_mem_per_node;   // cpu mem on single node (GiB)
-    size_t total_cpu_mem;      // total cpu mem across all nodes (GiB)
+    size_t      gpu_mem_per_device; // single gpu mem per rank (GiB)
+    size_t      cpu_mem_per_node;   // cpu mem on single node (GiB)
+    size_t      total_cpu_mem;      // total cpu mem across all nodes (GiB)
+    std::string cpu_name;           // cpu name
+    std::string gpu_name;           // gpu name
   };
 
   meminfo mem_info() const { return minfo_; }
@@ -363,11 +365,11 @@ public:
     if(pg_.rank() != 0) return;
     std::cout << "Memory information" << std::endl;
     std::cout << "{" << std::endl;
-    std::cout << "[" << getHostName() << "] : " << std::endl;
+    std::cout << "[" << minfo_.cpu_name << "] : " << std::endl;
     std::cout << "  CPU memory per node (GiB): " << minfo_.cpu_mem_per_node << std::endl;
     std::cout << "  Total CPU memory (GiB): " << minfo_.total_cpu_mem << std::endl;
     if(has_gpu_) {
-      std::cout << "[" << getDeviceName() << "] : " << std::endl;
+      std::cout << "[" << minfo_.gpu_name << "] : " << std::endl;
       std::cout << "  GPU memory per device (GiB): " << minfo_.gpu_mem_per_device << std::endl;
     }
     std::cout << "}" << std::endl;

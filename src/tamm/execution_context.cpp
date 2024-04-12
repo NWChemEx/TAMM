@@ -8,12 +8,6 @@
 #include "proc_group.hpp"
 #include "runtime_engine.hpp"
 
-#if defined(__APPLE__)
-#include <sys/sysctl.h>
-#else
-#include <sys/sysinfo.h>
-#endif
-
 namespace tamm {
 ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_kind,
                                    MemoryManagerKind default_memory_manager_kind,

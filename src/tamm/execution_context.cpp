@@ -8,12 +8,6 @@
 #include "proc_group.hpp"
 #include "runtime_engine.hpp"
 
-#if defined(__APPLE__)
-#include <sys/sysctl.h>
-#else
-#include <sys/sysinfo.h>
-#endif
-
 namespace tamm {
 ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_kind,
                                    MemoryManagerKind default_memory_manager_kind,
@@ -57,6 +51,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     minfo_.cpu_mem_per_node = cpumeminfo_.totalram * cpumeminfo_.mem_unit;
   }
 #endif
+  minfo_.cpu_name = getHostName();
   minfo_.cpu_mem_per_node /= (1024 * 1024 * 1024.0); // GiB
   minfo_.total_cpu_mem = minfo_.cpu_mem_per_node * nnodes_;
 
@@ -66,6 +61,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 
   {
     size_t free_{};
+    minfo_.gpu_name = getDeviceName();
     gpuMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
     minfo_.gpu_mem_per_device /= (1024 * 1024 * 1024.0); // GiB
   }

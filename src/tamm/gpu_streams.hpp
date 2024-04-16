@@ -121,7 +121,7 @@ static inline std::string getDeviceName() {
   cudaGetDeviceProperties(&prop, 0);
   return prop.name;
 #elif defined(USE_HIP)
-  hipDeviceProp prop;
+  hipDeviceProp_t prop;
   hipGetDeviceProperties(&prop, 0);
   return prop.name;
 #elif defined(USE_DPCPP)

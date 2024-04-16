@@ -9,8 +9,10 @@
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
-#else
+#elif !defined(__arm__) && !defined(__aarch64__)
 #include <cpuid.h>
+#include <sys/sysinfo.h>
+#else
 #include <sys/sysinfo.h>
 #endif
 
@@ -36,7 +38,7 @@ inline std::string getHostName() {
   char   buffer[64]; /* Should be long enough! */
   size_t len = sizeof(buffer);
   if(sysctlbyname("machdep.cpu.brand_string", &buffer[0], &len, 0, 0) == 0) { return &buffer[0]; }
-#else
+#elif !defined(__arm__) && !defined(__aarch64__)
   char         CPUBrandString[0x40];
   unsigned int CPUInfo[4] = {0, 0, 0, 0};
 

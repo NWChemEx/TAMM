@@ -11,7 +11,7 @@ Dependencies
 * cmake >= 3.22
 * MPI 
 * C++17 compiler (information on supported compilers here :doc:`here <prerequisites>`.)
-* CUDA >= 11.4 (Required only for CUDA builds)
+* CUDA >= 11.7 (Required only for CUDA builds)
 * ROCM >= 5.5  (Required only for ROCM builds)
 
 **The remaining dependencies are automatically built and do not need to be installed explicitly:**
@@ -33,7 +33,7 @@ CUDA Options
 ::
 
    -DUSE_CUDA=ON (OFF by default)  
-   -DGPU_ARCH=70 (GPU arch is detected automatically, only set this option if need to override)
+   One of -DGPU_ARCH=X (OR) -DCMAKE_CUDA_ARCHITECTURES=X is required. Set the arch value X to 70 for Volta, 80 for Ampere, 90 for Hopper and 95 for Blackwell.
 
 HIP Options
 ~~~~~~~~~~~~
@@ -42,7 +42,7 @@ HIP Options
 
    -DUSE_HIP=ON (OFF by default) 
    -DROCM_ROOT=$ROCM_PATH
-   -DGPU_ARCH=gfx90a (GPU arch is detected automatically, only set this option if need to override)
+   One of -DGPU_ARCH=gfx90a (OR) -DCMAKE_HIP_ARCHITECTURES=gfx90a is required.
 
 
 DPCPP options

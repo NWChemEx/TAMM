@@ -56,6 +56,7 @@ inline std::string getHostName() {
   }
   return CPUBrandString;
 #endif
+  return "UNKNOWN";
 }
 
 struct IndexedAC {

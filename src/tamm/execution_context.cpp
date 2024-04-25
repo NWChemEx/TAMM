@@ -61,7 +61,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 
   {
     size_t free_{};
-    minfo_.gpu_name = getDeviceName();
+    minfo_.gpu_name = getDeviceName() + ", " + getRuntimeVersion();
     gpuMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
     minfo_.gpu_mem_per_device /= (1024 * 1024 * 1024.0); // GiB
   }

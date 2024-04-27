@@ -1,4 +1,5 @@
 #include "ccse_tensors.hpp"
+#include <tamm/tamm_git.hpp>
 
 using CCEType = double;
 TiledIndexSpace o_alpha, v_alpha, o_beta, v_beta;
@@ -296,11 +297,21 @@ int main(int argc, char* argv[]) {
 
   Scheduler sch{ec};
 
-  bool profile = false;
+  bool profile = true;
 
   if(ec.print()) {
-    std::cout << "basis functions: " << nbf << ", occ: " << n_occ_alpha << ", virt: " << n_vir_alpha
-              << ", chol-count: " << chol_count << ", tilesize: " << tile_size << std::endl;
+    std::cout << tamm_git_info() << std::endl;
+    auto current_time   = std::chrono::system_clock::now();
+    auto current_time_t = std::chrono::system_clock::to_time_t(current_time);
+    auto cur_local_time = localtime(&current_time_t);
+    std::cout << std::endl << "date: " << std::put_time(cur_local_time, "%c") << std::endl;
+    std::cout << "nnodes: " << ec.nnodes() << ", ";
+    std::cout << "nproc: " << ec.nnodes() * ec.ppn() << std::endl;
+    ec.print_mem_info();
+    std::cout << std::endl;
+    std::cout << "basis functions: " << nbf << ", occ_alpha: " << n_occ_alpha
+              << ", virt_alpha: " << n_vir_alpha << ", chol-count: " << chol_count
+              << ", tilesize: " << tile_size << std::endl;
   }
 
   //-----------------------------------
@@ -464,21 +475,21 @@ int main(int argc, char* argv[]) {
   auto       iter_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-  if(ec.print()) std::cout << "Tiem taken for closed-shell CD-CCSD: " << iter_time << std::endl;
+  if(ec.print()) std::cout << "Time taken for closed-shell CD-CCSD: " << iter_time << std::endl;
 
   if(profile && ec.print()) {
-    std::string   profile_csv = "ccsd_profile.csv";
+    std::string profile_csv = "ccsd_profile_" + std::to_string(nbf) + "bf_" +
+                              std::to_string(n_occ_alpha) + "oa_" + std::to_string(n_vir_alpha) +
+                              "va_" + std::to_string(chol_count) + "cv_" +
+                              std::to_string(tile_size) + "TS.csv";
     std::ofstream pds(profile_csv, std::ios::out);
     if(!pds) std::cerr << "Error opening file " << profile_csv << std::endl;
-    std::string header = "ID;Level;OP;total_op_time_min;total_op_time_max;total_op_time_avg;";
-    header += "get_time_min;get_time_max;get_time_avg;gemm_time_min;";
-    header += "gemm_time_max;gemm_time_avg;acc_time_min;acc_time_max;acc_time_avg";
-    pds << header << std::endl;
+    pds << ec.get_profile_header() << std::endl;
     pds << ec.get_profile_data().str() << std::endl;
     pds.close();
   }
 
-  if(profile) {
+  if(false) {
     ExecutionContext ec_dense{ec.pg(), DistributionKind::dense, MemoryManagerKind::ga};
     Tensor<T>        c3dvv_dense = tamm::to_dense_tensor(ec_dense, chol3d_vv("bb"));
     print_dense_tensor(c3dvv_dense, "c3d_vv_bb_dense");

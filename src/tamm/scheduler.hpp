@@ -187,10 +187,12 @@ public:
             oprof.tgetTime += oprof.multOpGetTime;
             oprof.twaitTime += oprof.multOpWaitTime; 
             oprof.tgemmTime += oprof.multOpDgemmTime;
+            oprof.tcopyTime += oprof.multOpCopyTime;
             oprof.multOpGetTime = 0;
             oprof.multOpWaitTime = 0;  
             oprof.multOpDgemmTime = 0;
             oprof.multOpAddTime = 0;
+            oprof.multOpCopyTime = 0;
         }
 
         auto bt1 = std::chrono::high_resolution_clock::now();
@@ -214,12 +216,14 @@ public:
     oprof.multOpGetTime   = 0;
     oprof.multOpDgemmTime = 0;
     oprof.multOpAddTime   = 0;
+    oprof.multOpCopyTime  = 0;
 
     std::vector<double> load_imbalance_times;
     std::vector<double> op_times;
     std::vector<double> multop_get_times;
     std::vector<double> multop_dgemm_times;
     std::vector<double> multop_add_times;
+    std::vector<double> multop_copy_times;
     int                 nops = order.size();
 
     assert(order.size() == 0 || order[0].first == 0); // level 0 sanity check
@@ -252,9 +256,11 @@ public:
       multop_get_times.push_back(oprof.multOpGetTime);
       multop_dgemm_times.push_back(oprof.multOpDgemmTime);
       multop_add_times.push_back(oprof.multOpAddTime);
+      multop_copy_times.push_back(oprof.multOpCopyTime);
       oprof.multOpGetTime   = 0;
       oprof.multOpDgemmTime = 0;
       oprof.multOpAddTime   = 0;
+      oprof.multOpCopyTime  = 0;
     }
     auto t2 = std::chrono::high_resolution_clock::now();
     ec().pg().barrier();
@@ -286,18 +292,21 @@ public:
       std::vector<double> global_multop_get_times_min(nops);
       std::vector<double> global_multop_dgemm_times_min(nops);
       std::vector<double> global_multop_add_times_min(nops);
+      std::vector<double> global_multop_copy_times_min(nops);
 
       // std::vector<double> global_load_imbalance_times_max(nops);
       std::vector<double> global_op_times_max(nops);
       std::vector<double> global_multop_get_times_max(nops);
       std::vector<double> global_multop_dgemm_times_max(nops);
       std::vector<double> global_multop_add_times_max(nops);
+      std::vector<double> global_multop_copy_times_max(nops);
 
       // std::vector<double> global_load_imbalance_times_sum(nops);
       std::vector<double> global_op_times_sum(nops);
       std::vector<double> global_multop_get_times_sum(nops);
       std::vector<double> global_multop_dgemm_times_sum(nops);
       std::vector<double> global_multop_add_times_sum(nops);
+      std::vector<double> global_multop_copy_times_sum(nops);
 
       // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_min.data(), lvl,
       // ReduceOp::min, 0);
@@ -307,6 +316,8 @@ public:
       ec_.pg().reduce(multop_dgemm_times.data(), global_multop_dgemm_times_min.data(), nops,
                       ReduceOp::min, 0);
       ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_min.data(), nops,
+                      ReduceOp::min, 0);
+      ec_.pg().reduce(multop_copy_times.data(), global_multop_copy_times_min.data(), nops,
                       ReduceOp::min, 0);
 
       // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_max.data(), lvl,
@@ -318,6 +329,8 @@ public:
                       ReduceOp::max, 0);
       ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_max.data(), nops,
                       ReduceOp::max, 0);
+      ec_.pg().reduce(multop_copy_times.data(), global_multop_copy_times_max.data(), nops,
+                      ReduceOp::max, 0);
 
       // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_sum.data(), lvl,
       // ReduceOp::sum, 0);
@@ -327,6 +340,8 @@ public:
       ec_.pg().reduce(multop_dgemm_times.data(), global_multop_dgemm_times_sum.data(), nops,
                       ReduceOp::sum, 0);
       ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_sum.data(), nops,
+                      ReduceOp::sum, 0);
+      ec_.pg().reduce(multop_copy_times.data(), global_multop_copy_times_sum.data(), nops,
                       ReduceOp::sum, 0);
 
       int   np    = ec_.pg().size().value();
@@ -343,8 +358,10 @@ public:
                 << global_multop_get_times_max[i] << ";" << global_multop_get_times_sum[i] / np
                 << ";" << global_multop_dgemm_times_min[i] << ";"
                 << global_multop_dgemm_times_max[i] << ";" << global_multop_dgemm_times_sum[i] / np
-                << ";" << global_multop_add_times_min[i] << ";" << global_multop_add_times_max[i]
-                << ";" << global_multop_add_times_sum[i] / np << std::endl;
+                << ";" << global_multop_copy_times_min[i] << ";" << global_multop_copy_times_max[i]
+                << ";" << global_multop_copy_times_sum[i] / np << ";"
+                << global_multop_add_times_min[i] << ";" << global_multop_add_times_max[i] << ";"
+                << global_multop_add_times_sum[i] / np << std::endl;
         }
         pdata << ";"
               << "SUM"
@@ -361,6 +378,11 @@ public:
               << (std::accumulate(global_multop_dgemm_times_sum.begin(),
                                   global_multop_dgemm_times_sum.end(),
                                   decltype(global_multop_dgemm_times_sum)::value_type(0))) /
+                   np
+              << ";;;"
+              << (std::accumulate(global_multop_copy_times_sum.begin(),
+                                  global_multop_copy_times_sum.end(),
+                                  decltype(global_multop_copy_times_sum)::value_type(0))) /
                    np
               << ";;;"
               << (std::accumulate(global_multop_add_times_sum.begin(),

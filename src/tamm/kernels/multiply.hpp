@@ -9,7 +9,9 @@
 #include <numeric>
 #include <vector>
 
+#include "tamm/op_profiler.hpp"
 #include "tamm/rmm_memory_pool.hpp"
+#include "tamm/utils.hpp"
 #include "tamm_blas.hpp"
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
@@ -29,6 +31,8 @@ void copy_data_to_gpu(ExecutionHW hw, gpuStream_t& thandle, const T2* ainter_buf
                       T2* ainter_buf_dev, const T3* binter_buf, size_t bsize, T3* binter_buf_dev) {
   if(hw == ExecutionHW::CPU) return;
 
+  auto&      oprof = tamm::OpProfiler::instance();
+  TimerGuard tg_copy{&oprof.multOpCopyTime};
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   gpuMemcpyAsync<T2>(ainter_buf_dev, ainter_buf, asize, gpuMemcpyHostToDevice, thandle);
   gpuMemcpyAsync<T3>(binter_buf_dev, binter_buf, bsize, gpuMemcpyHostToDevice, thandle);

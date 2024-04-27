@@ -17,11 +17,13 @@ public:
   double taddTime      = 0;
   double twaitTime     = 0;
   double tgemmTime     = 0;
+  double tcopyTime     = 0;
   double tbarrierTime  = 0;
 
   double multOpGetTime   = 0;
   double multOpAddTime   = 0;
   double multOpWaitTime  = 0;
+  double multOpCopyTime  = 0;
   double multOpDgemmTime = 0;
 
   inline static OpProfiler& instance() {

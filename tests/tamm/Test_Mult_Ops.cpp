@@ -26,7 +26,7 @@ void test_2_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
   auto mult_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-  if(sch.ec().pg().rank() == 0)
+  if(sch.ec().print())
     std::cout << "2-D Tensor contraction with " << N << " indices tiled with " << tilesize << " : "
               << mult_time << std::endl;
 
@@ -151,7 +151,7 @@ void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
   auto mult_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-  if(sch.ec().pg().rank() == 0)
+  if(sch.ec().print())
     std::cout << "3-D Tensor contraction with " << N << " indices tiled with " << tilesize << " : "
               << mult_time << std::endl;
 
@@ -167,7 +167,7 @@ void norm_check(Tensor<T> tensor, bool ci_check) {
   else tval = tnorm;
   const bool mop_pass = (std::fabs(tval - 2.625e8) <= 1e-9);
   if(!mop_pass) {
-    if(tensor.execution_context()->pg().rank() == 0)
+    if(tensor.execution_context()->print())
       std::cout << "norm value: " << tval << ", expected: 2.625e8" << std::endl;
     EXPECTS(mop_pass);
   }
@@ -199,7 +199,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
     auto mult_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-    if(sch.ec().pg().rank() == 0)
+    if(sch.ec().print())
       std::cout << "4-D Tensor contraction (R=RxR) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
     norm_check(C, N == 50);
@@ -224,7 +224,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
     auto mult_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-    if(sch.ec().pg().rank() == 0)
+    if(sch.ec().print())
       std::cout << "4-D Tensor contraction (C=RxR) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
@@ -250,7 +250,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
     auto mult_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-    if(sch.ec().pg().rank() == 0)
+    if(sch.ec().print())
       std::cout << "4-D Tensor contraction (C=RxC) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
@@ -276,7 +276,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
     auto mult_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-    if(sch.ec().pg().rank() == 0)
+    if(sch.ec().print())
       std::cout << "4-D Tensor contraction (C=CxR) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
@@ -302,7 +302,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
     auto mult_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-    if(sch.ec().pg().rank() == 0)
+    if(sch.ec().print())
       std::cout << "4-D Tensor contraction (R=CxR) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
@@ -328,7 +328,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
     auto mult_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-    if(sch.ec().pg().rank() == 0)
+    if(sch.ec().print())
       std::cout << "4-D Tensor contraction (R=RxC) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
@@ -354,7 +354,7 @@ void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
     auto mult_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-    if(sch.ec().pg().rank() == 0)
+    if(sch.ec().print())
       std::cout << "4-D Tensor contraction (C=CxC) with " << N << " indices tiled with " << tilesize
                 << " : " << mult_time << std::endl;
 
@@ -388,7 +388,7 @@ void test_4_dim_mult_op_last_unit(Scheduler& sch, size_t N, Tile tilesize, Execu
   auto mult_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-  if(sch.ec().pg().rank() == 0)
+  if(sch.ec().print())
     std::cout << "4-D Tensor contraction with 2-D unit tiled matrix " << N << " indices tiled with "
               << tilesize << " last index unit tiled : " << mult_time << std::endl;
 }
@@ -420,7 +420,7 @@ void test_4_dim_mult_op_first_unit(Scheduler& sch, size_t N, Tile tilesize, Exec
   auto mult_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
-  if(sch.ec().pg().rank() == 0)
+  if(sch.ec().print())
     std::cout << "4-D Tensor contraction with 2-D unit tiled matrix " << N << " indices tiled with "
               << tilesize << " first index unit tiled : " << mult_time << std::endl;
 }
@@ -442,12 +442,16 @@ int main(int argc, char* argv[]) {
 
   Scheduler sch{ec};
 
-  if(ec.pg().rank() == 0) { std::cout << tamm_git_info() << std::endl; }
+  if(ec.print()) {
+    std::cout << tamm_git_info() << std::endl;
+    auto current_time   = std::chrono::system_clock::now();
+    auto current_time_t = std::chrono::system_clock::to_time_t(current_time);
+    auto cur_local_time = localtime(&current_time_t);
+    std::cout << std::endl << "date: " << std::put_time(cur_local_time, "%c") << std::endl;
 
-  if(ec.pg().rank() == 0) {
-    std::cout << "tilesize = " << tile_size << std::endl;
     std::cout << "nnodes: " << ec.nnodes() << ", ";
     std::cout << "nproc: " << ec.nnodes() * ec.ppn() << std::endl;
+    std::cout << "dim, tile sizes = " << is_size << ", " << tile_size << std::endl;
     ec.print_mem_info();
     std::cout << std::endl << std::endl;
   }
@@ -460,13 +464,11 @@ int main(int argc, char* argv[]) {
   // test_4_dim_mult_op_first_unit<double>(sch, is_size, tile_size);
 
   if(profile && ec.print()) {
-    std::string   profile_csv = "multops_profile.csv";
+    std::string profile_csv =
+      "multops_profile_" + std::to_string(is_size) + "_" + std::to_string(tile_size) + ".csv";
     std::ofstream pds(profile_csv, std::ios::out);
     if(!pds) std::cerr << "Error opening file " << profile_csv << std::endl;
-    std::string header = "ID;Level;OP;total_op_time_min;total_op_time_max;total_op_time_avg;";
-    header += "get_time_min;get_time_max;get_time_avg;gemm_time_min;";
-    header += "gemm_time_max;gemm_time_avg;acc_time_min;acc_time_max;acc_time_avg";
-    pds << header << std::endl;
+    pds << ec.get_profile_header() << std::endl;
     pds << ec.get_profile_data().str() << std::endl;
     pds.close();
   }

@@ -3,10 +3,28 @@
 #include "tamm/iteration.hpp"
 #include "tamm/perm.hpp"
 #include "tamm/tiled_index_space.hpp"
+#include <chrono>
 #include <map>
 #include <vector>
 
 namespace tamm {
+
+class TimerGuard {
+public:
+  TimerGuard(double* refptr): refptr_{refptr} {
+    start_time_ = std::chrono::high_resolution_clock::now();
+  }
+  ~TimerGuard() {
+    std::chrono::time_point<std::chrono::high_resolution_clock> end_time =
+      std::chrono::high_resolution_clock::now();
+    *refptr_ +=
+      std::chrono::duration_cast<std::chrono::duration<double>>((end_time - start_time_)).count();
+  }
+
+private:
+  double*                                                     refptr_;
+  std::chrono::time_point<std::chrono::high_resolution_clock> start_time_;
+}; // TimerGuard
 
 namespace internal {
 

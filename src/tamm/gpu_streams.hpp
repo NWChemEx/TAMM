@@ -129,6 +129,25 @@ static inline std::string getDeviceName() {
 #endif
 }
 
+static inline std::string getRuntimeVersion() {
+#if defined(USE_CUDA)
+  int cudaVersion;
+  cudaRuntimeGetVersion(&cudaVersion);
+  std::string cudav =
+    std::to_string(cudaVersion / 1000) + '.' + std::to_string((cudaVersion % 1000) / 10);
+  return "CUDA v" + cudav;
+#elif defined(USE_HIP)
+  int hipVersion;
+  hipRuntimeGetVersion(&hipVersion);
+  std::string hipv = std::to_string(hipVersion / 10000000) + '.' +
+                     std::to_string(hipVersion / 100000 % 100) + '.' +
+                     std::to_string(hipVersion % 100000);
+  return "ROCM v" + hipv;
+#elif defined(USE_DPCPP)
+  return "SYCL v" + sycl_get_device(0)->get_info<sycl::info::device::driver_version>();
+#endif
+}
+
 static inline void gpuMemGetInfo(size_t* free, size_t* total) {
 #if defined(USE_CUDA)
   cudaMemGetInfo(free, total);

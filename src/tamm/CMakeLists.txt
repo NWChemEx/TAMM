@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION ${CMAKE_VERSION})
 project(TAMM VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For cmsb_add_library
 
-if(USE_CUDA OR USE_HIP OR USE_DPCPP)
+if(${PROJECT_NAME}_HAS_CUDA OR ${PROJECT_NAME}_HAS_HIP OR ${PROJECT_NAME}_HAS_DPCPP)
   set(tamm_gpu_INCS
     gpu_streams.hpp
     mr/gpu_memory_resource.hpp
@@ -12,7 +12,7 @@ if(USE_CUDA OR USE_HIP OR USE_DPCPP)
 
   set(tamm_gpu_SRCS kernels/gpu_blas.cpp)
 endif()
-if(USE_DPCPP)
+if(${PROJECT_NAME}_HAS_DPCPP)
   list(APPEND tamm_gpu_INCS sycl_device.hpp)
 endif()
 

@@ -569,6 +569,38 @@ void vector_to_tamm_tensor(Tensor<TensorType> tensor, std::vector<TensorType> sv
 }
 
 /**
+ * @brief method for converting tamm 1D tensor to std::vector
+ */
+template<typename TensorType>
+void tamm_tensor_to_vector(Tensor<TensorType> tensor, std::vector<TensorType>& svec) {
+  EXPECTS(tensor.num_modes() == 1);
+
+  for(const auto& blockid: tensor.loop_nest()) {
+    const tamm::TAMM_SIZE   size = tensor.block_size(blockid);
+    std::vector<TensorType> buf(size);
+    tensor.get(blockid, buf);
+    auto   block_dims   = tensor.block_dims(blockid);
+    auto   block_offset = tensor.block_offsets(blockid);
+    size_t c            = 0;
+    for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++, c++) {
+      svec[i] = buf[c];
+    }
+  }
+}
+
+/**
+ * @brief method for converting tamm 1D tensor to std::vector
+ */
+template<typename TensorType>
+std::vector<TensorType> tamm_tensor_to_vector(Tensor<TensorType> tensor) {
+  EXPECTS(tensor.num_modes() == 1);
+  auto                    dim1 = tensor.tiled_index_spaces()[0].max_num_indices();
+  std::vector<TensorType> svec(dim1);
+  tamm_tensor_to_vector(tensor, svec);
+  return svec;
+}
+
+/**
  * @brief method for getting the diagonal values in a Tensor
  *
  * @returns the diagonal values

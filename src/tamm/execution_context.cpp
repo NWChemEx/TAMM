@@ -38,6 +38,13 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
 #endif
   nnodes_ = pg.size().value() / ranks_pn_;
+  {
+    uint32_t usingrpg = 1;
+    if(const char* tammrpg = std::getenv("TAMM_RANKS_PER_GPU_POOL")) {
+      usingrpg = std::atoi(tammrpg);
+    }
+    gpus_pn_ = ranks_pn_ / usingrpg;
+  }
 
 #if defined(__APPLE__)
   {

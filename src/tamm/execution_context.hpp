@@ -366,6 +366,7 @@ public:
 
   int nnodes() const { return nnodes_; }
   int ppn() const { return ranks_pn_; }
+  int gpn() const { return gpus_pn_; }
 
   struct meminfo {
     size_t      gpu_mem_per_device; // single gpu mem per rank (GiB)
@@ -456,6 +457,7 @@ private:
   std::shared_ptr<RuntimeEngine> re_;
   int                            nnodes_;
   int                            ranks_pn_;
+  int                            gpus_pn_{0};
   bool                           has_gpu_{false};
   ExecutionHW                    exhw_{ExecutionHW::CPU};
   meminfo                        minfo_;

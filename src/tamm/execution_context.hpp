@@ -370,6 +370,8 @@ public:
 
   struct meminfo {
     size_t      gpu_mem_per_device; // single gpu mem per rank (GiB)
+    size_t      gpu_mem_per_node;   // total gpu mem per node (GiB)
+    size_t      total_gpu_mem;      // total gpu mem across all nodes (GiB)
     size_t      cpu_mem_per_node;   // cpu mem on single node (GiB)
     size_t      total_cpu_mem;      // total cpu mem across all nodes (GiB)
     std::string cpu_name;           // cpu name
@@ -388,6 +390,8 @@ public:
     if(has_gpu_) {
       std::cout << "[" << minfo_.gpu_name << "] : " << std::endl;
       std::cout << "  GPU memory per device (GiB): " << minfo_.gpu_mem_per_device << std::endl;
+      std::cout << "  GPU memory per node (GiB): " << minfo_.gpu_mem_per_node << std::endl;
+      std::cout << "  Total GPU memory (GiB): " << minfo_.total_gpu_mem << std::endl;
     }
     std::cout << "}" << std::endl;
   }

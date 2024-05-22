@@ -730,9 +730,7 @@ public:
     return local_tensor_.access_local_buf()[linearIndex];
   }
 
-  void write_back_to_dist() {
-    fill_distributed_tensor();
-  }
+  void write_back_to_dist() { fill_distributed_tensor(); }
 
 private:
   /// @brief reference to the source distributed tensor
@@ -824,11 +822,8 @@ private:
 
     for(size_t c = 0; c < total_elements; ++c) {
       // Access the tensor element at the current indices
-      if (copy_to_local)
-        (*this)(indices) = sbuf[c];
-      else 
-        sbuf[c] = (*this)(indices);
-
+      if(copy_to_local) (*this)(indices) = sbuf[c];
+      else sbuf[c] = (*this)(indices);
 
       // Increment indices
       for(int dim = num_dims - 1; dim >= 0; --dim) {

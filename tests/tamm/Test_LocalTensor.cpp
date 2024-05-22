@@ -4,9 +4,8 @@
 
 using namespace tamm;
 
-template <typename T>
+template<typename T>
 void test_local_tensor(Scheduler& sch, size_t N, Tile tilesize) {
-
   TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
 
   auto [i, j, k, l, m] = tis1.labels<5>("all");
@@ -15,20 +14,16 @@ void test_local_tensor(Scheduler& sch, size_t N, Tile tilesize) {
   Tensor<T> B{k, l};
   Tensor<T> C{i, j, l};
 
-  sch.allocate(A,B,C)
-  (A() = 1.0) 
-  (B() = 2.0)
-  (C() = 3.0)
-  .execute();
+  sch.allocate(A, B, C)(A() = 1.0)(B() = 2.0)(C() = 3.0).execute();
 
   LocalTensor A_local{A};
   LocalTensor B_local{B};
   LocalTensor C_local{C};
 
   std::cout << "A_local" << std::endl;
-  for (size_t i_idx = 0; i_idx < N; i_idx++) {
-    for (size_t j_idx = 0; j_idx < N; j_idx++) {
-      for (size_t k_idx = 0; k_idx < N; k_idx++) {
+  for(size_t i_idx = 0; i_idx < N; i_idx++) {
+    for(size_t j_idx = 0; j_idx < N; j_idx++) {
+      for(size_t k_idx = 0; k_idx < N; k_idx++) {
         std::cout << A_local(i_idx, j_idx, k_idx) << "\t";
         A_local(i_idx, j_idx, k_idx) = 42.0;
       }
@@ -39,7 +34,6 @@ void test_local_tensor(Scheduler& sch, size_t N, Tile tilesize) {
 
   print_tensor(A);
 }
-
 
 int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);

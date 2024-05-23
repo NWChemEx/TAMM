@@ -450,8 +450,7 @@ int main(int argc, char* argv[]) {
     std::cout << std::endl << "date: " << std::put_time(cur_local_time, "%c") << std::endl;
 
     std::cout << "nnodes: " << ec.nnodes() << ", ";
-    std::cout << "nproc: " << ec.nnodes() * ec.ppn() << ", ";
-    std::cout << "ngpus: " << ec.nnodes() * ec.gpn() << std::endl;
+    std::cout << "nproc: " << ec.nnodes() * ec.ppn() << std::endl;
     std::cout << "dim, tile sizes = " << is_size << ", " << tile_size << std::endl;
     ec.print_mem_info();
     std::cout << std::endl << std::endl;

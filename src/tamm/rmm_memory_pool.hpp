@@ -51,11 +51,14 @@ static const uint32_t tamm_cpu_pool = [] {
 }();
 
 // TAMM_RANKS_PER_GPU_POOL
-static const uint32_t tamm_rpg = [] {
+static uint32_t tamm_rpg = [] {
   uint32_t usingrpg = 1;
+// This env is only applicable to DPCPP backend
+#ifdef USE_DPCPP
   if(const char* tammrpg = std::getenv("TAMM_RANKS_PER_GPU_POOL")) {
     usingrpg = std::atoi(tammrpg);
   }
+#endif // USE_DPCPP
   return usingrpg;
 }();
 } // namespace detail
@@ -124,55 +127,41 @@ public:
 
       long max_host_bytes{0};
 
+#if defined(USE_DPCPP)
       // if binding more than 1 rank per GPU ensure that
       // TAMM_RANKS_PER_GPU_POOL is set appropriately
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       EXPECTS_STR(
         (detail::tamm_rpg >= 1),
         "[TAMM ERROR]: TAMM_RANKS_PER_GPU_POOL env variable needs to be set to atleast 1!");
 #endif
 
-      // Currently these checks are limited to CUDA & HIP
-      // These checks can be done only from the master-ranks (rank=0)
-      // Since accessing system APIs would be pretty expensive
+      // Currently the below logic is limited to CUDA & HIP
 #if defined(USE_CUDA) || defined(USE_HIP)
-      int world_rank_ = 0;
-#if defined(USE_UPCXX)
-      world_rank_ = upcxx::rank_me();
-#else
-      world_rank_ = GA_Nodeid();
-#endif // USE_UPCXX
-
-      if(world_rank_ == 0) {
-        std::array<char, 128> buffer;
-        std::string           result;
+      std::array<char, 128> buffer;
+      std::string           result;
 
 #ifdef USE_CUDA
-        const std::string m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
+      const std::string m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
 #elif defined(USE_HIP)
-        const std::string m_call = "rocm-smi --showmemvendor | wc -l";
+      const std::string m_call = "rocm-smi --showmemvendor | wc -l";
 #endif
 
-        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(m_call.c_str(), "r"), pclose);
-        if(!pipe) { throw std::runtime_error("popen() failed!"); }
-        while(fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-          result += buffer.data();
-        }
+      std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(m_call.c_str(), "r"), pclose);
+      if(!pipe) { throw std::runtime_error("popen() failed!"); }
+      while(fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) { result += buffer.data(); }
 
-        int ngpus_per_node = 0;
+      int ngpus_per_node = 0;
 #ifdef USE_CUDA
-        ngpus_per_node = stoi(result);
+      ngpus_per_node = stoi(result);
 #elif defined(USE_HIP)
-        // - 6 is to remove the empty lines from the output
-        ngpus_per_node = stoi(result) - 6;
+      // - 6 is to remove the empty lines from the output
+      ngpus_per_node = stoi(result) - 6;
 #endif
 
-        // for ranks_pn_ > 1, this number needs to be a multiple of number of GPUs
-        if(ranks_pn_ > 1 && ranks_pn_ > ngpus_per_node) {
-          EXPECTS_STR((detail::tamm_rpg % ngpus_per_node == 0),
-                      "[TAMM ERROR]: GPU overbinding detected. Please set env-var: "
-                      "TAMM_RANKS_PER_GPU_POOL = (ppn / num_gpus_on_node)!");
-        }
+      if(ranks_pn_ > ngpus_per_node) {
+        EXPECTS_STR((ranks_pn_ % ngpus_per_node == 0),
+                    "[TAMM ERROR]: num_ranks_per_node is not a multiple of num_gpus_per_node!");
+        detail::tamm_rpg = ranks_pn_ / ngpus_per_node;
       }
 #endif // USE_CUDA, USE_HIP
 

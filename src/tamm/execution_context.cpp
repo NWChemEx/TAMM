@@ -38,13 +38,6 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
 #endif
   nnodes_ = pg.size().value() / ranks_pn_;
-  {
-    uint32_t usingrpg = 1;
-    if(const char* tammrpg = std::getenv("TAMM_RANKS_PER_GPU_POOL")) {
-      usingrpg = std::atoi(tammrpg);
-    }
-    gpus_pn_ = ranks_pn_ / usingrpg;
-  }
 
 #if defined(__APPLE__)
   {
@@ -71,8 +64,6 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     minfo_.gpu_name = getDeviceName() + ", " + getRuntimeVersion();
     gpuMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
     minfo_.gpu_mem_per_device /= (1024 * 1024 * 1024.0); // GiB
-    minfo_.gpu_mem_per_node = minfo_.gpu_mem_per_device * gpus_pn_;
-    minfo_.total_gpu_mem    = minfo_.gpu_mem_per_device * nnodes_ * gpus_pn_;
   }
 #endif
 }

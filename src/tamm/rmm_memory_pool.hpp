@@ -50,17 +50,6 @@ static const uint32_t tamm_cpu_pool = [] {
   return usingcpupool;
 }();
 
-// TAMM_RANKS_PER_GPU_POOL
-static uint32_t tamm_rpg = [] {
-  uint32_t usingrpg = 1;
-// This env is only applicable to DPCPP backend
-#ifdef USE_DPCPP
-  if(const char* tammrpg = std::getenv("TAMM_RANKS_PER_GPU_POOL")) {
-    usingrpg = std::atoi(tammrpg);
-  }
-#endif // USE_DPCPP
-  return usingrpg;
-}();
 } // namespace detail
 
 class RMMMemoryManager {
@@ -80,8 +69,12 @@ protected:
 
 private:
   RMMMemoryManager() { initialize(); }
+  // TAMM_RANKS_PER_GPU_POOL
+  uint32_t tamm_rpg;
 
 public:
+  uint32_t get_rpg() { return tamm_rpg; }
+
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   /// Returns a RMM device pool handle
   device_pool_mr& getDeviceMemoryPool() { return *(deviceMR.get()); }
@@ -117,6 +110,7 @@ public:
 
   void initialize() {
     if(this->invalid_state) {
+      tamm_rpg = 1;
       // Number of user-MPI ranks is needed for efficient CPU-pool size
       int ranks_pn_ = 0;
 #if defined(USE_UPCXX)
@@ -128,10 +122,13 @@ public:
       long max_host_bytes{0};
 
 #if defined(USE_DPCPP)
+      if(const char* tammrpg = std::getenv("TAMM_RANKS_PER_GPU_POOL")) {
+        tamm_rpg = std::atoi(tammrpg);
+      }
       // if binding more than 1 rank per GPU ensure that
       // TAMM_RANKS_PER_GPU_POOL is set appropriately
       EXPECTS_STR(
-        (detail::tamm_rpg >= 1),
+        (tamm_rpg >= 1),
         "[TAMM ERROR]: TAMM_RANKS_PER_GPU_POOL env variable needs to be set to atleast 1!");
 #endif
 
@@ -140,7 +137,7 @@ public:
       std::array<char, 128> buffer;
       std::string           result;
 
-#ifdef USE_CUDA
+#if defined(USE_CUDA)
       const std::string m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
 #elif defined(USE_HIP)
       const std::string m_call = "rocm-smi --showmemvendor | wc -l";
@@ -151,7 +148,7 @@ public:
       while(fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) { result += buffer.data(); }
 
       int ngpus_per_node = 0;
-#ifdef USE_CUDA
+#if defined(USE_CUDA)
       ngpus_per_node = stoi(result);
 #elif defined(USE_HIP)
       // - 6 is to remove the empty lines from the output
@@ -161,7 +158,7 @@ public:
       if(ranks_pn_ > ngpus_per_node) {
         EXPECTS_STR((ranks_pn_ % ngpus_per_node == 0),
                     "[TAMM ERROR]: num_ranks_per_node is not a multiple of num_gpus_per_node!");
-        detail::tamm_rpg = ranks_pn_ / ngpus_per_node;
+        tamm_rpg = ranks_pn_ / ngpus_per_node;
       }
 #endif // USE_CUDA, USE_HIP
 
@@ -242,7 +239,7 @@ public:
       size_t free{}, total{};
       gpuMemGetInfo(&free, &total);
       size_t max_device_bytes{0};
-      max_device_bytes = ((detail::tamm_gpu_pool / 100.0) * free) / detail::tamm_rpg;
+      max_device_bytes = ((detail::tamm_gpu_pool / 100.0) * free) / tamm_rpg;
 
       deviceMR =
         std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
@@ -265,6 +262,8 @@ public:
   RMMMemoryManager(RMMMemoryManager&&)                 = delete;
   RMMMemoryManager& operator=(RMMMemoryManager&&)      = delete;
 };
+
+static inline uint32_t ranks_per_gpu_pool() { return RMMMemoryManager::getInstance().get_rpg(); }
 
 // The reset pool & reinitialize only is being used for the (T) segement of cannonical
 static inline void reset_rmm_pool() { RMMMemoryManager::getInstance().reset(); }

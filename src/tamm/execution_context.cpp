@@ -6,6 +6,7 @@
 #include "labeled_tensor.hpp"
 #include "memory_manager.hpp"
 #include "proc_group.hpp"
+#include "rmm_memory_pool.hpp"
 #include "runtime_engine.hpp"
 
 namespace tamm {
@@ -37,7 +38,8 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #else
   ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
 #endif
-  nnodes_ = pg.size().value() / ranks_pn_;
+  nnodes_  = pg.size().value() / ranks_pn_;
+  gpus_pn_ = ranks_pn_ / ranks_per_gpu_pool();
 
 #if defined(__APPLE__)
   {
@@ -64,6 +66,8 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
     minfo_.gpu_name = getDeviceName() + ", " + getRuntimeVersion();
     gpuMemGetInfo(&free_, &minfo_.gpu_mem_per_device);
     minfo_.gpu_mem_per_device /= (1024 * 1024 * 1024.0); // GiB
+    minfo_.gpu_mem_per_node = minfo_.gpu_mem_per_device * gpus_pn_;
+    minfo_.total_gpu_mem    = minfo_.gpu_mem_per_device * nnodes_ * gpus_pn_;
   }
 #endif
 }

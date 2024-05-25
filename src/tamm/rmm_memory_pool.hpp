@@ -117,23 +117,10 @@ public:
 
     long max_host_bytes{0};
 
-#if defined(USE_DPCPP)
-    if(const char* tammrpg = std::getenv("TAMM_RANKS_PER_GPU_POOL")) {
-      tamm_rpg = std::atoi(tammrpg);
-    }
-    // TODO: If binding more than 1 rank per GPU ensure that
-    // TAMM_RANKS_PER_GPU_POOL is set appropriately
-    if(tamm_rpg < 1) {
-      const std::string rpg_error =
-        "[TAMM ERROR]: TAMM_RANKS_PER_GPU_POOL env variable needs to be set to atleast 1!";
-      tamm_terminate(rpg_error);
-    }
-#endif
-
     // Currently these checks are limited to CUDA & HIP.
     // Since accessing system APIs would be pretty expensive,
     // these checks can be done only by the master rank.
-#if defined(USE_CUDA) || defined(USE_HIP)
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
     int world_rank_    = 0;
     int ngpus_per_node = 0;
 #if defined(USE_UPCXX)
@@ -150,6 +137,8 @@ public:
       const std::string m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
 #elif defined(USE_HIP)
       const std::string m_call = "rocm-smi --showmemvendor | wc -l";
+#elif defined(USE_DPCPP)
+      const std::string m_call = "ONEAPI_DEVICE_SELECTOR=level_zero:gpu sycl-ls | wc -l";
 #endif
 
       std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(m_call.c_str(), "r"), pclose);
@@ -161,6 +150,8 @@ public:
 #elif defined(USE_HIP)
       // - 6 is to remove the empty lines from the output
       ngpus_per_node = stoi(result) - 6;
+#elif defined(USE_DPCPP)
+      ngpus_per_node           = stoi(result);
 #endif
     }
 

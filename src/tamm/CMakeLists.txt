@@ -17,7 +17,7 @@ if(${PROJECT_NAME}_HAS_DPCPP)
 endif()
 
 #Add the current directory's sources to the list
-set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp kernels/cpu_blas.cpp "${tamm_gpu_SRCS}")
+set(TAMM_SRCS tamm.cpp errors.cpp index_space.cpp execution_context.cpp tensor_base.cpp kernels/cpu_blas.cpp "${tamm_gpu_SRCS}")
 
 #Add the current directory's header files to the list
 set(TAMM_INCLUDES

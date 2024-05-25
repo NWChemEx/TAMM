@@ -1,5 +1,11 @@
 #pragma once
 
+#if defined(USE_UPCXX)
+#include <upcxx/upcxx.hpp>
+#else
+#include <ga/ga.h>
+#endif
+
 #include <cassert>
 #include <iostream>
 
@@ -65,5 +71,7 @@ namespace tamm {
     } while(0)
 
 // clang-format on
+
+void tamm_terminate(std::string msg);
 
 } // namespace tamm

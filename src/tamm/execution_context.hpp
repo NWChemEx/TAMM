@@ -112,31 +112,7 @@ public:
   /** @todo use shared pointers for solving GitHub issue #43*/
   ExecutionContext(ProcGroup pg, Distribution* default_distribution,
                    MemoryManager* default_memory_manager, RuntimeEngine* re = nullptr);
-  // ExecutionContext(ProcGroup pg, Distribution* default_distribution,
-  //                  MemoryManager* default_memory_manager, RuntimeEngine* re =nullptr) :
-  //   pg_{pg},
-  //   distribution_kind_{DistributionKind::invalid},
-  // //   default_distribution_{nullptr},
-  // //   default_distribution_{default_distribution},
-  //   default_memory_manager_{default_memory_manager},
-  //   ac_{IndexedAC{nullptr, 0}} {
-  //     if (re == nullptr) {
-  //       re_.reset(runtime_ptr());
-  //     } else {
-  //       re_.reset(re, [](auto){});
-  //     }
-  //      if(default_distribution != nullptr) {
-  //        distribution_kind_ = default_distribution->kind();
-  //     // //   default_distribution_.reset(default_distribution->clone(nullptr, Proc{1}));
-  //     }
-  //     pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
-  //     has_gpu_ = false;
-  //     ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
-  //     //nnodes_ = {GA_Cluster_nnodes()};
-  //     nnodes_ = pg.size().value() / ranks_pn_;
-
-  //     // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
-  // }
+  // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
   RuntimeEngine* runtime_ptr();
 
   ~ExecutionContext() {

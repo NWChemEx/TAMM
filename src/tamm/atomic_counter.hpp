@@ -149,13 +149,9 @@ public:
     pg_.barrier();
     upcxx::delete_array(gptrs_[pg_.rank().value()]);
 #else
-    // std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     GA_Pgroup_sync(ga_pg_);
-    // std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     GA_Destroy(ga_);
-    // std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     // GA_Pgroup_destroy(ga_pg_);
-    // std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
 #endif
     allocated_ = false;
   }
@@ -172,9 +168,7 @@ public:
       ->fetch_add(gptrs_[target_rank] + offset_on_rank, amount, std::memory_order_relaxed)
       .wait();
 #else
-    // std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     auto ret = NGA_Read_inc64(ga_, &index, amount);
-    // std::cerr<<GA_Nodeid()<<" " <<__FILE__<<" "<<__LINE__<<" "<<__FUNCTION__<<"\n";
     return ret;
 #endif
   }

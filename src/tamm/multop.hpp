@@ -206,7 +206,11 @@ public:
   MultOp() = default;
   MultOp(LabeledTensorT1 lhs, T alpha, LabeledTensorT2 rhs1, LabeledTensorT3 rhs2, bool is_assign):
     lhs_{lhs}, alpha_{alpha}, rhs1_{rhs1}, rhs2_{rhs2}, is_assign_{is_assign} {
-    EXPECTS(lhs.has_str_lbl() == rhs1.has_str_lbl() && rhs1.has_str_lbl() == rhs2.has_str_lbl());
+    if (lhs.tensor().num_modes() != 0)
+      EXPECTS(lhs.has_str_lbl() == rhs1.has_str_lbl() && rhs1.has_str_lbl() == rhs2.has_str_lbl());
+    else
+      EXPECTS(rhs1.has_str_lbl() == rhs2.has_str_lbl());
+
     if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
       auto lhs_lbls  = lhs.labels();
       auto rhs1_lbls = rhs1.labels();

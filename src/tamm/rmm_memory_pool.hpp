@@ -145,6 +145,7 @@ public:
       EXPECTS_STR((numa_available() != -1), "[TAMM ERROR]: numa APIs are not available!");
 
       numa_set_bind_policy(1);
+      numa_set_strict(1);
       unsigned numNumaNodes = numa_num_task_nodes();
 
       // for ranks_pn_=1, there is no need to check the mapping to numa-nodes (mostly used for CI)
@@ -157,7 +158,7 @@ public:
       struct bitmask* numaNodes = numa_get_mems_allowed();
       numa_bind(numaNodes);
 
-      int  numa_id         = numa_preferred();
+      int  numa_id         = numa_node_of_cpu(sched_getcpu());
       long numa_total_size = numa_node_size(numa_id, &max_host_bytes);
       max_host_bytes *= 0.40; // reserve 40% only of the free numa-node memory (reserving rest of
                               // GA, non-pool allocations)

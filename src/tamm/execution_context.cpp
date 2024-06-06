@@ -6,6 +6,7 @@
 #include "labeled_tensor.hpp"
 #include "memory_manager.hpp"
 #include "proc_group.hpp"
+#include "rmm_memory_pool.hpp"
 #include "runtime_engine.hpp"
 
 namespace tamm {
@@ -37,14 +38,8 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #else
   ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
 #endif
-  nnodes_ = pg.size().value() / ranks_pn_;
-  {
-    uint32_t usingrpg = 1;
-    if(const char* tammrpg = std::getenv("TAMM_RANKS_PER_GPU_POOL")) {
-      usingrpg = std::atoi(tammrpg);
-    }
-    gpus_pn_ = ranks_pn_ / usingrpg;
-  }
+  nnodes_  = pg.size().value() / ranks_pn_;
+  gpus_pn_ = ranks_pn_ / ranks_per_gpu_pool();
 
 #if defined(__APPLE__)
   {

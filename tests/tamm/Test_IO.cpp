@@ -9,6 +9,27 @@ bool   tammio       = true;
 bool   profileio    = true;
 double init_value   = 21.0;
 
+template<typename TensorType>
+void io_stats(ExecutionContext& gec, Tensor<TensorType>& tensor) {
+  int rank = gec.pg().rank().value();
+
+  long double nelements = 1;
+  // Heuristic: Use 1 agg for every 14 GiB
+  const long double ne_mb = 131072 * 14.0;
+  const int         ndims = tensor.num_modes();
+  for(auto i = 0; i < ndims; i++)
+    nelements *= tensor.tiled_index_spaces()[i].index_space().num_indices();
+  // nelements = tensor.size();
+  int nagg = (nelements / (ne_mb * 1024)) + 1;
+
+  const std::string nppn = std::to_string(nagg) + " nodes";
+
+  if(rank == 0 && profileio)
+    std::cout << "tensor size: " << std::fixed << std::setprecision(2)
+              << (nelements * 8.0) / (1024 * 1024 * 1024.0)
+              << "GiB, can write to disk using upto: " << nppn << std::endl;
+}
+
 std::tuple<TiledIndexSpace, TiledIndexSpace, TAMM_SIZE> setupTIS(TAMM_SIZE noa, TAMM_SIZE nva) {
   TAMM_SIZE n_occ_alpha    = noa;
   TAMM_SIZE n_occ_beta     = noa;
@@ -44,11 +65,11 @@ std::tuple<TiledIndexSpace, TiledIndexSpace, TAMM_SIZE> setupTIS(TAMM_SIZE noa, 
   if(tce_tile < 50 || tce_tile > 100) {
     if(tce_tile < 50) tce_tile = 50;   // 50 is the default tilesize for CCSD.
     if(tce_tile > 100) tce_tile = 100; // 100 is the max tilesize for CCSD.
-    if(GA_Nodeid() == 0)
+    if(ProcGroup::world_rank() == 0)
       std::cout << std::endl << "Resetting tilesize to: " << tce_tile << std::endl;
   }
 
-  if(GA_Nodeid() == 0) {
+  if(ProcGroup::world_rank() == 0) {
     std::cout << "nbf = " << nbf << std::endl;
     std::cout << "nmo = " << nmo << std::endl;
     std::cout << "nocc = " << nocc << std::endl;
@@ -219,6 +240,8 @@ int main(int argc, char* argv[]) {
   TiledIndexSpace tci{IndexSpace{range(12 * nbf)}, 12 * nbf};
   Tensor<double>  gc{tc_ij, tc_ij, tci};
   gc.set_dense();
+  io_stats(ec_dense, gc);
+
   sch.allocate(gc).execute();
   if(ec.print()) std::cout << "Writing a 3D tensor of size (NxNx12N) to disk ... " << std::endl;
   write_to_disk(gc, "tensor3d", true, true);

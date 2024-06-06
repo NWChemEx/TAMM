@@ -1,11 +1,6 @@
 #pragma once
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-#if defined(USE_UPCXX)
-#include <upcxx/upcxx.hpp>
-#else
-#include <ga/ga.h>
-#endif
 
 #include <tamm/gpu_streams.hpp>
 
@@ -50,14 +45,6 @@ static const uint32_t tamm_cpu_pool = [] {
   return usingcpupool;
 }();
 
-// TAMM_RANKS_PER_GPU_POOL
-static const uint32_t tamm_rpg = [] {
-  uint32_t usingrpg = 1;
-  if(const char* tammrpg = std::getenv("TAMM_RANKS_PER_GPU_POOL")) {
-    usingrpg = std::atoi(tammrpg);
-  }
-  return usingrpg;
-}();
 } // namespace detail
 
 class RMMMemoryManager {
@@ -77,8 +64,12 @@ protected:
 
 private:
   RMMMemoryManager() { initialize(); }
+  // TAMM_RANKS_PER_GPU_POOL
+  uint32_t tamm_rpg;
 
 public:
+  uint32_t get_rpg() { return tamm_rpg; }
+
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   /// Returns a RMM device pool handle
   device_pool_mr& getDeviceMemoryPool() { return *(deviceMR.get()); }
@@ -113,111 +104,169 @@ public:
   }
 
   void initialize() {
-    if(this->invalid_state) {
-      // Number of user-MPI ranks is needed for efficient CPU-pool size
-      int ranks_pn_ = 0;
+    if(!this->invalid_state) return;
+
+    tamm_rpg = 1;
+    // Number of user-MPI ranks is needed for efficient CPU-pool size
+    int ranks_pn_ = 0;
 #if defined(USE_UPCXX)
-      ranks_pn_ = upcxx::local_team().rank_n();
+    ranks_pn_ = upcxx::local_team().rank_n();
 #else
-      ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_nodeid());
+    ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_nodeid());
 #endif
 
-      long max_host_bytes{0};
+    long max_host_bytes{0};
+
+    // Currently these checks are limited to CUDA & HIP.
+    // Since accessing system APIs would be pretty expensive,
+    // these checks can be done only by the master rank.
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+    int world_rank_    = 0;
+    int ngpus_per_node = 0;
+#if defined(USE_UPCXX)
+    world_rank_ = upcxx::rank_me();
+#else
+    world_rank_ = GA_Nodeid();
+#endif // USE_UPCXX
+
+    if(world_rank_ == 0) {
+      std::array<char, 128> buffer;
+      std::string           result;
+
+#if defined(USE_CUDA)
+      const std::string m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
+#elif defined(USE_HIP)
+      const std::string m_call = "rocm-smi --showmemvendor | wc -l";
+#elif defined(USE_DPCPP)
+      const std::string m_call = "ONEAPI_DEVICE_SELECTOR=level_zero:gpu sycl-ls | wc -l";
+#endif
+
+      std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(m_call.c_str(), "r"), pclose);
+      if(!pipe) { throw std::runtime_error("popen() failed!"); }
+      while(fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) { result += buffer.data(); }
+
+#if defined(USE_CUDA)
+      ngpus_per_node = stoi(result);
+#elif defined(USE_HIP)
+      // - 6 is to remove the empty lines from the output
+      ngpus_per_node = stoi(result) - 6;
+#elif defined(USE_DPCPP)
+      ngpus_per_node           = stoi(result);
+#endif
+    }
+
+#if defined(USE_UPCXX)
+    upcxx::broadcast(&tamm_rpg, 0).wait();
+    upcxx::broadcast(&ngpus_per_node, 0).wait();
+#else
+    MPI_Bcast(&tamm_rpg, 1, MPI_UNSIGNED, 0, GA_MPI_Comm());
+    MPI_Bcast(&ngpus_per_node, 1, MPI_INT, 0, GA_MPI_Comm());
+#endif
+
+    if(ranks_pn_ > ngpus_per_node) {
+      if(ranks_pn_ % ngpus_per_node != 0) {
+        const std::string rpg_error =
+          "[TAMM ERROR]: num_ranks_per_node (" + std::to_string(ranks_pn_) +
+          ") is not a multiple of num_gpus_per_node (" + std::to_string(ngpus_per_node) + ")";
+        tamm_terminate(rpg_error);
+      }
+      tamm_rpg = ranks_pn_ / ngpus_per_node;
+    }
+
+#endif // USE_CUDA, USE_HIP
 
 #if defined(__APPLE__)
-      size_t cpu_mem_per_node;
-      size_t size_mpn = sizeof(cpu_mem_per_node);
-      // TODO: query for freeram, not total
-      sysctlbyname("hw.memsize", &(cpu_mem_per_node), &size_mpn, nullptr, 0);
-      max_host_bytes = 0.5 * cpu_mem_per_node;
-      // Use only "tamm_cpu_pool" percent of the remaining memory
-      max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
+    size_t cpu_mem_per_node;
+    size_t size_mpn = sizeof(cpu_mem_per_node);
+    // TODO: query for freeram, not total
+    sysctlbyname("hw.memsize", &(cpu_mem_per_node), &size_mpn, nullptr, 0);
+    max_host_bytes = 0.5 * cpu_mem_per_node;
+    // Use only "tamm_cpu_pool" percent of the remaining memory
+    max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
 #elif defined(TAMM_DISABLE_LIBNUMA)
-      struct sysinfo cpumeminfo_;
-      sysinfo(&cpumeminfo_);
-      // 50% allocation was reserved for the GA distributed arrays followed by the
-      // memory pool creation
-      max_host_bytes = 0.5 * cpumeminfo_.freeram * cpumeminfo_.mem_unit;
-      // Use only "tamm_cpu_pool" percent of the remaining memory
-      max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
+    struct sysinfo cpumeminfo_;
+    sysinfo(&cpumeminfo_);
+    // 50% allocation was reserved for the GA distributed arrays followed by the
+    // memory pool creation
+    max_host_bytes = 0.5 * cpumeminfo_.freeram * cpumeminfo_.mem_unit;
+    // Use only "tamm_cpu_pool" percent of the remaining memory
+    max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
 #else
-      // Set the CPU memory-pool
-      EXPECTS_STR((numa_available() != -1), "[TAMM ERROR]: numa APIs are not available!");
+    // Set the CPU memory-pool
+    EXPECTS_STR((numa_available() != -1), "[TAMM ERROR]: numa APIs are not available!");
 
-      numa_set_bind_policy(1);
-      numa_set_strict(1);
-      unsigned numNumaNodes = numa_num_task_nodes();
+    numa_set_bind_policy(1);
+    numa_set_strict(1);
+    unsigned numNumaNodes = numa_num_task_nodes();
 
-      // for ranks_pn_=1, there is no need to check the mapping to numa-nodes (mostly used for CI)
-      // for ranks_pn_ > numNumaNodes, it has to be divisble by the number of numa-domains in the
-      // system
-      if(ranks_pn_ >= numNumaNodes && ranks_pn_ > 1) {
-        EXPECTS_STR((ranks_pn_ % numNumaNodes == 0),
-                    "[TAMM ERROR]: number of user ranks is not a multiple of numa-nodes!");
+    // for ranks_pn_=1, there is no need to check the mapping to numa-nodes (mostly used for CI)
+    // for ranks_pn_ > numNumaNodes, it has to be divisble by the number of numa-domains in the
+    // system
+    if(ranks_pn_ >= numNumaNodes && ranks_pn_ > 1) {
+      EXPECTS_STR((ranks_pn_ % numNumaNodes == 0),
+                  "[TAMM ERROR]: number of user ranks is not a multiple of numa-nodes!");
+    }
+    struct bitmask* numaNodes = numa_get_mems_allowed();
+    numa_bind(numaNodes);
+
+    int  numa_id         = numa_node_of_cpu(sched_getcpu());
+    long numa_total_size = numa_node_size(numa_id, &max_host_bytes);
+    max_host_bytes *= 0.40; // reserve 40% only of the free numa-node memory (reserving rest of
+                            // GA, non-pool allocations)
+
+    if(numNumaNodes > 1) { // please the systems with just 1 Numa partitions
+      // Identify the NUMA distance for faster numa-regions
+      std::map<int, int> numadist_id;
+      for(int j = 0; j < numNumaNodes; j++) {
+        if(numa_id != j) { numadist_id[j] = numa_distance(numa_id, j); }
       }
-      struct bitmask* numaNodes = numa_get_mems_allowed();
-      numa_bind(numaNodes);
+      int  val    = numadist_id.begin()->second;
+      auto result = std::all_of(
+        std::next(numadist_id.begin()), numadist_id.end(),
+        [val](typename std::map<int, int>::const_reference t) { return t.second == val; });
+      if(!result) { // There are some faster NUMA domains available than the defaults (only for
+                    // Aurora)
+        auto it =
+          std::min_element(numadist_id.begin(), numadist_id.end(),
+                           [](const auto& l, const auto& r) { return l.second < r.second; });
 
-      int  numa_id         = numa_node_of_cpu(sched_getcpu());
-      long numa_total_size = numa_node_size(numa_id, &max_host_bytes);
-      max_host_bytes *= 0.40; // reserve 40% only of the free numa-node memory (reserving rest of
-                              // GA, non-pool allocations)
+        numNumaNodes /= 2; // This is done for the Aurora nodes only
 
-      if(numNumaNodes > 1) { // please the systems with just 1 Numa partitions
-        // Identify the NUMA distance for faster numa-regions
-        std::map<int, int> numadist_id;
-        for(int j = 0; j < numNumaNodes; j++) {
-          if(numa_id != j) { numadist_id[j] = numa_distance(numa_id, j); }
+        if(detail::tamm_enable_sprhbm) {
+          numa_id = it->first;
+          numa_set_preferred(numa_id);
+          numa_total_size = numa_node_size(numa_id, &max_host_bytes);
+          max_host_bytes *=
+            0.94; // One can use full HBM memory capacity, since the DDR is left for GA
         }
-        int  val    = numadist_id.begin()->second;
-        auto result = std::all_of(
-          std::next(numadist_id.begin()), numadist_id.end(),
-          [val](typename std::map<int, int>::const_reference t) { return t.second == val; });
-        if(!result) { // There are some faster NUMA domains available than the defaults (only for
-                      // Aurora)
-          auto it =
-            std::min_element(numadist_id.begin(), numadist_id.end(),
-                             [](const auto& l, const auto& r) { return l.second < r.second; });
+      }
+    } // numNumaNodes > 1
 
-          numNumaNodes /= 2; // This is done for the Aurora nodes only
-
-          if(detail::tamm_enable_sprhbm) {
-            numa_id = it->first;
-            numa_set_preferred(numa_id);
-            numa_total_size = numa_node_size(numa_id, &max_host_bytes);
-            max_host_bytes *=
-              0.94; // One can use full HBM memory capacity, since the DDR is left for GA
-          }
-        }
-      } // numNumaNodes > 1
-
-      max_host_bytes *=
-        (detail::tamm_cpu_pool / 100.0); // Use only "tamm_cpu_pool" percent of the left-overs
-      max_host_bytes /= ((numNumaNodes > 1)
-                           ? ((ranks_pn_ >= numNumaNodes) ? (ranks_pn_ / numNumaNodes) : 1)
-                           : ranks_pn_);
+    max_host_bytes *=
+      (detail::tamm_cpu_pool / 100.0); // Use only "tamm_cpu_pool" percent of the left-overs
+    max_host_bytes /= ((numNumaNodes > 1)
+                         ? ((ranks_pn_ >= numNumaNodes) ? (ranks_pn_ / numNumaNodes) : 1)
+                         : ranks_pn_);
 #endif
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-      size_t free{}, total{};
-      gpuMemGetInfo(&free, &total);
-      size_t max_device_bytes{0};
-      max_device_bytes = ((detail::tamm_gpu_pool / 100.0) * free) / detail::tamm_rpg;
+    size_t free{}, total{};
+    gpuMemGetInfo(&free, &total);
+    size_t max_device_bytes{0};
+    max_device_bytes = ((detail::tamm_gpu_pool / 100.0) * free) / tamm_rpg;
 
-      deviceMR =
-        std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
-      // #if defined(USE_CUDA) || defined(USE_HIP)
-      //       size_t max_pinned_host_bytes{0};
-      //       max_pinned_host_bytes = 0.18 * free;
-      //       pinnedHostMR = std::make_unique<pinned_pool_mr>(new rmm::mr::pinned_memory_resource,
-      //                                                       max_pinned_host_bytes);
-      // #endif
+    deviceMR = std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
+    // #if defined(USE_CUDA) || defined(USE_HIP)
+    //       size_t max_pinned_host_bytes{0};
+    //       max_pinned_host_bytes = 0.18 * free;
+    //       pinnedHostMR = std::make_unique<pinned_pool_mr>(new rmm::mr::pinned_memory_resource,
+    //                                                       max_pinned_host_bytes);
+    // #endif
 #endif
-      hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
+    hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
 
-      // after setting up the pool: change the invalid_state to FALSE
-      invalid_state = false;
-    }
+    // after setting up the pool: change the invalid_state to FALSE
+    invalid_state = false;
   }
 
   RMMMemoryManager(const RMMMemoryManager&)            = delete;
@@ -225,6 +274,8 @@ public:
   RMMMemoryManager(RMMMemoryManager&&)                 = delete;
   RMMMemoryManager& operator=(RMMMemoryManager&&)      = delete;
 };
+
+static inline uint32_t ranks_per_gpu_pool() { return RMMMemoryManager::getInstance().get_rpg(); }
 
 // The reset pool & reinitialize only is being used for the (T) segement of cannonical
 static inline void reset_rmm_pool() { RMMMemoryManager::getInstance().reset(); }

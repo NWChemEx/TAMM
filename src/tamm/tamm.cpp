@@ -67,11 +67,4 @@ void finalize(bool tamm_mpi_finalize) {
 #endif
 }
 
-void tamm_terminate(std::string msg) {
-  if(ProcGroup::world_rank() == 0)
-    std::cout << msg << " ... terminating program." << std::endl << std::endl;
-  tamm::finalize();
-  exit(0);
-}
-
 } // namespace tamm

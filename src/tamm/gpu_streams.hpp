@@ -273,6 +273,28 @@ static inline bool gpuEventQuery(gpuEvent_t& event) {
 #endif
 }
 
+static inline void* getPinnedMem(size_t bytes) {
+  void* ptr = nullptr;
+#if defined(USE_CUDA)
+  cudaMallocHost((void**) &ptr, bytes);
+#elif defined(USE_HIP)
+  hipMallocHost((void**) &ptr, bytes);
+#elif defined(USE_DPCPP)
+  ptr = (void*) sycl::malloc_host(bytes, tamm::GPUStreamPool::getInstance().getStream().first);
+#endif
+  return ptr;
+}
+
+static inline void freePinnedMem(void* ptr) {
+#if defined(USE_CUDA)
+  cudaFreeHost(ptr);
+#elif defined(USE_HIP)
+  hipFreeHost(ptr);
+#elif defined(USE_DPCPP)
+  sycl::free(ptr, tamm::GPUStreamPool::getInstance().getStream().first);
+#endif
+}
+
 class GPUStreamPool {
 protected:
   int                      default_deviceID{0};

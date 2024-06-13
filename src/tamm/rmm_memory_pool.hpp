@@ -56,11 +56,9 @@ protected:
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   using device_pool_mr = rmm::mr::pool_memory_resource<rmm::mr::device_memory_resource>;
   std::unique_ptr<device_pool_mr> deviceMR;
+  using pinned_pool_mr = rmm::mr::pool_memory_resource<rmm::mr::pinned_memory_resource>;
+  std::unique_ptr<pinned_pool_mr> pinnedHostMR;
 #endif
-  // #if defined(USE_CUDA) || defined(USE_HIP)
-  //   using pinned_pool_mr = rmm::mr::pool_memory_resource<rmm::mr::pinned_memory_resource>;
-  //   std::unique_ptr<pinned_pool_mr> pinnedHostMR;
-  // #endif
 
 private:
   RMMMemoryManager() { initialize(); }
@@ -73,15 +71,9 @@ public:
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   /// Returns a RMM device pool handle
   device_pool_mr& getDeviceMemoryPool() { return *(deviceMR.get()); }
+  /// Returns a RMM pinnedHost pool handle
+  pinned_pool_mr& getPinnedMemoryPool() { return *(pinnedHostMR.get()); }
 #endif
-
-  // #if defined(USE_CUDA) || defined(USE_HIP)
-  //   /// Returns a RMM pinnedHost pool handle
-  //   pinned_pool_mr& getPinnedMemoryPool() { return *(pinnedHostMR.get()); }
-  // #elif defined(USE_DPCPP)
-  //   /// Returns a RMM pinnedHost pool handle
-  //   host_pool_mr& getPinnedMemoryPool() { return *(hostMR.get()); }
-  // #endif
 
   /// Returns a RMM host pool handle
   host_pool_mr& getHostMemoryPool() { return *(hostMR.get()); }
@@ -96,8 +88,7 @@ public:
     hostMR.reset();
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
     deviceMR.reset();
-// #elif defined(USE_CUDA) || defined(USE_HIP)
-//     pinnedHostMR.reset();
+    pinnedHostMR.reset();
 #endif
 
     this->invalid_state = true;
@@ -256,12 +247,11 @@ public:
     max_device_bytes = ((detail::tamm_gpu_pool / 100.0) * free) / tamm_rpg;
 
     deviceMR = std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
-    // #if defined(USE_CUDA) || defined(USE_HIP)
-    //       size_t max_pinned_host_bytes{0};
-    //       max_pinned_host_bytes = 0.18 * free;
-    //       pinnedHostMR = std::make_unique<pinned_pool_mr>(new rmm::mr::pinned_memory_resource,
-    //                                                       max_pinned_host_bytes);
-    // #endif
+
+    size_t max_pinned_host_bytes{0};
+    max_pinned_host_bytes = 0.18 * free;
+    pinnedHostMR =
+      std::make_unique<pinned_pool_mr>(new rmm::mr::pinned_memory_resource, max_pinned_host_bytes);
 #endif
     hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
 

@@ -1,11 +1,5 @@
 #pragma once
 
-#if defined(USE_UPCXX)
-#include <upcxx/upcxx.hpp>
-#else
-#include <ga/ga.h>
-#endif
-
 #include <cassert>
 #include <iostream>
 

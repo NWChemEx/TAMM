@@ -1,3 +1,10 @@
+
+#if defined(USE_UPCXX)
+#include <upcxx/upcxx.hpp>
+#else
+#include <ga/ga.h>
+#endif
+
 #include "tamm/errors.hpp"
 
 namespace tamm {

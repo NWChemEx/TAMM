@@ -45,6 +45,7 @@ set(TAMM_INCLUDES
     range.hpp
     ops.hpp
     scheduler.hpp
+    local_tensor.hpp
     tensor.hpp
     tensor_impl.hpp
     tensor_base.hpp

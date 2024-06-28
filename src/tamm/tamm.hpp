@@ -19,6 +19,7 @@
 #include "tamm/execution_context.hpp"
 #include "tamm/index_space.hpp"
 #include "tamm/labeled_tensor.hpp"
+#include "tamm/local_tensor.hpp"
 #include "tamm/ops.hpp"
 #include "tamm/rmm_memory_pool.hpp"
 #include "tamm/scheduler.hpp"

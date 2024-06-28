@@ -112,31 +112,7 @@ public:
   /** @todo use shared pointers for solving GitHub issue #43*/
   ExecutionContext(ProcGroup pg, Distribution* default_distribution,
                    MemoryManager* default_memory_manager, RuntimeEngine* re = nullptr);
-  // ExecutionContext(ProcGroup pg, Distribution* default_distribution,
-  //                  MemoryManager* default_memory_manager, RuntimeEngine* re =nullptr) :
-  //   pg_{pg},
-  //   distribution_kind_{DistributionKind::invalid},
-  // //   default_distribution_{nullptr},
-  // //   default_distribution_{default_distribution},
-  //   default_memory_manager_{default_memory_manager},
-  //   ac_{IndexedAC{nullptr, 0}} {
-  //     if (re == nullptr) {
-  //       re_.reset(runtime_ptr());
-  //     } else {
-  //       re_.reset(re, [](auto){});
-  //     }
-  //      if(default_distribution != nullptr) {
-  //        distribution_kind_ = default_distribution->kind();
-  //     // //   default_distribution_.reset(default_distribution->clone(nullptr, Proc{1}));
-  //     }
-  //     pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
-  //     has_gpu_ = false;
-  //     ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
-  //     //nnodes_ = {GA_Cluster_nnodes()};
-  //     nnodes_ = pg.size().value() / ranks_pn_;
-
-  //     // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
-  // }
+  // memory_manager_local_ = MemoryManagerLocal::create_coll(pg_self_);
   RuntimeEngine* runtime_ptr();
 
   ~ExecutionContext() {
@@ -366,9 +342,12 @@ public:
 
   int nnodes() const { return nnodes_; }
   int ppn() const { return ranks_pn_; }
+  int gpn() const { return gpus_pn_; }
 
   struct meminfo {
     size_t      gpu_mem_per_device; // single gpu mem per rank (GiB)
+    size_t      gpu_mem_per_node;   // total gpu mem per node (GiB)
+    size_t      total_gpu_mem;      // total gpu mem across all nodes (GiB)
     size_t      cpu_mem_per_node;   // cpu mem on single node (GiB)
     size_t      total_cpu_mem;      // total cpu mem across all nodes (GiB)
     std::string cpu_name;           // cpu name
@@ -387,6 +366,8 @@ public:
     if(has_gpu_) {
       std::cout << "[" << minfo_.gpu_name << "] : " << std::endl;
       std::cout << "  GPU memory per device (GiB): " << minfo_.gpu_mem_per_device << std::endl;
+      std::cout << "  GPU memory per node (GiB): " << minfo_.gpu_mem_per_node << std::endl;
+      std::cout << "  Total GPU memory (GiB): " << minfo_.total_gpu_mem << std::endl;
     }
     std::cout << "}" << std::endl;
   }
@@ -456,6 +437,7 @@ private:
   std::shared_ptr<RuntimeEngine> re_;
   int                            nnodes_;
   int                            ranks_pn_;
+  int                            gpus_pn_{0};
   bool                           has_gpu_{false};
   ExecutionHW                    exhw_{ExecutionHW::CPU};
   meminfo                        minfo_;

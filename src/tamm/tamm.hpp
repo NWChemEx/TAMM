@@ -34,5 +34,4 @@
 namespace tamm {
 void initialize(int argc, char* argv[], bool is_mpi_tm = false);
 void finalize(bool tamm_mpi_finalize = true);
-void tamm_terminate(std::string msg);
 } // namespace tamm

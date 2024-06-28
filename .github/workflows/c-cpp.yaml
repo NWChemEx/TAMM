@@ -74,7 +74,7 @@ jobs:
       CC: ${{ matrix.cc }}
       FC: ${{ matrix.fc }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: actions/setup-python@v4
       with:
         python-version: '3.x'
@@ -88,7 +88,7 @@ jobs:
     - name: Cache install steps (backend = ga)
       if: ${{ matrix.backend == 'ga' }}
       id: tamm-cache-install
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/tamm_cache
@@ -97,7 +97,7 @@ jobs:
     - name: Cache install steps (backend = upcxx)
       if: ${{ matrix.backend == 'upcxx' }}
       id: tamm-upcxx-cache-install
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/tamm_cache
@@ -207,7 +207,7 @@ jobs:
         cd $GITHUB_WORKSPACE/build
         gcovr --root ./stage/$INSTALL_PATH . --xml ../coverage.xml
         ls -al .
-    - uses: codecov/codecov-action@v3
+    - uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./coverage.xml

@@ -824,9 +824,9 @@ void test_gfcc_failed_case() {
   Scheduler         sch{*ec};
 
   int nsranks = /* sys_data.nbf */ 45 / 15;
-  int ga_cnn  = GA_Cluster_nnodes();
+  int ga_cnn  = ec->nnodes();
   if(nsranks > ga_cnn) nsranks = ga_cnn;
-  nsranks = nsranks * GA_Cluster_nprocs(0);
+  nsranks = nsranks * ec->ppn();
   int subranks[nsranks];
   for(int i = 0; i < nsranks; i++) subranks[i] = i;
   auto      world_comm = ec->pg().comm();

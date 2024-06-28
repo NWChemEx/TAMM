@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION ${CMAKE_VERSION})
 project(TAMM VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For cmsb_add_library
 
-if(USE_CUDA OR USE_HIP OR USE_DPCPP)
+if(${PROJECT_NAME}_HAS_CUDA OR ${PROJECT_NAME}_HAS_HIP OR ${PROJECT_NAME}_HAS_DPCPP)
   set(tamm_gpu_INCS
     gpu_streams.hpp
     mr/gpu_memory_resource.hpp
@@ -12,12 +12,12 @@ if(USE_CUDA OR USE_HIP OR USE_DPCPP)
 
   set(tamm_gpu_SRCS kernels/gpu_blas.cpp)
 endif()
-if(USE_DPCPP)
+if(${PROJECT_NAME}_HAS_DPCPP)
   list(APPEND tamm_gpu_INCS sycl_device.hpp)
 endif()
 
 #Add the current directory's sources to the list
-set(TAMM_SRCS tamm.cpp index_space.cpp execution_context.cpp tensor_base.cpp kernels/cpu_blas.cpp "${tamm_gpu_SRCS}")
+set(TAMM_SRCS tamm.cpp errors.cpp index_space.cpp execution_context.cpp tensor_base.cpp kernels/cpu_blas.cpp "${tamm_gpu_SRCS}")
 
 #Add the current directory's header files to the list
 set(TAMM_INCLUDES

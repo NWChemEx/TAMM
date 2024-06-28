@@ -44,11 +44,11 @@ std::tuple<TiledIndexSpace, TiledIndexSpace, TAMM_SIZE> setupTIS(TAMM_SIZE noa, 
   if(tce_tile < 50 || tce_tile > 100) {
     if(tce_tile < 50) tce_tile = 50;   // 50 is the default tilesize for CCSD.
     if(tce_tile > 100) tce_tile = 100; // 100 is the max tilesize for CCSD.
-    if(GA_Nodeid() == 0)
+    if(ProcGroup::world_rank() == 0)
       std::cout << std::endl << "Resetting tilesize to: " << tce_tile << std::endl;
   }
 
-  if(GA_Nodeid() == 0) {
+  if(ProcGroup::world_rank() == 0) {
     std::cout << "nbf = " << nbf << std::endl;
     std::cout << "nmo = " << nmo << std::endl;
     std::cout << "nocc = " << nocc << std::endl;

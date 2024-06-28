@@ -306,7 +306,10 @@ int main(int argc, char* argv[]) {
     auto cur_local_time = localtime(&current_time_t);
     std::cout << std::endl << "date: " << std::put_time(cur_local_time, "%c") << std::endl;
     std::cout << "nnodes: " << ec.nnodes() << ", ";
-    std::cout << "nproc: " << ec.nnodes() * ec.ppn() << std::endl;
+    std::cout << "nproc_per_node: " << ec.ppn() << ", ";
+    std::cout << "nproc_total: " << ec.nnodes() * ec.ppn() << ", ";
+    std::cout << "ngpus_per_node: " << ec.gpn() << ", ";
+    std::cout << "ngpus_total: " << ec.nnodes() * ec.gpn() << std::endl;
     ec.print_mem_info();
     std::cout << std::endl;
     std::cout << "basis functions: " << nbf << ", occ_alpha: " << n_occ_alpha

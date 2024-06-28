@@ -32,7 +32,7 @@ CUDA Options
 
 ::
 
-   -DUSE_CUDA=ON (OFF by default)  
+   -DTAMM_ENABLE_CUDA=ON (OFF by default)  
    One of -DGPU_ARCH=X (OR) -DCMAKE_CUDA_ARCHITECTURES=X is required. Set the arch value X to 70 for Volta, 80 for Ampere, 90 for Hopper and 95 for Blackwell.
 
 HIP Options
@@ -40,7 +40,7 @@ HIP Options
 
 ::
 
-   -DUSE_HIP=ON (OFF by default) 
+   -DTAMM_ENABLE_HIP=ON (OFF by default) 
    -DROCM_ROOT=$ROCM_PATH
    One of -DGPU_ARCH=gfx90a (OR) -DCMAKE_HIP_ARCHITECTURES=gfx90a is required.
 
@@ -50,7 +50,7 @@ DPCPP options
 
 ::
 
-   -DUSE_DPCPP=ON
+   -DTAMM_ENABLE_DPCPP=ON (OFF by default)
 
 CMake options for developers (optional)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -103,7 +103,7 @@ In addition to the build options chosen, there are various build configurations 
 Default build using BLIS and NETLIB LAPACK
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To enable CUDA build, add ``-DUSE_CUDA=ON`` and ``-DGPU_ARCH=<value>``
+To enable CUDA build, add ``-DTAMM_ENABLE_CUDA=ON`` and ``-DGPU_ARCH=<value>``
 
 
 ::
@@ -135,9 +135,7 @@ Default build on MACOS
 Build using Intel MKL
 ~~~~~~~~~~~~~~~~~~~~~~
 
-.. _to-enable-cuda-build-add--duse_cudaon-1:
-
-To enable CUDA build, add ``-DUSE_CUDA=ON`` and ``-DGPU_ARCH=<value>``
+To enable CUDA build, add ``-DTAMM_ENABLE_CUDA=ON`` and ``-DGPU_ARCH=<value>``
 
 ::
 
@@ -169,7 +167,7 @@ Build instructions for Summit using ESSL
    CC=gcc CXX=g++ FC=gfortran cmake \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DBLIS_CONFIG=power9 \
-   -DLINALG_VENDOR=IBMESSL -DUSE_CUDA=ON \
+   -DLINALG_VENDOR=IBMESSL -DTAMM_ENABLE_CUDA=ON \
    -DLINALG_PREFIX=/sw/summit/essl/6.3.0/essl/6.3 ..
 
    make -j3
@@ -200,7 +198,7 @@ Build instructions for Summit using ESSL and UPC++
    -DBLIS_CONFIG=power9 \
    -DLINALG_VENDOR=IBMESSL \
    -DLINALG_PREFIX=/sw/summit/essl/6.3.0/essl/6.3 \
-   -DUSE_CUDA=ON \
+   -DTAMM_ENABLE_CUDA=ON \
    -DUSE_UPCXX=ON ..
 
    UPCXX_CODEMODE=O3 make -j3
@@ -226,7 +224,7 @@ Build instructions for Frontier
    CC=cc CXX=CC FC=ftn cmake \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DGPU_ARCH=gfx90a \
-   -DUSE_HIP=ON -DROCM_ROOT=$ROCM_PATH \
+   -DTAMM_ENABLE_HIP=ON -DROCM_ROOT=$ROCM_PATH \
    -DGCCROOT=/opt/gcc/12.2.0/snos \
    -DHDF5_ROOT=$HDF5_ROOT ..
 
@@ -260,7 +258,7 @@ Build instructions for Perlmutter and Polaris
 
    cd $REPO_ROOT_PATH/build
 
-   cmake -DUSE_CUDA=ON -DGPU_ARCH=80 -DBLIS_CONFIG=generic \
+   cmake -DTAMM_ENABLE_CUDA=ON -DGPU_ARCH=80 -DBLIS_CONFIG=generic \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
 
    make -j3
@@ -285,7 +283,7 @@ SYCL build instructions using Intel OneAPI
    CC=icx CXX=icpx FC=ifx cmake \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=/opt/oneapi/mkl/latest \
-   -DUSE_DPCPP=ON -DGCCROOT=$GCC_ROOT_PATH \
+   -DTAMM_ENABLE_DPCPP=ON -DGCCROOT=$GCC_ROOT_PATH \
    -DTAMM_CXX_FLAGS="-fma -ffast-math -fsycl -fsycl-default-sub-group-size 16 -fsycl-unnamed-lambda -fsycl-device-code-split=per_kernel -sycl-std=2020"
 
    make -j3
@@ -310,7 +308,7 @@ Build instructions for Aurora
    CC=icx CXX=icpx FC=ifx cmake \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=$MKLROOT \
-   -DUSE_DPCPP=ON -DUSE_MEMKIND=ON -DGCCROOT=$GCC_ROOT_PATH \
+   -DTAMM_ENABLE_DPCPP=ON -DGCCROOT=$GCC_ROOT_PATH \
    -DTAMM_CXX_FLAGS="-march=sapphirerapids -mtune=sapphirerapids -ffast-math -fsycl -fsycl-default-sub-group-size 16 -fsycl-unnamed-lambda -fsycl-device-code-split=per_kernel -sycl-std=2020"
 
    make -j12

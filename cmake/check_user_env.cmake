@@ -13,9 +13,9 @@ if (DEFINED ENV{CONDA_PREFIX}) #VIRTUAL_ENV
 endif()
 
 if("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
-    if (USE_CUDA)
-        message(FATAL_ERROR "TAMM does not support building with GPU support \
-        on MACOSX. Please use -DUSE_CUDA=OFF for MACOSX builds.")
+    if (${PROJECT_NAME}_ENABLE_CUDA)
+        message(FATAL_ERROR "${PROJECT_NAME} does not support building with GPU support \
+        on MACOSX. Please use -D${PROJECT_NAME}_ENABLE_CUDA=OFF for MACOSX builds.")
     endif()
     
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" 
@@ -79,7 +79,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU" A
   endif()
 endif()
 
-if(USE_CUDA)
+if(${PROJECT_NAME}_ENABLE_CUDA)
     include(CheckLanguage)
     check_language(CUDA)
 

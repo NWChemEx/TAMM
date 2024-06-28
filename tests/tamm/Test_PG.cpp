@@ -16,18 +16,14 @@ void test_pg(int dim, int nproc) {
   MPI_Group world_group;
   MPI_Comm_group(world_comm, &world_group);
 
-#if defined(USE_UPCXX)
-  auto ppn = upcxx::local_team().rank_n();
-#else
-  auto ppn = GA_Cluster_nprocs(0);
-#endif
+  auto ppn = gec.ppn();
   if(rank == 0) std::cout << "ppn=" << ppn << std::endl;
 
 #if defined(USE_UPCXX)
   upcxx::team* subcomm =
     new upcxx::team(upcxx::world().split(rank < ppn ? 0 : upcxx::team::color_none, 0));
 #else
-  int  lranks[ppn];
+  int lranks[ppn];
   for(int i = 0; i < ppn; i++) lranks[i] = i;
   MPI_Group lgroup;
   MPI_Comm_group(world_comm, &lgroup);

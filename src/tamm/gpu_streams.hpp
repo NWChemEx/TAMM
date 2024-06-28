@@ -361,6 +361,28 @@ static inline void gpuDeviceSynchronize() {
 #endif
 }
 
+static inline void* getPinnedMem(size_t bytes) {
+  void* ptr = nullptr;
+#if defined(USE_CUDA)
+  cudaMallocHost((void**) &ptr, bytes);
+#elif defined(USE_HIP)
+  hipMallocHost((void**) &ptr, bytes);
+#elif defined(USE_DPCPP)
+  ptr = (void*) sycl::malloc_host(bytes, tamm::GPUStreamPool::getInstance().getStream().first);
+#endif
+  return ptr;
+}
+
+static inline void freePinnedMem(void* ptr) {
+#if defined(USE_CUDA)
+  cudaFreeHost(ptr);
+#elif defined(USE_HIP)
+  hipFreeHost(ptr);
+#elif defined(USE_DPCPP)
+  sycl::free(ptr, tamm::GPUStreamPool::getInstance().getStream().first);
+#endif
+}
+
 // This API needs to be defined after the class GPUStreamPool since the classs
 // is only declared and defined before this method
 } // namespace tamm

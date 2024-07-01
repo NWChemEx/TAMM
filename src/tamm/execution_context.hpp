@@ -380,7 +380,7 @@ public:
     std::string pheader = "ID;Level;OP;total_op_time_min;total_op_time_max;total_op_time_avg;";
     pheader += "get_time_min;get_time_max;get_time_avg;";
     pheader += "gemm_time_min;gemm_time_max;gemm_time_avg;";
-    pheader += "copy_time_min;copy_time_max; copy_time_avg;";
+    pheader += "copy_time_min;copy_time_max;copy_time_avg;";
     pheader += "acc_time_min;acc_time_max;acc_time_avg";
     return pheader;
   }

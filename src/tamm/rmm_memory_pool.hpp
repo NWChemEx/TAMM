@@ -184,7 +184,9 @@ public:
     max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
 #else
     // Set the CPU memory-pool
-    EXPECTS_STR((numa_available() != -1), "[TAMM ERROR]: numa APIs are not available!");
+    if (numa_available() == -1) {
+      tamm_terminate("[TAMM ERROR] numa APIs are not available!");
+    }
 
     numa_set_bind_policy(1);
     numa_set_strict(1);
@@ -194,8 +196,10 @@ public:
     // for ranks_pn_ > numNumaNodes, it has to be divisble by the number of numa-domains in the
     // system
     if(ranks_pn_ >= numNumaNodes && ranks_pn_ > 1) {
-      EXPECTS_STR((ranks_pn_ % numNumaNodes == 0),
-                  "[TAMM ERROR]: number of user ranks is not a multiple of numa-nodes!");
+      if ((ranks_pn_ % numNumaNodes) != 0) {
+        std::string err_msg = "[TAMM ERROR] Number of user MPI ranks(" + std::to_string(ranks_pn_) + ") is not a multiple of number of numa-nodes(" + std::to_string(numNumaNodes);
+        tamm_terminate(err_msg);
+      }
     }
     struct bitmask* numaNodes = numa_get_mems_allowed();
     numa_bind(numaNodes);

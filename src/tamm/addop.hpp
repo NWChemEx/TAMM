@@ -354,7 +354,7 @@ protected:
    * @pre lta.validate() has been invoked
    */
   void validate() {
-    if(!(lhs_.tensor().base_ptr() != rhs1_.tensor().base_ptr())) {
+    if(!(lhs_.tensor().base_ptr() != rhs_.tensor().base_ptr())) {
       std::ostringstream os;
       os << "[TAMM ERROR] Self assignment is not supported in tensor operations!\n"
          << __FILE__ << ":L" << __LINE__;

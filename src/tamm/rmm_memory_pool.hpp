@@ -158,8 +158,8 @@ public:
       if(ranks_pn_ % ngpus_per_node != 0) {
         std::ostringstream os;
         os << "[TAMM ERROR] Num_ranks_per_node (" << ranks_pn_
-           << ") is not a multiple of num_gpus_per_node (" << ngpus_per_node << ")\n";
-        << __FILE__ << ":L" << __LINE__;
+           << ") is not a multiple of num_gpus_per_node (" << ngpus_per_node << ")\n"
+           << __FILE__ << ":L" << __LINE__;
         tamm_terminate(os.str());
       }
       tamm_rpg = ranks_pn_ / ngpus_per_node;
@@ -188,7 +188,7 @@ public:
     if(numa_available() == -1) {
       std::ostringstream os;
       os << "[TAMM ERROR] numa APIs are not available!\n" << __FILE__ << ":L" << __LINE__;
-      tamm_terminate(os.str());"");
+      tamm_terminate(os.str());
     }
 
     numa_set_bind_policy(1);

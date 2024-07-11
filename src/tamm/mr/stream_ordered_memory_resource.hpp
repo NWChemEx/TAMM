@@ -93,7 +93,9 @@ protected:
 
     size = rmm::detail::align_up(size, rmm::detail::RMM_ALLOCATION_ALIGNMENT);
     if(!(size <= this->underlying().get_maximum_allocation_size())) {
-      EXPECTS_STR(0, "Maximum allocation size exceeded!");
+      std::ostringstream os;
+      os << "[TAMM ERROR] Maximum pool allocation size exceeded!\n" << __FILE__ << ":L" << __LINE__;
+      tamm_terminate(os.str());
     }
     auto const block = this->underlying().get_block(size);
     return block.pointer();
@@ -139,7 +141,11 @@ private:
   block_type get_block(std::size_t size) {
     block_type const block = free_blocks_.get_block(size);
     if(block.is_valid()) { return allocate_and_insert_remainder(block, size); }
-    EXPECTS_STR(0, "ERROR! no block found...crash here!");
+
+    std::ostringstream os;
+    os << "[TAMM ERROR] No memory-block found in stream_ordered_memory_resource!\n"
+       << __FILE__ << ":L" << __LINE__;
+    tamm_terminate(os.str());
   }
 
   /**

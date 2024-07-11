@@ -285,8 +285,8 @@ private:
     // Assert here if multi-GPUs are detected
     // int ngpus{0};
     // getDeviceCount(&ngpus);
-    // EXPECTS_STR((ngpus == 1), "Error: More than 1 GPU-device found per rank!");
-    // gpuSetDevice(default_deviceID);
+    // if (ngpus > 1) { tamm_terminate("[TAMM_ERROR] Multiple (" + std::to_string(ngpus) + ")GPUs
+    // bound per rank!"); gpuSetDevice(default_deviceID);
 
     gpuGetDevice(&default_deviceID);
 

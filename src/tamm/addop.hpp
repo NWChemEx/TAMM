@@ -354,8 +354,12 @@ protected:
    * @pre lta.validate() has been invoked
    */
   void validate() {
-    EXPECTS_STR((lhs_.tensor().base_ptr() != rhs_.tensor().base_ptr()),
-                "Self assignment is not supported in tensor operations!");
+    if(!(lhs_.tensor().base_ptr() != rhs1_.tensor().base_ptr())) {
+      std::ostringstream os;
+      os << "[TAMM ERROR] Self assignment is not supported in tensor operations!\n"
+         << __FILE__ << ":L" << __LINE__;
+      tamm_terminate(os.str());
+    }
 
     IndexLabelVec ilv{lhs_.labels()};
     ilv.insert(ilv.end(), rhs_.labels().begin(), rhs_.labels().end());

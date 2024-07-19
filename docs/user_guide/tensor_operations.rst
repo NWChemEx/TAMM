@@ -239,7 +239,7 @@ Examples without using labels:
      (T2() = T5())
    .execute();
 
-   // Loop Nests constructed
+   // Equivalent code written as loops
    // For (T2() = 42.0)
    for(auto i : T2.dim(0))
      for(auto A : T2.dim(1))
@@ -281,9 +281,9 @@ Examples using labels:
    .execute();
 
 
-   // Loop Nests constructed
+   // Equivalent code written as loops
    // For (T2(i_p, A) = 13.0)
-   for(auto i : T2.dim(0).intersect(i_p.tis())
+   for(auto i : T2.dim(0).intersect(i_p.tis()))
      for(auto A : T2.dim(1))
        T2[i][A] = 42.0;
 
@@ -339,7 +339,7 @@ Examples without using labels:
      (T1() = T2() * T4())
    .execute();
 
-   // Loop Nests constructed
+   // Equivalent code written as loops
    // For (T2() = 2.0)
    for(auto i : T2.dim(0))
      for(auto A : T2.dim(1))
@@ -359,6 +359,8 @@ Examples without using labels:
 Examples using labels:
 
 .. code:: cpp
+
+   // This seems overly complex for multiplication with all the dependancies
 
    // Constructed TiledIndexSpaces
    // TiledIndexSpace AO{AO_is, tile_size};
@@ -396,7 +398,7 @@ Examples using labels:
    .execute();
 
 
-   // Loop Nests constructed
+   // Equivalent code written as loops
    // For (T6(mu_p(j), j) = 2.0) 
    // &   (T6(mu_p, j) = 2.0)
    for(auto j : T6.dim(1))

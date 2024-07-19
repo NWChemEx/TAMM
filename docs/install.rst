@@ -213,8 +213,8 @@ Build instructions for Frontier
 
    module load cray-python cmake 
    module load cray-hdf5-parallel
-   module load cpe/23.05
-   module load rocm/5.5.1
+   module load cpe/23.12
+   module load rocm/5.7.1
    export CRAYPE_LINK_TYPE=dynamic
 
 ::

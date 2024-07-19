@@ -49,7 +49,8 @@ IndexSpace
 -  An index space can be constructed by aggregating/concatenating other
    index spaces. In this case, the index spaces maps an interval
    [0,N-1], where N is the sum of sizes of all aggregated index spaces,
-   to the points in the index spaces aggregated.
+   to the points in the index spaces aggregated.  
+   ``occ`` and ``virt`` are used frequently in this documentation, although they can be any strings, such as ``sub0`` or ``sub1``.
 
    .. code:: cpp
 
@@ -209,7 +210,8 @@ tensors.
       using a single tile size or a set of tile sizes which tiles the
       underlying IndexSpace completely (without gaps). **NOTE:** User
       provided set of tile sizes should also consider the named
-      sub-spaces and any attributes related to input IndexSpace
+      sub-spaces and any attributes related to input IndexSpace.  
+      AO and MO appear frequently as TiledIndexSpaces. While they have domain-specific meaning, it is not relevant to this documentation.
 
       .. code:: cpp
 

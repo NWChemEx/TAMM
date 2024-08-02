@@ -252,8 +252,6 @@ Build instructions for Perlmutter and Polaris
    export CRAYPE_LINK_TYPE=dynamic
    export MPICH_GPU_SUPPORT_ENABLED=0
 
-.. note:: Currently need to add ``-DUSE_CRAYSHASTA=ON`` to the cmake line below only for Polaris builds.
-
 ::
 
    cd $REPO_ROOT_PATH/build

@@ -367,6 +367,8 @@ int main(int argc, char* argv[]) {
   Tensor<T> d_f1{{N, N}, {1, 1}};
   Tensor<T>::allocate(&ec, d_f1);
 
+  tamm::random_ip(d_f1);
+
   std::vector<T> p_evl_sorted;
   Tensor<T>      t1_aa, t2_abab, r1_aa, r2_abab;
 
@@ -401,13 +403,13 @@ int main(int argc, char* argv[]) {
 
   Tensor<T> t2_aaaa = {{v_alpha, v_alpha, o_alpha, o_alpha}, {2, 2}};
 
-  CCSE_Tensors<T> f1_oo{MO, {O, O}, "f1_oo", {"aa", "bb"}};
-  CCSE_Tensors<T> f1_ov{MO, {O, V}, "f1_ov", {"aa", "bb"}};
-  CCSE_Tensors<T> f1_vv{MO, {V, V}, "f1_vv", {"aa", "bb"}};
+  CCSE_Tensors<T> f1_oo{MO, {O, O}, "f1_oo", {"aa"}}; // bb
+  CCSE_Tensors<T> f1_ov{MO, {O, V}, "f1_ov", {"aa"}}; // bb
+  CCSE_Tensors<T> f1_vv{MO, {V, V}, "f1_vv", {"aa"}}; // bb
 
-  CCSE_Tensors<T> chol3d_oo{MO, {O, O, CI}, "chol3d_oo", {"aa", "bb"}};
-  CCSE_Tensors<T> chol3d_ov{MO, {O, V, CI}, "chol3d_ov", {"aa", "bb"}};
-  CCSE_Tensors<T> chol3d_vv{MO, {V, V, CI}, "chol3d_vv", {"aa", "bb"}};
+  CCSE_Tensors<T> chol3d_oo{MO, {O, O, CI}, "chol3d_oo", {"aa"}}; // bb
+  CCSE_Tensors<T> chol3d_ov{MO, {O, V, CI}, "chol3d_ov", {"aa"}}; // bb
+  CCSE_Tensors<T> chol3d_vv{MO, {V, V, CI}, "chol3d_vv", {"aa"}}; // bb
 
   std::vector<CCSE_Tensors<T>> f1_se{f1_oo, f1_ov, f1_vv};
   std::vector<CCSE_Tensors<T>> chol3d_se{chol3d_oo, chol3d_ov, chol3d_vv};
@@ -425,7 +427,7 @@ int main(int argc, char* argv[]) {
   _a02V = {CI};
   _a01  = CCSE_Tensors<T>{MO, {O, O, CI}, "_a01", {"aa"}};
   _a04  = CCSE_Tensors<T>{MO, {O, O}, "_a04", {"aa"}};
-  _a05  = CCSE_Tensors<T>{MO, {O, V}, "_a05", {"aa", "bb"}};
+  _a05  = CCSE_Tensors<T>{MO, {O, V}, "_a05", {"aa"}}; // bb
   _a06  = CCSE_Tensors<T>{MO, {V, O, CI}, "_a06", {"aa"}};
 
   // T2
@@ -453,8 +455,12 @@ int main(int argc, char* argv[]) {
                                  _a017, _a019, _a020, _a021, _a022);
   sch.execute();
 
+  tamm::random_ip(f1_oo("aa"));
+  tamm::random_ip(f1_ov("aa"));
+  tamm::random_ip(f1_vv("aa"));
+  tamm::random_ip(chol3d_oo("aa"));
+  tamm::random_ip(chol3d_ov("aa"));
   tamm::random_ip(chol3d_vv("aa"));
-  tamm::random_ip(chol3d_vv("bb"));
 
   // clang-format off
   sch
@@ -494,8 +500,8 @@ int main(int argc, char* argv[]) {
 
   if(false) {
     ExecutionContext ec_dense{ec.pg(), DistributionKind::dense, MemoryManagerKind::ga};
-    Tensor<T>        c3dvv_dense = tamm::to_dense_tensor(ec_dense, chol3d_vv("bb"));
-    print_dense_tensor(c3dvv_dense, "c3d_vv_bb_dense");
+    Tensor<T>        c3dvv_dense = tamm::to_dense_tensor(ec_dense, chol3d_vv("aa"));
+    print_dense_tensor(c3dvv_dense, "c3d_vv_aa_dense");
   }
 
   // deallocate all intermediates

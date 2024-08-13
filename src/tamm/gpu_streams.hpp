@@ -115,6 +115,38 @@ static inline void getDeviceCount(int* id) {
 #endif
 }
 
+// The following API is to get the hardware count of
+// GPUs/GCDs/Xe-stacks/tiles on a given node. Unlike the
+// above API, this method is not affected by the masking
+// env variables like CUDA/ROCR_VISIBLE_DEVICES or ZE_AFFINITY_MASK
+static inline void getHardwareGPUCount(int* gpus_per_node) {
+  std::array<char, 128> buffer;
+  std::string           result, m_call;
+
+#if defined(USE_CUDA)
+  m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
+#elif defined(USE_HIP)
+  m_call = "rocm-smi --alldevices | grep \"AMD INSTINCT\" | wc -l";
+#elif defined(USE_DPCPP)
+  sycl::platform pltf = sycl_get_device(0)->get_platform();
+  if(pltf.get_backend() == sycl::backend::ext_oneapi_level_zero ||
+     pltf.get_backend() == sycl::backend::opencl) {
+    m_call = "cat /sys/class/drm/card*/gt/gt*/id | wc -l";
+  }
+  else if(pltf.get_backend() == sycl::backend::ext_oneapi_cuda) {
+    m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
+  }
+  else if(pltf.get_backend() == sycl::backend::ext_oneapi_hip) {
+    m_call = "rocm-smi --alldevices | grep \"AMD INSTINCT\" | wc -l";
+  }
+#endif
+
+  std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(m_call.c_str(), "r"), pclose);
+  if(!pipe) { throw std::runtime_error("popen() failed!"); }
+  while(fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) { result += buffer.data(); }
+  *gpus_per_node = stoi(result);
+}
+
 static inline std::string getDeviceName() {
 #if defined(USE_CUDA)
   cudaDeviceProp prop;

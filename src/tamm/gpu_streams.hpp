@@ -1,6 +1,8 @@
 #pragma once
 
 #include "tamm/errors.hpp"
+#include <array>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <utility>

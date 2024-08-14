@@ -120,31 +120,7 @@ public:
     world_rank_ = GA_Nodeid();
 #endif // USE_UPCXX
 
-    if(world_rank_ == 0) {
-      std::array<char, 128> buffer;
-      std::string           result;
-
-#if defined(USE_CUDA)
-      const std::string m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
-#elif defined(USE_HIP)
-      const std::string m_call = "rocm-smi --showmemvendor | wc -l";
-#elif defined(USE_DPCPP)
-      const std::string m_call = "ONEAPI_DEVICE_SELECTOR=level_zero:gpu sycl-ls | wc -l";
-#endif
-
-      std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(m_call.c_str(), "r"), pclose);
-      if(!pipe) { throw std::runtime_error("popen() failed!"); }
-      while(fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) { result += buffer.data(); }
-
-#if defined(USE_CUDA)
-      ngpus_per_node = stoi(result);
-#elif defined(USE_HIP)
-      // - 6 is to remove the empty lines from the output
-      ngpus_per_node = stoi(result) - 6;
-#elif defined(USE_DPCPP)
-      ngpus_per_node           = stoi(result);
-#endif
-    }
+    if(world_rank_ == 0) { tamm::getHardwareGPUCount(&ngpus_per_node); }
 
 #if defined(USE_UPCXX)
     upcxx::broadcast(&tamm_rpg, 0).wait();

@@ -13,7 +13,9 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
+#include <nvml.h>
 #elif defined(USE_HIP)
+#include "rocm_smi/rocm_smi.h"
 #include <hip/hip_runtime.h>
 #include <rocblas/rocblas.h>
 #elif defined(USE_DPCPP)
@@ -117,36 +119,75 @@ static inline void getDeviceCount(int* id) {
 #endif
 }
 
+#if defined(USE_CUDA)
+static inline int nv_device_count() {
+  nvmlReturn_t result;
+  unsigned int device_count, i;
+
+  result = nvmlInit();
+  if(NVML_SUCCESS != result) {
+    std::string nvml_error = "Failed to initialize NVML: " + std::string(nvmlErrorString(result));
+    tamm_terminate(nvml_error);
+  }
+
+  result = nvmlDeviceGetCount(&device_count);
+  if(NVML_SUCCESS != result) {
+    std::string nvml_error =
+      "Failed to query device count: " + std::string(nvmlErrorString(result));
+    tamm_terminate(nvml_error);
+  }
+  nvmlShutdown();
+  return device_count;
+}
+
+#elif defined(USE_HIP)
+static inline int amd_device_count() {
+  rsmi_status_t result;
+  uint32_t device_count;
+
+  result = rsmi_init(0);
+  if(result != RSMI_STATUS_SUCCESS) tamm_terminate("rsmi_init failed");
+  result = rsmi_num_monitor_devices(&device_count);
+  if(result != RSMI_STATUS_SUCCESS) tamm_terminate("Failed to query device count");
+  rsmi_shut_down();
+
+  return device_count;
+}
+
+#endif
+
 // The following API is to get the hardware count of
 // GPUs/GCDs/Xe-stacks/tiles on a given node. Unlike the
 // above API, this method is not affected by the masking
 // env variables like CUDA/ROCR_VISIBLE_DEVICES or ZE_AFFINITY_MASK
 static inline void getHardwareGPUCount(int* gpus_per_node) {
+#if defined(USE_CUDA)
+  *gpus_per_node = nv_device_count();
+#elif defined(USE_HIP)
+  *gpus_per_node = amd_device_count();
+#elif defined(USE_DPCPP)
   std::array<char, 128> buffer;
   std::string           result, m_call;
 
-#if defined(USE_CUDA)
-  m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
-#elif defined(USE_HIP)
-  m_call = "rocm-smi -i |grep GPU|wc -l";
-#elif defined(USE_DPCPP)
   sycl::platform pltf = sycl_get_device(0)->get_platform();
   if(pltf.get_backend() == sycl::backend::ext_oneapi_level_zero ||
      pltf.get_backend() == sycl::backend::opencl) {
     m_call = "cat /sys/class/drm/card*/gt/gt*/id | wc -l";
   }
   else if(pltf.get_backend() == sycl::backend::ext_oneapi_cuda) {
+    // TODO: can we use nvml api ?
     m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
   }
   else if(pltf.get_backend() == sycl::backend::ext_oneapi_hip) {
+    // TODO: can we use ROCm SMI api ?
     m_call = "rocm-smi -i |grep GPU|wc -l";
   }
-#endif
 
   std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(m_call.c_str(), "r"), pclose);
   if(!pipe) { throw std::runtime_error("popen() failed!"); }
   while(fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) { result += buffer.data(); }
   *gpus_per_node = stoi(result);
+#endif
 }
 
 static inline std::string getDeviceName() {

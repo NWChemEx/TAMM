@@ -128,7 +128,7 @@ static inline void getHardwareGPUCount(int* gpus_per_node) {
 #if defined(USE_CUDA)
   m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
 #elif defined(USE_HIP)
-  m_call = "rocm-smi --alldevices | grep \"AMD INSTINCT\" | wc -l";
+  m_call = "rocm-smi -i |grep GPU|wc -l";
 #elif defined(USE_DPCPP)
   sycl::platform pltf = sycl_get_device(0)->get_platform();
   if(pltf.get_backend() == sycl::backend::ext_oneapi_level_zero ||
@@ -139,7 +139,7 @@ static inline void getHardwareGPUCount(int* gpus_per_node) {
     m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
   }
   else if(pltf.get_backend() == sycl::backend::ext_oneapi_hip) {
-    m_call = "rocm-smi --alldevices | grep \"AMD INSTINCT\" | wc -l";
+    m_call = "rocm-smi -i |grep GPU|wc -l";
   }
 #endif
 

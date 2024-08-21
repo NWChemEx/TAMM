@@ -15,7 +15,7 @@
 #include <cuda_runtime_api.h>
 #include <nvml.h>
 #elif defined(USE_HIP)
-#include "rocm_smi/rocm_smi.h"
+#include <rocm_smi/rocm_smi.h>
 #include <hip/hip_runtime.h>
 #include <rocblas/rocblas.h>
 #elif defined(USE_DPCPP)

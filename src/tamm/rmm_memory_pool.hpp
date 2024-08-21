@@ -66,8 +66,6 @@ private:
   uint32_t tamm_rpg;
 
 public:
-  uint32_t get_rpg() { return tamm_rpg; }
-
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   /// Returns a RMM device pool handle
   device_pool_mr& getDeviceMemoryPool() { return *(deviceMR.get()); }
@@ -251,8 +249,6 @@ public:
   RMMMemoryManager(RMMMemoryManager&&)                 = delete;
   RMMMemoryManager& operator=(RMMMemoryManager&&)      = delete;
 };
-
-static inline uint32_t ranks_per_gpu_pool() { return RMMMemoryManager::getInstance().get_rpg(); }
 
 // The reset pool & reinitialize only is being used for the (T) segement of cannonical
 static inline void reset_rmm_pool() { RMMMemoryManager::getInstance().reset(); }

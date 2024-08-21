@@ -39,7 +39,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
 #endif
   nnodes_  = pg.size().value() / ranks_pn_;
-  gpus_pn_ = ranks_pn_ / ranks_per_gpu_pool();
+  tamm::getHardwareGPUCount(&gpus_pn_);
 
 #if defined(__APPLE__)
   {

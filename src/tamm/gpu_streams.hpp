@@ -175,11 +175,11 @@ static inline void getHardwareGPUCount(int* gpus_per_node) {
     m_call = "cat /sys/class/drm/card*/gt/gt*/id | wc -l";
   }
   else if(pltf.get_backend() == sycl::backend::ext_oneapi_cuda) {
-    // TODO: can we use nvml api ?
+    // TODO: can we use nvml api ?, propably no
     m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
   }
   else if(pltf.get_backend() == sycl::backend::ext_oneapi_hip) {
-    // TODO: can we use ROCm SMI api ?
+    // TODO: can we use ROCm SMI api ?, probably no
     m_call = "rocm-smi -i |grep GPU|wc -l";
   }
 
@@ -187,6 +187,10 @@ static inline void getHardwareGPUCount(int* gpus_per_node) {
   if(!pipe) { throw std::runtime_error("popen() failed!"); }
   while(fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) { result += buffer.data(); }
   *gpus_per_node = stoi(result);
+
+  if(*gpus_per_node == 0) {
+    tamm_terminate("[TAMM ERROR] No GPUs detected on node!");
+  }
 #endif
 }
 

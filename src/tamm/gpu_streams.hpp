@@ -188,9 +188,7 @@ static inline void getHardwareGPUCount(int* gpus_per_node) {
   while(fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) { result += buffer.data(); }
   *gpus_per_node = stoi(result);
 
-  if(*gpus_per_node == 0) {
-    tamm_terminate("[TAMM ERROR] No GPUs detected on node!");
-  }
+  if(*gpus_per_node == 0) { tamm_terminate("[TAMM ERROR] No GPUs detected on node!"); }
 #endif
 }
 

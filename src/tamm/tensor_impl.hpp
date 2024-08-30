@@ -968,6 +968,24 @@ public:
         }
 #else
         for(int i = 0; i < ndims; i++) nblock[i] = pgrid[i];
+
+        // if the number of blocks along dimension i > dims[i],
+        // reset the number of processors along that dimension to dims[i]
+        // and restrict the GA to the new proc grid.
+        bool is_bgd{false};
+        for(int i = 0; i < ndims; i++) {
+          if(nblock[i] > dims[i]) {
+            nblock[i] = dims[i];
+            is_bgd    = true;
+          }
+        }
+
+        if(is_bgd) {
+          nblocks = std::accumulate(nblock, nblock + ndims, (int) 1, std::multiplies<int>());
+          int proclist_c[nblocks];
+          std::iota(proclist_c, proclist_c + nblocks, 0);
+          GA_Set_restricted(ga_, proclist_c, nblocks);
+        }
 #endif
 
         // distribution->set_proc_grid(proc_grid_);

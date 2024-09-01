@@ -70,7 +70,10 @@ public:
    * @brief Destroy the `pool_memory_resource` and deallocate all memory it allocated using
    * the upstream resource.
    */
-  ~pool_memory_resource() override { release(); }
+  ~pool_memory_resource() override {
+    release();
+    delete upstream_mr_;
+  }
 
   pool_memory_resource()                                       = delete;
   pool_memory_resource(pool_memory_resource const&)            = delete;

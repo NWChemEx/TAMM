@@ -277,7 +277,8 @@ public:
       }
 
       // Delete unused pointers
-      delete defd, distribution;
+      delete defd;
+      delete distribution;
 #if 0
         auto rank = memory_manager->pg().rank();
         auto buf_size = distribution_->buf_size(rank);
@@ -810,7 +811,8 @@ public:
     distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, ec->pg().size()));
     proc_grid_    = distribution_->proc_grid();
 
-    delete defd, distribution;
+    delete defd;
+    delete distribution;
 
     auto tis_dims = tindices();
 
@@ -1797,7 +1799,9 @@ public:
 
       EXPECTS(distribution_ != nullptr);
 
-      delete defd, distribution, memory_manager;
+      delete defd;
+      delete distribution;
+      delete memory_manager;
 
       auto eltype = tensor_element_type<T>();
       mpb_        = tensor_opt_.memory_region();

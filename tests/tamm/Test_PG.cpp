@@ -31,6 +31,8 @@ void test_pg(int dim, int nproc) {
   MPI_Group_incl(lgroup, ppn, lranks, &hf_lgroup);
   MPI_Comm subcomm;
   MPI_Comm_create(world_comm, hf_lgroup, &subcomm);
+  MPI_Group_free(&lgroup);
+  MPI_Group_free(&hf_lgroup);
 #endif
 
   TiledIndexSpace AO{IndexSpace{range(5)}, 5};

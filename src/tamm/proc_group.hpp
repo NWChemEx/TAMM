@@ -292,6 +292,8 @@ public:
     MPI_Comm_group(pg2.pginfo_->mpi_comm_, &group2);
     MPI_Group_translate_ranks(group1, 1, &ranks1, group2, &ranks2);
     assert(ranks2 != MPI_PROC_NULL);
+    MPI_Group_free(&group1);
+    MPI_Group_free(&group2);
     return Proc{ranks2};
 #endif
   }
@@ -658,6 +660,8 @@ private:
     GA_Pgroup_set_default(GA_Pgroup_get_world());
     int ga_pg = GA_Pgroup_create(ranks_world, nranks);
     GA_Pgroup_set_default(ga_pg_default);
+    MPI_Group_free(&group);
+    MPI_Group_free(&group_world);
     return ga_pg;
   }
 
@@ -862,6 +866,8 @@ public:
     MPI_Comm_group(*pg2.mpi_comm_, &group2);
     MPI_Group_translate_ranks(group1, 1, &ranks1, group2, &ranks2);
     assert(ranks2 != MPI_PROC_NULL);
+    MPI_Group_free(&group1);
+    MPI_Group_free(&group2);
     return Proc{ranks2};
   }
 
@@ -886,6 +892,8 @@ private:
     GA_Pgroup_set_default(GA_Pgroup_get_world());
     int ga_pg = GA_Pgroup_create(ranks_world, nranks);
     GA_Pgroup_set_default(ga_pg_default);
+    MPI_Group_free(&group);
+    MPI_Group_free(&group_world);
     return ga_pg;
   }
 

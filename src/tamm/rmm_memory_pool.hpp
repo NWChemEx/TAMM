@@ -185,6 +185,7 @@ public:
     }
     struct bitmask* numaNodes = numa_get_mems_allowed();
     numa_bind(numaNodes);
+    numa_bitmask_free(numaNodes);
 
     int  numa_id         = numa_node_of_cpu(sched_getcpu());
     long numa_total_size = numa_node_size(numa_id, &max_host_bytes);

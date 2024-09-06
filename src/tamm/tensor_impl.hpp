@@ -234,6 +234,8 @@ public:
 
     ec_->unregister_for_dealloc(mpb_);
     mpb_->dealloc_coll();
+    MemoryManager* memory_manager = &(mpb_->mgr());
+    delete memory_manager;
     delete mpb_;
     mpb_ = nullptr;
     update_status(AllocationStatus::deallocated);
@@ -273,6 +275,10 @@ public:
         distribution_ =
           std::shared_ptr<Distribution>(distribution->clone(this, memory_manager->pg().size()));
       }
+
+      // Delete unused pointers
+      delete defd;
+      delete distribution;
 #if 0
         auto rank = memory_manager->pg().rank();
         auto buf_size = distribution_->buf_size(rank);
@@ -804,6 +810,9 @@ public:
 
     distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, ec->pg().size()));
     proc_grid_    = distribution_->proc_grid();
+
+    delete defd;
+    delete distribution;
 
     auto tis_dims = tindices();
 
@@ -1789,6 +1798,10 @@ public:
         std::shared_ptr<Distribution>(new UnitTileDistribution(this, &tensor_opt_.distribution()));
 
       EXPECTS(distribution_ != nullptr);
+
+      delete defd;
+      delete distribution;
+      delete memory_manager;
 
       auto eltype = tensor_element_type<T>();
       mpb_        = tensor_opt_.memory_region();

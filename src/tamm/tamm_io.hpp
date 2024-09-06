@@ -101,6 +101,8 @@ static inline void subcomm_from_subranks(ExecutionContext& gec, int subranks, MP
   MPI_Group tamm_subgroup;
   MPI_Group_incl(group, subranks, ranks, &tamm_subgroup);
   MPI_Comm_create(comm, tamm_subgroup, &subcomm);
+  MPI_Group_free(&group);
+  MPI_Group_free(&tamm_subgroup);
 }
 #endif
 

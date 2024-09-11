@@ -7,6 +7,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "XL"
         message(FATAL_ERROR "TAMM cannot be currently built with ${CMAKE_CXX_COMPILER_ID} compilers.")
 endif()
 
+if (DEFINED ENV{CONDA_PREFIX} AND NOT ALLOW_CONDA) #VIRTUAL_ENV
+  message(FATAL_ERROR "TAMM cannot be reliably built in CONDA environments. \
+          Please deactivate CONDA or use ALLOW_CONDA=ON to override")
+endif()
+
 if("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
     if (${PROJECT_NAME}_ENABLE_CUDA)
         message(FATAL_ERROR "${PROJECT_NAME} does not support building with GPU support \

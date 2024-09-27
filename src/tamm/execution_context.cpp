@@ -25,10 +25,6 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #if defined(USE_UPCXX)
   pg_self_ = ProcGroup{team_self};
 
-#if defined(USE_UPCXX_DISTARRAY)
-  hint_ = pg.size().value();
-#endif
-
 #else
   pg_self_  = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
 #endif

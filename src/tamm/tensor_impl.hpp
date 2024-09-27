@@ -260,11 +260,7 @@ public:
         ec->distribution(defd->get_tensor_base(), defd->get_dist_proc()); // defd->kind());
       // Distribution* distribution    =
       // ec->distribution(defd.tensor_base(), nproc );
-#if defined(USE_UPCXX_DISTARRAY) && defined(USE_UPCXX)
-      MemoryManager* memory_manager = ec->memory_manager(ec->hint());
-#else
       MemoryManager* memory_manager = ec->memory_manager();
-#endif
       EXPECTS(distribution != nullptr);
       EXPECTS(memory_manager != nullptr);
       ec_ = ec;
@@ -286,7 +282,7 @@ public:
         EXPECTS(buf_size >= 0);
         mpb_ = memory_manager->alloc_coll(eltype, buf_size);
 #else
-      auto           eltype         = tensor_element_type<T>();
+      auto eltype = tensor_element_type<T>();
       if(proc_list_.size() > 0)
         mpb_ = memory_manager->alloc_coll_balanced(eltype, distribution_->max_proc_buf_size(),
                                                    proc_list_);

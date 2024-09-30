@@ -70,7 +70,10 @@ public:
    * @brief Destroy the `pool_memory_resource` and deallocate all memory it allocated using
    * the upstream resource.
    */
-  ~pool_memory_resource() override { release(); }
+  ~pool_memory_resource() override {
+    release();
+    delete upstream_mr_;
+  }
 
   pool_memory_resource()                                       = delete;
   pool_memory_resource(pool_memory_resource const&)            = delete;
@@ -115,7 +118,12 @@ protected:
   void initialize_pool(std::size_t maximum_size) {
     auto const block = block_from_upstream(maximum_size);
     if(block.has_value()) { this->insert_block(block.value()); }
-    else { EXPECTS_STR(0, "RMM: initialize_pool failed(), too many processes per node!"); }
+    else {
+      std::ostringstream os;
+      os << "[TAMM ERROR] RMM initialize_pool() failed, too many processes per node!\n"
+         << __FILE__ << ":L" << __LINE__;
+      tamm_terminate(os.str());
+    }
   }
 
   /**

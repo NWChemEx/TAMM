@@ -83,6 +83,9 @@ void test_evp(size_t N, size_t mb) {
   MPI_Comm scacomm;
   MPI_Comm_create(gcomm, sca_group, &scacomm);
 
+  MPI_Group_free(&wgroup);
+  MPI_Group_free(&sca_group);
+
   if(rank < hf_nranks) {
     EXPECTS(hf_comm != MPI_COMM_NULL);
     ScalapackInfo scalapack_info;

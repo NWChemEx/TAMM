@@ -35,16 +35,18 @@ dimensions.
 .. code:: cpp
 
    using tensor_type = Tensor<double>;
+
+   // Create labels assuming MO and depAO are defined
    auto [i, j] = MO.labels<2>("all");
    auto mu = depAO.label("all");
 
    // Dense tensor construction
-   tensor_type T1{i, j};
-   tensor_type T2{MO, MO};
+   tensor_type T1{i, j}; // MO x MO
+   tensor_type T2{MO, MO}; // MO x MO
 
    // Sparse tensor construction
    // mu(i) will construct a dependent TiledIndexLabel which is validated internally.
-   tensor_type T3{i, mu(i)}  
+   tensor_type T3{i, mu(i)} // Perhaps don't use dependancies in the first example?
 
 
 Using TiledIndexSpace
@@ -170,10 +172,8 @@ distribution:
 
    // Constructing process group, memory manager, distribution to construct 
    // an execution context for allocation
-   ProcGroup pg = ProcGroup::create_world_coll();
-   auto manager = MemoryManagerGA::create_coll(pg);
-   Distribution_NW distribution{};
-   ExecutionContext ec{pg, &distribution, manager};
+   ProcGroup        pg = ProcGroup::create_world_coll();
+   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
    // We also provide a utility function that constructs 
    // an ExecutionContext object with default process group, 
@@ -217,6 +217,7 @@ distribution:
    // Deallocate the tensors (unless will be used afterwards)
    .deallocate(d_r1, d_f1)
    .execute();
+
 
 **Note:** The tensors are has to be explicitly allocated using the
 specified execution context before being used and they should be

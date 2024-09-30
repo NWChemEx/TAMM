@@ -120,31 +120,7 @@ public:
     world_rank_ = GA_Nodeid();
 #endif // USE_UPCXX
 
-    if(world_rank_ == 0) {
-      std::array<char, 128> buffer;
-      std::string           result;
-
-#if defined(USE_CUDA)
-      const std::string m_call = "nvidia-smi --query-gpu=name --format=csv,noheader | wc -l";
-#elif defined(USE_HIP)
-      const std::string m_call = "rocm-smi --showmemvendor | wc -l";
-#elif defined(USE_DPCPP)
-      const std::string m_call = "ONEAPI_DEVICE_SELECTOR=level_zero:gpu sycl-ls | wc -l";
-#endif
-
-      std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(m_call.c_str(), "r"), pclose);
-      if(!pipe) { throw std::runtime_error("popen() failed!"); }
-      while(fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) { result += buffer.data(); }
-
-#if defined(USE_CUDA)
-      ngpus_per_node = stoi(result);
-#elif defined(USE_HIP)
-      // - 6 is to remove the empty lines from the output
-      ngpus_per_node = stoi(result) - 6;
-#elif defined(USE_DPCPP)
-      ngpus_per_node           = stoi(result);
-#endif
-    }
+    if(world_rank_ == 0) { tamm::getHardwareGPUCount(&ngpus_per_node); }
 
 #if defined(USE_UPCXX)
     upcxx::broadcast(&tamm_rpg, 0).wait();
@@ -156,10 +132,11 @@ public:
 
     if(ranks_pn_ > ngpus_per_node) {
       if(ranks_pn_ % ngpus_per_node != 0) {
-        const std::string rpg_error =
-          "[TAMM ERROR]: num_ranks_per_node (" + std::to_string(ranks_pn_) +
-          ") is not a multiple of num_gpus_per_node (" + std::to_string(ngpus_per_node) + ")";
-        tamm_terminate(rpg_error);
+        std::ostringstream os;
+        os << "[TAMM ERROR] Num_ranks_per_node (" << ranks_pn_
+           << ") is not a multiple of num_gpus_per_node (" << ngpus_per_node << ")\n"
+           << __FILE__ << ":L" << __LINE__;
+        tamm_terminate(os.str());
       }
       tamm_rpg = ranks_pn_ / ngpus_per_node;
     }
@@ -184,7 +161,11 @@ public:
     max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
 #else
     // Set the CPU memory-pool
-    EXPECTS_STR((numa_available() != -1), "[TAMM ERROR]: numa APIs are not available!");
+    if(numa_available() == -1) {
+      std::ostringstream os;
+      os << "[TAMM ERROR] numa APIs are not available!\n" << __FILE__ << ":L" << __LINE__;
+      tamm_terminate(os.str());
+    }
 
     numa_set_bind_policy(1);
     numa_set_strict(1);
@@ -194,11 +175,17 @@ public:
     // for ranks_pn_ > numNumaNodes, it has to be divisble by the number of numa-domains in the
     // system
     if(ranks_pn_ >= numNumaNodes && ranks_pn_ > 1) {
-      EXPECTS_STR((ranks_pn_ % numNumaNodes == 0),
-                  "[TAMM ERROR]: number of user ranks is not a multiple of numa-nodes!");
+      if((ranks_pn_ % numNumaNodes) != 0) {
+        std::ostringstream os;
+        os << "[TAMM ERROR] Number of user MPI ranks(" << ranks_pn_
+           << ") is not a multiple of number of numa-nodes(" << numNumaNodes << ")! \n"
+           << __FILE__ << ":L" << __LINE__;
+        tamm_terminate(os.str());
+      }
     }
     struct bitmask* numaNodes = numa_get_mems_allowed();
     numa_bind(numaNodes);
+    numa_bitmask_free(numaNodes);
 
     int  numa_id         = numa_node_of_cpu(sched_getcpu());
     long numa_total_size = numa_node_size(numa_id, &max_host_bytes);

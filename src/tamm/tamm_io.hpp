@@ -101,6 +101,8 @@ static inline void subcomm_from_subranks(ExecutionContext& gec, int subranks, MP
   MPI_Group tamm_subgroup;
   MPI_Group_incl(group, subranks, ranks, &tamm_subgroup);
   MPI_Comm_create(comm, tamm_subgroup, &subcomm);
+  MPI_Group_free(&group);
+  MPI_Group_free(&tamm_subgroup);
 }
 #endif
 
@@ -252,15 +254,15 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
   size_t ndims = tensor.num_modes();
   const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
 
-  int64_t tensor_dims[7] = {1, 1, 1, 1, 1, 1, 1};
-  int ndim{1}, itype{};
   int ga_tens = tensor.ga_handle();
   if(!tammio) ga_tens = tamm_to_ga(gec, tensor);
-  NGA_Inquire64(ga_tens, &itype, &ndim, tensor_dims);
 
-  // if ndim>1, this is an nD GA and assumed to be dense.
-  int64_t tensor_size =
-    std::accumulate(tensor_dims, tensor_dims + ndim, (int64_t) 1, std::multiplies<int64_t>());
+  std::vector<int64_t> tensor_dims(ndims, 1);
+  const auto tis = tensor.tiled_index_spaces();
+  for(size_t i = 0; i < ndims; i++) { tensor_dims[i] = tis[i].index_space().num_indices(); }
+  // NGA_Inquire64(ga_tens, &itype, &ndim, tensor_dims);
+  int64_t tensor_size = std::accumulate(tensor_dims.begin(), tensor_dims.end(), (int64_t) 1,
+                                        std::multiplies<int64_t>());
 
   if(rank == 0 && profile)
     std::cout << "tensor size: " << std::fixed << std::setprecision(2)
@@ -525,22 +527,18 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
 
         auto io_t1 = std::chrono::high_resolution_clock::now();
 
-        int ga_tens;
         size_t ndims = tensor.num_modes();
         // const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
         // if(root_ppi == 0 && profile)
         //   std::cout << "write " << filename << " to disk using: " << ec.pg().size().value() <<
         //   " ranks" << std::endl;
 
-        int64_t tensor_dims[7] = {1, 1, 1, 1, 1, 1, 1};
-        int ndim{1}, itype{};
-        ga_tens = tensor.ga_handle();
-        NGA_Inquire64(ga_tens, &itype, &ndim, tensor_dims);
+        std::vector<int64_t> tensor_dims(ndims, 1);
+        const auto tis = tensor.tiled_index_spaces();
+        for(size_t i = 0; i < ndims; i++) { tensor_dims[i] = tis[i].index_space().num_indices(); }
 
-        // if ndim=2, this is an nD GA and assumed to be dense.
-        int64_t tensor_size =
-          std::accumulate(tensor_dims, tensor_dims + ndim, (int64_t) 1, std::multiplies<int64_t>());
-
+        int64_t tensor_size = std::accumulate(tensor_dims.begin(), tensor_dims.end(), (int64_t) 1,
+                                              std::multiplies<int64_t>());
         auto ltensor = tensor();
         LabelLoopNest loop_nest{ltensor.labels()};
 

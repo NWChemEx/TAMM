@@ -299,7 +299,8 @@ private:
   TiledIndexSpaceVec construct_tis_vec(std::vector<size_t> dim_sizes) {
     TiledIndexSpaceVec local_tis_vec;
     for(const auto& dim_size: dim_sizes) {
-      local_tis_vec.push_back(TiledIndexSpace{IndexSpace{range(dim_size)}, dim_size});
+      local_tis_vec.push_back(
+        TiledIndexSpace{IndexSpace{range(dim_size)}, static_cast<Tile>(dim_size)});
     }
 
     return local_tis_vec;

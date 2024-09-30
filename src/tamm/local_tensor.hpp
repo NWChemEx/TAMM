@@ -174,7 +174,7 @@ public:
       std::vector<size_t> indices(dims.size(), 0);
       bool                done = false;
       return [=]() mutable {
-        if(done) return std::optional<std::vector<size_t>>{};
+        if(done) return std::vector<size_t>();
         auto current = indices;
         for(int i = indices.size() - 1; i >= 0; --i) {
           if(++indices[i] < dims[i]) break;
@@ -184,14 +184,16 @@ public:
           }
           indices[i] = 0;
         }
-        return std::optional<std::vector<size_t>>{current};
+        return current;
       };
     };
 
     auto smallerIt = iterateIndices(smallerDims);
-    while(auto indices = smallerIt()) {
-      auto bigIndices = *indices;
-      bigger_tensor.set(bigIndices, (*this).get(*indices));
+    while(true) {
+      auto indices = smallerIt();
+      if(indices.empty()) break;
+      auto bigIndices = indices;
+      bigger_tensor.set(bigIndices, (*this).get(indices));
     }
   }
 

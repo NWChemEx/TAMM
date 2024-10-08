@@ -5,7 +5,7 @@
 #PBS -l filesystems=home:eagle
 #PBS -l walltime=00:30:00
 #PBS -q debug
-#PBS -A gpu_hack
+#PBS -A <account>
 
 module load PrgEnv-gnu cpe-cuda cudatoolkit-standalone/11.8.0 cmake
 module list

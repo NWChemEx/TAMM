@@ -12,26 +12,51 @@
 #env
 set -x
 
-module use /soft/modulefiles/
-module load spack-pe-gcc/0.4-rc1 numactl/2.0.14-gcc-testing cmake
-module load oneapi/release/2023.12.15.001
-#module load intel_compute_runtime/release/stable-736.25
+module restore
+module load spack-pe-gcc cmake
 module list
 
 export TZ='/usr/share/zoneinfo/US/Central'
 
-cd $HOME/output
-pwd
-
 export MPIR_CVAR_ENABLE_GPU=0
+
+export FI_MR_CACHE_MONITOR=disabled
+export FI_MR_ZE_CACHE_MONITOR_ENABLED=0
+
+export FI_CXI_RDZV_THRESHOLD=16384
+export FI_CXI_RDZV_EAGER_SIZE=2048
 export FI_CXI_DEFAULT_CQ_SIZE=131072
+#export FI_CXI_DEFAULT_CQ_SIZE=1048576
 export FI_CXI_CQ_FILL_PERCENT=20
-export ZE_FLAT_DEVICE_HIERARCHY=flat
-export MEMKIND_HBW_THRESHOLD=402400
-export SYCL_PI_LEVEL_ZERO_USM_RESIDENT=0x001
+export FI_CXI_DEFAULT_TX_SIZE=1024
+export FI_CXI_OFLOW_BUF_SIZE=12582912
+export FI_CXI_OFLOW_BUF_COUNT=3
+export FI_CXI_RX_MATCH_MODE=hardware
+export FI_CXI_REQ_BUF_MIN_POSTED=6
+export FI_CXI_REQ_BUF_SIZE=12582912
+export FI_MR_CACHE_MAX_SIZE=-1
+export FI_MR_CACHE_MAX_COUNT=524288
+export FI_CXI_REQ_BUF_MAX_CACHED=0
+export FI_CXI_REQ_BUF_MIN_POSTED=6
+#export FI_LOG_LEVEL=debug
+#export FI_LOG_SUBSYS=ep_data
+
+export ZE_FLAT_DEVICE_HIERARCHY=FLAT
 export ZES_ENABLE_SYSMAN=1
-export GA_PROGRESS_RANKS_DISTRIBUTION_PACKED=1
-export GA_PROGRESS_RANKS_DISTRIBUTION_CYCLIC=0
+export OMP_NUM_THREADS=1
+export TAMM_ENABLE_SPRHBM=0
+export TAMM_CPU_POOL=50
+
+export SYCL_PI_LEVEL_ZERO_SINGLE_THREAD_MODE=1
+export UR_L0_USE_DRIVER_INORDER_LISTS=1
+export UR_L0_USE_COPY_ENGINE_FOR_IN_ORDER_QUEUE=1
+
+export MPIR_CVAR_CH4_OFI_ENABLE_MULTI_NIC_STRIPING=1
+export MPIR_CVAR_CH4_OFI_ENABLE_MR_PROV_KEY=1 # This is needed to achieve good performance with the Cassini NIC
+export MPIR_CVAR_DEBUG_SUMMARY=1
+export MPIR_CVAR_DEBUG=1
+export MPIR_CVAR_PRINT_ENVIRONMENT=1
+export MPIR_CVAR_CH4_OFI_MAX_NICS=8
 
 unset MPIR_CVAR_CH4_COLL_SELECTION_TUNING_JSON_FILE
 unset MPIR_CVAR_COLL_SELECTION_TUNING_JSON_FILE
@@ -40,27 +65,23 @@ unset MPIR_CVAR_CH4_POSIX_COLL_SELECTION_TUNING_JSON_FILE
 NNODES=`wc -l < $PBS_NODEFILE`
 NTHREADS=1
 
+cd ${PBS_O_WORKDIR}
 export LD_LIBRARY_PATH=$HOME/install/tamm/lib64:$LD_LIBRARY_PATH
 
 EXE=<tamm-exe>
 INPUT=<args>
 
-#1pr
+ulimit -c unlimited
 
-# export GA_NUM_PROGRESS_RANKS_PER_NODE=1
-# NRANKS_PER_NODE=13
+export GA_NUM_PROGRESS_RANKS_PER_NODE=1
+export GA_PROGRESS_RANKS_DISTRIBUTION_PACKED=1
+export GA_PROGRESS_RANKS_DISTRIBUTION_CYCLIC=0
 
-# NTOTRANKS=$(( NNODES * NRANKS_PER_NODE ))
-# echo "NUM_OF_NODES= ${NNODES} TOTAL_NUM_RANKS= ${NTOTRANKS} RANKS_PER_NODE= ${NRANKS_PER_NODE} THREADS_PER_RANK= ${NTHREADS}"
+NRANKS_PER_NODE=13
 
-# mpiexec -n ${NTOTRANKS} --ppn ${NRANKS_PER_NODE} --spindle --no-vni --pmi=pmix --cpu-bind list:2:10:18:26:34:42:58:66:74:82:90:98:99 --mem-bind list:0:0:0:0:0:0:1:1:1:1:1:1:1 --env TAMM_USE_MEMKIND=1 --env OMP_NUM_THREADS=${NTHREADS} ./aurora_bind_tiles_closest.sh $EXE $INPUT
-
-#2pr
-
-export GA_NUM_PROGRESS_RANKS_PER_NODE=2
-NRANKS_PER_NODE=14
 NTOTRANKS=$(( NNODES * NRANKS_PER_NODE ))
 echo "NUM_OF_NODES= ${NNODES} TOTAL_NUM_RANKS= ${NTOTRANKS} RANKS_PER_NODE= ${NRANKS_PER_NODE} THREADS_PER_RANK= ${NTHREADS}"
 
-mpiexec -n ${NTOTRANKS} --ppn ${NRANKS_PER_NODE} --spindle --no-vni --pmi=pmix --cpu-bind list:0-7:8-15:16-23:24-31:32-39:40-47:50:52-59:60-67:68-75:76-83:84-91:92-99:100 --mem-bind list:0:0:0:0:0:0:0:1:1:1:1:1:1:1 --env TAMM_USE_MEMKIND=1 ./aurora_bind_tiles_closest_2pr.sh $EXE $INPUT
+mpiexec -n ${NTOTRANKS} --ppn ${NRANKS_PER_NODE} --pmi=pmix --cpu-bind list:1:6:11:16:21:26:31:53:58:63:68:73:78 ./aurora_bind_tiles_closest.sh ${EXE} ${INPUT}
+
 

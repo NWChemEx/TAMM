@@ -90,6 +90,17 @@ class Distribution_SimpleRoundRobin;
  * default to false?
  */
 class RuntimeEngine;
+
+struct meminfo {
+  size_t      gpu_mem_per_device; // single gpu mem per rank (GiB)
+  size_t      gpu_mem_per_node;   // total gpu mem per node (GiB)
+  size_t      total_gpu_mem;      // total gpu mem across all nodes (GiB)
+  size_t      cpu_mem_per_node;   // cpu mem on single node (GiB)
+  size_t      total_cpu_mem;      // total cpu mem across all nodes (GiB)
+  std::string cpu_name;           // cpu name
+  std::string gpu_name;           // gpu name
+};
+
 class ExecutionContext {
 public:
   ExecutionContext(): ac_{IndexedAC{nullptr, 0}} {
@@ -321,16 +332,6 @@ public:
   int nnodes() const { return nnodes_; }
   int ppn() const { return ranks_pn_; }
   int gpn() const { return gpus_pn_; }
-
-  struct meminfo {
-    size_t      gpu_mem_per_device; // single gpu mem per rank (GiB)
-    size_t      gpu_mem_per_node;   // total gpu mem per node (GiB)
-    size_t      total_gpu_mem;      // total gpu mem across all nodes (GiB)
-    size_t      cpu_mem_per_node;   // cpu mem on single node (GiB)
-    size_t      total_cpu_mem;      // total cpu mem across all nodes (GiB)
-    std::string cpu_name;           // cpu name
-    std::string gpu_name;           // gpu name
-  };
 
   meminfo mem_info() const { return minfo_; }
 

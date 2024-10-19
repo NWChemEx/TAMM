@@ -15,7 +15,7 @@ Tensor<CCEType> i0_temp, t2_aaaa_temp; // CS only
 template<typename T>
 std::tuple<std::vector<T>, Tensor<T>, Tensor<T>, Tensor<T>, Tensor<T>>
 setupTensors_cs(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> d_f1) {
-  auto rank = ec.pg().rank();
+  // auto rank = ec.pg().rank();
 
   const TiledIndexSpace& O = MO("occ");
   const TiledIndexSpace& V = MO("virt");
@@ -605,7 +605,7 @@ int main(int argc, char* argv[]) {
 
   Scheduler sch{ec};
 
-  bool profile = true;
+  bool profile = false;
 
   if(ec.print()) {
     std::cout << tamm_git_info() << std::endl;

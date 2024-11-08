@@ -68,7 +68,7 @@ TEST_CASE("Spin Tensor Construction") {
   IndexSpace SpinIS{
     range(0, 20),
     {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}},
-    {{Spin{1}, {range(0, 5), range(10, 15)}}, {Spin{-1}, {range(5, 10), range(15, 20)}}}};
+`    {{Spin{1}, {range(0, 5), range(10, 15)}}, {Spin{-1}, {range(5, 10), range(15, 20)}}}};
 
   IndexSpace IS{range(0, 20)};
 

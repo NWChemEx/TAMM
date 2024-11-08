@@ -115,7 +115,6 @@ public:
   Tensor(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes):
     impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_sizes)} {}
 
-  
   Tensor(TiledIndexSpaceVec t_spaces, NonZeroCheck zero_check):
     impl_{std::make_shared<TensorImpl<T>>(t_spaces, zero_check)} {}
   /**

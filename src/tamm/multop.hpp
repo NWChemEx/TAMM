@@ -470,6 +470,7 @@ public:
         add_bufs.push_back(ab);
 
         {
+          TimerGuard     tg_bc{&oprof.multOpBCTime};
           TensorElType1* cbuf_dev_ptr{nullptr};
           TensorElType1* cbuf_tmp_dev_ptr{nullptr};
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
@@ -485,16 +486,12 @@ public:
                            csize * sizeof(TensorElType1), thandle);
           }
 #endif
-          {
-            TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
-            kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
+          kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-              th_a, th_b,
+            th_a, th_b,
 #endif
-              thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
-              cscale, ab->cbuf_, cdims_sz, lhs_int_labels_, hw, true, cbuf_dev_ptr,
-              cbuf_tmp_dev_ptr);
-          }
+            thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
+            cscale, ab->cbuf_, cdims_sz, lhs_int_labels_, hw, true, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
           if(hw == ExecutionHW::GPU) {
@@ -781,6 +778,7 @@ public:
 
           // A*B
           {
+            TimerGuard tg_bc{&oprof.multOpBCTime};
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
             TensorElType2* abuf_dev{nullptr};
             TensorElType3* bbuf_dev{nullptr};
@@ -792,15 +790,12 @@ public:
             }
 #endif
 
-            {
-              TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
-              kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
+            kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-                abuf_dev, bbuf_dev,
+              abuf_dev, bbuf_dev,
 #endif
-                thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
-                cscale, cbuf, cdims_sz, lhs_int_labels_, hw, false, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
-            }
+              thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
+              cscale, cbuf, cdims_sz, lhs_int_labels_, hw, false, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
             if(hw == ExecutionHW::GPU) {
@@ -820,6 +815,7 @@ public:
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
           // copy to host
           if(hw == ExecutionHW::GPU) {
+            TimerGuard     tg_bc{&oprof.multOpBCTime};
             TensorElType1* cbuf_tmp{nullptr};
             cbuf_tmp =
               static_cast<TensorElType1*>(memHostPool.allocate(csize * sizeof(TensorElType1)));

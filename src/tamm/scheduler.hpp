@@ -186,11 +186,11 @@ public:
             oprof.taddTime += oprof.multOpAddTime;
             oprof.tgetTime += oprof.multOpGetTime;
             oprof.twaitTime += oprof.multOpWaitTime; 
-            oprof.tgemmTime += oprof.multOpDgemmTime;
+            oprof.tBCTime += oprof.multOpBCTime;
             oprof.tcopyTime += oprof.multOpCopyTime;
             oprof.multOpGetTime = 0;
             oprof.multOpWaitTime = 0;  
-            oprof.multOpDgemmTime = 0;
+            oprof.multOpBCTime = 0;
             oprof.multOpAddTime = 0;
             oprof.multOpCopyTime = 0;
         }
@@ -213,10 +213,10 @@ public:
     auto t1 = misc_end;
 
     // double nranks = 1.0 * ec_.pg().size().value();
-    oprof.multOpGetTime   = 0;
-    oprof.multOpDgemmTime = 0;
-    oprof.multOpAddTime   = 0;
-    oprof.multOpCopyTime  = 0;
+    oprof.multOpGetTime  = 0;
+    oprof.multOpBCTime   = 0;
+    oprof.multOpAddTime  = 0;
+    oprof.multOpCopyTime = 0;
 
     std::vector<double> load_imbalance_times;
     std::vector<double> op_times;
@@ -238,10 +238,10 @@ public:
         // - t2)).count());
         // level_times.push_back(std::chrono::duration_cast<std::chrono::duration<double>>((t3 -
         // t1)).count()); multop_get_times.push_back(oprof.multOpGetTime);
-        // multop_dgemm_times.push_back(oprof.multOpDgemmTime);
+        // multop_dgemm_times.push_back(oprof.multOpBCTime);
         // multop_add_times.push_back(oprof.multOpAddTime);
         // oprof.multOpGetTime = 0;
-        // oprof.multOpDgemmTime = 0;
+        // oprof.multOpBCTime = 0;
         // oprof.multOpAddTime = 0;
         // t1 = t3;
       }
@@ -254,13 +254,13 @@ public:
       op_times.push_back(
         std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t2)).count());
       multop_get_times.push_back(oprof.multOpGetTime);
-      multop_dgemm_times.push_back(oprof.multOpDgemmTime);
+      multop_dgemm_times.push_back(oprof.multOpBCTime);
       multop_add_times.push_back(oprof.multOpAddTime);
       multop_copy_times.push_back(oprof.multOpCopyTime);
-      oprof.multOpGetTime   = 0;
-      oprof.multOpDgemmTime = 0;
-      oprof.multOpAddTime   = 0;
-      oprof.multOpCopyTime  = 0;
+      oprof.multOpGetTime  = 0;
+      oprof.multOpBCTime   = 0;
+      oprof.multOpAddTime  = 0;
+      oprof.multOpCopyTime = 0;
     }
     auto t2 = std::chrono::high_resolution_clock::now();
     ec().pg().barrier();
@@ -270,10 +270,10 @@ public:
     // - t2)).count());
     // level_times.push_back(std::chrono::duration_cast<std::chrono::duration<double>>((t3 -
     // t1)).count()); multop_get_times.push_back(oprof.multOpGetTime);
-    // multop_dgemm_times.push_back(oprof.multOpDgemmTime);
+    // multop_dgemm_times.push_back(oprof.multOpBCTime);
     // multop_add_times.push_back(oprof.multOpAddTime);
     // oprof.multOpGetTime = 0;
-    // oprof.multOpDgemmTime = 0;
+    // oprof.multOpBCTime = 0;
     // oprof.multOpAddTime = 0;
     start_idx_ = ops_.size();
     ec().set_ac(IndexedAC(nullptr, 0));

@@ -360,8 +360,6 @@ Examples using labels:
 
 .. code:: cpp
 
-   // This seems overly complex for multiplication with all the dependancies
-
    // Constructed TiledIndexSpaces
    // TiledIndexSpace AO{AO_is, tile_size};
    // TiledIndexSpace MO{MO_is, tile_sizes};

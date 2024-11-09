@@ -418,6 +418,7 @@ void ccsd_t2_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace
 
       // A*B
       {
+        TimerGuard tg_bc{&oprof.multOpBCTime};
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         TensorElType2* abuf_dev{nullptr};
         TensorElType3* bbuf_dev{nullptr};
@@ -431,16 +432,13 @@ void ccsd_t2_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace
           gpuMemcpyAsync<TensorElType3>(bbuf_dev, bbuf, bsize, gpuMemcpyHostToDevice, thandle);
         }
 #endif
-        {
-          TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
-          kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
+
+        kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-            abuf_dev, bbuf_dev,
+          abuf_dev, bbuf_dev,
 #endif
-            thandle, 1.0, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
-            cscale, cbuf.data(), cdims_sz, lhs_int_labels_, hw, false, cbuf_dev_ptr,
-            cbuf_tmp_dev_ptr);
-        }
+          thandle, 1.0, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_, cscale,
+          cbuf.data(), cdims_sz, lhs_int_labels_, hw, false, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
 
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
         if(hw == ExecutionHW::GPU) {
@@ -459,6 +457,7 @@ void ccsd_t2_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace
 #if(defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP))
       // copy to host
       if(hw == ExecutionHW::GPU) {
+        TimerGuard     tg_bc{&oprof.multOpBCTime};
         TensorElType1* cbuf_tmp{nullptr};
         cbuf_tmp = static_cast<TensorElType1*>(memHostPool.allocate(csize * sizeof(TensorElType1)));
         std::memset(cbuf_tmp, 0, csize * sizeof(TensorElType1));
@@ -605,7 +604,7 @@ int main(int argc, char* argv[]) {
 
   Scheduler sch{ec};
 
-  bool profile = false;
+  bool profile = true;
 
   if(ec.print()) {
     std::cout << tamm_git_info() << std::endl;

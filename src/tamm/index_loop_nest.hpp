@@ -350,13 +350,13 @@ public:
 
   template<typename Func>
   void iterate(Func&& func) const {
-    bool   dense_case = is_dense_case();
-    size_t ndim       = iss_.size();
+    // bool   dense_case = is_dense_case();
+    const int ndim = iss_.size();
 
     if(is_dense_case() && ndim <= 4) {
       IndexVector blockid(ndim);
       size_t      dims[ndim];
-      for(int i = 0; i < iss_.size(); i++) { dims[i] = iss_[i].num_tiles(); }
+      for(int i = 0; i < ndim; i++) { dims[i] = iss_[i].num_tiles(); }
       if(ndim == 0) { func(blockid); }
       else if(ndim == 1) {
         for(blockid[0] = 0; blockid[0] < dims[0]; ++blockid[0]) { func(blockid); }

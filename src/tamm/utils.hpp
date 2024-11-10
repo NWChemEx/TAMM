@@ -463,11 +463,12 @@ inline void update_labels(IndexLabelVec& labels) {
   bool has_new_lbl        = false;
   bool have_other_dep_lbl = false;
 
-  std::vector<int> lbl_map(labels.size(), -1);
-  for(size_t i = 0; i < labels.size(); i++) {
+  const int        nlabels = labels.size();
+  std::vector<int> lbl_map(nlabels, -1);
+  for(int i = 0; i < nlabels; i++) {
     auto& lbl = labels[i];
     if(lbl_map[i] != -1) { continue; }
-    for(size_t j = i + 1; j < labels.size(); j++) {
+    for(int j = i + 1; j < nlabels; j++) {
       if(labels[j] == lbl) { lbl_map[j] = i; }
     }
     lbl_map[i] = i;
@@ -476,7 +477,7 @@ inline void update_labels(IndexLabelVec& labels) {
   EXPECTS(labels.size() == lbl_map.size());
   for(auto& i: lbl_map) { EXPECTS(i != -1); }
 
-  for(int i = 0; i < labels.size(); i++) {
+  for(int i = 0; i < nlabels; i++) {
     if(lbl_map[i] < i) {
       labels[i] = labels[lbl_map[i]];
       continue;
@@ -492,7 +493,7 @@ inline void update_labels(IndexLabelVec& labels) {
 
   if(has_new_lbl && have_other_dep_lbl) {
     // Update dependent labels if a new label is created
-    for(size_t i = 0; i < labels.size(); i++) {
+    for(int i = 0; i < nlabels; i++) {
       auto& lbl = labels[i];
       if(lbl.is_dependent()) {
         auto primary_label    = lbl.primary_label();

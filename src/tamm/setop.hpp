@@ -299,7 +299,6 @@ void FlatPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& setop, E
 template<typename T, typename LabeledTensorT>
 void LHSPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& setop, ExecutionContext& ec,
                                        ExecutionHW hw) {
-  using LHS_ElType      = typename LabeledTensorT::element_type;
   auto        lhs_lt    = setop.lhs();
   Scalar      alpha     = setop.alpha();
   bool        is_assign = setop.is_assign();

@@ -210,7 +210,7 @@ public:
     auto   misc_end = std::chrono::high_resolution_clock::now();
     double misc_time =
       std::chrono::duration_cast<std::chrono::duration<double>>((misc_end - misc_start)).count();
-    auto t1 = misc_end;
+    // auto t1 = misc_end;
 
     // double nranks = 1.0 * ec_.pg().size().value();
     oprof.multOpGetTime  = 0;
@@ -224,10 +224,10 @@ public:
     std::vector<double> multop_dgemm_times;
     std::vector<double> multop_add_times;
     std::vector<double> multop_copy_times;
-    int                 nops = order.size();
+    const int           nops = order.size();
 
     assert(order.size() == 0 || order[0].first == 0); // level 0 sanity check
-    for(size_t i = 0; i < order.size(); i++) {
+    for(int i = 0; i < nops; i++) {
       if(order[i].first != lvl) {
         assert(order[i].first == lvl + 1);
         // auto t2 = std::chrono::high_resolution_clock::now();
@@ -262,7 +262,7 @@ public:
       oprof.multOpAddTime  = 0;
       oprof.multOpCopyTime = 0;
     }
-    auto t2 = std::chrono::high_resolution_clock::now();
+    // auto t2 = std::chrono::high_resolution_clock::now();
     ec().pg().barrier();
     lvl += 1;
     auto t3 = std::chrono::high_resolution_clock::now();
@@ -347,7 +347,7 @@ public:
       int   np    = ec_.pg().size().value();
       auto& pdata = ec_.get_profile_data();
       if(ec_.pg().rank() == 0) {
-        for(int i = 0; i < order.size(); i++) {
+        for(int i = 0; i < nops; i++) {
           pdata << i << ";" << order[i].first << ";"
                 << ops_[order[i].second]->opstr_
                 // << "," << global_load_imbalance_times_min[i]

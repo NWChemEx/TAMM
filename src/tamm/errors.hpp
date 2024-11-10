@@ -15,6 +15,7 @@ namespace tamm {
         std::cerr << "ERROR: (Not implemented)"                         \
                   << "file:" << __FILE__ << "function:" << __func__     \
                   << " line:" << __LINE__ << std::endl;                 \
+        throw std::runtime_error("");                                   \
     } while(0)
 
 /**
@@ -25,6 +26,7 @@ namespace tamm {
         std::cerr << "ERROR: (Not allowed)"                             \
                   << "file:" << __FILE__ << "function:" << __func__     \
                   << " line:" << __LINE__ << std::endl;                 \
+        throw std::runtime_error("");                                   \
     } while(0)
 
 /**

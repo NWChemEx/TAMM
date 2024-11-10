@@ -416,7 +416,7 @@ public:
     EXPECTS(key >= 0 && key < total_num_blocks_);
     // return {key % nproc_.value(), (key / nproc_.value()) * max_block_size_.value()};
     Proc proc = (key * step_proc_.value() + start_proc_.value()) % nproc_.value();
-    EXPECTS(step_proc_ == 1 || total_num_blocks_.value() <= nproc_.value());
+    EXPECTS(step_proc_ == 1 || total_num_blocks_.value() <= (uint64_t) nproc_.value());
     Offset offset =
       (step_proc_ != Proc{1} ? Offset{0} : (key / nproc_.value()) * max_block_size_.value());
     return {proc, offset};
@@ -543,7 +543,7 @@ public:
       auto pgrid = internal::compute_proc_grid(ardims.size(), ardims, nproc.value(), 0.0, 0, nchnk);
       nchnk.erase(std::remove(nchnk.begin(), nchnk.end(), -2), nchnk.end());
       ardims.erase(std::remove(ardims.begin(), ardims.end(), -2), ardims.end());
-      auto rndim = ardims.size();
+      const int rndim = ardims.size();
       if(rndim > 0 && rndim < ndim_)
         pgrid = internal::compute_proc_grid(rndim, ardims, nproc.value(), 0.0, 0, nchnk);
       int pgi = 0;
@@ -610,7 +610,7 @@ public:
 
   Size total_size() const override {
     Size result{1};
-    for(size_t i = 0; i < ndim_; i++) { result *= tiss_[i].max_num_indices(); }
+    for(int i = 0; i < ndim_; i++) { result *= tiss_[i].max_num_indices(); }
     return result;
   }
 

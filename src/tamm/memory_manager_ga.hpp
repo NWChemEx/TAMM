@@ -130,10 +130,10 @@ public:
     {
       pmr = new MemoryRegionGA(*this);
 
-      int     nranks       = pg_.size().value();
-      int64_t element_size = get_element_size(eltype);
-      int64_t nels         = local_nelements.value();
+      int     nranks = pg_.size().value();
+      int64_t nels   = local_nelements.value();
 #if defined(USE_UPCXX)
+      int64_t element_size = get_element_size(eltype);
       alloc_coll_upcxx(eltype, local_nelements, pmr, nranks, element_size, nels);
 #else  // USE_UPCXX
       int ga_pg_default = GA_Pgroup_get_default();

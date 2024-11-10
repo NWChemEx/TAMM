@@ -278,7 +278,7 @@ public:
     EXPECTS(!is_assign_);
     auto& oprof = tamm::OpProfiler::instance();
 
-    using TensorElType = typename LabeledTensorT1::element_type;
+    // using TensorElType = typename LabeledTensorT1::element_type;
     // determine set of all labels
     IndexLabelVec all_labels{lhs_.labels()};
     all_labels.insert(all_labels.end(), rhs1_.labels().begin(), rhs1_.labels().end());

@@ -377,8 +377,8 @@ public:
       case DistributionKind::simple_round_robin:
         return std::make_unique<Distribution_SimpleRoundRobin>(std::forward<Args>(args)...);
         break;
+      default: UNREACHABLE();
     }
-    UNREACHABLE();
     return nullptr;
   }
 

@@ -403,8 +403,11 @@ void ccsd_t2_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace
       abuf = static_cast<TensorElType2*>(memHostPool.allocate(asize * sizeof(TensorElType2)));
       bbuf = static_cast<TensorElType3*>(memHostPool.allocate(bsize * sizeof(TensorElType3)));
 
-      atensor.get(translated_ablockid, {abuf, asize});
-      btensor.get(translated_bblockid, {bbuf, bsize});
+      {
+        TimerGuard tg_get{&oprof.multOpGetTime};
+        atensor.get(translated_ablockid, {abuf, asize});
+        btensor.get(translated_bblockid, {bbuf, bsize});
+      }
 
       const auto& adims = atensor.block_dims(translated_ablockid);
       const auto& bdims = btensor.block_dims(translated_bblockid);
@@ -427,9 +430,6 @@ void ccsd_t2_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace
             static_cast<TensorElType2*>(memDevicePool.allocate(asize * sizeof(TensorElType2)));
           bbuf_dev =
             static_cast<TensorElType3*>(memDevicePool.allocate(bsize * sizeof(TensorElType3)));
-          TimerGuard tg_copy{&oprof.multOpCopyTime};
-          gpuMemcpyAsync<TensorElType2>(abuf_dev, abuf, asize, gpuMemcpyHostToDevice, thandle);
-          gpuMemcpyAsync<TensorElType3>(bbuf_dev, bbuf, bsize, gpuMemcpyHostToDevice, thandle);
         }
 #endif
 
@@ -465,9 +465,9 @@ void ccsd_t2_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace
           TimerGuard tg_copy{&oprof.multOpCopyTime};
           gpuMemcpyAsync<TensorElType1>(cbuf_tmp, cbuf_dev_ptr, csize, gpuMemcpyDeviceToHost,
                                         thandle);
+          gpuStreamSynchronize(thandle);
         }
         // cbuf+=cbuf_tmp
-        gpuStreamSynchronize(thandle);
         blas::axpy(csize, TensorElType1{1}, cbuf_tmp, 1, cbuf.data(), 1);
 
         // free cbuf_dev_ptr

@@ -289,6 +289,8 @@ public:
     NOT_IMPLEMENTED();
   }
 
+  bool is_valid() const { return valid_; }
+
 private:
   void prep(const IndexLabelVec& lhs_labels, const IndexLabelVec& rhs1_labels,
             const IndexLabelVec& rhs2_labels) {
@@ -577,10 +579,7 @@ public:
         general_plan.apply(lscale, lhs, rscale, rhs1, rhs2);
         break;
       }
-        /// @bug: clang doen't like to have defaults when enum type is
-        /// used in switch cases
-        // default:
-        //   UNREACHABLE();
+      default: UNREACHABLE();
     }
   }
 

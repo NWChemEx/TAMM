@@ -32,13 +32,13 @@ public:
     tensor_.allocate(&ec_);
   }
 
-  TensorBase* writes() const { return tensor_.base_ptr(); }
+  TensorBase* writes() const override { return tensor_.base_ptr(); }
 
-  TensorBase* accumulates() const { return nullptr; }
+  TensorBase* accumulates() const override { return nullptr; }
 
-  std::vector<TensorBase*> reads() const { return {}; }
+  std::vector<TensorBase*> reads() const override { return {}; }
 
-  bool is_memory_barrier() const { return false; }
+  bool is_memory_barrier() const override { return false; }
 
 protected:
   TensorType        tensor_;

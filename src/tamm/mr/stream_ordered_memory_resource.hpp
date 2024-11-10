@@ -146,6 +146,7 @@ private:
     os << "[TAMM ERROR] No memory-block found in stream_ordered_memory_resource!\n"
        << __FILE__ << ":L" << __LINE__;
     tamm_terminate(os.str());
+    __builtin_unreachable();
   }
 
   /**

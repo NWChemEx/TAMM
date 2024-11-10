@@ -33,13 +33,13 @@ public:
     tensor_.deallocate();
   }
 
-  TensorBase* writes() const { return tensor_.base_ptr(); }
+  TensorBase* writes() const override { return tensor_.base_ptr(); }
 
-  std::vector<TensorBase*> reads() const { return {}; }
+  std::vector<TensorBase*> reads() const override { return {}; }
 
-  TensorBase* accumulates() const { return {}; }
+  TensorBase* accumulates() const override { return {}; }
 
-  bool        is_memory_barrier() const { return false; }
+  bool        is_memory_barrier() const override { return false; }
   std::string opstr_;
 
 protected:

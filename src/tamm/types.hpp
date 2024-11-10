@@ -282,8 +282,8 @@ static int to_ga_eltype(ElementType eltype) {
     case ElementType::double_precision: ret = C_DBL; break;
     case ElementType::single_complex: ret = C_SCPL; break;
     case ElementType::double_complex: ret = C_DCPL; break;
-    case ElementType::invalid:
-    default: UNREACHABLE();
+    // case ElementType::invalid: ret = 0; break;
+    default: ret = 0; UNREACHABLE();
   }
   return ret;
 }
@@ -300,7 +300,7 @@ static ElementType from_ga_eltype(int eltype) {
     case C_DBL: ret = ElementType::double_precision; break;
     case C_SCPL: ret = ElementType::single_complex; break;
     case C_DCPL: ret = ElementType::double_complex; break;
-    default: UNREACHABLE();
+    default: ret = ElementType::invalid; UNREACHABLE();
   }
   return ret;
 }

@@ -841,10 +841,9 @@ public:
     for(int i = 0; i < ndims; i++)
       new_tiles[i] = is_irreg_tis[i] ? tis_dims[i].input_tile_sizes() : tiles_for_fixed_ts_dim[i];
 
+#if defined(USE_UPCXX)
     int my_rank = ec->pg().rank().value();
     int nranks  = ec->pg().size().value();
-
-#if defined(USE_UPCXX)
 
     eltype_               = tensor_element_type<T>();
     size_t  element_size  = MemoryManagerGA::get_element_size(eltype_);

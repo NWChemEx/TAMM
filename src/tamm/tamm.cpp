@@ -48,8 +48,8 @@ void initialize(int argc, char* argv[], bool is_mpi_tm) {
   // Set the active devices such that the singleton pools like
   // GPU-streampool, GPU-memorypool uses the appropriate dev-id
   tamm::gpuSetDevice(dev_id_);
-  auto& stream_pool  = tamm::GPUStreamPool::getInstance();
-  auto& rmm_mem_pool = tamm::RMMMemoryManager::getInstance();
+  /* auto& stream_pool  = */ tamm::GPUStreamPool::getInstance();
+  /* auto& rmm_mem_pool = */ tamm::RMMMemoryManager::getInstance();
 
 #endif // USE_CUDA, USE_HIP, USE_DPCPP
 }

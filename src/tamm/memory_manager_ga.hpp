@@ -80,8 +80,8 @@ public:
       case ElementType::double_precision: return sizeof(double);
       case ElementType::single_complex: return sizeof(SingleComplex);
       case ElementType::double_complex: return sizeof(DoubleComplex);
-      case ElementType::invalid:
-      default: UNREACHABLE();
+      // case ElementType::invalid:
+      default: UNREACHABLE(); return 0;
     }
   }
 
@@ -542,8 +542,8 @@ public:
       case ElementType::double_precision: alpha = reinterpret_cast<void*>(&dp_alpha); break;
       case ElementType::single_complex: alpha = reinterpret_cast<void*>(&scp_alpha); break;
       case ElementType::double_complex: alpha = reinterpret_cast<void*>(&dcp_alpha); break;
-      case ElementType::invalid:
-      default: UNREACHABLE();
+      // case ElementType::invalid:
+      default: alpha = nullptr; UNREACHABLE();
     }
     NGA_Acc64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, alpha);
 #endif
@@ -566,8 +566,8 @@ public:
       case ElementType::double_precision: alpha = reinterpret_cast<void*>(&dp_alpha); break;
       case ElementType::single_complex: alpha = reinterpret_cast<void*>(&scp_alpha); break;
       case ElementType::double_complex: alpha = reinterpret_cast<void*>(&dcp_alpha); break;
-      case ElementType::invalid:
-      default: UNREACHABLE();
+      // case ElementType::invalid:
+      default: alpha = nullptr; UNREACHABLE();
     }
     data_comm_handle->resetCompletionStatus();
     NGA_NbAcc64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, alpha,

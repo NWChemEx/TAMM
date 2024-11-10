@@ -43,7 +43,7 @@ void print_tensor(const Tensor<T>& tensor, std::string filename = "") {
     return false;
   };
 
-  int                  ndims = tensor.num_modes();
+  // int                  ndims = tensor.num_modes();
   std::vector<int64_t> dims;
   for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
 
@@ -83,7 +83,7 @@ void print_tensor_all(const Tensor<T>& tensor, std::string filename = "") {
   std::stringstream tstring;
   auto              lt = tensor();
 
-  int                  ndims = tensor.num_modes();
+  // int                  ndims = tensor.num_modes();
   std::vector<int64_t> dims;
   for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
 
@@ -152,7 +152,7 @@ std::string tensor_to_string(const Tensor<T>& tensor) {
   std::stringstream tstring;
   auto              lt = tensor();
 
-  int                  ndims = tensor.num_modes();
+  // int                  ndims = tensor.num_modes();
   std::vector<int64_t> dims;
   for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
 

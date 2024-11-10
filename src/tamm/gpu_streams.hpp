@@ -122,7 +122,7 @@ static inline void getDeviceCount(int* id) {
 #if defined(USE_CUDA)
 static inline int nv_device_count() {
   nvmlReturn_t result;
-  unsigned int device_count, i;
+  unsigned int device_count;
 
   result = nvmlInit();
   if(NVML_SUCCESS != result) {

@@ -22,8 +22,8 @@ prep_buffers(T1 lscale, BlockSpan<T1>& lhs, T1 rscale, BlockSpan<T2>& rhs1, Bloc
     std::accumulate(adims.begin(), adims.end(), (size_t) 1, std::multiplies<size_t>());
   const size_t bsize =
     std::accumulate(bdims.begin(), bdims.end(), (size_t) 1, std::multiplies<size_t>());
-  const size_t csize =
-    std::accumulate(cdims.begin(), cdims.end(), (size_t) 1, std::multiplies<size_t>());
+  // const size_t csize =
+  //   std::accumulate(cdims.begin(), cdims.end(), (size_t) 1, std::multiplies<size_t>());
 
   BlockSpan<T> lhs_T;
   BlockSpan<T> rhs1_T;

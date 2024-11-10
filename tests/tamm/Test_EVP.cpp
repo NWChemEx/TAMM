@@ -238,8 +238,8 @@ void test_evp(size_t N, size_t mb) {
 int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);
 
-  size_t N = 100, mb = 32;
 #if defined(USE_SCALAPACK)
+  size_t N = 100, mb = 32;
   if(argc >= 2) N = std::atoi(argv[1]);
   if(argc == 3) mb = std::atoi(argv[2]);
   test_evp(N, mb);

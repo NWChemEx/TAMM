@@ -1002,9 +1002,11 @@ public:
 
   std::size_t max_num_indices() const override { return max_size_; }
 
-  const std::vector<TiledIndexSpace>& key_tiled_index_spaces() const { return dep_spaces_; }
+  const std::vector<TiledIndexSpace>& key_tiled_index_spaces() const override {
+    return dep_spaces_;
+  }
 
-  size_t num_key_tiled_index_spaces() const { return dep_spaces_.size(); }
+  size_t num_key_tiled_index_spaces() const override { return dep_spaces_.size(); }
 
   const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces() const override {
     return dep_space_relation_;

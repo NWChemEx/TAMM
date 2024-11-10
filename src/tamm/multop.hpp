@@ -678,8 +678,8 @@ public:
         // LabelLoopNest inner_loop{reduction_lbls};
         LabelLoopNest inner_loop{reduction_labels};
 
-        int loop_counter = 0;
 #if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
+        int loop_counter     = 0;
         nranks_per_lhs_block = (ec.pg().size().value() / n_lhs_blocks) + 1 -
                                (lhs_counter >= (ec.pg().size().value() % n_lhs_blocks));
 #endif
@@ -942,7 +942,7 @@ protected:
     std::map<std::string, Label> str_to_labels;
     const size_t                 lsize  = lhs_.labels().size();
     const size_t                 r1size = rhs1_.labels().size();
-    const size_t                 r2size = rhs2_.labels().size();
+    // const size_t                 r2size = rhs2_.labels().size();
 
     update_fillin_map(str_to_labels, lhs_.str_map(), lhs_.str_labels(), 0);
     update_fillin_map(str_to_labels, rhs1_.str_map(), rhs1_.str_labels(), lsize);

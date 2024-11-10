@@ -173,7 +173,9 @@ public:
    */
   template<size_t c_lbl>
   auto labels(std::string id = "all", Label start = make_label()) const {
-    for(size_t i = 0; i < c_lbl - 1; i++) { auto temp = make_label(); }
+    for(size_t i = 0; i < c_lbl - 1; i++) { /* auto temp = */
+      make_label();
+    }
     return labels_impl(id, start, std::make_index_sequence<c_lbl>{});
   }
 

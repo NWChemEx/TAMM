@@ -329,14 +329,14 @@ void block_multiply(
   cinter_dims.insert(cinter_dims.end(), aouter_dims.begin(), aouter_dims.end());
   cinter_dims.insert(cinter_dims.end(), bouter_dims.begin(), bouter_dims.end());
 
-  int ainter_ld  = K;
-  int binter_ld  = N;
-  int cinter_ld  = N;
-  int cbatch_ld  = M * N;
-  int abatch_ld  = M * K;
-  int bbatch_ld  = K * N;
-  int areduce_ld = B * abatch_ld;
-  int breduce_ld = B * bbatch_ld;
+  // int ainter_ld  = K;
+  // int binter_ld  = N;
+  // int cinter_ld  = N;
+  // int cbatch_ld  = M * N;
+  // int abatch_ld  = M * K;
+  // int bbatch_ld  = K * N;
+  // int areduce_ld = B * abatch_ld;
+  // int breduce_ld = B * bbatch_ld;
 
   bool gpu_trans = false;
 

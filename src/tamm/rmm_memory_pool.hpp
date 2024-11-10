@@ -169,7 +169,7 @@ public:
 
     numa_set_bind_policy(1);
     numa_set_strict(1);
-    unsigned numNumaNodes = numa_num_task_nodes();
+    int numNumaNodes = numa_num_task_nodes();
 
     // for ranks_pn_=1, there is no need to check the mapping to numa-nodes (mostly used for CI)
     // for ranks_pn_ > numNumaNodes, it has to be divisble by the number of numa-domains in the
@@ -187,8 +187,8 @@ public:
     numa_bind(numaNodes);
     numa_bitmask_free(numaNodes);
 
-    int  numa_id         = numa_node_of_cpu(sched_getcpu());
-    long numa_total_size = numa_node_size(numa_id, &max_host_bytes);
+    int numa_id = numa_node_of_cpu(sched_getcpu());
+    /* long numa_total_size = */ numa_node_size(numa_id, &max_host_bytes);
     max_host_bytes *= 0.40; // reserve 40% only of the free numa-node memory (reserving rest of
                             // GA, non-pool allocations)
 
@@ -213,7 +213,7 @@ public:
         if(detail::tamm_enable_sprhbm) {
           numa_id = it->first;
           numa_set_preferred(numa_id);
-          numa_total_size = numa_node_size(numa_id, &max_host_bytes);
+          /* numa_total_size = */ numa_node_size(numa_id, &max_host_bytes);
           max_host_bytes *=
             0.94; // One can use full HBM memory capacity, since the DDR is left for GA
         }

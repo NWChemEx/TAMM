@@ -34,6 +34,7 @@ public:
         // case ElType::cfp64:
         //     value_ = Tensor<std::complex<double>>{ilv};
         //     break;
+      default: UNREACHABLE();
     }
   }
 

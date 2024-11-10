@@ -503,9 +503,9 @@ public:
               TimerGuard tg_copy{&oprof.multOpCopyTime};
               gpuMemcpyAsync<TensorElType1>(cbuf_tmp, cbuf_dev_ptr, csize, gpuMemcpyDeviceToHost,
                                             thandle);
+              gpuStreamSynchronize(thandle);
             }
             // cbuf+=cbuf_tmp
-            gpuStreamSynchronize(thandle);
             blas::axpy(csize, TensorElType1{1}, cbuf_tmp, 1, ab->cbuf_, 1);
 
             memDevicePool.deallocate(cbuf_dev_ptr, csize * sizeof(TensorElType1));
@@ -824,9 +824,9 @@ public:
               TimerGuard tg_copy{&oprof.multOpCopyTime};
               gpuMemcpyAsync<TensorElType1>(cbuf_tmp, cbuf_dev_ptr, csize, gpuMemcpyDeviceToHost,
                                             thandle);
+              gpuStreamSynchronize(thandle);
             }
             // cbuf+=cbuf_tmp
-            gpuStreamSynchronize(thandle);
             blas::axpy(csize, TensorElType1{1}, cbuf_tmp, 1, cbuf, 1);
 
             memHostPool.deallocate(cbuf_tmp, csize * sizeof(TensorElType1));

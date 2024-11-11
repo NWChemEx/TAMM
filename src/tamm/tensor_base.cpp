@@ -41,7 +41,7 @@ TensorBase::TensorBase(const std::vector<TiledIndexSpace>& block_indices) {
 }
 
 /**
- * @brief 
+ * @brief
  */
 TensorBase::TensorBase(const std::vector<TiledIndexSpace>& block_indices, NonZeroCheck zero_check) {
   block_indices_        = block_indices;

@@ -88,9 +88,9 @@ public:
    */
   TensorBase(const std::vector<TiledIndexLabel>& lbls);
 
-  /// @brief 
-  /// @param block_indices 
-  /// @param zero_check 
+  /// @brief
+  /// @param block_indices
+  /// @param zero_check
   TensorBase(const std::vector<TiledIndexSpace>& block_indices, NonZeroCheck zero_check);
 
   /**
@@ -248,9 +248,7 @@ public:
   }
 
   bool is_non_zero(const IndexVector& blockid) const {
-    if(has_user_is_non_zero_) {
-      return is_non_zero_func_(blockid);
-    }
+    if(has_user_is_non_zero_) { return is_non_zero_func_(blockid); }
     if(!has_spin()) { return true; }
 
     EXPECTS(blockid.size() == num_modes());
@@ -341,7 +339,7 @@ protected:
   AllocationStatus             allocation_status_;
 
   NonZeroCheck is_non_zero_func_;
-  bool has_user_is_non_zero_ = false;
+  bool         has_user_is_non_zero_ = false;
 
   TensorRank num_modes_;
   /// When a tensor is constructed using Tiled Index Labels that correspond to

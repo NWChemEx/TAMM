@@ -177,10 +177,11 @@ public:
     kind_ = TensorBase::TensorKind::spin;
   }
 
-  /// @brief 
-  /// @param t_spaces 
-  /// @param zero_check 
-  TensorImpl(TiledIndexSpaceVec t_spaces, NonZeroCheck zero_check): TensorBase(t_spaces, zero_check) {
+  /// @brief
+  /// @param t_spaces
+  /// @param zero_check
+  TensorImpl(TiledIndexSpaceVec t_spaces, NonZeroCheck zero_check):
+    TensorBase(t_spaces, zero_check) {
     kind_ = TensorBase::TensorKind::block_sparse;
   }
 

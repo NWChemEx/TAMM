@@ -62,13 +62,125 @@ void tensor_contruction(const TiledIndexSpace& T_AO, const TiledIndexSpace& T_MO
   Q(A, r, s) += 0.5 * C(mu_A(A), s) * SC(mu_A(A), r);
 }
 
+TEST_CASE("Block Sparse Tensor Construction") {
+  using T = double;
+  IndexSpace SpinIS{
+    range(0, 20),
+    {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}},
+    {{Spin{1}, {range(0, 5), range(10, 15)}}, {Spin{-1}, {range(5, 10), range(15, 20)}}}};
+
+  IndexSpace IS{range(0, 20)};
+
+  TiledIndexSpace SpinTIS{SpinIS, 5};
+  TiledIndexSpace TIS{IS, 5};
+
+  std::vector<SpinPosition> spin_mask_2D{SpinPosition::lower, SpinPosition::upper};
+  ProcGroup                 pg = ProcGroup::create_world_coll();
+  ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
+
+  bool failed = false;
+  try {
+    TiledIndexSpaceVec t_spaces{SpinTIS, SpinTIS};
+    auto is_non_zero_2D = [t_spaces, spin_mask_2D](const IndexVector& blockid) -> bool {
+      Spin upper_total = 0, lower_total = 0, other_total = 0;
+      for(size_t i = 0; i < 2; i++) {
+        const auto& tis = t_spaces[i];
+        if(spin_mask_2D[i] == SpinPosition::upper) { upper_total += tis.spin(blockid[i]); }
+        else if(spin_mask_2D[i] == SpinPosition::lower) { lower_total += tis.spin(blockid[i]); }
+        else { other_total += tis.spin(blockid[i]); }
+      }
+
+      return (upper_total == lower_total);
+    };
+    Tensor<T> tensor{t_spaces, is_non_zero_2D};
+    tensor.allocate(ec);
+    Scheduler{*ec}(tensor() = 42).execute();
+    check_value(tensor, (T) 42);
+    print_tensor_all(tensor);
+
+    tensor.deallocate();
+  } catch(const std::string& e) {
+    std::cerr << e << '\n';
+    failed = true;
+  }
+  REQUIRE(!failed);
+
+  failed = false;
+  try {
+    TiledIndexSpaceVec t_spaces{SpinTIS, SpinTIS};
+    auto               is_non_zero_2D = [](const IndexVector& blockid) -> bool {
+      return blockid[0] == blockid[1];
+    };
+    Tensor<T> tensor{t_spaces, is_non_zero_2D};
+    tensor.allocate(ec);
+    Scheduler{*ec}(tensor() = 42).execute();
+    check_value(tensor, (T) 42);
+    print_tensor_all(tensor);
+
+    tensor.deallocate();
+  } catch(const std::string& e) {
+    std::cerr << e << '\n';
+    failed = true;
+  }
+  REQUIRE(!failed);
+
+  IndexSpace MO_IS{range(0, 20), {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
+
+  TiledIndexSpace MO{MO_IS, 5};
+
+  BlockSparseInfo sparse_info{
+    {MO, MO, MO, MO},                                 // Tensor dims
+    {"ijab", "iajb", "ijka", "ijkl", "iabc", "abcd"}, // Allowed blocks
+    {{'i', "occ"},
+     {'j', "occ"},
+     {'k', "occ"},
+     {'l', "occ"},
+     {'a', "virt"},
+     {'b', "virt"},
+     {'c', "virt"},
+     {'d', "virt"}}
+    //  , // Char to named sub-space string
+    // {"abij", "aibj"} // Disallowed blocks
+  };
+
+  failed = false;
+  try {
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+
+    BlockSparseTensor<T> tensor{{MO, MO, MO, MO}, sparse_info};
+    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+
+    // for(const auto& blockid: tensor.loop_nest()) {
+    //   std::cout << "blockid: [ ";
+    //   for(size_t i = 0; i < blockid.size(); i++) { std::cout << blockid[i] << " "; }
+    //   std::cout << "] -> " << std::endl;
+
+    //   if(tensor.base_ptr()->is_non_zero(blockid)) { std::cout << "is non zero" << std::endl; }
+    //   else { std::cout << "is zero" << std::endl; }
+    // }
+    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+
+    tensor.allocate(ec);
+    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+
+    Scheduler{*ec}(tensor() = 42).execute();
+    check_value(tensor, (T) 42);
+    print_tensor_all(tensor);
+
+    tensor.deallocate();
+  } catch(const std::string& e) {
+    std::cerr << e << '\n';
+    failed = true;
+  }
+  REQUIRE(!failed);
+}
 #if 1
 TEST_CASE("Spin Tensor Construction") {
   using T = double;
   IndexSpace SpinIS{
     range(0, 20),
     {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}},
-`    {{Spin{1}, {range(0, 5), range(10, 15)}}, {Spin{-1}, {range(5, 10), range(15, 20)}}}};
+    {{Spin{1}, {range(0, 5), range(10, 15)}}, {Spin{-1}, {range(5, 10), range(15, 20)}}}};
 
   IndexSpace IS{range(0, 20)};
 
@@ -150,56 +262,6 @@ TEST_CASE("Spin Tensor Construction") {
 
   ProcGroup         pg = ProcGroup::create_world_coll();
   ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
-
-  failed = false;
-  try {
-    TiledIndexSpaceVec t_spaces{SpinTIS, SpinTIS};
-    auto is_non_zero_2D = [t_spaces, spin_mask_2D](const IndexVector& blockid) -> bool {
-      Spin upper_total = 0, lower_total = 0, other_total = 0;
-      for(size_t i = 0; i < 2; i++) {
-        const auto& tis = t_spaces[i];
-        if(spin_mask_2D[i] == SpinPosition::upper) { upper_total += tis.spin(blockid[i]); }
-        else if(spin_mask_2D[i] == SpinPosition::lower) { lower_total += tis.spin(blockid[i]); }
-        else { other_total += tis.spin(blockid[i]); }
-      }
-
-      return (upper_total == lower_total);
-    };
-    Tensor<T> tensor{t_spaces, is_non_zero_2D};
-    tensor.allocate(ec);
-    Scheduler{*ec}(tensor() = 42).execute();
-    check_value(tensor, (T) 42);
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-    print_tensor_all(tensor);
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-
-    tensor.deallocate();
-  } catch(const std::string& e) {
-    std::cerr << e << '\n';
-    failed = true;
-  }
-  REQUIRE(!failed);
-
-    failed = false;
-  try {
-    TiledIndexSpaceVec t_spaces{SpinTIS, SpinTIS};
-    auto is_non_zero_2D = [](const IndexVector& blockid) -> bool {
-      return blockid[0] == blockid[1];
-    };
-    Tensor<T> tensor{t_spaces, is_non_zero_2D};
-    tensor.allocate(ec);
-    Scheduler{*ec}(tensor() = 42).execute();
-    check_value(tensor, (T) 42);
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-    print_tensor_all(tensor);
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-
-    tensor.deallocate();
-  } catch(const std::string& e) {
-    std::cerr << e << '\n';
-    failed = true;
-  }
-  REQUIRE(!failed);
 
   failed = false;
   try {
@@ -483,103 +545,104 @@ TEST_CASE("Spin Tensor Construction") {
 
   // ScaLAPACK test
   failed = false;
-//   try {
-//     std::cout << "------BEGIN block cyclic dist test------\n";
-//     IndexSpace      MO_IS{range(0, 7)};
-//     TiledIndexSpace MO{MO_IS, {1, 1, 5}};
-//     TiledIndexSpace NO{MO_IS, 2};
-//     // IndexSpace MO_IS2{range(0, 7)};
-//     // TiledIndexSpace MO2{MO_IS2, {1, 1, 3, 1, 1}};
+  //   try {
+  //     std::cout << "------BEGIN block cyclic dist test------\n";
+  //     IndexSpace      MO_IS{range(0, 7)};
+  //     TiledIndexSpace MO{MO_IS, {1, 1, 5}};
+  //     TiledIndexSpace NO{MO_IS, 2};
+  //     // IndexSpace MO_IS2{range(0, 7)};
+  //     // TiledIndexSpace MO2{MO_IS2, {1, 1, 3, 1, 1}};
 
-//     Tensor<T> pT{MO, MO};
-//     Tensor<T> pV{NO, NO};
+  //     Tensor<T> pT{MO, MO};
+  //     Tensor<T> pV{NO, NO};
 
-//     Tensor<T> sca{{1, 1}, {NO, NO}};
+  //     Tensor<T> sca{{1, 1}, {NO, NO}};
 
-//     pT.allocate(ec);
-//     pV.allocate(ec);
-//     sca.allocate(ec);
+  //     pT.allocate(ec);
+  //     pV.allocate(ec);
+  //     sca.allocate(ec);
 
-//     auto      tis_list = pT.tiled_index_spaces();
-//     Tensor<T> H{tis_list};
-//     H.allocate(ec);
+  //     auto      tis_list = pT.tiled_index_spaces();
+  //     Tensor<T> H{tis_list};
+  //     H.allocate(ec);
 
-//     auto h_tis = H.tiled_index_spaces();
-//     GA_Print_distribution(pT.ga_handle());
-//     // GA_Print(pT.ga_handle());
+  //     auto h_tis = H.tiled_index_spaces();
+  //     GA_Print_distribution(pT.ga_handle());
+  //     // GA_Print(pT.ga_handle());
 
-//     Scheduler{*ec}(pT("mu", "nu") = 2.2)(H("mu", "nu") = pT("mu", "ku") * pT("ku", "nu"))(sca() =
-//                                                                                             2.2)
-//       .execute();
+  //     Scheduler{*ec}(pT("mu", "nu") = 2.2)(H("mu", "nu") = pT("mu", "ku") * pT("ku", "nu"))(sca()
+  //     =
+  //                                                                                             2.2)
+  //       .execute();
 
-//     // auto x = tamm::norm(H);
-//     GA_Print(H.ga_handle());
-//     auto sca1             = to_block_cyclic_tensor(H, {1, 1}, {2, 2});
-//     auto [lptr, lbufsize] = access_local_block_cyclic_buffer(sca1);
-//     for(auto i = 0L; i < lbufsize; i++) std::cout << lptr[i] << "\n";
-//     // GA_Print(sca1.ga_handle());
-//     from_block_cyclic_tensor(sca1, pT);
-//     // GA_Print(pT.ga_handle());
+  //     // auto x = tamm::norm(H);
+  //     GA_Print(H.ga_handle());
+  //     auto sca1             = to_block_cyclic_tensor(H, {1, 1}, {2, 2});
+  //     auto [lptr, lbufsize] = access_local_block_cyclic_buffer(sca1);
+  //     for(auto i = 0L; i < lbufsize; i++) std::cout << lptr[i] << "\n";
+  //     // GA_Print(sca1.ga_handle());
+  //     from_block_cyclic_tensor(sca1, pT);
+  //     // GA_Print(pT.ga_handle());
 
-//     Tensor<T>::deallocate(H, pT, sca, sca1);
+  //     Tensor<T>::deallocate(H, pT, sca, sca1);
 
-//     std::cout << "------END block cyclic dist test------\n";
+  //     std::cout << "------END block cyclic dist test------\n";
 
-//   } catch(const std::string& e) {
-//     std::cerr << e << std::endl;
-//     failed = true;
-//   }
-//   REQUIRE(!failed);
-// }
+  //   } catch(const std::string& e) {
+  //     std::cerr << e << std::endl;
+  //     failed = true;
+  //   }
+  //   REQUIRE(!failed);
+  // }
 
-// TEST_CASE("Non trivial ScaLAPACK test") {
-//   using T = double;
-//   IndexSpace SpinIS{
-//     range(0, 20),
-//     {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}},
-//     {{Spin{1}, {range(0, 5), range(10, 15)}}, {Spin{2}, {range(5, 10), range(15, 20)}}}};
+  // TEST_CASE("Non trivial ScaLAPACK test") {
+  //   using T = double;
+  //   IndexSpace SpinIS{
+  //     range(0, 20),
+  //     {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}},
+  //     {{Spin{1}, {range(0, 5), range(10, 15)}}, {Spin{2}, {range(5, 10), range(15, 20)}}}};
 
-//   IndexSpace IS{range(0, 20)};
+  //   IndexSpace IS{range(0, 20)};
 
-//   TiledIndexSpace SpinTIS{SpinIS, 5};
-//   TiledIndexSpace TIS{IS, 5};
+  //   TiledIndexSpace SpinTIS{SpinIS, 5};
+  //   TiledIndexSpace TIS{IS, 5};
 
-//   std::vector<SpinPosition> spin_mask_2D{SpinPosition::lower, SpinPosition::upper};
+  //   std::vector<SpinPosition> spin_mask_2D{SpinPosition::lower, SpinPosition::upper};
 
-//   TiledIndexLabel i, j, k, l;
-//   std::tie(i, j) = SpinTIS.labels<2>("all");
-//   std::tie(k, l) = TIS.labels<2>("all");
+  //   TiledIndexLabel i, j, k, l;
+  //   std::tie(i, j) = SpinTIS.labels<2>("all");
+  //   std::tie(k, l) = TIS.labels<2>("all");
 
-//   bool failed = false;
+  //   bool failed = false;
 
-//   ProcGroup         pg = ProcGroup::create_world_coll();
-//   ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
+  //   ProcGroup         pg = ProcGroup::create_world_coll();
+  //   ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
-//   // Non trivial ScaLAPACK test
-//   try {
-//     std::cout << "------BEGIN non trivial block cyclic dist test------\n";
+  //   // Non trivial ScaLAPACK test
+  //   try {
+  //     std::cout << "------BEGIN non trivial block cyclic dist test------\n";
 
-//     size_t     n  = 512;
-//     tamm::Tile ts = 20;
-//     int64_t    nb = 128;
+  //     size_t     n  = 512;
+  //     tamm::Tile ts = 20;
+  //     int64_t    nb = 128;
 
-//     size_t npr = 1, npc = 1;
+  //     size_t npr = 1, npc = 1;
 
-//     IndexSpace      is{range(0, n)};
-//     TiledIndexSpace tis{is, ts};
+  //     IndexSpace      is{range(0, n)};
+  //     TiledIndexSpace tis{is, ts};
 
-//     Tensor<T> A{tis, tis};
-//     A.allocate(ec);
-//     Scheduler{*ec}(A("i", "j") = 1.).execute();
+  //     Tensor<T> A{tis, tis};
+  //     A.allocate(ec);
+  //     Scheduler{*ec}(A("i", "j") = 1.).execute();
 
-//     auto A_scal = to_block_cyclic_tensor(A, {npr, npc}, {nb, nb});
+  //     auto A_scal = to_block_cyclic_tensor(A, {npr, npc}, {nb, nb});
 
-//     std::cout << "------END non trivial block cyclic dist test------\n";
+  //     std::cout << "------END non trivial block cyclic dist test------\n";
 
-//   } catch(const std::string& e) {
-//     std::cerr << e << std::endl;
-//     failed = true;
-//   }
+  //   } catch(const std::string& e) {
+  //     std::cerr << e << std::endl;
+  //     failed = true;
+  //   }
   REQUIRE(!failed);
 }
 
@@ -1073,7 +1136,6 @@ Tensor<T> cholesky(const Tensor<T>& tens) {
 //     std::cout << "Printing Q" << std::endl;
 //     print_tensor(Q);
 
-
 //     std::cout << "Testing add op" << std::endl;
 //     sch
 //         (Q() += QB())
@@ -1202,7 +1264,6 @@ Tensor<T> cholesky(const Tensor<T>& tens) {
 // #endif
 // #if 0
 
-
 //     sch.allocate(Q, QB, K);
 //     // foreach Index i in TMO:
 //     for(Index i_val : TMO){
@@ -1210,13 +1271,14 @@ Tensor<T> cholesky(const Tensor<T>& tens) {
 //         Tensor<T> G_i_inv{A(i_val), B(i_val)};
 //         sch
 //         .allocate(J_i, G_i_inv)         // Q: how to allocate within a loop?
-//             (J_i(A(i_val), B(i_val)) = J(A(i_val), B(i_val))) 
+//             (J_i(A(i_val), B(i_val)) = J(A(i_val), B(i_val)))
 //         .execute();
-        
+
 //         G_i_inv = invert_tensor(cholesky(J_i));
 
 //         sch
-//             (QB(B(i_val), mu(i_val), i_val) += G_i_inv(B(i_val), A(i_val)) * Q(A(i_val), mu(i_val), i_val))
+//             (QB(B(i_val), mu(i_val), i_val) += G_i_inv(B(i_val), A(i_val)) * Q(A(i_val),
+//             mu(i_val), i_val))
 //         .deallocate(J_i, G_i_inv)
 //         .execute();
 //     }

@@ -155,9 +155,16 @@ TEST_CASE("Block Sparse Tensor Construction") {
     Scheduler{*ec}(tensor() = 42).execute();
     check_value(tensor, (T) 42);
 
-    Scheduler{*ec}(tensor(i, j, a, b) = 1.0)(tensor(i, a, j, b) = 2.0)(tensor(i, j, k, a) = 3.0)(
-      tensor(i, j, k, l) = 4.0)(tensor(i, a, b, c) = 5.0)(tensor(a, b, c, d) = 6.0)
-      .execute();
+    // clang-format off
+    Scheduler{*ec}
+    (tensor(i, j, a, b) = 1.0)
+    (tensor(i, a, j, b) = 2.0)
+    (tensor(i, j, k, a) = 3.0)
+    (tensor(i, j, k, l) = 4.0)
+    (tensor(i, a, b, c) = 5.0)
+    (tensor(a, b, c, d) = 6.0)
+    .execute();
+    // clang-format on
 
     print_tensor_all(tensor);
 

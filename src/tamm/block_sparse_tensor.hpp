@@ -79,50 +79,54 @@ public:
   /// @return
   NonZeroCheck construct_is_non_zero_check(const TiledIndexSpaceVec& tis_vec,
                                            BlockSparseInfo           sparse_info) const {
-    auto is_within_tis = [](size_t block_offset, size_t tis_lo, size_t tis_hi) -> bool {
-      return (block_offset >= tis_lo && block_offset < tis_hi);
-    };
-
-    auto is_in_allowed_blocks = [tis_vec, allowed_tis_vecs = sparse_info.allowed_tis_vecs,
-                                 is_within_tis](const IndexVector& blockid) -> bool {
-      std::vector<size_t> blockid_offsets;
+    auto is_in_allowed_blocks = [tis_vec, allowed_tis_vecs = sparse_info.allowed_tis_vecs](
+                                  const IndexVector& blockid) -> bool {
+      std::vector<size_t> ref_indices;
       for(size_t i = 0; i < blockid.size(); i++) {
-        blockid_offsets.push_back(tis_vec[i].tile_offset(blockid[i]));
+        ref_indices.push_back(tis_vec[i].ref_indices()[blockid[i]]);
       }
 
       for(size_t i = 0; i < allowed_tis_vecs.size(); i++) {
-        auto curr_tis_vec = allowed_tis_vecs[i];
-        for(size_t j = 0; j < blockid_offsets.size(); j++) {
-          if(!is_within_tis(blockid_offsets[j], curr_tis_vec[j].tile_offsets().front(),
-                            curr_tis_vec[j].tile_offsets().back())) {
-            return false;
+        auto curr_tis_vec  = allowed_tis_vecs[i];
+        bool is_disallowed = false;
+        for(size_t j = 0; j < ref_indices.size(); j++) {
+          auto allowed_ref_indices = curr_tis_vec[j].ref_indices();
+
+          if(std::find(allowed_ref_indices.begin(), allowed_ref_indices.end(), ref_indices[j]) ==
+             allowed_ref_indices.end()) {
+            is_disallowed = true;
+            break;
           }
         }
+        if(!is_disallowed) { return true; }
       }
 
-      return true;
+      return false;
     };
 
-    auto is_in_disallowed_blocks = [tis_vec, disallowed_tis_vecs = sparse_info.disallowed_tis_vecs,
-                                    is_within_tis](const IndexVector& blockid) -> bool {
-      std::vector<size_t> blockid_offsets;
+    auto is_in_disallowed_blocks = [tis_vec, disallowed_tis_vecs = sparse_info.disallowed_tis_vecs](
+                                     const IndexVector& blockid) -> bool {
+      std::vector<size_t> ref_indices;
       for(size_t i = 0; i < blockid.size(); i++) {
-        blockid_offsets.push_back(tis_vec[i].tile_offset(blockid[i]));
+        ref_indices.push_back(tis_vec[i].ref_indices()[blockid[i]]);
       }
 
       for(size_t i = 0; i < disallowed_tis_vecs.size(); i++) {
-        std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+        auto curr_tis_vec  = disallowed_tis_vecs[i];
+        bool is_disallowed = false;
+        for(size_t j = 0; j < ref_indices.size(); j++) {
+          auto allowed_ref_indices = curr_tis_vec[j].ref_indices();
 
-        auto curr_tis_vec = disallowed_tis_vecs[i];
-        for(size_t j = 0; j < blockid_offsets.size(); j++) {
-          if(!is_within_tis(blockid_offsets[j], curr_tis_vec[j].tile_offsets().front(),
-                            curr_tis_vec[j].tile_offsets().back())) {
-            return false;
+          if(std::find(allowed_ref_indices.begin(), allowed_ref_indices.end(), ref_indices[j]) ==
+             allowed_ref_indices.end()) {
+            is_disallowed = true;
+            break;
           }
         }
+        if(!is_disallowed) { return true; }
       }
 
-      return true;
+      return false;
     };
 
     auto non_zero_check =

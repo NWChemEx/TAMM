@@ -128,6 +128,9 @@ TEST_CASE("Block Sparse Tensor Construction") {
 
   TiledIndexSpace MO{MO_IS, 5};
 
+  auto [i, j, k, l] = MO("occ").labels<4>();
+  auto [a, b, c, d] = MO("virt").labels<4>();
+
   BlockSparseInfo sparse_info{
     {MO, MO, MO, MO},                                 // Tensor dims
     {"ijab", "iajb", "ijka", "ijkl", "iabc", "abcd"}, // Allowed blocks
@@ -138,33 +141,24 @@ TEST_CASE("Block Sparse Tensor Construction") {
      {'a', "virt"},
      {'b', "virt"},
      {'c', "virt"},
-     {'d', "virt"}}
-    //  , // Char to named sub-space string
-    // {"abij", "aibj"} // Disallowed blocks
+     {'d', "virt"}}, // Char to named sub-space string
+    {"abij",
+     "aibj"} // Disallowed blocks - note that allowed blocks will precedence over disallowed blocks
   };
 
   failed = false;
   try {
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-
     BlockSparseTensor<T> tensor{{MO, MO, MO, MO}, sparse_info};
-    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-
-    // for(const auto& blockid: tensor.loop_nest()) {
-    //   std::cout << "blockid: [ ";
-    //   for(size_t i = 0; i < blockid.size(); i++) { std::cout << blockid[i] << " "; }
-    //   std::cout << "] -> " << std::endl;
-
-    //   if(tensor.base_ptr()->is_non_zero(blockid)) { std::cout << "is non zero" << std::endl; }
-    //   else { std::cout << "is zero" << std::endl; }
-    // }
-    // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
 
     tensor.allocate(ec);
-    std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
 
     Scheduler{*ec}(tensor() = 42).execute();
     check_value(tensor, (T) 42);
+
+    Scheduler{*ec}(tensor(i, j, a, b) = 1.0)(tensor(i, a, j, b) = 2.0)(tensor(i, j, k, a) = 3.0)(
+      tensor(i, j, k, l) = 4.0)(tensor(i, a, b, c) = 5.0)(tensor(a, b, c, d) = 6.0)
+      .execute();
+
     print_tensor_all(tensor);
 
     tensor.deallocate();

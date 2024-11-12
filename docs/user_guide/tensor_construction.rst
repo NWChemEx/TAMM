@@ -377,6 +377,103 @@ will correspond to the tile ID for each mode of ``Tensor`` object.
    }
    ``` -->
 
+Local Tensor Construction
+------------------------------
+
+TAMM also provides a rank local tensor implementation called ``LocalTensor<T>`` 
+that allows to construct a tensor that resides in each rank. While the constructors
+for this specialized tensor is very similar to default distributed tensors, users
+can have element-wise operaitons over these tensors as they are locally allocated. 
+Different than the default tensor constructors, users can choose to use size values
+to construct correspond tensors. 
+
+.. code:: cpp
+   // Tensor<T> B{tis1, tis1};
+   // Local tensor construction using TiledIndexSpaces
+   LocalTensor<T> local_A{tis1, tis1, tis1};
+   LocalTensor<T> local_B{B.tiled_index_spaces()};
+   // Local tensor construction using TiledIndexLabels
+   LocalTensor<T> local_C{i, j, l};
+   size_t N = 20;
+   // Local tensor construction using a size
+   LocalTensor<T> local_D{N, N, N};
+   LocalTensor<T> local_E{10, 10, 10};
+
+Similar to general tensor objects in TAMM, ``LocalTensor`` objects have to be allocated.
+While allocation/deallcoation calls are the same with general Tensor constructs, users 
+have to use an ``ExecutionContext`` object with ``LocalMemoryManager``. Below is an 
+example of how the allocation for these tensors looks like
+
+.. code:: cpp
+   // Execution context with LocalMemoryManager
+   ExecutionContext local_ec{sch.ec().pg(), DistributionKind::nw, MemoryManagerKind::local};
+   // Scheduler constructed with the new local_ec
+   Scheduler        sch_local{local_ec};
+   // Allocate call using the local scheduler
+   sch_local.allocate(local_A, local_B, local_C, local_D, local_E).execute();
+
+Local Tensor Operations
+-----------------------
+The `LocalTensor` object provides various functionalities, such as retrieving blocks of data, 
+resizing tensors, and element-wise access. A `LocalTensor<T>` object allows you to retrieve 
+a block of data using the `block` method. This method has two variants: one for general 
+multi-dimensional tensors and another specifically for 2-dimensional tensors.
+
+.. code-block:: cpp
+
+   // Extract block from a 3-D Tensor
+   auto local_E = local_A.block({0, 0, 0}, {4, 4, 4});
+   // Extract block from a 2-D Tensor
+   auto local_F = local_B.block(0, 0, 4, 4);
+
+In the example above, the first call to `block` extracts a `4x4x4` block starting at 
+the offset `{0, 0, 0}`, while the second call directly specifies the start offset for 
+the x and y axes, followed by the block dimensions.
+
+Another special feature of `LocalTensor` objects is the ability to resize the tensor 
+to a new size, while maintaining the same number of dimensions. Depending on the new size, 
+values from the original tensor are automatically carried over. The examples below demonstrate 
+resizing a local tensor to a smaller and then to a larger size. Note that resizing causes a new 
+tensor to be allocated, and the corresponding data is copied over.
+
+.. code-block:: cpp
+
+   // Resize tensor to a smaller size
+   local_A.resize(5, 5, 5);
+   // Resize tensor to a larger size
+   local_A.resize(N, N, N);
+
+`LocalTensor` objects also support element-wise accessor methods, `get` and `set`. 
+Unlike default TAMM tensors, all data in a `LocalTensor` resides in local memory, 
+enabling element access via index location.
+
+.. code-block:: cpp
+
+   // Set values for the entire tensor using the local scheduler
+   sch_local.allocate(local_A, local_B)
+   (local_A() = 42.0)
+   (local_B() = 21.0)
+   .execute();
+
+   // Set a specific value in the tensor
+   local_A.set({0, 0, 0}, 1.0);
+
+   // Retrieve a value from the tensor
+   auto val = local_B.get(0, 0, 0);
+
+   // Looping through tensor elements
+   for (size_t i = 0; i < N; i++) {
+      for (size_t j = 0; j < N; j++) {
+         for (size_t k = 0; k < N; k++) {
+            local_A.set({i, j, k}, local_B.get(i, j));
+         }
+      }
+   }
+
+The examples above illustrate element-wise operations. Users can perform scheduler-based 
+operations with the local scheduler or define element-wise updates using loops.
+
+
 Example Tensor Constructions
 ----------------------------
 

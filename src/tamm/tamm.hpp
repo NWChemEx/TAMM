@@ -27,6 +27,7 @@
 #include "tamm/block_sparse_tensor.hpp"
 #include "tamm/blockops_blas.hpp"
 #include "tamm/dag_impl.hpp"
+#include "tamm/local_tensor.hpp"
 #include "tamm/lru_cache.hpp"
 #include "tamm/op_dag.hpp"
 #include "tamm/tamm_utils.hpp"

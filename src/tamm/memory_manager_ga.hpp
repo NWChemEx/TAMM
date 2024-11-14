@@ -88,7 +88,7 @@ public:
 #if defined(USE_UPCXX)
   void alloc_coll_upcxx(ElementType eltype, Size local_nelements, MemoryRegionGA* pmr, int nranks,
                         int64_t element_size, int64_t nels) {
-    upcxx::team* team     = pg_.team();
+    upcxx::team* team     = pg_.comm();
     pmr->gptrs_           = new upcxx::global_ptr<uint8_t>[nranks];
     pmr->eltype_          = eltype;
     pmr->eltype_size_     = get_element_size(eltype);
@@ -277,7 +277,7 @@ protected:
   explicit MemoryManagerGA(ProcGroup pg): MemoryManager{pg, MemoryManagerKind::ga} {
     EXPECTS(pg.is_valid());
 #if defined(USE_UPCXX)
-    team_ = pg.team();
+    team_ = pg.comm();
 #else
     pg_    = pg;
     ga_pg_ = pg.ga_pg();

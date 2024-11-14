@@ -774,7 +774,7 @@ TensorType linf_norm(LabeledTensor<TensorType> ltensor) {
   auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor);
 #if defined(USE_UPCXX)
   upcxx::team* sub_comm =
-    new upcxx::team(gec.pg().team()->split(rank < subranks ? 0 : upcxx::team::color_none, 0));
+    new upcxx::team(gec.pg().comm()->split(rank < subranks ? 0 : upcxx::team::color_none, 0));
 #else
   MPI_Comm sub_comm;
   subcomm_from_subranks(gec, subranks, sub_comm);
@@ -842,7 +842,7 @@ void apply_ewise_ip(LabeledTensor<TensorType> ltensor, std::function<TensorType(
   auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor);
 #if defined(USE_UPCXX)
   upcxx::team* sub_comm = new upcxx::team(
-    gec.pg().team()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
+    gec.pg().comm()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
 #else
   MPI_Comm sub_comm;
   subcomm_from_subranks(gec, subranks, sub_comm);
@@ -1081,7 +1081,7 @@ TensorType sum(LabeledTensor<TensorType> ltensor) {
   auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor);
 #if defined(USE_UPCXX)
   upcxx::team* sub_comm = new upcxx::team(
-    gec.pg().team()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
+    gec.pg().comm()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
 #else
   MPI_Comm sub_comm;
   subcomm_from_subranks(gec, subranks, sub_comm);
@@ -1179,7 +1179,7 @@ TensorType norm(ExecutionContext& gec, LabeledTensor<TensorType> ltensor) {
   auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor);
 #if defined(USE_UPCXX)
   upcxx::team* sub_comm =
-    new upcxx::team(gec.pg().team()->split(rank < subranks ? 0 : upcxx::team::color_none, 0));
+    new upcxx::team(gec.pg().comm()->split(rank < subranks ? 0 : upcxx::team::color_none, 0));
 #else
   MPI_Comm sub_comm;
   subcomm_from_subranks(gec, subranks, sub_comm);

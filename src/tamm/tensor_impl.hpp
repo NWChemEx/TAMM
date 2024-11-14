@@ -1051,7 +1051,7 @@ public:
     gptrs_.resize(nranks);
     upcxx::promise<> p(nranks);
     for(int r = 0; r < nranks; r++)
-      upcxx::broadcast(local_gptr_, r, *ec->pg().team())
+      upcxx::broadcast(local_gptr_, r, *ec->pg().comm())
         .then([this, &p, r](upcxx::global_ptr<uint8_t> result) {
           gptrs_[r] = result;
           p.fulfill_anonymous(1);
@@ -1170,7 +1170,7 @@ public:
     TensorTile t = find_tile(lo[0], lo[1], lo[2], lo[3]);
 
     upcxx::rpc(
-      *ec_->pg().team(), t.rank,
+      *ec_->pg().comm(), t.rank,
       [](const upcxx::global_ptr<T>& dst_buf, const upcxx::view<T>& src_buf) {
         T*     dst = dst_buf.local();
         size_t n   = src_buf.size();

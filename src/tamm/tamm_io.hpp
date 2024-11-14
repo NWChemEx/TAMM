@@ -241,7 +241,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
   auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor, nagg_hint);
 #if defined(USE_UPCXX)
   upcxx::team* io_comm = new upcxx::team(
-    gec.pg().team()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
+    gec.pg().comm()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
 #else
   MPI_Comm io_comm;
   subcomm_from_subranks(gec, subranks, io_comm);

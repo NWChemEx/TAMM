@@ -92,6 +92,90 @@ public:
 #endif
 
   /**
+   * @brief Create a process group with only the calling process in it
+   *
+   * @return ProcGroup New ProcGroup object that contains only the calling process
+   */
+  static ProcGroup create_self() {
+#if defined(USE_UPCXX)
+    upcxx::team* scomm = new upcxx::team(upcxx::world().create(std::vector<int>{upcxx::rank_me()}));
+    ProcGroup    pg    = create_coll(*scomm);
+#else
+    ProcGroup pg = create_coll(MPI_COMM_SELF);
+#endif
+    return pg;
+  }
+
+  /**
+   * @brief Collectively create a ProcGroup from the given parent group and a list of ranks
+   *
+   * @param parent_group Parent ProcGroup
+   * @param nranks size of the sub-group
+   * @return ProcGroup New ProcGroup object that creates the corresponding process sub-group
+   */
+  static ProcGroup create_subgroup(const ProcGroup& parent_group, std::vector<int>& ranks) {
+    const int nranks = ranks.size();
+#if defined(USE_UPCXX)
+    // TODO: should use ranks in list and not first nranks
+    const bool   in_new_team = (parent_group.rank() < ranks.size());
+    upcxx::team* gcomm       = parent_group.comm();
+    upcxx::team* scomm       = new upcxx::team(
+            gcomm->split(in_new_team ? 0 : upcxx::team::color_none, parent_group.rank().value()));
+    ProcGroup pg = create_coll(*scomm);
+#else
+    MPI_Comm  scomm;
+    MPI_Group wgroup;
+    MPI_Group sgroup;
+    auto      gcomm = parent_group.comm();
+    MPI_Comm_group(gcomm, &wgroup);
+    MPI_Group_incl(wgroup, nranks, ranks.data(), &sgroup);
+    MPI_Comm_create(gcomm, sgroup, &scomm);
+    MPI_Group_free(&wgroup);
+    MPI_Group_free(&sgroup);
+    ProcGroup pg;
+    if(scomm != MPI_COMM_NULL) {
+      pg = create_coll(scomm);
+      MPI_Comm_free(&scomm); // since we duplicate in create_coll
+    }
+#endif
+    return pg;
+  }
+
+  // Create subgroup from first nranks of parent group
+  static ProcGroup create_subgroup(const ProcGroup& parent_group, int nranks) {
+    std::vector<int> ranks(nranks);
+    for(int i = 0; i < nranks; i++) ranks[i] = i;
+    return create_subgroup(parent_group, ranks);
+  }
+
+  /**
+   * @brief Collectively create multiple process groups from the given parent group
+   *
+   * @param parent_group Parent ProcGroup
+   * @param nranks size of each sub-group
+   * @return ProcGroup New ProcGroup object that creates the corresponding process sub-group
+   */
+  static ProcGroup create_subgroups(const ProcGroup& parent_group, int nranks) {
+    ProcGroup pg;
+#if defined(USE_UPCXX)
+    upcxx::team* parent_team = parent_group.comm();
+    int          color       = upcxx::rank_me() % nranks;
+    int          key         = upcxx::rank_me() / nranks;
+    upcxx::team  scomm       = parent_team->split(color, key);
+    pg                       = create_coll(scomm);
+#else
+    int      color = 0;
+    MPI_Comm scomm;
+    int      pg_rank = parent_group.rank().value();
+    if(nranks > 1) color = pg_rank / nranks;
+    MPI_Comm_split(parent_group.comm(), color, pg_rank, &scomm);
+    pg = create_coll(scomm);
+    MPI_Comm_free(&scomm); // since we duplicate in create_coll
+#endif
+    return pg;
+  }
+
+  /**
    * @brief Check if the given process group is valid
    *
    * @return true if it is a non-null process group (not MPI_COMM_NULL)
@@ -123,7 +207,7 @@ public:
    *
    * @pre is_valid()
    */
-  upcxx::team* team() const {
+  upcxx::team* comm() const {
     EXPECTS(is_valid());
     return pginfo_->team_;
   }
@@ -137,6 +221,18 @@ public:
   MPI_Comm comm() const {
     EXPECTS(is_valid());
     return pginfo_->mpi_comm_;
+  }
+
+  /**
+   * Access the underlying MPI communicator
+   * @return the Fortran representation of the wrapped MPI communicator
+   *
+   * @pre is_valid()
+   */
+  MPI_Fint comm_c2f() const {
+    EXPECTS(is_valid());
+    // convert the C comm handle to its Fortran equivalent
+    return MPI_Comm_c2f(pginfo_->mpi_comm_);
   }
 
   /**
@@ -392,7 +488,7 @@ public:
     upcxx::promise<> p;
 
     for(int r = 0; r < nranks; ++r)
-      upcxx::broadcast(rbuf + r * rcount, scount, r, *team(), upcxx::operation_cx::as_promise(p));
+      upcxx::broadcast(rbuf + r * rcount, scount, r, *comm(), upcxx::operation_cx::as_promise(p));
 
     p.finalize().wait();
   }

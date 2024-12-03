@@ -63,6 +63,7 @@ void tensor_contruction(const TiledIndexSpace& T_AO, const TiledIndexSpace& T_MO
 }
 
 TEST_CASE("Block Sparse Tensor Construction") {
+  // std::cout << "Starting BlockSparseTensor tests" << std::endl;
   using T = double;
   IndexSpace SpinIS{
     range(0, 20),
@@ -96,7 +97,7 @@ TEST_CASE("Block Sparse Tensor Construction") {
     tensor.allocate(ec);
     Scheduler{*ec}(tensor() = 42).execute();
     check_value(tensor, (T) 42);
-    print_tensor_all(tensor);
+    // print_tensor_all(tensor);
 
     tensor.deallocate();
   } catch(const std::string& e) {
@@ -115,7 +116,7 @@ TEST_CASE("Block Sparse Tensor Construction") {
     tensor.allocate(ec);
     Scheduler{*ec}(tensor() = 42).execute();
     check_value(tensor, (T) 42);
-    print_tensor_all(tensor);
+    // print_tensor_all(tensor);
 
     tensor.deallocate();
   } catch(const std::string& e) {
@@ -131,17 +132,12 @@ TEST_CASE("Block Sparse Tensor Construction") {
   auto [i, j, k, l] = MO("occ").labels<4>();
   auto [a, b, c, d] = MO("virt").labels<4>();
 
+  Char2TISMap     char2MOstr = {{'i', "occ"},  {'j', "occ"},  {'k', "occ"},  {'l', "occ"},
+                                {'a', "virt"}, {'b', "virt"}, {'c', "virt"}, {'d', "virt"}};
   BlockSparseInfo sparse_info{
     {MO, MO, MO, MO},                                 // Tensor dims
     {"ijab", "iajb", "ijka", "ijkl", "iabc", "abcd"}, // Allowed blocks
-    {{'i', "occ"},
-     {'j', "occ"},
-     {'k', "occ"},
-     {'l', "occ"},
-     {'a', "virt"},
-     {'b', "virt"},
-     {'c', "virt"},
-     {'d', "virt"}}, // Char to named sub-space string
+    char2MOstr,                                       // Char to named sub-space string
     {"abij",
      "aibj"} // Disallowed blocks - note that allowed blocks will precedence over disallowed blocks
   };
@@ -166,13 +162,82 @@ TEST_CASE("Block Sparse Tensor Construction") {
     .execute();
     // clang-format on
 
-    print_tensor_all(tensor);
+    check_value(tensor(i, j, a, b), (T) 1.0);
+    check_value(tensor(i, a, j, b), (T) 2.0);
+    check_value(tensor(i, j, k, a), (T) 3.0);
+    check_value(tensor(i, j, k, l), (T) 4.0);
+    check_value(tensor(i, a, b, c), (T) 5.0);
+    check_value(tensor(a, b, c, d), (T) 6.0);
 
     tensor.deallocate();
   } catch(const std::string& e) {
     std::cerr << e << '\n';
     failed = true;
   }
+
+  failed = false;
+  try {
+    BlockSparseTensor<T> tensor{{MO, MO, MO, MO}, {"ijab", "ijka", "iajb"}, char2MOstr};
+
+    tensor.allocate(ec);
+
+    Scheduler{*ec}(tensor() = 42).execute();
+    check_value(tensor, (T) 42);
+
+    // clang-format off
+    Scheduler{*ec}
+    (tensor(i, j, a, b) = 1.0)
+    (tensor(i, a, j, b) = 2.0)
+    (tensor(i, j, k, a) = 3.0)
+    .execute();
+    // clang-format on
+
+    check_value(tensor(i, j, a, b), (T) 1.0);
+    check_value(tensor(i, a, j, b), (T) 2.0);
+    check_value(tensor(i, j, k, a), (T) 3.0);
+
+    tensor.deallocate();
+  } catch(const std::string& e) {
+    std::cerr << e << '\n';
+    failed = true;
+  }
+
+  failed = false;
+  try {
+    BlockSparseTensor<T> tensorA{{MO, MO, MO, MO}, {"ijab", "ijkl"}, char2MOstr};
+    BlockSparseTensor<T> tensorB{{MO, MO, MO, MO}, {"ijka", "iajb"}, char2MOstr};
+    BlockSparseTensor<T> tensorC{{MO, MO, MO, MO}, {"iabc", "abcd"}, char2MOstr};
+
+    tensorA.allocate(ec);
+    tensorB.allocate(ec);
+    tensorC.allocate(ec);
+
+    Scheduler{*ec}(tensorA() = 2.0)(tensorB() = 4.0)(tensorC() = 0.0).execute();
+    check_value(tensorA, (T) 2.0);
+    check_value(tensorB, (T) 4.0);
+    check_value(tensorC, (T) 0.0);
+
+    // clang-format off
+    Scheduler{*ec}
+    (tensorC(a, b, c, d) += tensorA(i, j, a, b) * tensorB(j, c, i, d))
+    (tensorC(i, a, b, c) += 0.5 * tensorA(j, k, a, b) * tensorB(i, j, k, c))
+    .execute();
+    // clang-format on
+
+    check_value(tensorC(i, a, b, c), (T) 400.0);
+    check_value(tensorC(a, b, c, d), (T) 800.0);
+
+    // std::cout << "Printing TensorC:" << std::endl;
+    // print_tensor(tensorC);
+
+    tensorA.deallocate();
+    tensorB.deallocate();
+    tensorC.deallocate();
+  } catch(const std::string& e) {
+    std::cerr << e << '\n';
+    failed = true;
+  }
+
   REQUIRE(!failed);
 }
 #if 1

@@ -91,7 +91,7 @@ public:
   /// @brief
   /// @param block_indices
   /// @param zero_check
-  TensorBase(const std::vector<TiledIndexSpace>& block_indices, NonZeroCheck zero_check);
+  TensorBase(const std::vector<TiledIndexSpace>& block_indices, const NonZeroCheck& zero_check);
 
   /**
    * @brief Construct a new TensorBase object recursively with a set of

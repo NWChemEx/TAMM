@@ -4,21 +4,27 @@
 
 namespace tamm {
 
-// template<typename T>
-// class LabeledTensor;
-using Char2TisMap = std::unordered_map<char, std::string>;
+using Char2TISMap = std::unordered_map<char, std::string>;
 
+/**
+ * @brief Block sparse description using (dis)allowed blocks and/or a non-zero check function
+ *
+ */
 struct BlockSparseInfo {
   // Input members
-  TiledIndexSpaceVec       full_tis_vec;
-  std::vector<std::string> allowed_blocks;
-  Char2TisMap              char_to_sub_tis;
-  std::vector<std::string> disallowed_blocks;
-  NonZeroCheck             is_non_zero = [](const IndexVector&) -> bool { return true; };
+  TiledIndexSpaceVec       full_tis_vec;      /**< list of TiledIndexSpaces for referencing */
+  std::vector<std::string> allowed_blocks;    /**< list of allowed blocks using string indices*/
+  Char2TISMap              char_to_sub_tis;   /**< map of indices to sub-TIS names*/
+  std::vector<std::string> disallowed_blocks; /**< list of disallowed blocks using string indices*/
+  NonZeroCheck             is_non_zero = [](const IndexVector&) -> bool {
+    return true;
+  }; /**< is_non_zero check function */
 
   // Generated members
-  std::vector<TiledIndexSpaceVec> allowed_tis_vecs;
-  std::vector<TiledIndexSpaceVec> disallowed_tis_vecs;
+  std::vector<TiledIndexSpaceVec>
+    allowed_tis_vecs; /**< list of allowed TIS vectors generated from allowed blocks */
+  std::vector<TiledIndexSpaceVec>
+    disallowed_tis_vecs; /**< list of dis-allowed TIS vectors generated from allowed blocks */
 
   BlockSparseInfo()                                  = default;
   BlockSparseInfo(BlockSparseInfo&&)                 = default;
@@ -27,8 +33,16 @@ struct BlockSparseInfo {
   BlockSparseInfo& operator=(const BlockSparseInfo&) = default;
   ~BlockSparseInfo()                                 = default;
 
+  /**
+   * @brief Construct a new BlockSparseInfo object
+   *
+   * @param tis_vec list of TiledIndexSpaces for the reference
+   * @param allowed_strs list of allowed string indices
+   * @param char_to_sub_str map for char to string for sub-TIS
+   * @param disallowed_strs list of disallowed string indices
+   */
   BlockSparseInfo(TiledIndexSpaceVec tis_vec, std::vector<std::string> allowed_strs,
-                  Char2TisMap char_to_sub_str, std::vector<std::string> disallowed_strs = {}):
+                  Char2TISMap char_to_sub_str, std::vector<std::string> disallowed_strs = {}):
     full_tis_vec(tis_vec),
     allowed_blocks(allowed_strs),
     char_to_sub_tis(char_to_sub_str),
@@ -55,8 +69,11 @@ struct BlockSparseInfo {
   }
 };
 
-/// @brief Creates a local copy of the distributed tensor
-/// @tparam T Data type for the tensor being made local
+/**
+ * @brief BlockSparseTensor object for generating a block sparse tensor using the BlockTensorInfo
+ *
+ * @tparam T data type for tensor object
+ */
 template<typename T>
 class BlockSparseTensor: public Tensor<T> { // move to another hpp
 public:
@@ -67,16 +84,35 @@ public:
   BlockSparseTensor& operator=(const BlockSparseTensor&) = default;
   ~BlockSparseTensor()                                   = default;
 
-  /// @brief
-  /// @param tis_vec
-  /// @param sparse_info
+  /**
+   * @brief Construct a new Block Sparse Tensor object
+   *
+   * @param tis_vec list of TiledIndexSpace for constructing the tensors
+   * @param sparse_info BlockSparseInfo object representing the sparsity
+   */
   BlockSparseTensor(TiledIndexSpaceVec tis_vec, BlockSparseInfo sparse_info):
     Tensor<T>(tis_vec, construct_is_non_zero_check(tis_vec, sparse_info)) {}
 
-  /// @brief s
-  /// @param tis_vec
-  /// @param sparse_info
-  /// @return
+  /**
+   * @brief Construct a new Block Sparse Tensor object
+   *
+   * @param tis_vec list of TiledIndexSpace for constructing the tensor
+   * @param allowed_blocks list of strings that represents the allowed blocks
+   * @param char_to_tis_map map of indices to sub-TIS names
+   */
+  BlockSparseTensor(TiledIndexSpaceVec tis_vec, const std::vector<std::string>& allowed_blocks,
+                    const Char2TISMap& char_to_tis_map):
+    BlockSparseTensor<T>(tis_vec, {tis_vec, allowed_blocks, char_to_tis_map}) {}
+
+private:
+  /**
+   * @brief Internal function constructing an is_non_zero function to be used to construct a lambda
+   * function based tensor object
+   *
+   * @param tis_vec list of TiledIndexSpace for constructing the tensors
+   * @param sparse_info BlockSparseInfo object representing the sparsity
+   * @return NonZeroCheck function
+   */
   NonZeroCheck construct_is_non_zero_check(const TiledIndexSpaceVec& tis_vec,
                                            BlockSparseInfo           sparse_info) const {
     auto is_in_allowed_blocks = [tis_vec, allowed_tis_vecs = sparse_info.allowed_tis_vecs](

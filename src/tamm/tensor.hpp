@@ -115,7 +115,13 @@ public:
   Tensor(TiledIndexSpaceVec t_spaces, std::vector<size_t> spin_sizes):
     impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_sizes)} {}
 
-  Tensor(TiledIndexSpaceVec t_spaces, NonZeroCheck zero_check):
+  /**
+   * @brief Construct a new Tensor object with specialized non-zero check function
+   *
+   * @param t_spaces vector of TiledIndexSpace objects for each mode
+   * @param zero_check lambda function that is used for non-zero check
+   */
+  Tensor(const TiledIndexSpaceVec& t_spaces, const NonZeroCheck& zero_check):
     impl_{std::make_shared<TensorImpl<T>>(t_spaces, zero_check)} {}
   /**
    * @brief Construct a new Tensor object with Spin attributes

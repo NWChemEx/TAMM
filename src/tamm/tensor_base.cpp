@@ -43,7 +43,8 @@ TensorBase::TensorBase(const std::vector<TiledIndexSpace>& block_indices) {
 /**
  * @brief
  */
-TensorBase::TensorBase(const std::vector<TiledIndexSpace>& block_indices, NonZeroCheck zero_check) {
+TensorBase::TensorBase(const std::vector<TiledIndexSpace>& block_indices,
+                       const NonZeroCheck&                 zero_check) {
   block_indices_        = block_indices;
   allocation_status_    = AllocationStatus::invalid;
   num_modes_            = block_indices.size();

@@ -475,6 +475,34 @@ enabling element access via index location.
 The examples above illustrate element-wise operations. Users can perform scheduler-based 
 operations with the local scheduler or define element-wise updates using loops.
 
+`LocalTensor` object also allows copying from or to a distributed tensor object. This is
+particularly useful in situations where users need a local copy of distributed
+tensors to apply element-wise updates. Below is an example usage of this scenario:
+
+.. code-block:: cpp
+
+   // Distributed tensor constructor
+   Tensor<T> dist_A{tN, tN, tN}; 
+   // ... 
+  
+   // Local tensor construction
+   LocalTensor<T> local_A{dist_A.tiled_index_spaces()};
+
+   sch_local.allocate(local_A)
+   .execute();
+
+   // Copy from distributed tensor
+   local_A.from_distributed_tensor(dist_A);
+
+   // Apply updates
+   sch_local
+   (local_A() = 21.0)
+   .execute();
+
+   // Copy back to distributed tensor
+   local_A.to_distributed_tensor(dist_A);
+
+
 Block Sparse Tensor Construction
 --------------------------------
 

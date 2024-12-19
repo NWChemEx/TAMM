@@ -183,7 +183,8 @@ std::string tensor_to_string(const Tensor<T>& tensor) {
 template<typename T>
 void print_vector(std::vector<T> vec, std::string filename = "") {
   std::stringstream tstring;
-  for(size_t i = 0; i < vec.size(); i++) tstring << i + 1 << "\t" << vec[i] << std::endl;
+  for(size_t i = 0; i < vec.size(); i++)
+    tstring << i + 1 << "\t" << std::fixed << std::setprecision(12) << vec[i] << std::endl;
 
   if(!filename.empty()) {
     std::ofstream tos(filename, std::ios::out);

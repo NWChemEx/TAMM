@@ -24,7 +24,6 @@
 #include "tamm/scheduler.hpp"
 #include "tamm/tensor.hpp"
 // #include "tamm/spin_tensor.hpp"
-#include "tamm/block_sparse_tensor.hpp"
 #include "tamm/blockops_blas.hpp"
 #include "tamm/dag_impl.hpp"
 #include "tamm/local_tensor.hpp"

@@ -47,9 +47,9 @@ set(TAMM_INCLUDES
     scheduler.hpp
     local_tensor.hpp
     tensor.hpp
-    block_sparse_tensor.hpp
     tensor_impl.hpp
     tensor_base.hpp
+    block_sparse_info.hpp
     distribution.hpp
     labeled_tensor.hpp
     execution_context.hpp

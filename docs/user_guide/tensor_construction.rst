@@ -540,10 +540,12 @@ for block sparsity and construct a block sparse tensor:
        return (upper_total == lower_total);
    };
 
-   // Tensor constructor
-   Tensor<T> tensor{t_spaces, is_non_zero_2D};
+   // BlockSparseInfo construction
+   BlockSparseInfo sparse_info{t_spaces, is_non_zero_2D};
 
-While the custom lambda approach is flexible, it can be complex to implement. 
+   // Tensor constructor
+   Tensor<T> tensor{t_spaces, sparse_info};
+
 TAMM offers a more convenient `BlockSparseInfo` struct to describe non-zero blocks 
 using stringed sub-space constructs in `TiledIndexSpace`s. This simplifies the 
 process of constructing block sparse tensors.
@@ -564,18 +566,18 @@ Here's an example of using `BlockSparseInfo`:
        // ,{"abij", "aibj"} // Disallowed blocks (optional)
    };
 
-   // BlockSparseTensor construction
-   BlockSparseTensor<T> tensor{{MO, MO, MO, MO}, sparse_info};
+   // Block Sparse Tensor construction
+   Tensor<T> tensor{{MO, MO, MO, MO}, sparse_info};
 
 TAMM also provides a simplified constructor that only requires a list of allowed 
 blocks and the character-to-sub-space string map:
 
 .. code-block:: cpp
 
-   // BlockSparseTensor construction using allowed blocks
-   BlockSparseTensor<T> tensor{{MO, MO, MO, MO}, {"ijab", "ijka", "iajb"}, char2MOstr};
+   // Block Sparse Tensor construction using allowed blocks
+   Tensor<T> tensor{{MO, MO, MO, MO}, {"ijab", "ijka", "iajb"}, char2MOstr};
 
-`BlockSparseTensor` inherits from general TAMM tensor constructs, enabling the application
+Block Sparse `Tensor` inherits from general TAMM tensor constructs, enabling the application
 of standard tensor operations to block sparse tensors. Users can employ labels over the entire 
 `TiledIndexSpace` for general computations or use sub-space labels to access specific blocks.
 
@@ -584,10 +586,10 @@ blocks of block sparse tensors:
 
 .. code-block:: cpp
 
-   // Construct BlockSparseTensors with different allowed blocks
-   BlockSparseTensor<T> tensorA{{MO, MO, MO, MO}, {"ijab", "ijkl"}, char2MOstr};
-   BlockSparseTensor<T> tensorB{{MO, MO, MO, MO}, {"ijka", "iajb"}, char2MOstr};
-   BlockSparseTensor<T> tensorC{{MO, MO, MO, MO}, {"iabc", "abcd"}, char2MOstr};
+   // Construct Block Sparse Tensors with different allowed blocks
+   Tensor<T> tensorA{{MO, MO, MO, MO}, {"ijab", "ijkl"}, char2MOstr};
+   Tensor<T> tensorB{{MO, MO, MO, MO}, {"ijka", "iajb"}, char2MOstr};
+   Tensor<T> tensorC{{MO, MO, MO, MO}, {"iabc", "abcd"}, char2MOstr};
 
    // Allocate and set values
    sch.allocate(tensorA, tensorB, tensorC)

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tamm/tensor.hpp"
+#include "tamm/tensor_base.hpp"
 
 namespace tamm {
 
@@ -40,13 +40,17 @@ struct BlockSparseInfo {
    * @param allowed_strs list of allowed string indices
    * @param char_to_sub_str map for char to string for sub-TIS
    * @param disallowed_strs list of disallowed string indices
+   * @param non_zero_check non zero check function
    */
-  BlockSparseInfo(TiledIndexSpaceVec tis_vec, std::vector<std::string> allowed_strs,
-                  Char2TISMap char_to_sub_str, std::vector<std::string> disallowed_strs = {}):
+  BlockSparseInfo(
+    TiledIndexSpaceVec tis_vec, std::vector<std::string> allowed_strs, Char2TISMap char_to_sub_str,
+    std::vector<std::string> disallowed_strs = {},
+    NonZeroCheck             non_zero_check  = [](const IndexVector&) -> bool { return true; }):
     full_tis_vec(tis_vec),
     allowed_blocks(allowed_strs),
     char_to_sub_tis(char_to_sub_str),
-    disallowed_blocks(disallowed_strs) {
+    disallowed_blocks(disallowed_strs),
+    is_non_zero(non_zero_check) {
     for(size_t i = 0; i < allowed_blocks.size(); i++) {
       auto               block_str = allowed_blocks[i];
       TiledIndexSpaceVec tis_vec;
@@ -67,59 +71,29 @@ struct BlockSparseInfo {
       disallowed_tis_vecs.push_back(tis_vec);
     }
   }
-};
-
-/**
- * @brief BlockSparseTensor object for generating a block sparse tensor using the BlockTensorInfo
- *
- * @tparam T data type for tensor object
- */
-template<typename T>
-class BlockSparseTensor: public Tensor<T> { // move to another hpp
-public:
-  BlockSparseTensor()                                    = default;
-  BlockSparseTensor(BlockSparseTensor&&)                 = default;
-  BlockSparseTensor(const BlockSparseTensor&)            = default;
-  BlockSparseTensor& operator=(BlockSparseTensor&&)      = default;
-  BlockSparseTensor& operator=(const BlockSparseTensor&) = default;
-  ~BlockSparseTensor()                                   = default;
 
   /**
-   * @brief Construct a new Block Sparse Tensor object
+   * @brief Construct a new Block Sparse Info object
    *
-   * @param tis_vec list of TiledIndexSpace for constructing the tensors
-   * @param sparse_info BlockSparseInfo object representing the sparsity
+   * @param tis_vec list of TiledIndexSpaces for the reference
+   * @param non_zero_check non zero check function
    */
-  BlockSparseTensor(TiledIndexSpaceVec tis_vec, BlockSparseInfo sparse_info):
-    Tensor<T>(tis_vec, construct_is_non_zero_check(tis_vec, sparse_info)) {}
+  BlockSparseInfo(TiledIndexSpaceVec tis_vec, NonZeroCheck non_zero_check):
+    BlockSparseInfo(tis_vec, {}, {}, {}, non_zero_check) {}
 
-  /**
-   * @brief Construct a new Block Sparse Tensor object
-   *
-   * @param tis_vec list of TiledIndexSpace for constructing the tensor
-   * @param allowed_blocks list of strings that represents the allowed blocks
-   * @param char_to_tis_map map of indices to sub-TIS names
-   */
-  BlockSparseTensor(TiledIndexSpaceVec tis_vec, const std::vector<std::string>& allowed_blocks,
-                    const Char2TISMap& char_to_tis_map):
-    BlockSparseTensor<T>(tis_vec, {tis_vec, allowed_blocks, char_to_tis_map}) {}
-
-private:
   /**
    * @brief Internal function constructing an is_non_zero function to be used to construct a lambda
-   * function based tensor object
+   * function based block sparse info
    *
-   * @param tis_vec list of TiledIndexSpace for constructing the tensors
-   * @param sparse_info BlockSparseInfo object representing the sparsity
    * @return NonZeroCheck function
    */
-  NonZeroCheck construct_is_non_zero_check(const TiledIndexSpaceVec& tis_vec,
-                                           BlockSparseInfo           sparse_info) const {
-    auto is_in_allowed_blocks = [tis_vec, allowed_tis_vecs = sparse_info.allowed_tis_vecs](
-                                  const IndexVector& blockid) -> bool {
+  NonZeroCheck construct_is_non_zero_check() const {
+    auto is_in_allowed_blocks = [full_tis_vec = this->full_tis_vec,
+                                 allowed_tis_vecs =
+                                   this->allowed_tis_vecs](const IndexVector& blockid) -> bool {
       std::vector<size_t> ref_indices;
       for(size_t i = 0; i < blockid.size(); i++) {
-        ref_indices.push_back(tis_vec[i].ref_indices()[blockid[i]]);
+        ref_indices.push_back(full_tis_vec[i].ref_indices()[blockid[i]]);
       }
 
       for(size_t i = 0; i < allowed_tis_vecs.size(); i++) {
@@ -140,11 +114,12 @@ private:
       return false;
     };
 
-    auto is_in_disallowed_blocks = [tis_vec, disallowed_tis_vecs = sparse_info.disallowed_tis_vecs](
-                                     const IndexVector& blockid) -> bool {
+    auto is_in_disallowed_blocks =
+      [full_tis_vec        = this->full_tis_vec,
+       disallowed_tis_vecs = this->disallowed_tis_vecs](const IndexVector& blockid) -> bool {
       std::vector<size_t> ref_indices;
       for(size_t i = 0; i < blockid.size(); i++) {
-        ref_indices.push_back(tis_vec[i].ref_indices()[blockid[i]]);
+        ref_indices.push_back(full_tis_vec[i].ref_indices()[blockid[i]]);
       }
 
       for(size_t i = 0; i < disallowed_tis_vecs.size(); i++) {
@@ -165,14 +140,15 @@ private:
       return false;
     };
 
-    auto non_zero_check =
-      [is_in_allowed_blocks, is_in_disallowed_blocks, is_non_zero = sparse_info.is_non_zero,
-       allowed_tis_vecs    = sparse_info.allowed_tis_vecs,
-       disallowed_tis_vecs = sparse_info.disallowed_tis_vecs](const IndexVector& blockid) -> bool {
-      if(allowed_tis_vecs.size() > 0) {
+    auto allowed_tis_vecs_size    = allowed_tis_vecs.size();
+    auto disallowed_tis_vecs_size = disallowed_tis_vecs.size();
+    auto non_zero_check           = [is_in_allowed_blocks, is_in_disallowed_blocks,
+                           is_non_zero = this->is_non_zero, allowed_tis_vecs_size,
+                           disallowed_tis_vecs_size](const IndexVector& blockid) -> bool {
+      if(allowed_tis_vecs_size > 0) {
         return is_in_allowed_blocks(blockid) && is_non_zero(blockid);
       }
-      else if(disallowed_tis_vecs.size() > 0) {
+      else if(disallowed_tis_vecs_size > 0) {
         return (!is_in_disallowed_blocks(blockid) && is_non_zero(blockid));
       }
       else { return is_non_zero(blockid); }
@@ -180,5 +156,4 @@ private:
     return non_zero_check;
   }
 };
-
 } // namespace tamm

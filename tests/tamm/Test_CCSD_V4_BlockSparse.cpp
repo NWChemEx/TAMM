@@ -1,5 +1,4 @@
 #include "ccse_tensors.hpp"
-#include "tamm/block_sparse_tensor.hpp"
 #include <tamm/tamm_git.hpp>
 
 using CCEType = double;
@@ -8,8 +7,8 @@ TiledIndexSpace o_alpha, v_alpha, o_beta, v_beta;
 Tensor<CCEType> _a01V, _a02V, _a007V;
 Tensor<CCEType> _a01V_sp, _a02V_sp, _a007V_sp;
 
-BlockSparseTensor<CCEType> _a01_sp, _a02_sp, _a03_sp, _a04_sp, _a05_sp, _a06_sp, _a001_sp, _a004_sp,
-  _a006_sp, _a008_sp, _a009_sp, _a017_sp, _a019_sp, _a020_sp, _a021_sp, _a022_sp;
+Tensor<CCEType> _a01_sp, _a02_sp, _a03_sp, _a04_sp, _a05_sp, _a06_sp, _a001_sp, _a004_sp, _a006_sp,
+  _a008_sp, _a009_sp, _a017_sp, _a019_sp, _a020_sp, _a021_sp, _a022_sp;
 
 Tensor<CCEType> i0_temp, t2_aaaa_temp; // CS only
 
@@ -81,9 +80,13 @@ setupTensors_cs(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> d_f1) {
     {v_alpha, v_beta, o_alpha, o_beta},
     {SpinPosition::lower, SpinPosition::lower, SpinPosition::upper, SpinPosition::upper});
 
+  BlockSparseInfo block_info_Va_Oa{{v_alpha, o_alpha}, non_zero_check_Va_Oa};
+  BlockSparseInfo block_info_Va_Vb_Oa_Ob{{v_alpha, v_beta, o_alpha, o_beta},
+                                         non_zero_check_Va_Vb_Oa_Ob};
+
   // BlockSparseTensor
-  Tensor<T> d_r1{{v_alpha, o_alpha}, non_zero_check_Va_Oa};
-  Tensor<T> d_r2{{v_alpha, v_beta, o_alpha, o_beta}, non_zero_check_Va_Vb_Oa_Ob};
+  Tensor<T> d_r1{{v_alpha, o_alpha}, block_info_Va_Oa};
+  Tensor<T> d_r2{{v_alpha, v_beta, o_alpha, o_beta}, block_info_Va_Vb_Oa_Ob};
 
   Tensor<T>::allocate(&ec, d_r1, d_r2);
 
@@ -91,8 +94,8 @@ setupTensors_cs(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> d_f1) {
   // Tensor<T> d_t2{{v_alpha, v_beta, o_alpha, o_beta}, {2, 2}};
 
   // BlockSparseTensor
-  Tensor<T> d_t1{{v_alpha, o_alpha}, non_zero_check_Va_Oa};
-  Tensor<T> d_t2{{v_alpha, v_beta, o_alpha, o_beta}, non_zero_check_Va_Vb_Oa_Ob};
+  Tensor<T> d_t1{{v_alpha, o_alpha}, block_info_Va_Oa};
+  Tensor<T> d_t2{{v_alpha, v_beta, o_alpha, o_beta}, block_info_Va_Vb_Oa_Ob};
 
   Tensor<T>::allocate(&ec, d_t1, d_t2);
 
@@ -102,7 +105,7 @@ setupTensors_cs(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> d_f1) {
 template<typename T>
 void ccsd_e_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace& CI, Tensor<T>& de,
                const Tensor<T>& t1_aa, const Tensor<T>& t2_abab, const Tensor<T>& t2_aaaa,
-               const BlockSparseTensor<T>& f1, const BlockSparseTensor<T>& chol3d) {
+               const Tensor<T>& f1, const Tensor<T>& chol3d) {
   auto [cind] = CI.labels<1>("all");
 
   auto [p1_va, p2_va] = v_alpha.labels<2>("all");
@@ -142,7 +145,7 @@ void ccsd_e_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace&
 template<typename T>
 void ccsd_t1_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace& CI,
                 Tensor<T>& i0_aa, const Tensor<T>& t1_aa, const Tensor<T>& t2_abab,
-                const BlockSparseTensor<T>& f1, const BlockSparseTensor<T>& chol3d) {
+                const Tensor<T>& f1, const Tensor<T>& chol3d) {
   auto [cind] = CI.labels<1>("all");
   auto [p2]   = MO.labels<1>("virt");
   auto [h1]   = MO.labels<1>("occ");
@@ -206,7 +209,7 @@ void ccsd_t1_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace
 template<typename T>
 void ccsd_t2_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace& CI,
                 Tensor<T>& i0_abab, const Tensor<T>& t1_aa, Tensor<T>& t2_abab, Tensor<T>& t2_aaaa,
-                const BlockSparseTensor<T>& f1, const BlockSparseTensor<T>& chol3d) {
+                const Tensor<T>& f1, const Tensor<T>& chol3d) {
   auto [cind]   = CI.labels<1>("all");
   auto [p3, p4] = MO.labels<2>("virt");
   auto [h1, h2] = MO.labels<2>("occ");
@@ -400,8 +403,10 @@ int main(int argc, char* argv[]) {
   auto is_non_zero_2D_spin =
     generate_spin_check({N, N}, {SpinPosition::lower, SpinPosition::upper});
 
+  BlockSparseInfo sparse_info_N_N{{N, N}, is_non_zero_2D_spin};
+
   // Tensor<T> d_f1{{N, N}, {1, 1}};
-  Tensor<T> d_f1{{N, N}, is_non_zero_2D_spin};
+  Tensor<T> d_f1{{N, N}, sparse_info_N_N};
   Tensor<T>::allocate(&ec, d_f1);
 
   tamm::random_ip(d_f1, 1);
@@ -446,8 +451,11 @@ int main(int argc, char* argv[]) {
 
   // Tensor<T> t2_aaaa = {{v_alpha, v_alpha, o_alpha, o_alpha}, {2, 2}};
 
+  BlockSparseInfo sparse_info_Va_Va_Oa_Oa{{v_alpha, v_alpha, o_alpha, o_alpha},
+                                          is_nonzero_Va_Va_Oa_Oa};
+
   // BlockSparseTensor
-  Tensor<T> t2_aaaa = {{v_alpha, v_alpha, o_alpha, o_alpha}, is_nonzero_Va_Va_Oa_Oa};
+  Tensor<T> t2_aaaa = {{v_alpha, v_alpha, o_alpha, o_alpha}, sparse_info_Va_Va_Oa_Oa};
 
   // BlockSparseTensor f1
   BlockSparseInfo sparse_info_f1{
@@ -455,9 +463,9 @@ int main(int argc, char* argv[]) {
     {"IJ", "IA", "AB"}, // Allowed blocks
     index_to_sub_string // Char to named sub-space string
   };
-  BlockSparseTensor<T> f1{{MO, MO}, sparse_info_f1};
+  Tensor<T> f1{{MO, MO}, sparse_info_f1};
   // Constructor without BlockSparseInfo struct
-  // BlockSparseTensor<T> f1{{MO, MO}, {"IJ", "IA", "AB"}, index_to_sub_string};
+  // Tensor<T> f1{{MO, MO}, {"IJ", "IA", "AB"}, index_to_sub_string};
 
   // BlockSparseTensor chol3d
   BlockSparseInfo sparse_info_chol3d{
@@ -465,14 +473,14 @@ int main(int argc, char* argv[]) {
     {"IJX", "IAX", "ABX"}, // Allowed blocks
     index_to_sub_string    // Char to named sub-space string
   };
-  BlockSparseTensor<T> chol3d{{MO, MO, CI}, sparse_info_chol3d};
+  Tensor<T> chol3d{{MO, MO, CI}, sparse_info_chol3d};
   // Constructor without BlockSparseInfo struct
-  // BlockSparseTensor<T> chol3d{{MO, MO, CI}, {"IJX", "IAX", "ABX"}, index_to_sub_string};
+  // Tensor<T> chol3d{{MO, MO, CI}, {"IJX", "IAX", "ABX"}, index_to_sub_string};
 
   _a01V    = {CI};
-  _a02_sp  = BlockSparseTensor<T>{{MO, MO, CI}, {"IJX"}, index_to_sub_string};
-  _a03_sp  = BlockSparseTensor<T>{{MO, MO, CI}, {"IAX"}, index_to_sub_string};
-  _a004_sp = BlockSparseTensor<T>{{MO, MO, MO, MO}, {"ABIJ", "AbIj"}, index_to_sub_string};
+  _a02_sp  = Tensor<T>{{MO, MO, CI}, {"IJX"}, index_to_sub_string};
+  _a03_sp  = Tensor<T>{{MO, MO, CI}, {"IAX"}, index_to_sub_string};
+  _a004_sp = Tensor<T>{{MO, MO, MO, MO}, {"ABIJ", "AbIj"}, index_to_sub_string};
 
   t2_aaaa_temp = {v_alpha, v_alpha, o_alpha, o_alpha};
   i0_temp      = {v_beta, v_alpha, o_beta, o_alpha};
@@ -480,25 +488,24 @@ int main(int argc, char* argv[]) {
   // Intermediates
   // T1
   _a02V   = {CI};
-  _a01_sp = BlockSparseTensor<T>{{MO, MO, CI}, {"IJX"}, index_to_sub_string};
-  _a04_sp = BlockSparseTensor<T>{{MO, MO}, {"IJ"}, index_to_sub_string};
-  _a05_sp = BlockSparseTensor<T>{{MO, MO}, {"IA"}, index_to_sub_string}; // bb
-  _a06_sp = BlockSparseTensor<T>{{MO, MO, CI}, {"AIX"}, index_to_sub_string};
+  _a01_sp = Tensor<T>{{MO, MO, CI}, {"IJX"}, index_to_sub_string};
+  _a04_sp = Tensor<T>{{MO, MO}, {"IJ"}, index_to_sub_string};
+  _a05_sp = Tensor<T>{{MO, MO}, {"IA"}, index_to_sub_string}; // bb
+  _a06_sp = Tensor<T>{{MO, MO, CI}, {"AIX"}, index_to_sub_string};
 
   // T2
   _a007V   = {CI};
-  _a001_sp = BlockSparseTensor<T>{{MO, MO}, {"AB", "ab"}, index_to_sub_string};
-  _a006_sp = BlockSparseTensor<T>{{MO, MO}, {"IJ", "ij"}, index_to_sub_string};
+  _a001_sp = Tensor<T>{{MO, MO}, {"AB", "ab"}, index_to_sub_string};
+  _a006_sp = Tensor<T>{{MO, MO}, {"IJ", "ij"}, index_to_sub_string};
 
-  _a008_sp = BlockSparseTensor<T>{{MO, MO, CI}, {"IJX"}, index_to_sub_string};
-  _a009_sp = BlockSparseTensor<T>{{MO, MO, CI}, {"IJX", "ijX"}, index_to_sub_string};
-  _a017_sp = BlockSparseTensor<T>{{MO, MO, CI}, {"AIX", "aiX"}, index_to_sub_string};
-  _a021_sp = BlockSparseTensor<T>{{MO, MO, CI}, {"ABX", "abX"}, index_to_sub_string};
+  _a008_sp = Tensor<T>{{MO, MO, CI}, {"IJX"}, index_to_sub_string};
+  _a009_sp = Tensor<T>{{MO, MO, CI}, {"IJX", "ijX"}, index_to_sub_string};
+  _a017_sp = Tensor<T>{{MO, MO, CI}, {"AIX", "aiX"}, index_to_sub_string};
+  _a021_sp = Tensor<T>{{MO, MO, CI}, {"ABX", "abX"}, index_to_sub_string};
 
-  _a019_sp = BlockSparseTensor<T>{{MO, MO, MO, MO}, {"IjKl"}, index_to_sub_string};
-  _a022_sp = BlockSparseTensor<T>{{MO, MO, MO, MO}, {"AbCd"}, index_to_sub_string};
-  _a020_sp =
-    BlockSparseTensor<T>{{MO, MO, MO, MO}, {"AIBJ", "aIbJ", "aIBj", "aibj"}, index_to_sub_string};
+  _a019_sp = Tensor<T>{{MO, MO, MO, MO}, {"IjKl"}, index_to_sub_string};
+  _a022_sp = Tensor<T>{{MO, MO, MO, MO}, {"AbCd"}, index_to_sub_string};
+  _a020_sp = Tensor<T>{{MO, MO, MO, MO}, {"AIBJ", "aIbJ", "aIBj", "aibj"}, index_to_sub_string};
 
   sch.allocate(t2_aaaa);
   sch.allocate(d_e, i0_temp, t2_aaaa_temp, _a01V);

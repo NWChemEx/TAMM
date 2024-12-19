@@ -93,7 +93,10 @@ TEST_CASE("Block Sparse Tensor Construction") {
 
       return (upper_total == lower_total);
     };
-    Tensor<T> tensor{t_spaces, is_non_zero_2D};
+
+    BlockSparseInfo sparse_info{t_spaces, is_non_zero_2D};
+
+    Tensor<T> tensor{t_spaces, sparse_info};
     tensor.allocate(ec);
     Scheduler{*ec}(tensor() = 42).execute();
     check_value(tensor, (T) 42);
@@ -112,7 +115,10 @@ TEST_CASE("Block Sparse Tensor Construction") {
     auto               is_non_zero_2D = [](const IndexVector& blockid) -> bool {
       return blockid[0] == blockid[1];
     };
-    Tensor<T> tensor{t_spaces, is_non_zero_2D};
+
+    BlockSparseInfo sparse_info{t_spaces, is_non_zero_2D};
+
+    Tensor<T> tensor{t_spaces, sparse_info};
     tensor.allocate(ec);
     Scheduler{*ec}(tensor() = 42).execute();
     check_value(tensor, (T) 42);
@@ -144,7 +150,7 @@ TEST_CASE("Block Sparse Tensor Construction") {
 
   failed = false;
   try {
-    BlockSparseTensor<T> tensor{{MO, MO, MO, MO}, sparse_info};
+    Tensor<T> tensor{{MO, MO, MO, MO}, sparse_info};
 
     tensor.allocate(ec);
 
@@ -177,7 +183,7 @@ TEST_CASE("Block Sparse Tensor Construction") {
 
   failed = false;
   try {
-    BlockSparseTensor<T> tensor{{MO, MO, MO, MO}, {"ijab", "ijka", "iajb"}, char2MOstr};
+    Tensor<T> tensor{{MO, MO, MO, MO}, {"ijab", "ijka", "iajb"}, char2MOstr};
 
     tensor.allocate(ec);
 
@@ -204,9 +210,9 @@ TEST_CASE("Block Sparse Tensor Construction") {
 
   failed = false;
   try {
-    BlockSparseTensor<T> tensorA{{MO, MO, MO, MO}, {"ijab", "ijkl"}, char2MOstr};
-    BlockSparseTensor<T> tensorB{{MO, MO, MO, MO}, {"ijka", "iajb"}, char2MOstr};
-    BlockSparseTensor<T> tensorC{{MO, MO, MO, MO}, {"iabc", "abcd"}, char2MOstr};
+    Tensor<T> tensorA{{MO, MO, MO, MO}, {"ijab", "ijkl"}, char2MOstr};
+    Tensor<T> tensorB{{MO, MO, MO, MO}, {"ijka", "iajb"}, char2MOstr};
+    Tensor<T> tensorC{{MO, MO, MO, MO}, {"iabc", "abcd"}, char2MOstr};
 
     tensorA.allocate(ec);
     tensorB.allocate(ec);

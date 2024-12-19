@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tamm/block_sparse_info.hpp"
 #include "tamm/symbol.hpp"
 #include "tamm/tensor_impl.hpp"
 
@@ -116,13 +117,25 @@ public:
     impl_{std::make_shared<TensorImpl<T>>(t_spaces, spin_sizes)} {}
 
   /**
-   * @brief Construct a new Tensor object with specialized non-zero check function
+   * @brief Construct a new (Block Sparse) Tensor object
    *
-   * @param t_spaces vector of TiledIndexSpace objects for each mode
-   * @param zero_check lambda function that is used for non-zero check
+   * @param t_spaces list of TiledIndexSpace for constructing the tensors
+   * @param sparse_info BlockSparseInfo object representing the sparsity
    */
-  Tensor(const TiledIndexSpaceVec& t_spaces, const NonZeroCheck& zero_check):
-    impl_{std::make_shared<TensorImpl<T>>(t_spaces, zero_check)} {}
+  Tensor(const TiledIndexSpaceVec& t_spaces, const BlockSparseInfo& sparse_info):
+    impl_{std::make_shared<TensorImpl<T>>(t_spaces, sparse_info.construct_is_non_zero_check())} {}
+
+  /**
+   * @brief Construct a new Block Sparse Tensor object
+   *
+   * @param t_spaces list of TiledIndexSpace for constructing the tensor
+   * @param allowed_blocks list of strings that represents the allowed blocks
+   * @param char_to_tis_map map of indices to sub-TIS names
+   */
+  Tensor(TiledIndexSpaceVec t_spaces, const std::vector<std::string>& allowed_blocks,
+         const Char2TISMap& char_to_tis_map):
+    Tensor<T>(t_spaces, {t_spaces, allowed_blocks, char_to_tis_map}) {}
+
   /**
    * @brief Construct a new Tensor object with Spin attributes
    *

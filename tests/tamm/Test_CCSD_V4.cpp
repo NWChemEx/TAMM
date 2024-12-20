@@ -367,9 +367,7 @@ int main(int argc, char* argv[]) {
   Tensor<T> d_f1{{N, N}, {1, 1}};
   Tensor<T>::allocate(&ec, d_f1);
 
-  tamm::random_ip(d_f1, 1);
-
-  if(ec.print()) std::cout << "Norm d_f1 : " << tamm::norm(d_f1) << std::endl;
+  tamm::random_ip(d_f1);
 
   std::vector<T> p_evl_sorted;
   Tensor<T>      t1_aa, t2_abab, r1_aa, r2_abab;
@@ -457,22 +455,12 @@ int main(int argc, char* argv[]) {
                                  _a017, _a019, _a020, _a021, _a022);
   sch.execute();
 
-  tamm::random_ip(f1_oo("aa"), 1);
-  tamm::random_ip(f1_ov("aa"), 1);
-  tamm::random_ip(f1_vv("aa"), 1);
-  tamm::random_ip(chol3d_oo("aa"), 1);
-  tamm::random_ip(chol3d_ov("aa"), 1);
-  tamm::random_ip(chol3d_vv("aa"), 1);
-
-  // printing norms for correctness check with block sparse implementation
-  if(ec.print()) {
-    std::cout << "Norm f1_oo(\"aa\"): " << tamm::norm(f1_oo("aa")) << std::endl;
-    std::cout << "Norm f1_ov(\"aa\"): " << tamm::norm(f1_ov("aa")) << std::endl;
-    std::cout << "Norm f1_vv(\"aa\"): " << tamm::norm(f1_vv("aa")) << std::endl;
-    std::cout << "Norm chol3d_oo(\"aa\"): " << tamm::norm(chol3d_oo("aa")) << std::endl;
-    std::cout << "Norm chol3d_ov(\"aa\"): " << tamm::norm(chol3d_ov("aa")) << std::endl;
-    std::cout << "Norm chol3d_vv(\"aa\"): " << tamm::norm(chol3d_vv("aa")) << std::endl;
-  }
+  tamm::random_ip(f1_oo("aa"));
+  tamm::random_ip(f1_ov("aa"));
+  tamm::random_ip(f1_vv("aa"));
+  tamm::random_ip(chol3d_oo("aa"));
+  tamm::random_ip(chol3d_ov("aa"));
+  tamm::random_ip(chol3d_vv("aa"));
 
   // clang-format off
   sch
@@ -484,11 +472,6 @@ int main(int argc, char* argv[]) {
 
   sch.execute(exhw);
 
-  // printing norms for correctness check with block sparse implementation
-  if(ec.print()) {
-    std::cout << "Norm _a004(\"aaaa\") : " << tamm::norm(_a004("aaaa")) << std::endl;
-    std::cout << "Norm _a004(\"abab\") : " << tamm::norm(_a004("abab")) << std::endl;
-  }
   const auto timer_start = std::chrono::high_resolution_clock::now();
 
   ccsd_e_cs(sch, MO, CI, d_e, t1_aa, t2_abab, t2_aaaa, f1_se, chol3d_se);
@@ -496,13 +479,6 @@ int main(int argc, char* argv[]) {
   ccsd_t2_cs(sch, MO, CI, r2_abab, t1_aa, t2_abab, t2_aaaa, f1_se, chol3d_se);
 
   sch.execute(exhw, profile);
-
-  // printing norms for correctness check with block sparse implementation
-  if(ec.print()) {
-    std::cout << "d_e : " << tamm::get_scalar(d_e) << std::endl;
-    std::cout << "Norm r1_aa : " << tamm::norm(r1_aa) << std::endl;
-    std::cout << "Norm r2_abab : " << tamm::norm(r2_abab) << std::endl;
-  }
 
   const auto timer_end = std::chrono::high_resolution_clock::now();
   auto       iter_time =

@@ -409,9 +409,7 @@ int main(int argc, char* argv[]) {
   Tensor<T> d_f1{{N, N}, sparse_info_N_N};
   Tensor<T>::allocate(&ec, d_f1);
 
-  tamm::random_ip(d_f1, 1);
-
-  if(ec.print()) std::cout << "Norm d_f1 : " << tamm::norm(d_f1) << std::endl;
+  tamm::random_ip(d_f1);
 
   std::vector<T> p_evl_sorted;
   Tensor<T>      t1_aa, t2_abab, r1_aa, r2_abab;
@@ -518,25 +516,12 @@ int main(int argc, char* argv[]) {
                _a017_sp, _a019_sp, _a020_sp, _a021_sp, _a022_sp);
   sch.execute();
 
-  // EM: the following calls can be made to the whole tensors instead of labeled tensor but this way
-  // we can check the equality with regards to the non block sparse implementation due to the use of
-  // random numbers
-  tamm::random_ip(f1(h3_oa, h4_oa), 1);
-  tamm::random_ip(f1(h3_oa, p2_va), 1);
-  tamm::random_ip(f1(p1_va, p2_va), 1);
-  tamm::random_ip(chol3d(h3_oa, h4_oa, cind), 1);
-  tamm::random_ip(chol3d(h3_oa, p2_va, cind), 1);
-  tamm::random_ip(chol3d(p1_va, p2_va, cind), 1);
-
-  // EM: printing out the norms to compare against non block sparse implementation
-  if(ec.print()) {
-    std::cout << "Norm f1_oo(\"aa\") : " << tamm::norm(f1(h3_oa, h4_oa)) << std::endl;
-    std::cout << "Norm f1_ov(\"aa\") : " << tamm::norm(f1(h3_oa, p2_va)) << std::endl;
-    std::cout << "Norm f1_vv(\"aa\") : " << tamm::norm(f1(p1_va, p2_va)) << std::endl;
-    std::cout << "Norm chol3d_oo(\"aa\") : " << tamm::norm(chol3d(h3_oa, h4_oa, cind)) << std::endl;
-    std::cout << "Norm chol3d_ov(\"aa\") : " << tamm::norm(chol3d(h3_oa, p2_va, cind)) << std::endl;
-    std::cout << "Norm chol3d_vv(\"aa\") : " << tamm::norm(chol3d(p1_va, p2_va, cind)) << std::endl;
-  }
+  tamm::random_ip(f1(h3_oa, h4_oa));
+  tamm::random_ip(f1(h3_oa, p2_va));
+  tamm::random_ip(f1(p1_va, p2_va));
+  tamm::random_ip(chol3d(h3_oa, h4_oa, cind));
+  tamm::random_ip(chol3d(h3_oa, p2_va, cind));
+  tamm::random_ip(chol3d(p1_va, p2_va, cind));
 
   // clang-format off
   sch
@@ -548,14 +533,6 @@ int main(int argc, char* argv[]) {
 
   sch.execute(exhw);
 
-  // EM: printing out the norms to compare against non block sparse implementation
-  if(ec.print()) {
-    std::cout << "Norm _a004(\"aaaa\") : " << tamm::norm(_a004_sp(p1_va, p2_va, h4_oa, h3_oa))
-              << std::endl;
-    std::cout << "Norm _a004(\"abab\") : " << tamm::norm(_a004_sp(p1_va, p1_vb, h3_oa, h3_ob))
-              << std::endl;
-  }
-
   const auto timer_start = std::chrono::high_resolution_clock::now();
 
   ccsd_e_cs(sch, MO, CI, d_e, t1_aa, t2_abab, t2_aaaa, f1, chol3d);
@@ -563,13 +540,6 @@ int main(int argc, char* argv[]) {
   ccsd_t2_cs(sch, MO, CI, r2_abab, t1_aa, t2_abab, t2_aaaa, f1, chol3d);
 
   sch.execute(exhw, profile);
-
-  // EM: printing out the norms to compare against non block sparse implementation
-  if(ec.print()) {
-    std::cout << "d_e : " << tamm::get_scalar(d_e) << std::endl;
-    std::cout << "Norm r1_aa : " << tamm::norm(r1_aa) << std::endl;
-    std::cout << "Norm r2_abab : " << tamm::norm(r2_abab) << std::endl;
-  }
 
   const auto timer_end = std::chrono::high_resolution_clock::now();
   auto       iter_time =

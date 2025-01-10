@@ -468,7 +468,7 @@ public:
     auto rhs_arr = std::array<LabeledTensor<T>, 1>{rhs};
 
     ops_.push_back(std::make_shared<MapOp<LabeledTensor<T>, decltype(copy_buf), 1>>(
-      lhs, copy_buf, rhs_arr, ResultMode::set, do_translate));
+      lhs, copy_buf, rhs_arr, ResultMode::set, do_translate, true));
 
     return *this;
   }

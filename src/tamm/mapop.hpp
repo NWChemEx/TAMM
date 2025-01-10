@@ -32,8 +32,8 @@ public:
   using T   = typename LabeledTensorT::element_type;
 
   MapOp(LabeledTensorT& lhs, Func func, RHS& rhs, ResultMode mode = ResultMode::set,
-        bool do_translate = true):
-    lhs_{lhs}, func_{func}, rhs_{rhs}, do_translate_{do_translate} {
+        bool do_translate = true, bool is_exact_copy = false):
+    lhs_{lhs}, func_{func}, rhs_{rhs}, do_translate_{do_translate}, is_exact_copy_{is_exact_copy} {
     fillin_labels();
     validate();
   }
@@ -50,9 +50,15 @@ public:
     using TensorElType = typename LabeledTensorT::element_type;
 
     IndexLabelVec merged_labels{lhs_.labels()};
-    for(const auto& rlt: rhs_) {
-      merged_labels.insert(merged_labels.end(), rlt.labels().begin(), rlt.labels().end());
+    if(is_exact_copy_ && do_translate_) {
+      merged_labels.insert(merged_labels.end(), lhs_.labels().begin(), lhs_.labels().end());
     }
+    else {
+      for(const auto& rlt: rhs_) {
+        merged_labels.insert(merged_labels.end(), rlt.labels().begin(), rlt.labels().end());
+      }
+    }
+
     LabelLoopNest loop_nest{merged_labels};
     auto          lambda_no_translate = [&](const IndexVector& itval) {
       auto        ltensor = lhs_.tensor();
@@ -216,6 +222,7 @@ protected:
   Func                          func_;
   std::array<LabeledTensorT, N> rhs_;
   bool                          do_translate_;
+  bool                          is_exact_copy_;
 
 public:
   std::string opstr_;

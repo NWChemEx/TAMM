@@ -611,6 +611,31 @@ blocks of block sparse tensors:
    tensorB.deallocate();
    tensorC.deallocate();
 
+TAMM also provides block sparse constructors similar to the general tensor construction 
+by allowing use of TiledIndexLabels, TiledIndexSpaces, and strings corresponding to the 
+sub-space names in TiledIndexSpaces for representing only the allowed blocks. With these 
+constructors users don't have to provide a mapping from char to corresponding sub-space 
+names as they are provided explicitly. Below code shows the use of this constructions, 
+similar to previous case block sparse tensors constructed using these methods can be 
+directly used in any tensor operations for general tensors:
+
+.. code-block:: cpp
+
+   // Construct Block Sparse Tensors with different allowed blocks
+   // Using TiledIndexLabels for allowed blocks 
+   Tensor<T> tensorA{{MO, MO, MO, MO}, {{i, j, a, b}, {i, j, k, l}}}; 
+   // Using TiledIndexSpaces for allowed blocks
+   TiledIndexSpace Occ = MO("occ");
+   TiledIndexSpace Virt = MO("virt");
+   Tensor<T> tensorB{{MO, MO, MO, MO}, 
+               {TiledIndexSpaceVec{Occ, Occ, Occ, Occ}, 
+                TiledIndexSpaceVec{Occ, Virt, Occ, Virt}}};
+   // Using list of comma seperated strings representing sub-space names
+   Tensor<T> tensorC{{MO, MO, MO, MO}, {{"occ, virt, virt, virt"}, 
+                                        {"virt, virt, virt, virt"}}};
+
+   // ...
+
 Example Tensor Constructions
 ----------------------------
 

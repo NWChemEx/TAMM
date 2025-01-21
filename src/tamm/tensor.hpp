@@ -137,6 +137,33 @@ public:
     Tensor<T>(t_spaces, {t_spaces, allowed_blocks, char_to_tis_map}) {}
 
   /**
+   * @brief Construct a new Block Sparse Tensor object
+   *
+   * @param t_spaces list of TiledIndexSpace for constructing the tensor
+   * @param allowed_blocks list of strings that represents the allowed sub_spaces
+   */
+  Tensor(TiledIndexSpaceVec t_spaces, const std::vector<std::string>& allowed_sub_tis_list):
+    Tensor<T>(t_spaces, {t_spaces, allowed_sub_tis_list}) {}
+
+  /**
+   * @brief Construct a new Block Sparse Tensor object
+   *
+   * @param t_spaces list of TiledIndexSpace for constructing the tensor
+   * @param allowed_tis_list list of TiledIndexSpaces that represents the allowed sub_spaces
+   */
+  Tensor(TiledIndexSpaceVec t_spaces, const std::vector<TiledIndexSpaceVec>& allowed_tis_list):
+    Tensor<T>(t_spaces, {t_spaces, allowed_tis_list}) {}
+
+  /**
+   * @brief Construct a new Block Sparse Tensor object
+   *
+   * @param t_spaces list of TiledIndexSpace for constructing the tensor
+   * @param allowed_til_list list of TiledIndexLabels that represents the allowed sub_spaces
+   */
+  Tensor(TiledIndexSpaceVec t_spaces, const std::vector<IndexLabelVec>& allowed_til_list):
+    Tensor<T>(t_spaces, {t_spaces, allowed_til_list}) {}
+
+  /**
    * @brief Construct a new Tensor object with Spin attributes
    *
    * @param [in] t_spaces initializer list of TiledIndexSpace objects for each

@@ -475,35 +475,62 @@ int main(int argc, char* argv[]) {
   // Constructor without BlockSparseInfo struct
   // Tensor<T> chol3d{{MO, MO, CI}, {"IJX", "IAX", "ABX"}, index_to_sub_string};
 
-  _a01V    = {CI};
-  _a02_sp  = Tensor<T>{{MO, MO, CI}, {"IJX"}, index_to_sub_string};
-  _a03_sp  = Tensor<T>{{MO, MO, CI}, {"IAX"}, index_to_sub_string};
-  _a004_sp = Tensor<T>{{MO, MO, MO, MO}, {"ABIJ", "AbIj"}, index_to_sub_string};
+  _a01V = {CI};
+  // _a02_sp  = Tensor<T>{{MO, MO, CI}, {"IJX"}, index_to_sub_string};
+  // _a03_sp  = Tensor<T>{{MO, MO, CI}, {"IAX"}, index_to_sub_string};
+  // _a004_sp = Tensor<T>{{MO, MO, MO, MO}, {"ABIJ", "AbIj"}, index_to_sub_string};
+
+  _a02_sp  = Tensor<T>{{MO, MO, CI}, {{h3_oa, h4_oa, cind}}};
+  _a03_sp  = Tensor<T>{{MO, MO, CI}, {{h3_oa, p1_va, cind}}};
+  _a004_sp = Tensor<T>{{MO, MO, MO, MO},
+                       {{"virt_alpha, virt_alpha, occ_alpha, occ_alpha"},
+                        {"virt_alpha, virt_beta, occ_alpha, occ_beta"}}};
 
   t2_aaaa_temp = {v_alpha, v_alpha, o_alpha, o_alpha};
   i0_temp      = {v_beta, v_alpha, o_beta, o_alpha};
 
   // Intermediates
   // T1
-  _a02V   = {CI};
-  _a01_sp = Tensor<T>{{MO, MO, CI}, {"IJX"}, index_to_sub_string};
-  _a04_sp = Tensor<T>{{MO, MO}, {"IJ"}, index_to_sub_string};
-  _a05_sp = Tensor<T>{{MO, MO}, {"IA"}, index_to_sub_string}; // bb
-  _a06_sp = Tensor<T>{{MO, MO, CI}, {"AIX"}, index_to_sub_string};
+  _a02V = {CI};
+  // _a01_sp = Tensor<T>{{MO, MO, CI}, {"IJX"}, index_to_sub_string};
+  // _a04_sp = Tensor<T>{{MO, MO}, {"IJ"}, index_to_sub_string};
+  // _a05_sp = Tensor<T>{{MO, MO}, {"IA"}, index_to_sub_string}; // bb
+  // _a06_sp = Tensor<T>{{MO, MO, CI}, {"AIX"}, index_to_sub_string};
+
+  _a01_sp = Tensor<T>{{MO, MO, CI}, {{h3_oa, h4_oa, cind}}};
+  _a04_sp = Tensor<T>{{MO, MO}, {{h3_oa, h4_oa}}};
+  _a05_sp = Tensor<T>{{MO, MO}, {{h3_oa, p1_va}}}; // bb
+  _a06_sp = Tensor<T>{{MO, MO, CI}, {{p1_va, h3_oa, cind}}};
 
   // T2
-  _a007V   = {CI};
-  _a001_sp = Tensor<T>{{MO, MO}, {"AB", "ab"}, index_to_sub_string};
-  _a006_sp = Tensor<T>{{MO, MO}, {"IJ", "ij"}, index_to_sub_string};
+  _a007V = {CI};
+  // _a001_sp = Tensor<T>{{MO, MO}, {"AB", "ab"}, index_to_sub_string};
+  // _a006_sp = Tensor<T>{{MO, MO}, {"IJ", "ij"}, index_to_sub_string};
 
-  _a008_sp = Tensor<T>{{MO, MO, CI}, {"IJX"}, index_to_sub_string};
-  _a009_sp = Tensor<T>{{MO, MO, CI}, {"IJX", "ijX"}, index_to_sub_string};
-  _a017_sp = Tensor<T>{{MO, MO, CI}, {"AIX", "aiX"}, index_to_sub_string};
-  _a021_sp = Tensor<T>{{MO, MO, CI}, {"ABX", "abX"}, index_to_sub_string};
+  // _a008_sp = Tensor<T>{{MO, MO, CI}, {"IJX"}, index_to_sub_string};
+  // _a009_sp = Tensor<T>{{MO, MO, CI}, {"IJX", "ijX"}, index_to_sub_string};
+  // _a017_sp = Tensor<T>{{MO, MO, CI}, {"AIX", "aiX"}, index_to_sub_string};
+  // _a021_sp = Tensor<T>{{MO, MO, CI}, {"ABX", "abX"}, index_to_sub_string};
 
-  _a019_sp = Tensor<T>{{MO, MO, MO, MO}, {"IjKl"}, index_to_sub_string};
-  _a022_sp = Tensor<T>{{MO, MO, MO, MO}, {"AbCd"}, index_to_sub_string};
-  _a020_sp = Tensor<T>{{MO, MO, MO, MO}, {"AIBJ", "aIbJ", "aIBj", "aibj"}, index_to_sub_string};
+  // _a019_sp = Tensor<T>{{MO, MO, MO, MO}, {"IjKl"}, index_to_sub_string};
+  // _a022_sp = Tensor<T>{{MO, MO, MO, MO}, {"AbCd"}, index_to_sub_string};
+  // _a020_sp = Tensor<T>{{MO, MO, MO, MO}, {"AIBJ", "aIbJ", "aIBj", "aibj"}, index_to_sub_string};
+
+  _a001_sp = Tensor<T>{{MO, MO}, {{p1_va, p2_va}, {p1_vb, p2_vb}}};
+  _a006_sp = Tensor<T>{{MO, MO}, {{h3_oa, h4_oa}, {h3_ob, h4_ob}}};
+
+  _a008_sp = Tensor<T>{{MO, MO, CI}, {{h3_oa, h4_oa, cind}}};
+  _a009_sp = Tensor<T>{{MO, MO, CI}, {{h3_oa, h4_oa, cind}, {h3_ob, h4_ob, cind}}};
+  _a017_sp = Tensor<T>{{MO, MO, CI}, {{p1_va, h3_oa, cind}, {p1_vb, h3_ob, cind}}};
+  _a021_sp = Tensor<T>{{MO, MO, CI}, {{p1_va, p2_va, cind}, {p1_vb, p2_vb, cind}}};
+
+  _a019_sp = Tensor<T>{{MO, MO, MO, MO}, {{h3_oa, h3_ob, h4_oa, h4_ob}}};
+  _a022_sp = Tensor<T>{{MO, MO, MO, MO}, {{p1_va, p1_vb, p2_va, p2_vb}}};
+  _a020_sp = Tensor<T>{{MO, MO, MO, MO},
+                       {{p1_va, h3_oa, p2_va, h4_oa},
+                        {p1_vb, h3_oa, p2_vb, h4_oa},
+                        {p1_vb, h3_oa, p2_va, h4_ob},
+                        {p1_vb, h3_ob, p2_vb, h4_ob}}};
 
   sch.allocate(t2_aaaa);
   sch.allocate(d_e, i0_temp, t2_aaaa_temp, _a01V);

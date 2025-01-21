@@ -244,6 +244,122 @@ TEST_CASE("Block Sparse Tensor Construction") {
     failed = true;
   }
 
+  failed = false;
+  try {
+    Tensor<T> tensorA{{MO, MO, MO, MO}, {{i, j, a, b}, {i, j, k, l}}};
+    Tensor<T> tensorB{{MO, MO, MO, MO}, {{i, j, k, a}, {i, a, j, b}}};
+    Tensor<T> tensorC{{MO, MO, MO, MO}, {{i, a, b, c}, {a, b, c, d}}};
+
+    tensorA.allocate(ec);
+    tensorB.allocate(ec);
+    tensorC.allocate(ec);
+
+    Scheduler{*ec}(tensorA() = 2.0)(tensorB() = 4.0)(tensorC() = 0.0).execute();
+    check_value(tensorA, (T) 2.0);
+    check_value(tensorB, (T) 4.0);
+    check_value(tensorC, (T) 0.0);
+
+    // clang-format off
+    Scheduler{*ec}
+    (tensorC(a, b, c, d) += tensorA(i, j, a, b) * tensorB(j, c, i, d))
+    (tensorC(i, a, b, c) += 0.5 * tensorA(j, k, a, b) * tensorB(i, j, k, c))
+    .execute();
+    // clang-format on
+
+    check_value(tensorC(i, a, b, c), (T) 400.0);
+    check_value(tensorC(a, b, c, d), (T) 800.0);
+
+    // std::cout << "Printing TensorC:" << std::endl;
+    // print_tensor(tensorC);
+
+    tensorA.deallocate();
+    tensorB.deallocate();
+    tensorC.deallocate();
+  } catch(const std::string& e) {
+    std::cerr << e << '\n';
+    failed = true;
+  }
+
+  failed = false;
+  try {
+    Tensor<T> tensorA{{MO, MO, MO, MO}, {{"occ, occ, virt, virt"}, {"occ, occ, occ, occ"}}};
+    Tensor<T> tensorB{{MO, MO, MO, MO}, {{"occ, occ, occ, virt"}, {"occ, virt, occ, virt"}}};
+    Tensor<T> tensorC{{MO, MO, MO, MO}, {{"occ, virt, virt, virt"}, {"virt, virt, virt, virt"}}};
+
+    tensorA.allocate(ec);
+    tensorB.allocate(ec);
+    tensorC.allocate(ec);
+
+    Scheduler{*ec}(tensorA() = 2.0)(tensorB() = 4.0)(tensorC() = 0.0).execute();
+    check_value(tensorA, (T) 2.0);
+    check_value(tensorB, (T) 4.0);
+    check_value(tensorC, (T) 0.0);
+
+    // clang-format off
+    Scheduler{*ec}
+    (tensorC(a, b, c, d) += tensorA(i, j, a, b) * tensorB(j, c, i, d))
+    (tensorC(i, a, b, c) += 0.5 * tensorA(j, k, a, b) * tensorB(i, j, k, c))
+    .execute();
+    // clang-format on
+
+    check_value(tensorC(i, a, b, c), (T) 400.0);
+    check_value(tensorC(a, b, c, d), (T) 800.0);
+
+    // std::cout << "Printing TensorC:" << std::endl;
+    // print_tensor(tensorC);
+
+    tensorA.deallocate();
+    tensorB.deallocate();
+    tensorC.deallocate();
+  } catch(const std::string& e) {
+    std::cerr << e << '\n';
+    failed = true;
+  }
+
+  failed = false;
+  try {
+    TiledIndexSpace Occ  = MO("occ");
+    TiledIndexSpace Virt = MO("virt");
+    Tensor<T>       tensorA{
+      {MO, MO, MO, MO},
+      {TiledIndexSpaceVec{Occ, Occ, Virt, Virt}, TiledIndexSpaceVec{Occ, Occ, Occ, Occ}}};
+    Tensor<T> tensorB{
+      {MO, MO, MO, MO},
+      {TiledIndexSpaceVec{Occ, Occ, Occ, Virt}, TiledIndexSpaceVec{Occ, Virt, Occ, Virt}}};
+    Tensor<T> tensorC{
+      {MO, MO, MO, MO},
+      {TiledIndexSpaceVec{Occ, Virt, Virt, Virt}, TiledIndexSpaceVec{Virt, Virt, Virt, Virt}}};
+
+    tensorA.allocate(ec);
+    tensorB.allocate(ec);
+    tensorC.allocate(ec);
+
+    Scheduler{*ec}(tensorA() = 2.0)(tensorB() = 4.0)(tensorC() = 0.0).execute();
+    check_value(tensorA, (T) 2.0);
+    check_value(tensorB, (T) 4.0);
+    check_value(tensorC, (T) 0.0);
+
+    // clang-format off
+    Scheduler{*ec}
+    (tensorC(a, b, c, d) += tensorA(i, j, a, b) * tensorB(j, c, i, d))
+    (tensorC(i, a, b, c) += 0.5 * tensorA(j, k, a, b) * tensorB(i, j, k, c))
+    .execute();
+    // clang-format on
+
+    check_value(tensorC(i, a, b, c), (T) 400.0);
+    check_value(tensorC(a, b, c, d), (T) 800.0);
+
+    // std::cout << "Printing TensorC:" << std::endl;
+    // print_tensor(tensorC);
+
+    tensorA.deallocate();
+    tensorB.deallocate();
+    tensorC.deallocate();
+  } catch(const std::string& e) {
+    std::cerr << e << '\n';
+    failed = true;
+  }
+
   REQUIRE(!failed);
 }
 #if 1

@@ -19,8 +19,6 @@ struct BlockSparseInfo {
   NonZeroCheck             is_non_zero = [](const IndexVector&) -> bool {
     return true;
   }; /**< is_non_zero check function */
-
-  // Generated members
   std::vector<TiledIndexSpaceVec>
     allowed_tis_vecs; /**< list of allowed TIS vectors generated from allowed blocks */
   std::vector<TiledIndexSpaceVec>
@@ -32,6 +30,53 @@ struct BlockSparseInfo {
   BlockSparseInfo& operator=(BlockSparseInfo&&)      = default;
   BlockSparseInfo& operator=(const BlockSparseInfo&) = default;
   ~BlockSparseInfo()                                 = default;
+
+  /**
+   * @brief Construct a new BlockSparseInfo object
+   *
+   * @param tis_vec list of TiledIndexSpaces for the reference
+   * @param allowed_strs list of allowed string indices
+   */
+  BlockSparseInfo(TiledIndexSpaceVec tis_vec, std::vector<std::string> allowed_strs):
+    full_tis_vec(tis_vec),
+    allowed_blocks({}),
+    char_to_sub_tis({}),
+    disallowed_blocks({}),
+    is_non_zero([](const IndexVector&) -> bool { return true; }),
+    disallowed_tis_vecs({}) {
+    // Lambda function to trim leading and trailing whitespaces
+    auto trim = [](std::string& s) {
+      s.erase(s.begin(),
+              std::find_if(s.begin(), s.end(), [](unsigned char ch) { return !std::isspace(ch); }));
+      s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) { return !std::isspace(ch); })
+                .base(),
+              s.end());
+    };
+
+    // Lambda function to split the string and trim substrings
+    auto splitString = [trim](const std::string& str, char delim) -> std::vector<std::string> {
+      std::vector<std::string> substrings;
+      std::stringstream        ss(str);
+      std::string              token;
+      while(std::getline(ss, token, delim)) {
+        trim(token); // Remove whitespaces from each token
+        substrings.push_back(token);
+      }
+      return substrings;
+    };
+
+    for(const auto& str: allowed_strs) {
+      TiledIndexSpaceVec allowed_tis_list;
+      auto               sub_str_list = splitString(str, ',');
+      EXPECTS_STR(sub_str_list.size() == full_tis_vec.size(),
+                  "Allowed sub-spaces should match the dimension size!");
+      for(size_t i = 0; i < sub_str_list.size(); i++) {
+        std::string sub_str = sub_str_list[i];
+        allowed_tis_list.push_back(full_tis_vec[i](sub_str));
+      }
+      allowed_tis_vecs.push_back(allowed_tis_list);
+    }
+  }
 
   /**
    * @brief Construct a new BlockSparseInfo object
@@ -80,6 +125,43 @@ struct BlockSparseInfo {
    */
   BlockSparseInfo(TiledIndexSpaceVec tis_vec, NonZeroCheck non_zero_check):
     BlockSparseInfo(tis_vec, {}, {}, {}, non_zero_check) {}
+
+  /**
+   * @brief Construct a new Block Sparse Info object
+   *
+   * @param tis_vec list of TiledIndexSpaces for the reference
+   * @param tis_labels list of allowed TiledIndexLabels
+   */
+  BlockSparseInfo(const TiledIndexSpaceVec&         tis_vec,
+                  const std::vector<IndexLabelVec>& tis_label_vecs):
+    full_tis_vec(tis_vec),
+    allowed_blocks({}),
+    char_to_sub_tis({}),
+    disallowed_blocks({}),
+    is_non_zero([](const IndexVector&) -> bool { return true; }),
+    disallowed_tis_vecs({}) {
+    for(const auto& tis_labels: tis_label_vecs) {
+      TiledIndexSpaceVec tis_vec;
+      for(const auto& til: tis_labels) { tis_vec.push_back(til.tiled_index_space()); }
+      allowed_tis_vecs.push_back(tis_vec);
+    }
+  }
+
+  /**
+   * @brief Construct a new Block Sparse Info object
+   *
+   * @param tis_vec list of TiledIndexSpaces for the reference
+   * @param sub_tis_lists list of allowed TiledIndexSpaces
+   */
+  BlockSparseInfo(const TiledIndexSpaceVec&              tis_vec,
+                  const std::vector<TiledIndexSpaceVec>& sub_tis_lists):
+    full_tis_vec(tis_vec),
+    allowed_blocks({}),
+    char_to_sub_tis({}),
+    disallowed_blocks({}),
+    is_non_zero([](const IndexVector&) -> bool { return true; }),
+    allowed_tis_vecs(sub_tis_lists),
+    disallowed_tis_vecs({}) {}
 
   /**
    * @brief Internal function constructing an is_non_zero function to be used to construct a lambda

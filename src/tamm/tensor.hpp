@@ -1,8 +1,8 @@
 #pragma once
 
-#include "tamm/block_sparse_info.hpp"
 #include "tamm/symbol.hpp"
 #include "tamm/tensor_impl.hpp"
+#include "tamm/tensor_info.hpp"
 
 namespace tamm {
 
@@ -120,10 +120,10 @@ public:
    * @brief Construct a new (Block Sparse) Tensor object
    *
    * @param t_spaces list of TiledIndexSpace for constructing the tensors
-   * @param sparse_info BlockSparseInfo object representing the sparsity
+   * @param tensor_info TensorInfo object representing the sparsity
    */
-  Tensor(const TiledIndexSpaceVec& t_spaces, const BlockSparseInfo& sparse_info):
-    impl_{std::make_shared<TensorImpl<T>>(t_spaces, sparse_info.construct_is_non_zero_check())} {}
+  Tensor(const TiledIndexSpaceVec& t_spaces, const TensorInfo& tensor_info):
+    impl_{std::make_shared<TensorImpl<T>>(t_spaces, tensor_info.construct_is_non_zero_check())} {}
 
   /**
    * @brief Construct a new Block Sparse Tensor object

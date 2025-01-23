@@ -63,7 +63,7 @@ void tensor_contruction(const TiledIndexSpace& T_AO, const TiledIndexSpace& T_MO
 }
 
 TEST_CASE("Block Sparse Tensor Construction") {
-  // std::cout << "Starting BlockSparseTensor tests" << std::endl;
+  // std::cout << "Starting Block Sparse Tensor tests" << std::endl;
   using T = double;
   IndexSpace SpinIS{
     range(0, 20),
@@ -94,9 +94,9 @@ TEST_CASE("Block Sparse Tensor Construction") {
       return (upper_total == lower_total);
     };
 
-    BlockSparseInfo sparse_info{t_spaces, is_non_zero_2D};
+    TensorInfo tensor_info{t_spaces, is_non_zero_2D};
 
-    Tensor<T> tensor{t_spaces, sparse_info};
+    Tensor<T> tensor{t_spaces, tensor_info};
     tensor.allocate(ec);
     Scheduler{*ec}(tensor() = 42).execute();
     check_value(tensor, (T) 42);
@@ -116,9 +116,9 @@ TEST_CASE("Block Sparse Tensor Construction") {
       return blockid[0] == blockid[1];
     };
 
-    BlockSparseInfo sparse_info{t_spaces, is_non_zero_2D};
+    TensorInfo tensor_info{t_spaces, is_non_zero_2D};
 
-    Tensor<T> tensor{t_spaces, sparse_info};
+    Tensor<T> tensor{t_spaces, tensor_info};
     tensor.allocate(ec);
     Scheduler{*ec}(tensor() = 42).execute();
     check_value(tensor, (T) 42);
@@ -138,19 +138,19 @@ TEST_CASE("Block Sparse Tensor Construction") {
   auto [i, j, k, l] = MO("occ").labels<4>();
   auto [a, b, c, d] = MO("virt").labels<4>();
 
-  Char2TISMap     char2MOstr = {{'i', "occ"},  {'j', "occ"},  {'k', "occ"},  {'l', "occ"},
-                                {'a', "virt"}, {'b', "virt"}, {'c', "virt"}, {'d', "virt"}};
-  BlockSparseInfo sparse_info{
+  Char2TISMap char2MOstr = {{'i', "occ"},  {'j', "occ"},  {'k', "occ"},  {'l', "occ"},
+                            {'a', "virt"}, {'b', "virt"}, {'c', "virt"}, {'d', "virt"}};
+  TensorInfo  tensor_info{
     {MO, MO, MO, MO},                                 // Tensor dims
     {"ijab", "iajb", "ijka", "ijkl", "iabc", "abcd"}, // Allowed blocks
     char2MOstr,                                       // Char to named sub-space string
     {"abij",
-     "aibj"} // Disallowed blocks - note that allowed blocks will precedence over disallowed blocks
+      "aibj"} // Disallowed blocks - note that allowed blocks will precedence over disallowed blocks
   };
 
   failed = false;
   try {
-    Tensor<T> tensor{{MO, MO, MO, MO}, sparse_info};
+    Tensor<T> tensor{{MO, MO, MO, MO}, tensor_info};
 
     tensor.allocate(ec);
 

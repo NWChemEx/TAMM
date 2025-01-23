@@ -10,7 +10,7 @@ using Char2TISMap = std::unordered_map<char, std::string>;
  * @brief Block sparse description using (dis)allowed blocks and/or a non-zero check function
  *
  */
-struct BlockSparseInfo {
+struct TensorInfo {
   // Input members
   TiledIndexSpaceVec       full_tis_vec;      /**< list of TiledIndexSpaces for referencing */
   std::vector<std::string> allowed_blocks;    /**< list of allowed blocks using string indices*/
@@ -24,20 +24,20 @@ struct BlockSparseInfo {
   std::vector<TiledIndexSpaceVec>
     disallowed_tis_vecs; /**< list of dis-allowed TIS vectors generated from allowed blocks */
 
-  BlockSparseInfo()                                  = default;
-  BlockSparseInfo(BlockSparseInfo&&)                 = default;
-  BlockSparseInfo(const BlockSparseInfo&)            = default;
-  BlockSparseInfo& operator=(BlockSparseInfo&&)      = default;
-  BlockSparseInfo& operator=(const BlockSparseInfo&) = default;
-  ~BlockSparseInfo()                                 = default;
+  TensorInfo()                             = default;
+  TensorInfo(TensorInfo&&)                 = default;
+  TensorInfo(const TensorInfo&)            = default;
+  TensorInfo& operator=(TensorInfo&&)      = default;
+  TensorInfo& operator=(const TensorInfo&) = default;
+  ~TensorInfo()                            = default;
 
   /**
-   * @brief Construct a new BlockSparseInfo object
+   * @brief Construct a new TensorInfo object
    *
    * @param tis_vec list of TiledIndexSpaces for the reference
    * @param allowed_strs list of allowed string indices
    */
-  BlockSparseInfo(TiledIndexSpaceVec tis_vec, std::vector<std::string> allowed_strs):
+  TensorInfo(TiledIndexSpaceVec tis_vec, std::vector<std::string> allowed_strs):
     full_tis_vec(tis_vec),
     allowed_blocks({}),
     char_to_sub_tis({}),
@@ -79,7 +79,7 @@ struct BlockSparseInfo {
   }
 
   /**
-   * @brief Construct a new BlockSparseInfo object
+   * @brief Construct a new TensorInfo object
    *
    * @param tis_vec list of TiledIndexSpaces for the reference
    * @param allowed_strs list of allowed string indices
@@ -87,7 +87,7 @@ struct BlockSparseInfo {
    * @param disallowed_strs list of disallowed string indices
    * @param non_zero_check non zero check function
    */
-  BlockSparseInfo(
+  TensorInfo(
     TiledIndexSpaceVec tis_vec, std::vector<std::string> allowed_strs, Char2TISMap char_to_sub_str,
     std::vector<std::string> disallowed_strs = {},
     NonZeroCheck             non_zero_check  = [](const IndexVector&) -> bool { return true; }):
@@ -123,8 +123,8 @@ struct BlockSparseInfo {
    * @param tis_vec list of TiledIndexSpaces for the reference
    * @param non_zero_check non zero check function
    */
-  BlockSparseInfo(TiledIndexSpaceVec tis_vec, NonZeroCheck non_zero_check):
-    BlockSparseInfo(tis_vec, {}, {}, {}, non_zero_check) {}
+  TensorInfo(TiledIndexSpaceVec tis_vec, NonZeroCheck non_zero_check):
+    TensorInfo(tis_vec, {}, {}, {}, non_zero_check) {}
 
   /**
    * @brief Construct a new Block Sparse Info object
@@ -132,8 +132,7 @@ struct BlockSparseInfo {
    * @param tis_vec list of TiledIndexSpaces for the reference
    * @param tis_labels list of allowed TiledIndexLabels
    */
-  BlockSparseInfo(const TiledIndexSpaceVec&         tis_vec,
-                  const std::vector<IndexLabelVec>& tis_label_vecs):
+  TensorInfo(const TiledIndexSpaceVec& tis_vec, const std::vector<IndexLabelVec>& tis_label_vecs):
     full_tis_vec(tis_vec),
     allowed_blocks({}),
     char_to_sub_tis({}),
@@ -153,8 +152,8 @@ struct BlockSparseInfo {
    * @param tis_vec list of TiledIndexSpaces for the reference
    * @param sub_tis_lists list of allowed TiledIndexSpaces
    */
-  BlockSparseInfo(const TiledIndexSpaceVec&              tis_vec,
-                  const std::vector<TiledIndexSpaceVec>& sub_tis_lists):
+  TensorInfo(const TiledIndexSpaceVec&              tis_vec,
+             const std::vector<TiledIndexSpaceVec>& sub_tis_lists):
     full_tis_vec(tis_vec),
     allowed_blocks({}),
     char_to_sub_tis({}),

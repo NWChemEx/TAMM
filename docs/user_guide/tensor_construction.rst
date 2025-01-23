@@ -540,17 +540,17 @@ for block sparsity and construct a block sparse tensor:
        return (upper_total == lower_total);
    };
 
-   // BlockSparseInfo construction
-   BlockSparseInfo sparse_info{t_spaces, is_non_zero_2D};
+   // TensorInfo construction
+   TensorInfo tensor_info{t_spaces, is_non_zero_2D};
 
    // Tensor constructor
-   Tensor<T> tensor{t_spaces, sparse_info};
+   Tensor<T> tensor{t_spaces, tensor_info};
 
-TAMM offers a more convenient `BlockSparseInfo` struct to describe non-zero blocks 
+TAMM offers a more convenient `TensorInfo` struct to describe non-zero blocks 
 using stringed sub-space constructs in `TiledIndexSpace`s. This simplifies the 
 process of constructing block sparse tensors.
 
-Here's an example of using `BlockSparseInfo`:
+Here's an example of using `TensorInfo`:
 
 .. code-block:: cpp
 
@@ -558,8 +558,8 @@ Here's an example of using `BlockSparseInfo`:
    Char2TISMap char2MOstr = {{'i', "occ"}, {'j', "occ"}, {'k', "occ"}, {'l', "occ"},
                              {'a', "virt"}, {'b', "virt"}, {'c', "virt"}, {'d', "virt"}};
 
-   // Construct BlockSparseInfo
-   BlockSparseInfo sparse_info{
+   // Construct TensorInfo
+   TensorInfo tensor_info{
        {MO, MO, MO, MO},                                 // Tensor dimensions
        {"ijab", "iajb", "ijka", "ijkl", "iabc", "abcd"}, // Allowed blocks
        char2MOstr                                        // Character to sub-space string mapping
@@ -567,7 +567,7 @@ Here's an example of using `BlockSparseInfo`:
    };
 
    // Block Sparse Tensor construction
-   Tensor<T> tensor{{MO, MO, MO, MO}, sparse_info};
+   Tensor<T> tensor{{MO, MO, MO, MO}, tensor_info};
 
 TAMM also provides a simplified constructor that only requires a list of allowed 
 blocks and the character-to-sub-space string map:

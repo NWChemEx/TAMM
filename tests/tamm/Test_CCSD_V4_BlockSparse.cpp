@@ -80,11 +80,10 @@ setupTensors_cs(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> d_f1) {
     {v_alpha, v_beta, o_alpha, o_beta},
     {SpinPosition::lower, SpinPosition::lower, SpinPosition::upper, SpinPosition::upper});
 
-  BlockSparseInfo block_info_Va_Oa{{v_alpha, o_alpha}, non_zero_check_Va_Oa};
-  BlockSparseInfo block_info_Va_Vb_Oa_Ob{{v_alpha, v_beta, o_alpha, o_beta},
-                                         non_zero_check_Va_Vb_Oa_Ob};
+  TensorInfo block_info_Va_Oa{{v_alpha, o_alpha}, non_zero_check_Va_Oa};
+  TensorInfo block_info_Va_Vb_Oa_Ob{{v_alpha, v_beta, o_alpha, o_beta}, non_zero_check_Va_Vb_Oa_Ob};
 
-  // BlockSparseTensor
+  // Block Sparse Tensor
   Tensor<T> d_r1{{v_alpha, o_alpha}, block_info_Va_Oa};
   Tensor<T> d_r2{{v_alpha, v_beta, o_alpha, o_beta}, block_info_Va_Vb_Oa_Ob};
 
@@ -93,7 +92,7 @@ setupTensors_cs(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> d_f1) {
   // Tensor<T> d_t1{{v_alpha, o_alpha}, {1, 1}};
   // Tensor<T> d_t2{{v_alpha, v_beta, o_alpha, o_beta}, {2, 2}};
 
-  // BlockSparseTensor
+  // Block Sparse Tensor
   Tensor<T> d_t1{{v_alpha, o_alpha}, block_info_Va_Oa};
   Tensor<T> d_t2{{v_alpha, v_beta, o_alpha, o_beta}, block_info_Va_Vb_Oa_Ob};
 
@@ -403,10 +402,10 @@ int main(int argc, char* argv[]) {
   auto is_non_zero_2D_spin =
     generate_spin_check({N, N}, {SpinPosition::lower, SpinPosition::upper});
 
-  BlockSparseInfo sparse_info_N_N{{N, N}, is_non_zero_2D_spin};
+  TensorInfo tensor_info_N_N{{N, N}, is_non_zero_2D_spin};
 
   // Tensor<T> d_f1{{N, N}, {1, 1}};
-  Tensor<T> d_f1{{N, N}, sparse_info_N_N};
+  Tensor<T> d_f1{{N, N}, tensor_info_N_N};
   Tensor<T>::allocate(&ec, d_f1);
 
   tamm::random_ip(d_f1);
@@ -449,30 +448,29 @@ int main(int argc, char* argv[]) {
 
   // Tensor<T> t2_aaaa = {{v_alpha, v_alpha, o_alpha, o_alpha}, {2, 2}};
 
-  BlockSparseInfo sparse_info_Va_Va_Oa_Oa{{v_alpha, v_alpha, o_alpha, o_alpha},
-                                          is_nonzero_Va_Va_Oa_Oa};
+  TensorInfo tensor_info_Va_Va_Oa_Oa{{v_alpha, v_alpha, o_alpha, o_alpha}, is_nonzero_Va_Va_Oa_Oa};
 
-  // BlockSparseTensor
-  Tensor<T> t2_aaaa = {{v_alpha, v_alpha, o_alpha, o_alpha}, sparse_info_Va_Va_Oa_Oa};
+  // Block Sparse Tensor
+  Tensor<T> t2_aaaa = {{v_alpha, v_alpha, o_alpha, o_alpha}, tensor_info_Va_Va_Oa_Oa};
 
-  // BlockSparseTensor f1
-  BlockSparseInfo sparse_info_f1{
+  // Block Sparse Tensor f1
+  TensorInfo tensor_info_f1{
     {MO, MO},           // Tensor dims
     {"IJ", "IA", "AB"}, // Allowed blocks
     index_to_sub_string // Char to named sub-space string
   };
-  Tensor<T> f1{{MO, MO}, sparse_info_f1};
-  // Constructor without BlockSparseInfo struct
+  Tensor<T> f1{{MO, MO}, tensor_info_f1};
+  // Constructor without TensorInfo struct
   // Tensor<T> f1{{MO, MO}, {"IJ", "IA", "AB"}, index_to_sub_string};
 
-  // BlockSparseTensor chol3d
-  BlockSparseInfo sparse_info_chol3d{
+  // Block Sparse Tensor chol3d
+  TensorInfo tensor_info_chol3d{
     {MO, MO, CI},          // Tensor dims
     {"IJX", "IAX", "ABX"}, // Allowed blocks
     index_to_sub_string    // Char to named sub-space string
   };
-  Tensor<T> chol3d{{MO, MO, CI}, sparse_info_chol3d};
-  // Constructor without BlockSparseInfo struct
+  Tensor<T> chol3d{{MO, MO, CI}, tensor_info_chol3d};
+  // Constructor without TensorInfo struct
   // Tensor<T> chol3d{{MO, MO, CI}, {"IJX", "IAX", "ABX"}, index_to_sub_string};
 
   _a01V = {CI};

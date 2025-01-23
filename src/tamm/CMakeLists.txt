@@ -49,7 +49,7 @@ set(TAMM_INCLUDES
     tensor.hpp
     tensor_impl.hpp
     tensor_base.hpp
-    block_sparse_info.hpp
+    tensor_info.hpp
     distribution.hpp
     labeled_tensor.hpp
     execution_context.hpp

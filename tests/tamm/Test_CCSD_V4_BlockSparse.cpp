@@ -115,7 +115,7 @@ void ccsd_e_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace&
   // clang-format off
   sch
     (t2_aaaa_temp()=0)
-    .exact_copy(t2_aaaa(p1_va, p2_va, h1_oa, h2_oa), t2_abab(p1_va, p2_va, h1_oa, h2_oa))
+    .exact_copy(t2_aaaa(p1_va, p2_va, h1_oa, h2_oa), t2_abab(p1_va, p1_vb, h1_oa, h1_ob), true)
     (t2_aaaa_temp() = t2_aaaa(),
     "t2_aaaa_temp() = t2_aaaa()")
     (t2_aaaa(p1_va,p2_va,h1_oa,h2_oa) += -1.0 * t2_aaaa_temp(p2_va,p1_va,h1_oa,h2_oa),

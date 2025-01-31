@@ -604,6 +604,34 @@ std::vector<TensorType> diagonal(LabeledTensor<TensorType> ltensor) {
   return dvec;
 }
 
+template<typename TensorType>
+Tensor<TensorType> identity_matrix(ExecutionContext& ec, const TiledIndexSpace& tis) {
+  Tensor<TensorType> tensor{tis, tis};
+  Tensor<TensorType>::allocate(&ec, tensor);
+  Scheduler{ec}(tensor() = 0.0).execute();
+
+  if(ec.pg().rank() == 0) {
+    LabelLoopNest loop_nest{tensor().labels()};
+
+    for(const IndexVector& blockid: loop_nest) {
+      if(blockid[0] == blockid[1]) {
+        const TAMM_SIZE         size = tensor.block_size(blockid);
+        std::vector<TensorType> buf(size);
+        tensor.get(blockid, buf);
+        auto   block_dims   = tensor.block_dims(blockid);
+        auto   block_offset = tensor.block_offsets(blockid);
+        auto   dim          = block_dims[0];
+        auto   offset       = block_offset[0];
+        size_t i            = 0;
+        for(auto p = offset; p < offset + dim; p++, i++) { buf[i * dim + i] = 1; }
+        tensor.put(blockid, buf);
+      }
+    }
+  }
+  ec.pg().barrier();
+  return tensor;
+}
+
 /**
  * @brief method for updating the diagonal values in a Tensor
  *

@@ -138,13 +138,13 @@ void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
 
   Tensor<T> A{i, j, l};
   Tensor<T> B{l, m, k};
-  Tensor<T> C{i, j, k};
+  Tensor<T> C{i, j, m, k};
 
   sch.allocate(A, B, C)(A() = 21.0)(B() = 2.0)(C() = 0.0).execute();
 
   const auto timer_start = std::chrono::high_resolution_clock::now();
 
-  sch(C(j, i, k) += A(i, j, l) * B(l, m, k)).execute(ex_hw, profile);
+  sch(C(i, j, m, k) += A(i, j, l) * B(l, m, k)).execute(ex_hw, profile);
 
   const auto timer_end = std::chrono::high_resolution_clock::now();
 
@@ -177,7 +177,7 @@ template<typename T>
 void test_4_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_hw, bool profile) {
   TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
 
-  using CT = std::complex<T>;
+  using CT = T;
 
   auto [i, j, k, l, m, o] = tis1.labels<6>("all");
 
@@ -438,7 +438,8 @@ int main(int argc, char* argv[]) {
   ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 
-  ExecutionHW ex_hw = ec.exhw();
+  //ExecutionHW ex_hw = ec.exhw();
+  ExecutionHW ex_hw = ExecutionHW::CPU_SPARSE;
 
   Scheduler sch{ec};
 
@@ -460,8 +461,8 @@ int main(int argc, char* argv[]) {
   }
 
   const bool profile = true;
-  // test_2_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
-  // test_3_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
+  //test_2_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
+  //test_3_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
   test_4_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
   // test_4_dim_mult_op_last_unit<double>(sch, is_size, tile_size);
   // test_4_dim_mult_op_first_unit<double>(sch, is_size, tile_size);

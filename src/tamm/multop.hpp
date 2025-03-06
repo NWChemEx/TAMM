@@ -6,6 +6,7 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 // #include "tamm/block_operations.hpp"
@@ -19,6 +20,7 @@
 #include "tamm/tensor.hpp"
 #include "tamm/types.hpp"
 #include "tamm/work.hpp"
+#include "tamm/fastcc/contract.hpp"
 
 namespace tamm {
 
@@ -274,7 +276,170 @@ public:
   using TensorElType2 = typename LabeledTensorT2::element_type;
   using TensorElType3 = typename LabeledTensorT3::element_type;
 
+  template <typename DT> FastccTensor<DT> make_tensor(std::vector<DT> &data, std::vector<size_t> &dims) {
+    FastccTensor<DT> tensor;
+    std::cout<<"size of nonzeors " <<data.size()<<std::endl;
+    std::cout<<"dimensionality of tensor " <<dims.size()<<std::endl;
+    for(int i = 0; i < data.size(); i++) {
+        std::vector<int> co_ordinates;
+        int linearized_pos = i;
+        for(size_t _d = 0; _d < dims.size(); _d++) {
+            co_ordinates.push_back(linearized_pos % dims[_d]);
+            linearized_pos = linearized_pos / dims[_d];
+        }
+        tensor.get_nonzeros().push_back({data[i], co_ordinates});
+        //if(i %100 == 0) {
+        //    std::cout<<"i is "<<i<<std::endl;
+        //}
+    }
+    
+    return tensor;
+  }
+
+  void execute_sparse(ExecutionContext& ec) {
+    // TODO add constexpr enable for selected types only
+    std::cout << " sparse kernel called" << std::endl;
+    EXPECTS(!is_assign_);
+    std::cout << "lhs labels are " << std::endl;
+    for(auto& lbl: lhs_int_labels_) { std::cout << lbl << " "; }
+    std::cout << std::endl;
+    std::set<IntLabel> lhs_int_labels_set(lhs_int_labels_.begin(), lhs_int_labels_.end());
+    std::cout << "rhs1 labels are " << std::endl;
+    for(auto& lbl: rhs1_int_labels_) { std::cout << lbl << " "; }
+    std::cout << std::endl;
+    std::set<IntLabel> rhs1_int_labels_set(rhs1_int_labels_.begin(), rhs1_int_labels_.end());
+    std::cout << "rhs2 labels are " << std::endl;
+    for(auto& lbl: rhs2_int_labels_) { std::cout << lbl << " "; }
+    std::cout << std::endl;
+    std::set<IntLabel> rhs2_int_labels_set(rhs2_int_labels_.begin(), rhs2_int_labels_.end());
+    std::cout << std::endl;
+    std::cout<<"Contraction labels are "<<std::endl;
+    
+    std::set<IntLabel> left_and_right;
+    std::set_intersection(rhs1_int_labels_set.begin(), rhs1_int_labels_set.end(),
+                          rhs2_int_labels_set.begin(), rhs2_int_labels_set.end(),
+                          std::inserter(left_and_right, left_and_right.begin()));
+    std::set<IntLabel> contraction_labels_set;
+    std::set_difference(left_and_right.begin(), left_and_right.end(),
+                        lhs_int_labels_set.begin(), lhs_int_labels_set.end(),
+                        std::inserter(contraction_labels_set, contraction_labels_set.begin()));
+    for(auto c: contraction_labels_set) { std::cout << c << " "; }
+    std::cout<<std::endl;
+    std::set<IntLabel> batch_labels_set;
+    std::set_intersection(left_and_right.begin(), left_and_right.end(),
+                          lhs_int_labels_set.begin(), lhs_int_labels_set.end(),
+                          std::inserter(batch_labels_set, batch_labels_set.begin()));
+    std::cout<<"Batch labels are "<<std::endl;
+    for(auto c: batch_labels_set) { std::cout << c << " "; }
+    std::cout<<std::endl;
+    std::set<IntLabel> left_labels_set;
+    std::set_difference(rhs1_int_labels_set.begin(), rhs1_int_labels_set.end(),
+                        left_and_right.begin(), left_and_right.end(),
+                        std::inserter(left_labels_set, left_labels_set.begin()));
+    std::cout<<"Left labels are "<<std::endl;
+    for(auto c: left_labels_set) { std::cout << c << " "; }
+    std::cout<<std::endl;
+    std::set<IntLabel> right_labels_set;
+    std::set_difference(rhs2_int_labels_set.begin(), rhs2_int_labels_set.end(),
+                        left_and_right.begin(), left_and_right.end(),
+                        std::inserter(right_labels_set, right_labels_set.begin()));
+    std::cout<<"Right labels are "<<std::endl;
+    for(auto c: right_labels_set) { std::cout << c << " "; }
+    std::cout<<std::endl;
+
+    // print shape of left tensor
+    auto                lhs_tis_vec  = lhs_.tensor().tiled_index_spaces();
+    auto                rhs1_tis_vec = rhs1_.tensor().tiled_index_spaces();
+    auto                rhs2_tis_vec = rhs2_.tensor().tiled_index_spaces();
+    std::vector<size_t> dims_sizes_lhs;
+    std::vector<size_t> dims_sizes_rhs1;
+    std::vector<size_t> dims_sizes_rhs2;
+
+    for(const auto& tis: lhs_tis_vec) { dims_sizes_lhs.push_back(tis.max_num_indices()); }
+
+    for(const auto& tis: rhs1_tis_vec) { dims_sizes_rhs1.push_back(tis.max_num_indices()); }
+
+    for(const auto& tis: rhs2_tis_vec) { dims_sizes_rhs2.push_back(tis.max_num_indices()); }
+
+    LabelLoopNest               loop_nest1{rhs1_.labels()};
+    FastccTensor<TensorElType2> op_left;
+    for(auto itval: loop_nest1) {
+        const IndexVector          blockid = internal::translate_blockid(itval, rhs1_);
+        size_t                     size    = rhs1_.tensor().block_size(blockid);
+        std::vector<TensorElType2> buf(size);
+        rhs1_.tensor().get(blockid, buf);
+        op_left = make_tensor(buf, dims_sizes_rhs1);
+    }
+    std::cout << "number of nonzeros in op_left is " << op_left.get_nonzeros().size() << std::endl;
+
+    LabelLoopNest               loop_nest2{rhs2_.labels()};
+    FastccTensor<TensorElType3> op_right;
+    for(auto itval: loop_nest2) {
+        const IndexVector          blockid = internal::translate_blockid(itval, rhs1_);
+        size_t                     size    = rhs2_.tensor().block_size(blockid);
+        std::vector<TensorElType3> buf(size);
+        rhs2_.tensor().get(blockid, buf);
+        op_right = make_tensor(buf, dims_sizes_rhs2);
+    }
+    std::cout << "number of nonzeros in op_right is " << op_right.get_nonzeros().size()
+              << std::endl;
+    std::vector<int> left_batch, right_batch, left_contr, right_contr, left_ex, right_ex;
+    for(auto c: batch_labels_set) {
+        int left = std::find(rhs1_int_labels_.begin(), rhs1_int_labels_.end(), c) - rhs1_int_labels_.begin();
+        int right = std::find(rhs2_int_labels_.begin(), rhs2_int_labels_.end(), c) - rhs2_int_labels_.begin();
+        left_batch.push_back(left);
+        right_batch.push_back(right);
+    }
+    for(auto c: contraction_labels_set) {
+        int left = std::find(rhs1_int_labels_.begin(), rhs1_int_labels_.end(), c) - rhs1_int_labels_.begin();
+        int right = std::find(rhs2_int_labels_.begin(), rhs2_int_labels_.end(), c) - rhs2_int_labels_.begin();
+        left_contr.push_back(left);
+        right_contr.push_back(right);
+    }
+    for(auto l: left_labels_set) {
+        int left = std::find(rhs1_int_labels_.begin(), rhs1_int_labels_.end(), l) - rhs1_int_labels_.begin();
+        left_ex.push_back(left);
+    }
+    for(auto r: right_labels_set) {
+        int right = std::find(rhs2_int_labels_.begin(), rhs2_int_labels_.end(), r) - rhs2_int_labels_.begin();
+        right_ex.push_back(right);
+    }
+    std::cout<<"left contractions are "<<std::endl;
+    for(auto c: left_contr) { std::cout << c << " "; }
+    std::cout<<std::endl;
+    std::cout<<"right contractions are "<<std::endl;
+    for(auto c: right_contr) { std::cout << c << " "; }
+    std::cout<<std::endl;
+    std::cout<<"left batch are "<<std::endl;
+    for(auto c: left_batch) { std::cout << c << " "; }
+    std::cout<<std::endl;
+    std::cout<<"right batch are "<<std::endl;
+    for(auto c: right_batch) { std::cout << c << " "; }
+    std::cout<<std::endl;
+    std::cout<<"left ex are "<<std::endl;
+    for(auto c: left_ex) { std::cout << c << " "; }
+    std::cout<<std::endl;
+    std::cout<<"right ex are "<<std::endl;
+    for(auto c: right_ex) { std::cout << c << " "; }
+    std::cout<<std::endl;
+    op_left._infer_dimensionality();
+    op_left._infer_shape();
+    op_right._infer_dimensionality();
+    op_right._infer_shape();
+
+    ListTensor<TensorElType1> result = op_left. template multiply_3d<double>(
+      op_right, left_batch, left_contr, left_ex, right_batch, right_contr, right_ex);
+    std::cout << "number of nonzeros in result is " << result.run_through_nnz() << std::endl;
+
+    return;
+  }
+
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
+      if (hw == ExecutionHW::CPU_SPARSE){
+          std::cout<<"howdy do from CPU_SPARSE"<<std::endl;
+          return this->execute_sparse(ec);
+
+      }
     EXPECTS(!is_assign_);
     auto& oprof = tamm::OpProfiler::instance();
 

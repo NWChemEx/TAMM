@@ -16,6 +16,7 @@ if(${PROJECT_NAME}_HAS_DPCPP)
   list(APPEND tamm_gpu_INCS sycl_device.hpp)
 endif()
 
+
 #Add the current directory's sources to the list
 set(TAMM_SRCS tamm.cpp errors.cpp index_space.cpp execution_context.cpp tensor_base.cpp kernels/cpu_blas.cpp "${tamm_gpu_SRCS}")
 
@@ -30,6 +31,11 @@ set(TAMM_INCLUDES
     mr/host_memory_resource.hpp
     mr/coalescing_free_list.hpp
     mr/free_list.hpp
+    fastcc/contract.hpp
+    fastcc/coordinate.hpp
+    fastcc/index_tensors.hpp
+    fastcc/read.hpp
+    fastcc/timer.hpp
     atomic_counter.hpp
     work.hpp
     tamm.hpp

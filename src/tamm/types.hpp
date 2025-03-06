@@ -162,7 +162,7 @@ enum class IndexPosition { upper, lower, neither };
 
 enum class SpinType { ao_spin, mo_spin };
 
-enum class ExecutionHW { CPU, GPU, DEFAULT };
+enum class ExecutionHW { CPU, GPU, DEFAULT, CPU_SPARSE };
 
 enum class ReduceOp { min, max, sum, maxloc, minloc };
 

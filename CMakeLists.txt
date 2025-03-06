@@ -74,6 +74,7 @@ if(DEFINED MODULES AND (NOT "${MODULES}" STREQUAL ""))
   endif()
 endif()
 
+
 set(PRE_CONFIGURE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tamm_git.hpp.in")
 set(POST_CONFIGURE_FILE "${CMAKE_CURRENT_BINARY_DIR}/stage/${CMAKE_INSTALL_PREFIX}/include/tamm/tamm_git.hpp")
 set(GIT_IGNORE_UNTRACKED TRUE)

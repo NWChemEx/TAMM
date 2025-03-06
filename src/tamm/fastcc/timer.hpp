@@ -1,6 +1,7 @@
 #ifndef TIMER_HPP
 #define TIMER_HPP
 #include <chrono>
+#include <forward_list>
 #include <thread>
 #include <iostream>
 #include <string>
@@ -49,32 +50,42 @@ public:
 
 class ManagedHeap{
     private:
-        void* ptr;
+        std::forward_list<void*> ptrs;
+        void* current_ptr = NULL;
         uint64_t size = 0;
         uint64_t base = 0;
     public:
         ManagedHeap(uint64_t size){
             this->size = size;
-            this->ptr = calloc(size, 1);
-            if(this->ptr == NULL){
+            this->current_ptr = calloc(size, 1);
+            if(this->current_ptr == NULL){
                 std::cerr << "Failed to allocate memory in the managed heap" << std::endl;
                 exit(1);
             }
             this->base = 0;
         }
-        ManagedHeap(): ManagedHeap(((uint64_t)(1))<<33){}
+        ManagedHeap(): ManagedHeap(((uint64_t)(1))<<30){}
         ManagedHeap(const ManagedHeap&) = delete;
         ~ManagedHeap(){
-            free(ptr);
+            for(auto ptr : ptrs){
+                free(ptr);
+            }
+            free(current_ptr);
         }
         void* alloc(uint64_t requested_size){
-            //TODO add linked list, can't just realloc because we have given out pointers
             if(requested_size + base > size){
-                std::cerr << "Requested size "<<requested_size<<" is larger than the heap size " <<size << std::endl;
-                std::cerr << "Base is " << base << std::endl;
-                exit(1);
+                //std::cout << "Requested size "<<requested_size<<" is larger than the heap size " <<size << std::endl;
+                //std::cout << "Base is " << base << std::endl;
+                //exit(1);
+                ptrs.push_front(current_ptr);
+                this->current_ptr = calloc(size, 1);
+                if(current_ptr == NULL){
+                    std::cerr << "Failed to re-allocate memory in the managed heap" << std::endl;
+                    exit(1);
+                }
+                this->base = 0;
             }
-            void* ret = (void*)((char*)ptr + base);
+            void* ret = (void*)((char*)this->current_ptr + base);
             base += requested_size;
             return ret;
         }

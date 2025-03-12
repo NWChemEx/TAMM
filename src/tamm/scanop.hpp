@@ -27,6 +27,8 @@ public:
     return std::shared_ptr<Op>(new ScanOp<LabeledTensorT, Func>{*this});
   }
 
+  void display_info() const override { std::cout << "ScanOp\n"; }
+
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     using TensorElType = typename LabeledTensorT::element_type;
     // the iterator to generate the tasks

@@ -177,11 +177,49 @@ public:
   }
 
   OpType op_type() const override { return OpType::set; }
-  void   execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
+
+  void display_info() const override {
+    auto tensor = lhs_.tensor();
+
+    auto                tis_vec = tensor.tiled_index_spaces();
+    std::vector<size_t> dims_sizes;
+
+    for(const auto& tis: tis_vec) { dims_sizes.push_back(tis.max_num_indices()); }
+
+    int total_size = 1;
+    for(auto& d: dims_sizes) { total_size *= d; }
+
+    std::vector<int> block_sizes;
+    LabelLoopNest    loop_nest{lhs_.labels()};
+
+    int max_block_size = 1;
+    for(auto ln: loop_nest) {
+      auto block_dims = tensor.block_dims(ln);
+      int  block_size = 1;
+      for(auto& bd: block_dims) { block_size *= bd; }
+      if(block_size > max_block_size) { max_block_size = block_size; }
+
+      block_sizes.push_back(block_size);
+    }
+
+    std::cout << "SetOp\n";
+    std::cout << "\tTensor sizes = ";
+    for(auto& d: dims_sizes) { std::cout << d << " "; }
+    std::cout << std::endl;
+    std::cout << "\tTotal size = " << total_size << std::endl;
+    // std::cout << "\tNumber of blocks = " << block_sizes.size() << std::endl;
+    // std::cout << "\tBlock sizes = ";
+    // for(auto& bs: block_sizes) { std::cout << bs << " "; }
+    // std::cout << std::endl;
+    std::cout << "\tMax block size = " << max_block_size << std::endl;
+    std::cout << "\tNumber of total tasks = " << block_sizes.size() << std::endl;
+  }
+
+  void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     EXPECTS(plan_ != Plan::invalid);
     if(lhs_.tensor().kind() != TensorBase::TensorKind::view &&
        lhs_.tensor().execution_context()->pg() == ec.pg()) {
-        plan_obj_->apply(*this, ec, hw);
+      plan_obj_->apply(*this, ec, hw);
     }
     else { general_plan_obj_->apply(*this, ec, hw); }
   }

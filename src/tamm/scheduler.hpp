@@ -157,6 +157,23 @@ public:
     return order;
   }
 
+  void print_info() {
+    auto   order = levelize_and_order(ops_, start_idx_, ops_.size());
+    size_t lvl   = 0;
+    std::cout << "Level " << lvl << "\n";
+    for(size_t i = 0; i < order.size(); i++) {
+      if(order[i].first != lvl) {
+        lvl = order[i].first;
+        std::cout << "Level " << lvl << "\n";
+      }
+      // if(ops_[order[i].second]->op_type() == OpType::mult) {
+      std::cout << "Op: " << order[i].second << "\n";
+      ops_[order[i].second]->display_info();
+
+      // }
+    }
+  }
+
   void execute(ExecutionHW execute_on = ExecutionHW::CPU, bool profile = false) {
     if(start_idx_ == ops_.size()) return;
     auto& oprof = tamm::OpProfiler::instance();

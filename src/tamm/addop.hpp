@@ -239,6 +239,100 @@ public:
     return std::shared_ptr<Op>(new AddOp<T, LabeledTensorT1, LabeledTensorT2>{*this});
   }
 
+  void display_info() const override {
+    auto lhs_tensor = lhs_.tensor();
+    auto rhs_tensor = rhs_.tensor();
+
+    auto                lhs_tis_vec = lhs_tensor.tiled_index_spaces();
+    auto                rhs_tis_vec = rhs_tensor.tiled_index_spaces();
+    std::vector<size_t> dims_sizes_lhs;
+    std::vector<size_t> dims_sizes_rhs;
+
+    for(const auto& tis: lhs_tis_vec) { dims_sizes_lhs.push_back(tis.max_num_indices()); }
+
+    for(const auto& tis: rhs_tis_vec) { dims_sizes_rhs.push_back(tis.max_num_indices()); }
+
+    std::vector<int> block_sizes_lhs;
+    std::vector<int> block_sizes_rhs;
+    int              max_block_size = 0;
+    LabelLoopNest    loop_nest_lhs{lhs_.labels()};
+    LabelLoopNest    loop_nest_rhs{rhs_.labels()};
+
+    for(auto bid: loop_nest_lhs) {
+      auto tranlated_bid = internal::translate_blockid(bid, lhs_);
+      auto block_dims    = lhs_tensor.block_dims(tranlated_bid);
+      int  block_size    = 1;
+      for(auto& bd: block_dims) { block_size *= bd; }
+      if(block_size > max_block_size) { max_block_size = block_size; }
+      block_sizes_lhs.push_back(block_size);
+    }
+
+    for(auto bid: loop_nest_rhs) {
+      auto tranlated_bid = internal::translate_blockid(bid, rhs_);
+      auto block_dims    = rhs_tensor.block_dims(tranlated_bid);
+      int  block_size    = 1;
+      for(auto& bd: block_dims) { block_size *= bd; }
+      if(block_size > max_block_size) { max_block_size = block_size; }
+      block_sizes_rhs.push_back(block_size);
+    }
+
+    int total_size_lhs = 1;
+    for(auto& d: dims_sizes_lhs) { total_size_lhs *= d; }
+    int total_size_rhs = 1;
+    for(auto& d: dims_sizes_rhs) { total_size_rhs *= d; }
+
+    IndexLabelVec merged_use_labels =
+      internal::merge_vector<IndexLabelVec>(lhs_.labels(), rhs_.labels());
+    auto unique_entries_by_primary_labels =
+      internal::unique_entries_by_primary_label(merged_use_labels);
+
+    int total_tasks = 1;
+    for(auto& entry: unique_entries_by_primary_labels) {
+      total_tasks *= entry.tiled_index_space().num_tiles();
+    }
+
+    std::cout << "AddOp\n";
+    std::cout << "\tLHS_Tensor sizes = ";
+    for(auto& d: dims_sizes_lhs) { std::cout << d << " "; }
+    std::cout << std::endl;
+    std::cout << "\tRHS_Tensor sizes = ";
+    for(auto& d: dims_sizes_rhs) { std::cout << d << " "; }
+    std::cout << std::endl;
+    std::cout << "\tTotal LHS size = " << total_size_lhs << std::endl;
+    std::cout << "\tTotal RHS size = " << total_size_rhs << std::endl;
+
+    LabelLoopNest loop_nest{merged_use_labels};
+
+    std::cout << "\tMax block size = " << max_block_size << std::endl;
+    std::cout << "\tNumber of total tasks = " << total_tasks << std::endl;
+
+    int task_id = 0;
+
+    for(const auto& blockid: loop_nest) {
+      IndexVector cblockid(lhs_.labels().size());
+      IndexVector ablockid(rhs_.labels().size());
+
+      std::copy(blockid.begin(), blockid.begin() + lhs_.labels().size(), cblockid.begin());
+      std::copy(blockid.begin() + lhs_.labels().size(), blockid.end(), ablockid.begin());
+
+      const auto translated_cblockid = internal::translate_blockid(cblockid, lhs_);
+      const auto translated_ablockid = internal::translate_blockid(ablockid, rhs_);
+
+      auto lhs_dims = lhs_.tensor().block_dims(translated_cblockid);
+      auto rhs_dims = rhs_.tensor().block_dims(translated_ablockid);
+
+      int lhs_block_size = 1;
+      for(auto& bd: lhs_dims) { lhs_block_size *= bd; }
+      int rhs_block_size = 1;
+      for(auto& bd: rhs_dims) { rhs_block_size *= bd; }
+
+      std::cout << "\tTask " << task_id << std::endl;
+      std::cout << "\t LHS block size = " << lhs_block_size << std::endl;
+      std::cout << "\t RHS block size = " << rhs_block_size << std::endl;
+      task_id++;
+    }
+  }
+
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     EXPECTS(lhs_.tensor().execution_context() != nullptr);
 

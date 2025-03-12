@@ -5,6 +5,7 @@
 #include "tamm/tiled_index_space.hpp"
 #include <chrono>
 #include <map>
+#include <unordered_set>
 #include <vector>
 
 namespace tamm {
@@ -643,6 +644,56 @@ inline std::vector<std::string> split_string(std::string str, char delim) {
 //     NOT_IMPLEMENTED();
 //   }
 // }
+
+/**
+ * Identifies batch labels, outer labels, inner labels, and reduction labels.
+ *
+ * @param alabels Labels for tensor A
+ * @param blabels Labels for tensor B
+ * @param clabels Labels for tensor C
+ * @return A tuple containing:
+ *         - areduce_labels: Reduction labels for A
+ *         - breduce_labels: Reduction labels for B
+ *         - batch_labels: Labels that appear in both A and B
+ *         - aouter_labels: Labels unique to A
+ *         - bouter_labels: Labels unique to B
+ *         - inner_labels: Labels appearing in A and B but not in C
+ */
+inline std::tuple<std::vector<int>, std::vector<int>, std::vector<int>, std::vector<int>,
+                  std::vector<int>, std::vector<int>>
+extract_labels(const std::vector<int>& alabels, const std::vector<int>& blabels,
+               const std::vector<int>& clabels) {
+  std::unordered_set<int> aset(alabels.begin(), alabels.end());
+  std::unordered_set<int> bset(blabels.begin(), blabels.end());
+  std::unordered_set<int> cset(clabels.begin(), clabels.end());
+
+  std::vector<int> batch_labels, aouter_labels, bouter_labels, inner_labels, areduce_labels,
+    breduce_labels;
+
+  for(int lbl: clabels) {
+    bool is_in_a = aset.count(lbl);
+    bool is_in_b = bset.count(lbl);
+    if(is_in_a && is_in_b) batch_labels.push_back(lbl);
+    else if(is_in_a) aouter_labels.push_back(lbl);
+    else if(is_in_b) bouter_labels.push_back(lbl);
+  }
+
+  for(int lbl: alabels) {
+    bool is_in_b = bset.count(lbl);
+    bool is_in_c = cset.count(lbl);
+    if(is_in_b && is_in_c) continue;
+    else if(is_in_b) inner_labels.push_back(lbl);
+    else if(!is_in_c) areduce_labels.push_back(lbl);
+  }
+
+  for(int lbl: blabels) {
+    bool is_in_a = aset.count(lbl);
+    bool is_in_c = cset.count(lbl);
+    if(!is_in_a && !is_in_c) breduce_labels.push_back(lbl);
+  }
+
+  return {areduce_labels, breduce_labels, batch_labels, aouter_labels, bouter_labels, inner_labels};
+}
 
 } // namespace internal
 

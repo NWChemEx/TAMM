@@ -45,6 +45,55 @@ public:
     return std::shared_ptr<Op>(new MapOp<LabeledTensorT, Func, N>{*this});
   }
 
+  void display_info() const override {
+    auto compute_product = [](const std::vector<size_t>& vec) -> int {
+      int res = 1;
+      for(const auto& v: vec) { res *= v; }
+      return res;
+    };
+
+    std::cout << "MapOp\n";
+
+    IndexLabelVec merged_labels{lhs_.labels()};
+    for(const auto& rlt: rhs_) {
+      merged_labels.insert(merged_labels.end(), rlt.labels().begin(), rlt.labels().end());
+    }
+    LabelLoopNest loop_nest{merged_labels};
+
+    int task_id = 0;
+    for(const auto& blockid: loop_nest) {
+      IndexVector lhs_blockid(lhs_.labels().size());
+      std::copy(blockid.begin(), blockid.begin() + lhs_.labels().size(), lhs_blockid.begin());
+
+      std::vector<IndexVector> rhs_blockids(N);
+
+      auto it = blockid.begin() + lhs_.labels().size();
+      for(size_t i = 0; i < N; i++) {
+        rhs_blockids[i].insert(rhs_blockids[i].end(), it, it + rhs_[i].labels().size());
+        it += rhs_[i].labels().size();
+      }
+
+      if(do_translate_) {
+        lhs_blockid = internal::translate_blockid(lhs_blockid, lhs_);
+        for(size_t i = 0; i < N; i++) {
+          rhs_blockids[i] = internal::translate_blockid(rhs_blockids[i], rhs_[i]);
+        }
+      }
+
+      auto                             lhs_dims = lhs_.tensor().block_dims(lhs_blockid);
+      std::vector<std::vector<size_t>> rhs_dims(N);
+      for(size_t i = 0; i < N; i++) { rhs_dims[i] = rhs_[i].tensor().block_dims(rhs_blockids[i]); }
+
+      std::cout << "\tTask " << task_id << std::endl;
+      std::cout << "\t LHS block size = " << compute_product(lhs_dims) << std::endl;
+      for(size_t i = 0; i < N; i++) {
+        std::cout << "\t RHS" << i << " block size = " << compute_product(rhs_dims[i]) << std::endl;
+      }
+
+      task_id++;
+    }
+  }
+
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     using TensorElType = typename LabeledTensorT::element_type;
 

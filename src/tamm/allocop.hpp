@@ -28,6 +28,8 @@ public:
 
   std::shared_ptr<Op> clone() const override { return std::shared_ptr<Op>(new AllocOp{*this}); }
 
+  void display_info() const override { std::cout << "AllocOp\n"; }
+
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     tensor_.allocate(&ec_);
   }

@@ -21,6 +21,7 @@ public:
   virtual bool                     is_memory_barrier() const                      = 0;
   virtual std::shared_ptr<Op>      clone() const                                  = 0;
   virtual void   execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) = 0;
+  virtual void   display_info() const                                             = 0;
   virtual OpList canonicalize() const                                             = 0;
   virtual OpType op_type() const                                                  = 0;
   virtual ~Op() {}

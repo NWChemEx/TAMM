@@ -6,6 +6,7 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 // #include "tamm/block_operations.hpp"
@@ -273,6 +274,225 @@ public:
   using TensorElType1 = typename LabeledTensorT1::element_type;
   using TensorElType2 = typename LabeledTensorT2::element_type;
   using TensorElType3 = typename LabeledTensorT3::element_type;
+
+  void display_info() const override {
+    // Lambda function to convert the labels to integer indices
+    auto converter = [](const std::vector<int>& vec1, const std::vector<int>& vec2,
+                        const std::vector<int>& vec3) {
+      std::unordered_map<int, int> number_to_series;
+      int                          series = 0;
+
+      auto convert_vector = [&number_to_series, &series](const std::vector<int>& vec) {
+        std::vector<int> new_vec;
+        for(int num: vec) {
+          if(number_to_series.find(num) == number_to_series.end()) {
+            number_to_series[num] = series++;
+          }
+          new_vec.push_back(number_to_series[num]);
+        }
+        return new_vec;
+      };
+
+      return std::make_tuple(convert_vector(vec1), convert_vector(vec2), convert_vector(vec3));
+    };
+
+    // convert lhs, rhs1, rhs2 labels to integer indices from 0 to N
+    auto [lhs, rhs1, rhs2] = converter(lhs_int_labels_, rhs1_int_labels_, rhs2_int_labels_);
+
+    /**
+     * Computes the product of dimension sizes for given labels.
+     *
+     * @param labels A vector of labels.
+     * @param dim_sizes Map from label index to dimension size.
+     * @return The product of dimension sizes.
+     */
+    auto compute_product = [](const std::vector<int>&                labels,
+                              const std::unordered_map<int, size_t>& dim_sizes) {
+      return std::accumulate(labels.begin(), labels.end(), 1, [&dim_sizes](int acc, int lbl) {
+        return acc * static_cast<int>(dim_sizes.at(lbl));
+      });
+    };
+
+    /**
+     * Computes labels and dimension multipliers for tensor operations.
+     *
+     * @param alabels Labels for tensor A
+     * @param blabels Labels for tensor B
+     * @param clabels Labels for tensor C
+     * @param dim_sizes Map from label index to dimension size
+     * @return A tuple containing:
+     *         - ainter_labels: Intermediate labels for A
+     *         - binter_labels: Intermediate labels for B
+     *         - cinter_labels: Intermediate labels for C
+     *         - B, M, N, K, AR, BR: Computed dimension multipliers
+     */
+    auto compute_labels_and_dims =
+      [compute_product](const std::vector<int>& alabels, const std::vector<int>& blabels,
+                        const std::vector<int>&                clabels,
+                        const std::unordered_map<int, size_t>& dim_sizes) {
+        auto [areduce_labels, breduce_labels, batch_labels, aouter_labels, bouter_labels,
+              inner_labels] = internal::extract_labels(alabels, blabels, clabels);
+
+        int B  = compute_product(batch_labels, dim_sizes);
+        int M  = compute_product(aouter_labels, dim_sizes);
+        int N  = compute_product(bouter_labels, dim_sizes);
+        int K  = compute_product(inner_labels, dim_sizes);
+        int AR = compute_product(areduce_labels, dim_sizes);
+        int BR = compute_product(breduce_labels, dim_sizes);
+
+        std::vector<int> ainter_labels = areduce_labels;
+        ainter_labels.insert(ainter_labels.end(), batch_labels.begin(), batch_labels.end());
+        ainter_labels.insert(ainter_labels.end(), aouter_labels.begin(), aouter_labels.end());
+        ainter_labels.insert(ainter_labels.end(), inner_labels.begin(), inner_labels.end());
+
+        std::vector<int> binter_labels = breduce_labels;
+        binter_labels.insert(binter_labels.end(), batch_labels.begin(), batch_labels.end());
+        binter_labels.insert(binter_labels.end(), inner_labels.begin(), inner_labels.end());
+        binter_labels.insert(binter_labels.end(), bouter_labels.begin(), bouter_labels.end());
+
+        std::vector<int> cinter_labels = batch_labels;
+        cinter_labels.insert(cinter_labels.end(), aouter_labels.begin(), aouter_labels.end());
+        cinter_labels.insert(cinter_labels.end(), bouter_labels.begin(), bouter_labels.end());
+
+        return std::make_tuple(ainter_labels, binter_labels, cinter_labels, B, M, N, K, AR, BR);
+      };
+
+    // get merged labels from all three tensors
+    IndexLabelVec merged_use_labels =
+      internal::merge_vector<IndexLabelVec>(lhs_.labels(), rhs1_.labels(), rhs2_.labels());
+
+    std::unordered_map<int, size_t> index_sizes;
+
+    // get the sizes of the indices for LHS
+    for(size_t i = 0; i < lhs_.labels().size(); i++) {
+      if(index_sizes.find(lhs[i]) == index_sizes.end())
+        index_sizes[lhs[i]] = lhs_.labels()[i].tiled_index_space().max_num_indices();
+    }
+
+    // get the sizes of the indices for RHS1
+    for(size_t i = 0; i < rhs1_.labels().size(); i++) {
+      if(index_sizes.find(rhs1[i]) == index_sizes.end())
+        index_sizes[rhs1[i]] = rhs1_.labels()[i].tiled_index_space().max_num_indices();
+    }
+
+    // get the sizes of the indices for RHS2
+    for(size_t i = 0; i < rhs2_.labels().size(); i++) {
+      if(index_sizes.find(rhs2[i]) == index_sizes.end())
+        index_sizes[rhs2[i]] = rhs2_.labels()[i].tiled_index_space().max_num_indices();
+    }
+
+    auto [rhs1_transpose_order, rhs2_transpose_order, lhs_transpose_order, B, M, N, K, AR, BR] =
+      compute_labels_and_dims(rhs1, rhs2, lhs, index_sizes);
+
+    // extract unique labels from the merged labels
+    auto unique_entries_by_primary_labels =
+      internal::unique_entries_by_primary_label(merged_use_labels);
+
+    // get the total number of tasks
+    int total_task_count = 1;
+    for(const auto& lbl: unique_entries_by_primary_labels) {
+      total_task_count *= lbl.tiled_index_space().num_tiles();
+    }
+
+    // print the information
+    std::cout << "MultOp\n";
+    std::cout << "\tLHS_Tensor sizes = ";
+    for(auto& d: lhs) { std::cout << index_sizes.at(d) << " "; }
+    std::cout << std::endl;
+    std::cout << "\tRHS1_Tensor sizes = ";
+    for(auto& d: rhs1) { std::cout << index_sizes.at(d) << " "; }
+    std::cout << std::endl;
+    std::cout << "\tRHS2_Tensor sizes = ";
+    for(auto& d: rhs2) { std::cout << index_sizes.at(d) << " "; }
+    std::cout << std::endl;
+    std::cout << "\tTotal LHS size = " << compute_product(lhs, index_sizes) << std::endl;
+    std::cout << "\tTotal RHS1 size = " << compute_product(rhs1, index_sizes) << std::endl;
+    std::cout << "\tTotal RHS2 size = " << compute_product(rhs2, index_sizes) << std::endl;
+
+    std::cout << "\tTranspose order LHS = C( ";
+    for(auto& d: lhs) { std::cout << d << " "; }
+    std::cout << ") <- C'( ";
+    for(auto& d: lhs_transpose_order) { std::cout << d << " "; }
+    std::cout << ")" << std::endl;
+    std::cout << "\tTranspose order RHS1 = A( ";
+    for(auto& d: rhs1) { std::cout << d << " "; }
+    std::cout << ") -> A'( ";
+    for(auto& d: rhs1_transpose_order) { std::cout << d << " "; }
+    std::cout << ")" << std::endl;
+    std::cout << "\tTranspose order RHS2 = B( ";
+    for(auto& d: rhs2) { std::cout << d << " "; }
+    std::cout << ") -> B'( ";
+    for(auto& d: rhs2_transpose_order) { std::cout << d << " "; }
+    std::cout << ")" << std::endl;
+    std::cout << "\tContraction size = " << K << std::endl;
+    std::cout << "\tOutput A size = " << M << std::endl;
+    std::cout << "\tOutput B size = " << N << std::endl;
+    std::cout << "\tTotal Output size = " << M * N << std::endl;
+    std::cout << "\tBatch size = " << B << std::endl;
+    std::cout << "\tReduction A size = " << AR << std::endl;
+    std::cout << "\tReduction B size = " << BR << std::endl;
+    std::cout << "\tNumber of total tasks = " << total_task_count << std::endl;
+
+    LabelLoopNest loop_nest{merged_use_labels};
+
+    auto [areduce_labels, breduce_labels, batch_labels, aouter_labels, bouter_labels,
+          inner_labels] = internal::extract_labels(rhs1, rhs2, lhs);
+
+    int task_id = 0;
+    for(const auto& blockid: loop_nest) {
+      IndexVector cblockid(lhs.size());
+      IndexVector ablockid(rhs1.size());
+      IndexVector bblockid(rhs2.size());
+
+      std::copy(blockid.begin(), blockid.begin() + lhs.size(), cblockid.begin());
+      std::copy(blockid.begin() + lhs.size(), blockid.begin() + lhs.size() + rhs1.size(),
+                ablockid.begin());
+      std::copy(blockid.begin() + lhs.size() + rhs1.size(), blockid.end(), bblockid.begin());
+
+      const auto translated_cblockid = internal::translate_blockid(cblockid, lhs_);
+      const auto translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
+      const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
+
+      std::unordered_map<int, size_t> index_sizes;
+
+      auto lhs_dims  = lhs_.tensor().block_dims(translated_cblockid);
+      auto rhs1_dims = rhs1_.tensor().block_dims(translated_ablockid);
+      auto rhs2_dims = rhs2_.tensor().block_dims(translated_bblockid);
+
+      // get the sizes of the indices for LHS
+      for(size_t i = 0; i < lhs_dims.size(); i++) {
+        if(index_sizes.find(lhs[i]) == index_sizes.end()) index_sizes[lhs[i]] = lhs_dims[i];
+      }
+
+      // get the sizes of the indices for RHS1
+      for(size_t i = 0; i < rhs1_dims.size(); i++) {
+        if(index_sizes.find(rhs1[i]) == index_sizes.end()) index_sizes[rhs1[i]] = rhs1_dims[i];
+      }
+
+      // get the sizes of the indices for RHS2
+      for(size_t i = 0; i < rhs2_dims.size(); i++) {
+        if(index_sizes.find(rhs2[i]) == index_sizes.end()) index_sizes[rhs2[i]] = rhs2_dims[i];
+      }
+
+      int B  = compute_product(batch_labels, index_sizes);
+      int M  = compute_product(aouter_labels, index_sizes);
+      int N  = compute_product(bouter_labels, index_sizes);
+      int K  = compute_product(inner_labels, index_sizes);
+      int AR = compute_product(areduce_labels, index_sizes);
+      int BR = compute_product(breduce_labels, index_sizes);
+
+      std::cout << "\tTask " << task_id << std::endl;
+      std::cout << "\t Contraction size = " << K << std::endl;
+      std::cout << "\t Output A size = " << M << std::endl;
+      std::cout << "\t Output B size = " << N << std::endl;
+      std::cout << "\t Total Output size = " << M * N << std::endl;
+      std::cout << "\t Batch size = " << B << std::endl;
+      std::cout << "\t Reduction A size = " << AR << std::endl;
+      std::cout << "\t Reduction B size = " << BR << std::endl;
+
+      task_id++;
+    }
+  }
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     EXPECTS(!is_assign_);

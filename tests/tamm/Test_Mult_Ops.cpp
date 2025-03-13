@@ -179,9 +179,8 @@ void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
 
   auto timer_start = std::chrono::high_resolution_clock::now();
 
-  LabeledTensor<T> C_ref = C(i, j, m, k);
-  sch(C_ref += A(i, j, l) * B(l, m, k)).execute(ExecutionHW::CPU_SPARSE, profile);
-  sch(D(l, m, k) += C_ref * A(i, j, l)).execute(ExecutionHW::CPU_SPARSE, profile);
+  sch(C(i, j, m, k) += A(i, j, l) * B(l, m, k)).execute(ExecutionHW::CPU_SPARSE, profile);
+  sch(D(l, m, k) += C(i, j, m, k) * A(i, j, l)).execute(ExecutionHW::CPU_SPARSE, profile);
 
   auto timer_end = std::chrono::high_resolution_clock::now();
 

@@ -15,6 +15,8 @@
 #include <variant>
 #include <vector>
 
+namespace tamm::fastcc {
+
 template <class DT> class FastccTensor {
 private:
   std::vector<NNZ<DT>> nonzeros;
@@ -120,13 +122,22 @@ public:
     }
   }
 
+  ListTensor<DT> make_list_tensor() {
+      this->_infer_dimensionality();
+      this->_infer_shape();
+    ListTensor<DT> result(dimensionality);
+    for (auto &nnz : nonzeros) {
+      result.push_nnz(nnz.get_data(), nnz.get_coords());
+    }
+    return result;
+  }
+
   // ASSUMEs batch indices have same shape in both tensors.
   template <class RES, class RIGHT>
   ListTensor<RES> multiply_3d(FastccTensor<RIGHT> &other, CoOrdinate left_batch,
                               CoOrdinate left_contr, CoOrdinate left_ex,
                               CoOrdinate right_batch, CoOrdinate right_contr,
                               CoOrdinate right_ex) {
-      std::cout<<"Kernle called"<<std::endl;
     // always run 4D loop structure, if the coordinates are empty then the
     // iteration is a singleton.
     // for b
@@ -136,7 +147,7 @@ public:
     BoundedCoordinate sample_batch =
         this->nonzeros[0].get_coords().gather(left_batch).get_bounded();
     BoundedCoordinate sample_rightex =
-        other.nonzeros[0].get_coords().gather(right_ex).get_bounded();
+        other.get_nonzeros()[0].get_coords().gather(right_ex).get_bounded();
     BoundedCoordinate sample_leftex =
         this->nonzeros[0].get_coords().gather(left_ex).get_bounded();
     uint64_t batch_max = sample_batch.get_linear_bound();
@@ -148,7 +159,6 @@ public:
       assert(right_batch.get_dimensionality() ==
              left_batch.get_dimensionality());
     }
-    std::cout<<"Batch assertions done"<<std::endl;
     if (left_contr.get_dimensionality() != 0) {
       assert(this->get_nonzeros()[0]
                  .get_coords()
@@ -158,12 +168,10 @@ public:
                                               .gather(right_contr)
                                               .get_linearized_max());
     }
-    std::cout<<"Assertions done"<<std::endl;
     InputTensorMap3D<DT> left_indexed =
         InputTensorMap3D<DT>(*this, left_batch, left_ex, left_contr, batch_max);
     InputTensorMap3D<RIGHT> right_indexed = InputTensorMap3D<RIGHT>(
         other, right_batch, right_contr, right_ex, batch_max);
-    std::cout<<"indexed both tensors"<<std::endl;
     init_heaps(1);
 
     RES *workspace =
@@ -365,22 +373,23 @@ public:
 template <class LEFT>
 template <class RES, class RIGHT>
 ListTensor<RES>
-ListTensor<LEFT>::multiply_3d(ListTensor<RIGHT> &other, CoOrdinate left_batch,
-                              CoOrdinate left_contr, CoOrdinate left_ex,
-                              CoOrdinate right_batch, CoOrdinate right_contr,
-                              CoOrdinate right_ex) {
+ListTensor<LEFT>::multiply_3d(ListTensor<RIGHT> &other, BoundedPosition left_batch,
+                              BoundedPosition left_contr, BoundedPosition left_ex,
+                              BoundedPosition right_batch, BoundedPosition right_contr,
+                              BoundedPosition right_ex) {
   // always run 4D loop structure, if the coordinates are empty then the
   // iteration is a singleton.
   // for b
   //    for l
   //       for c
   //           for r
-  BoundedCoordinate sample_batch =
-      this->nonzeros[0].get_coords().gather(left_batch).get_bounded();
-  BoundedCoordinate sample_rightex =
-      other.nonzeros[0].get_coords().gather(right_ex).get_bounded();
-  BoundedCoordinate sample_leftex =
-      this->nonzeros[0].get_coords().gather(left_ex).get_bounded();
+
+    BoundedCoordinate this_sample_cord = this->get_cord_at(0).get_bounded(this->get_shape());
+    BoundedCoordinate other_sample_cord = other.get_cord_at(0).get_bounded(other.get_shape());
+  BoundedCoordinate sample_batch = this_sample_cord.gather(left_batch);
+  BoundedCoordinate sample_rightex = other_sample_cord.gather(right_ex);
+  BoundedCoordinate sample_leftex = this_sample_cord.gather(left_ex);
+  std::cout<<"created sample cords"<<std::endl;
   uint64_t batch_max = sample_batch.get_linear_bound();
   if (batch_max == 1) {
     assert(left_batch.get_dimensionality() == 0);
@@ -390,13 +399,13 @@ ListTensor<LEFT>::multiply_3d(ListTensor<RIGHT> &other, CoOrdinate left_batch,
     assert(right_batch.get_dimensionality() == left_batch.get_dimensionality());
   }
   if (left_contr.get_dimensionality() != 0) {
-    assert(this->get_nonzeros()[0]
-               .get_coords()
+    assert(this->get_cord_at(0)
+                .get_bounded(this->get_shape())
                .gather(left_contr)
-               .get_linearized_max() == other.get_nonzeros()[0]
-                                            .get_coords()
+               .get_linear_bound() == other.get_cord_at(0)
+                                            .get_bounded(other.get_shape())
                                             .gather(right_contr)
-                                            .get_linearized_max());
+                                            .get_linear_bound());
   }
   InputTensorMap3D<LEFT> left_indexed =
       InputTensorMap3D<LEFT>(*this, left_batch, left_ex, left_contr, batch_max);
@@ -435,7 +444,7 @@ ListTensor<LEFT>::multiply_3d(ListTensor<RIGHT> &other, CoOrdinate left_batch,
           // put data
           CompactCordinate res_cord =
               CompactCordinate(batch_iter, sample_batch, left_slice_l.first,
-                               sample_leftex, ws_iter, sample_rightex);
+                               sample_leftex, ws_iter, sample_rightex, 0);
           result_tensor.push_nnz(workspace[ws_iter], res_cord);
         }
       }
@@ -443,6 +452,7 @@ ListTensor<LEFT>::multiply_3d(ListTensor<RIGHT> &other, CoOrdinate left_batch,
     }
   }
   return result_tensor;
+}
 }
 
 #endif

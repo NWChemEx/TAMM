@@ -2,6 +2,7 @@
 
 #include "tamm/symbol.hpp"
 #include "tamm/tensor_impl.hpp"
+#include "tamm/fastcc/contract.hpp"
 
 namespace tamm {
 
@@ -556,6 +557,8 @@ public:
   }
 
   SpinMask spin_mask() const { return impl_->spin_mask(); }
+  void set_sparse(fastcc::ListTensor<T> some_tensor) { this->impl_->set_sparse(some_tensor); }
+  fastcc::ListTensor<T> get_sparse() { return this->impl_->get_sparse(); }
 
 private:
   std::shared_ptr<TensorImpl<T>> impl_; /**< Shared pointer to the implementation object */

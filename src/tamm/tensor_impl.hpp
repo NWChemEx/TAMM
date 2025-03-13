@@ -9,6 +9,7 @@
 #include "tamm/mem_profiler.hpp"
 #include "tamm/memory_manager_local.hpp"
 #include "tamm/tensor_base.hpp"
+#include "tamm/fastcc/contract.hpp"
 #include <functional>
 #include <gsl/span>
 #include <type_traits>
@@ -549,7 +550,12 @@ public:
 
   virtual bool is_block_cyclic() { return false; }
 
+  fastcc::ListTensor<T> get_sparse() { return sparse_tensor_; }
+  void set_sparse(fastcc::ListTensor<T> sparse_tensor) {
+    sparse_tensor_ = sparse_tensor;
+  }
 protected:
+  fastcc::ListTensor<T> sparse_tensor_;
   std::shared_ptr<Distribution> distribution_;  /**< shared pointer to associated Distribution */
   MemoryRegion*                 mpb_ = nullptr; /**< Raw pointer memory region (default null) */
   ProcList                      proc_list_ = {};

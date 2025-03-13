@@ -5,6 +5,7 @@
 #include <list>
 #include <random>
 #include <cmath>
+namespace tamm::fastcc{
 template<class DT> class NNZ;
 
 template <class DT> class CompactNNZ {
@@ -37,12 +38,14 @@ public:
   std::string to_string() { return nnz.to_string(); }
 };
 
+
 template <class DT> class ListTensor {
   NNZNode<DT>* head = nullptr;
   NNZNode<DT>* tail = nullptr;
   int dimensionality = 0;
   int thread_id = 0;
   uint64_t count = 0;
+  int* shape = nullptr;
 
 public:
   ListTensor(int dimensionality = 0, int thread_id=0):dimensionality(dimensionality), thread_id(thread_id) {}
@@ -62,6 +65,21 @@ public:
         tail = new_node;
     }
   }
+  void set_shape(std::vector<int> &some_shape) {
+    this->shape = new int[some_shape.size()];
+    for (int i = 0; i < some_shape.size(); i++) {
+        this->shape[i] = some_shape[i];
+    }
+  }
+  void set_shape(int* some_shape) {
+    this->shape = some_shape;
+  }
+  int* get_shape(){ // the pointer she told you not to worry about
+      return shape;
+  }
+  NNZNode<DT>* get_head(){ // not safe, but when you really need head
+      return head;
+  }
   int compute_nnz_count(){
       return count;
   }
@@ -71,6 +89,17 @@ public:
           count++;
       }
       return count;
+  }
+  CompactCordinate get_cord_at(int index){
+      NNZNode<DT>* current = head;
+      for(int i = 0; i < index; i++){
+          current = current->get_next();
+          if (current == nullptr){
+              std::cerr << "Index out of bounds to get coordinate out of list tensor" << std::endl;
+              exit(1);
+          }
+      }
+      return current->get_nnz().get_cord();
   }
   int get_dimensionality(){
       if(this->dimensionality == 0){
@@ -100,10 +129,10 @@ public:
       return str;
   }
   template<class RES, class OTHER>
-  ListTensor<RES> multiply_3d(ListTensor<OTHER>& other, CoOrdinate left_batch,
-                              CoOrdinate left_contr, CoOrdinate left_ex,
-                              CoOrdinate right_batch, CoOrdinate right_contr,
-                              CoOrdinate right_ex);
+  ListTensor<RES> multiply_3d(ListTensor<OTHER>& other, BoundedPosition left_batch,
+                              BoundedPosition left_contr, BoundedPosition left_ex,
+                              BoundedPosition right_batch, BoundedPosition right_contr,
+                              BoundedPosition right_ex);
   FastccTensor<DT> to_tensor() {
       FastccTensor<DT> result;
       for (NNZNode<DT> *current = head; current != nullptr;
@@ -221,4 +250,38 @@ public:
       }
     }
   }
+
+  InputTensorMap3D(ListTensor<DT> &base, BoundedPosition outermost, BoundedPosition middle, BoundedPosition lowest, uint64_t max_outermost_val){
+      assert(base.get_shape() != nullptr);
+    indexed_tensor = (outermost_type)calloc(max_outermost_val, sizeof(middle_type));
+    if(outermost.get_dimensionality() == 0){
+      assert(max_outermost_val == 1);
+    }
+    for(int _i = 0; _i < max_outermost_val; _i++){
+      indexed_tensor[_i] = middle_type();
+    }
+    for(NNZNode<DT>* current = base.get_head(); current != nullptr; current = current->get_next()){
+      uint64_t outer_index = 0;
+      if(outermost.get_dimensionality() > 0){
+        outer_index = current->get_nnz().get_cord().gather_linearize(outermost, base.get_shape());
+      }
+      uint64_t middle_index = DNE;
+      if(middle.get_dimensionality() > 0){
+        middle_index = current->get_nnz().get_cord().gather_linearize(middle, base.get_shape());
+      }
+      uint64_t lowest_index = DNE;
+      if(lowest.get_dimensionality() > 0){
+        lowest_index = current->get_nnz().get_cord().gather_linearize(lowest, base.get_shape());
+      }
+      middle_type &middle_slice = indexed_tensor[outer_index];
+      auto lowest_iter = middle_slice.find(middle_index);
+      if(lowest_iter != middle_slice.end()){
+        lowest_iter->second.push_back({lowest_index, current->get_nnz().get_data()});
+      } else {
+        lowest_type new_lowest = {{lowest_index, current->get_nnz().get_data()}};
+        middle_slice[middle_index] = new_lowest;
+      }
+    }
+  }
 };
+}

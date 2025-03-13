@@ -130,6 +130,34 @@ void test_2_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
   // }
 }
 
+
+fastcc::ListTensor<double> make_sparse_tensor(std::vector<int>& shape, float density=0.1) {
+  fastcc::ListTensor<double> tensor(shape.size());
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<double> dis(0.0, 1.0);
+  uint64_t dense_span = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+  int num_nnzs = std::ceil(dense_span * density );
+  std::unordered_set<int> nnz_indices;
+  for(int nnz_idx = 0; nnz_idx < num_nnzs; nnz_idx++) {
+    std::vector<int> coords;
+    int dense_pos = nnz_idx * dense_span / num_nnzs;
+    while(nnz_indices.find(dense_pos) != nnz_indices.end()){
+        dense_pos = (dense_pos + 1) % dense_span;
+    }
+    nnz_indices.insert(dense_pos);
+    for(int i = 0; i < shape.size(); i++) {
+      coords.push_back(dense_pos % shape[i]);
+      dense_pos /= shape[i];
+    }
+    tensor.push_nnz(dis(gen), fastcc::CompactCordinate(tamm::fastcc::CoOrdinate(coords)));
+  }
+  tensor.set_shape(shape);
+  std::cout<<"created tensor with "<<num_nnzs<<" nnzs"<<std::endl;
+  
+  return tensor;
+}
+
 template<typename T>
 void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_hw, bool profile) {
   TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
@@ -139,20 +167,42 @@ void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
   Tensor<T> A{i, j, l};
   Tensor<T> B{l, m, k};
   Tensor<T> C{i, j, m, k};
+  Tensor<T> D{l, m, k};
 
-  sch.allocate(A, B, C)(A() = 21.0)(B() = 2.0)(C() = 0.0).execute();
+  sch.allocate(A, B, C, D)(A() = 21.0)(B() = 2.0)(C() = 0.0)(D() = 0.0).execute();
+  fastcc::init_heaps(1);
+  auto shape = std::vector<int>{static_cast<int>(N), static_cast<int>(N), static_cast<int>(N)};
+  auto a_fastcc_tensor = make_sparse_tensor(shape);
+  A.set_sparse(a_fastcc_tensor);
+  auto b_fastcc_tensor = make_sparse_tensor(shape);
+  B.set_sparse(b_fastcc_tensor);
 
-  const auto timer_start = std::chrono::high_resolution_clock::now();
+  auto timer_start = std::chrono::high_resolution_clock::now();
 
-  sch(C(i, j, m, k) += A(i, j, l) * B(l, m, k)).execute(ex_hw, profile);
+  LabeledTensor<T> C_ref = C(i, j, m, k);
+  sch(C_ref += A(i, j, l) * B(l, m, k)).execute(ExecutionHW::CPU_SPARSE, profile);
+  sch(D(l, m, k) += C_ref * A(i, j, l)).execute(ExecutionHW::CPU_SPARSE, profile);
 
-  const auto timer_end = std::chrono::high_resolution_clock::now();
+  auto timer_end = std::chrono::high_resolution_clock::now();
 
   auto mult_time =
     std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
   if(sch.ec().print())
-    std::cout << "3-D Tensor contraction with " << N << " indices tiled with " << tilesize << " : "
+    std::cout << "3-D sparse Tensor contraction with " << N << " indices tiled with " << tilesize << " : "
+              << mult_time << std::endl;
+
+
+  timer_start = std::chrono::high_resolution_clock::now();
+
+  sch(C(i, j, m, k) += A(i, j, l) * B(l, m, k)).execute(ExecutionHW::CPU, profile);
+
+  timer_end = std::chrono::high_resolution_clock::now();
+
+  mult_time = std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
+
+  if(sch.ec().print())
+    std::cout << "3-D dense Tensor contraction with " << N << " indices tiled with " << tilesize << " : "
               << mult_time << std::endl;
 
   sch.deallocate(A, B, C).execute();
@@ -462,8 +512,8 @@ int main(int argc, char* argv[]) {
 
   const bool profile = true;
   //test_2_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
-  //test_3_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
-  test_4_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
+  test_3_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
+  //test_4_dim_mult_op<double>(sch, is_size, tile_size, ex_hw, profile);
   // test_4_dim_mult_op_last_unit<double>(sch, is_size, tile_size);
   // test_4_dim_mult_op_first_unit<double>(sch, is_size, tile_size);
 

@@ -7,6 +7,8 @@
 #include <string>
 #include <unordered_map>
 
+namespace tamm::fastcc{
+
 class Timer {
 private:
   std::unordered_map<std::string, float> func_timer;
@@ -102,6 +104,7 @@ static void *my_calloc(uint64_t num_elts, uint64_t size_per_elt, int thread_id) 
 }
 static void *my_malloc(uint64_t size, int thread_id) {
         return tlocal_heaps[thread_id].alloc(size);
+}
 }
 
 #endif

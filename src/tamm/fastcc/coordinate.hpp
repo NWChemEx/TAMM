@@ -15,6 +15,7 @@
 #define DIMENSIONALITY 6
 #define GOOD_PRIME 3145739
 
+namespace tamm::fastcc {
 class CoOrdinate;
 
 class BoundedPosition {
@@ -244,12 +245,6 @@ public:
     //return this->get_linearization() == other.get_linearization();
   }
 };
-template <> struct std::hash<BoundedCoordinate> {
-  std::size_t operator()(const BoundedCoordinate &c) const {
-    size_t linearization = c.get_linearization(-1);
-    return std::hash<size_t>()(linearization);
-  }
-};
 
 static int doubleequals = 0;
 
@@ -295,27 +290,6 @@ public:
             right_external.get_linearization());
   }
   uint64_t as_bigint() const { return (uint64_t)(this->linearization); }
-  size_t get_min_hash() const {
-    size_t batch_bound = batch.get_linear_bound();
-    size_t left_bound = left_external.get_linear_bound();
-    size_t right_bound = right_external.get_linear_bound();
-    if (batch_bound >= left_bound && batch_bound >= right_bound)
-      return std::hash<BoundedCoordinate>()(batch);
-    if (left_bound >= batch_bound && left_bound >= right_bound)
-      return std::hash<BoundedCoordinate>()(left_external);
-    if (right_bound >= left_bound && right_bound >= batch_bound)
-      return std::hash<BoundedCoordinate>()(right_external);
-    else
-      assert(false);
-  }
-  // CoOrdinate as_coordinate(){
-  //     auto single_cord = this->merge();
-  //     return single_cord.as_coordinate();
-  // }
-  //  int get_dimensionality() const {
-  //      return batch.get_dimensionality() + left_external.get_dimensionality()
-  //      + right_external.get_dimensionality();
-  //  }
 };
 
 class CoOrdinate {
@@ -760,6 +734,20 @@ CoOrdinate as_coordinate(int dimensions = 0) const {
     }
     return str;
   }
+
+  BoundedCoordinate get_bounded(int *bounds) const {
+    return BoundedCoordinate((int *)coords, bounds, dimensionality);
+  }
+  uint64_t gather_linearize(BoundedPosition &positions, int* full_shape) const {
+    uint64_t linearlized_cord = 0;
+    for (int i = 0; i < positions.get_dimensionality(); i++) {
+      linearlized_cord += coords[positions.get_at(i)];
+      if (i != positions.get_dimensionality() - 1) {
+        linearlized_cord *= (full_shape[positions.get_at(i + 1)] + 1);
+      }
+    }
+    return linearlized_cord;
+  }
 };
 
 template <class DT> class BigintNNZ {
@@ -782,26 +770,6 @@ inline CoOrdinate BoundedCoordinate::as_coordinate() const {
   return result;
 }
 
-template <> struct std::hash<CoOrdinate> {
-  std::size_t operator()(const CoOrdinate &c) const {
-    if (c.get_shape().size() == 0) {
-      std::cerr << "Need to set shape before hashing coordinate" << std::endl;
-      assert(false);
-    }
-
-    size_t linearlized_cord = 0;
-    for (int i = 0; i < c.get_dimensionality(); i++) {
-      linearlized_cord += c.get_index(i);
-      if (i != c.get_dimensionality() - 1) {
-        linearlized_cord *= c.get_shape()[i + 1];
-      }
-    }
-    return linearlized_cord;
-
-    // return std::hash<std::bitset<BITWIDTH>>{}(c.get_bits());
-  }
-};
-
 inline CompactCordinate::CompactCordinate(const CoOrdinate &cord) {
   int dimensionality = cord.get_dimensionality();
   coords = (uint32_t *)calloc(dimensionality, sizeof(uint32_t));
@@ -809,6 +777,7 @@ inline CompactCordinate::CompactCordinate(const CoOrdinate &cord) {
     coords[i] = cord.get_index(i);
   }
   this->dimensionality = dimensionality;
+}
 }
 
 #endif

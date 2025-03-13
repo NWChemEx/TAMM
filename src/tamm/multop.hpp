@@ -276,8 +276,8 @@ public:
   using TensorElType2 = typename LabeledTensorT2::element_type;
   using TensorElType3 = typename LabeledTensorT3::element_type;
 
-  template <typename DT> FastccTensor<DT> make_tensor(std::vector<DT> &data, std::vector<size_t> &dims) {
-    FastccTensor<DT> tensor;
+  template <typename DT> fastcc::FastccTensor<DT> make_tensor(std::vector<DT> &data, std::vector<size_t> &dims) {
+    fastcc::FastccTensor<DT> tensor;
     std::cout<<"size of nonzeors " <<data.size()<<std::endl;
     std::cout<<"dimensionality of tensor " <<dims.size()<<std::endl;
     for(int i = 0; i < data.size(); i++) {
@@ -351,37 +351,23 @@ public:
     auto                lhs_tis_vec  = lhs_.tensor().tiled_index_spaces();
     auto                rhs1_tis_vec = rhs1_.tensor().tiled_index_spaces();
     auto                rhs2_tis_vec = rhs2_.tensor().tiled_index_spaces();
-    std::vector<size_t> dims_sizes_lhs;
+    std::vector<int> dims_sizes_lhs;
     std::vector<size_t> dims_sizes_rhs1;
     std::vector<size_t> dims_sizes_rhs2;
 
-    for(const auto& tis: lhs_tis_vec) { dims_sizes_lhs.push_back(tis.max_num_indices()); }
+    for(const auto& tis: lhs_tis_vec) { dims_sizes_lhs.push_back(int(tis.max_num_indices())); }
 
     for(const auto& tis: rhs1_tis_vec) { dims_sizes_rhs1.push_back(tis.max_num_indices()); }
 
     for(const auto& tis: rhs2_tis_vec) { dims_sizes_rhs2.push_back(tis.max_num_indices()); }
 
     LabelLoopNest               loop_nest1{rhs1_.labels()};
-    FastccTensor<TensorElType2> op_left;
-    for(auto itval: loop_nest1) {
-        const IndexVector          blockid = internal::translate_blockid(itval, rhs1_);
-        size_t                     size    = rhs1_.tensor().block_size(blockid);
-        std::vector<TensorElType2> buf(size);
-        rhs1_.tensor().get(blockid, buf);
-        op_left = make_tensor(buf, dims_sizes_rhs1);
-    }
-    std::cout << "number of nonzeros in op_left is " << op_left.get_nonzeros().size() << std::endl;
+    fastcc::ListTensor<TensorElType2> op_left = rhs1_.tensor().get_sparse();
+    std::cout << "number of nonzeros in op_left is " << op_left.run_through_nnz() << std::endl;
 
     LabelLoopNest               loop_nest2{rhs2_.labels()};
-    FastccTensor<TensorElType3> op_right;
-    for(auto itval: loop_nest2) {
-        const IndexVector          blockid = internal::translate_blockid(itval, rhs1_);
-        size_t                     size    = rhs2_.tensor().block_size(blockid);
-        std::vector<TensorElType3> buf(size);
-        rhs2_.tensor().get(blockid, buf);
-        op_right = make_tensor(buf, dims_sizes_rhs2);
-    }
-    std::cout << "number of nonzeros in op_right is " << op_right.get_nonzeros().size()
+    fastcc::ListTensor<TensorElType3> op_right = rhs2_.tensor().get_sparse();
+    std::cout << "number of nonzeros in op_right is " << op_right.run_through_nnz()
               << std::endl;
     std::vector<int> left_batch, right_batch, left_contr, right_contr, left_ex, right_ex;
     for(auto c: batch_labels_set) {
@@ -422,14 +408,21 @@ public:
     std::cout<<"right ex are "<<std::endl;
     for(auto c: right_ex) { std::cout << c << " "; }
     std::cout<<std::endl;
-    op_left._infer_dimensionality();
-    op_left._infer_shape();
-    op_right._infer_dimensionality();
-    op_right._infer_shape();
 
-    ListTensor<TensorElType1> result = op_left. template multiply_3d<double>(
+    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+    fastcc::ListTensor<TensorElType1> result = op_left. template multiply_3d<TensorElType1>(
       op_right, left_batch, left_contr, left_ex, right_batch, right_contr, right_ex);
+    std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+    std::cout<<"shape of result is "<<std::endl;
+    for(auto &d: dims_sizes_lhs) { std::cout<<d<<" "; }
+    std::cout<<std::endl;
+    result.set_shape(dims_sizes_lhs);
+    std::cout << "Fastcc kernel took "
+              << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0
+              << " ms" << std::endl;
     std::cout << "number of nonzeros in result is " << result.run_through_nnz() << std::endl;
+    this->lhs_.set_sparse_tensor(result);
+    std::cout<<"num nnzs in res sparse "<<this->lhs_.tensor().get_sparse().run_through_nnz()<<std::endl;
 
     return;
   }

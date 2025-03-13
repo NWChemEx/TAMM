@@ -36,6 +36,7 @@ public:
   }
 
   Tensor<T>                tensor() const { return tensor_; }
+  void set_sparse_tensor(fastcc::ListTensor<T> st) { tensor_.set_sparse(st); }
   const IndexLabelVec&     labels() const { return ilv_; }
   const StringLabelVec&    str_labels() const { return slv_; }
   const std::vector<bool>& str_map() const { return str_map_; }

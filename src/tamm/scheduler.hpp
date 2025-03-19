@@ -149,6 +149,9 @@ public:
       for(size_t j = i + 1; j < end_id - start_id; j++) {
         if(op_has_dependence(ops[start_id + i].get(), ops[start_id + j].get())) {
           order[j].first = std::max(order[i].first + 1, order[j].first);
+          // if(profile_ && ec_.pg().rank() == 0 && i>0) std::cout << order[i].second - start_id <<
+          // " --> " << order[j].second  - start_id << "\n";
+          //"; " << ops_[order[i].second]->opstr_ << "\n";
         }
       }
     }
@@ -160,6 +163,7 @@ public:
   void execute(ExecutionHW execute_on = ExecutionHW::CPU, bool profile = false) {
     if(start_idx_ == ops_.size()) return;
     auto& oprof = tamm::OpProfiler::instance();
+    profile_    = profile;
 #if 0
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
         EXPECTS(order.size() == ops_.size() - start_idx_);
@@ -348,6 +352,7 @@ public:
       auto& pdata = ec_.get_profile_data();
       if(ec_.pg().rank() == 0) {
         for(int i = 0; i < nops; i++) {
+          // if (order[i].first==0) continue;
           pdata << i << ";" << order[i].first << ";"
                 << ops_[order[i].second]->opstr_
                 // << "," << global_load_imbalance_times_min[i]
@@ -538,6 +543,7 @@ private:
   // }
   std::vector<std::shared_ptr<Op>> ops_;
   size_t                           start_idx_ = 0;
+  bool                             profile_   = false;
 
 }; // class Scheduler
 

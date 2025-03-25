@@ -362,13 +362,20 @@ public:
     for(const auto& tis: rhs2_tis_vec) { dims_sizes_rhs2.push_back(tis.max_num_indices()); }
 
     LabelLoopNest               loop_nest1{rhs1_.labels()};
-    fastcc::ListTensor<TensorElType2> op_left = rhs1_.tensor().get_sparse();
-    std::cout << "number of nonzeros in op_left is " << op_left.run_through_nnz() << std::endl;
+    fastcc::ListTensor<TensorElType2> op_left = rhs1_.tensor().get_listtensor();
+    if(op_left.run_through_nnz() == 0) {
+        std::cout<<"op_left is empty"<<std::endl;
+    }
+    fastcc::FastccTensor<TensorElType2> op_left_fallback = rhs1_.tensor().get_fastcctensor();
+    std::cout << "number of nonzeros in op_left_fallback is " << op_left_fallback.get_nonzeros().size()
+              << std::endl;
 
     LabelLoopNest               loop_nest2{rhs2_.labels()};
-    fastcc::ListTensor<TensorElType3> op_right = rhs2_.tensor().get_sparse();
-    std::cout << "number of nonzeros in op_right is " << op_right.run_through_nnz()
-              << std::endl;
+    fastcc::ListTensor<TensorElType3> op_right = rhs2_.tensor().get_listtensor();
+    if(op_right.run_through_nnz() == 0) {
+        std::cout<<"op_right is empty"<<std::endl;
+    }
+    fastcc::FastccTensor<TensorElType3> op_right_fallback = rhs2_.tensor().get_fastcctensor();
     std::vector<int> left_batch, right_batch, left_contr, right_contr, left_ex, right_ex;
     for(auto c: batch_labels_set) {
         int left = std::find(rhs1_int_labels_.begin(), rhs1_int_labels_.end(), c) - rhs1_int_labels_.begin();
@@ -409,9 +416,16 @@ public:
     for(auto c: right_ex) { std::cout << c << " "; }
     std::cout<<std::endl;
 
+    fastcc::ListTensor<TensorElType1> result;
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-    fastcc::ListTensor<TensorElType1> result = op_left. template multiply_3d<TensorElType1>(
-      op_right, left_batch, left_contr, left_ex, right_batch, right_contr, right_ex);
+    if(op_left.run_through_nnz() == 0) {
+        result = op_left_fallback.template multiply_3d<TensorElType1>(
+          op_right_fallback, left_batch, left_contr, left_ex, right_batch, right_contr, right_ex);
+    }
+    else {
+        result = op_left.template multiply_3d<TensorElType1>(
+          op_right, left_batch, left_contr, left_ex, right_batch, right_contr, right_ex);
+    }
     std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
     std::cout<<"shape of result is "<<std::endl;
     for(auto &d: dims_sizes_lhs) { std::cout<<d<<" "; }
@@ -422,7 +436,7 @@ public:
               << " ms" << std::endl;
     std::cout << "number of nonzeros in result is " << result.run_through_nnz() << std::endl;
     this->lhs_.set_sparse_tensor(result);
-    std::cout<<"num nnzs in res sparse "<<this->lhs_.tensor().get_sparse().run_through_nnz()<<std::endl;
+    std::cout<<"num nnzs in res sparse "<<this->lhs_.tensor().get_listtensor().run_through_nnz()<<std::endl;
 
     return;
   }

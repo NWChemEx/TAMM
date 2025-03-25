@@ -557,8 +557,13 @@ public:
   }
 
   SpinMask spin_mask() const { return impl_->spin_mask(); }
-  void set_sparse(fastcc::ListTensor<T> some_tensor) { this->impl_->set_sparse(some_tensor); }
-  fastcc::ListTensor<T> get_sparse() { return this->impl_->get_sparse(); }
+  void set_listtensor(fastcc::ListTensor<T> some_tensor) { this->impl_->set_listtensor(some_tensor); }
+  fastcc::ListTensor<T> get_listtensor() { return this->impl_->get_listtensor(); }
+  void set_fastcctensor(fastcc::FastccTensor<T> some_tensor) { this->impl_->set_fastcctensor(some_tensor); }
+  fastcc::FastccTensor<T> get_fastcctensor() { return this->impl_->get_fastcctensor(); }
+  void copy_listtensor(){
+    this->impl_->copy_listtensor();
+  }
 
 private:
   std::shared_ptr<TensorImpl<T>> impl_; /**< Shared pointer to the implementation object */

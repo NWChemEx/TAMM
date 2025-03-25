@@ -550,12 +550,21 @@ public:
 
   virtual bool is_block_cyclic() { return false; }
 
-  fastcc::ListTensor<T> get_sparse() { return sparse_tensor_; }
-  void set_sparse(fastcc::ListTensor<T> sparse_tensor) {
-    sparse_tensor_ = sparse_tensor;
+  fastcc::ListTensor<T> get_listtensor() { return list_tensor; }
+  fastcc::FastccTensor<T> get_fastcctensor() { return fastcc_tensor; }
+
+  void set_listtensor(fastcc::ListTensor<T> sparse_tensor) {
+    list_tensor = sparse_tensor;
+  }
+  void set_fastcctensor(fastcc::FastccTensor<T> sparse_tensor) {
+    fastcc_tensor = sparse_tensor;
+  }
+  void copy_listtensor(){
+    this->fastcc_tensor = this->list_tensor.to_tensor();
   }
 protected:
-  fastcc::ListTensor<T> sparse_tensor_;
+  fastcc::ListTensor<T> list_tensor;
+  fastcc::FastccTensor<T> fastcc_tensor;
   std::shared_ptr<Distribution> distribution_;  /**< shared pointer to associated Distribution */
   MemoryRegion*                 mpb_ = nullptr; /**< Raw pointer memory region (default null) */
   ProcList                      proc_list_ = {};

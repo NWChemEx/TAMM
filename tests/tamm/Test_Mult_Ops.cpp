@@ -173,9 +173,9 @@ void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
   fastcc::init_heaps(1);
   auto shape = std::vector<int>{static_cast<int>(N), static_cast<int>(N), static_cast<int>(N)};
   auto a_fastcc_tensor = make_sparse_tensor(shape);
-  A.set_sparse(a_fastcc_tensor);
+  A.set_listtensor(a_fastcc_tensor);
   auto b_fastcc_tensor = make_sparse_tensor(shape);
-  B.set_sparse(b_fastcc_tensor);
+  B.set_listtensor(b_fastcc_tensor);
 
   auto timer_start = std::chrono::high_resolution_clock::now();
 

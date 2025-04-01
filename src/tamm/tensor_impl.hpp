@@ -561,10 +561,19 @@ public:
   }
   void copy_listtensor(){
     this->fastcc_tensor = this->list_tensor.to_tensor();
+    this->fastcc_tensor._infer_dimensionality();
+    this->fastcc_tensor._infer_shape();
+  }
+  void set_fastcc_shape(IntLabelVec shape){
+    this->sparse_labels = shape;
+  }
+  IntLabelVec get_fastcc_shape(){
+    return this->sparse_labels;
   }
 protected:
   fastcc::ListTensor<T> list_tensor;
   fastcc::FastccTensor<T> fastcc_tensor;
+  IntLabelVec sparse_labels;
   std::shared_ptr<Distribution> distribution_;  /**< shared pointer to associated Distribution */
   MemoryRegion*                 mpb_ = nullptr; /**< Raw pointer memory region (default null) */
   ProcList                      proc_list_ = {};

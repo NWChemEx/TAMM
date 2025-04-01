@@ -69,6 +69,9 @@ class ManagedHeap{
         ManagedHeap(): ManagedHeap(((uint64_t)(1))<<30){}
         ManagedHeap(const ManagedHeap&) = delete;
         ~ManagedHeap(){
+            this->destroy();
+        }
+        void destroy(){
             for(auto ptr : ptrs){
                 free(ptr);
             }
@@ -97,6 +100,11 @@ static ManagedHeap* tlocal_heaps;
 
 static void init_heaps(int num_threads){
     tlocal_heaps = new ManagedHeap[num_threads];
+}
+static void destroy_heaps(int num_threads){
+    for(int i = 0; i < num_threads; i++){
+        tlocal_heaps[i].destroy();
+    }
 }
 
 static void *my_calloc(uint64_t num_elts, uint64_t size_per_elt, int thread_id) {

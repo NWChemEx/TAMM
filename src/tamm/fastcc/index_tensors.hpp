@@ -143,6 +143,8 @@ public:
       }
       assert(this->compute_nnz_count() == result.get_size());
       assert(this->run_through_nnz() == result.get_size());
+      result._infer_shape();
+      result._infer_dimensionality();
       
       return result;
   }
@@ -253,7 +255,14 @@ public:
 
   InputTensorMap3D(ListTensor<DT> &base, BoundedPosition outermost, BoundedPosition middle, BoundedPosition lowest, uint64_t max_outermost_val){
       assert(base.get_shape() != nullptr);
+      std::cout<<"Shape of me is "<<std::endl;
+      for(int _siter = 0; _siter < base.get_dimensionality(); _siter++){
+          std::cout<<base.get_shape()[_siter]<<" ";
+
+      }
+      std::cout<<"End of shape of me"<<std::endl;
     indexed_tensor = (outermost_type)calloc(max_outermost_val, sizeof(middle_type));
+    std::cout<<"calloced "<<max_outermost_val<<" middle types"<<std::endl;
     if(outermost.get_dimensionality() == 0){
       assert(max_outermost_val == 1);
     }

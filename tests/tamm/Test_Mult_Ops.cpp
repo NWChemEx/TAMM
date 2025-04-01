@@ -161,26 +161,32 @@ fastcc::ListTensor<double> make_sparse_tensor(std::vector<int>& shape, float den
 template<typename T>
 void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_hw, bool profile) {
   TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
+  TiledIndexSpace tis2{IndexSpace{range(N/5)}, tilesize};
+  TiledIndexSpace tis3{IndexSpace{range(N/10)}, tilesize};
 
-  auto [i, j, k, l, m] = tis1.labels<5>("all");
+  auto [i, k] = tis1.labels<2>("all");
+  auto [j, l] = tis2.labels<2>("all");
+  auto [m]    = tis3.labels<1>("all");
 
   Tensor<T> A{i, j, l};
   Tensor<T> B{l, m, k};
-  Tensor<T> C{i, j, m, k};
-  Tensor<T> D{l, m, k};
+  Tensor<T> C{i, m, j, k};
+  Tensor<T> D{m, k, l};
 
   sch.allocate(A, B, C, D)(A() = 21.0)(B() = 2.0)(C() = 0.0)(D() = 0.0).execute();
   fastcc::init_heaps(1);
-  auto shape = std::vector<int>{static_cast<int>(N), static_cast<int>(N), static_cast<int>(N)};
+  auto shape = std::vector<int>{static_cast<int>(N), static_cast<int>(N/5), static_cast<int>(N/5)};
   auto a_fastcc_tensor = make_sparse_tensor(shape);
   A.set_listtensor(a_fastcc_tensor);
+  shape = std::vector<int>{static_cast<int>(N/5), static_cast<int>(N/10), static_cast<int>(N)};
   auto b_fastcc_tensor = make_sparse_tensor(shape);
   B.set_listtensor(b_fastcc_tensor);
 
   auto timer_start = std::chrono::high_resolution_clock::now();
 
-  sch(C(i, j, m, k) += A(i, j, l) * B(l, m, k)).execute(ExecutionHW::CPU_SPARSE, profile);
-  sch(D(l, m, k) += C(i, j, m, k) * A(i, j, l)).execute(ExecutionHW::CPU_SPARSE, profile);
+  sch(C(i, m, j, k) += A(i, j, l) * B(l, m, k)).execute(ExecutionHW::CPU_SPARSE, profile);
+  //fastcc will write this as C(j, i, k, m) no matter what
+  sch(D(m, k, l) += C(i, m, j, k) * A(i, j, l)).execute(ExecutionHW::CPU_SPARSE, profile);
 
   auto timer_end = std::chrono::high_resolution_clock::now();
 
@@ -194,7 +200,7 @@ void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
 
   timer_start = std::chrono::high_resolution_clock::now();
 
-  sch(C(i, j, m, k) += A(i, j, l) * B(l, m, k)).execute(ExecutionHW::CPU, profile);
+  //sch(C(i, j, m, k) += A(i, j, l) * B(l, m, k)).execute(ExecutionHW::CPU, profile);
 
   timer_end = std::chrono::high_resolution_clock::now();
 
@@ -205,6 +211,7 @@ void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
               << mult_time << std::endl;
 
   sch.deallocate(A, B, C).execute();
+  fastcc::destroy_heaps(1);
 }
 
 template<typename T>

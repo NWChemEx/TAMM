@@ -561,8 +561,10 @@ public:
   }
   void copy_listtensor(){
     this->fastcc_tensor = this->list_tensor.to_tensor();
-    this->fastcc_tensor._infer_dimensionality();
-    this->fastcc_tensor._infer_shape();
+  }
+  void copy_destroy_listtensor(){
+    this->fastcc_tensor = this->list_tensor.to_tensor();
+    this->list_tensor.drop();
   }
   void set_fastcc_shape(IntLabelVec shape){
     this->sparse_labels = shape;

@@ -84,6 +84,9 @@ public:
       return count;
   }
   int run_through_nnz(){
+      if(this->head == nullptr){
+          return 0;
+      }
       int count = 0;
       for(NNZNode<DT>* current = head; current != nullptr; current = current->get_next()){
           count++;
@@ -143,10 +146,28 @@ public:
       }
       assert(this->compute_nnz_count() == result.get_size());
       assert(this->run_through_nnz() == result.get_size());
-      result._infer_shape();
       result._infer_dimensionality();
+      std::vector<int> my_shape;
+      if(this->shape != nullptr){
+          assert(this->dimensionality > 0);
+          for(int i = 0; i < this->get_dimensionality(); i++){
+              my_shape.push_back(this->shape[i]);
+          }
+          result.set_shape(my_shape);
+      } else{
+          result._infer_shape();
+      }
       
       return result;
+  }
+  // drops the references held by this tensor.
+  void drop() {
+    head = nullptr;
+    tail = nullptr;
+    count = 0;
+    thread_id = 0;
+    dimensionality = 0;
+    shape = nullptr;
   }
 };
 

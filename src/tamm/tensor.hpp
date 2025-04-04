@@ -569,6 +569,9 @@ public:
   void copy_destroy_listtensor(){
     this->impl_->copy_destroy_listtensor();
   }
+  void fill_data_from_listtensor(){
+    this->impl_->fill_data_from_listtensor();
+  }
 
 private:
   std::shared_ptr<TensorImpl<T>> impl_; /**< Shared pointer to the implementation object */

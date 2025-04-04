@@ -572,6 +572,9 @@ public:
   IntLabelVec get_fastcc_shape(){
     return this->sparse_labels;
   }
+  void fill_data_from_listtensor(){
+    this->list_tensor.write_to_pointer(this->access_local_buf());
+  }
 protected:
   fastcc::ListTensor<T> list_tensor;
   fastcc::FastccTensor<T> fastcc_tensor;

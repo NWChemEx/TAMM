@@ -83,6 +83,19 @@ public:
   int compute_nnz_count(){
       return count;
   }
+  void write_to_pointer(DT* destination){
+      if(this->head == nullptr){
+          std::cerr << "ListTensor is empty, cannot write to pointer" << std::endl;
+          exit(1);
+      }
+      if(this->shape == nullptr){
+          std::cerr << "Shape is not set, cannot write to pointer" << std::endl;
+          exit(1);
+      }
+      for(NNZNode<DT>* current = head; current != nullptr; current = current->get_next()){
+          destination[current->get_nnz().get_cord().linearize(shape)] = current->get_nnz().get_data();
+      }
+  }
   int run_through_nnz(){
       if(this->head == nullptr){
           return 0;

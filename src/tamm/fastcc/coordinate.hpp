@@ -748,6 +748,17 @@ CoOrdinate as_coordinate(int dimensions = 0) const {
     }
     return linearlized_cord;
   }
+
+  uint64_t linearize(int* full_shape) const {
+    uint64_t linearlized_cord = 0;
+    for (int i = 0; i < this->get_dimensionality(); i++) {
+      linearlized_cord += coords[i];
+      if (i != this->get_dimensionality() - 1) {
+        linearlized_cord *= (full_shape[i + 1] + 1);
+      }
+    }
+    return linearlized_cord;
+  }
 };
 
 template <class DT> class BigintNNZ {

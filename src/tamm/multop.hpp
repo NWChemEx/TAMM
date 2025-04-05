@@ -298,36 +298,29 @@ public:
 
   void execute_sparse(ExecutionContext& ec) {
     // TODO add constexpr enable for selected types only
-    std::cout << " sparse kernel called" << std::endl;
     EXPECTS(!is_assign_);
-    std::cout << "lhs TAMM labels are " << std::endl;
-    for(auto& lbl: lhs_int_labels_) { std::cout << lbl << " "; }
-    std::cout << std::endl;
     std::set<IntLabel> lhs_int_labels_set(lhs_int_labels_.begin(), lhs_int_labels_.end());
-    std::cout << "rhs1 labels are " << std::endl;
-    for(auto& lbl: rhs1_int_labels_) { std::cout << lbl << " "; }
-    std::cout << std::endl;
     std::vector<int> rhs1_fastcc_shape;
     if(rhs1_.tensor().get_fastcc_shape().size() > 0) {
-        std::cout << "rhs1 tensor has fastcc shape" << std::endl;
-        for(auto& lbl: rhs1_.tensor().get_fastcc_shape()) { std::cout << lbl << " "; }
-        std::cout<<std::endl;
+        //std::cout << "rhs1 tensor has fastcc shape" << std::endl;
+        //for(auto& lbl: rhs1_.tensor().get_fastcc_shape()) { std::cout << lbl << " "; }
+        //std::cout<<std::endl;
         rhs1_fastcc_shape = rhs1_.tensor().get_fastcc_shape();
     }
     std::set<IntLabel> rhs1_int_labels_set(rhs1_int_labels_.begin(), rhs1_int_labels_.end());
-    std::cout << "rhs2 labels are " << std::endl;
+    //std::cout << "rhs2 labels are " << std::endl;
     std::vector<int> rhs2_fastcc_shape;
-    for(auto& lbl: rhs2_int_labels_) { std::cout << lbl << " "; } std::cout << std::endl;
+    //for(auto& lbl: rhs2_int_labels_) { std::cout << lbl << " "; } std::cout << std::endl;
     if(rhs2_.tensor().get_fastcc_shape().size() > 0) {
-        std::cout << "rhs2 tensor has fastcc shape" << std::endl;
-        for(auto& lbl: rhs2_.tensor().get_fastcc_shape()) { std::cout << lbl << " "; }
-        std::cout<<std::endl;
+        //std::cout << "rhs2 tensor has fastcc shape" << std::endl;
+        //for(auto& lbl: rhs2_.tensor().get_fastcc_shape()) { std::cout << lbl << " "; }
+        //std::cout<<std::endl;
         rhs2_fastcc_shape = rhs2_.tensor().get_fastcc_shape();
     }
-    std::cout << std::endl;
+    //std::cout << std::endl;
     std::set<IntLabel> rhs2_int_labels_set(rhs2_int_labels_.begin(), rhs2_int_labels_.end());
-    std::cout << std::endl;
-    std::cout<<"Contraction labels are "<<std::endl;
+    //std::cout << std::endl;
+    //std::cout<<"Contraction labels are "<<std::endl;
     
     std::set<IntLabel> left_and_right;
     std::set_intersection(rhs1_int_labels_set.begin(), rhs1_int_labels_set.end(),
@@ -337,29 +330,29 @@ public:
     std::set_difference(left_and_right.begin(), left_and_right.end(),
                         lhs_int_labels_set.begin(), lhs_int_labels_set.end(),
                         std::inserter(contraction_labels_set, contraction_labels_set.begin()));
-    for(auto c: contraction_labels_set) { std::cout << c << " "; }
-    std::cout<<std::endl;
+    //for(auto c: contraction_labels_set) { std::cout << c << " "; }
+    //std::cout<<std::endl;
     std::set<IntLabel> batch_labels_set;
     std::set_intersection(left_and_right.begin(), left_and_right.end(),
                           lhs_int_labels_set.begin(), lhs_int_labels_set.end(),
                           std::inserter(batch_labels_set, batch_labels_set.begin()));
-    std::cout<<"Batch labels are "<<std::endl;
-    for(auto c: batch_labels_set) { std::cout << c << " "; }
-    std::cout<<std::endl;
+    //std::cout<<"Batch labels are "<<std::endl;
+    //for(auto c: batch_labels_set) { std::cout << c << " "; }
+    //std::cout<<std::endl;
     std::set<IntLabel> left_labels_set;
     std::set_difference(rhs1_int_labels_set.begin(), rhs1_int_labels_set.end(),
                         left_and_right.begin(), left_and_right.end(),
                         std::inserter(left_labels_set, left_labels_set.begin()));
-    std::cout<<"Left labels are "<<std::endl;
-    for(auto c: left_labels_set) { std::cout << c << " "; }
-    std::cout<<std::endl;
+    //std::cout<<"Left labels are "<<std::endl;
+    //for(auto c: left_labels_set) { std::cout << c << " "; }
+    //std::cout<<std::endl;
     std::set<IntLabel> right_labels_set;
     std::set_difference(rhs2_int_labels_set.begin(), rhs2_int_labels_set.end(),
                         left_and_right.begin(), left_and_right.end(),
                         std::inserter(right_labels_set, right_labels_set.begin()));
-    std::cout<<"Right labels are "<<std::endl;
-    for(auto c: right_labels_set) { std::cout << c << " "; }
-    std::cout<<std::endl;
+    //std::cout<<"Right labels are "<<std::endl;
+    //for(auto c: right_labels_set) { std::cout << c << " "; }
+    //std::cout<<std::endl;
 
 
     // print shape of left tensor
@@ -378,20 +371,20 @@ public:
 
     LabelLoopNest               loop_nest1{rhs1_.labels()};
     fastcc::ListTensor<TensorElType2> op_left = rhs1_.tensor().get_listtensor();
-    if(op_left.run_through_nnz() == 0) {
-        std::cout<<"op_left is empty"<<std::endl;
-    }
+    //if(op_left.run_through_nnz() == 0) {
+    //    std::cout<<"op_left is empty"<<std::endl;
+    //}
     fastcc::FastccTensor<TensorElType2> op_left_fallback = rhs1_.tensor().get_fastcctensor();
-    std::cout << "number of nonzeros in op_left_fallback is " << op_left_fallback.get_nonzeros().size()
-              << std::endl;
+    //std::cout << "number of nonzeros in op_left_fallback is " << op_left_fallback.get_nonzeros().size()
+    //          << std::endl;
 
     LabelLoopNest               loop_nest2{rhs2_.labels()};
     fastcc::ListTensor<TensorElType3> op_right = rhs2_.tensor().get_listtensor();
-    if(op_right.run_through_nnz() == 0) {
-        std::cout<<"op_right is empty"<<std::endl;
-    }
+    //if(op_right.run_through_nnz() == 0) {
+    //    std::cout<<"op_right is empty"<<std::endl;
+    //}
     fastcc::FastccTensor<TensorElType3> op_right_fallback = rhs2_.tensor().get_fastcctensor();
-    std::cout<<"number of nonzeros in op_right_fallback is "<<op_right_fallback.get_nonzeros().size()<<std::endl;
+    //std::cout<<"number of nonzeros in op_right_fallback is "<<op_right_fallback.get_nonzeros().size()<<std::endl;
     std::vector<int> left_batch, right_batch, left_contr, right_contr, left_ex, right_ex;
     for(auto c: batch_labels_set) {
         int left = std::find(rhs1_int_labels_.begin(), rhs1_int_labels_.end(), c) - rhs1_int_labels_.begin();
@@ -431,24 +424,24 @@ public:
         }
         right_ex.push_back(right);
     }
-    std::cout<<"left contractions are "<<std::endl;
-    for(auto c: left_contr) { std::cout << c << " "; }
-    std::cout<<std::endl;
-    std::cout<<"right contractions are "<<std::endl;
-    for(auto c: right_contr) { std::cout << c << " "; }
-    std::cout<<std::endl;
-    std::cout<<"left batch are "<<std::endl;
-    for(auto c: left_batch) { std::cout << c << " "; }
-    std::cout<<std::endl;
-    std::cout<<"right batch are "<<std::endl;
-    for(auto c: right_batch) { std::cout << c << " "; }
-    std::cout<<std::endl;
-    std::cout<<"left ex are "<<std::endl;
-    for(auto c: left_ex) { std::cout << c << " "; }
-    std::cout<<std::endl;
-    std::cout<<"right ex are "<<std::endl;
-    for(auto c: right_ex) { std::cout << c << " "; }
-    std::cout<<std::endl;
+    //std::cout<<"left contractions are "<<std::endl;
+    //for(auto c: left_contr) { std::cout << c << " "; }
+    //std::cout<<std::endl;
+    //std::cout<<"right contractions are "<<std::endl;
+    //for(auto c: right_contr) { std::cout << c << " "; }
+    //std::cout<<std::endl;
+    //std::cout<<"left batch are "<<std::endl;
+    //for(auto c: left_batch) { std::cout << c << " "; }
+    //std::cout<<std::endl;
+    //std::cout<<"right batch are "<<std::endl;
+    //for(auto c: right_batch) { std::cout << c << " "; }
+    //std::cout<<std::endl;
+    //std::cout<<"left ex are "<<std::endl;
+    //for(auto c: left_ex) { std::cout << c << " "; }
+    //std::cout<<std::endl;
+    //std::cout<<"right ex are "<<std::endl;
+    //for(auto c: right_ex) { std::cout << c << " "; }
+    //std::cout<<std::endl;
     std::vector<IntLabel> fastcc_res_labels;
     for(auto idx: left_batch) {
         if(rhs1_fastcc_shape.size() > 0) {
@@ -471,8 +464,8 @@ public:
         }
         fastcc_res_labels.push_back(rhs2_int_labels_[idx]);
     }
-    std::cout<<"fastcc_res_labels are "<<std::endl;
-    for(auto c: fastcc_res_labels) { std::cout << c << " "; }
+    //std::cout<<"fastcc_res_labels are "<<std::endl;
+    //for(auto c: fastcc_res_labels) { std::cout << c << " "; }
     std::vector<int> pos_in_fastcc(lhs_int_labels_.size(), -1);
     for(size_t i = 0; i < lhs_int_labels_.size(); i++) {
         auto it = std::find(fastcc_res_labels.begin(), fastcc_res_labels.end(), lhs_int_labels_[i]);
@@ -482,23 +475,23 @@ public:
         }
         pos_in_fastcc[i] = it - fastcc_res_labels.begin();
     }
-    std::cout<<"pos_in_fastcc is "<<std::endl;
-    for(auto c: pos_in_fastcc) { std::cout << c << " "; }
-    std::cout<<std::endl;
+    //std::cout<<"pos_in_fastcc is "<<std::endl;
+    //for(auto c: pos_in_fastcc) { std::cout << c << " "; }
+    //std::cout<<std::endl;
     lhs_.tensor().set_fastcc_shape(pos_in_fastcc);
 
     fastcc::ListTensor<TensorElType1> result;
-    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+    //std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
     // there may be situations where one of them has no ListTensor, but the other only has a ListTensor.
     // we need to bring them both to the fallback (FastccTensor) representation and multiply.
     if(op_left.run_through_nnz() == 0 || op_right.run_through_nnz() == 0){
         // if one of them is empty, we need to bring them both to the fallback representation
         if(op_left.run_through_nnz() > 0) {
-            std::cout<<"fallback left from list to fastcctensor"<<std::endl;
+            //std::cout<<"fallback left from list to fastcctensor"<<std::endl;
             rhs1_.tensor().copy_listtensor();
             op_left_fallback = rhs1_.tensor().get_fastcctensor();
         } else if(op_right.run_through_nnz() > 0) {
-            std::cout<<"fallback right from list to fastcctensor"<<std::endl;
+            //std::cout<<"fallback right from list to fastcctensor"<<std::endl;
             rhs2_.tensor().copy_listtensor();
             op_right_fallback = rhs2_.tensor().get_fastcctensor();
         }
@@ -506,32 +499,34 @@ public:
           op_right_fallback, left_batch, left_contr, left_ex, right_batch, right_contr, right_ex);
     }
     else {
+        //std::cout<<"Number of nonzeros in left list tensor is "<<op_left.run_through_nnz()<<std::endl;
+        //std::cout<<"Number of nonzeros in right list tensor is "<<op_right.run_through_nnz()<<std::endl;
         // fast path, continue with ListTensor multiplication
         result = op_left.template multiply_3d<TensorElType1>(
           op_right, left_batch, left_contr, left_ex, right_batch, right_contr, right_ex);
     }
-    std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+    //std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
     std::vector<int> result_fastcc_shape;
     for(int _dimiter = 0; _dimiter < dims_sizes_lhs.size(); _dimiter++) {
         int idx = std::find(pos_in_fastcc.begin(), pos_in_fastcc.end(), _dimiter) - pos_in_fastcc.begin();
         result_fastcc_shape.push_back(dims_sizes_lhs[idx]);
     }
-    std::cout<<"shape of result is "<<std::endl;
-    std::cout<<std::endl;
+    //std::cout<<"shape of result is "<<std::endl;
+    //for(auto s: result_fastcc_shape) { std::cout<<s<<" "; }
+    //std::cout<<std::endl;
     result.set_shape(result_fastcc_shape);
-    std::cout << "Fastcc kernel took "
-              << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0
-              << " ms" << std::endl;
-    std::cout << "number of nonzeros in result is " << result.run_through_nnz() << std::endl;
+    //std::cout << "Fastcc kernel took "
+    //          << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0
+    //          << " ms" << std::endl;
+    //std::cout << "number of nonzeros in result is " << result.run_through_nnz() << std::endl;
     this->lhs_.set_sparse_tensor(result);
-    std::cout<<"num nnzs in res sparse "<<this->lhs_.tensor().get_listtensor().run_through_nnz()<<std::endl;
+    //std::cout<<"num nnzs in res sparse "<<this->lhs_.tensor().get_listtensor().run_through_nnz()<<std::endl;
 
     return;
   }
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
       if (hw == ExecutionHW::CPU_SPARSE){
-          std::cout<<"howdy do from CPU_SPARSE"<<std::endl;
           return this->execute_sparse(ec);
 
       }

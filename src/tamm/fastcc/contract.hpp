@@ -195,7 +195,6 @@ public:
         other, right_batch, right_contr, right_ex, batch_max);
 
 
-    std::cout<<"Allocation for workspace of size "<<sample_rightex.get_linear_bound()<<std::endl;
     RES *workspace =
         (RES *)calloc(sample_rightex.get_linear_bound(), sizeof(RES));
     ListTensor<RES> result_tensor(sample_batch.get_dimensionality() +
@@ -231,7 +230,6 @@ public:
         memset(workspace, 0, sample_rightex.get_linear_bound() * sizeof(RES));
       }
     }
-    std::cout<<"Result number of non-zeros is "<<result_tensor.compute_nnz_count()<<std::endl;
     return result_tensor;
   }
 
@@ -412,9 +410,7 @@ ListTensor<LEFT>::multiply_3d(ListTensor<RIGHT> &other, BoundedPosition left_bat
   BoundedCoordinate sample_batch = this_sample_cord.gather(left_batch);
   BoundedCoordinate sample_rightex = other_sample_cord.gather(right_ex);
   BoundedCoordinate sample_leftex = this_sample_cord.gather(left_ex);
-  std::cout<<"created sample cords"<<std::endl;
   uint64_t batch_max = sample_batch.get_linear_bound();
-  std::cout<<"batch max is "<<batch_max<<std::endl;
   if (batch_max == 1) {
     assert(left_batch.get_dimensionality() == 0);
     assert(right_batch.get_dimensionality() == 0);
@@ -435,7 +431,6 @@ ListTensor<LEFT>::multiply_3d(ListTensor<RIGHT> &other, BoundedPosition left_bat
       InputTensorMap3D<LEFT>(*this, left_batch, left_ex, left_contr, batch_max);
   InputTensorMap3D<RIGHT> right_indexed = InputTensorMap3D<RIGHT>(
       other, right_batch, right_contr, right_ex, batch_max);
-  std::cout<<"created input tensor maps"<<std::endl;
   init_heaps(1);
 
   RES *workspace =

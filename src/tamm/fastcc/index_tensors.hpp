@@ -83,7 +83,7 @@ public:
   int compute_nnz_count(){
       return count;
   }
-  void write_to_pointer(DT* destination){
+  void write_to_pointer(DT* destination, std::vector<int> gather_positions = {}){
       if(this->head == nullptr){
           std::cerr << "ListTensor is empty, cannot write to pointer" << std::endl;
           exit(1);
@@ -92,8 +92,18 @@ public:
           std::cerr << "Shape is not set, cannot write to pointer" << std::endl;
           exit(1);
       }
-      for(NNZNode<DT>* current = head; current != nullptr; current = current->get_next()){
-          destination[current->get_nnz().get_cord().linearize(shape)] = current->get_nnz().get_data();
+      if(gather_positions.size() > 0) {
+          BoundedPosition gather(gather_positions);
+          for(NNZNode<DT>* current = head; current != nullptr; current = current->get_next()) {
+            destination[current->get_nnz().get_cord().gather_linearize(gather, shape)] =
+              current->get_nnz().get_data();
+          }
+      }
+      else {
+          for(NNZNode<DT>* current = head; current != nullptr; current = current->get_next()) {
+            destination[current->get_nnz().get_cord().linearize(shape)] =
+              current->get_nnz().get_data();
+          }
       }
   }
   int run_through_nnz(){
@@ -289,14 +299,7 @@ public:
 
   InputTensorMap3D(ListTensor<DT> &base, BoundedPosition outermost, BoundedPosition middle, BoundedPosition lowest, uint64_t max_outermost_val){
       assert(base.get_shape() != nullptr);
-      std::cout<<"Shape of me is "<<std::endl;
-      for(int _siter = 0; _siter < base.get_dimensionality(); _siter++){
-          std::cout<<base.get_shape()[_siter]<<" ";
-
-      }
-      std::cout<<"End of shape of me"<<std::endl;
     indexed_tensor = (outermost_type)calloc(max_outermost_val, sizeof(middle_type));
-    std::cout<<"calloced "<<max_outermost_val<<" middle types"<<std::endl;
     if(outermost.get_dimensionality() == 0){
       assert(max_outermost_val == 1);
     }

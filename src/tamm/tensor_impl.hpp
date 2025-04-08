@@ -575,6 +575,7 @@ public:
   void fill_data_from_listtensor(){
     std::vector<int> permutation = this->sparse_labels;
     this->list_tensor.write_to_pointer(this->access_local_buf(), permutation);
+    this->list_tensor.drop();
   }
 protected:
   fastcc::ListTensor<T> list_tensor;

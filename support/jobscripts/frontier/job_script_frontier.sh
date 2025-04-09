@@ -9,10 +9,11 @@
 set -x 
 date
 
-module load cpe/23.12
-module load cray-hdf5-parallel
-module load rocm/5.7.1
-module load libfabric/1.15.2.0
+module load cpe
+module load cray-python cmake cray-hdf5-parallel
+module load cce
+module load cray-mpich
+module load rocm
 module list
 
 export OMP_NUM_THREADS=1

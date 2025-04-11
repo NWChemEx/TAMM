@@ -1,7 +1,7 @@
 #PBS -N tamm_test
 #PBS -l select=2
 #PBS -A <project>
-#PBS -l filesystems=flare
+#PBS -l filesystems=home:flare
 #PBS -l walltime=00:10:00
 #PBS -m ae
 #PBS -k doe
@@ -19,12 +19,14 @@ cd ${PBS_O_WORKDIR}
 
 export FI_CXI_DEFAULT_CQ_SIZE=131072
 export FI_CXI_CQ_FILL_PERCENT=20
-export FI_PROVIDER=cxi
 export FI_MR_CACHE_MONITOR=disabled
 export FI_CXI_OVFLOW_BUF_SIZE=8388608
+
+export MPIR_CVAR_ENABLE_GPU=0
+export MPIR_CVAR_CH4_XPMEM_ENABLE=0
+
 export ZE_FLAT_DEVICE_HIERARCHY=FLAT
 export ZES_ENABLE_SYSMAN=1
-export MPIR_CVAR_ENABLE_GPU=0
 export OMP_NUM_THREADS=1
 export TAMM_ENABLE_SPRHBM=0
 export GA_NUM_PROGRESS_RANKS_PER_NODE=6
@@ -34,15 +36,9 @@ export SYCL_PI_LEVEL_ZERO_SINGLE_THREAD_MODE=1
 export UR_L0_USE_DRIVER_INORDER_LISTS=1
 export UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS=1
 export UR_L0_USE_COPY_ENGINE_FOR_IN_ORDER_QUEUE=1
-export PALS_PING_PERIOD=500
-export PALS_RPC_TIMEOUT=500
 
-export MPIR_CVAR_CH4_OFI_ENABLE_MULTI_NIC_STRIPING=1
-export MPIR_CVAR_CH4_OFI_ENABLE_MR_PROV_KEY=1 # This is needed to achieve good performance with the Cassini NIC
-export MPIR_CVAR_DEBUG_SUMMARY=1
-export MPIR_CVAR_DEBUG=1
-export MPIR_CVAR_PRINT_ENVIRONMENT=1
-export MPIR_CVAR_CH4_OFI_MAX_NICS=8
+export PALS_PING_PERIOD=240
+export PALS_RPC_TIMEOUT=240
 
 # export COMEX_STATIC_BUFFER_SIZE=4097152
 
@@ -70,5 +66,5 @@ ulimit -c unlimited
 
 # MPI launch for 6-packed-settings
 
-mpiexec -n ${NTOTRANKS} --ppn ${NRANKS_PER_NODE} --rlimits CORE --no-vni --pmi=pmix --cpu-bind list:0-4:5-9:10-14:15-19:20-24:25-29:30-34:35-39:40-44:52-56:57-61:62-66:67-71:72-76:77-81:82-86:87-91:92-96 --mem-bind list:0:0:0:0:0:0:0:0:0:1:1:1:1:1:1:1:1:1 $bind_script ${EXE} ${INP} 
+mpiexec -n ${NTOTRANKS} --ppn ${NRANKS_PER_NODE} --pmi=pmix --cpu-bind list:1-5:6-10:11-15:16-20:21-25:26-30:31-35:36-40:41-45:53-57:58-62:63-67:68-72:73-77:78-82:83-87:88-92:93-97 $bind_script ${EXE} ${INP} 
 

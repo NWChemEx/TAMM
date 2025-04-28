@@ -8,7 +8,7 @@ Dependencies
 
 **External dependencies**
 
-* cmake >= 3.22
+* cmake >= 3.26
 * MPI 
 * C++17 compiler (information on supported compilers here :doc:`here <prerequisites>`.)
 * CUDA >= 11.7 (Required only for CUDA builds)

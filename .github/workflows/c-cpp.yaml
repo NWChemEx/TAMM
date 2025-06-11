@@ -131,8 +131,8 @@ jobs:
       run:  pip install gcovr
     - name: get-cmake
       run: |
-        wget https://github.com/Kitware/CMake/releases/download/v3.22.6/cmake-3.22.6-linux-x86_64.sh
-        yes | /bin/sh cmake-3.22.6-linux-x86_64.sh
+        wget https://github.com/Kitware/CMake/releases/download/v3.31.7/cmake-3.31.7-linux-x86_64.sh
+        yes | /bin/sh cmake-3.31.7-linux-x86_64.sh
 
     - name: build upcxx
       if: ${{ matrix.backend == 'upcxx' && steps.tamm-upcxx-cache-install.outputs.cache-hit != 'true' }}
@@ -172,7 +172,7 @@ jobs:
       run: |
         export INSTALL_PATH=$GITHUB_WORKSPACE/install
         export CPATH=$CPATH:$INSTALL_PATH/include/eigen3
-        $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DENABLE_COVERAGE=${{ env.CI_COVERAGE }}
+        $GITHUB_WORKSPACE/cmake-3.31.7-linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DENABLE_COVERAGE=${{ env.CI_COVERAGE }}
         cd build
         make -j2
         make install
@@ -189,7 +189,7 @@ jobs:
         export CPATH=$CPATH:/usr/lib/x86_64-linux-gnu/openmpi/include
         export CPATH=$CPATH:$INSTALL_PATH/include/eigen3
         echo "UPCXX_SHARED_HEAP_SIZE=MAX" >> $GITHUB_ENV
-        UPCXX_CODEMODE=O3 CXX=upcxx $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DUSE_UPCXX=ON -DJOB_LAUNCH_CMD="upcxx-run"
+        UPCXX_CODEMODE=O3 CXX=upcxx $GITHUB_WORKSPACE/cmake-3.31.7-linux-x86_64/bin/cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH -DUSE_UPCXX=ON -DJOB_LAUNCH_CMD="upcxx-run"
         cd build
         UPCXX_CODEMODE=O3 make -j2
         UPCXX_CODEMODE=O3 make install
@@ -200,7 +200,7 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/build
         export PATH=$PATH:$GITHUB_WORKSPACE/install/bin
-        $GITHUB_WORKSPACE/cmake-3.22.6-linux-x86_64/bin/ctest -VV
+        $GITHUB_WORKSPACE/cmake-3.31.7-linux-x86_64/bin/ctest -VV
     - name: gcovr
       if: ${{ matrix.backend == 'ga' && matrix.cc != 'clang-11' && matrix.cc != 'gcc-11' }}
       run: |

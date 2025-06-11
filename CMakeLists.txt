@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22.0)
+cmake_minimum_required(VERSION 3.26.0)
 
 include(FetchContent)
 
@@ -60,6 +60,10 @@ endif()
 
 if(TAMM_ENABLE_ELPA)
   list(APPEND TAMM_DEPENDENCIES ELPA)
+endif()
+
+if(USE_NWQSIM)
+  list(APPEND TAMM_DEPENDENCIES NWQSim)
 endif()
 
 list(APPEND TAMM_DEPENDENCIES GlobalArrays) #BLAS LAPACK

@@ -149,6 +149,9 @@ public:
       for(size_t j = i + 1; j < end_id - start_id; j++) {
         if(op_has_dependence(ops[start_id + i].get(), ops[start_id + j].get())) {
           order[j].first = std::max(order[i].first + 1, order[j].first);
+          // if(profile_ && ec_.pg().rank() == 0 && i>0) std::cout << order[i].second - start_id <<
+          // " --> " << order[j].second  - start_id << "\n";
+          //"; " << ops_[order[i].second]->opstr_ << "\n";
         }
       }
     }
@@ -160,6 +163,7 @@ public:
   void execute(ExecutionHW execute_on = ExecutionHW::CPU, bool profile = false) {
     if(start_idx_ == ops_.size()) return;
     auto& oprof = tamm::OpProfiler::instance();
+    profile_    = profile;
 #if 0
         auto order = levelize_and_order(ops_, start_idx_, ops_.size());
         EXPECTS(order.size() == ops_.size() - start_idx_);
@@ -218,13 +222,14 @@ public:
     oprof.multOpAddTime  = 0;
     oprof.multOpCopyTime = 0;
 
-    std::vector<double> load_imbalance_times;
-    std::vector<double> op_times;
-    std::vector<double> multop_get_times;
-    std::vector<double> multop_dgemm_times;
-    std::vector<double> multop_add_times;
-    std::vector<double> multop_copy_times;
-    const int           nops = order.size();
+    std::vector<double>      load_imbalance_times;
+    std::vector<double>      op_times;
+    std::vector<double>      multop_get_times;
+    std::vector<double>      multop_dgemm_times;
+    std::vector<double>      multop_add_times;
+    std::vector<double>      multop_copy_times;
+    std::vector<std::string> tamm_op_types;
+    const int                nops = order.size();
 
     assert(order.size() == 0 || order[0].first == 0); // level 0 sanity check
     for(int i = 0; i < nops; i++) {
@@ -251,16 +256,29 @@ public:
       auto t2 = std::chrono::high_resolution_clock::now();
       ops_[order[i].second]->execute(ec(), execute_on);
       auto t3 = std::chrono::high_resolution_clock::now();
-      op_times.push_back(
-        std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t2)).count());
-      multop_get_times.push_back(oprof.multOpGetTime);
-      multop_dgemm_times.push_back(oprof.multOpBCTime);
-      multop_add_times.push_back(oprof.multOpAddTime);
-      multop_copy_times.push_back(oprof.multOpCopyTime);
-      oprof.multOpGetTime  = 0;
-      oprof.multOpBCTime   = 0;
-      oprof.multOpAddTime  = 0;
-      oprof.multOpCopyTime = 0;
+
+      if(profile) {
+        op_times.push_back(
+          std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t2)).count());
+        multop_get_times.push_back(oprof.multOpGetTime);
+        multop_dgemm_times.push_back(oprof.multOpBCTime);
+        multop_add_times.push_back(oprof.multOpAddTime);
+        multop_copy_times.push_back(oprof.multOpCopyTime);
+        oprof.multOpGetTime  = 0;
+        oprof.multOpBCTime   = 0;
+        oprof.multOpAddTime  = 0;
+        oprof.multOpCopyTime = 0;
+
+        if(ops_[order[i].second]->op_type() == OpType::mult) tamm_op_types.push_back("mult");
+        else if(ops_[order[i].second]->op_type() == OpType::add) tamm_op_types.push_back("add");
+        else if(ops_[order[i].second]->op_type() == OpType::set) tamm_op_types.push_back("set");
+        else if(ops_[order[i].second]->op_type() == OpType::map) tamm_op_types.push_back("map");
+        else if(ops_[order[i].second]->op_type() == OpType::scan) tamm_op_types.push_back("scan");
+        else if(ops_[order[i].second]->op_type() == OpType::alloc) tamm_op_types.push_back("alloc");
+        else if(ops_[order[i].second]->op_type() == OpType::dealloc)
+          tamm_op_types.push_back("dealloc");
+        else tamm_op_types.push_back("unknown");
+      }
     }
     // auto t2 = std::chrono::high_resolution_clock::now();
     ec().pg().barrier();
@@ -348,7 +366,8 @@ public:
       auto& pdata = ec_.get_profile_data();
       if(ec_.pg().rank() == 0) {
         for(int i = 0; i < nops; i++) {
-          pdata << i << ";" << order[i].first << ";"
+          // if (order[i].first==0) continue;
+          pdata << i << ";" << order[i].first << ";" << tamm_op_types[i] << ";"
                 << ops_[order[i].second]->opstr_
                 // << "," << global_load_imbalance_times_min[i]
                 // << "," << global_load_imbalance_times_max[i]
@@ -538,6 +557,7 @@ private:
   // }
   std::vector<std::shared_ptr<Op>> ops_;
   size_t                           start_idx_ = 0;
+  bool                             profile_   = false;
 
 }; // class Scheduler
 

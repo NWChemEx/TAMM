@@ -8,7 +8,7 @@ Dependencies
 
 **External dependencies**
 
-* cmake >= 3.22
+* cmake >= 3.26
 * MPI 
 * C++17 compiler (information on supported compilers here :doc:`here <prerequisites>`.)
 * CUDA >= 11.7 (Required only for CUDA builds)
@@ -151,11 +151,11 @@ Build instructions for Frontier
 
 ::
 
-   module load cray-python cmake 
-   module load cray-hdf5-parallel
-   module load cpe/23.12
-   module load rocm/5.7.1
-   module load libfabric/1.15.2.0
+   module load cpe
+   module load cray-python cmake cray-hdf5-parallel
+   module load cce
+   module load cray-mpich
+   module load rocm
    export CRAYPE_LINK_TYPE=dynamic
 
 ::
@@ -178,20 +178,32 @@ Build instructions for Frontier
 Build instructions for Perlmutter and Polaris
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Perlmutter modules and env
+
 ::
 
    module load PrgEnv-gnu
-   module load craype-x86-milan
    module load cmake
    module load cpe-cuda
-
-   module load cudatoolkit (Perlmutter Only)
-   module load cudatoolkit-standalone (Polaris Only)
-
+   module load cudatoolkit
    module unload craype-accel-nvidia80
 
    export CRAYPE_LINK_TYPE=dynamic
    export MPICH_GPU_SUPPORT_ENABLED=0
+
+Polaris modules and env
+
+:: 
+
+   module use /soft/modulefiles/
+   module load PrgEnv-gnu
+   module load cudatoolkit-standalone/12.6.1 spack-pe-base cmake
+   module unload craype-accel-nvidia80
+
+   export CRAYPE_LINK_TYPE=dynamic
+   export MPICH_GPU_SUPPORT_ENABLED=0   
+
+Common build steps
 
 ::
 
@@ -231,8 +243,7 @@ Build instructions for Aurora
 :: 
 
    module restore
-   module load spack-pe-gcc cmake
-   export MPIR_CVAR_ENABLE_GPU=0
+   module load cmake python
 
 ::
 

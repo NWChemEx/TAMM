@@ -409,7 +409,7 @@ public:
   }
 
   void print_op_binarized(const new_ops::LTOp& lhs_ltop, const std::unique_ptr<new_ops::Op>& in_op,
-                          bool is_update = true) {
+                          bool is_update = true, std::ofstream& os = std::cout) {
     auto canonicalized_ops = new_ops::CanonicalizeVisitor::canonicalize_ops(*in_op);
 
     bool use_old_lhs = (canonicalized_ops.size() == 1);

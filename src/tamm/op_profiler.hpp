@@ -25,6 +25,7 @@ public:
   double multOpWaitTime = 0;
   double multOpCopyTime = 0;
   double multOpBCTime   = 0;
+  //TODO add time here, for multopp sparse kernel.
 
   inline static OpProfiler& instance() {
     static OpProfiler op_prof;

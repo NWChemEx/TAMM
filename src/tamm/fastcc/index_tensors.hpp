@@ -2,6 +2,7 @@
 #include "timer.hpp"
 #include <omp.h>
 #include <forward_list>
+#include <fstream>
 #include <list>
 #include <random>
 #include <cmath>
@@ -17,7 +18,13 @@ public:
   DT get_data() const { return data; }
   CompactCordinate get_cord() const { return cord; }
   std::string to_string() {
-    return cord.to_string() + ": " + std::to_string(data);
+      if constexpr (std::is_floating_point<DT>::value) {
+          return cord.to_string() + ": " + std::to_string(data);
+      }
+      else {
+          exit(1);
+      }
+    //return cord.to_string() + ": " + std::to_string(data);
   }
 };
 
@@ -154,6 +161,32 @@ public:
       }
       return str;
   }
+  void write(std::string filename){
+      std::ofstream myfile(filename);
+      myfile.open(filename);
+      for(int i = 0; i < this->get_dimensionality(); i++){
+          myfile << this->shape[i] << " ";
+      }
+      myfile << "\n";
+      myfile <<  this->to_string();
+      myfile.close();
+  }
+      
+  //void write(std::string filename){
+  //    std::ofstream myfile(filename);
+  //    myfile.open(filename);
+  //    for(int i = 0; i < this->get_dimensionality(); i++){
+  //        myfile << this->shape[i] << " ";
+  //    }
+  //    myfile << "\n";
+  //    myfile <<  this->to_string();
+  //    myfile.close();
+  //}
+  template<class RES, class OTHER>
+  ListTensor<RES> multiply_3d(FastccTensor<OTHER>& other, BoundedPosition left_batch,
+                              BoundedPosition left_contr, BoundedPosition left_ex,
+                              CoOrdinate right_batch, CoOrdinate right_contr,
+                              CoOrdinate right_ex);
   template<class RES, class OTHER>
   ListTensor<RES> multiply_3d(ListTensor<OTHER>& other, BoundedPosition left_batch,
                               BoundedPosition left_contr, BoundedPosition left_ex,

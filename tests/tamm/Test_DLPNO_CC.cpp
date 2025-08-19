@@ -221,19 +221,19 @@ void dlpno_test(const json& params) {
 
   dr2("a_ij", "b_ij", "ij").set(doubles_5);
   if(rank == 0 && print_debug_info)
-    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_5.clone(), use_opmin);
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_5.clone(), std::cout, use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_5." << std::endl;
 
   dr2("a_ij", "b_ij", "ij").set(doubles_10);
   if(rank == 0 && print_debug_info)
-    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_10.clone(), use_opmin);
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_10.clone(), std::cout, use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_10." << std::endl;
 
   dr2("a_ij", "b_ij", "ij").set(doubles_15);
   if(rank == 0 && print_debug_info)
-    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_15.clone(), use_opmin);
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_15.clone(), std::cout, use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_15." << std::endl;
 
@@ -244,7 +244,7 @@ void dlpno_test(const json& params) {
 
   dr2("a_ij", "b_ij", "ij").set(doubles_37);
   if(rank == 0 && print_debug_info)
-    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_37.clone(), use_opmin);
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_37.clone(), std::cout, use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_37." << std::endl;
 
@@ -255,7 +255,7 @@ void dlpno_test(const json& params) {
 
   dr2("a_ij", "b_ij", "ij").set(doubles_41);
   if(rank == 0 && print_debug_info)
-    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_41.clone(), use_opmin);
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_41.clone(), std::cout, use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_41." << std::endl;
 
@@ -266,7 +266,7 @@ void dlpno_test(const json& params) {
 
   dr2("a_ij", "b_ij", "ij").set(doubles_65);
   if(rank == 0 && print_debug_info)
-    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_65.clone(), use_opmin);
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_65.clone(), std::cout, use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_65." << std::endl;
 
@@ -287,7 +287,7 @@ void dlpno_test(const json& params) {
 
   dr2("a_ij", "b_ij", "ij").set(doubles_93);
   if(rank == 0 && print_debug_info)
-    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_93.clone(), use_opmin);
+    op_executor.print_op_binarized((LTOp) dr2("a_ij", "b_ij", "ij"), doubles_93.clone(), std::cout, use_opmin);
   op_executor.execute(dr2, use_opmin, ex_hw, do_profile);
   if(rank == 0) std::cout << "Finished executing doubles_93." << std::endl;
 

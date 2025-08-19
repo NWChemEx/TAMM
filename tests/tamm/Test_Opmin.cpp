@@ -145,7 +145,7 @@ void dlpno_test(Scheduler& sch) {
   LTOp lhs_ltop = (LTOp) dT2_out("a_ij", "b_ij", "ij");
 
   std::cout << "Print original binarized op\n";
-  op_cost.print_op_binarized(lhs_ltop, dlpno_doubles_12.clone());
+  op_cost.print_op_binarized(lhs_ltop, dlpno_doubles_12.clone(), std::cout);
   auto original_op_cost =
     op_cost.get_op_cost(dlpno_doubles_12.clone(), dT2_out("a_ij", "b_ij", "ij"));
   std::cout << "Original op cost: " << original_op_cost << "\n";
@@ -154,7 +154,7 @@ void dlpno_test(Scheduler& sch) {
   auto  optimized_dlpno_doubles_12 = opmin.optimize_all(lhs_ltop, dlpno_doubles_12);
 
   std::cout << "Print opmined binarized op\n";
-  op_cost.print_op_binarized((LTOp) dT2_out("a_ij", "b_ij", "ij"), optimized_dlpno_doubles_12);
+  op_cost.print_op_binarized((LTOp) dT2_out("a_ij", "b_ij", "ij"), optimized_dlpno_doubles_12, std::cout);
   auto opmined_op_cost =
     op_cost.get_op_cost(optimized_dlpno_doubles_12->clone(), dT2_out("a_ij", "b_ij", "ij"));
   std::cout << "Opmined op cost: " << opmined_op_cost << "\n";

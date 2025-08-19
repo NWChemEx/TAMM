@@ -346,6 +346,7 @@ public:
 
       int   np    = ec_.pg().size().value();
       auto& pdata = ec_.get_profile_data();
+      //TODO add column here for sparse kernel time.
       if(ec_.pg().rank() == 0) {
         for(int i = 0; i < nops; i++) {
           pdata << i << ";" << order[i].first << ";"

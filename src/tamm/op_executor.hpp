@@ -96,7 +96,7 @@ public:
 
         std::cout << "Update " << update_idx << " to Tensor "
                   << symbol_table_[tensor.get_symbol_ptr()] << std::endl;
-        print_op_binarized(new_ltop, op->clone(), use_opmin);
+        print_op_binarized(new_ltop, op->clone(), std::cout, use_opmin);
 
         op_cost  = get_op_cost(op->clone(), tensor(lhs_labels), update.is_update_, use_opmin);
         mem_cost = get_op_mem_cost(op->clone(), tensor(lhs_labels), use_opmin);
@@ -187,7 +187,7 @@ public:
   }
 
   void print_op_binarized(const new_ops::LTOp& lhs_ltop, const std::unique_ptr<new_ops::Op>& in_op,
-                          bool use_opmin = false) {
+                          std::ostream& out, bool use_opmin = false) {
     auto canonicalized_ops = new_ops::CanonicalizeVisitor::canonicalize_ops(*in_op);
 
     bool use_old_lhs = (canonicalized_ops.size() == 1);
@@ -231,7 +231,7 @@ public:
       last_op.is_assign_ = true;
 
       binops.push_back(last_op);
-      for(const auto& binop: binops) { std::cout << binop.op_string(symbol_table_) << "\n"; }
+      for(const auto& binop: binops) { out << binop.op_string(symbol_table_) << "\n"; }
     }
   }
 
@@ -440,7 +440,7 @@ public:
   }
 
   void print_op_binarized(const new_ops::LTOp& lhs_ltop, const std::unique_ptr<new_ops::Op>& in_op,
-                          bool use_opmin = false) {
+                            std::ostream& out, bool use_opmin = false) {
     auto canonicalized_ops = new_ops::CanonicalizeVisitor::canonicalize_ops(*in_op);
 
     bool use_old_lhs = (canonicalized_ops.size() == 1);
@@ -484,7 +484,7 @@ public:
       last_op.is_assign_ = true;
 
       binops.push_back(last_op);
-      for(const auto& binop: binops) { std::cout << binop.op_string(symbol_table_) << "\n"; }
+      for(const auto& binop: binops) { out << binop.op_string(symbol_table_) << "\n"; }
     }
   }
 

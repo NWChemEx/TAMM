@@ -176,11 +176,19 @@ void test_3_dim_mult_op(Scheduler& sch, size_t N, Tile tilesize, ExecutionHW ex_
   sch.allocate(A, B, C, D)(A() = 21.0)(B() = 2.0)(C() = 0.0)(D() = 0.0).execute();
   fastcc::init_heaps(1);
   auto shape = std::vector<int>{static_cast<int>(N), static_cast<int>(N/5), static_cast<int>(N/5)};
-  auto a_fastcc_tensor = make_sparse_tensor(shape);
-  A.set_listtensor(a_fastcc_tensor);
+  auto a_list_tensor = make_sparse_tensor(shape);
+  //auto a_fastcc_tensor = a_list_tensor.to_tensor();
+  //a_fastcc_tensor._infer_dimensionality();
+  //a_fastcc_tensor.set_shape(shape);
+  A.set_listtensor(a_list_tensor);
+  //A.set_fastcctensor(a_fastcc_tensor);
   shape = std::vector<int>{static_cast<int>(N/5), static_cast<int>(N/10), static_cast<int>(N)};
-  auto b_fastcc_tensor = make_sparse_tensor(shape);
-  B.set_listtensor(b_fastcc_tensor);
+  auto b_list_tensor = make_sparse_tensor(shape);
+  auto b_fastcc_tensor = b_list_tensor.to_tensor();
+  b_fastcc_tensor._infer_dimensionality();
+  b_fastcc_tensor.set_shape(shape);
+  //B.set_listtensor(b_list_tensor);
+  B.set_fastcctensor(b_fastcc_tensor);
 
   auto timer_start = std::chrono::high_resolution_clock::now();
 

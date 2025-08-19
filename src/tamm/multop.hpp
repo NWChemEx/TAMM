@@ -8,6 +8,7 @@
 #include <memory>
 #include <unordered_set>
 #include <vector>
+#include <chrono>
 
 // #include "tamm/block_operations.hpp"
 #include "tamm/block_mult_plan.hpp"
@@ -29,6 +30,8 @@ class MultOp;
 } // namespace tamm
 
 namespace tamm::internal {
+    static int tensor_count = 0;
+    static int multop_count = 0;
 
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 struct MultOpPlanBase {
@@ -296,9 +299,13 @@ public:
     return tensor;
   }
 
-  void execute_sparse(ExecutionContext& ec) {
+  void execute_sparse(ExecutionContext& ec, ExecutionHW hw) {
+      std::cout<<"Executing sparse kernel index "<<internal::multop_count++<<std::endl;
     // TODO add constexpr enable for selected types only
     EXPECTS(!is_assign_);
+    std::chrono::high_resolution_clock::time_point start;
+    std::chrono::high_resolution_clock::time_point end  ;
+    start = std::chrono::high_resolution_clock::now();
     std::set<IntLabel> lhs_int_labels_set(lhs_int_labels_.begin(), lhs_int_labels_.end());
     std::vector<int> rhs1_fastcc_shape;
     if(rhs1_.tensor().get_fastcc_shape().size() > 0) {
@@ -484,28 +491,85 @@ public:
     //std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
     // there may be situations where one of them has no ListTensor, but the other only has a ListTensor.
     // we need to bring them both to the fallback (FastccTensor) representation and multiply.
-    if(op_left.run_through_nnz() == 0 || op_right.run_through_nnz() == 0){
+    if(op_left.run_through_nnz() == 0 || op_right.run_through_nnz() == 0) {
         // if one of them is empty, we need to bring them both to the fallback representation
         if(op_left.run_through_nnz() > 0) {
-            //std::cout<<"fallback left from list to fastcctensor"<<std::endl;
-            rhs1_.tensor().copy_listtensor();
-            op_left_fallback = rhs1_.tensor().get_fastcctensor();
-        } else if(op_right.run_through_nnz() > 0) {
-            //std::cout<<"fallback right from list to fastcctensor"<<std::endl;
-            rhs2_.tensor().copy_listtensor();
-            op_right_fallback = rhs2_.tensor().get_fastcctensor();
+            // std::cout<<"fallback left from list to fastcctensor"<<std::endl;
+            //rhs1_.tensor().copy_listtensor();
+            //op_left_fallback = rhs1_.tensor().get_fastcctensor();
+            end              = std::chrono::high_resolution_clock::now();
+            //std::cout
+            //  << "preamble time for fastcc kernel took "
+            //  << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0
+            //  << " ms" << std::endl;
+            start  = std::chrono::high_resolution_clock::now();
+
+            //op_left.write("op_left" + std::to_string(internal::tensor_count++) +".tns");
+            if(hw == ExecutionHW::CPU_SPARSE_WB) {
+              rhs1_.tensor().copy_listtensor();
+              rhs1_.tensor().get_fastcctensor().write(
+                "op_left" + std::to_string(internal::tensor_count++) + ".tns");
+            }
+            result = op_left.template multiply_3d<TensorElType1>(
+              op_right_fallback, left_batch, left_contr, left_ex, right_batch, right_contr,
+              right_ex);
+            end = std::chrono::high_resolution_clock::now();
+            //std::cout
+            //  << "list times fallback fastcc kernel took "
+            //  << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0
+            //  << " ms" << std::endl;
         }
-        result = op_left_fallback.template multiply_3d<TensorElType1>(
-          op_right_fallback, left_batch, left_contr, left_ex, right_batch, right_contr, right_ex);
+        else if(op_right.run_through_nnz() > 0) {
+            // std::cout<<"fallback right from list to fastcctensor"<<std::endl;
+            end = std::chrono::high_resolution_clock::now();
+            //std::cout
+            //  << "preamble time for fastcc kernel took "
+            //  << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0
+            //  << " ms" << std::endl;
+            start  = std::chrono::high_resolution_clock::now();
+            result = op_left_fallback.template multiply_3d<TensorElType1>(
+              op_right, left_batch, left_contr, left_ex, right_batch, right_contr, right_ex);
+            end = std::chrono::high_resolution_clock::now();
+            //std::cout
+            //  << "fallback times list fastcc kernel took "
+            //  << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0
+            //  << " ms" << std::endl;
+        }
+        else {
+            // only fastcc tensors on both sides, need the slow kernle now.
+            end = std::chrono::high_resolution_clock::now();
+            //std::cout
+            //  << "preamble time for fastcc kernel took "
+            //  << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0
+            //  << " ms" << std::endl;
+            start  = std::chrono::high_resolution_clock::now();
+            result = op_left_fallback.template multiply_3d<TensorElType1>(
+              op_right_fallback, left_batch, left_contr, left_ex, right_batch, right_contr, right_ex);
+            end = std::chrono::high_resolution_clock::now();
+            //std::cout
+            //  << "fallback times fallback fastcc kernel took "
+            //  << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0
+            //  << " ms" << std::endl;
+        }
     }
     else {
         //std::cout<<"Number of nonzeros in left list tensor is "<<op_left.run_through_nnz()<<std::endl;
         //std::cout<<"Number of nonzeros in right list tensor is "<<op_right.run_through_nnz()<<std::endl;
         // fast path, continue with ListTensor multiplication
+        end = std::chrono::high_resolution_clock::now();
+        //std::cout << "preamble time for fastcc kernel took "
+        //          << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0
+        //          << " ms" << std::endl;
+        start = std::chrono::high_resolution_clock::now();
         result = op_left.template multiply_3d<TensorElType1>(
           op_right, left_batch, left_contr, left_ex, right_batch, right_contr, right_ex);
+        end = std::chrono::high_resolution_clock::now();
+        //std::cout<<"ListTensor times ListTensor fastcc kernel took "
+        //         << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0
+        //         << " ms" << std::endl;
     }
     //std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+    start = std::chrono::high_resolution_clock::now();
     std::vector<int> result_fastcc_shape;
     for(int _dimiter = 0; _dimiter < dims_sizes_lhs.size(); _dimiter++) {
         int idx = std::find(pos_in_fastcc.begin(), pos_in_fastcc.end(), _dimiter) - pos_in_fastcc.begin();
@@ -522,12 +586,16 @@ public:
     this->lhs_.set_sparse_tensor(result);
     //std::cout<<"num nnzs in res sparse "<<this->lhs_.tensor().get_listtensor().run_through_nnz()<<std::endl;
 
+    end = std::chrono::high_resolution_clock::now();
+    //std::cout << "postamble time for fastcc kernel took "
+    //          << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0
+    //          << " ms" << std::endl;
     return;
   }
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
-      if (hw == ExecutionHW::CPU_SPARSE){
-          return this->execute_sparse(ec);
+      if (hw == ExecutionHW::CPU_SPARSE || hw == ExecutionHW::CPU_SPARSE_WB){
+          return this->execute_sparse(ec, hw);
 
       }
     EXPECTS(!is_assign_);
@@ -678,7 +746,7 @@ public:
 #ifdef DO_NB
         DataCommunicationHandle a_nbhandle, b_nbhandle, c_nbhandle;
 
-        {
+        {// TODO use this pattern for within the multop to profile sparse.
           TimerGuard tg_get{&oprof.multOpGetTime};
           atensor.nb_get(translated_ablockid, {abuf, asize}, &a_nbhandle);
           btensor.nb_get(translated_bblockid, {bbuf, bsize}, &b_nbhandle);

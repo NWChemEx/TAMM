@@ -319,7 +319,7 @@ int main(int argc, char* argv[]) {
     std::cout << std::endl << std::endl;
   }
 
-  // test_local_tensor<double>(sch, is_size, tile_size);
+  test_local_tensor<double>(sch, is_size, tile_size);
   test_local_tensor_constructors<double>(sch, is_size, tile_size);
   test_local_tensor_copy<double>(ec, is_size, tile_size);
   test_local_tensor_block<double>(ec, is_size);

@@ -17,7 +17,7 @@ export TZ='/usr/share/zoneinfo/US/Central'
 cd ${PBS_O_WORKDIR}
 
 
-export FI_CXI_DEFAULT_CQ_SIZE=131072
+export FI_CXI_DEFAULT_CQ_SIZE=1048576
 export FI_CXI_CQ_FILL_PERCENT=20
 export FI_MR_CACHE_MONITOR=disabled
 export FI_CXI_OVFLOW_BUF_SIZE=8388608
@@ -40,8 +40,6 @@ export UR_L0_USE_COPY_ENGINE_FOR_IN_ORDER_QUEUE=1
 export PALS_PING_PERIOD=240
 export PALS_RPC_TIMEOUT=240
 
-# export COMEX_STATIC_BUFFER_SIZE=4097152
-
 unset MPIR_CVAR_CH4_COLL_SELECTION_TUNING_JSON_FILE
 unset MPIR_CVAR_COLL_SELECTION_TUNING_JSON_FILE
 unset MPIR_CVAR_CH4_POSIX_COLL_SELECTION_TUNING_JSON_FILE
@@ -56,7 +54,6 @@ NTOTRANKS=$(( NNODES * NRANKS_PER_NODE ))
 echo "NUM_OF_NODES= ${NNODES} TOTAL_NUM_RANKS= ${NTOTRANKS} RANKS_PER_NODE= ${NRANKS_PER_NODE} THREADS_PER_RANK= ${NTHREADS}"
 
 cd /lus/flare/projects/<project>/<user>/
-export LD_LIBRARY_PATH=$TAMM_INSTALL_PATH/lib64:$LD_LIBRARY_PATH
 EXE=<tamm-exe>
 INP=<args>
 
@@ -66,5 +63,5 @@ ulimit -c unlimited
 
 # MPI launch for 6-packed-settings
 
-mpiexec -n ${NTOTRANKS} --ppn ${NRANKS_PER_NODE} --pmi=pmix --cpu-bind list:1-5:6-10:11-15:16-20:21-25:26-30:31-35:36-40:41-45:53-57:58-62:63-67:68-72:73-77:78-82:83-87:88-92:93-97 $bind_script ${EXE} ${INP} 
+mpiexec -n ${NTOTRANKS} --ppn ${NRANKS_PER_NODE} --pmi=pmix --cpu-bind list:1-5:6-10:11-15:16-20:21-25:26-30:31-35:36-40:41-45:53-57:58-62:63-67:68-72:73-77:78-82:83-87:88-92:93-97 --mem-bind list:0:0:0:0:0:0:0:0:0:1:1:1:1:1:1:1:1:1 $bind_script ${EXE} ${INP} 
 

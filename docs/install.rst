@@ -88,8 +88,6 @@ In addition to the build options chosen, there are various build configurations 
 
 - :ref:`Build instructions for Perlmutter and Polaris <build-perlmutter-and-polaris>`
 
-- :ref:`SYCL build instructions <build-sycl>`
-
 - :ref:`Build instructions for Aurora <build-aurora>`
 
 
@@ -166,7 +164,6 @@ Build instructions for Frontier
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DGPU_ARCH=gfx90a \
    -DTAMM_ENABLE_HIP=ON -DROCM_ROOT=$ROCM_PATH \
-   -DGCCROOT=/opt/gcc/12.2.0/snos \
    -DHDF5_ROOT=$HDF5_ROOT ..
 
    make -j3
@@ -215,26 +212,6 @@ Common build steps
    make -j3
    make install
 
-.. _build-sycl:
-
-SYCL build instructions using Intel OneAPI
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
--  ``MPI:`` Only tested using ``MPICH``.
--  Set ROOT dir of the GCC installation (need gcc >= v9.1)
-
-::
-
-   cd $REPO_ROOT_PATH/build 
-
-   CC=icx CXX=icpx FC=ifx cmake \
-   -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
-   -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=/opt/oneapi/mkl/latest \
-   -DTAMM_ENABLE_DPCPP=ON -DGCCROOT=$GCC_ROOT \
-   -DTAMM_CXX_FLAGS="-fma -ffast-math -fsycl -fsycl-default-sub-group-size 16 -fsycl-unnamed-lambda -fsycl-device-code-split=per_kernel -sycl-std=2020"
-
-   make -j3
-   make install
 
 .. _build-aurora:
 
@@ -252,7 +229,7 @@ Build instructions for Aurora
    CC=icx CXX=icpx FC=ifx cmake \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=$MKLROOT \
-   -DTAMM_ENABLE_DPCPP=ON -DGCCROOT=$GCC_ROOT \
+   -DTAMM_ENABLE_DPCPP=ON \
    -DTAMM_CXX_FLAGS="-march=sapphirerapids -mtune=sapphirerapids -ffast-math -fsycl -fsycl-device-code-split=per_kernel -fsycl-targets=intel_gpu_pvc -sycl-std=2020"
 
    make -j12

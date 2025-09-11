@@ -1,4 +1,4 @@
-The prerequisites needed to build this repository can be found
+The prerequisites needed to build this repository can be found :doc:`here <prerequisites>`.
 
 Build Instructions
 ==================
@@ -119,7 +119,7 @@ Default build on MACOS
 ::
 
    cd $REPO_ROOT_PATH/build 
-   FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
+   CC=gcc-14 CXX=g++-14 FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
 
    make -j3
    make install

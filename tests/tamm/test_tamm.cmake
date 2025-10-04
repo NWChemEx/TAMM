@@ -2,6 +2,7 @@
 include(TargetMacros)
 add_cxx_unit_test(Test_IndexSpace)
 add_cxx_unit_test(Test_IndexLoopNest)
+
 # add_mpi_unit_test(Test_Tensors 2 "")
 add_mpi_unit_test(Test_Ops 2 "")
 # add_mpi_unit_test(Test_OpsExpr 2 "")
@@ -32,3 +33,7 @@ if(NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin")
   add_cxx_unit_test(Test_LabeledTensor)
   add_cxx_unit_test(Test_TiledIndexSpace)
 endif()
+
+
+add_mpi_unit_test(Test_Tensor_Transpose 2 "")
+add_mpi_unit_test(Test_GEMM 2 "")

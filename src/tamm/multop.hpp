@@ -490,6 +490,31 @@ public:
       std::cout << "\t Reduction A size = " << AR << std::endl;
       std::cout << "\t Reduction B size = " << BR << std::endl;
 
+      std::cout << "\t LHS_block sizes = ";
+      for(auto& d: lhs_dims) { std::cout << d << " "; }
+      std::cout << std::endl;
+      std::cout << "\t RHS1_block sizes = ";
+      for(auto& d: rhs1_dims) { std::cout << d << " "; }
+      std::cout << std::endl;
+      std::cout << "\t RHS2_block sizes = ";
+      for(auto& d: rhs2_dims) { std::cout << d << " "; }
+      std::cout << std::endl;
+      std::cout << "\t Transpose order LHS = C( ";
+      for(auto& d: lhs) { std::cout << d << " "; }
+      std::cout << ") <- C'( ";
+      for(auto& d: lhs_transpose_order) { std::cout << d << " "; }
+      std::cout << ")" << std::endl;
+      std::cout << "\t Transpose order RHS1 = A( ";
+      for(auto& d: rhs1) { std::cout << d << " "; }
+      std::cout << ") -> A'( ";
+      for(auto& d: rhs1_transpose_order) { std::cout << d << " "; }
+      std::cout << ")" << std::endl;
+      std::cout << "\t Transpose order RHS2 = B( ";
+      for(auto& d: rhs2) { std::cout << d << " "; }
+      std::cout << ") -> B'( ";
+      for(auto& d: rhs2_transpose_order) { std::cout << d << " "; }
+      std::cout << ")" << std::endl;
+
       task_id++;
     }
   }

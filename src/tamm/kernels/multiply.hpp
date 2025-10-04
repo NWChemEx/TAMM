@@ -39,6 +39,18 @@ void copy_data_to_gpu(ExecutionHW hw, gpuStream_t& thandle, const T2* ainter_buf
 #endif
 }
 
+template<typename T>
+void copy_data_to_gpu(ExecutionHW hw, gpuStream_t& thandle, const T* ainter_buf, size_t asize,
+                      T* ainter_buf_dev) {
+  if(hw == ExecutionHW::CPU) return;
+
+  auto&      oprof = tamm::OpProfiler::instance();
+  TimerGuard tg_copy{&oprof.multOpCopyTime};
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+  gpuMemcpyAsync<T>(ainter_buf_dev, ainter_buf, asize, gpuMemcpyHostToDevice, thandle);
+#endif
+}
+
 template<typename T, typename T1, typename T2, typename T3>
 void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, int M, int N, int K,
                   T alpha, T beta, const T2* ainter_buf, const T2* ainter_buf_dev,
@@ -207,6 +219,42 @@ void transpose_output(ExecutionHW hw, gpuStream_t& thandle, bool gpu_trans, T1* 
 #endif
 
   assign<T1>(cbuf, cdims, clabels, T1{1}, cinter_buf, cinter_dims, cinter_labels, is_assign);
+}
+
+template<typename T>
+bool transpose_tensor(ExecutionHW hw, gpuStream_t& thandle, T* output_buf,
+                      const SizeVec& output_dims, const IntLabelVec& output_labels,
+                      const T* input_buf, size_t input_size, const SizeVec& input_dims,
+                      const IntLabelVec& input_labels, T*& output_buf_dev) {
+  bool gpu_trans = false;
+
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+  if(hw == ExecutionHW::GPU) {
+    gpu_trans = true;
+
+    // Allocate temporary device buffer for input
+    T* input_buf_dev{nullptr};
+    allocate_device_buffers(hw, input_buf_dev, input_size);
+
+    // Copy input data to GPU
+    copy_data_to_gpu(hw, thandle, input_buf, input_size, input_buf_dev);
+
+    // Perform GPU transpose
+    assign_gpu<T>(thandle, output_buf_dev, output_dims, output_labels, T{1}, input_buf_dev,
+                  input_dims, input_labels, true);
+
+    // Clean up temporary input buffer
+    free_device_buffers(hw, input_buf_dev, input_size);
+
+    return gpu_trans;
+  }
+#endif
+
+  // CPU transpose
+  assign<T>(output_buf, output_dims, output_labels, T{1}, input_buf, input_dims, input_labels,
+            true);
+
+  return gpu_trans;
 }
 
 template<typename T, typename T1, typename T2, typename T3>

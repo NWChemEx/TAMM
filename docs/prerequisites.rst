@@ -22,7 +22,7 @@ Installing Prerequisites
 On Mac OSX
 ===========
 
--  brew install gcc openmpi cmake autoconf automake libtool
+-  brew install gcc mpich cmake autoconf automake libtool
 
 On Linux
 =========

@@ -1615,8 +1615,11 @@ template<typename TensorType>
 void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> tensor,
                               bool is_bc = true) {
   const auto ndims = bc_tensor.num_modes();
-  EXPECTS(ndims == 2);
-  if(is_bc) EXPECTS(bc_tensor.is_block_cyclic());
+
+  if(is_bc) {
+    EXPECTS(ndims == 2);
+    EXPECTS(bc_tensor.is_block_cyclic());
+  }
   EXPECTS(bc_tensor.kind() == TensorBase::TensorKind::dense);
   EXPECTS(bc_tensor.distribution().kind() == DistributionKind::dense);
 
@@ -1658,6 +1661,26 @@ void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> t
   };
 
   block_for(ec, tensor(), tamm_bc_lambda);
+}
+
+// tamm does not support set, add, mult ops for dense tensors
+template<typename TensorType>
+void copy_dense_tensor(Tensor<TensorType> stensor, Tensor<TensorType> dtensor) {
+  EXPECTS(stensor.kind() == TensorBase::TensorKind::dense);
+  EXPECTS(stensor.distribution().kind() == DistributionKind::dense);
+  EXPECTS(dtensor.kind() == TensorBase::TensorKind::dense);
+  EXPECTS(dtensor.distribution().kind() == DistributionKind::dense);
+
+  // stensor might be on a smaller process group
+  ExecutionContext& ec = get_ec(stensor());
+
+  auto tamm_bc_lambda = [&](const IndexVector& blockid) {
+    std::vector<TensorType> buffer(stensor.block_size(blockid));
+    stensor.get(blockid, buffer);
+    dtensor.put(blockid, buffer);
+  };
+
+  block_for(ec, dtensor(), tamm_bc_lambda);
 }
 
 // convert dense tamm tensor to regular tamm tensor

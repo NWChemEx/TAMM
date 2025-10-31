@@ -1,4 +1,4 @@
-The prerequisites needed to build this repository can be found
+The prerequisites needed to build this repository can be found :doc:`here <prerequisites>`.
 
 Build Instructions
 ==================
@@ -119,7 +119,7 @@ Default build on MACOS
 ::
 
    cd $REPO_ROOT_PATH/build 
-   FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
+   FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH -DLINALG_VENDOR=OpenBLAS ..
 
    make -j3
    make install

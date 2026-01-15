@@ -325,12 +325,13 @@ void update_tensor(LabeledTensor<T> labeled_tensor, Func lambda) {
  * TODO: update local buf directly to avoid get/put
  */
 template<typename T>
-void update_tensor_val(LabeledTensor<T> ltensor, std::vector<size_t> coord, T val) {
+void update_tensor_val(ExecutionContext& ec, LabeledTensor<T> ltensor, std::vector<size_t> coord,
+                       T val) {
   Tensor<T>    tensor = ltensor.tensor();
   const size_t ndims  = tensor.num_modes();
   EXPECTS(ndims == coord.size());
 
-  if((tensor.execution_context())->pg().rank() == 0) {
+  if(ec.pg().rank() == 0) {
     LabelLoopNest loop_nest{ltensor.labels()};
 
     for(auto it: tensor.loop_nest()) {
@@ -366,12 +367,25 @@ void update_tensor_val(LabeledTensor<T> ltensor, std::vector<size_t> coord, T va
       }
     }
   }
-  (tensor.execution_context())->pg().barrier();
+  ec.pg().barrier();
+}
+
+template<typename T>
+void update_tensor_val(LabeledTensor<T> ltensor, std::vector<size_t> coord, T val) {
+  ExecutionContext& ec = get_ec(ltensor);
+  update_tensor_val(ec, ltensor, coord, val);
 }
 
 template<typename T>
 void update_tensor_val(Tensor<T>& tensor, std::vector<size_t> coord, T val) {
-  update_tensor_val(tensor(), coord, val);
+  LabeledTensor<T>  ltensor = tensor();
+  ExecutionContext& ec      = get_ec(ltensor);
+  update_tensor_val(ec, ltensor, coord, val);
+}
+
+template<typename T>
+void update_tensor_val(ExecutionContext& ec, Tensor<T>& tensor, std::vector<size_t> coord, T val) {
+  update_tensor_val(ec, tensor(), coord, val);
 }
 
 /**
@@ -726,11 +740,10 @@ void fill_sparse_tensor(LabeledTensor<TensorType>                               
   block_for(ec, ltensor, lambda);
 }
 
+// When redistribution of a tensor needs to happen on specific process group
 template<typename TensorType>
-Tensor<TensorType> redistribute_tensor(Tensor<TensorType> stensor, TiledIndexSpaceVec tis,
-                                       std::vector<size_t> spins = {}) {
-  ExecutionContext& ec = get_ec(stensor());
-
+Tensor<TensorType> redistribute_tensor(ExecutionContext& ec, Tensor<TensorType> stensor,
+                                       TiledIndexSpaceVec tis, std::vector<size_t> spins = {}) {
 #if defined(USE_UPCXX)
   ga_over_upcxx<TensorType>* wmn_ga = tamm_to_ga(ec, stensor);
 #else
@@ -753,6 +766,14 @@ Tensor<TensorType> redistribute_tensor(Tensor<TensorType> stensor, TiledIndexSpa
   return dtensor;
 }
 
+template<typename TensorType>
+Tensor<TensorType> redistribute_tensor(Tensor<TensorType> stensor, TiledIndexSpaceVec tis,
+                                       std::vector<size_t> spins = {}) {
+  ExecutionContext& ec = get_ec(stensor());
+
+  return redistribute_tensor(ec, stensor, tis, spins);
+}
+
 /**
  * @brief retile a tamm tensor
  *
@@ -765,7 +786,7 @@ void retile_tamm_tensor(Tensor<TensorType> stensor, Tensor<TensorType>& dtensor,
                         std::string tname = "") {
   auto io_t1 = std::chrono::high_resolution_clock::now();
 
-  ExecutionContext& ec   = get_ec(stensor());
+  ExecutionContext& ec   = get_ec(dtensor());
   int               rank = ec.pg().rank().value();
 
 #if defined(USE_UPCXX)

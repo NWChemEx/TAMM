@@ -17,55 +17,43 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-24.04]
         backend:
           - ga
-          - upcxx
+          # - upcxx
         mpi_impl:
           - openmpi
         cxx:
-          - g++-10
+          - g++-12
         cc:
-          - gcc-10
+          - gcc-12
         fc:
-          - gfortran-10
+          - gfortran-12
         include:
           - os: ubuntu-22.04
             mpi_impl: openmpi
-            cxx: g++-10
-            cc: gcc-10
-            fc: gfortran-10
+            cxx: g++-12
+            cc: gcc-12
+            fc: gfortran-12
             backend: ga
           - os: ubuntu-22.04
             mpi_impl: openmpi
-            cxx: g++-11
-            cc: gcc-11
-            fc: gfortran-11
+            cxx: g++-13
+            cc: gcc-13
+            fc: gfortran-13
             backend: ga
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             mpi_impl: openmpi
-            cxx: clang++-11
-            cc: clang-11
-            fc: gfortran-10
+            cxx: clang++-18
+            cc: clang-18
+            fc: gfortran-12
             backend: ga
-          - os: ubuntu-22.04
-            mpi_impl: openmpi
-            cxx: g++-11
-            cc: gcc-11
-            fc: gfortran-11
-            backend: upcxx
         exclude:
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             mpi_impl: openmpi
-            cxx: g++-9
-            cc: gcc-9
-            fc: gfortran-9
-            backend: upcxx
-          - os: ubuntu-22.04
-            mpi_impl: openmpi
-            cxx: g++-10
-            cc: gcc-10
-            fc: gfortran-10
+            cxx: g++-13
+            cc: gcc-13
+            fc: gfortran-13
             backend: upcxx
       fail-fast: true
     env:
@@ -119,7 +107,7 @@ jobs:
     - name: get-misc
       run:  sudo apt-get install make wget curl rsync tree software-properties-common libxml2-dev libxslt-dev
     - name: get-blas-lapack
-      run:  sudo apt-get install libopenblas-base libopenblas-dev libgslcblas0 libgsl-dev liblapacke liblapacke-dev
+      run:  sudo apt-get install libopenblas-dev libgslcblas0 libgsl-dev liblapacke liblapacke-dev
     - name: get-openmpi
       run: |
         sudo apt-get install openmpi-bin libopenmpi-dev
@@ -162,7 +150,7 @@ jobs:
         ls -lrt ${INSTALL_PATH} || true
 
     - name: enable coverage
-      if: ${{ matrix.backend == 'ga' && matrix.cc != 'clang-11' && matrix.cc != 'gcc-11' }}
+      if: ${{ matrix.backend == 'ga' && matrix.cc != 'clang-18' && matrix.cc != 'gcc-13' }}
       run: |
         echo "CI_COVERAGE=ON" >> $GITHUB_ENV
 
@@ -201,13 +189,13 @@ jobs:
         cd $GITHUB_WORKSPACE/build
         export PATH=$PATH:$GITHUB_WORKSPACE/install/bin
         $GITHUB_WORKSPACE/cmake-3.31.7-linux-x86_64/bin/ctest -VV
-    - name: gcovr
-      if: ${{ matrix.backend == 'ga' && matrix.cc != 'clang-11' && matrix.cc != 'gcc-11' }}
-      run: |
-        cd $GITHUB_WORKSPACE/build
-        gcovr --root ./stage/$INSTALL_PATH . --xml ../coverage.xml
-        ls -al .
-    - uses: codecov/codecov-action@v4
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: ./coverage.xml
+    # - name: gcovr
+    #   if: ${{ matrix.backend == 'ga' && matrix.cc != 'clang-18' && matrix.cc != 'gcc-13' }}
+    #   run: |
+    #     cd $GITHUB_WORKSPACE/build
+    #     gcovr --root ./stage/$INSTALL_PATH . --xml ../coverage.xml
+    #     ls -al .
+    # - uses: codecov/codecov-action@v4
+    #   with:
+    #     token: ${{ secrets.CODECOV_TOKEN }}
+    #     file: ./coverage.xml

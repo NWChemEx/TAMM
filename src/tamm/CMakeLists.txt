@@ -2,6 +2,44 @@ cmake_minimum_required(VERSION ${CMAKE_VERSION})
 project(TAMM VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For cmsb_add_library
 
+# ---------------------------------------------------------------------------
+# Require C++20
+# ---------------------------------------------------------------------------
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 20)
+endif()
+if(CMAKE_CXX_STANDARD LESS 20)
+  message(FATAL_ERROR "TAMM requires C++20 or later (set CMAKE_CXX_STANDARD=20).")
+endif()
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS        OFF)
+
+# ---------------------------------------------------------------------------
+# std::mdspan: use stdlib if available (GCC>=13, Clang>=17, MSVC 19.36+),
+# otherwise fall back to the kokkos/mdspan reference implementation.
+# ---------------------------------------------------------------------------
+include(CheckIncludeFileCXX)
+check_include_file_cxx(mdspan TAMM_HAS_STD_MDSPAN)
+
+if(NOT TAMM_HAS_STD_MDSPAN)
+  message(STATUS "TAMM: <mdspan> not found in stdlib – fetching kokkos/mdspan")
+  include(FetchContent)
+  FetchContent_Declare(
+    kokkos_mdspan
+    GIT_REPOSITORY https://github.com/kokkos/mdspan.git
+    GIT_TAG        stable
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(kokkos_mdspan)
+  # kokkos/mdspan installs its headers under experimental/mdspan
+  # and provides the target std::mdspan (or mdspan)
+  if(TARGET std::mdspan)
+    set(TAMM_MDSPAN_TARGET std::mdspan)
+  elseif(TARGET mdspan)
+    set(TAMM_MDSPAN_TARGET mdspan)
+  endif()
+endif()
+
 if(${PROJECT_NAME}_HAS_CUDA OR ${PROJECT_NAME}_HAS_HIP OR ${PROJECT_NAME}_HAS_DPCPP)
   set(tamm_gpu_INCS
     gpu_streams.hpp
@@ -112,3 +150,9 @@ set(TAMM_CFLAGS )
 set(TAMM_LFLAGS )
 
 cmsb_add_library(tamm TAMM_SRCS TAMM_INCLUDES TAMM_CFLAGS TAMM_LFLAGS)
+
+# C++20 standard + optional mdspan target
+target_compile_features(tamm PUBLIC cxx_std_20)
+if(DEFINED TAMM_MDSPAN_TARGET)
+  target_link_libraries(tamm PUBLIC ${TAMM_MDSPAN_TARGET})
+endif()

@@ -194,30 +194,28 @@ private:
   void scalar_vec_mult_update(T beta, BlockSpan<T>& lhs_vec, T alpha,
                               const BlockSpan<T>& rhs1_scalar, const BlockSpan<T>& rhs2_vec) {
     EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
-    for(size_t i = 0; i < lhs_vec.num_elements(); i++) {
-      auto new_alpha = alpha * rhs1_scalar[0];
-      blockops::cpu::flat_update(beta, lhs_vec, new_alpha, rhs2_vec);
-    }
+    // Fix: flat_update already operates over all elements; the enclosing
+    // loop was calling it num_elements() times, giving O(N^2) work.
+    auto new_alpha = alpha * rhs1_scalar[0];
+    blockops::cpu::flat_update(beta, lhs_vec, new_alpha, rhs2_vec);
   }
 
   template<typename T>
   void scalar_vec_mult_update(BlockSpan<T>& lhs_vec, T alpha, const BlockSpan<T>& rhs1_scalar,
                               const BlockSpan<T>& rhs2_vec) {
     EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
-    for(size_t i = 0; i < lhs_vec.num_elements(); i++) {
-      auto new_alpha = alpha * rhs1_scalar[0];
-      blockops::cpu::flat_update(lhs_vec, new_alpha, rhs2_vec);
-    }
+    // Fix: same O(N^2) issue — remove the loop.
+    auto new_alpha = alpha * rhs1_scalar[0];
+    blockops::cpu::flat_update(lhs_vec, new_alpha, rhs2_vec);
   }
 
   template<typename T>
   void scalar_vec_mult_assign(BlockSpan<T>& lhs_vec, T alpha, const BlockSpan<T>& rhs1_scalar,
                               const BlockSpan<T>& rhs2_vec) {
     EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
-    for(size_t i = 0; i < lhs_vec.num_elements(); i++) {
-      auto new_alpha = alpha * rhs1_scalar[0];
-      blockops::cpu::flat_assign(lhs_vec, new_alpha, rhs2_vec);
-    }
+    // Fix: same O(N^2) issue — remove the loop.
+    auto new_alpha = alpha * rhs1_scalar[0];
+    blockops::cpu::flat_assign(lhs_vec, new_alpha, rhs2_vec);
   }
 
   template<typename T>
@@ -422,12 +420,16 @@ private:
     bufa_ = rhs1_is_arg1_ ? &rhs1.buf() : &rhs2.buf();
     bufb_ = rhs1_is_arg1_ ? &rhs2.buf() : &rhs1.buf();
 
-    int num_batches_ = 1;
+    // Fix: was 'int num_batches_ = 1' (local variable) shadowing the
+    // class member; apply() uses the member, so it was always 1 for
+    // batched GEMMs. Now we write the member directly.
+    num_batches_ = 1;
     for(int i = 0; i < num_batch_indices_; i++) { num_batches_ *= lhs_bdims[i]; }
   }
 
   bool valid_;
-  int  num_batch_indices_;
+  // Fix: num_batch_indices_ was uninitialized — add in-class initializer.
+  int  num_batch_indices_{0};
   int  num_mindices_;
   int  num_nindices_;
   int  num_kindices_; // number of summation indices
@@ -447,7 +449,7 @@ private:
  *
  * @todo
  * - Avoid block assign plans when not needed
- * - There could bt multiple intermediate, one here and one in TTGT. Incorporate
+ * - There could be multiple intermediates, one here and one in TTGT. Incorporate
  * TTGT functionality here to minimize copies.
  *
  */
@@ -492,17 +494,25 @@ public:
   template<typename T0, typename T1, typename T2, typename T3, typename T4>
   void apply(T0 beta, BlockSpan<T1>& lhs, T1 alpha, BlockSpan<T2>& rhs1, BlockSpan<T3>& rhs2) {
     EXPECTS(valid_);
-    std::vector<T1> linter_buf(lhs.num_elements());
-    std::vector<T1> r1inter_buf(rhs1.num_elements());
-    std::vector<T1> r2inter_buf(rhs2.num_elements());
+
+    // Fix: cache intermediate buffers as members and only reallocate when
+    // block dimensions change, avoiding per-call heap allocation on the
+    // hot contraction path (e.g. CCSD doubles iterations).
+    const size_t lhs_nelems  = lhs.num_elements();
+    const size_t rhs1_nelems = rhs1.num_elements();
+    const size_t rhs2_nelems = rhs2.num_elements();
+
+    if(linter_buf_.size() < lhs_nelems)  linter_buf_.resize(lhs_nelems);
+    if(r1inter_buf_.size() < rhs1_nelems) r1inter_buf_.resize(rhs1_nelems);
+    if(r2inter_buf_.size() < rhs2_nelems) r2inter_buf_.resize(rhs2_nelems);
 
     const auto& linter_dims  = perm_map_apply(lhs.block_dims(), linter_to_l_perm_);
     const auto& r1inter_dims = perm_map_apply(rhs1.block_dims(), r1_to_r1inter_perm_);
     const auto& r2inter_dims = perm_map_apply(rhs2.block_dims(), r2_to_r2inter_perm_);
 
-    BlockSpan<T1> lhs_inter{linter_buf.data(), linter_dims};
-    BlockSpan<T2> rhs1_inter{r1inter_buf.data(), r1inter_dims};
-    BlockSpan<T3> rhs2_inter{r2inter_buf.data(), r2inter_dims};
+    BlockSpan<T1> lhs_inter{linter_buf_.data(), linter_dims};
+    BlockSpan<T2> rhs1_inter{r1inter_buf_.data(), r1inter_dims};
+    BlockSpan<T3> rhs2_inter{r2inter_buf_.data(), r2inter_dims};
 
     rhs1_ba_plan_.apply(rhs1_inter, rhs1);
     rhs2_ba_plan_.apply(rhs2_inter, rhs2);
@@ -525,6 +535,11 @@ private:
   BlockAssignPlan rhs2_ba_plan_;
   BlockAssignPlan lhs_ba_plan_;
   TTGTPlan        ttgt_plan_;
+  // Cached intermediate buffers — reused across apply() calls to avoid
+  // repeated heap allocation on the hot contraction path.
+  std::vector<double> linter_buf_;
+  std::vector<double> r1inter_buf_;
+  std::vector<double> r2inter_buf_;
 }; // class GeneralMultPlan
 
 } // namespace tamm::internal
@@ -642,7 +657,8 @@ private:
       return;
     }
     else if(rhs1_labels_.size() == 1 && rhs2_labels_.size() == 1 && lhs_labels_.size() == 1) {
-      if(lhs_labels_ == rhs1_labels_ && lhs_labels_ == rhs1_labels_) {
+      // Fix: was lhs==rhs1 && lhs==rhs1 (tautology); second condition must be rhs2
+      if(lhs_labels_ == rhs1_labels_ && lhs_labels_ == rhs2_labels_) {
         plan_ = optype_ == OpType::set ? Plan::flat_assign : Plan::flat_update;
         return;
       }
@@ -673,10 +689,13 @@ private:
         const ptrdiff_t hlabels         = hadamard_labels.size();
         for(size_t i = 0; i < hadamard_labels.size(); i++) {
           auto lbl = lhs_labels_[i];
+          // Fix: copy-paste bug — both lines searched [rhs1.begin, rhs2.end)
+          // and both returned distance from rhs1.begin. Each must search its
+          // own range.
           auto rhs1_pos =
-            std::find(rhs1_labels_.begin(), rhs2_labels_.end(), lbl) - rhs1_labels_.begin();
+            std::find(rhs1_labels_.begin(), rhs1_labels_.end(), lbl) - rhs1_labels_.begin();
           auto rhs2_pos =
-            std::find(rhs1_labels_.begin(), rhs2_labels_.end(), lbl) - rhs1_labels_.begin();
+            std::find(rhs2_labels_.begin(), rhs2_labels_.end(), lbl) - rhs2_labels_.begin();
           if(rhs1_pos >= hlabels || rhs2_pos >= hlabels) { return; }
         }
         plan_ = Plan::loop_gemm;

@@ -20,25 +20,36 @@ public:
   BlockBuffer(span<T> buf_span, IndexedTensor<T> indexedTensor, RuntimeEngine* re,
               bool allocated = false):
     buf_span{buf_span}, allocated{allocated}, indexedTensor{indexedTensor}, re{re} {}
+
   BlockBuffer(const BlockBuffer& block_buffer):
     indexedTensor{block_buffer.indexedTensor}, re{block_buffer.re} {
-    if(allocated) delete[] buf_span.data();
+    // Fix: ensure allocated is false before the guard — the new object
+    // has not yet been given any buffer to delete.
+    allocated       = false;
+    if(allocated) delete[] buf_span.data(); // now safe: always false here
     allocated       = true;
     const auto size = block_buffer.buf_span.size();
     T* buffer = new T[size]; // that will need to be more complicated once we get device buffers
     std::copy(block_buffer.buf_span.begin(), block_buffer.buf_span.end(), buffer);
     buf_span = span{buffer, size};
   }
+
   BlockBuffer(BlockBuffer&& block_buffer) {
-    buf_span        = std::move(block_buffer.buf_span);
-    allocated       = false;
-    indexedTensor   = std::move(block_buffer.indexedTensor);
-    re              = block_buffer.re;
-    block_buffer.re = nullptr;
+    buf_span              = std::move(block_buffer.buf_span);
+    // Fix: steal the allocated flag so we own the buffer, then clear
+    // the source flag so its dtor does not double-delete.
+    allocated             = block_buffer.allocated;
+    block_buffer.allocated = false;
+    indexedTensor         = std::move(block_buffer.indexedTensor);
+    re                    = block_buffer.re;
+    block_buffer.re       = nullptr;
   }
+
   BlockBuffer& operator=(const BlockBuffer& block_buffer) {
+    if(this == &block_buffer) return *this;
     indexedTensor = block_buffer.indexedTensor;
-    re            = block_buffer.indexedTensor;
+    // Fix: was erroneously assigned from block_buffer.indexedTensor (typo)
+    re            = block_buffer.re;
     if(allocated) delete[] buf_span.data();
     allocated       = true;
     const auto size = block_buffer.buf_span.size();
@@ -47,6 +58,7 @@ public:
     buf_span = span{buffer, size};
     return *this;
   }
+
   BlockBuffer(Tensor<T> tensor, IndexVector blockid):
     allocated{true}, indexedTensor{tensor, blockid} {
     const size_t size   = tensor.block_size(blockid);
@@ -54,6 +66,7 @@ public:
     buf_span            = span{buffer, size};
     tensor.get(blockid, buf_span);
   }
+
   ~BlockBuffer() {
     if(allocated) delete[] buf_span.data();
   }
@@ -107,7 +120,7 @@ private:
 
 template<typename T>
 bool operator==(const BlockBuffer<T> lhs, const BlockBuffer<T> rhs) {
-  return lhs.size = rhs.size &&
+  return lhs.size == rhs.size &&
                     std::equal(lhs.get_data(), lhs.get_data() + lhs.get_size(), rhs.get_data()) &&
                     lhs.get_tensor() == rhs.get_tensor() &&
                     lhs.get_block_id() == rhs.get_block_id();

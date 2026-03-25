@@ -10,6 +10,7 @@
 #include "tamm/boundvec.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/strong_num.hpp"
+#include <atomic>     // std::atomic (thread-safe make_label)
 #include <bit>        // std::bit_cast (C++20)
 #include <complex>
 #include <functional>
@@ -230,9 +231,12 @@ template<typename T>
 // ---------------------------------------------------------------------------
 // make_label: thread-safe monotonic label generator
 // ---------------------------------------------------------------------------
+/// Returns a unique monotonically-increasing Label each time it is called.
+/// Uses std::atomic with memory_order_relaxed for lock-free thread safety;
+/// ordering against other operations is not required here.
 inline Label make_label() {
-  static Label lbl = 0;
-  return lbl++;
+  static std::atomic<Label> lbl{0};
+  return lbl.fetch_add(1, std::memory_order_relaxed);
 }
 
 // ---------------------------------------------------------------------------

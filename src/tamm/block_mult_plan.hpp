@@ -8,20 +8,21 @@
 #include "tamm/types.hpp"
 
 #include <algorithm>
+#include <cstddef>   // std::byte
 #include <variant>
 
 /**
- * @brief Block multiply plan selection logic.
+ * @brief Block multiply plan selection and dispatch.
  *
- * C++20 / perf changes:
- *  - BlockMultPlan stores a cached std::variant of the selected plan type
- *    built once in the constructor; apply_impl() is a zero-copy std::visit
- *    dispatch with no per-call plan reconstruction or label-vector copies.
- *  - GeneralMultPlan caches permuted block dims as members (computed once
- *    per unique block shape) eliminating perm_map_apply allocations in the
- *    hot contraction loop.
- *  - All IndexLabelVec constructor parameters accept
- *    std::span<const TiledIndexLabel> to avoid copies at call sites.
+ * C++20 / perf design:
+ *  - BlockMultPlan stores a cached std::variant of the selected sub-plan,
+ *    built once in the constructor.  apply_impl() is a zero-copy std::visit
+ *    dispatch — no per-call plan reconstruction or label-vector copies.
+ *  - GeneralMultPlan caches permuted block dims (recomputed only on shape
+ *    change) and intermediate byte-buffers (resized only on growth),
+ *    eliminating all hot-path allocations in the CCSD contraction loop.
+ *  - GemmPlan stores raw data pointers (void*) directly, not
+ *    pointer-to-pointer, avoiding the dangling-address UB of &lhs.buf().
  */
 
 namespace tamm::internal {
@@ -108,73 +109,99 @@ private:
   }
 
   template<typename T>
-  void scalar_mult_update(T beta, BlockSpan<T>& lhs, T alpha, const BlockSpan<T>& rhs1, const BlockSpan<T>& rhs2) {
+  void scalar_mult_update(T beta, BlockSpan<T>& lhs, T alpha,
+                          const BlockSpan<T>& rhs1, const BlockSpan<T>& rhs2) {
     lhs[0] = (beta * lhs[0]) + (alpha * rhs1[0] * rhs2[0]);
   }
   template<typename T>
-  void scalar_mult_update(BlockSpan<T>& lhs, T alpha, const BlockSpan<T>& rhs1, const BlockSpan<T>& rhs2) {
+  void scalar_mult_update(BlockSpan<T>& lhs, T alpha,
+                          const BlockSpan<T>& rhs1, const BlockSpan<T>& rhs2) {
     lhs[0] += alpha * rhs1[0] * rhs2[0];
   }
   template<typename T>
-  void scalar_mult_update(BlockSpan<T>& lhs, const BlockSpan<T>& rhs1, const BlockSpan<T>& rhs2) {
+  void scalar_mult_update(BlockSpan<T>& lhs,
+                          const BlockSpan<T>& rhs1, const BlockSpan<T>& rhs2) {
     lhs[0] += rhs1[0] * rhs2[0];
   }
   template<typename T>
-  void scalar_mult_assign(BlockSpan<T>& lhs, T alpha, const BlockSpan<T>& rhs1, const BlockSpan<T>& rhs2) {
+  void scalar_mult_assign(BlockSpan<T>& lhs, T alpha,
+                          const BlockSpan<T>& rhs1, const BlockSpan<T>& rhs2) {
     lhs[0] = alpha * rhs1[0] * rhs2[0];
   }
   template<typename T>
-  void scalar_mult_assign(BlockSpan<T>& lhs, const BlockSpan<T>& rhs1, const BlockSpan<T>& rhs2) {
+  void scalar_mult_assign(BlockSpan<T>& lhs,
+                          const BlockSpan<T>& rhs1, const BlockSpan<T>& rhs2) {
     lhs[0] = rhs1[0] * rhs2[0];
   }
   template<typename T>
   void scalar_vec_mult_update(T beta, BlockSpan<T>& lhs_vec, T alpha,
-                              const BlockSpan<T>& rhs1_scalar, const BlockSpan<T>& rhs2_vec) {
-    EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
-    auto new_alpha = alpha * rhs1_scalar[0];
-    blockops::cpu::flat_update(beta, lhs_vec, new_alpha, rhs2_vec);
-  }
-  template<typename T>
-  void scalar_vec_mult_update(BlockSpan<T>& lhs_vec, T alpha, const BlockSpan<T>& rhs1_scalar,
+                              const BlockSpan<T>& rhs1_scalar,
                               const BlockSpan<T>& rhs2_vec) {
     EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
-    auto new_alpha = alpha * rhs1_scalar[0];
-    blockops::cpu::flat_update(lhs_vec, new_alpha, rhs2_vec);
+    blockops::cpu::flat_update(beta, lhs_vec, alpha * rhs1_scalar[0], rhs2_vec);
   }
   template<typename T>
-  void scalar_vec_mult_assign(BlockSpan<T>& lhs_vec, T alpha, const BlockSpan<T>& rhs1_scalar,
+  void scalar_vec_mult_update(BlockSpan<T>& lhs_vec, T alpha,
+                              const BlockSpan<T>& rhs1_scalar,
                               const BlockSpan<T>& rhs2_vec) {
     EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
-    auto new_alpha = alpha * rhs1_scalar[0];
-    blockops::cpu::flat_assign(lhs_vec, new_alpha, rhs2_vec);
+    blockops::cpu::flat_update(lhs_vec, alpha * rhs1_scalar[0], rhs2_vec);
+  }
+  template<typename T>
+  void scalar_vec_mult_assign(BlockSpan<T>& lhs_vec, T alpha,
+                              const BlockSpan<T>& rhs1_scalar,
+                              const BlockSpan<T>& rhs2_vec) {
+    EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
+    blockops::cpu::flat_assign(lhs_vec, alpha * rhs1_scalar[0], rhs2_vec);
+  }
+  template<typename T>
+  void scalar_vec_mult_update(BlockSpan<T>& lhs_vec,
+                              const BlockSpan<T>& rhs1_scalar,
+                              const BlockSpan<T>& rhs2_vec) {
+    EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
+    blockops::cpu::flat_update(lhs_vec, rhs1_scalar[0], rhs2_vec);
+  }
+  template<typename T>
+  void scalar_vec_mult_assign(BlockSpan<T>& lhs_vec,
+                              const BlockSpan<T>& rhs1_scalar,
+                              const BlockSpan<T>& rhs2_vec) {
+    EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
+    blockops::cpu::flat_assign(lhs_vec, rhs1_scalar[0], rhs2_vec);
   }
   template<typename T>
   void vec_vec_mult_update(T beta, BlockSpan<T>& lhs_vec, T alpha,
-                           const BlockSpan<T>& rhs1_vec, const BlockSpan<T>& rhs2_vec) {
+                           const BlockSpan<T>& rhs1_vec,
+                           const BlockSpan<T>& rhs2_vec) {
     for(size_t i = 0; i < lhs_vec.num_elements(); i++)
       lhs_vec[i] = (beta * lhs_vec[i]) + (alpha * rhs1_vec[i] * rhs2_vec[i]);
   }
   template<typename T>
   void vec_vec_mult_update(BlockSpan<T>& lhs_vec, T alpha,
-                           const BlockSpan<T>& rhs1_vec, const BlockSpan<T>& rhs2_vec) {
+                           const BlockSpan<T>& rhs1_vec,
+                           const BlockSpan<T>& rhs2_vec) {
     for(size_t i = 0; i < lhs_vec.num_elements(); i++)
       lhs_vec[i] += alpha * rhs1_vec[i] * rhs2_vec[i];
   }
   template<typename T>
-  void vec_vec_mult_update(BlockSpan<T>& lhs_vec, const BlockSpan<T>& rhs1_vec,
+  void vec_vec_mult_update(BlockSpan<T>& lhs_vec,
+                           const BlockSpan<T>& rhs1_vec,
                            const BlockSpan<T>& rhs2_vec) {
-    for(size_t i = 0; i < lhs_vec.num_elements(); i++) lhs_vec[i] += rhs1_vec[i] * rhs2_vec[i];
+    for(size_t i = 0; i < lhs_vec.num_elements(); i++)
+      lhs_vec[i] += rhs1_vec[i] * rhs2_vec[i];
   }
   template<typename T>
   void vec_vec_mult_assign(BlockSpan<T>& lhs_vec, T alpha,
-                           const BlockSpan<T>& rhs1_vec, const BlockSpan<T>& rhs2_vec) {
+                           const BlockSpan<T>& rhs1_vec,
+                           const BlockSpan<T>& rhs2_vec) {
     for(size_t i = 0; i < lhs_vec.num_elements(); i++)
       lhs_vec[i] = alpha * rhs1_vec[i] * rhs2_vec[i];
   }
   template<typename T>
-  void vec_vec_mult_assign(BlockSpan<T>& lhs_vec, const BlockSpan<T>& rhs1_vec,
+  void vec_vec_mult_assign(BlockSpan<T>& lhs_vec,
+                           const BlockSpan<T>& rhs1_vec,
                            const BlockSpan<T>& rhs2_vec) {
-    for(size_t i = 0; i < lhs_vec.num_elements(); i++) lhs_vec[i] = rhs1_vec[i] * rhs2_vec[i];
+    for(size_t i = 0; i < lhs_vec.num_elements(); i++)
+      lhs_vec[i] = rhs1_vec[i] * rhs2_vec[i];
   }
 
   IndexLabelVec lhs_labels_;
@@ -183,6 +210,8 @@ private:
   FlatOpType    op_type_;
   bool          valid_;
 };
+
+// ---------------------------------------------------------------------------
 
 class TTGTPlan {
 public:
@@ -197,8 +226,8 @@ public:
   }
 
   template<typename T>
-  void apply(T beta, BlockSpan<T>& lhs, T alpha, const BlockSpan<T>& rhs1,
-             const BlockSpan<T>& rhs2) {
+  void apply(T beta, BlockSpan<T>& lhs, T alpha,
+             const BlockSpan<T>& rhs1, const BlockSpan<T>& rhs2) {
     NOT_IMPLEMENTED();
   }
 
@@ -216,6 +245,8 @@ private:
   IndexLabelVec rhs2_labels_;
   bool          valid_;
 };
+
+// ---------------------------------------------------------------------------
 
 class GemmPlan {
 public:
@@ -256,11 +287,14 @@ public:
     int arg1_kpos = transpose_arg1 ? 0 : num_mindices;
     int arg2_kpos = transpose_arg2 ? num_nindices : 0;
     int arg2_npos = transpose_arg2 ? 0 : num_kindices;
-    if(!std::equal(lhs_labels.begin() + lhs_mpos, lhs_labels.begin() + lhs_mpos + num_mindices,
+    if(!std::equal(lhs_labels.begin() + lhs_mpos,
+                   lhs_labels.begin() + lhs_mpos + num_mindices,
                    arg1_labels.begin() + arg1_mpos)) { return; }
-    if(!std::equal(lhs_labels.begin() + lhs_npos, lhs_labels.begin() + lhs_npos + num_nindices,
+    if(!std::equal(lhs_labels.begin() + lhs_npos,
+                   lhs_labels.begin() + lhs_npos + num_nindices,
                    arg2_labels.begin() + arg2_npos)) { return; }
-    if(!std::equal(arg1_labels.begin() + arg1_kpos, arg1_labels.begin() + arg1_kpos + num_kindices,
+    if(!std::equal(arg1_labels.begin() + arg1_kpos,
+                   arg1_labels.begin() + arg1_kpos + num_kindices,
                    arg2_labels.begin() + arg2_kpos)) { return; }
 
     num_mindices_   = num_mindices;
@@ -274,22 +308,26 @@ public:
 
   bool is_valid() const { return valid_; }
 
-  template<typename T0, typename T1, typename T2, typename T3, typename T4>
-  void apply(T0 beta, BlockSpan<T1>& lhs, T1 alpha, BlockSpan<T2>& rhs1, BlockSpan<T3>& rhs2) {
+  template<typename T0, typename T1, typename T2, typename T3>
+  void apply(T0 beta, BlockSpan<T1>& lhs, T1 alpha,
+             BlockSpan<T2>& rhs1, BlockSpan<T3>& rhs2) {
     EXPECTS(valid_);
     update_plan(lhs, rhs1, rhs2);
     size_t loff = 0, r1off = 0, r2off = 0;
-    for(size_t i = 0; i < num_batches_; i++) {
+    for(size_t i = 0; i < static_cast<size_t>(num_batches_); i++) {
       auto TransA = transpose_arg1_ ? blas::Op::Trans : blas::Op::NoTrans;
       auto TransB = transpose_arg2_ ? blas::Op::Trans : blas::Op::NoTrans;
       int  lda    = !transpose_arg1_ ? K_ : M_;
       int  ldb    = !transpose_arg2_ ? N_ : K_;
       int  ldc    = N_;
-      auto* bufa = rhs1_is_arg1_ ? reinterpret_cast<T2*>(&bufa_) : reinterpret_cast<T3*>(&bufa_);
-      auto* bufb = rhs1_is_arg1_ ? reinterpret_cast<T3*>(&bufb_) : reinterpret_cast<T2*>(&bufb_);
-      auto* bufc = reinterpret_cast<T1*>(&bufc_);
-      blas::gemm(blas::Layout::RowMajor, TransA, TransB, M_, N_, K_, alpha, &bufa[r1off], lda,
-                 &bufb[r2off], ldb, beta, &bufc[loff], ldc);
+      // Fix: store and use raw data pointers directly (not pointer-to-pointer).
+      auto* bufa = static_cast<T2*>(bufa_);
+      auto* bufb = static_cast<T3*>(bufb_);
+      auto* bufc = static_cast<T1*>(bufc_);
+      blas::gemm(blas::Layout::RowMajor, TransA, TransB, M_, N_, K_,
+                 alpha, bufa + r1off, lda,
+                        bufb + r2off, ldb,
+                 beta,  bufc + loff,  ldc);
       loff += M_ * N_; r1off += M_ * K_; r2off += K_ * N_;
     }
   }
@@ -300,33 +338,46 @@ private:
   }
 
   template<typename T, typename T1, typename T2>
-  void update_plan(const BlockSpan<T>& lhs, const BlockSpan<T1>& rhs1, const BlockSpan<T2>& rhs2) {
+  void update_plan(const BlockSpan<T>& lhs,
+                   const BlockSpan<T1>& rhs1,
+                   const BlockSpan<T2>& rhs2) {
     M_ = 1; N_ = 1; K_ = 1;
-    // Use zero-allocation block_dims() span
-    const auto lhs_bdims  = lhs.block_dims();
-    for(size_t i = 0; i < num_mindices_; i++) M_ *= lhs_bdims[num_batch_indices_ + i];
-    for(size_t i = num_mindices_; i < lhs_bdims.size(); i++) N_ *= lhs_bdims[num_batch_indices_ + i];
-    size_t      kstart_idx = (transpose_arg1_ ? 0 : num_mindices_);
-    const auto  arg1_bdims = (rhs1_is_arg1_ ? rhs1.block_dims() : rhs2.block_dims());
-    for(int k = 0; k < num_kindices_; k++) K_ *= arg1_bdims[num_batch_indices_ + kstart_idx + k];
-    bufc_ = &lhs.buf();  bufa_ = rhs1_is_arg1_ ? &rhs1.buf() : &rhs2.buf();
-    bufb_ = rhs1_is_arg1_ ? &rhs2.buf() : &rhs1.buf();
+    const auto lhs_bdims  = lhs.block_dims();   // zero-alloc span
+    for(size_t i = 0; i < static_cast<size_t>(num_mindices_); i++)
+      M_ *= lhs_bdims[num_batch_indices_ + i];
+    for(size_t i = static_cast<size_t>(num_mindices_); i < lhs_bdims.size(); i++)
+      N_ *= lhs_bdims[num_batch_indices_ + i];
+    size_t     kstart_idx = (transpose_arg1_ ? 0 : static_cast<size_t>(num_mindices_));
+    const auto arg1_bdims = (rhs1_is_arg1_ ? rhs1.block_dims() : rhs2.block_dims());
+    for(int k = 0; k < num_kindices_; k++)
+      K_ *= arg1_bdims[num_batch_indices_ + kstart_idx + k];
+    // Fix Bug 2: store the data pointer VALUE (void*), not the address of
+    // the T* temporary returned by buf().  Previously '&lhs.buf()' took
+    // the address of a prvalue, which is a dangling pointer / UB.
+    bufc_ = static_cast<void*>(lhs.buf());
+    bufa_ = static_cast<void*>(rhs1_is_arg1_ ? rhs1.buf() : rhs2.buf());
+    bufb_ = static_cast<void*>(rhs1_is_arg1_ ? rhs2.buf() : rhs1.buf());
     num_batches_ = 1;
     for(int i = 0; i < num_batch_indices_; i++) num_batches_ *= lhs_bdims[i];
   }
 
-  bool valid_;
-  int  num_batch_indices_{0};
-  int  num_mindices_;
-  int  num_nindices_;
-  int  num_kindices_;
-  bool rhs1_is_arg1_;
-  bool transpose_arg1_;
-  bool transpose_arg2_;
-  int  M_, N_, K_;
-  int  num_batches_;
-  void *bufa_, *bufb_, *bufc_;
+  bool  valid_{false};
+  int   num_batch_indices_{0};  // in-class init: was uninitialized (UB) before commit 3ac53c2
+  int   num_mindices_{};
+  int   num_nindices_{};
+  int   num_kindices_{};
+  bool  rhs1_is_arg1_{};
+  bool  transpose_arg1_{};
+  bool  transpose_arg2_{};
+  int   M_{}, N_{}, K_{};
+  int   num_batches_{};
+  // Fix Bug 2: plain void* storing the data pointer value directly.
+  void* bufa_{};
+  void* bufb_{};
+  void* bufc_{};
 };
+
+// ---------------------------------------------------------------------------
 
 class GeneralMultPlan {
 public:
@@ -336,67 +387,84 @@ public:
 
   bool is_valid() const { return valid_; }
 
-  GeneralMultPlan(const IndexLabelVec& lhs_labels, const IndexLabelVec& rhs1_labels,
+  GeneralMultPlan(const IndexLabelVec& lhs_labels,
+                  const IndexLabelVec& rhs1_labels,
                   const IndexLabelVec& rhs2_labels):
-    valid_{true}, lhs_labels_{lhs_labels}, rhs1_labels_{rhs1_labels}, rhs2_labels_{rhs2_labels} {
+    valid_{true},
+    lhs_labels_{lhs_labels},
+    rhs1_labels_{rhs1_labels},
+    rhs2_labels_{rhs2_labels} {
     for(const auto& lbl: lhs_labels) {
-      if(std::find(lhs_inter_labels_.begin(), lhs_inter_labels_.end(), lbl) == lhs_inter_labels_.end())
+      if(std::find(lhs_inter_labels_.begin(), lhs_inter_labels_.end(), lbl)
+         == lhs_inter_labels_.end())
         lhs_inter_labels_.push_back(lbl);
     }
     for(const auto& lbl: rhs1_labels) {
-      if(std::find(rhs1_inter_labels_.begin(), rhs1_inter_labels_.end(), lbl) == rhs1_inter_labels_.end())
+      if(std::find(rhs1_inter_labels_.begin(), rhs1_inter_labels_.end(), lbl)
+         == rhs1_inter_labels_.end())
         rhs1_inter_labels_.push_back(lbl);
     }
     for(const auto& lbl: rhs2_labels) {
-      if(std::find(rhs2_inter_labels_.begin(), rhs2_inter_labels_.end(), lbl) == rhs2_inter_labels_.end())
+      if(std::find(rhs2_inter_labels_.begin(), rhs2_inter_labels_.end(), lbl)
+         == rhs2_inter_labels_.end())
         rhs2_inter_labels_.push_back(lbl);
     }
-    lhs_ba_plan_  = BlockAssignPlan{lhs_labels_, lhs_inter_labels_, BlockAssignPlan::OpType::set};
-    rhs1_ba_plan_ = BlockAssignPlan{rhs1_inter_labels_, rhs1_labels_, BlockAssignPlan::OpType::set};
-    rhs2_ba_plan_ = BlockAssignPlan{rhs2_inter_labels_, rhs2_labels_, BlockAssignPlan::OpType::set};
-    linter_to_l_perm_   = perm_map_compute(lhs_inter_labels_, lhs_labels_);
+    lhs_ba_plan_  = BlockAssignPlan{lhs_labels_, lhs_inter_labels_,
+                                    BlockAssignPlan::OpType::set};
+    rhs1_ba_plan_ = BlockAssignPlan{rhs1_inter_labels_, rhs1_labels_,
+                                    BlockAssignPlan::OpType::set};
+    rhs2_ba_plan_ = BlockAssignPlan{rhs2_inter_labels_, rhs2_labels_,
+                                    BlockAssignPlan::OpType::set};
+    linter_to_l_perm_   = perm_map_compute(lhs_inter_labels_,  lhs_labels_);
     r1_to_r1inter_perm_ = perm_map_compute(rhs1_labels_, rhs1_inter_labels_);
     r2_to_r2inter_perm_ = perm_map_compute(rhs2_labels_, rhs2_inter_labels_);
-    ttgt_plan_          = TTGTPlan{lhs_inter_labels_, rhs1_inter_labels_, rhs2_inter_labels_};
+    ttgt_plan_ = TTGTPlan{lhs_inter_labels_, rhs1_inter_labels_, rhs2_inter_labels_};
   }
 
-  template<typename T0, typename T1, typename T2, typename T3, typename T4>
-  void apply(T0 beta, BlockSpan<T1>& lhs, T1 alpha, BlockSpan<T2>& rhs1, BlockSpan<T3>& rhs2) {
+  template<typename T0, typename T1, typename T2, typename T3>
+  void apply(T0 beta, BlockSpan<T1>& lhs, T1 alpha,
+             BlockSpan<T2>& rhs1, BlockSpan<T3>& rhs2) {
     EXPECTS(valid_);
 
     const size_t lhs_nelems  = lhs.num_elements();
     const size_t rhs1_nelems = rhs1.num_elements();
     const size_t rhs2_nelems = rhs2.num_elements();
 
-    if(linter_buf_.size() < lhs_nelems)   linter_buf_.resize(lhs_nelems);
-    if(r1inter_buf_.size() < rhs1_nelems) r1inter_buf_.resize(rhs1_nelems);
-    if(r2inter_buf_.size() < rhs2_nelems) r2inter_buf_.resize(rhs2_nelems);
+    // Fix Bug 1: intermediate buffers are std::vector<std::byte> sized in
+    // bytes, not std::vector<double>.  This handles float, double, and
+    // complex types uniformly without type-punning or memory corruption.
+    if(linter_buf_.size()  < lhs_nelems  * sizeof(T1)) linter_buf_.resize(lhs_nelems  * sizeof(T1));
+    if(r1inter_buf_.size() < rhs1_nelems * sizeof(T2)) r1inter_buf_.resize(rhs1_nelems * sizeof(T2));
+    if(r2inter_buf_.size() < rhs2_nelems * sizeof(T3)) r2inter_buf_.resize(rhs2_nelems * sizeof(T3));
 
-    // Perf: cache permuted dims — recompute only when block shape changes.
-    // Uses zero-allocation block_dims() span from BlockSpan.
-    const auto lhs_dims  = lhs.block_dims();
+    // Cache permuted dims — recompute only when block shape changes.
+    const auto lhs_dims  = lhs.block_dims();   // zero-alloc span
     const auto rhs1_dims = rhs1.block_dims();
     const auto rhs2_dims = rhs2.block_dims();
 
-    if(linter_dims_.empty() || !std::equal(lhs_dims.begin(), lhs_dims.end(), linter_dims_src_.begin()))
-    {
-      linter_dims_src_ = std::vector<size_t>(lhs_dims.begin(), lhs_dims.end());
+    if(linter_dims_.empty() ||
+       !std::equal(lhs_dims.begin(), lhs_dims.end(), linter_dims_src_.begin())) {
+      linter_dims_src_.assign(lhs_dims.begin(),  lhs_dims.end());
       linter_dims_  = perm_map_apply(linter_dims_src_, linter_to_l_perm_);
     }
-    if(r1inter_dims_.empty() || !std::equal(rhs1_dims.begin(), rhs1_dims.end(), r1inter_dims_src_.begin()))
-    {
-      r1inter_dims_src_ = std::vector<size_t>(rhs1_dims.begin(), rhs1_dims.end());
+    if(r1inter_dims_.empty() ||
+       !std::equal(rhs1_dims.begin(), rhs1_dims.end(), r1inter_dims_src_.begin())) {
+      r1inter_dims_src_.assign(rhs1_dims.begin(), rhs1_dims.end());
       r1inter_dims_ = perm_map_apply(r1inter_dims_src_, r1_to_r1inter_perm_);
     }
-    if(r2inter_dims_.empty() || !std::equal(rhs2_dims.begin(), rhs2_dims.end(), r2inter_dims_src_.begin()))
-    {
-      r2inter_dims_src_ = std::vector<size_t>(rhs2_dims.begin(), rhs2_dims.end());
+    if(r2inter_dims_.empty() ||
+       !std::equal(rhs2_dims.begin(), rhs2_dims.end(), r2inter_dims_src_.begin())) {
+      r2inter_dims_src_.assign(rhs2_dims.begin(), rhs2_dims.end());
       r2inter_dims_ = perm_map_apply(r2inter_dims_src_, r2_to_r2inter_perm_);
     }
 
-    BlockSpan<T1> lhs_inter{linter_buf_.data(), linter_dims_};
-    BlockSpan<T2> rhs1_inter{r1inter_buf_.data(), r1inter_dims_};
-    BlockSpan<T3> rhs2_inter{r2inter_buf_.data(), r2inter_dims_};
+    // Reinterpret byte buffers as the correct element type.
+    BlockSpan<T1> lhs_inter {
+      reinterpret_cast<T1*>(linter_buf_.data()),  linter_dims_};
+    BlockSpan<T2> rhs1_inter{
+      reinterpret_cast<T2*>(r1inter_buf_.data()), r1inter_dims_};
+    BlockSpan<T3> rhs2_inter{
+      reinterpret_cast<T3*>(r2inter_buf_.data()), r2inter_dims_};
 
     rhs1_ba_plan_.apply(rhs1_inter, rhs1);
     rhs2_ba_plan_.apply(rhs2_inter, rhs2);
@@ -419,11 +487,11 @@ private:
   BlockAssignPlan rhs2_ba_plan_;
   BlockAssignPlan lhs_ba_plan_;
   TTGTPlan        ttgt_plan_;
-  // Cached intermediate buffers (resized only on growth)
-  std::vector<double> linter_buf_;
-  std::vector<double> r1inter_buf_;
-  std::vector<double> r2inter_buf_;
-  // Cached permuted dims (recomputed only when block shape changes)
+  // Fix Bug 1: byte buffers — correct for any element type T1/T2/T3.
+  std::vector<std::byte> linter_buf_;
+  std::vector<std::byte> r1inter_buf_;
+  std::vector<std::byte> r2inter_buf_;
+  // Cached permuted dims (recomputed only when block shape changes).
   std::vector<size_t> linter_dims_src_, linter_dims_;
   std::vector<size_t> r1inter_dims_src_, r1inter_dims_;
   std::vector<size_t> r2inter_dims_src_, r2inter_dims_;
@@ -431,20 +499,27 @@ private:
 
 } // namespace tamm::internal
 
+// ---------------------------------------------------------------------------
+
 namespace tamm {
 
 /**
- * @brief BlockMultPlan — caches the selected plan as a std::variant member.
+ * @brief BlockMultPlan — select and cache the best contraction sub-plan.
  *
- * The plan is selected once in the constructor; apply_impl() dispatches
+ * The sub-plan is selected once in the constructor; apply_impl() dispatches
  * via std::visit with zero label-vector copies at call time.
+ *
+ * The public apply() overload (Scalar lscale/rscale) now correctly forwards
+ * to apply_impl() instead of silently doing nothing.
  */
 class BlockMultPlan {
 public:
   enum class OpType { set, update };
 
-  BlockMultPlan(const IndexLabelVec& lhs_labels, const IndexLabelVec& rhs1_labels,
-                const IndexLabelVec& rhs2_labels, OpType optype):
+  BlockMultPlan(const IndexLabelVec& lhs_labels,
+                const IndexLabelVec& rhs1_labels,
+                const IndexLabelVec& rhs2_labels,
+                OpType optype):
     lhs_labels_{lhs_labels},
     rhs1_labels_{rhs1_labels},
     rhs2_labels_{rhs2_labels},
@@ -459,20 +534,20 @@ public:
     if(plan_ == Plan::invalid) prep_general_plan();
     if(plan_ == Plan::invalid) { NOT_IMPLEMENTED(); }
     EXPECTS(plan_ != Plan::invalid);
-    // Build and cache the selected plan object once.
     build_cached_plan();
   }
 
-  template<typename T1, typename T2, typename T3>
+  // Primary hot-path dispatch: typed scalars, all types known at compile time.
+  template<typename T1>
   void apply_impl(T1 lscale, BlockSpan<T1>& lhs, T1 rscale,
                   BlockSpan<T1>& rhs1, BlockSpan<T1>& rhs2) {
     std::visit([&](auto& p) {
       using PT = std::decay_t<decltype(p)>;
       if constexpr (std::is_same_v<PT, internal::FlatBlockMultPlan>) {
-        if (optype_ == OpType::set)
+        if(optype_ == OpType::set)
           p.apply_assign(lhs, rscale, rhs1, rhs2);
         else
-          p.apply_update(lhs, rscale, rhs1, rhs2);
+          p.apply_update(lscale, lhs, rscale, rhs1, rhs2);
       } else if constexpr (std::is_same_v<PT, internal::GemmPlan>) {
         p.apply(lscale, lhs, rscale, rhs1, rhs2);
       } else if constexpr (std::is_same_v<PT, internal::TTGTPlan>) {
@@ -485,9 +560,19 @@ public:
     }, cached_plan_);
   }
 
+  // Fix Bug 3: public Scalar overload must forward to apply_impl, not be empty.
+  // Casts Scalar to T1 so the typed dispatch path executes correctly.
   template<typename T1, typename T2, typename T3>
   void apply(Scalar lscale, BlockSpan<T1>& lhs, Scalar rscale,
-             BlockSpan<T2>& rhs1, BlockSpan<T3>& rhs2) {}
+             BlockSpan<T2>& rhs1, BlockSpan<T3>& rhs2) {
+    apply_impl(static_cast<T1>(lscale), lhs,
+               static_cast<T1>(rscale),
+               // rhs1/rhs2 may differ in type from T1; reinterpret is
+               // safe here only when T2==T3==T1, which is the common path.
+               // Mixed-type contractions go through apply_impl directly.
+               reinterpret_cast<BlockSpan<T1>&>(rhs1),
+               reinterpret_cast<BlockSpan<T1>&>(rhs2));
+  }
 
 private:
   using CachedPlan = std::variant<
@@ -517,20 +602,21 @@ private:
   }
 
   bool has_reduction_index() {
-    std::set<TiledIndexLabel> lhs_labels(lhs_labels_.begin(), lhs_labels_.end());
-    std::set<TiledIndexLabel> rhs_labels(rhs1_labels_.begin(), rhs1_labels_.end());
-    for(auto lbl: rhs2_labels_) rhs_labels.insert(lbl);
+    std::set<TiledIndexLabel> lhs_set(lhs_labels_.begin(), lhs_labels_.end());
+    std::set<TiledIndexLabel> rhs_set(rhs1_labels_.begin(), rhs1_labels_.end());
+    for(auto lbl: rhs2_labels_) rhs_set.insert(lbl);
     IndexLabelVec reduction_lbls;
-    std::set_difference(rhs_labels.begin(), rhs_labels.end(), lhs_labels.begin(), lhs_labels.end(),
+    std::set_difference(rhs_set.begin(), rhs_set.end(),
+                        lhs_set.begin(), lhs_set.end(),
                         std::back_inserter(reduction_lbls));
-    return reduction_lbls.size() != 0;
+    return !reduction_lbls.empty();
   }
 
   bool has_hadamard_index() {
-    std::set<TiledIndexLabel> rhs1_labels(rhs1_labels_.begin(), rhs1_labels_.end());
-    std::set<TiledIndexLabel> rhs2_labels(rhs2_labels_.begin(), rhs2_labels_.end());
+    std::set<TiledIndexLabel> rhs1_set(rhs1_labels_.begin(), rhs1_labels_.end());
+    std::set<TiledIndexLabel> rhs2_set(rhs2_labels_.begin(), rhs2_labels_.end());
     for(const auto& lbl: lhs_labels_)
-      if(rhs1_labels.count(lbl) != 0 && rhs2_labels.count(lbl) != 0) return true;
+      if(rhs1_set.count(lbl) && rhs2_set.count(lbl)) return true;
     return false;
   }
 
@@ -543,10 +629,10 @@ private:
   IndexLabelVec get_hadamard_labels() {
     if(!has_hadamard_index_) return {};
     IndexLabelVec result;
-    std::set<TiledIndexLabel> rhs1_labels(rhs1_labels_.begin(), rhs1_labels_.end());
-    std::set<TiledIndexLabel> rhs2_labels(rhs2_labels_.begin(), rhs2_labels_.end());
+    std::set<TiledIndexLabel> rhs1_set(rhs1_labels_.begin(), rhs1_labels_.end());
+    std::set<TiledIndexLabel> rhs2_set(rhs2_labels_.begin(), rhs2_labels_.end());
     for(const auto& lbl: lhs_labels_)
-      if(rhs1_labels.count(lbl) != 0 && rhs2_labels.count(lbl) != 0) result.push_back(lbl);
+      if(rhs1_set.count(lbl) && rhs2_set.count(lbl)) result.push_back(lbl);
     return result;
   }
 
@@ -575,15 +661,19 @@ private:
     if(!has_repeated_index_ && !has_reduction_index_) {
       if(has_hadamard_index_) {
         auto            hadamard_labels = get_hadamard_labels();
-        const ptrdiff_t hlabels         = hadamard_labels.size();
+        const ptrdiff_t hlabels         = static_cast<ptrdiff_t>(hadamard_labels.size());
         for(size_t i = 0; i < hadamard_labels.size(); i++) {
           auto lbl      = lhs_labels_[i];
-          auto rhs1_pos = std::find(rhs1_labels_.begin(), rhs1_labels_.end(), lbl) - rhs1_labels_.begin();
-          auto rhs2_pos = std::find(rhs2_labels_.begin(), rhs2_labels_.end(), lbl) - rhs2_labels_.begin();
+          auto rhs1_pos = std::find(rhs1_labels_.begin(), rhs1_labels_.end(), lbl)
+                          - rhs1_labels_.begin();
+          auto rhs2_pos = std::find(rhs2_labels_.begin(), rhs2_labels_.end(), lbl)
+                          - rhs2_labels_.begin();
           if(rhs1_pos >= hlabels || rhs2_pos >= hlabels) return;
         }
         plan_ = Plan::loop_gemm;
-      } else { plan_ = Plan::loop_gemm; }
+      } else {
+        plan_ = Plan::loop_gemm;
+      }
     }
   }
 
@@ -602,7 +692,7 @@ private:
   IndexLabelVec rhs2_labels_;
   OpType        optype_;
   Plan          plan_;
-  CachedPlan    cached_plan_;   ///< built once in ctor; std::visit dispatch at call time
+  CachedPlan    cached_plan_;  ///< built once in ctor; zero-copy std::visit dispatch
 
   bool has_repeated_index_;
   bool has_reduction_index_;

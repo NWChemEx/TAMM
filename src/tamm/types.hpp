@@ -47,10 +47,12 @@ void unfold_vec(std::vector<T>& vec, Args&&... args) {
 // Fundamental scalar / index aliases
 // ---------------------------------------------------------------------------
 using TAMM_SIZE     = uint64_t;
+// IndexSpace related type definitions
 using Index         = uint32_t;
 using IndexVector   = std::vector<Index>;
 using IndexIterator = IndexVector::const_iterator;
 using Tile          = uint32_t;
+// DAG related Hash
 using HashData      = uint64_t;
 using StringLabelVec = std::vector<std::string>;
 
@@ -74,11 +76,11 @@ struct BlockIndexSpace; using BlockIndex = StrongNum<BlockIndexSpace, uint64_t>;
 struct ProcSpace;    using Proc       = StrongNum<ProcSpace,   int64_t>;
 struct SignSpace;    using Sign       = StrongNum<SignSpace,   int32_t>;
 
-// Convenience aliases
+// these are typedefs for usability
 using Size       = Offset;
 using BlockCount = BlockIndex;
-using Label      = int;   // must support negative values
-using IntLabel   = int32_t;
+using Label      = int;   // needs to support negative values
+using IntLabel   = int32_t; // a simple integer label for indices
 using IntLabelVec = std::vector<IntLabel>;
 using SizeVec    = std::vector<Size>;
 using ProcGrid   = std::vector<Proc>;
@@ -201,7 +203,7 @@ template<typename T>
   else if constexpr (is_same_v<double,T>)                return MPI_DOUBLE;
   else if constexpr (is_same_v<std::complex<float>,T>)   return MPI_COMPLEX;
   else if constexpr (is_same_v<std::complex<double>,T>)  return MPI_DOUBLE_COMPLEX;
-  else NOT_IMPLEMENTED();
+  else NOT_IMPLEMENTED(); // unhandled type
 }
 
 template<typename T>
@@ -210,7 +212,7 @@ template<typename T>
   if      constexpr (is_same_v<int,T>)    return MPI_2INT;
   else if constexpr (is_same_v<float,T>)  return MPI_2REAL;
   else if constexpr (is_same_v<double,T>) return MPI_2DOUBLE_PRECISION;
-  else NOT_IMPLEMENTED();
+  else NOT_IMPLEMENTED(); // unhandled type
 }
 
 [[nodiscard]] static inline MPI_Op mpi_op(ReduceOp rop) {
@@ -236,6 +238,12 @@ inline Label make_label() {
 // ---------------------------------------------------------------------------
 // GA element type conversions
 // ---------------------------------------------------------------------------
+
+/**
+ * @brief Convert a TAMM element type to a GA element type
+ * @param eltype TAMM element type
+ * @return Corresponding GA element type
+ */
 [[nodiscard]] static inline int to_ga_eltype(ElementType eltype) noexcept {
   switch (eltype) {
     case ElementType::single_precision: return C_FLOAT;
@@ -246,6 +254,11 @@ inline Label make_label() {
   }
 }
 
+/**
+ * @brief Convert a GA element type to a TAMM element type
+ * @param eltype GA element type
+ * @return Corresponding TAMM element type
+ */
 [[nodiscard]] static inline ElementType from_ga_eltype(int eltype) noexcept {
   switch (eltype) {
     case C_FLOAT: return ElementType::single_precision;
@@ -317,6 +330,7 @@ template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 using SymbolTable    = std::map<void*, std::string>;
 using TranslateFunc  = std::function<Index(Index)>;
 
+// Custom hash function for IndexVector/BlockId
 struct IndexVectorHash {
   [[nodiscard]] std::size_t operator()(const IndexVector& vec) const noexcept {
     std::size_t seed = vec.size();
@@ -325,6 +339,7 @@ struct IndexVectorHash {
   }
 };
 
+// Custom equality function for IndexVector/BlockId
 struct IndexVectorEqual {
   [[nodiscard]] bool operator()(const IndexVector& lhs,
                                 const IndexVector& rhs) const noexcept {

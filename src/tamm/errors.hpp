@@ -63,17 +63,39 @@ tamm_expects_str(bool cond, std::string_view cond_str, std::string_view user_msg
 
 // clang-format off
 
+/**
+ * @brief Wrapper for assertion checking.
+ *
+ * This is meant to identify preconditions and possibly include additional
+ * operations (e.g., an error message).
+ */
 #define EXPECTS(cond)          tamm_expects((cond), #cond)
+
+/**
+ * @brief Wrapper for assertion checking with a custom string message.
+ */
 #define EXPECTS_STR(cond, str) tamm_expects_str((cond), #cond, str)
+
 #define EXPECTS_NOTHROW(cond)  assert(cond)
 
+/**
+ * @brief Mark code options that are not yet implemented.
+ */
 #define NOT_IMPLEMENTED()                                               \
     tamm_error("Not implemented")
 
+/**
+ * @brief Mark code options that are not yet allowed.
+ */
 #define NOT_ALLOWED()                                                   \
     tamm_error("Not allowed")
 
-/// UNREACHABLE: use C++23 std::unreachable() when available, else abort.
+/**
+ * @brief Mark code paths that should be unreachable.
+ *
+ * Uses C++23 std::unreachable() when available, otherwise aborts via
+ * tamm_error + __builtin_unreachable for optimizer hints.
+ */
 #if defined(__cpp_lib_unreachable) && __cpp_lib_unreachable >= 202202L
 #  include <utility>
 #  define UNREACHABLE() (std::unreachable())

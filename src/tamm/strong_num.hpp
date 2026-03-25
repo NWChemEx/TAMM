@@ -13,6 +13,15 @@
 
 namespace tamm {
 
+/**
+ * @todo Check the narrow cast implementation in:
+ *  http://stackoverflow.com/questions/17860657/well-defined-narrowing-cast
+ */
+
+/**
+ * @todo Add debug mode checks for overflow and underflow
+ */
+
 // ---------------------------------------------------------------------------
 // Concept: StrongNumeric
 // Constrains what underlying types StrongNum may wrap.
@@ -24,7 +33,15 @@ concept StrongNumeric = std::integral<T> || std::floating_point<T>;
 // checked_cast: narrow cast with optional debug assertion.
 // ---------------------------------------------------------------------------
 
-/// Cast between two distinct arithmetic types, asserting round-trip in debug.
+/**
+ * @brief Return input value in the desired target type after possibly checking
+ * for overflow/underflow.
+ *
+ * @tparam Target Desired output type
+ * @tparam Source Input type
+ * @param s Value being type cast
+ * @return Value after type casting
+ */
 template<StrongNumeric Target, StrongNumeric Source>
   requires (!std::is_same_v<Target, Source>)
 constexpr Target checked_cast(Source s) noexcept(false) {
@@ -35,23 +52,53 @@ constexpr Target checked_cast(Source s) noexcept(false) {
   return r;
 }
 
-/// Trivial identity cast when Source == Target.
+/**
+ * @brief Trivial checked cast when casting to the same type
+ *
+ * @tparam T Value type
+ * @param s input value
+ * @return same input value
+ */
 template<StrongNumeric T>
 constexpr T checked_cast(T s) noexcept { return s; }
 
-// ---------------------------------------------------------------------------
-// StrongNum<Space, T>
-//
-// A strongly-typed numeric wrapper that prevents implicit inter-type
-// conversions.  Define a new alias as:
-//
-//   struct MySpace;
-//   using MyInt = StrongNum<MySpace, int32_t>;
-// ---------------------------------------------------------------------------
+/**
+ * @brief Strongly typed wrapper for a numeric type.
+ *
+ * This class provides a strongly typed alias that cannot be implicitly
+ * converted to another type. To define a new StrongNum wrapper StrongType to,
+ * say, int, we do the following:
+ *
+ * @code
+ * class StrongIntSpace;
+ * using StrongInt = StrongNum<StrongIntSpace, int>;
+ * @endcode
+ *
+ * Checked casts are to be used to convert between types and possibly check the
+ * conversions in debug mode.
+ *
+ * C++20 changes vs. original:
+ *  - StrongNumeric concept replaces enable_if arithmetic checks.
+ *  - 12 comparison operators replaced by operator<=> (spaceship).
+ *  - [[nodiscard]] applied to value() and all binary operators.
+ *  - requires-clause replaces enable_if on constructor.
+ *
+ * @tparam Space Unique type name
+ * @tparam T Numeric type being wrapped
+ */
 template<typename Space, StrongNumeric T>
 struct StrongNum {
+  /**
+   * @brief Type of wrapper number
+   *
+   */
   using value_type = T;
-  using NumType    = StrongNum<Space, T>;
+
+  /**
+   * @brief Alias for this StrongNum type
+   *
+   */
+  using NumType = StrongNum<Space, T>;
 
   // ---- Lifecycle --------------------------------------------------------
   StrongNum()                                = default;
@@ -130,7 +177,7 @@ struct StrongNum {
                 T& value()       noexcept { return v; }
 
 private:
-  T v{};
+  T v{}; /**< Value wrapped by this object */
 };
 
 // ---------------------------------------------------------------------------

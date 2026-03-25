@@ -2,6 +2,8 @@
 // C++20 modernization: removed pre-C++17 apply shim (C++20 guarantees
 // std::apply), inline constexpr maxrank, [[nodiscard]] on queries,
 // std::bit_cast in hash_combine for strict-aliasing safety.
+// Perf: IndexVector changed to BoundVec<Index,maxrank> to eliminate
+// per-block heap allocation on every distributed tensor get/put/add.
 
 #pragma once
 
@@ -48,14 +50,24 @@ void unfold_vec(std::vector<T>& vec, Args&&... args) {
 // Fundamental scalar / index aliases
 // ---------------------------------------------------------------------------
 using TAMM_SIZE     = uint64_t;
-// IndexSpace related type definitions
 using Index         = uint32_t;
-using IndexVector   = std::vector<Index>;
-using IndexIterator = IndexVector::const_iterator;
 using Tile          = uint32_t;
-// DAG related Hash
 using HashData      = uint64_t;
 using StringLabelVec = std::vector<std::string>;
+
+// TensorRank / BoundVec aliases  (defined early — IndexVector depends on maxrank)
+using TensorRank = size_t;
+inline constexpr TensorRank maxrank{8};
+
+// ---------------------------------------------------------------------------
+// IndexVector: stack-allocated fixed-capacity block-id vector.
+// Changed from std::vector<Index> to BoundVec<Index,maxrank> to eliminate
+// one heap allocation per distributed tensor get/put/add call.  Block IDs
+// never exceed maxrank elements so the stack capacity is always sufficient.
+// IndexVectorHash / IndexVectorEqual are updated accordingly below.
+// ---------------------------------------------------------------------------
+using IndexVector   = BoundVec<Index, maxrank>;
+using IndexIterator = IndexVector::const_iterator;
 
 class TiledIndexSpace;
 using TiledIndexSpaceVec = std::vector<TiledIndexSpace>;
@@ -71,7 +83,6 @@ using PermVector = std::vector<Perm>;
 struct IrrepSpace;   using Irrep      = StrongNum<IrrepSpace,  uint32_t>;
 struct SpinSpace;    using Spin       = StrongNum<SpinSpace,   uint32_t>;
 struct SpatialSpace; using Spatial    = StrongNum<SpatialSpace,uint32_t>;
-using TensorRank = size_t;
 struct OffsetSpace;  using Offset     = StrongNum<OffsetSpace, uint64_t>;
 struct BlockIndexSpace; using BlockIndex = StrongNum<BlockIndexSpace, uint64_t>;
 struct ProcSpace;    using Proc       = StrongNum<ProcSpace,   int64_t>;
@@ -86,6 +97,12 @@ using IntLabelVec = std::vector<IntLabel>;
 using SizeVec    = std::vector<Size>;
 using ProcGrid   = std::vector<Proc>;
 using ProcList   = std::vector<int>;
+
+// BoundVec-based tensor dimension/permutation helpers
+template<typename T>
+using TensorVec  = BoundVec<T, maxrank>;
+using BlockDimVec = TensorVec<BlockIndex>;
+using PermVec     = TensorVec<uint32_t>;
 
 // ---------------------------------------------------------------------------
 // Enumerations (all scoped enum class)
@@ -125,16 +142,6 @@ template<> constexpr ElementType tensor_element_type<std::complex<double>>() noe
     default: return 0;
   }
 }
-
-// ---------------------------------------------------------------------------
-// TensorRank / BoundVec aliases
-// ---------------------------------------------------------------------------
-inline constexpr TensorRank maxrank{8};
-
-template<typename T>
-using TensorVec  = BoundVec<T, maxrank>;
-using BlockDimVec = TensorVec<BlockIndex>;
-using PermVec     = TensorVec<uint32_t>;
 
 // ---------------------------------------------------------------------------
 // Remaining enumerations
@@ -204,7 +211,7 @@ template<typename T>
   else if constexpr (is_same_v<double,T>)                return MPI_DOUBLE;
   else if constexpr (is_same_v<std::complex<float>,T>)   return MPI_COMPLEX;
   else if constexpr (is_same_v<std::complex<double>,T>)  return MPI_DOUBLE_COMPLEX;
-  else NOT_IMPLEMENTED(); // unhandled type
+  else NOT_IMPLEMENTED();
 }
 
 template<typename T>
@@ -213,7 +220,7 @@ template<typename T>
   if      constexpr (is_same_v<int,T>)    return MPI_2INT;
   else if constexpr (is_same_v<float,T>)  return MPI_2REAL;
   else if constexpr (is_same_v<double,T>) return MPI_2DOUBLE_PRECISION;
-  else NOT_IMPLEMENTED(); // unhandled type
+  else NOT_IMPLEMENTED();
 }
 
 [[nodiscard]] static inline MPI_Op mpi_op(ReduceOp rop) {
@@ -231,9 +238,6 @@ template<typename T>
 // ---------------------------------------------------------------------------
 // make_label: thread-safe monotonic label generator
 // ---------------------------------------------------------------------------
-/// Returns a unique monotonically-increasing Label each time it is called.
-/// Uses std::atomic with memory_order_relaxed for lock-free thread safety;
-/// ordering against other operations is not required here.
 inline Label make_label() {
   static std::atomic<Label> lbl{0};
   return lbl.fetch_add(1, std::memory_order_relaxed);
@@ -242,12 +246,6 @@ inline Label make_label() {
 // ---------------------------------------------------------------------------
 // GA element type conversions
 // ---------------------------------------------------------------------------
-
-/**
- * @brief Convert a TAMM element type to a GA element type
- * @param eltype TAMM element type
- * @return Corresponding GA element type
- */
 [[nodiscard]] static inline int to_ga_eltype(ElementType eltype) noexcept {
   switch (eltype) {
     case ElementType::single_precision: return C_FLOAT;
@@ -258,11 +256,6 @@ inline Label make_label() {
   }
 }
 
-/**
- * @brief Convert a GA element type to a TAMM element type
- * @param eltype GA element type
- * @return Corresponding TAMM element type
- */
 [[nodiscard]] static inline ElementType from_ga_eltype(int eltype) noexcept {
   switch (eltype) {
     case C_FLOAT: return ElementType::single_precision;
@@ -323,7 +316,7 @@ template<> inline constexpr ElType eltype<std::complex<double>> = ElType::cfp64;
 }
 
 // ---------------------------------------------------------------------------
-// Overloaded visitor helper (C++17 deduction guide, usable in C++20)
+// Overloaded visitor helper
 // ---------------------------------------------------------------------------
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
@@ -334,7 +327,7 @@ template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 using SymbolTable    = std::map<void*, std::string>;
 using TranslateFunc  = std::function<Index(Index)>;
 
-// Custom hash function for IndexVector/BlockId
+// Hash/equality for IndexVector (now BoundVec-based, stack-allocated).
 struct IndexVectorHash {
   [[nodiscard]] std::size_t operator()(const IndexVector& vec) const noexcept {
     std::size_t seed = vec.size();
@@ -343,7 +336,6 @@ struct IndexVectorHash {
   }
 };
 
-// Custom equality function for IndexVector/BlockId
 struct IndexVectorEqual {
   [[nodiscard]] bool operator()(const IndexVector& lhs,
                                 const IndexVector& rhs) const noexcept {

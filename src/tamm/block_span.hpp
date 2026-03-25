@@ -26,7 +26,10 @@ using TammMdspan = std::mdspan<T, std::dextents<size_t, std::dynamic_extent>>;
  * Backed by std::mdspan so that element access (view_(i,j,...)), strides,
  * and extent queries are all zero-overhead.
  *
- * C++20 changes vs. original:
+ * C++20 / perf changes vs. prior version:
+ *  - block_dims() now returns std::span<const size_t> into a cached
+ *    TensorVec<size_t> extents_ member — zero heap allocation per call.
+ *  - block_dims_vec() provided for callers that truly need a std::vector.
  *  - Internal storage replaced by std::mdspan (TammMdspan<T>).
  *  - Added make_block_span factory helpers.
  *  - BufKind tag retained for CPU/invalid distinction.
@@ -43,9 +46,7 @@ public:
   // Constructors
   // ------------------------------------------------------------------
 
-  /**
-   * @brief Default constructor: produces an invalid/null span.
-   */
+  /// Default constructor: produces an invalid/null span.
   BlockSpan() noexcept
     : buf_kind_{BufKind::invalid},
       view_{nullptr, std::dextents<size_t, std::dynamic_extent>{}} {}
@@ -53,26 +54,25 @@ public:
   /**
    * @brief Primary constructor: pointer + runtime dimension list.
    *
+   * Caches the extents into extents_ (TensorVec, stack-allocated) so
+   * that block_dims() never needs to heap-allocate.
+   *
    * @param[in] buf  Pointer to the data buffer (must not be null)
    * @param[in] dims Extents of each dimension as a contiguous span
    *
    * @pre buf != nullptr
    */
   BlockSpan(T* buf, std::span<const size_t> dims)
-    : buf_kind_{BufKind::cpu},
-      view_{[&]{
-        EXPECTS(buf != nullptr);
-        std::vector<size_t> ext(dims.begin(), dims.end());
-        return TammMdspan<T>{buf,
-          std::dextents<size_t, std::dynamic_extent>(ext)};
-      }()} {}
+    : buf_kind_{BufKind::cpu} {
+    EXPECTS(buf != nullptr);
+    extents_.resize(dims.size());
+    for (size_t i = 0; i < dims.size(); ++i) extents_[i] = dims[i];
+    std::vector<size_t> ext(dims.begin(), dims.end());
+    view_ = TammMdspan<T>{buf,
+      std::dextents<size_t, std::dynamic_extent>(ext)};
+  }
 
-  /**
-   * @brief Convenience constructor: accept an std::vector<size_t> directly.
-   *
-   * @param[in] buf        Pointer to the data buffer
-   * @param[in] block_dims Dimension extents as a vector
-   */
+  /// Convenience constructor: accept an std::vector<size_t> directly.
   BlockSpan(T* buf, const std::vector<size_t>& block_dims)
     : BlockSpan(buf, std::span<const size_t>{block_dims}) {}
 
@@ -86,95 +86,68 @@ public:
   // Accessors
   // ------------------------------------------------------------------
 
-  /**
-   * @brief Raw data pointer (mutable).
-   * @return Pointer to the first element of the block
-   */
+  /// Raw data pointer (mutable).
   [[nodiscard]] T* buf() noexcept { return view_.data_handle(); }
 
-  /**
-   * @brief Raw data pointer (const).
-   * @return Const pointer to the first element of the block
-   */
+  /// Raw data pointer (const).
   [[nodiscard]] const T* buf() const noexcept { return view_.data_handle(); }
 
-  /**
-   * @brief Flat element count (product of all extents).
-   * @return Total number of elements
-   */
+  /// Flat element count (product of all extents).
   [[nodiscard]] size_t num_elements() const noexcept { return view_.size(); }
 
-  /**
-   * @brief Number of dimensions.
-   * @return Rank of the block
-   */
+  /// Number of dimensions.
   [[nodiscard]] size_t rank() const noexcept { return view_.rank(); }
 
-  /**
-   * @brief Extent along dimension d.
-   * @param[in] d Dimension index
-   * @return Number of elements along dimension d
-   */
+  /// Extent along dimension d.
   [[nodiscard]] size_t extent(size_t d) const { return view_.extent(d); }
 
   /**
-   * @brief Backward-compatible accessor: return all extents as a vector.
-   * @return Vector of extents, one per dimension
+   * @brief Zero-allocation accessor: returns a span view into the cached
+   *        extents array.  Preferred over block_dims_vec() in hot paths.
+   *
+   * @return std::span<const size_t> of length rank()
    */
-  [[nodiscard]] std::vector<size_t> block_dims() const {
-    std::vector<size_t> dims(view_.rank());
-    for (size_t d = 0; d < view_.rank(); ++d)
-      dims[d] = view_.extent(d);
-    return dims;
+  [[nodiscard]] std::span<const size_t> block_dims() const noexcept {
+    return std::span<const size_t>{extents_.data(), extents_.size()};
   }
 
   /**
-   * @brief Direct access to the underlying mdspan for kernel code.
-   * @return Reference to the internal TammMdspan
+   * @brief Backward-compatible: return all extents as a heap-allocated
+   *        std::vector.  Use only when a vector is strictly required.
+   *
+   * @return std::vector<size_t> of extents, one per dimension
    */
+  [[nodiscard]] std::vector<size_t> block_dims_vec() const {
+    return std::vector<size_t>(extents_.begin(), extents_.end());
+  }
+
+  /// Direct access to the underlying mdspan for kernel code.
   [[nodiscard]] TammMdspan<T>&       mdspan()       noexcept { return view_; }
   [[nodiscard]] const TammMdspan<T>& mdspan() const noexcept { return view_; }
 
-  /**
-   * @brief True when the span holds a valid (non-null) buffer.
-   * @return True if valid, false if default-constructed or invalidated
-   */
+  /// True when the span holds a valid (non-null) buffer.
   [[nodiscard]] bool is_valid() const noexcept {
     return buf_kind_ != BufKind::invalid && view_.data_handle() != nullptr;
   }
 
 private:
-  BufKind          buf_kind_;
-  TammMdspan<T>    view_;      ///< dims + pointer packed in one object
+  BufKind             buf_kind_;
+  TammMdspan<T>       view_;      ///< dims + pointer packed in one object
+  TensorVec<size_t>   extents_;   ///< cached extents — stack-allocated, zero-copy block_dims()
 };
 
 // ---------------------------------------------------------------------------
 // Factory helpers
 // ---------------------------------------------------------------------------
 
-/**
- * @brief Build a BlockSpan from a raw pointer + initializer-list of dimensions.
- *
- * @tparam T      Element type
- * @param[in] buf  Pointer to data buffer
- * @param[in] dims Brace-enclosed list of extents, e.g. {rows, cols}
- * @return A BlockSpan wrapping buf with the given extents
- */
+/// Build a BlockSpan from a raw pointer + initializer-list of dimensions.
 template<typename T>
 [[nodiscard]] inline BlockSpan<T>
 make_block_span(T* buf, std::initializer_list<size_t> dims) {
   return BlockSpan<T>{buf, std::vector<size_t>{dims}};
 }
 
-/**
- * @brief Build a BlockSpan from a raw pointer + contiguous range of dimensions.
- *
- * @tparam T      Element type
- * @tparam R      Contiguous range whose value type is convertible to size_t
- * @param[in] buf  Pointer to data buffer
- * @param[in] dims Range of extents
- * @return A BlockSpan wrapping buf with the given extents
- */
+/// Build a BlockSpan from a raw pointer + contiguous range of dimensions.
 template<typename T, std::ranges::contiguous_range R>
   requires std::is_convertible_v<std::ranges::range_value_t<R>, size_t>
 [[nodiscard]] inline BlockSpan<T>

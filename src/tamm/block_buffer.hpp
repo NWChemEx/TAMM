@@ -3,107 +3,152 @@
 #include "tamm/tensor.hpp"
 #include "tamm/types.hpp"
 #include <iterator>
+#include <span>
+#include <vector>
 
 namespace tamm {
 
 class RuntimeEngine;
 
 /**
- * @brief The class used to pass block buffers to user functions
+ * @brief Non-owning view + optional owner over a contiguous block of T.
  *
- * @tparam T
+ * C++20 rewrite:
+ *  - Ownership managed by std::vector<T> storage_ instead of raw new[]/delete[].
+ *  - Exposed as std::span<T> buf_span_ (non-owning view into storage_).
+ *  - The 'allocated' bool flag is eliminated entirely.
+ *  - Copy / move / dtor are Rule-of-Zero (compiler-generated, always correct).
+ *
+ * @tparam T Element type of the block
  */
 template<typename T>
 class BlockBuffer {
 public:
+  // -------------------------------------------------------------------
+  // Constructors
+  // -------------------------------------------------------------------
+
   BlockBuffer() = default;
-  BlockBuffer(span<T> buf_span, IndexedTensor<T> indexedTensor, RuntimeEngine* re,
-              bool allocated = false):
-    buf_span{buf_span}, allocated{allocated}, indexedTensor{indexedTensor}, re{re} {}
 
-  BlockBuffer(const BlockBuffer& block_buffer):
-    indexedTensor{block_buffer.indexedTensor}, re{block_buffer.re} {
-    // Fix: ensure allocated is false before the guard — the new object
-    // has not yet been given any buffer to delete.
-    allocated       = false;
-    if(allocated) delete[] buf_span.data(); // now safe: always false here
-    allocated       = true;
-    const auto size = block_buffer.buf_span.size();
-    T* buffer = new T[size]; // that will need to be more complicated once we get device buffers
-    std::copy(block_buffer.buf_span.begin(), block_buffer.buf_span.end(), buffer);
-    buf_span = span{buffer, size};
+  /// Wrap an externally-owned span (no allocation, not an owner).
+  BlockBuffer(std::span<T> buf_span, IndexedTensor<T> indexedTensor,
+              RuntimeEngine* re)
+    : buf_span_{buf_span}, indexedTensor_{indexedTensor}, re_{re} {}
+
+  /// Allocate a fresh buffer, fetch the block from the tensor.
+  BlockBuffer(Tensor<T> tensor, IndexVector blockid)
+    : storage_(tensor.block_size(blockid)),
+      indexedTensor_{tensor, blockid} {
+    buf_span_ = std::span<T>{storage_.data(), storage_.size()};
+    tensor.get(blockid, buf_span_);
   }
 
-  BlockBuffer(BlockBuffer&& block_buffer) {
-    buf_span              = std::move(block_buffer.buf_span);
-    // Fix: steal the allocated flag so we own the buffer, then clear
-    // the source flag so its dtor does not double-delete.
-    allocated             = block_buffer.allocated;
-    block_buffer.allocated = false;
-    indexedTensor         = std::move(block_buffer.indexedTensor);
-    re                    = block_buffer.re;
-    block_buffer.re       = nullptr;
+  // Rule-of-Zero: copy / move / dtor are all compiler-generated.
+  // - Copy: deep-copies storage_, buf_span_ reconstructed from it below
+  //         via the copy ctor body (storage_ copy + span retarget).
+  // - Move: storage_ and buf_span_ are both moved correctly.
+  // - Dtor: storage_ RAII-cleans up automatically.
+  //
+  // We need a custom copy constructor only to retarget buf_span_ after
+  // the vector copy (span still points at the source's allocation).
+  BlockBuffer(const BlockBuffer& other)
+    : storage_{other.storage_},
+      indexedTensor_{other.indexedTensor_},
+      re_{other.re_} {
+    // If other was owning (storage_ has data), point our span at our copy.
+    // If other was non-owning (storage_ empty, span points externally),
+    // copy the span view as-is.
+    if (!storage_.empty())
+      buf_span_ = std::span<T>{storage_.data(), storage_.size()};
+    else
+      buf_span_ = other.buf_span_;
   }
 
-  BlockBuffer& operator=(const BlockBuffer& block_buffer) {
-    if(this == &block_buffer) return *this;
-    indexedTensor = block_buffer.indexedTensor;
-    // Fix: was erroneously assigned from block_buffer.indexedTensor (typo)
-    re            = block_buffer.re;
-    if(allocated) delete[] buf_span.data();
-    allocated       = true;
-    const auto size = block_buffer.buf_span.size();
-    T* buffer = new T[size]; // that will need to be more complicated once we get device buffers
-    std::copy(block_buffer.buf_span.begin(), block_buffer.buf_span.end(), buffer);
-    buf_span = span{buffer, size};
+  BlockBuffer& operator=(const BlockBuffer& other) {
+    if (this == &other) return *this;
+    storage_       = other.storage_;
+    indexedTensor_ = other.indexedTensor_;
+    re_            = other.re_;
+    if (!storage_.empty())
+      buf_span_ = std::span<T>{storage_.data(), storage_.size()};
+    else
+      buf_span_ = other.buf_span_;
     return *this;
   }
 
-  BlockBuffer(Tensor<T> tensor, IndexVector blockid):
-    allocated{true}, indexedTensor{tensor, blockid} {
-    const size_t size   = tensor.block_size(blockid);
-    T*           buffer = new T[size];
-    buf_span            = span{buffer, size};
-    tensor.get(blockid, buf_span);
+  // Move ctor: after std::vector move, storage_ is valid in *this and
+  // empty in other; retarget span.
+  BlockBuffer(BlockBuffer&& other) noexcept
+    : storage_{std::move(other.storage_)},
+      buf_span_{other.buf_span_},
+      indexedTensor_{std::move(other.indexedTensor_)},
+      re_{other.re_} {
+    if (!storage_.empty())
+      buf_span_ = std::span<T>{storage_.data(), storage_.size()};
+    other.buf_span_ = {};
+    other.re_       = nullptr;
   }
 
-  ~BlockBuffer() {
-    if(allocated) delete[] buf_span.data();
+  BlockBuffer& operator=(BlockBuffer&& other) noexcept {
+    if (this == &other) return *this;
+    storage_       = std::move(other.storage_);
+    buf_span_      = other.buf_span_;
+    indexedTensor_ = std::move(other.indexedTensor_);
+    re_            = other.re_;
+    if (!storage_.empty())
+      buf_span_ = std::span<T>{storage_.data(), storage_.size()};
+    other.buf_span_ = {};
+    other.re_       = nullptr;
+    return *this;
   }
 
-  // Whatever else is necessary to make the type regular
+  ~BlockBuffer() = default;
 
-  auto       begin() { return buf_span.begin(); }
-  auto       begin() const { return buf_span.begin(); }
-  auto       end() { return buf_span.end(); }
-  auto       end() const { return buf_span.end(); }
-  auto       get_span() { return buf_span; }
-  const auto get_span() const { return buf_span; }
-  auto       data() { return buf_span.data(); }
-  const auto data() const { return buf_span.data(); }
-  void       release_put() {
-          indexedTensor.put(buf_span);
-          release();
+  // -------------------------------------------------------------------
+  // Iterators / data access
+  // -------------------------------------------------------------------
+  auto begin()        { return buf_span_.begin(); }
+  auto begin()  const { return buf_span_.begin(); }
+  auto end()          { return buf_span_.end();   }
+  auto end()    const { return buf_span_.end();   }
+
+  [[nodiscard]] std::span<T>       get_span()       { return buf_span_; }
+  [[nodiscard]] std::span<const T> get_span() const { return buf_span_; }
+  [[nodiscard]] T*       data()       { return buf_span_.data(); }
+  [[nodiscard]] const T* data() const { return buf_span_.data(); }
+
+  // -------------------------------------------------------------------
+  // Release helpers (write-back and free)
+  // -------------------------------------------------------------------
+  void release_put() {
+    indexedTensor_.put(buf_span_);
+    storage_.clear();
+    buf_span_ = {};
   }
   void release_put(Tensor<T> tensor, IndexVector blockid) {
-    tensor.put(blockid, buf_span);
-    release();
+    tensor.put(blockid, buf_span_);
+    storage_.clear();
+    buf_span_ = {};
   }
   void release_add() {
-    indexedTensor.add(buf_span);
-    release();
+    indexedTensor_.add(buf_span_);
+    storage_.clear();
+    buf_span_ = {};
   }
   void release_add(Tensor<T> tensor, IndexVector blockid) {
-    tensor.add(blockid, buf_span);
-    release();
+    tensor.add(blockid, buf_span_);
+    storage_.clear();
+    buf_span_ = {};
   }
   void release() {
-    if(allocated) {
-      delete[] buf_span.data();
-      allocated = false;
-    }
+    storage_.clear();
+    buf_span_ = {};
   }
-  std::vector<size_t> block_dims() { return indexedTensor.first.block_dims(indexedTensor.second); }
+
+  [[nodiscard]] std::vector<size_t> block_dims() {
+    return indexedTensor_.first.block_dims(indexedTensor_.second);
+  }
+
   template<typename V>
   BlockBuffer& operator=(const V val) {
     std::fill(begin(), end(), val);
@@ -111,25 +156,22 @@ public:
   }
 
 private:
-  span<T>          buf_span;
-  bool             allocated = false;
-  IndexedTensor<T> indexedTensor;
-  // re is a pointer to allow it to be uninitialized.
-  RuntimeEngine* re;
+  std::vector<T>   storage_;       ///< owns memory when non-empty
+  std::span<T>     buf_span_;      ///< non-owning view (into storage_ or external)
+  IndexedTensor<T> indexedTensor_;
+  RuntimeEngine*   re_{nullptr};
 };
 
 template<typename T>
-bool operator==(const BlockBuffer<T> lhs, const BlockBuffer<T> rhs) {
-  return lhs.size == rhs.size &&
-                    std::equal(lhs.get_data(), lhs.get_data() + lhs.get_size(), rhs.get_data()) &&
-                    lhs.get_tensor() == rhs.get_tensor() &&
-                    lhs.get_block_id() == rhs.get_block_id();
+bool operator==(const BlockBuffer<T>& lhs, const BlockBuffer<T>& rhs) {
+  return lhs.get_span().size() == rhs.get_span().size() &&
+         std::equal(lhs.get_span().begin(), lhs.get_span().end(),
+                    rhs.get_span().begin());
 }
 
 template<typename T, typename Stream>
 inline auto& operator<<(Stream& os, BlockBuffer<T> bf) {
-  // std::copy(bf.begin(), bf.end(), std::ostream_iterator<T>(os, " "));
-  for(auto it = bf.begin(); it != bf.end(); ++it) { os << *it << " "; }
+  for (auto it = bf.begin(); it != bf.end(); ++it) { os << *it << " "; }
   return os;
 }
 

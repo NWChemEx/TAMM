@@ -9,3 +9,7 @@ if(NOT USE_UPCXX)
   include(${CMAKE_CURRENT_LIST_DIR}/ga/test_ga.cmake)
 endif()
 
+if(TAMM_HAS_PYTHON)
+  include(${CMAKE_CURRENT_LIST_DIR}/python/test_pytamm.cmake)
+endif()
+

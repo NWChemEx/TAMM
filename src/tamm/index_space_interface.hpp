@@ -1,6 +1,13 @@
 #pragma once
 
 #include "tamm/index_space.hpp"
+// TiledIndexSpace must be a COMPLETE type here: the *Impl classes below hold
+// std::vector<TiledIndexSpace> members and have defaulted special members,
+// which GCC 14.3 (C++20) instantiates eagerly during class definition and
+// therefore requires the element type to be complete.  index_space_interface.hpp
+// is only included by index_space.cpp, and tiled_index_space.hpp does not
+// include this header back, so there is no include cycle.
+#include "tamm/tiled_index_space.hpp"
 #include "tamm/types.hpp"
 #include <algorithm>
 #include <memory>

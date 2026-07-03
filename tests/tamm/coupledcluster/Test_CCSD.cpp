@@ -1,5 +1,7 @@
 #include "ccse_tensors.hpp"
+#include <bit>
 #include <cmath>
+#include <cstdint>
 #include <tamm/tamm_git.hpp>
 
 using CCEType = double;
@@ -810,7 +812,13 @@ int main(int argc, char* argv[]) {
     T            de_val{};
     d_e.get({}, {&de_val, 1});
     const double den = std::abs(de_val);
-    EXPECTS(std::isfinite(r1n) && std::isfinite(r2n) && std::isfinite(den));
+    // -ffast-math/-fp-model fast assumes no NaN/Inf, so std::isfinite() is elided to a
+    // no-op (and warns).  Test the IEEE-754 bit pattern directly instead: exponent field
+    // all-ones (0x7ff) means Inf or NaN.  This survives fast-math and actually catches it.
+    auto finite_bits = [](double x) {
+      return (std::bit_cast<std::uint64_t>(x) & 0x7ff0000000000000ULL) != 0x7ff0000000000000ULL;
+    };
+    EXPECTS(finite_bits(r1n) && finite_bits(r2n) && finite_bits(den));
     EXPECTS(r1n > 0.0 && r2n > 0.0);
     if(ec.print()) {
       std::cout << "CCSD residual sanity: |r1|=" << r1n << " |r2|=" << r2n << " |E|=" << den

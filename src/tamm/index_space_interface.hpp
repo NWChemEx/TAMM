@@ -246,7 +246,7 @@ protected:
    * @tparam ContainerType stl container type with iterator
    * (RandomAccessIterator) support
    * @param [in] data_vec input vector
-   * @returns true returned if there are duplicates
+   * @returns true returned if there are no duplicate elements
    *
    * NOTE: name deliberately reads "no_duplicate" — it returns true when the
    * input is duplicate-free.  (The previous name has_duplicate() was inverted

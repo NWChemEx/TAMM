@@ -3,6 +3,7 @@
 // #include "tamm/ops.hpp"
 #include "tamm/tensor.hpp"
 #include <type_traits>
+#include <utility>
 
 namespace tamm {
 template<typename T>
@@ -40,9 +41,9 @@ public:
   const StringLabelVec&    str_labels() const { return slv_; }
   const std::vector<bool>& str_map() const { return str_map_; }
 
-  void set_labels(const IndexLabelVec& ilv) {
+  void set_labels(IndexLabelVec ilv) {
     EXPECTS(ilv_.size() == ilv.size());
-    ilv_ = ilv;
+    ilv_ = std::move(ilv);
     slv_.clear();
     slv_.resize(ilv_.size());
     str_map_ = std::vector<bool>(ilv_.size(), false);

@@ -85,7 +85,7 @@ template<typename T1, typename T2, typename T3>
 struct AddBuf {
   AddBuf(T2* ta, T3* tb, T1* cbuf, const IndexVector& blockid):
     blockid_{blockid}, cbuf_{cbuf}, ta_{ta}, tb_{tb} {}
-  ~AddBuf() {}
+  ~AddBuf() = default;
 
   T1*         cbuf_;
   T2*         abuf_;
@@ -140,9 +140,9 @@ public:
       rhs2_lbls = IndexLabelVec(labels.begin() + lhs.labels().size() + rhs1.labels().size(),
                                 labels.begin() + lhs.labels().size() + rhs1.labels().size() +
                                   rhs2.labels().size());
-      lhs_.set_labels(lhs_lbls);
-      rhs1_.set_labels(rhs1_lbls);
-      rhs2_.set_labels(rhs2_lbls);
+      lhs_.set_labels(std::move(lhs_lbls));
+      rhs1_.set_labels(std::move(rhs1_lbls));
+      rhs2_.set_labels(std::move(rhs2_lbls));
     }
 
     if(lhs.has_str_lbl()) { fillin_labels(); }
@@ -200,7 +200,7 @@ public:
     all_labels.insert(all_labels.end(), rhs2_.labels().begin(), rhs2_.labels().end());
     LabelLoopNest loop_nest{all_labels};
 
-    std::vector<AddBuf<TensorElType1, TensorElType2, TensorElType3>*> add_bufs;
+    std::vector<std::unique_ptr<AddBuf<TensorElType1, TensorElType2, TensorElType3>>> add_bufs;
     // function to compute one block
     auto lambda = [=, &oprof, &add_bufs, &loop_nest, &ec](const IndexVector itval) {
       auto ctensor = lhs_.tensor();
@@ -376,13 +376,13 @@ public:
         th_a = static_cast<TensorElType2*>(memDevicePool.allocate(asize * sizeof(TensorElType2)));
         th_b = static_cast<TensorElType3*>(memDevicePool.allocate(bsize * sizeof(TensorElType3)));
 
-        ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{th_a, th_b, cbuf,
-                                                                     translated_cblockid};
+        add_bufs.push_back(std::make_unique<AddBuf<TensorElType1, TensorElType2, TensorElType3>>(
+          th_a, th_b, cbuf, translated_cblockid));
 #else
-        ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{ctensor, cbuf,
-                                                                     translated_cblockid};
+        add_bufs.push_back(std::make_unique<AddBuf<TensorElType1, TensorElType2, TensorElType3>>(
+          ctensor, cbuf, translated_cblockid));
 #endif
-        add_bufs.push_back(ab);
+        ab = add_bufs.back().get();
 
         {
           TimerGuard     tg_bc{&oprof.multOpBCTime};
@@ -445,7 +445,6 @@ public:
           // add the computed update to the tensor
           ctensor.add(translated_cblockid, {ab->cbuf_, csize});
         }
-        delete ab;
         add_bufs.clear();
 #endif
       }
@@ -475,7 +474,6 @@ public:
       for(auto& ab: add_bufs) {
         (ab->tensor_).nb_add(ab->blockid_, ab->cbuf_, &(ab->nbhdl_));
         ab->wait();
-        delete ab;
       }
       add_bufs.clear();
     }
@@ -572,16 +570,16 @@ public:
       SizeVec cdims_sz;
       for(const auto v: cdims) { cdims_sz.push_back(v); }
 
-      AddBuf<TensorElType1, TensorElType2, TensorElType3>* ab{nullptr};
+      std::unique_ptr<AddBuf<TensorElType1, TensorElType2, TensorElType3>> ab;
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       TensorElType2* th_a{nullptr};
       TensorElType3* th_b{nullptr};
 
-      ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
-        th_a, th_b, {}, translated_cblockid};
+      ab = std::make_unique<AddBuf<TensorElType1, TensorElType2, TensorElType3>>(
+        th_a, th_b, static_cast<TensorElType1*>(nullptr), translated_cblockid);
 #else
-      ab =
-        new AddBuf<TensorElType1, TensorElType2, TensorElType3>{ctensor, {}, translated_cblockid};
+      ab = std::make_unique<AddBuf<TensorElType1, TensorElType2, TensorElType3>>(
+        ctensor, nullptr, translated_cblockid);
 #endif
 
       {
@@ -756,7 +754,7 @@ public:
 #endif
       } // multoptime
 
-      delete ab;
+      ab.reset();
       memHostPool.deallocate(cbuf, csize * sizeof(TensorElType1));
     };
     //@todo use a scheduler

@@ -262,8 +262,8 @@ extract_blockid_and_label(const IndexLabelVec& input_labels, const IndexVector& 
 inline IndexVector indep_values(const IndexVector& blockid, const Index& idx,
                                 const std::map<size_t, std::vector<size_t>>& dep_map) {
   IndexVector ret{};
-  if(dep_map.find(idx) != dep_map.end()) {
-    for(const auto& dep_id: dep_map.at(idx)) { ret.push_back(blockid[dep_id]); }
+  if(auto it = dep_map.find(idx); it != dep_map.end()) {
+    for(const auto& dep_id: it->second) { ret.push_back(blockid[dep_id]); }
   }
   return ret;
 }

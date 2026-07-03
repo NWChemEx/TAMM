@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 
+#include "tamm/block_scratch.hpp"
 #include "tamm/boundvec.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/label_translator.hpp"
@@ -83,7 +84,7 @@ public:
     if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
       auto lbls = lhs.labels();
       internal::update_labels(lbls);
-      lhs_.set_labels(lbls);
+      lhs_.set_labels(std::move(lbls));
     }
 
     if(lhs.has_str_lbl()) { fillin_labels(); }
@@ -285,6 +286,9 @@ void GeneralFlatPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& s
   Proc round_robin_counter = 0;
   Proc ec_pg_size          = Proc{ec.pg().size()};
 
+  // Reused (grow-only) scratch for the remote-copy case; RAII-owned.
+  internal::BlockScratch<LHS_ElType> lhs_scratch;
+
   for(size_t i = 0; i < pg_lhs_in_ec.size(); i++) {
     Proc assigned_proc;
     if(pg_lhs_in_ec[i] >= Proc{0}) {
@@ -298,19 +302,16 @@ void GeneralFlatPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& s
     }
 
     if(proc_me_in_ec == assigned_proc) {
-      bool        alloced_lhs_buf{false};
       LHS_ElType* lhs_buf{nullptr};
 
       /// get total buffer size for a given Proc
       size_t lhs_size = lhs_tensor.total_buf_size(i);
       if(lhs_size <= 0) continue;
       if(proc_me_in_ec == pg_lhs_in_ec[i]) {
-        lhs_buf         = lhs_tensor.access_local_buf();
-        alloced_lhs_buf = false;
+        lhs_buf = lhs_scratch.view(lhs_tensor.access_local_buf());
       }
       else {
-        lhs_buf              = new LHS_ElType[lhs_size];
-        alloced_lhs_buf      = true;
+        lhs_buf              = lhs_scratch.owned(lhs_size);
         auto* lhs_mem_region = lhs_tensor.memory_region();
         /// get all of lhs's buf at i-th proc to lhs_buf
         lhs_mem_region->get(Proc{i}, Offset{0}, Size{lhs_size}, lhs_buf);
@@ -327,7 +328,6 @@ void GeneralFlatPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& s
         auto* lhs_mem_region = lhs_tensor.memory_region();
         lhs_mem_region->put(Proc{i}, Offset{0}, Size{lhs_size}, lhs_buf);
       }
-      if(alloced_lhs_buf) { delete[] lhs_buf; }
     }
   }
 }
@@ -358,21 +358,21 @@ void GeneralLHSPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& se
 
   LabelLoopNest loop_nest{lhs_lt.labels()};
 
+  // Reused (grow-only) scratch for the non-local / view case; RAII-owned.
+  internal::BlockScratch<LHS_ElType> lhs_scratch;
+
   auto lambda = [&](const IndexVector& l_blockid) {
     auto [lhs_proc, lhs_offset] = ldist.locate(l_blockid);
     auto        lhs_blocksize   = lhs_tensor.block_size(l_blockid);
     auto        lhs_blockdims   = lhs_tensor.block_dims(l_blockid);
     LHS_ElType* lhs_buf{nullptr};
-    bool        lhs_alloced{false};
 
     if(proc_lhs_to_ec[lhs_proc.value()] == proc_me_in_ec &&
        lhs_tensor.kind() != TensorBase::TensorKind::view) {
-      lhs_buf     = lhs_tensor.access_local_buf() + lhs_offset.value();
-      lhs_alloced = false;
+      lhs_buf = lhs_scratch.view(lhs_tensor.access_local_buf() + lhs_offset.value());
     }
     else {
-      lhs_buf     = new LHS_ElType[lhs_blocksize];
-      lhs_alloced = true;
+      lhs_buf = lhs_scratch.owned(lhs_blocksize);
       span<LHS_ElType> lhs_span{lhs_buf, lhs_blocksize};
       lhs_tensor.get(l_blockid, lhs_span);
     }
@@ -386,7 +386,6 @@ void GeneralLHSPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& se
       span<LHS_ElType> lhs_span{lhs_buf, lhs_blocksize};
       lhs_tensor.put(l_blockid, lhs_span);
     }
-    if(lhs_alloced) { delete[] lhs_buf; }
   };
 
   Proc                      round_robin_counter = 0;

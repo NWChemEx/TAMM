@@ -5,6 +5,8 @@
 #include "tamm/atomic_counter.hpp"
 #include "tamm/labeled_tensor.hpp"
 
+#include <memory>
+
 namespace tamm {
 
 /**
@@ -43,7 +45,7 @@ void parallel_work_ga(ExecutionContext& ec, Itr first, Itr last, Fn fn) {
     }
   }
   else {
-    AtomicCounter* ac = new AtomicCounterGA(ec.pg(), 1);
+    auto    ac   = std::make_unique<AtomicCounterGA>(ec.pg(), 1);
     ac->allocate(0);
     int64_t next = ac->fetch_add(0, 1);
     for(int64_t count = 0; first != last; ++first, ++count) {
@@ -56,7 +58,7 @@ void parallel_work_ga(ExecutionContext& ec, Itr first, Itr last, Fn fn) {
 #endif
     }
     ac->deallocate();
-    delete ac;
+    ac.reset();
     ec.pg().barrier();
   }
 }

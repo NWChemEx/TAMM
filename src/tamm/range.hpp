@@ -241,8 +241,8 @@ using AttributeToRangeMap = std::map<AttributeType, std::vector<Range>>;
 namespace std {
 template<>
 struct hash<tamm::Range> {
-  typedef tamm::Range argument_type;
-  typedef std::size_t result_type;
+  using argument_type = tamm::Range;
+  using result_type   = std::size_t;
   result_type         operator()(argument_type const& range) const noexcept {
             using tamm::internal::hash_combine;
 

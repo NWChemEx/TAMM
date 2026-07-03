@@ -32,11 +32,11 @@ public:
 
   Scalar(ElType eltype) {
     switch(eltype) {
-      case ElType::inv: value_ = (double) 1.0; break;
-      case ElType::i32: value_ = (int) 1; break;
-      case ElType::i64: value_ = (int64_t) 1; break;
-      case ElType::fp32: value_ = (float) 1.0; break;
-      case ElType::fp64: value_ = (double) 1.0; break;
+      case ElType::inv: value_ = 1.0; break;
+      case ElType::i32: value_ = 1; break;
+      case ElType::i64: value_ = int64_t{1}; break;
+      case ElType::fp32: value_ = 1.0f; break;
+      case ElType::fp64: value_ = 1.0; break;
       case ElType::cfp32: value_ = std::complex<float>(1.0, 0.0); break;
       case ElType::cfp64: value_ = std::complex<double>(1.0, 0.0); break;
     }

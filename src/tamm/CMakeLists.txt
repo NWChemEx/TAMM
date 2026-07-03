@@ -86,6 +86,7 @@ set(TAMM_INCLUDES
     eigen_includes.hpp
     runtime_engine.hpp
     block_buffer.hpp
+    block_scratch.hpp
     lru_cache.hpp
     kernels/assign.hpp
     kernels/multiply.hpp

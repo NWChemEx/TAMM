@@ -1923,7 +1923,7 @@ private:
     }
 
     if(no_slicing) {
-      canonicalized_ops_.push_back({std::move(parforop.op().clone()), LabelPair{}});
+      canonicalized_ops_.push_back({parforop.op().clone(), LabelPair{}});
     }
   }
 

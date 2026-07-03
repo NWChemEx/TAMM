@@ -4,6 +4,9 @@
 #include "tamm/scheduler.hpp"
 #include "tamm/tensor.hpp"
 
+#include <functional>
+#include <numeric>
+
 namespace tamm {
 class TensorVariant {
 public:
@@ -110,11 +113,10 @@ public:
   }
 
   size_t mem_size() const {
-    size_t result   = el_size();
-    auto   tis_list = std::visit(
-        overloaded{[&](const auto& tensor) { return tensor.tiled_index_spaces(); }}, value_);
-    for(const auto& tis: tis_list) { result *= tis.max_num_indices(); }
-    return result;
+    auto tis_list = std::visit(
+      overloaded{[&](const auto& tensor) { return tensor.tiled_index_spaces(); }}, value_);
+    return std::transform_reduce(tis_list.begin(), tis_list.end(), el_size(), std::multiplies<>{},
+                                 [](const auto& tis) { return tis.max_num_indices(); });
   }
 
   bool is_allocated() const {

@@ -184,7 +184,7 @@ template<typename T>
 void print_vector(std::vector<T> vec, std::string filename = "") {
   std::stringstream tstring;
   for(size_t i = 0; i < vec.size(); i++)
-    tstring << i + 1 << "\t" << std::fixed << std::setprecision(12) << vec[i] << std::endl;
+    tstring << i + 1 << "\t" << std::fixed << std::setprecision(12) << vec[i] << '\n';
 
   if(!filename.empty()) {
     std::ofstream tos(filename, std::ios::out);
@@ -610,7 +610,7 @@ std::vector<TensorType> diagonal(LabeledTensor<TensorType> ltensor) {
     }
   }
 
-  int dsize = (int) dvec.size();
+  int dsize = static_cast<int>(dvec.size());
   ec.pg().broadcast(&dsize, 0);
   if(ec.pg().rank() != 0) dvec.resize(dsize);
   ec.pg().broadcast(dvec.data(), dsize, 0);
@@ -2044,14 +2044,14 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
       size_t c = 0;
       if(ndims == 1) {
         for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++, c++) {
-          if(func({i}) && nz_check(buf[c])) tstring << i + 1 << "   " << buf[c] << std::endl;
+          if(func({i}) && nz_check(buf[c])) tstring << i + 1 << "   " << buf[c] << '\n';
         }
       }
       else if(ndims == 2) {
         for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
           for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++, c++) {
             if(func({i, j}) && nz_check(buf[c]))
-              tstring << i + 1 << "   " << j + 1 << "   " << buf[c] << std::endl;
+              tstring << i + 1 << "   " << j + 1 << "   " << buf[c] << '\n';
           }
         }
       }
@@ -2060,8 +2060,7 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
           for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++) {
             for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++, c++) {
               if(func({i, j, k}) && nz_check(buf[c]))
-                tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << buf[c]
-                        << std::endl;
+                tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << buf[c] << '\n';
             }
           }
         }
@@ -2073,7 +2072,7 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
               for(size_t l = block_offset[3]; l < block_offset[3] + block_dims[3]; l++, c++) {
                 if(func({i, j, k, l}) && nz_check(buf[c]))
                   tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << l + 1 << "   "
-                          << buf[c] << std::endl;
+                          << buf[c] << '\n';
               }
             }
           }

@@ -1982,3 +1982,72 @@ TEST_CASE("MultOp with RHS reduction") {
   }
   REQUIRE(!failed);
 }
+
+// Exercises the shared internal::validate_index_labels() helper (called from
+// every op's validate()) plus non-uniform-data contraction correctness for a
+// summation index.  A permutation/stride bug that a uniform fill would hide is
+// caught by the per-element reference here.
+TEST_CASE("Op label validation and non-uniform contraction") {
+  using T = double;
+  ProcGroup         pg = ProcGroup::create_world_coll();
+  ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
+
+  const size_t    N = 4;
+  TiledIndexSpace tis{IndexSpace{range(N)}, 2};
+  auto [i, j, k] = tis.labels<3>("all");
+
+  Tensor<T> A{i, k}, B{k, j}, C{i, j};
+  Tensor<T>::allocate(ec, A, B, C);
+  Scheduler sch{*ec};
+  sch(A() = T{0})(B() = T{0})(C() = T{0}).execute();
+
+  // Non-uniform fills via a lambda over blocks.
+  auto fill = [&](Tensor<T> t, auto gen) {
+    auto lam = [&](const IndexVector& blockid) {
+      const TAMM_SIZE size = t.block_size(blockid);
+      std::vector<T>  buf(size);
+      auto            bdims = t.block_dims(blockid);
+      auto            boff  = t.block_offsets(blockid);
+      TAMM_SIZE       c     = 0;
+      for(size_t r = boff[0]; r < boff[0] + bdims[0]; r++)
+        for(size_t s = boff[1]; s < boff[1] + bdims[1]; s++, c++) buf[c] = gen(r, s);
+      t.put(blockid, buf);
+    };
+    block_for(*ec, t(), lam);
+  };
+  fill(A, [](size_t r, size_t s) { return T{1} + 0.5 * r - 0.25 * s; });
+  fill(B, [](size_t r, size_t s) { return T{2} - 0.3 * r + 0.1 * s; });
+  ec->pg().barrier();
+
+  // Valid contraction: k is a (repeated) summation label — validate() must
+  // accept it, and the numeric result must match a hand-rolled reference.
+  sch(C(i, j) = A(i, k) * B(k, j)).execute();
+  ec->pg().barrier();
+
+  // Reference: dense matmul with the same non-uniform fills.
+  std::vector<std::vector<T>> refA(N, std::vector<T>(N)), refB(N, std::vector<T>(N)),
+    refC(N, std::vector<T>(N, T{0}));
+  for(size_t r = 0; r < N; r++)
+    for(size_t s = 0; s < N; s++) {
+      refA[r][s] = T{1} + 0.5 * r - 0.25 * s;
+      refB[r][s] = T{2} - 0.3 * r + 0.1 * s;
+    }
+  for(size_t r = 0; r < N; r++)
+    for(size_t s = 0; s < N; s++)
+      for(size_t t2 = 0; t2 < N; t2++) refC[r][s] += refA[r][t2] * refB[t2][s];
+
+  for(const auto& blockid: C.loop_nest()) {
+    const TAMM_SIZE size = C.block_size(blockid);
+    std::vector<T>  buf(size);
+    C.get(blockid, buf);
+    auto      bdims = C.block_dims(blockid);
+    auto      boff  = C.block_offsets(blockid);
+    TAMM_SIZE c     = 0;
+    for(size_t r = boff[0]; r < boff[0] + bdims[0]; r++)
+      for(size_t s = boff[1]; s < boff[1] + bdims[1]; s++, c++)
+        CHECK(std::abs(buf[c] - refC[r][s]) < 1e-9);
+  }
+
+  Tensor<T>::deallocate(A, B, C);
+  delete ec;
+}

@@ -20,6 +20,13 @@ add_mpi_unit_test(Test_Mem_Profiler 2 "")
 add_mpi_unit_test(Test_LocalTensor 2 "50 20" )
 add_mpi_unit_test(Test_Binding_Equivalence 2 "")
 
+add_mpi_unit_test(Test_Contraction_Ref 2 "6 3" )
+add_mpi_unit_test(Test_PG_Collectives 2 "")
+add_mpi_unit_test(Test_Scheduler_Deps 2 "6 3" )
+add_cxx_unit_test(Test_StrongNum)
+add_cxx_unit_test(Test_BoundVec)
+add_cxx_unit_test(Test_BlockSpan)
+
 # add_mpi_unit_test(Test_ViewTensor 2 "")
 # add_mpi_unit_test(Test_QR 2 "")
 

@@ -147,9 +147,12 @@ public:
   }
 
 protected:
-  Index lo_;   /**< Low end of range */
-  Index hi_;   /**< High end of range */
-  Index step_; /**< step size for the range */
+  // In-class initializers: a default-constructed Range (Range() = default) must
+  // not leave these members uninitialized — Range is used as a map value and in
+  // hashing, which would otherwise read indeterminate values (UB).
+  Index lo_{0};   /**< Low end of range */
+  Index hi_{0};   /**< High end of range */
+  Index step_{1}; /**< step size for the range */
 
 private:
   /**

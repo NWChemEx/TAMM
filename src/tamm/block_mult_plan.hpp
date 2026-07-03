@@ -4,6 +4,7 @@
 #include "tamm/block_span.hpp"
 #include "tamm/blockops_blas.hpp"
 #include "tamm/errors.hpp"
+#include "tamm/scalar.hpp"
 #include "tamm/tiled_index_space.hpp"
 #include "tamm/types.hpp"
 
@@ -342,13 +343,13 @@ private:
                    const BlockSpan<T1>& rhs1,
                    const BlockSpan<T2>& rhs2) {
     M_ = 1; N_ = 1; K_ = 1;
-    const auto lhs_bdims  = lhs.block_dims();   // zero-alloc span
+    const auto& lhs_bdims  = lhs.block_dims();   // const& — no copy
     for(size_t i = 0; i < static_cast<size_t>(num_mindices_); i++)
       M_ *= lhs_bdims[num_batch_indices_ + i];
     for(size_t i = static_cast<size_t>(num_mindices_); i < lhs_bdims.size(); i++)
       N_ *= lhs_bdims[num_batch_indices_ + i];
-    size_t     kstart_idx = (transpose_arg1_ ? 0 : static_cast<size_t>(num_mindices_));
-    const auto arg1_bdims = (rhs1_is_arg1_ ? rhs1.block_dims() : rhs2.block_dims());
+    size_t      kstart_idx = (transpose_arg1_ ? 0 : static_cast<size_t>(num_mindices_));
+    const auto& arg1_bdims = (rhs1_is_arg1_ ? rhs1.block_dims() : rhs2.block_dims());
     for(int k = 0; k < num_kindices_; k++)
       K_ *= arg1_bdims[num_batch_indices_ + kstart_idx + k];
     // Fix Bug 2: store the data pointer VALUE (void*), not the address of
@@ -438,9 +439,9 @@ public:
     if(r2inter_buf_.size() < rhs2_nelems * sizeof(T3)) r2inter_buf_.resize(rhs2_nelems * sizeof(T3));
 
     // Cache permuted dims — recompute only when block shape changes.
-    const auto lhs_dims  = lhs.block_dims();   // zero-alloc span
-    const auto rhs1_dims = rhs1.block_dims();
-    const auto rhs2_dims = rhs2.block_dims();
+    const auto& lhs_dims  = lhs.block_dims();   // const& — no copy
+    const auto& rhs1_dims = rhs1.block_dims();
+    const auto& rhs2_dims = rhs2.block_dims();
 
     if(linter_dims_.empty() ||
        !std::equal(lhs_dims.begin(), lhs_dims.end(), linter_dims_src_.begin())) {
@@ -560,18 +561,20 @@ public:
     }, cached_plan_);
   }
 
-  // Fix Bug 3: public Scalar overload must forward to apply_impl, not be empty.
-  // Casts Scalar to T1 so the typed dispatch path executes correctly.
+  // Public Scalar overload forwards to the typed dispatch.
+  //
+  // This plan is the single-element-type contraction path: lhs, rhs1 and rhs2
+  // must all share the same element type.  Mixed-type contractions (e.g.
+  // real x complex) are handled by kernels::block_multiply in multop.hpp, not
+  // by BlockMultPlan.  We constrain the overload to T1==T2==T3 so the previous
+  // reinterpret_cast<BlockSpan<T1>&>(rhs) UB (valid only when the types were
+  // already identical) can no longer be reached with incompatible types.
   template<typename T1, typename T2, typename T3>
+    requires (std::is_same_v<T1, T2> && std::is_same_v<T1, T3>)
   void apply(Scalar lscale, BlockSpan<T1>& lhs, Scalar rscale,
              BlockSpan<T2>& rhs1, BlockSpan<T3>& rhs2) {
-    apply_impl(static_cast<T1>(lscale), lhs,
-               static_cast<T1>(rscale),
-               // rhs1/rhs2 may differ in type from T1; reinterpret is
-               // safe here only when T2==T3==T1, which is the common path.
-               // Mixed-type contractions go through apply_impl directly.
-               reinterpret_cast<BlockSpan<T1>&>(rhs1),
-               reinterpret_cast<BlockSpan<T1>&>(rhs2));
+    apply_impl(lscale.template get<T1>(), lhs,
+               rscale.template get<T1>(), rhs1, rhs2);
   }
 
 private:

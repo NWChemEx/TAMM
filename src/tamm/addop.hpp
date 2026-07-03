@@ -540,8 +540,8 @@ void GeneralFlatAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(const AddOpT
   // EXPECTS(pg_lhs.size() == pg_rhs.size());
   // EXPECTS(pg_lhs.size() == pg_ec.size());
 
-  BlockAssignPlan::OpType optype = is_assign ? optype = BlockAssignPlan::OpType::set
-                                             : BlockAssignPlan::OpType::update;
+  BlockAssignPlan::OpType optype =
+    is_assign ? BlockAssignPlan::OpType::set : BlockAssignPlan::OpType::update;
   BlockAssignPlan         plan{lhs_lt.labels(), rhs_lt.labels(), optype};
 
   std::vector<Proc> pg_lhs_in_ec = pg_lhs.rank_translate(pg_ec);

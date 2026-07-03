@@ -35,8 +35,10 @@ public:
   using const_reference = const T&;
   using pointer         = T*;
   using const_pointer   = const T*;
-  using iterator        = typename std::array<T, maxsize>::iterator;
-  using const_iterator  = typename std::array<T, maxsize>::const_iterator;
+  using iterator               = typename std::array<T, maxsize>::iterator;
+  using const_iterator         = typename std::array<T, maxsize>::const_iterator;
+  using reverse_iterator       = typename std::array<T, maxsize>::reverse_iterator;
+  using const_reverse_iterator = typename std::array<T, maxsize>::const_reverse_iterator;
 
   // -----------------------------------------------------------------------
   // Constructors
@@ -44,6 +46,17 @@ public:
 
   /** @brief Default constructor — produces an empty vector. */
   BoundVec() = default;
+
+  /**
+   * @brief Construct @p count copies of @p value.
+   * @param count Number of elements to create.
+   * @param value Value to copy into each element (defaults to T{}).
+   * @pre   count <= maxsize
+   */
+  explicit BoundVec(size_type count, const T& value = T{}) {
+    EXPECTS(count <= maxsize);
+    for(size_type i = 0; i < count; ++i) { data_[size_++] = value; }
+  }
 
   /**
    * @brief Construct from an initializer list.
@@ -61,8 +74,11 @@ public:
    * @param  first Beginning of the source range.
    * @param  last  One-past-end of the source range.
    * @pre    std::distance(first, last) <= maxsize
+   *
+   * Constrained to std::input_iterator so it does not compete with the
+   * (count, value) constructor for calls like BoundVec(n, val).
    */
-  template<typename Iter>
+  template<std::input_iterator Iter>
   BoundVec(Iter first, Iter last) {
     for(; first != last; ++first) { push_back(*first); }
   }
@@ -157,6 +173,28 @@ public:
     return end() - 1;
   }
 
+  /**
+   * @brief Append the range [first, last) at the back.
+   * @tparam InputIt Input iterator type.
+   * @param  first   Beginning of the source range.
+   * @param  last    One-past-end of the source range.
+   * @pre    size() + distance(first,last) <= maxsize
+   */
+  template<std::input_iterator InputIt>
+  void insert_back(InputIt first, InputIt last) {
+    for(; first != last; ++first) { push_back(*first); }
+  }
+
+  /**
+   * @brief Append @p count copies of @p value at the back.
+   * @param count Number of copies to append.
+   * @param value Value to copy.
+   * @pre   size() + count <= maxsize
+   */
+  void insert_back(size_type count, const T& value) {
+    for(size_type i = 0; i < count; ++i) { push_back(value); }
+  }
+
   // -----------------------------------------------------------------------
   // Iterators
   // -----------------------------------------------------------------------
@@ -170,6 +208,27 @@ public:
   iterator end() noexcept { return data_.begin() + size_; }
   /** @brief Return a const iterator one past the last live element. */
   const_iterator end() const noexcept { return data_.begin() + size_; }
+
+  /** @brief Const iterator to the first live element. */
+  const_iterator cbegin() const noexcept { return data_.begin(); }
+  /** @brief Const iterator one past the last live element. */
+  const_iterator cend() const noexcept { return data_.begin() + size_; }
+
+  /** @brief Reverse iterator to the last live element. */
+  reverse_iterator rbegin() noexcept { return reverse_iterator{end()}; }
+  const_reverse_iterator rbegin() const noexcept { return const_reverse_iterator{end()}; }
+  /** @brief Reverse iterator one before the first live element. */
+  reverse_iterator rend() noexcept { return reverse_iterator{begin()}; }
+  const_reverse_iterator rend() const noexcept { return const_reverse_iterator{begin()}; }
+
+  // -----------------------------------------------------------------------
+  // Raw storage access
+  // -----------------------------------------------------------------------
+
+  /** @brief Pointer to the underlying contiguous storage (mutable). */
+  [[nodiscard]] pointer data() noexcept { return data_.data(); }
+  /** @brief Pointer to the underlying contiguous storage (const). */
+  [[nodiscard]] const_pointer data() const noexcept { return data_.data(); }
 
   // -----------------------------------------------------------------------
   // Element access

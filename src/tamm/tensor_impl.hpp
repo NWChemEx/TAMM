@@ -162,7 +162,7 @@ public:
     SpinMask spin_mask;
     size_t   upper  = spin_sizes[0];
     size_t   lower  = spin_sizes.size() > 1 ? spin_sizes[1] : t_spaces.size() - upper;
-    size_t   ignore = spin_sizes.size() > 2 ? spin_sizes[1] : t_spaces.size() - (upper + lower);
+    size_t   ignore = spin_sizes.size() > 2 ? spin_sizes[2] : t_spaces.size() - (upper + lower);
 
     for(size_t i = 0; i < upper; i++) { spin_mask.push_back(SpinPosition::upper); }
 
@@ -207,7 +207,7 @@ public:
     SpinMask spin_mask;
     size_t   upper  = spin_sizes[0];
     size_t   lower  = spin_sizes.size() > 1 ? spin_sizes[1] : t_labels.size() - upper;
-    size_t   ignore = spin_sizes.size() > 2 ? spin_sizes[1] : t_labels.size() - (upper + lower);
+    size_t   ignore = spin_sizes.size() > 2 ? spin_sizes[2] : t_labels.size() - (upper + lower);
 
     for(size_t i = 0; i < upper; i++) { spin_mask.push_back(SpinPosition::upper); }
 
@@ -949,7 +949,9 @@ public:
               tile_index++;
             }
 
-      if(local_nelems_ = tile_offsets[my_rank])
+      // Assign then test for non-zero (parenthesised to make the intent
+      // explicit and silence -Wparentheses).
+      if((local_nelems_ = tile_offsets[my_rank]) != 0)
         for(int i = 4 - ndims; i < 4; ++i)
           local_buf_dims_.push_back(local_tiles_.back().lo[i] + local_tiles_.back().dim[i] -
                                     local_tiles_.front().lo[i]);

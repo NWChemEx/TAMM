@@ -1,39 +1,39 @@
 #pragma once
 
-// C++20: std::mdspan for zero-overhead multi-dimensional block views.
-// Falls back to the kokkos/mdspan reference implementation when the compiler
-// stdlib does not yet ship <mdspan> (GCC < 13, Clang < 17).
-#if __has_include(<mdspan>)
-#  include <mdspan>
-#else
-#  include "experimental/mdspan"
-#endif
+// Non-owning view over a contiguous tensor block with runtime extents.
+//
+// NOTE on std::mdspan: TAMM blocks have a *runtime* rank.  std::mdspan (and
+// the kokkos reference implementation) fix the rank at compile time — there is
+// no standard "dynamic-rank" mdspan (std::dextents<T, std::dynamic_extent> is
+// ill-formed: it attempts to build an extents object of rank 2^64-1).  All
+// TAMM block kernels treat a block as a flat, contiguous buffer plus an
+// extents list (see block_assign_plan.hpp, blockops_*.hpp), so we model
+// BlockSpan directly as pointer + extents and expose a std::span<T> for flat
+// element access.  Kernel code that knows the rank at compile time can build a
+// fixed-rank std::mdspan directly from buf() + block_dims() where beneficial.
 
+#include <cstddef>
+#include <cstdint>
+#include <ranges>
 #include <span>
+#include <vector>
+
 #include "tamm/errors.hpp"
 #include "tamm/types.hpp"
 
 namespace tamm {
 
-/// Dynamic-rank mdspan alias used throughout TAMM block operations.
-template<typename T>
-using TammMdspan = std::mdspan<T, std::dextents<size_t, std::dynamic_extent>>;
-
 /**
  * @brief Non-owning view over a contiguous block of T with runtime-determined
  *        multi-dimensional extents.
  *
- * Backed by std::mdspan so that element access (view_(i,j,...)), strides,
- * and extent queries are all zero-overhead.
+ * The block is stored contiguously in row-major (layout_right) order.  Element
+ * access is available flat (operator[](i)) or as a std::span (flat_span()).
  *
- * C++20 / perf changes vs. prior version:
- *  - block_dims() now returns std::span<const size_t> into a cached
- *    TensorVec<size_t> extents_ member — zero heap allocation per call.
- *  - block_dims_vec() provided for callers that truly need a std::vector.
- *  - Internal storage replaced by std::mdspan (TammMdspan<T>).
- *  - Added make_block_span factory helpers.
- *  - BufKind tag retained for CPU/invalid distinction.
- *  - [[nodiscard]] applied to all pure query accessors.
+ * C++20 features used:
+ *  - std::span for the flat view (flat_span()) and the extents span accessor.
+ *  - std::ranges::contiguous_range constraint on the factory helper.
+ *  - [[nodiscard]] on all pure query accessors.
  *
  * @tparam T Element type of the block
  */
@@ -47,15 +47,13 @@ public:
   // ------------------------------------------------------------------
 
   /// Default constructor: produces an invalid/null span.
-  BlockSpan() noexcept
-    : buf_kind_{BufKind::invalid},
-      view_{nullptr, std::dextents<size_t, std::dynamic_extent>{}} {}
+  BlockSpan() noexcept : buf_kind_{BufKind::invalid}, buf_{nullptr}, num_elements_{0} {}
 
   /**
    * @brief Primary constructor: pointer + runtime dimension list.
    *
-   * Caches the extents into extents_ (TensorVec, stack-allocated) so
-   * that block_dims() never needs to heap-allocate.
+   * Extents are cached once (single allocation) so block_dims() can return a
+   * const reference without re-allocating on every call.
    *
    * @param[in] buf  Pointer to the data buffer (must not be null)
    * @param[in] dims Extents of each dimension as a contiguous span
@@ -63,13 +61,10 @@ public:
    * @pre buf != nullptr
    */
   BlockSpan(T* buf, std::span<const size_t> dims)
-    : buf_kind_{BufKind::cpu} {
+    : buf_kind_{BufKind::cpu}, buf_{buf}, extents_(dims.begin(), dims.end()) {
     EXPECTS(buf != nullptr);
-    extents_.resize(dims.size());
-    for (size_t i = 0; i < dims.size(); ++i) extents_[i] = dims[i];
-    std::vector<size_t> ext(dims.begin(), dims.end());
-    view_ = TammMdspan<T>{buf,
-      std::dextents<size_t, std::dynamic_extent>(ext)};
+    num_elements_ = 1;
+    for(size_t d: extents_) num_elements_ *= d;
   }
 
   /// Convenience constructor: accept an std::vector<size_t> directly.
@@ -87,53 +82,72 @@ public:
   // ------------------------------------------------------------------
 
   /// Raw data pointer (mutable).
-  [[nodiscard]] T* buf() noexcept { return view_.data_handle(); }
-
+  [[nodiscard]] T* buf() noexcept { return buf_; }
   /// Raw data pointer (const).
-  [[nodiscard]] const T* buf() const noexcept { return view_.data_handle(); }
+  [[nodiscard]] const T* buf() const noexcept { return buf_; }
+
+  /// Alias for buf() — matches std::span / std::vector naming.
+  [[nodiscard]] T*       data()       noexcept { return buf_; }
+  [[nodiscard]] const T* data() const noexcept { return buf_; }
 
   /// Flat element count (product of all extents).
-  [[nodiscard]] size_t num_elements() const noexcept { return view_.size(); }
+  [[nodiscard]] size_t num_elements() const noexcept { return num_elements_; }
 
   /// Number of dimensions.
-  [[nodiscard]] size_t rank() const noexcept { return view_.rank(); }
+  [[nodiscard]] size_t rank() const noexcept { return extents_.size(); }
 
   /// Extent along dimension d.
-  [[nodiscard]] size_t extent(size_t d) const { return view_.extent(d); }
+  [[nodiscard]] size_t extent(size_t d) const {
+    EXPECTS(d < extents_.size());
+    return extents_[d];
+  }
 
   /**
-   * @brief Zero-allocation accessor: returns a span view into the cached
-   *        extents array.  Preferred over block_dims_vec() in hot paths.
+   * @brief Flat (linear) element access into the contiguous block.
    *
-   * @return std::span<const size_t> of length rank()
+   * The block is stored contiguously (row-major), so flat indexing is
+   * well-defined for any rank.  This is the access pattern used by the
+   * element-wise block-multiply kernels (scalar/vector Hadamard paths),
+   * e.g. lhs[0], lhs_vec[i].
+   *
+   * @param i Flat element index in [0, num_elements()).
    */
-  [[nodiscard]] std::span<const size_t> block_dims() const noexcept {
+  [[nodiscard]] T&       operator[](size_t i)       noexcept { return buf_[i]; }
+  [[nodiscard]] const T& operator[](size_t i) const noexcept { return buf_[i]; }
+
+  /// Flat contiguous view over the whole block.
+  [[nodiscard]] std::span<T>       flat_span()       noexcept { return {buf_, num_elements_}; }
+  [[nodiscard]] std::span<const T> flat_span() const noexcept { return {buf_, num_elements_}; }
+
+  /**
+   * @brief Extents of the block, one per dimension.
+   *
+   * Returns a const reference to the cached extents vector so it can be passed
+   * directly to the block kernels (index_permute_assign, ipgen_assign, ...)
+   * which take `const std::vector<size_t>&`.  No allocation per call.
+   *
+   * @return const std::vector<size_t>& of length rank()
+   */
+  [[nodiscard]] const std::vector<size_t>& block_dims() const noexcept { return extents_; }
+
+  /// Zero-allocation span view over the extents (for range algorithms).
+  [[nodiscard]] std::span<const size_t> block_dims_span() const noexcept {
     return std::span<const size_t>{extents_.data(), extents_.size()};
   }
 
-  /**
-   * @brief Backward-compatible: return all extents as a heap-allocated
-   *        std::vector.  Use only when a vector is strictly required.
-   *
-   * @return std::vector<size_t> of extents, one per dimension
-   */
-  [[nodiscard]] std::vector<size_t> block_dims_vec() const {
-    return std::vector<size_t>(extents_.begin(), extents_.end());
-  }
-
-  /// Direct access to the underlying mdspan for kernel code.
-  [[nodiscard]] TammMdspan<T>&       mdspan()       noexcept { return view_; }
-  [[nodiscard]] const TammMdspan<T>& mdspan() const noexcept { return view_; }
+  /// Backward-compatible copy of the extents.
+  [[nodiscard]] std::vector<size_t> block_dims_vec() const { return extents_; }
 
   /// True when the span holds a valid (non-null) buffer.
   [[nodiscard]] bool is_valid() const noexcept {
-    return buf_kind_ != BufKind::invalid && view_.data_handle() != nullptr;
+    return buf_kind_ != BufKind::invalid && buf_ != nullptr;
   }
 
 private:
   BufKind             buf_kind_;
-  TammMdspan<T>       view_;      ///< dims + pointer packed in one object
-  TensorVec<size_t>   extents_;   ///< cached extents — stack-allocated, zero-copy block_dims()
+  T*                  buf_;
+  size_t              num_elements_{0};
+  std::vector<size_t> extents_;  ///< cached extents (allocated once at construction)
 };
 
 // ---------------------------------------------------------------------------

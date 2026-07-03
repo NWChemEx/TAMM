@@ -194,17 +194,17 @@ public:
 
   TensorBase* writes(const ExecutionContext& ec) const {
     if(lhs_.tensor().pg() == ec.pg()) { return plan_obj_->writes(*this); }
-    else { general_plan_obj_->writes(*this); }
+    else { return general_plan_obj_->writes(*this); }
   }
 
   std::vector<TensorBase*> reads(const ExecutionContext& ec) const {
     if(lhs_.tensor().pg() == ec.pg()) { return plan_obj_->reads(*this); }
-    else { general_plan_obj_->reads(*this); }
+    else { return general_plan_obj_->reads(*this); }
   }
 
   TensorBase* accumulates(const ExecutionContext& ec) const {
     if(lhs_.tensor().pg() == ec.pg()) { return plan_obj_->accumulates(*this); }
-    else { general_plan_obj_->accumulates(*this); }
+    else { return general_plan_obj_->accumulates(*this); }
   }
 
   bool is_memory_barrier() const { return false; }
@@ -355,8 +355,8 @@ void GeneralFlatPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& s
 
   // EXPECTS(pg_lhs.size() == pg_ec.size());
 
-  BlockSetPlan::OpType optype = is_assign ? optype = BlockSetPlan::OpType::set
-                                          : BlockSetPlan::OpType::update;
+  BlockSetPlan::OpType optype =
+    is_assign ? BlockSetPlan::OpType::set : BlockSetPlan::OpType::update;
   BlockSetPlan         plan{lhs_lt.labels(), optype};
 
   std::vector<Proc> pg_lhs_in_ec = pg_lhs.rank_translate(pg_ec);

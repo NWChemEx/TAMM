@@ -1,9 +1,9 @@
 // Copyright 2016 Pacific Northwest National Laboratory
 // C++20 modernization: removed pre-C++17 apply shim (C++20 guarantees
-// std::apply), inline constexpr maxrank, [[nodiscard]] on queries,
-// std::bit_cast in hash_combine for strict-aliasing safety.
-// Perf: IndexVector changed to BoundVec<Index,maxrank> to eliminate
-// per-block heap allocation on every distributed tensor get/put/add.
+// std::apply), inline constexpr maxrank, [[nodiscard]] on queries.
+// IndexVector remains std::vector<Index> (see note below) because it doubles
+// as the storage for full index/tile lists of an IndexSpace, which exceed
+// maxrank.  Rank-bounded, allocation-sensitive vectors use TensorVec.
 
 #pragma once
 
@@ -30,7 +30,7 @@ namespace tamm {
 // ---------------------------------------------------------------------------
 namespace internal {
 
-/// Mix hash of v into seed (uses std::bit_cast for strict-aliasing safety).
+/// Mix hash of v into seed (boost-style hash_combine).
 template<typename T>
 void hash_combine(size_t& seed, const T& v) {
   constexpr size_t magic = 0x9e3779b9ULL;
@@ -55,18 +55,26 @@ using Tile          = uint32_t;
 using HashData      = uint64_t;
 using StringLabelVec = std::vector<std::string>;
 
-// TensorRank / BoundVec aliases  (defined early — IndexVector depends on maxrank)
+// TensorRank and the compile-time maximum tensor rank (used by the BoundVec
+// aliases TensorVec/BlockDimVec/PermVec below).
 using TensorRank = size_t;
 inline constexpr TensorRank maxrank{8};
 
 // ---------------------------------------------------------------------------
-// IndexVector: stack-allocated fixed-capacity block-id vector.
-// Changed from std::vector<Index> to BoundVec<Index,maxrank> to eliminate
-// one heap allocation per distributed tensor get/put/add call.  Block IDs
-// never exceed maxrank elements so the stack capacity is always sufficient.
-// IndexVectorHash / IndexVectorEqual are updated accordingly below.
+// IndexVector: dynamic block-id / index-list vector.
+//
+// NOTE: This is std::vector<Index>, NOT a fixed-capacity BoundVec.  Although
+// a *block id* never exceeds maxrank entries, IndexVector is reused throughout
+// TAMM to store full index lists and tile-offset arrays of an IndexSpace /
+// TiledIndexSpace (see index_space*.hpp, tiled_index_space.hpp, range.hpp),
+// which routinely hold thousands of elements.  It also relies on std::vector
+// API (data(), erase(), range insert(), (count,value) ctor) at many call
+// sites.  A fixed-capacity container here overflows / fails to compile.
+//
+// Rank-bounded, allocation-sensitive helpers use TensorVec/BlockDimVec
+// (BoundVec) instead — see below.
 // ---------------------------------------------------------------------------
-using IndexVector   = BoundVec<Index, maxrank>;
+using IndexVector   = std::vector<Index>;
 using IndexIterator = IndexVector::const_iterator;
 
 class TiledIndexSpace;
@@ -327,7 +335,7 @@ template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 using SymbolTable    = std::map<void*, std::string>;
 using TranslateFunc  = std::function<Index(Index)>;
 
-// Hash/equality for IndexVector (now BoundVec-based, stack-allocated).
+// Hash/equality for IndexVector (std::vector<Index>).
 struct IndexVectorHash {
   [[nodiscard]] std::size_t operator()(const IndexVector& vec) const noexcept {
     std::size_t seed = vec.size();

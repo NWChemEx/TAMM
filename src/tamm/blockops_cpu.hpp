@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <iterator>  // std::ssize
 #include <set>
 #include <vector>
 
@@ -472,7 +473,7 @@ void index_permute_update(TL lscale, TL* lbuf, TL rscale, const TR* rbuf,
     size_t i[2], c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++, c++) {
-        lbuf[c] = lscale * lbuf[i] + rscale * rbuf[idx(2, i, ldims, perm_to_dest)];
+        lbuf[c] = lscale * lbuf[c] + rscale * rbuf[idx(2, i, ldims, perm_to_dest)];
       }
     }
   }
@@ -481,7 +482,7 @@ void index_permute_update(TL lscale, TL* lbuf, TL rscale, const TR* rbuf,
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
         for(i[2] = 0; i[2] < ldims[2]; i[2]++, c++) {
-          lbuf[c] = lscale * lbuf[i] + rscale * rbuf[idx(3, i, ldims, perm_to_dest)];
+          lbuf[c] = lscale * lbuf[c] + rscale * rbuf[idx(3, i, ldims, perm_to_dest)];
         }
       }
     }
@@ -492,7 +493,7 @@ void index_permute_update(TL lscale, TL* lbuf, TL rscale, const TR* rbuf,
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
         for(i[2] = 0; i[2] < ldims[2]; i[2]++) {
           for(i[3] = 0; i[3] < ldims[3]; i[3]++, c++) {
-            lbuf[c] = lscale * lbuf[i] + rscale * rbuf[idx(4, i, ldims, perm_to_dest)];
+            lbuf[c] = lscale * lbuf[c] + rscale * rbuf[idx(4, i, ldims, perm_to_dest)];
           }
         }
       }
@@ -510,7 +511,10 @@ void index_permute_update(TL lscale, TL* lbuf, TL rscale, const TR* rbuf,
 inline size_t ipgen_idx(const std::vector<size_t>& index_vec, const std::vector<size_t>& dims_vec) {
   size_t ret = 0, ld = 1;
   EXPECTS(index_vec.size() == dims_vec.size());
-  for(int i = index_vec.size(); i >= 0; i--) {
+  // Iterate the valid range [size-1 .. 0].  The previous start value of
+  // index_vec.size() read index_vec[size()] / dims_vec[size()] out of bounds
+  // on the first iteration.
+  for(std::ptrdiff_t i = std::ssize(index_vec) - 1; i >= 0; i--) {
     ret += ld * index_vec[i];
     ld *= dims_vec[i];
   }

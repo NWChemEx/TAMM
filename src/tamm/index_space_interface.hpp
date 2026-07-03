@@ -953,14 +953,17 @@ public:
                           const std::map<IndexVector, IndexSpace>& dep_space_relation);
 
   /// @todo do we need these constructor/operators
-  // Defined out-of-line in index_space.cpp where TiledIndexSpace is complete
-  // (dep_spaces_ is a std::vector<TiledIndexSpace>; see the note on
-  // internal::empty_tiled_index_space_vec()).
-  DependentIndexSpaceImpl(DependentIndexSpaceImpl&&);
-  DependentIndexSpaceImpl(const DependentIndexSpaceImpl&);
-  DependentIndexSpaceImpl& operator=(DependentIndexSpaceImpl&&);
-  DependentIndexSpaceImpl& operator=(const DependentIndexSpaceImpl&);
-  ~DependentIndexSpaceImpl();
+  // Note: kept as in-class '= default' (not forced out-of-line). These are
+  // only instantiated on actual use, which happens in index_space.cpp where
+  // TiledIndexSpace is complete. Forcing them out-of-line would eagerly
+  // instantiate the copy/move assignment of named_ranges_, whose value type is
+  // a 'const std::vector<Range>' (NameToRangeMap) and is therefore not
+  // assignable -- ill-formed under libc++.
+  DependentIndexSpaceImpl(DependentIndexSpaceImpl&&)                 = default;
+  DependentIndexSpaceImpl(const DependentIndexSpaceImpl&)            = default;
+  DependentIndexSpaceImpl& operator=(DependentIndexSpaceImpl&&)      = default;
+  DependentIndexSpaceImpl& operator=(const DependentIndexSpaceImpl&) = default;
+  ~DependentIndexSpaceImpl()                                         = default;
 
   // Index Accessors
   /**

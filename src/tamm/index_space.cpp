@@ -185,13 +185,6 @@ DependentIndexSpaceImpl::DependentIndexSpaceImpl(
   const std::map<IndexVector, IndexSpace>& dep_space_relation):
   dep_spaces_{indep_spaces}, dep_space_relation_{dep_space_relation}, named_ranges_{} {}
 
-DependentIndexSpaceImpl::DependentIndexSpaceImpl(DependentIndexSpaceImpl&&)            = default;
-DependentIndexSpaceImpl::DependentIndexSpaceImpl(const DependentIndexSpaceImpl&)       = default;
-DependentIndexSpaceImpl& DependentIndexSpaceImpl::operator=(DependentIndexSpaceImpl&&) = default;
-DependentIndexSpaceImpl&
-DependentIndexSpaceImpl::operator=(const DependentIndexSpaceImpl&) = default;
-DependentIndexSpaceImpl::~DependentIndexSpaceImpl()                = default;
-
 size_t DependentIndexSpaceImpl::num_key_tiled_index_spaces() const { return dep_spaces_.size(); }
 
 } // namespace tamm

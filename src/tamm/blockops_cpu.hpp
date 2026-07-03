@@ -8,7 +8,7 @@
 #include "tamm/block_span.hpp"
 #include "tamm/iteration.hpp"
 #include "tamm/perm.hpp"
-//#include "tamm/scalar.hpp"
+#include "tamm/scalar.hpp"
 #include "tamm/types.hpp"
 
 namespace tamm::blockops::cpu {

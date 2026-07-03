@@ -69,12 +69,15 @@ tamm_expects_str(bool cond, std::string_view cond_str, std::string_view user_msg
  * This is meant to identify preconditions and possibly include additional
  * operations (e.g., an error message).
  */
-#define EXPECTS(cond)          tamm_expects((cond), #cond)
+// static_cast<bool> performs a *contextual* conversion at the call site, so
+// pointer-like conditions with an explicit operator bool (std::shared_ptr,
+// std::unique_ptr, ...) still work, e.g. EXPECTS(distribution_).
+#define EXPECTS(cond)          tamm_expects(static_cast<bool>(cond), #cond)
 
 /**
  * @brief Wrapper for assertion checking with a custom string message.
  */
-#define EXPECTS_STR(cond, str) tamm_expects_str((cond), #cond, str)
+#define EXPECTS_STR(cond, str) tamm_expects_str(static_cast<bool>(cond), #cond, str)
 
 #define EXPECTS_NOTHROW(cond)  assert(cond)
 

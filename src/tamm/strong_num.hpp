@@ -106,10 +106,15 @@ struct StrongNum {
   StrongNum& operator=(const StrongNum&)     = default;
   ~StrongNum()                               = default;
 
-  /// Explicit construction from any compatible arithmetic type.
+  /// Implicit construction from any compatible arithmetic type.
+  ///
+  /// NOTE: this is intentionally NOT explicit.  TAMM relies pervasively on
+  /// implicit conversions such as `Proc p = GA_Nodeid();`, `Offset off = 0;`,
+  /// and `Size sz = block_size(...)`.  Making it explicit breaks hundreds of
+  /// call sites, so the original (implicit) behaviour is preserved here.
   template<StrongNumeric T2>
     requires std::is_convertible_v<T2, T>
-  constexpr explicit StrongNum(T2 v1) noexcept : v{checked_cast<T>(v1)} {}
+  constexpr StrongNum(T2 v1) noexcept : v{checked_cast<T>(v1)} {}
 
   // ---- Assignment from raw arithmetic -----------------------------------
   template<StrongNumeric T2>
@@ -163,7 +168,11 @@ struct StrongNum {
   template<StrongNumeric T2>
   [[nodiscard]] NumType operator%(T2 t) const noexcept { return NumType{v % checked_cast<T>(t)}; }
 
-  // ---- Comparison: single operator<=> replaces all 6 operators ----------
+  // ---- Comparison (same-type) -------------------------------------------
+  // Defaulted operator== AND operator<=>.  operator<=> alone does NOT
+  // synthesize ==/!=, so both are needed; == synthesizes != and <=>
+  // synthesizes < <= > >=.
+  [[nodiscard]] bool operator==(const NumType& d) const noexcept = default;
   [[nodiscard]] auto operator<=>(const NumType& d) const noexcept = default;
 
   // Heterogeneous comparisons against raw arithmetic (non-defaulted).

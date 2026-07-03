@@ -7,6 +7,19 @@
 #include <vector>
 
 namespace tamm {
+namespace internal {
+/**
+ * @brief Returns a reference to a shared, always-empty vector of
+ * TiledIndexSpace. Defined out-of-line (in index_space.cpp) where
+ * TiledIndexSpace is a complete type, so that impl classes which need to hand
+ * out an empty dependency list do not have to store a std::vector of the
+ * (here) incomplete TiledIndexSpace type. Required since C++20 instantiates
+ * std::vector's (constexpr) destructor eagerly, which needs a complete element
+ * type.
+ */
+const std::vector<TiledIndexSpace>& empty_tiled_index_space_vec();
+} // namespace internal
+
 /**
  * @ingroup index_space
  * @class IndexSpaceInterface
@@ -353,7 +366,9 @@ public:
   // Maximum number of indices in this index space
   std::size_t max_num_indices() const override { return indices_.size(); }
 
-  const std::vector<TiledIndexSpace>& key_tiled_index_spaces() const override { return empty_vec_; }
+  const std::vector<TiledIndexSpace>& key_tiled_index_spaces() const override {
+    return internal::empty_tiled_index_space_vec();
+  }
 
   const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces() const override {
     return empty_map_;
@@ -399,8 +414,7 @@ protected:
   NameToRangeMap                    named_ranges_;    /**< Map from name to subspace ranges*/
   std::map<std::string, IndexSpace> named_subspaces_; /**< Map from names to (sub) IndexSpaces */
   SpinAttribute                     spin_; /**< Spin attribute associated with the IndexSpace */
-  SpatialAttribute             spatial_;   /**< Spatial attribute associated with the IndexSpace */
-  std::vector<TiledIndexSpace> empty_vec_; /**< Empty vector for dependencies */
+  SpatialAttribute spatial_;               /**< Spatial attribute associated with the IndexSpace */
   std::map<IndexVector, IndexSpace> empty_map_; /**< Empty map for dependency relations */
 
   /**
@@ -566,7 +580,9 @@ public:
   // Maximum number of indices in this index space
   std::size_t max_num_indices() const override { return indices_.size(); }
 
-  const std::vector<TiledIndexSpace>& key_tiled_index_spaces() const override { return empty_vec_; }
+  const std::vector<TiledIndexSpace>& key_tiled_index_spaces() const override {
+    return internal::empty_tiled_index_space_vec();
+  }
 
   const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces() const override {
     return empty_map_;
@@ -614,7 +630,6 @@ protected:
   NameToRangeMap named_ranges_; /**< Map from name to subspace ranges*/
   std::map<std::string, IndexSpace> named_subspaces_; /**< Map from names to (sub) IndexSpaces */
   IndexSpace                        root_space_;      /**< Root IndexSpace */
-  std::vector<TiledIndexSpace>      empty_vec_;       /**< Empty vector for dependencies */
   std::map<IndexVector, IndexSpace> empty_map_;       /**< Empty map for dependency relations */
   /**
    * @brief Helper method for constructing the new set of
@@ -714,7 +729,9 @@ public:
   // Maximum number of indices in this index space
   std::size_t max_num_indices() const override { return indices_.size(); }
 
-  const std::vector<TiledIndexSpace>& key_tiled_index_spaces() const override { return empty_vec_; }
+  const std::vector<TiledIndexSpace>& key_tiled_index_spaces() const override {
+    return internal::empty_tiled_index_space_vec();
+  }
 
   const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces() const override {
     return empty_map_;
@@ -795,7 +812,6 @@ protected:
   NameToRangeMap          named_ranges_; /**< Map from name to subspace ranges*/
   std::map<std::string, IndexSpace> named_subspaces_; /**< Map from names to (sub) IndexSpaces */
   std::vector<Range>                empty_range_;     /**< Empty range vector for spin relation */
-  std::vector<TiledIndexSpace>      empty_vec_;       /**< Empty vector for dependencies */
   std::map<IndexVector, IndexSpace> empty_map_;       /**< Empty map for dependency relations */
 
   /**
@@ -921,15 +937,7 @@ public:
    * IndexSpaces
    */
   DependentIndexSpaceImpl(const std::vector<TiledIndexSpace>&      indep_spaces,
-                          const std::map<IndexVector, IndexSpace>& dep_space_relation):
-    dep_spaces_{indep_spaces}, dep_space_relation_{dep_space_relation}, named_ranges_{} {
-    // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
-    max_size_ = 0;
-    for(const auto& pair: dep_space_relation) {
-      max_size_ = std::max(max_size_, pair.second.num_indices());
-    }
-    // std::cerr << __FUNCTION__ << " " << __LINE__ << "\n";
-  }
+                          const std::map<IndexVector, IndexSpace>& dep_space_relation);
 
   /***
    * @brief Construct a new Dependent Index Space Impl object
@@ -942,15 +950,17 @@ public:
    */
   DependentIndexSpaceImpl(const std::vector<TiledIndexSpace>&      indep_spaces,
                           const IndexSpace&                        ref_space,
-                          const std::map<IndexVector, IndexSpace>& dep_space_relation):
-    dep_spaces_{indep_spaces}, dep_space_relation_{dep_space_relation}, named_ranges_{} {}
+                          const std::map<IndexVector, IndexSpace>& dep_space_relation);
 
   /// @todo do we need these constructor/operators
-  DependentIndexSpaceImpl(DependentIndexSpaceImpl&&)                 = default;
-  DependentIndexSpaceImpl(const DependentIndexSpaceImpl&)            = default;
-  DependentIndexSpaceImpl& operator=(DependentIndexSpaceImpl&&)      = default;
-  DependentIndexSpaceImpl& operator=(const DependentIndexSpaceImpl&) = default;
-  ~DependentIndexSpaceImpl()                                         = default;
+  // Defined out-of-line in index_space.cpp where TiledIndexSpace is complete
+  // (dep_spaces_ is a std::vector<TiledIndexSpace>; see the note on
+  // internal::empty_tiled_index_space_vec()).
+  DependentIndexSpaceImpl(DependentIndexSpaceImpl&&);
+  DependentIndexSpaceImpl(const DependentIndexSpaceImpl&);
+  DependentIndexSpaceImpl& operator=(DependentIndexSpaceImpl&&);
+  DependentIndexSpaceImpl& operator=(const DependentIndexSpaceImpl&);
+  ~DependentIndexSpaceImpl();
 
   // Index Accessors
   /**
@@ -1006,7 +1016,8 @@ public:
     return dep_spaces_;
   }
 
-  size_t num_key_tiled_index_spaces() const override { return dep_spaces_.size(); }
+  // Out-of-line (index_space.cpp): .size() needs TiledIndexSpace complete.
+  size_t num_key_tiled_index_spaces() const override;
 
   const std::map<IndexVector, IndexSpace>& map_tiled_index_spaces() const override {
     return dep_space_relation_;

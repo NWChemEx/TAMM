@@ -16,12 +16,8 @@ namespace tamm::internal {
 template<typename T>
 class LabelMap {
 public:
-  LabelMap()                           = default;
-  LabelMap(const LabelMap&)            = default;
-  LabelMap(LabelMap&&)                 = default;
-  LabelMap& operator=(const LabelMap&) = default;
-  LabelMap& operator=(LabelMap&&)      = default;
-  ~LabelMap()                          = default;
+  // Rule of Zero: only member is a std::map, so all special members are correct
+  // when compiler-generated.
 
   LabelMap& update(const IndexLabelVec& labels, const std::vector<T>& vals) {
     EXPECTS(labels.size() == vals.size());

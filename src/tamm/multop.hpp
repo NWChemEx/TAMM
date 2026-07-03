@@ -31,77 +31,35 @@ namespace tamm::internal {
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 struct MultOpPlanBase {
   using MultOpT = MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>;
+
+  // writes()/accumulates()/reads() are identical for every plan: an assign
+  // writes the LHS, an update accumulates into it, and both RHS operands are
+  // read.  (The former local/global split was a no-op for scheduling — the
+  // variants were concatenated and only membership matters for dependency
+  // tests — and no code queried the local/global variants individually.)
   TensorBase* writes(const MultOpT& multop) const {
-    auto ret1 = local_writes(multop);
-    auto ret2 = global_writes(multop);
-    ret1.insert(ret1.end(), ret2.begin(), ret2.end());
-    return !ret1.empty() ? ret1[0] : nullptr;
+    return multop.is_assign() ? multop.lhs().base_ptr() : nullptr;
   }
-
   TensorBase* accumulates(const MultOpT& multop) const {
-    auto ret1 = local_accumulates(multop);
-    auto ret2 = global_accumulates(multop);
-    ret1.insert(ret1.end(), ret2.begin(), ret2.end());
-    return !ret1.empty() ? ret1[0] : nullptr;
+    return multop.is_assign() ? nullptr : multop.lhs().base_ptr();
   }
-
   std::vector<TensorBase*> reads(const MultOpT& multop) const {
-    auto ret1 = local_reads(multop);
-    auto ret2 = global_reads(multop);
-    ret1.insert(ret1.end(), ret2.begin(), ret2.end());
-    return !ret1.empty() ? ret1 : std::vector<TensorBase*>{};
+    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
   }
-
-  virtual std::vector<TensorBase*> global_writes(const MultOpT& multop) const      = 0;
-  virtual std::vector<TensorBase*> global_accumulates(const MultOpT& multop) const = 0;
-  virtual std::vector<TensorBase*> global_reads(const MultOpT& multop) const       = 0;
-  virtual std::vector<TensorBase*> local_writes(const MultOpT& multop) const       = 0;
-  virtual std::vector<TensorBase*> local_accumulates(const MultOpT& multop) const  = 0;
-  virtual std::vector<TensorBase*> local_reads(const MultOpT& multop) const        = 0;
 
   virtual void apply(const MultOpT& multop, ExecutionContext& ec, ExecutionHW hw) = 0;
+  virtual ~MultOpPlanBase()                                                       = default;
 }; // MultOpPlanBase
 
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 struct FlatMultPlan: public MultOpPlanBase<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3> {
   using MultOpT = MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>;
-  std::vector<TensorBase*> global_writes(const MultOpT& multop) const override { return {}; }
-  std::vector<TensorBase*> global_accumulates(const MultOpT& multop) const override { return {}; }
-
-  std::vector<TensorBase*> global_reads(const MultOpT& multop) const override { return {}; }
-
-  std::vector<TensorBase*> local_writes(const MultOpT& multop) const override {
-    if(multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const MultOpT& multop) const override {
-    if(!multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_reads(const MultOpT& multop) const override {
-    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
-  }
   void apply(const MultOpT& multop, ExecutionContext& ec, ExecutionHW hw) override;
 }; // FlatMultPlan
 
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 struct LHSMultPlan: public MultOpPlanBase<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3> {
   using MultOpT = MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>;
-  std::vector<TensorBase*> global_writes(const MultOpT& multop) const override { return {}; }
-  std::vector<TensorBase*> global_accumulates(const MultOpT& multop) const override { return {}; }
-  std::vector<TensorBase*> global_reads(const MultOpT& multop) const override { return {}; }
-
-  std::vector<TensorBase*> local_writes(const MultOpT& multop) const override {
-    if(multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const MultOpT& multop) const override {
-    if(!multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_reads(const MultOpT& multop) const override {
-    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
-  }
   void apply(const MultOpT& multop, ExecutionContext& ec, ExecutionHW hw) override;
 }; // LHSMultPlan
 
@@ -109,29 +67,6 @@ template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typenam
 struct GeneralFlatMultPlan:
   public MultOpPlanBase<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3> {
   using MultOpT = MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>;
-  std::vector<TensorBase*> global_writes(const MultOpT& multop) const override {
-    if(multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_accumulates(const MultOpT& multop) const override {
-    if(!multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_reads(const MultOpT& multop) const override {
-    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
-  }
-
-  std::vector<TensorBase*> local_writes(const MultOpT& multop) const override {
-    if(multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const MultOpT& multop) const override {
-    if(!multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_reads(const MultOpT& multop) const override {
-    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
-  }
   void apply(const MultOpT& multop, ExecutionContext& ec, ExecutionHW hw) override;
 }; // GeneralFlatMultPlan
 
@@ -139,28 +74,6 @@ template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typenam
 struct GeneralLHSMultPlan:
   public MultOpPlanBase<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3> {
   using MultOpT = MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>;
-  std::vector<TensorBase*> global_writes(const MultOpT& multop) const override {
-    if(multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_accumulates(const MultOpT& multop) const override {
-    if(!multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_reads(const MultOpT& multop) const override {
-    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
-  }
-  std::vector<TensorBase*> local_writes(const MultOpT& multop) const override {
-    if(multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const MultOpT& multop) const override {
-    if(!multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_reads(const MultOpT& multop) const override {
-    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
-  }
   void apply(const MultOpT& multop, ExecutionContext& ec, ExecutionHW hw) override;
 }; // GeneralLHSMultPlan
 
@@ -238,7 +151,7 @@ public:
     validate();
   }
 
-  MultOp(const MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>&) = default;
+  // Copy/move are implicitly generated (Rule of Zero); clone() copies.
 
   LabeledTensorT1 lhs() const { return lhs_; }
 
@@ -268,7 +181,9 @@ public:
     return result;
   }
 
-  std::shared_ptr<Op> clone() const override { return std::shared_ptr<Op>(new MultOp{*this}); }
+  std::shared_ptr<Op> clone() const override {
+    return std::make_shared<MultOp>(*this);
+  }
 
   using TensorElType1 = typename LabeledTensorT1::element_type;
   using TensorElType2 = typename LabeledTensorT2::element_type;
@@ -540,13 +455,8 @@ public:
     //@todo make parallel
     // do_work(ec, loop_nest, lambda);
 
-    bool has_sparse_labels = false;
-    for(auto& lbl: all_labels) {
-      if(lbl.is_dependent()) {
-        has_sparse_labels = true;
-        break;
-      }
-    }
+    const bool has_sparse_labels =
+      std::ranges::any_of(all_labels, [](const auto& lbl) { return lbl.is_dependent(); });
 
     if(1 && (lhs_.tensor().is_dense() /* && !lhs_.tensor().has_spin() */) &&
        (rhs1_.tensor().is_dense() /* && !rhs1_.tensor().has_spin() */) &&
@@ -992,32 +902,9 @@ protected:
       tamm_terminate(os.str());
     }
 
-    IndexLabelVec ilv{lhs_.labels()};
-    ilv.insert(ilv.end(), rhs1_.labels().begin(), rhs1_.labels().end());
-    ilv.insert(ilv.end(), rhs2_.labels().begin(), rhs2_.labels().end());
-
-    for(size_t i = 0; i < ilv.size(); i++) {
-      for(const auto& dl: ilv[i].secondary_labels()) {
-        size_t j;
-        for(j = 0; j < ilv.size(); j++) {
-          if(dl.tiled_index_space() == ilv[j].tiled_index_space() && dl.label() == ilv[j].label()) {
-            break;
-          }
-        }
-        EXPECTS(j < ilv.size());
-      }
-    }
-
-    for(size_t i = 0; i < ilv.size(); i++) {
-      const auto& ilbl = ilv[i];
-      for(size_t j = i + 1; j < ilv.size(); j++) {
-        const auto& jlbl = ilv[j];
-        if(ilbl.tiled_index_space() == jlbl.tiled_index_space() && ilbl.label() == jlbl.label() &&
-           ilbl.label_str() == jlbl.label_str()) {
-          EXPECTS(ilbl == jlbl);
-        }
-      }
-    }
+    const auto ilv = internal::merge_vector<IndexLabelVec>(lhs_.labels(), rhs1_.labels(),
+                                                           rhs2_.labels());
+    internal::validate_index_labels(ilv);
   }
 
   LabeledTensorT1 lhs_;

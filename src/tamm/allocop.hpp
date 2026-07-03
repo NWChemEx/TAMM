@@ -18,15 +18,15 @@ class AllocOp: public Op {
 public:
   AllocOp(TensorType tensor, ExecutionContext& ec): tensor_{tensor}, ec_{ec} {}
 
-  AllocOp(const AllocOp<TensorType>&) = default;
-
   TensorType tensor() const { return tensor_; }
 
   OpList canonicalize() const override { return OpList{(*this)}; }
 
   OpType op_type() const override { return OpType::alloc; }
 
-  std::shared_ptr<Op> clone() const override { return std::shared_ptr<Op>(new AllocOp{*this}); }
+  std::shared_ptr<Op> clone() const override {
+    return std::make_shared<AllocOp>(*this);
+  }
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     tensor_.allocate(&ec_);

@@ -164,11 +164,10 @@ public:
     size_t   lower  = spin_sizes.size() > 1 ? spin_sizes[1] : t_spaces.size() - upper;
     size_t   ignore = spin_sizes.size() > 2 ? spin_sizes[2] : t_spaces.size() - (upper + lower);
 
-    for(size_t i = 0; i < upper; i++) { spin_mask.push_back(SpinPosition::upper); }
-
-    for(size_t i = 0; i < lower; i++) { spin_mask.push_back(SpinPosition::lower); }
-
-    for(size_t i = 0; i < ignore; i++) { spin_mask.push_back(SpinPosition::ignore); }
+    spin_mask.reserve(upper + lower + ignore);
+    spin_mask.insert(spin_mask.end(), upper, SpinPosition::upper);
+    spin_mask.insert(spin_mask.end(), lower, SpinPosition::lower);
+    spin_mask.insert(spin_mask.end(), ignore, SpinPosition::ignore);
 
     spin_mask_            = spin_mask;
     has_spin_symmetry_    = true;
@@ -209,11 +208,10 @@ public:
     size_t   lower  = spin_sizes.size() > 1 ? spin_sizes[1] : t_labels.size() - upper;
     size_t   ignore = spin_sizes.size() > 2 ? spin_sizes[2] : t_labels.size() - (upper + lower);
 
-    for(size_t i = 0; i < upper; i++) { spin_mask.push_back(SpinPosition::upper); }
-
-    for(size_t i = 0; i < lower; i++) { spin_mask.push_back(SpinPosition::lower); }
-
-    for(size_t i = 0; i < ignore; i++) { spin_mask.push_back(SpinPosition::ignore); }
+    spin_mask.reserve(upper + lower + ignore);
+    spin_mask.insert(spin_mask.end(), upper, SpinPosition::upper);
+    spin_mask.insert(spin_mask.end(), lower, SpinPosition::lower);
+    spin_mask.insert(spin_mask.end(), ignore, SpinPosition::ignore);
 
     spin_mask_            = spin_mask;
     has_spin_symmetry_    = true;

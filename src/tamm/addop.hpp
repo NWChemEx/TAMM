@@ -44,134 +44,47 @@ namespace tamm::internal {
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2>
 struct AddOpPlanBase {
   using AddOpT = AddOp<T, LabeledTensorT1, LabeledTensorT2>;
+
+  // writes()/accumulates()/reads() are identical for every plan: an assign
+  // writes the LHS, an update accumulates into it, and the RHS is always read.
+  // (The former local/global split was a no-op for scheduling — the variants
+  // were concatenated and only membership matters for dependency tests — and no
+  // code queried the local/global variants individually.)
   TensorBase* writes(const AddOpT& addop) const {
-    auto ret1 = local_writes(addop);
-    auto ret2 = global_writes(addop);
-    ret1.insert(ret1.end(), ret2.begin(), ret2.end());
-    return !ret1.empty() ? ret1[0] : nullptr;
+    return addop.is_assign() ? addop.lhs().base_ptr() : nullptr;
   }
-
   TensorBase* accumulates(const AddOpT& addop) const {
-    auto ret1 = local_accumulates(addop);
-    auto ret2 = global_accumulates(addop);
-    ret1.insert(ret1.end(), ret2.begin(), ret2.end());
-    return !ret1.empty() ? ret1[0] : nullptr;
+    return addop.is_assign() ? nullptr : addop.lhs().base_ptr();
   }
-
   std::vector<TensorBase*> reads(const AddOpT& addop) const {
-    auto ret1 = local_reads(addop);
-    auto ret2 = global_reads(addop);
-    ret1.insert(ret1.end(), ret2.begin(), ret2.end());
-    return !ret1.empty() ? ret1 : std::vector<TensorBase*>{};
+    return {addop.rhs().base_ptr()};
   }
-
-  virtual std::vector<TensorBase*> global_writes(const AddOpT& addop) const      = 0;
-  virtual std::vector<TensorBase*> global_accumulates(const AddOpT& addop) const = 0;
-  virtual std::vector<TensorBase*> global_reads(const AddOpT& addop) const       = 0;
-  virtual std::vector<TensorBase*> local_writes(const AddOpT& addop) const       = 0;
-  virtual std::vector<TensorBase*> local_accumulates(const AddOpT& addop) const  = 0;
-  virtual std::vector<TensorBase*> local_reads(const AddOpT& addop) const        = 0;
 
   virtual void apply(const AddOpT& addop, ExecutionContext& ec, ExecutionHW hw) = 0;
+  virtual ~AddOpPlanBase()                                                      = default;
 }; // AddOpPlanBase
 
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2>
 struct FlatAddPlan: public AddOpPlanBase<T, LabeledTensorT1, LabeledTensorT2> {
   using AddOpT = AddOp<T, LabeledTensorT1, LabeledTensorT2>;
-  std::vector<TensorBase*> global_writes(const AddOpT& addop) const override { return {}; }
-  std::vector<TensorBase*> global_accumulates(const AddOpT& addop) const override { return {}; }
-
-  std::vector<TensorBase*> global_reads(const AddOpT& addop) const override { return {}; }
-
-  std::vector<TensorBase*> local_writes(const AddOpT& addop) const override {
-    if(addop.is_assign()) { return {addop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const AddOpT& addop) const override {
-    if(!addop.is_assign()) { return {addop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_reads(const AddOpT& addop) const override {
-    return {addop.rhs().base_ptr()};
-  }
   void apply(const AddOpT& addop, ExecutionContext& ec, ExecutionHW hw) override;
 }; // FlatAddPlan
 
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2>
 struct LHSAddPlan: public AddOpPlanBase<T, LabeledTensorT1, LabeledTensorT2> {
   using AddOpT = AddOp<T, LabeledTensorT1, LabeledTensorT2>;
-  std::vector<TensorBase*> global_writes(const AddOpT& addop) const override { return {}; }
-  std::vector<TensorBase*> global_accumulates(const AddOpT& addop) const override { return {}; }
-  std::vector<TensorBase*> global_reads(const AddOpT& addop) const override { return {}; }
-
-  std::vector<TensorBase*> local_writes(const AddOpT& addop) const override {
-    if(addop.is_assign()) { return {addop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const AddOpT& addop) const override {
-    if(!addop.is_assign()) { return {addop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_reads(const AddOpT& addop) const override {
-    return {addop.rhs().base_ptr()};
-  }
   void apply(const AddOpT& addop, ExecutionContext& ec, ExecutionHW hw) override;
 }; // LHSAddPlan
 
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2>
 struct GeneralFlatAddPlan: public AddOpPlanBase<T, LabeledTensorT1, LabeledTensorT2> {
   using AddOpT = AddOp<T, LabeledTensorT1, LabeledTensorT2>;
-  std::vector<TensorBase*> global_writes(const AddOpT& addop) const override {
-    if(addop.is_assign()) { return {addop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_accumulates(const AddOpT& addop) const override {
-    if(!addop.is_assign()) { return {addop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_reads(const AddOpT& addop) const override {
-    return {addop.rhs().base_ptr()};
-  }
-
-  std::vector<TensorBase*> local_writes(const AddOpT& addop) const override {
-    if(addop.is_assign()) { return {addop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const AddOpT& addop) const override {
-    if(!addop.is_assign()) { return {addop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_reads(const AddOpT& addop) const override {
-    return {addop.rhs().base_ptr()};
-  }
   void apply(const AddOpT& addop, ExecutionContext& ec, ExecutionHW hw) override;
 }; // GeneralFlatAddPlan
 
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2>
 struct GeneralLHSAddPlan: public AddOpPlanBase<T, LabeledTensorT1, LabeledTensorT2> {
   using AddOpT = AddOp<T, LabeledTensorT1, LabeledTensorT2>;
-  std::vector<TensorBase*> global_writes(const AddOpT& addop) const override {
-    if(addop.is_assign()) { return {addop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_accumulates(const AddOpT& addop) const override {
-    if(!addop.is_assign()) { return {addop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_reads(const AddOpT& addop) const override {
-    return {addop.rhs().base_ptr()};
-  }
-  std::vector<TensorBase*> local_writes(const AddOpT& addop) const override {
-    if(addop.is_assign()) { return {addop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const AddOpT& addop) const override {
-    if(!addop.is_assign()) { return {addop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_reads(const AddOpT& addop) const override {
-    return {addop.rhs().base_ptr()};
-  }
   void apply(const AddOpT& addop, ExecutionContext& ec, ExecutionHW hw) override;
 }; // GeneralLHSAddPlan
 
@@ -208,7 +121,7 @@ public:
     validate();
   }
 
-  AddOp(const AddOp<T, LabeledTensorT1, LabeledTensorT2>&) = default;
+  // Copy/move are implicitly generated (Rule of Zero); clone() copies.
 
   T alpha() const { return alpha_; }
 
@@ -236,7 +149,7 @@ public:
   }
 
   std::shared_ptr<Op> clone() const override {
-    return std::shared_ptr<Op>(new AddOp<T, LabeledTensorT1, LabeledTensorT2>{*this});
+    return std::make_shared<AddOp>(*this);
   }
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
@@ -361,31 +274,8 @@ protected:
       tamm_terminate(os.str());
     }
 
-    IndexLabelVec ilv{lhs_.labels()};
-    ilv.insert(ilv.end(), rhs_.labels().begin(), rhs_.labels().end());
-
-    for(size_t i = 0; i < ilv.size(); i++) {
-      for(const auto& dl: ilv[i].secondary_labels()) {
-        size_t j;
-        for(j = 0; j < ilv.size(); j++) {
-          if(dl.tiled_index_space() == ilv[j].tiled_index_space() && dl.label() == ilv[j].label()) {
-            break;
-          }
-        }
-        EXPECTS(j < ilv.size());
-      }
-    }
-
-    for(size_t i = 0; i < ilv.size(); i++) {
-      const auto& ilbl = ilv[i];
-      for(size_t j = i + 1; j < ilv.size(); j++) {
-        const auto& jlbl = ilv[j];
-        if(ilbl.tiled_index_space() == jlbl.tiled_index_space() && ilbl.label() == jlbl.label() &&
-           ilbl.label_str() == jlbl.label_str()) {
-          EXPECTS(ilbl == jlbl);
-        }
-      }
-    }
+    const auto ilv = internal::merge_vector<IndexLabelVec>(lhs_.labels(), rhs_.labels());
+    internal::validate_index_labels(ilv);
   }
 
   void fillin_int_labels() {

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "tamm/interfaces.hpp"
-#include "tamm/op_cost.hpp"
 #include "tamm/op_dag.hpp"
 #include "tamm/tiled_index_space.hpp"
 #include "tamm/types.hpp"

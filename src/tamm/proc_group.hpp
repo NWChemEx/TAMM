@@ -3,6 +3,7 @@
 #include <cassert>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <pthread.h>
 #include <vector>
 
@@ -17,14 +18,13 @@ public:
    *
    */
   ProcGroup(): pginfo_{std::make_shared<ProcGroupInfo>()} {}
-  ProcGroup(const ProcGroup&) = default;
-  ProcGroup(ProcGroup&& pg): pginfo_{std::move(pg.pginfo_)} {}
-  ProcGroup& operator=(ProcGroup pg) {
-    using std::swap;
-    swap(*this, pg);
-    return *this;
-  }
-  ~ProcGroup() = default;
+  // Rule of Zero: the only member is a shared_ptr, so compiler-generated copy,
+  // move, and assignment are all correct.
+  ProcGroup(const ProcGroup&)            = default;
+  ProcGroup(ProcGroup&&)                 = default;
+  ProcGroup& operator=(const ProcGroup&) = default;
+  ProcGroup& operator=(ProcGroup&&)      = default;
+  ~ProcGroup()                           = default;
 
   /**
    * @brief Construct a new Proc Group object by wrapping the given MPI
@@ -155,7 +155,7 @@ public:
   // Create subgroup from first nranks of parent group
   static ProcGroup create_subgroup(const ProcGroup& parent_group, int nranks) {
     std::vector<int> ranks(nranks);
-    for(int i = 0; i < nranks; i++) ranks[i] = i;
+    std::iota(ranks.begin(), ranks.end(), 0);
     return create_subgroup(parent_group, ranks);
   }
 
@@ -763,7 +763,7 @@ private:
     // also works when GA is initialized with an existing MPI communicator
     MPI_Comm_group(GA_MPI_Comm(), &group_world);
 
-    for(int i = 0; i < nranks; i++) { ranks[i] = i; }
+    std::iota(ranks, ranks + nranks, 0);
     MPI_Group_translate_ranks(group, nranks, ranks, group_world, ranks_world);
 
     int ga_pg_default = GA_Pgroup_get_default();
@@ -790,7 +790,7 @@ private:
 
     MPI_Comm_group(parent_group.comm(), &group_world);
 
-    for(int i = 0; i < nranks; i++) { ranks[i] = i; }
+    std::iota(ranks, ranks + nranks, 0);
     MPI_Group_translate_ranks(group, nranks, ranks, group_world, ranks_world);
 
     int ga_pg_default = GA_Pgroup_get_default();

@@ -125,7 +125,7 @@ public:
 
   ExecutionContext* execution_context() const { return ec_; }
 
-  auto tindices() const { return block_indices_; }
+  [[nodiscard]] const std::vector<TiledIndexSpace>& tindices() const { return block_indices_; }
 
   TAMM_SIZE block_size(const IndexVector& blockid) const {
     size_t ret = 1;
@@ -239,12 +239,9 @@ public:
 
   Spin spin_total() const { return spin_total_; }
 
-  bool is_dense() const {
-    bool result = true;
-    for(const auto& tis: block_indices_) {
-      if(tis.is_dependent()) { return false; }
-    }
-    return result;
+  [[nodiscard]] bool is_dense() const {
+    return std::ranges::none_of(block_indices_,
+                                [](const auto& tis) { return tis.is_dependent(); });
   }
 
   bool is_non_zero(const IndexVector& blockid) const {

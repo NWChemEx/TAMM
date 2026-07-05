@@ -147,8 +147,7 @@ private:
     blockops::cpu::flat_update(lhs_vec, alpha * rhs1_scalar[0], rhs2_vec);
   }
   template<typename T>
-  void scalar_vec_mult_update(BlockSpan<T>& lhs_vec, T alpha,
-                              const BlockSpan<T>& rhs1_scalar,
+  void scalar_vec_mult_assign(BlockSpan<T>& lhs_vec, T alpha, const BlockSpan<T>& rhs1_scalar,
                               const BlockSpan<T>& rhs2_vec) {
     EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
     blockops::cpu::flat_assign(lhs_vec, alpha * rhs1_scalar[0], rhs2_vec);
@@ -161,27 +160,6 @@ private:
   }
   template<typename T>
   void scalar_vec_mult_assign(BlockSpan<T>& lhs_vec, const BlockSpan<T>& rhs1_scalar,
-                              const BlockSpan<T>& rhs2_vec) {
-    EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
-    blockops::cpu::flat_assign(lhs_vec, rhs1_scalar[0], rhs2_vec);
-  }
-  template<typename T>
-  void scalar_vec_mult_assign(BlockSpan<T>& lhs_vec, T alpha,
-                              const BlockSpan<T>& rhs1_scalar,
-                              const BlockSpan<T>& rhs2_vec) {
-    EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
-    blockops::cpu::flat_assign(lhs_vec, alpha * rhs1_scalar[0], rhs2_vec);
-  }
-  template<typename T>
-  void scalar_vec_mult_update(BlockSpan<T>& lhs_vec,
-                              const BlockSpan<T>& rhs1_scalar,
-                              const BlockSpan<T>& rhs2_vec) {
-    EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
-    blockops::cpu::flat_update(lhs_vec, rhs1_scalar[0], rhs2_vec);
-  }
-  template<typename T>
-  void scalar_vec_mult_assign(BlockSpan<T>& lhs_vec,
-                              const BlockSpan<T>& rhs1_scalar,
                               const BlockSpan<T>& rhs2_vec) {
     EXPECTS(lhs_vec.num_elements() == rhs2_vec.num_elements());
     blockops::cpu::flat_assign(lhs_vec, rhs1_scalar[0], rhs2_vec);

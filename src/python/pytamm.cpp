@@ -2393,7 +2393,7 @@ void bind_tensor_family(py::module_& m, py::class_<Scheduler>& scheduler_cls) {
         }
 
         std::vector<T> buf(bs);
-        gsl::span<T>   sp(buf.data(), buf.size());
+        std::span<T>   sp(buf.data(), buf.size());
         t.raw().get(idx_vec, sp);
 
         for(size_t i = 0; i < bs; ++i) pybuf[i] = py_scalar_from_value(buf[i]);

@@ -23,9 +23,7 @@ public:
 
   OpType op_type() const override { return OpType::scan; }
 
-  std::shared_ptr<Op> clone() const override {
-    return std::make_shared<ScanOp>(*this);
-  }
+  std::shared_ptr<Op> clone() const override { return std::make_shared<ScanOp>(*this); }
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     using TensorElType = typename LabeledTensorT::element_type;

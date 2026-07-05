@@ -19,16 +19,13 @@ class DeallocOp: public Op {
 public:
   DeallocOp(TensorType tensor): tensor_{tensor} {}
 
-
   TensorType tensor() const { return tensor_; }
 
   OpList canonicalize() const override { return OpList{(*this)}; }
 
   OpType op_type() const override { return OpType::dealloc; }
 
-  std::shared_ptr<Op> clone() const override {
-    return std::make_shared<DeallocOp>(*this);
-  }
+  std::shared_ptr<Op> clone() const override { return std::make_shared<DeallocOp>(*this); }
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     tensor_.deallocate();

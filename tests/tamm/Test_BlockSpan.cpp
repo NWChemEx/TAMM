@@ -59,7 +59,7 @@ TEST_CASE("BlockSpan: block_dims() and block_dims_span() report extents") {
 
 TEST_CASE("BlockSpan: flat operator[] is row-major over the buffer") {
   // 2x3x4 row-major: element (i,j,k) lives at i*12 + j*4 + k.
-  std::vector<int>    buf(2 * 3 * 4);
+  std::vector<int> buf(2 * 3 * 4);
   std::iota(buf.begin(), buf.end(), 0);
   std::vector<size_t> dims{2, 3, 4};
   BlockSpan<int>      bs{buf.data(), dims};

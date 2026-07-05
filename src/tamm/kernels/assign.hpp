@@ -192,9 +192,9 @@ void index_permute_acc(T* dbuf, const T* sbuf, const PermVector& perm_to_dest, c
     for(size_t i = 0; i < ddims[0]; i++) { dbuf[i] = scale * sbuf[i]; }
   }
   else if(ndim == 2) {
-    Size   sz[] = {ddims[0], ddims[1]};
+    Size                  sz[] = {ddims[0], ddims[1]};
     std::array<size_t, 2> i{};
-    size_t c;
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
       for(i[1] = 0; i[1] < sz[1]; i[1]++, c++) {
         dbuf[c] += scale * sbuf[idx(i, sz, perm_to_dest)];
@@ -202,9 +202,9 @@ void index_permute_acc(T* dbuf, const T* sbuf, const PermVector& perm_to_dest, c
     }
   }
   else if(ndim == 3) {
-    Size   sz[] = {ddims[0], ddims[1], ddims[2]};
+    Size                  sz[] = {ddims[0], ddims[1], ddims[2]};
     std::array<size_t, 3> i{};
-    size_t c;
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
       for(i[1] = 0; i[1] < sz[1]; i[1]++) {
         for(i[2] = 0; i[2] < sz[2]; i[2]++, c++) {
@@ -214,9 +214,9 @@ void index_permute_acc(T* dbuf, const T* sbuf, const PermVector& perm_to_dest, c
     }
   }
   else if(ndim == 4) {
-    Size   sz[] = {ddims[0], ddims[1], ddims[2], ddims[3]};
+    Size                  sz[] = {ddims[0], ddims[1], ddims[2], ddims[3]};
     std::array<size_t, 4> i{};
-    size_t c;
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
       for(i[1] = 0; i[1] < sz[1]; i[1]++) {
         for(i[2] = 0; i[2] < sz[2]; i[2]++) {
@@ -244,19 +244,17 @@ void index_permute(T* dbuf, const T* sbuf, const PermVector& perm_to_dest, const
     for(size_t i = 0; i < ddims[0]; i++) { dbuf[i] = scale * sbuf[i]; }
   }
   else if(ndim == 2) {
-    Size   sz[] = {ddims[0], ddims[1]};
+    Size                  sz[] = {ddims[0], ddims[1]};
     std::array<size_t, 2> i{};
-    size_t c;
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
-      for(i[1] = 0; i[1] < sz[1]; i[1]++, c++) {
-        dbuf[c] = scale * sbuf[idx(i, sz, perm_to_dest)];
-      }
+      for(i[1] = 0; i[1] < sz[1]; i[1]++, c++) { dbuf[c] = scale * sbuf[idx(i, sz, perm_to_dest)]; }
     }
   }
   else if(ndim == 3) {
-    Size   sz[] = {ddims[0], ddims[1], ddims[2]};
+    Size                  sz[] = {ddims[0], ddims[1], ddims[2]};
     std::array<size_t, 3> i{};
-    size_t c;
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
       for(i[1] = 0; i[1] < sz[1]; i[1]++) {
         for(i[2] = 0; i[2] < sz[2]; i[2]++, c++) {
@@ -266,9 +264,9 @@ void index_permute(T* dbuf, const T* sbuf, const PermVector& perm_to_dest, const
     }
   }
   else if(ndim == 4) {
-    Size   sz[] = {ddims[0], ddims[1], ddims[2], ddims[3]};
+    Size                  sz[] = {ddims[0], ddims[1], ddims[2], ddims[3]};
     std::array<size_t, 4> i{};
-    size_t c;
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
       for(i[1] = 0; i[1] < sz[1]; i[1]++) {
         for(i[2] = 0; i[2] < sz[2]; i[2]++) {

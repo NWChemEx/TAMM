@@ -243,15 +243,15 @@ template<>
 struct hash<tamm::Range> {
   using argument_type = tamm::Range;
   using result_type   = std::size_t;
-  result_type         operator()(argument_type const& range) const noexcept {
-            using tamm::internal::hash_combine;
+  result_type operator()(argument_type const& range) const noexcept {
+    using tamm::internal::hash_combine;
 
-            result_type result = (range.hi() - range.lo()) / range.step();
-            hash_combine(result, range.lo());
-            hash_combine(result, range.hi());
-            hash_combine(result, range.step());
+    result_type result = (range.hi() - range.lo()) / range.step();
+    hash_combine(result, range.lo());
+    hash_combine(result, range.hi());
+    hash_combine(result, range.step());
 
-            return result;
+    return result;
   }
 };
 } // namespace std

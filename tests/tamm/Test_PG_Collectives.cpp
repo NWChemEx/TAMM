@@ -29,7 +29,7 @@ TEST_CASE("ProcGroup allreduce sum (buffer)") {
   const int nrk  = pg.size().value();
   const int rank = pg.rank().value();
 
-  const int          count = 4;
+  const int           count = 4;
   std::vector<double> sbuf(count), rbuf(count, -1.0);
   for(int i = 0; i < count; i++) sbuf[i] = static_cast<double>((rank + 1) * (i + 1));
   pg.allreduce(sbuf.data(), rbuf.data(), count, ReduceOp::sum);
@@ -56,7 +56,7 @@ TEST_CASE("ProcGroup allreduce min/max") {
   const int nrk  = pg.size().value();
   const int rank = pg.rank().value();
 
-  double val  = static_cast<double>(rank + 1);      // ranks: 1..nrk
+  double val  = static_cast<double>(rank + 1); // ranks: 1..nrk
   double vmin = pg.allreduce(&val, ReduceOp::min);
   double vmax = pg.allreduce(&val, ReduceOp::max);
   CHECK(vmin == doctest::Approx(1.0));
@@ -73,7 +73,7 @@ TEST_CASE("ProcGroup broadcast (single value and buffer)") {
   CHECK(v == doctest::Approx(42.0));
 
   // buffer
-  const int          count = 3;
+  const int           count = 3;
   std::vector<double> buf(count, 0.0);
   if(rank == 0) {
     buf[0] = 1.0;

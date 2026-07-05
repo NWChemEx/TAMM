@@ -4,9 +4,9 @@
 #pragma once
 
 #include <cassert>
-#include <compare>      // std::strong_ordering, operator<=>
-#include <concepts>     // std::integral, std::floating_point
-#include <functional>   // std::hash
+#include <compare>    // std::strong_ordering, operator<=>
+#include <concepts>   // std::integral, std::floating_point
+#include <functional> // std::hash
 #include <iosfwd>
 #include <limits>
 #include <vector>
@@ -43,8 +43,7 @@ concept StrongNumeric = std::integral<T> || std::floating_point<T>;
  * @return Value after type casting
  */
 template<StrongNumeric Target, StrongNumeric Source>
-  requires (!std::is_same_v<Target, Source>)
-constexpr Target checked_cast(Source s) noexcept(false) {
+requires(!std::is_same_v<Target, Source>) constexpr Target checked_cast(Source s) noexcept(false) {
   auto r = static_cast<Target>(s);
 #if defined(TAMM_DEBUG_STRONGNUM)
   assert(static_cast<Source>(r) == s && "checked_cast: narrowing lost data");
@@ -60,7 +59,9 @@ constexpr Target checked_cast(Source s) noexcept(false) {
  * @return same input value
  */
 template<StrongNumeric T>
-constexpr T checked_cast(T s) noexcept { return s; }
+constexpr T checked_cast(T s) noexcept {
+  return s;
+}
 
 /**
  * @brief Strongly typed wrapper for a numeric type.
@@ -101,10 +102,10 @@ struct StrongNum {
   using NumType = StrongNum<Space, T>;
 
   // ---- Lifecycle --------------------------------------------------------
-  StrongNum()                                = default;
-  StrongNum(const StrongNum&)                = default;
-  StrongNum& operator=(const StrongNum&)     = default;
-  ~StrongNum()                               = default;
+  StrongNum()                            = default;
+  StrongNum(const StrongNum&)            = default;
+  StrongNum& operator=(const StrongNum&) = default;
+  ~StrongNum()                           = default;
 
   /// Implicit construction from any compatible arithmetic type.
   ///
@@ -113,8 +114,8 @@ struct StrongNum {
   /// and `Size sz = block_size(...)`.  Making it explicit breaks hundreds of
   /// call sites, so the original (implicit) behaviour is preserved here.
   template<StrongNumeric T2>
-    requires std::is_convertible_v<T2, T>
-  constexpr StrongNum(T2 v1) noexcept : v{checked_cast<T>(v1)} {}
+  requires std::is_convertible_v<T2, T>
+  constexpr StrongNum(T2 v1) noexcept: v{checked_cast<T>(v1)} {}
 
   // ---- Assignment from raw arithmetic -----------------------------------
   template<StrongNumeric T2>
@@ -124,30 +125,77 @@ struct StrongNum {
   }
 
   // ---- Compound assignment (NumType operand) ----------------------------
-  NumType& operator+=(NumType d) noexcept { v += d.v; return *this; }
-  NumType& operator-=(NumType d) noexcept { v -= d.v; return *this; }
-  NumType& operator*=(NumType d) noexcept { v *= d.v; return *this; }
-  NumType& operator/=(NumType d) noexcept { v /= d.v; return *this; }
-  NumType& operator%=(NumType d) noexcept { v %= d.v; return *this; }
-  NumType& operator^=(NumType d) noexcept { v ^= d.v; return *this; }
+  NumType& operator+=(NumType d) noexcept {
+    v += d.v;
+    return *this;
+  }
+  NumType& operator-=(NumType d) noexcept {
+    v -= d.v;
+    return *this;
+  }
+  NumType& operator*=(NumType d) noexcept {
+    v *= d.v;
+    return *this;
+  }
+  NumType& operator/=(NumType d) noexcept {
+    v /= d.v;
+    return *this;
+  }
+  NumType& operator%=(NumType d) noexcept {
+    v %= d.v;
+    return *this;
+  }
+  NumType& operator^=(NumType d) noexcept {
+    v ^= d.v;
+    return *this;
+  }
 
   // ---- Compound assignment (raw arithmetic operand) ---------------------
   template<StrongNumeric T2>
-  NumType& operator+=(T2 t) noexcept { v += checked_cast<T>(t); return *this; }
+  NumType& operator+=(T2 t) noexcept {
+    v += checked_cast<T>(t);
+    return *this;
+  }
   template<StrongNumeric T2>
-  NumType& operator-=(T2 t) noexcept { v -= checked_cast<T>(t); return *this; }
+  NumType& operator-=(T2 t) noexcept {
+    v -= checked_cast<T>(t);
+    return *this;
+  }
   template<StrongNumeric T2>
-  NumType& operator*=(T2 t) noexcept { v *= checked_cast<T>(t); return *this; }
+  NumType& operator*=(T2 t) noexcept {
+    v *= checked_cast<T>(t);
+    return *this;
+  }
   template<StrongNumeric T2>
-  NumType& operator/=(T2 t) noexcept { v /= checked_cast<T>(t); return *this; }
+  NumType& operator/=(T2 t) noexcept {
+    v /= checked_cast<T>(t);
+    return *this;
+  }
   template<StrongNumeric T2>
-  NumType& operator^=(T2 t) noexcept { v ^= checked_cast<T>(t); return *this; }
+  NumType& operator^=(T2 t) noexcept {
+    v ^= checked_cast<T>(t);
+    return *this;
+  }
 
   // ---- Increment / decrement -------------------------------------------
-  NumType& operator++()    noexcept { v += 1; return *this; }
-  NumType  operator++(int) noexcept { NumType ret{*this}; v += 1; return ret; }
-  NumType& operator--()    noexcept { v -= 1; return *this; }
-  NumType  operator--(int) noexcept { NumType ret{*this}; v -= 1; return ret; }
+  NumType& operator++() noexcept {
+    v += 1;
+    return *this;
+  }
+  NumType operator++(int) noexcept {
+    NumType ret{*this};
+    v += 1;
+    return ret;
+  }
+  NumType& operator--() noexcept {
+    v -= 1;
+    return *this;
+  }
+  NumType operator--(int) noexcept {
+    NumType ret{*this};
+    v -= 1;
+    return ret;
+  }
 
   // ---- Binary arithmetic (NumType operands) ----------------------------
   [[nodiscard]] NumType operator+(NumType d) const noexcept { return NumType{v + d.v}; }
@@ -158,32 +206,46 @@ struct StrongNum {
 
   // ---- Binary arithmetic (raw arithmetic operands) ---------------------
   template<StrongNumeric T2>
-  [[nodiscard]] NumType operator+(T2 t) const noexcept { return NumType{v + checked_cast<T>(t)}; }
+  [[nodiscard]] NumType operator+(T2 t) const noexcept {
+    return NumType{v + checked_cast<T>(t)};
+  }
   template<StrongNumeric T2>
-  [[nodiscard]] NumType operator-(T2 t) const noexcept { return NumType{v - checked_cast<T>(t)}; }
+  [[nodiscard]] NumType operator-(T2 t) const noexcept {
+    return NumType{v - checked_cast<T>(t)};
+  }
   template<StrongNumeric T2>
-  [[nodiscard]] NumType operator*(T2 t) const noexcept { return NumType{v * checked_cast<T>(t)}; }
+  [[nodiscard]] NumType operator*(T2 t) const noexcept {
+    return NumType{v * checked_cast<T>(t)};
+  }
   template<StrongNumeric T2>
-  [[nodiscard]] NumType operator/(T2 t) const noexcept { return NumType{v / checked_cast<T>(t)}; }
+  [[nodiscard]] NumType operator/(T2 t) const noexcept {
+    return NumType{v / checked_cast<T>(t)};
+  }
   template<StrongNumeric T2>
-  [[nodiscard]] NumType operator%(T2 t) const noexcept { return NumType{v % checked_cast<T>(t)}; }
+  [[nodiscard]] NumType operator%(T2 t) const noexcept {
+    return NumType{v % checked_cast<T>(t)};
+  }
 
   // ---- Comparison (same-type) -------------------------------------------
   // Defaulted operator== AND operator<=>.  operator<=> alone does NOT
   // synthesize ==/!=, so both are needed; == synthesizes != and <=>
   // synthesizes < <= > >=.
-  [[nodiscard]] bool operator==(const NumType& d) const noexcept = default;
+  [[nodiscard]] bool operator==(const NumType& d) const noexcept  = default;
   [[nodiscard]] auto operator<=>(const NumType& d) const noexcept = default;
 
   // Heterogeneous comparisons against raw arithmetic (non-defaulted).
   template<StrongNumeric T2>
-  [[nodiscard]] bool operator==(T2 t) const noexcept { return v == checked_cast<T>(t); }
+  [[nodiscard]] bool operator==(T2 t) const noexcept {
+    return v == checked_cast<T>(t);
+  }
   template<StrongNumeric T2>
-  [[nodiscard]] auto operator<=>(T2 t) const noexcept { return v <=> checked_cast<T>(t); }
+  [[nodiscard]] auto operator<=>(T2 t) const noexcept {
+    return v <=> checked_cast<T>(t);
+  }
 
   // ---- Value accessors --------------------------------------------------
-  [[nodiscard]] T  value() const noexcept { return v; }
-                T& value()       noexcept { return v; }
+  [[nodiscard]] T value() const noexcept { return v; }
+  T&              value() noexcept { return v; }
 
 private:
   T v{}; /**< Value wrapped by this object */
@@ -193,8 +255,7 @@ private:
 // strongnum_cast: cross-space conversion
 // ---------------------------------------------------------------------------
 template<typename Space1, StrongNumeric T1, typename Space2, StrongNumeric T2>
-[[nodiscard]] inline StrongNum<Space1, T1>
-strongnum_cast(StrongNum<Space2, T2> v2) noexcept {
+[[nodiscard]] inline StrongNum<Space1, T1> strongnum_cast(StrongNum<Space2, T2> v2) noexcept {
   return StrongNum<Space1, T1>{checked_cast<T1>(v2.value())};
 }
 

@@ -29,8 +29,8 @@ using UInt = StrongNum<USpace, unsigned>;
 
 TEST_CASE("StrongNum: implicit construction and value()") {
   // Implicit conversion from arithmetic must compile (the refactor kept this).
-  AInt a = 5;      // copy-init from int
-  AInt b{7};       // direct-list-init
+  AInt a = 5; // copy-init from int
+  AInt b{7};  // direct-list-init
   CHECK(a.value() == 5);
   CHECK(b.value() == 7);
 
@@ -118,8 +118,8 @@ TEST_CASE("StrongNum: increment / decrement") {
 
 TEST_CASE("StrongNum: std::hash and use as unordered_map key") {
   std::unordered_map<AInt, std::string> m;
-  m[AInt{1}] = "one";
-  m[AInt{2}] = "two";
+  m[AInt{1}]  = "one";
+  m[AInt{2}]  = "two";
   m[AInt{42}] = "answer";
   CHECK(m.at(AInt{1}) == "one");
   CHECK(m.at(AInt{2}) == "two");
@@ -138,8 +138,8 @@ TEST_CASE("StrongNum: works with the concrete TAMM aliases") {
   CHECK(p.value() == 3);
   CHECK((off + Offset{5}).value() == 105u);
   // implicit-from-arithmetic on the aliases (used widely in TAMM)
-  Proc   pz  = 0;
-  Offset o0  = 0;
+  Proc   pz = 0;
+  Offset o0 = 0;
   CHECK(pz.value() == 0);
   CHECK(o0.value() == 0u);
 }

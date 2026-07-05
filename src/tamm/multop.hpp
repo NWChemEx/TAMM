@@ -181,9 +181,7 @@ public:
     return result;
   }
 
-  std::shared_ptr<Op> clone() const override {
-    return std::make_shared<MultOp>(*this);
-  }
+  std::shared_ptr<Op> clone() const override { return std::make_shared<MultOp>(*this); }
 
   using TensorElType1 = typename LabeledTensorT1::element_type;
   using TensorElType2 = typename LabeledTensorT2::element_type;
@@ -900,8 +898,8 @@ protected:
       tamm_terminate(os.str());
     }
 
-    const auto ilv = internal::merge_vector<IndexLabelVec>(lhs_.labels(), rhs1_.labels(),
-                                                           rhs2_.labels());
+    const auto ilv =
+      internal::merge_vector<IndexLabelVec>(lhs_.labels(), rhs1_.labels(), rhs2_.labels());
     internal::validate_index_labels(ilv);
   }
 

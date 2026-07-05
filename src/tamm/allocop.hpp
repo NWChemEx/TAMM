@@ -24,9 +24,7 @@ public:
 
   OpType op_type() const override { return OpType::alloc; }
 
-  std::shared_ptr<Op> clone() const override {
-    return std::make_shared<AllocOp>(*this);
-  }
+  std::shared_ptr<Op> clone() const override { return std::make_shared<AllocOp>(*this); }
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     tensor_.allocate(&ec_);

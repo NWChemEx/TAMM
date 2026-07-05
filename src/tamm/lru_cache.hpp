@@ -90,7 +90,7 @@ private:
     }
   };
   uint32_t                                max_size_;
-  uint32_t                                cycle_{0};  // fix: initialize to avoid UB
+  uint32_t                                cycle_{0}; // fix: initialize to avoid UB
   std::map<Key, uint32_t, KeyComp<KeyEl>> cache_;
   std::map<uint32_t, Key>                 cycle_to_key_;
   std::map<Key, Value>                    cached_value_;

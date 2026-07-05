@@ -1,11 +1,11 @@
 #pragma once
 
 #include "tamm/proc_group.hpp"
-//#include "tamm/tensor_impl.hpp"
+// #include "tamm/tensor_impl.hpp"
 #include "tamm/atomic_counter.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
-//#include "tamm/distribution.hpp"
+// #include "tamm/distribution.hpp"
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
@@ -356,13 +356,11 @@ public:
   std::stringstream& get_profile_data() { return profile_data_; }
 
   std::string get_profile_header() {
-    std::string pheader =
-      "ID;Level;OpType;OP;total_op_time_min;total_op_time_max;total_op_time_avg;";
-    pheader += "get_time_min;get_time_max;get_time_avg;";
-    pheader += "block_compute_time_min;block_compute_time_max;block_compute_time_avg;";
-    pheader += "copy_time_min;copy_time_max;copy_time_avg;";
-    pheader += "acc_time_min;acc_time_max;acc_time_avg";
-    return pheader;
+    return "ID;Level;OpType;OP;total_op_time_min;total_op_time_max;total_op_time_avg;"
+           "get_time_min;get_time_max;get_time_avg;"
+           "block_compute_time_min;block_compute_time_max;block_compute_time_avg;"
+           "copy_time_min;copy_time_max;copy_time_avg;"
+           "acc_time_min;acc_time_max;acc_time_avg";
   }
 
   template<typename... Args>

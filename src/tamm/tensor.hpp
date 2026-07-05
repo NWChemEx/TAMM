@@ -508,14 +508,12 @@ public:
   template<typename U>
   friend bool operator==(const Tensor<U>& lhs, const Tensor<U>& rhs);
 
-  bool is_sparse() const {
-    for(auto& tis: tiled_index_spaces()) {
-      if(tis.is_dependent()) return true;
-    }
-    return false;
+  [[nodiscard]] bool is_sparse() const {
+    return std::ranges::any_of(tiled_index_spaces(),
+                               [](const auto& tis) { return tis.is_dependent(); });
   }
 
-  bool is_dense() const { return !is_sparse(); }
+  [[nodiscard]] bool is_dense() const { return !is_sparse(); }
 
   T* access_local_buf() { return impl_->access_local_buf(); }
 

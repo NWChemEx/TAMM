@@ -67,6 +67,7 @@ set(TAMM_INCLUDES
     eigen_includes.hpp
     runtime_engine.hpp
     block_buffer.hpp
+    block_scratch.hpp
     lru_cache.hpp
     kernels/assign.hpp
     kernels/multiply.hpp
@@ -92,7 +93,6 @@ set(TAMM_INCLUDES
     tensor_variant.hpp
     op_executor.hpp
     symbol.hpp
-    op_cost.hpp
     block_operations.hpp
     setop.hpp
     scanop.hpp

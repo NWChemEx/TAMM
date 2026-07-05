@@ -9,19 +9,15 @@
 #include "tamm/scanop.hpp"
 #include "tamm/setop.hpp"
 
-//#define DO_NB
-//#define DO_NB_GET
+// #define DO_NB
+// #define DO_NB_GET
 
 namespace tamm::internal {
 template<typename T>
 class LabelMap {
 public:
-  LabelMap()                           = default;
-  LabelMap(const LabelMap&)            = default;
-  LabelMap(LabelMap&&)                 = default;
-  LabelMap& operator=(const LabelMap&) = default;
-  LabelMap& operator=(LabelMap&&)      = default;
-  ~LabelMap()                          = default;
+  // Rule of Zero: only member is a std::map, so all special members are correct
+  // when compiler-generated.
 
   LabelMap& update(const IndexLabelVec& labels, const std::vector<T>& vals) {
     EXPECTS(labels.size() == vals.size());
@@ -80,7 +76,7 @@ constexpr auto LabeledTensor<T>::make_op(T1&& rhs, const bool is_assign, const i
 
     if constexpr(tuple_size_v<T1> == 2) {
       // LT = alpha * LT
-      if constexpr((is_convertible_v<rhs0_t, T>) &&is_same_v<rhs1_t, LTT>)
+      if constexpr((is_convertible_v<rhs0_t, T>) && is_same_v<rhs1_t, LTT>)
         return AddOp<T, LTT, rhs1_t>{*this, static_cast<T>(sub_v) * static_cast<T>(get<0>(rhs)),
                                      get<1>(rhs), is_assign};
       else if constexpr(is_convertible_v<rhs0_t, T> && is_complex_v<T> &&

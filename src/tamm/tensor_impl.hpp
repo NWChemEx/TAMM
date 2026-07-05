@@ -9,9 +9,13 @@
 #include "tamm/mem_profiler.hpp"
 #include "tamm/memory_manager_local.hpp"
 #include "tamm/tensor_base.hpp"
+#include <algorithm>
 #include <functional>
 #include <gsl/span>
+#include <memory>
+#include <numeric>
 #include <type_traits>
+#include <utility>
 #if defined(USE_UPCXX)
 #include <upcxx/upcxx.hpp>
 #endif
@@ -119,7 +123,7 @@ public:
 
     // for(const auto& tis : t_spaces) { EXPECTS(tis.has_spin()); }
 
-    spin_mask_            = spin_mask;
+    spin_mask_            = std::move(spin_mask);
     has_spin_symmetry_    = true;
     has_spatial_symmetry_ = false;
     // spin_total_        = calculate_spin();
@@ -138,7 +142,7 @@ public:
     // for(const auto& tlbl : t_labels) {
     //     EXPECTS(tlbl.tiled_index_space().has_spin());
     // }
-    spin_mask_            = spin_mask;
+    spin_mask_            = std::move(spin_mask);
     has_spin_symmetry_    = true;
     has_spatial_symmetry_ = false;
     // spin_total_        = calculate_spin();
@@ -162,15 +166,14 @@ public:
     SpinMask spin_mask;
     size_t   upper  = spin_sizes[0];
     size_t   lower  = spin_sizes.size() > 1 ? spin_sizes[1] : t_spaces.size() - upper;
-    size_t   ignore = spin_sizes.size() > 2 ? spin_sizes[1] : t_spaces.size() - (upper + lower);
+    size_t   ignore = spin_sizes.size() > 2 ? spin_sizes[2] : t_spaces.size() - (upper + lower);
 
-    for(size_t i = 0; i < upper; i++) { spin_mask.push_back(SpinPosition::upper); }
+    spin_mask.reserve(upper + lower + ignore);
+    spin_mask.insert(spin_mask.end(), upper, SpinPosition::upper);
+    spin_mask.insert(spin_mask.end(), lower, SpinPosition::lower);
+    spin_mask.insert(spin_mask.end(), ignore, SpinPosition::ignore);
 
-    for(size_t i = 0; i < lower; i++) { spin_mask.push_back(SpinPosition::lower); }
-
-    for(size_t i = 0; i < ignore; i++) { spin_mask.push_back(SpinPosition::ignore); }
-
-    spin_mask_            = spin_mask;
+    spin_mask_            = std::move(spin_mask);
     has_spin_symmetry_    = true;
     has_spatial_symmetry_ = false;
     // spin_total_        = calculate_spin();
@@ -207,15 +210,14 @@ public:
     SpinMask spin_mask;
     size_t   upper  = spin_sizes[0];
     size_t   lower  = spin_sizes.size() > 1 ? spin_sizes[1] : t_labels.size() - upper;
-    size_t   ignore = spin_sizes.size() > 2 ? spin_sizes[1] : t_labels.size() - (upper + lower);
+    size_t   ignore = spin_sizes.size() > 2 ? spin_sizes[2] : t_labels.size() - (upper + lower);
 
-    for(size_t i = 0; i < upper; i++) { spin_mask.push_back(SpinPosition::upper); }
+    spin_mask.reserve(upper + lower + ignore);
+    spin_mask.insert(spin_mask.end(), upper, SpinPosition::upper);
+    spin_mask.insert(spin_mask.end(), lower, SpinPosition::lower);
+    spin_mask.insert(spin_mask.end(), ignore, SpinPosition::ignore);
 
-    for(size_t i = 0; i < lower; i++) { spin_mask.push_back(SpinPosition::lower); }
-
-    for(size_t i = 0; i < ignore; i++) { spin_mask.push_back(SpinPosition::ignore); }
-
-    spin_mask_            = spin_mask;
+    spin_mask_            = std::move(spin_mask);
     has_spin_symmetry_    = true;
     has_spatial_symmetry_ = false;
     // spin_total_        = calculate_spin();
@@ -266,11 +268,11 @@ public:
       // get memory profiler instance
       auto& memprof = MemProfiler::instance();
 
-      auto          defd = ec->get_default_distribution();
-      Distribution* distribution =
-        ec->distribution(defd->get_tensor_base(), defd->get_dist_proc()); // defd->kind());
-      // Distribution* distribution    =
-      // ec->distribution(defd.tensor_base(), nproc );
+      // Owning local factory pointers; unique_ptr guarantees release even if
+      // clone() below throws (RAII, replaces manual delete).
+      std::unique_ptr<Distribution> defd{ec->get_default_distribution()};
+      std::unique_ptr<Distribution> distribution{
+        ec->distribution(defd->get_tensor_base(), defd->get_dist_proc())}; // defd->kind());
       MemoryManager* memory_manager = ec->memory_manager();
       EXPECTS(distribution != nullptr);
       EXPECTS(memory_manager != nullptr);
@@ -282,10 +284,6 @@ public:
         distribution_ =
           std::shared_ptr<Distribution>(distribution->clone(this, memory_manager->pg().size()));
       }
-
-      // Delete unused pointers
-      delete defd;
-      delete distribution;
 #if 0
         auto rank = memory_manager->pg().rank();
         auto buf_size = distribution_->buf_size(rank);
@@ -335,7 +333,7 @@ public:
     if(!is_non_zero(idx_vec)) {
       Size size = block_size(idx_vec);
       EXPECTS(size <= buff_span.size());
-      for(size_t i = 0; i < size; i++) { buff_span[i] = (T) 0; }
+      std::fill_n(buff_span.begin(), size.value(), T{0});
       return;
     }
 
@@ -363,7 +361,7 @@ public:
     if(!is_non_zero(idx_vec)) {
       Size size = block_size(idx_vec);
       EXPECTS(size <= buff_span.size());
-      for(size_t i = 0; i < size; i++) { buff_span[i] = (T) 0; }
+      std::fill_n(buff_span.begin(), size.value(), T{0});
       return;
     }
 
@@ -598,12 +596,12 @@ public:
    * @param [in] lambda a function for constructing the Tensor
    */
   LambdaTensorImpl(const TiledIndexSpaceVec& tis_vec, Func lambda):
-    TensorImpl<T>(tis_vec), lambda_{lambda} {
+    TensorImpl<T>(tis_vec), lambda_{std::move(lambda)} {
     setKind(TensorBase::TensorKind::lambda);
   }
 
   LambdaTensorImpl(const IndexLabelVec& til_vec, Func lambda):
-    TensorImpl<T>(til_vec), lambda_{lambda} {
+    TensorImpl<T>(til_vec), lambda_{std::move(lambda)} {
     setKind(TensorBase::TensorKind::lambda);
   }
 
@@ -808,8 +806,9 @@ public:
     ec_             = ec;
     const int ndims = num_modes();
 
-    auto          defd         = ec->get_default_distribution();
-    Distribution* distribution = ec->distribution(defd->get_tensor_base(), defd->get_dist_proc());
+    std::unique_ptr<Distribution> defd{ec->get_default_distribution()};
+    std::unique_ptr<Distribution> distribution{
+      ec->distribution(defd->get_tensor_base(), defd->get_dist_proc())};
 
     EXPECTS(distribution != nullptr);
 
@@ -817,9 +816,6 @@ public:
 
     distribution_ = std::shared_ptr<Distribution>(distribution->clone(this, ec->pg().size()));
     proc_grid_    = distribution_->proc_grid();
-
-    delete defd;
-    delete distribution;
 
     auto tis_dims = tindices();
 
@@ -949,7 +945,9 @@ public:
               tile_index++;
             }
 
-      if(local_nelems_ = tile_offsets[my_rank])
+      // Assign then test for non-zero (parenthesised to make the intent
+      // explicit and silence -Wparentheses).
+      if((local_nelems_ = tile_offsets[my_rank]) != 0)
         for(int i = 4 - ndims; i < 4; ++i)
           local_buf_dims_.push_back(local_tiles_.back().lo[i] + local_tiles_.back().dim[i] -
                                     local_tiles_.front().lo[i]);
@@ -996,7 +994,7 @@ public:
         }
 
         if(is_bgd) {
-          nblocks = std::accumulate(nblock, nblock + ndims, (int) 1, std::multiplies<int>());
+          nblocks = std::reduce(nblock, nblock + ndims, 1, std::multiplies<>{});
           int proclist_c[nblocks];
           std::iota(proclist_c, proclist_c + nblocks, 0);
           GA_Set_restricted(ga_, proclist_c, nblocks);
@@ -1005,7 +1003,7 @@ public:
 
         // distribution->set_proc_grid(proc_grid_);
 
-        auto map_size = std::accumulate(nblock, nblock + ndims, (int64_t) 0);
+        auto                 map_size = std::accumulate(nblock, nblock + ndims, (int64_t) 0);
         std::vector<int64_t> k_map(map_size);
         {
           auto mi = 0;
@@ -1075,7 +1073,7 @@ public:
     if(pbs > 0) distribution_->set_proc_buf_size((Size) pbs);
 
     int64_t lmax_pbs{pbs};
-    auto gmax_pbs = ec->pg().allreduce(&lmax_pbs, ReduceOp::max);
+    auto    gmax_pbs = ec->pg().allreduce(&lmax_pbs, ReduceOp::max);
     if(gmax_pbs > 0) distribution_->set_max_proc_buf_size((Size) gmax_pbs);
 
 #endif
@@ -1412,11 +1410,11 @@ public:
 #if defined(USE_UPCXX)
     res = (size_t) local_nelems_;
 #else
-    T* ptr;
+    T*      ptr;
     int64_t len;
     NGA_Access_block_segment64(ga_, GA_Pgroup_nodeid(GA_Get_pgroup(ga_)),
                                reinterpret_cast<void*>(&ptr), &len);
-    res = (size_t) len;
+    res = static_cast<size_t>(len);
 #endif
     return res;
   }
@@ -1465,7 +1463,7 @@ protected:
   std::vector<TensorTile>                 tiles_;
   std::vector<TensorTile>                 local_tiles_;
 #else
-  int ga_;
+  int      ga_;
   ProcGrid proc_grid_;
 #endif
 
@@ -1496,7 +1494,7 @@ public:
   // Ctors
   ViewTensorImpl() = default;
   ViewTensorImpl(Tensor<T> ref_tensor, const TiledIndexSpaceVec& tis_vec, Func ref_map_func):
-    TensorImpl<T>(tis_vec), ref_tensor_{ref_tensor}, ref_map_func_{ref_map_func} {
+    TensorImpl<T>(tis_vec), ref_tensor_{ref_tensor}, ref_map_func_{std::move(ref_map_func)} {
     setKind(TensorBase::TensorKind::view);
     if(ref_tensor_.is_allocated()) {
       distribution_ =
@@ -1508,7 +1506,7 @@ public:
   }
 
   ViewTensorImpl(Tensor<T> ref_tensor, const IndexLabelVec& labels, Func ref_map_func):
-    TensorImpl<T>(labels), ref_tensor_{ref_tensor}, ref_map_func_{ref_map_func} {
+    TensorImpl<T>(labels), ref_tensor_{ref_tensor}, ref_map_func_{std::move(ref_map_func)} {
     setKind(TensorBase::TensorKind::view);
 
     if(ref_tensor_.is_allocated()) {
@@ -1524,9 +1522,9 @@ public:
                  CopyFunc get_func, CopyFunc put_func):
     TensorImpl<T>(labels),
     ref_tensor_{ref_tensor},
-    ref_map_func_{ref_map_func},
-    get_func_{get_func},
-    put_func_{put_func} {
+    ref_map_func_{std::move(ref_map_func)},
+    get_func_{std::move(get_func)},
+    put_func_{std::move(put_func)} {
     setKind(TensorBase::TensorKind::view);
 
     if(ref_tensor_.is_allocated()) {
@@ -1793,8 +1791,9 @@ public:
     EXPECTS(tensor_opt_.is_allocated());
 
     if(!is_allocated()) {
-      auto          defd         = ec->get_default_distribution();
-      Distribution* distribution = ec->distribution(defd->get_tensor_base(), defd->get_dist_proc());
+      std::unique_ptr<Distribution> defd{ec->get_default_distribution()};
+      std::unique_ptr<Distribution> distribution{
+        ec->distribution(defd->get_tensor_base(), defd->get_dist_proc())};
       MemoryManager* memory_manager = ec->memory_manager();
       EXPECTS(distribution != nullptr);
       EXPECTS(memory_manager != nullptr);
@@ -1805,8 +1804,8 @@ public:
 
       EXPECTS(distribution_ != nullptr);
 
-      delete defd;
-      delete distribution;
+      defd.reset();
+      distribution.reset();
       delete memory_manager;
 
       auto eltype = tensor_element_type<T>();

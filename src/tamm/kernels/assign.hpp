@@ -7,9 +7,11 @@
 #include "hptt/hptt.h"
 
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <iostream>
 #include <numeric>
+#include <span>
 #include <vector>
 
 namespace tamm {
@@ -168,9 +170,10 @@ void ipacc4(const SizeVec& loop_dims, T* dst, const SizeVec& loop_dld, T scale, 
   }
 }
 
-inline size_t idx(int n, const size_t* id, const Size* sz, const PermVector& p) {
-  Size idx = 0;
-  for(int i = 0; i < n - 1; i++) { idx = (idx + id[p[i]]) * sz[p[i + 1]]; }
+inline size_t idx(std::span<const size_t> id, const Size* sz, const PermVector& p) {
+  const size_t n   = id.size();
+  Size         idx = 0;
+  for(size_t i = 0; i + 1 < n; i++) { idx = (idx + id[p[i]]) * sz[p[i + 1]]; }
   if(n > 0) { idx += id[p[n - 1]]; }
   return idx.value();
 }
@@ -189,36 +192,36 @@ void index_permute_acc(T* dbuf, const T* sbuf, const PermVector& perm_to_dest, c
     for(size_t i = 0; i < ddims[0]; i++) { dbuf[i] = scale * sbuf[i]; }
   }
   else if(ndim == 2) {
-    Size   sz[] = {ddims[0], ddims[1]};
-    size_t i[2];
-    size_t c;
+    Size                  sz[] = {ddims[0], ddims[1]};
+    std::array<size_t, 2> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
       for(i[1] = 0; i[1] < sz[1]; i[1]++, c++) {
-        dbuf[c] += scale * sbuf[idx(2, i, sz, perm_to_dest)];
+        dbuf[c] += scale * sbuf[idx(i, sz, perm_to_dest)];
       }
     }
   }
   else if(ndim == 3) {
-    Size   sz[] = {ddims[0], ddims[1], ddims[2]};
-    size_t i[3];
-    size_t c;
+    Size                  sz[] = {ddims[0], ddims[1], ddims[2]};
+    std::array<size_t, 3> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
       for(i[1] = 0; i[1] < sz[1]; i[1]++) {
         for(i[2] = 0; i[2] < sz[2]; i[2]++, c++) {
-          dbuf[c] += scale * sbuf[idx(3, i, sz, perm_to_dest)];
+          dbuf[c] += scale * sbuf[idx(i, sz, perm_to_dest)];
         }
       }
     }
   }
   else if(ndim == 4) {
-    Size   sz[] = {ddims[0], ddims[1], ddims[2], ddims[3]};
-    size_t i[4];
-    size_t c;
+    Size                  sz[] = {ddims[0], ddims[1], ddims[2], ddims[3]};
+    std::array<size_t, 4> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
       for(i[1] = 0; i[1] < sz[1]; i[1]++) {
         for(i[2] = 0; i[2] < sz[2]; i[2]++) {
           for(i[3] = 0; i[3] < sz[3]; i[3]++, c++) {
-            dbuf[c] += scale * sbuf[idx(4, i, sz, perm_to_dest)];
+            dbuf[c] += scale * sbuf[idx(i, sz, perm_to_dest)];
           }
         }
       }
@@ -241,36 +244,34 @@ void index_permute(T* dbuf, const T* sbuf, const PermVector& perm_to_dest, const
     for(size_t i = 0; i < ddims[0]; i++) { dbuf[i] = scale * sbuf[i]; }
   }
   else if(ndim == 2) {
-    Size   sz[] = {ddims[0], ddims[1]};
-    size_t i[2];
-    size_t c;
+    Size                  sz[] = {ddims[0], ddims[1]};
+    std::array<size_t, 2> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
-      for(i[1] = 0; i[1] < sz[1]; i[1]++, c++) {
-        dbuf[c] = scale * sbuf[idx(2, i, sz, perm_to_dest)];
-      }
+      for(i[1] = 0; i[1] < sz[1]; i[1]++, c++) { dbuf[c] = scale * sbuf[idx(i, sz, perm_to_dest)]; }
     }
   }
   else if(ndim == 3) {
-    Size   sz[] = {ddims[0], ddims[1], ddims[2]};
-    size_t i[3];
-    size_t c;
+    Size                  sz[] = {ddims[0], ddims[1], ddims[2]};
+    std::array<size_t, 3> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
       for(i[1] = 0; i[1] < sz[1]; i[1]++) {
         for(i[2] = 0; i[2] < sz[2]; i[2]++, c++) {
-          dbuf[c] = scale * sbuf[idx(3, i, sz, perm_to_dest)];
+          dbuf[c] = scale * sbuf[idx(i, sz, perm_to_dest)];
         }
       }
     }
   }
   else if(ndim == 4) {
-    Size   sz[] = {ddims[0], ddims[1], ddims[2], ddims[3]};
-    size_t i[4];
-    size_t c;
+    Size                  sz[] = {ddims[0], ddims[1], ddims[2], ddims[3]};
+    std::array<size_t, 4> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < sz[0]; i[0]++) {
       for(i[1] = 0; i[1] < sz[1]; i[1]++) {
         for(i[2] = 0; i[2] < sz[2]; i[2]++) {
           for(i[3] = 0; i[3] < sz[3]; i[3]++, c++) {
-            dbuf[c] = scale * sbuf[idx(4, i, sz, perm_to_dest)];
+            dbuf[c] = scale * sbuf[idx(i, sz, perm_to_dest)];
           }
         }
       }

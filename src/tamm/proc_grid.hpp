@@ -35,7 +35,7 @@ static double dd_ev(const int64_t ndims, const std::vector<int64_t> ardims,
   t = 1.0;
   for(k = 0; k < ndims; k++) {
     q = (ardims[k] / pedims[k]) * pedims[k];
-    t = t * (q / (double) ardims[k]);
+    t = t * (q / static_cast<double>(ardims[k]));
   }
   return t;
 }
@@ -167,8 +167,7 @@ static void ddb_ex(const int64_t ndims, const std::vector<int64_t> ardims, const
         /*- Increment the number of processes assigned to the current
          *- array axis.
          */
-        for(tdims[pc] += 1; stack[pc] % tdims[pc] != 0; tdims[pc] += 1)
-          ;
+        for(tdims[pc] += 1; stack[pc] % tdims[pc] != 0; tdims[pc] += 1);
         pc += 1;
         stack[pc] = npes;
         for(i = 0; i < pc; i++) stack[pc] /= tdims[i];
@@ -276,12 +275,12 @@ static std::vector<int64_t> compute_proc_grid(const int64_t              ndims,
       h  = istart;
       q  = (tard[istart] < p0 * pedims[istart])
              ? 1.1
-             : (tard[istart] % (p0 * pedims[istart])) / (double) tard[istart];
+             : (tard[istart] % (p0 * pedims[istart])) / static_cast<double>(tard[istart]);
       for(j = 1; j < ndims; j++) {
         ilook = (istart + istep * j) % ndims;
         w     = (tard[ilook] < p0 * pedims[ilook])
                   ? 1.1
-                  : (tard[ilook] % (p0 * pedims[ilook])) / (double) tard[ilook];
+                  : (tard[ilook] % (p0 * pedims[ilook])) / static_cast<double>(tard[ilook]);
         if(w < q) {
           q = w;
           h = ilook;

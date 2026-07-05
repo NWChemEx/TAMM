@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <set>
 
 #include "ga/ga-mpi.h"
@@ -208,8 +209,8 @@ public:
     auto misc_start = std::chrono::high_resolution_clock::now();
     auto order      = levelize_and_order(ops_, start_idx_, ops_.size());
     EXPECTS(order.size() == ops_.size() - start_idx_);
-    size_t         lvl = 0;
-    AtomicCounter* ac  = new AtomicCounterGA(ec().pg(), order.size());
+    size_t lvl = 0;
+    auto   ac  = std::make_unique<AtomicCounterGA>(ec().pg(), order.size());
     ac->allocate(0);
     auto   misc_end = std::chrono::high_resolution_clock::now();
     double misc_time =
@@ -250,7 +251,7 @@ public:
         // oprof.multOpAddTime = 0;
         // t1 = t3;
       }
-      ec().set_ac(IndexedAC(ac, i));
+      ec().set_ac(IndexedAC(ac.get(), i));
       if(ops_[order[i].second]->exhw_ != ExecutionHW::DEFAULT)
         execute_on = ops_[order[i].second]->exhw_;
       auto t2 = std::chrono::high_resolution_clock::now();
@@ -297,7 +298,7 @@ public:
     ec().set_ac(IndexedAC(nullptr, 0));
     misc_start = t3;
     ac->deallocate();
-    delete ac;
+    ac.reset();
     misc_end = std::chrono::high_resolution_clock::now();
     misc_time +=
       std::chrono::duration_cast<std::chrono::duration<double>>((misc_end - misc_start)).count();
@@ -428,17 +429,17 @@ public:
     size_t off = start_idx_;
     for(size_t g: groups) {
       EXPECTS(g > 0);
-      AtomicCounter* ac = new AtomicCounterGA(ec().pg(), g);
+      auto ac = std::make_unique<AtomicCounterGA>(ec().pg(), g);
       ac->allocate(0);
 
       for(size_t i = off; i < off + g; i++, start_idx_++) {
-        ec().set_ac(IndexedAC(ac, i - off));
+        ec().set_ac(IndexedAC(ac.get(), i - off));
         ops_[i]->execute(ec());
       }
 
       ec().set_ac(IndexedAC(nullptr, 0));
       ac->deallocate();
-      delete ac;
+      ac.reset();
 
       // memory fence. for now GA_Sync()
       // GA_Sync();

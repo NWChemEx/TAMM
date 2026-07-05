@@ -3,6 +3,7 @@
 #include "tamm/iteration.hpp"
 #include "tamm/perm.hpp"
 #include "tamm/tiled_index_space.hpp"
+#include <algorithm>
 #include <chrono>
 #include <map>
 #include <vector>
@@ -27,6 +28,38 @@ private:
 }; // TimerGuard
 
 namespace internal {
+
+/**
+ * @brief Validate the combined index-label vector of a tensor operation.
+ *
+ * Shared by MultOp/AddOp/SetOp/ScanOp/MapOp::validate() (previously duplicated
+ * verbatim in each).  Checks:
+ *  1. every secondary (dependent) label is bound by some label in @p ilv, and
+ *  2. any two labels that share (tiled_index_space, label, label_str) are equal.
+ *
+ * The op-specific self-assignment check stays in each op's validate().
+ *
+ * @param ilv Concatenated label vector (lhs labels followed by all rhs labels).
+ */
+inline void validate_index_labels(const IndexLabelVec& ilv) {
+  for(const auto& lbl: ilv) {
+    for(const auto& dl: lbl.secondary_labels()) {
+      EXPECTS(std::ranges::any_of(ilv, [&](const auto& l) {
+        return dl.tiled_index_space() == l.tiled_index_space() && dl.label() == l.label();
+      }));
+    }
+  }
+  for(size_t i = 0; i < ilv.size(); i++) {
+    for(size_t j = i + 1; j < ilv.size(); j++) {
+      const auto& ilbl = ilv[i];
+      const auto& jlbl = ilv[j];
+      if(ilbl.tiled_index_space() == jlbl.tiled_index_space() && ilbl.label() == jlbl.label() &&
+         ilbl.label_str() == jlbl.label_str()) {
+        EXPECTS(ilbl == jlbl);
+      }
+    }
+  }
+}
 
 template<typename>
 struct is_tuple: std::false_type {};
@@ -229,8 +262,8 @@ extract_blockid_and_label(const IndexLabelVec& input_labels, const IndexVector& 
 inline IndexVector indep_values(const IndexVector& blockid, const Index& idx,
                                 const std::map<size_t, std::vector<size_t>>& dep_map) {
   IndexVector ret{};
-  if(dep_map.find(idx) != dep_map.end()) {
-    for(const auto& dep_id: dep_map.at(idx)) { ret.push_back(blockid[dep_id]); }
+  if(auto it = dep_map.find(idx); it != dep_map.end()) {
+    for(const auto& dep_id: it->second) { ret.push_back(blockid[dep_id]); }
   }
   return ret;
 }
@@ -541,10 +574,7 @@ inline void print_labels(const IndexLabelVec& labels) {
 }
 
 inline bool is_dense_labels(const IndexLabelVec& labels) {
-  for(auto& lbl: labels) {
-    if(lbl.is_dependent()) return false;
-  }
-  return true;
+  return std::ranges::none_of(labels, [](const auto& lbl) { return lbl.is_dependent(); });
 }
 template<typename LabeledTensorT>
 inline bool is_slicing(const LabeledTensorT& lt) {

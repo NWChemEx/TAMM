@@ -42,9 +42,7 @@ public:
 
   OpType op_type() const override { return OpType::map; }
 
-  std::shared_ptr<Op> clone() const override {
-    return std::shared_ptr<Op>(new MapOp<LabeledTensorT, Func, N>{*this});
-  }
+  std::shared_ptr<Op> clone() const override { return std::make_shared<MapOp>(*this); }
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     using TensorElType = typename LabeledTensorT::element_type;
@@ -193,29 +191,7 @@ protected:
     for(size_t i = 0; i < N; i++) {
       ilv.insert(ilv.end(), rhs_[i].labels().begin(), rhs_[i].labels().end());
     }
-
-    for(size_t i = 0; i < ilv.size(); i++) {
-      for(const auto& dl: ilv[i].secondary_labels()) {
-        size_t j;
-        for(j = 0; j < ilv.size(); j++) {
-          if(dl.tiled_index_space() == ilv[j].tiled_index_space() && dl.label() == ilv[j].label()) {
-            break;
-          }
-        }
-        EXPECTS(j < ilv.size());
-      }
-    }
-
-    for(size_t i = 0; i < ilv.size(); i++) {
-      const auto& ilbl = ilv[i];
-      for(size_t j = i + 1; j < ilv.size(); j++) {
-        const auto& jlbl = ilv[j];
-        if(ilbl.tiled_index_space() == jlbl.tiled_index_space() && ilbl.label() == jlbl.label() &&
-           ilbl.label_str() == jlbl.label_str()) {
-          EXPECTS(ilbl == jlbl);
-        }
-      }
-    }
+    internal::validate_index_labels(ilv);
   }
 
   LabeledTensorT                lhs_;

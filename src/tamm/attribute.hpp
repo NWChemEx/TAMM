@@ -102,7 +102,7 @@ public:
    *
    * @returns empty
    */
-  bool empty() const { return attr_map_.find(T{0}) != attr_map_.end(); }
+  bool empty() const { return attr_map_.contains(T{0}); }
 
 protected:
   AttributeToRangeMap<T> attr_map_; //
@@ -116,8 +116,8 @@ using SpatialAttribute = Attribute<Spatial>;
 namespace std {
 template<>
 struct hash<tamm::SpinAttribute> {
-  typedef tamm::SpinAttribute argument_type;
-  typedef std::size_t         result_type;
+  using argument_type = tamm::SpinAttribute;
+  using result_type   = std::size_t;
 
   result_type operator()(argument_type const& attribute) const noexcept {
     using tamm::internal::hash_combine;
@@ -136,8 +136,8 @@ struct hash<tamm::SpinAttribute> {
 
 template<>
 struct hash<tamm::SpatialAttribute> {
-  typedef tamm::SpatialAttribute argument_type;
-  typedef std::size_t            result_type;
+  using argument_type = tamm::SpatialAttribute;
+  using result_type   = std::size_t;
 
   result_type operator()(argument_type const& attribute) const noexcept {
     using tamm::internal::hash_combine;

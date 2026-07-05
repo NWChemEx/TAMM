@@ -26,7 +26,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
   pg_self_ = ProcGroup{team_self};
 
 #else
-  pg_self_  = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
+  pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
 #endif
 
 #if defined(USE_UPCXX)

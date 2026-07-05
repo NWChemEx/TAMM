@@ -6,7 +6,7 @@
 
 #include "tamm/mr/gpu_memory_resource.hpp"
 #include "tamm/mr/per_device_resource.hpp"
-//#include "tamm/mr/pinned_memory_resource.hpp"
+// #include "tamm/mr/pinned_memory_resource.hpp"
 #endif
 
 #include <tamm/errors.hpp>

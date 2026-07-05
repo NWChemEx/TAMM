@@ -143,7 +143,7 @@ static inline int nv_device_count() {
 #elif defined(USE_HIP)
 static inline int amd_device_count() {
   rsmi_status_t result;
-  uint32_t device_count;
+  uint32_t      device_count;
 
   result = rsmi_init(0);
   if(result != RSMI_STATUS_SUCCESS) tamm_terminate("rsmi_init failed");

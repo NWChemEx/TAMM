@@ -1,7 +1,9 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest/doctest.h"
 
+#include <map>
 #include <tamm/tamm.hpp>
+#include <unordered_map>
 
 using namespace tamm;
 
@@ -141,10 +143,10 @@ TEST_CASE("Block Sparse Tensor Construction") {
   Char2TISMap char2MOstr = {{'i', "occ"},  {'j', "occ"},  {'k', "occ"},  {'l', "occ"},
                             {'a', "virt"}, {'b', "virt"}, {'c', "virt"}, {'d', "virt"}};
   TensorInfo  tensor_info{
-    {MO, MO, MO, MO},                                 // Tensor dims
-    {"ijab", "iajb", "ijka", "ijkl", "iabc", "abcd"}, // Allowed blocks
+     {MO, MO, MO, MO},                                 // Tensor dims
+     {"ijab", "iajb", "ijka", "ijkl", "iabc", "abcd"}, // Allowed blocks
     char2MOstr,                                       // Char to named sub-space string
-    {"abij",
+     {"abij",
       "aibj"} // Disallowed blocks - note that allowed blocks will precedence over disallowed blocks
   };
 
@@ -321,8 +323,8 @@ TEST_CASE("Block Sparse Tensor Construction") {
     TiledIndexSpace Occ  = MO("occ");
     TiledIndexSpace Virt = MO("virt");
     Tensor<T>       tensorA{
-      {MO, MO, MO, MO},
-      {TiledIndexSpaceVec{Occ, Occ, Virt, Virt}, TiledIndexSpaceVec{Occ, Occ, Occ, Occ}}};
+            {MO, MO, MO, MO},
+            {TiledIndexSpaceVec{Occ, Occ, Virt, Virt}, TiledIndexSpaceVec{Occ, Occ, Occ, Occ}}};
     Tensor<T> tensorB{
       {MO, MO, MO, MO},
       {TiledIndexSpaceVec{Occ, Occ, Occ, Virt}, TiledIndexSpaceVec{Occ, Virt, Occ, Virt}}};
@@ -834,6 +836,42 @@ TEST_CASE("Spin Tensor Construction") {
   REQUIRE(!failed);
 }
 
+// Regression for the spin-sizes constructor (TensorImpl(t_spaces, spin_sizes)).
+// spin_sizes = {upper, lower, ignore}; the "ignore" count must come from
+// spin_sizes[2] (a prior copy-paste bug read spin_sizes[1] instead).  The
+// resulting spin_mask must be [upper, lower, ignore, ignore] for {1,1,2}.
+TEST_CASE("Spin tensor spin_sizes upper/lower/ignore mask") {
+  using T = double;
+  IndexSpace SpinIS{
+    range(0, 20),
+    {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}},
+    {{Spin{1}, {range(0, 5), range(10, 15)}}, {Spin{-1}, {range(5, 10), range(15, 20)}}}};
+  TiledIndexSpace SpinTIS{SpinIS, 5};
+
+  // 4 modes, spin partition upper=1, lower=1, ignore=2.
+  TiledIndexSpaceVec  t_spaces{SpinTIS, SpinTIS, SpinTIS, SpinTIS};
+  std::vector<size_t> spin_sizes{1, 1, 2};
+
+  Tensor<T> tensor{t_spaces, spin_sizes};
+  auto      mask = tensor.spin_mask();
+  REQUIRE(mask.size() == 4);
+  CHECK(mask[0] == SpinPosition::upper);
+  CHECK(mask[1] == SpinPosition::lower);
+  CHECK(mask[2] == SpinPosition::ignore);
+  CHECK(mask[3] == SpinPosition::ignore);
+
+  // Also verify the 2-size default-ignore path: {upper, lower} over 3 modes ->
+  // ignore inferred as (nmodes - upper - lower) = 1.
+  TiledIndexSpaceVec  t3{SpinTIS, SpinTIS, SpinTIS};
+  std::vector<size_t> spin_sizes2{1, 1};
+  Tensor<T>           tensor3{t3, spin_sizes2};
+  auto                mask3 = tensor3.spin_mask();
+  REQUIRE(mask3.size() == 3);
+  CHECK(mask3[0] == SpinPosition::upper);
+  CHECK(mask3[1] == SpinPosition::lower);
+  CHECK(mask3[2] == SpinPosition::ignore);
+}
+
 TEST_CASE("Hash Based Equality and Compatibility Check") {
   IndexSpace is1{range(0, 20), {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
   IndexSpace is2{range(0, 10)};
@@ -864,6 +902,52 @@ TEST_CASE("Hash Based Equality and Compatibility Check") {
   REQUIRE(!sub_tis1.is_compatible_with(tis2));
   REQUIRE(!sub_tis1.is_compatible_with(tis3));
   REQUIRE(sub_tis1.is_compatible_with(tis1("virt")));
+}
+
+// Regression test for the previously-uninitialized hash_value_ members in
+// IndexSpace / TiledIndexSpace.  A default-constructed space must have a
+// deterministic (zero) hash, hashes must be copy-stable, equal spaces must hash
+// equal, and spaces must be usable as std::map / std::unordered_map keys.
+TEST_CASE("Hash value initialization and map-key usage") {
+  // Default-constructed spaces: deterministic hash (0), and self-consistent.
+  IndexSpace      def_is{};
+  TiledIndexSpace def_tis{};
+  CHECK(def_is.hash() == 0);
+  CHECK(def_tis.hash() == 0);
+  CHECK(def_is.hash() == IndexSpace{}.hash());
+  CHECK(def_tis.hash() == TiledIndexSpace{}.hash());
+
+  IndexSpace      is1{range(0, 20), {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
+  IndexSpace      is2{range(0, 10)};
+  TiledIndexSpace tis1{is1};
+  TiledIndexSpace tis2{is2};
+  TiledIndexSpace tis1_occ = tis1("occ");
+
+  // hash is copy-stable
+  TiledIndexSpace tis1_copy = tis1;
+  CHECK(tis1.hash() == tis1_copy.hash());
+  IndexSpace is1_copy = is1;
+  CHECK(is1.hash() == is1_copy.hash());
+
+  // equal spaces hash equal (tis2 == tis1("occ") from the case above)
+  CHECK(tis2.hash() == tis1_occ.hash());
+  // distinct spaces should (almost surely) differ
+  CHECK(tis1.hash() != tis2.hash());
+
+  // Use TiledIndexSpace as a std::map key (relies on is_less_than/hash).
+  std::map<TiledIndexSpace, int> tmap;
+  tmap[tis1]     = 1;
+  tmap[tis2]     = 2;
+  tmap[tis1_occ] = 3; // == tis2 key path; must resolve consistently
+  CHECK(tmap[tis1] == 1);
+  CHECK(tmap.count(tis1_copy) == 1); // copy finds the same entry
+
+  // Use IndexSpace hash directly as an unordered bucket key.
+  std::unordered_map<size_t, int> hmap;
+  hmap[is1.hash()] = 10;
+  hmap[is2.hash()] = 20;
+  CHECK(hmap.at(is1_copy.hash()) == 10);
+  CHECK(hmap.at(is2.hash()) == 20);
 }
 
 TEST_CASE("GitHub Issues") {

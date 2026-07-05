@@ -188,16 +188,14 @@ public:
    */
   TiledIndexSpace operator()(std::string id) const {
     if(id == "all") { return (*this); }
-    if(tiled_info_->tiled_named_subspaces_.find(id) == tiled_info_->tiled_named_subspaces_.end()) {
-      std::cerr << "Named sub-space " + id + " doesn't exist!" << std::endl;
-    }
-    if(tiled_info_->tiled_named_subspaces_.find(id) == tiled_info_->tiled_named_subspaces_.end()) {
-      std::ostringstream os;
-      os << "[TAMM ERROR] Named sub-space doesn't exist!\n" << __FILE__ << ":L" << __LINE__;
-      tamm_terminate(os.str());
-    }
-
-    return tiled_info_->tiled_named_subspaces_.at(id);
+    // Single lookup (C++20 if-init) instead of find()+find()+at().
+    const auto& named = tiled_info_->tiled_named_subspaces_;
+    if(auto it = named.find(id); it != named.end()) { return it->second; }
+    std::cerr << "Named sub-space " + id + " doesn't exist!" << std::endl;
+    std::ostringstream os;
+    os << "[TAMM ERROR] Named sub-space doesn't exist!\n" << __FILE__ << ":L" << __LINE__;
+    tamm_terminate(os.str());
+    return {};  // unreachable (tamm_terminate does not return)
   }
 
   /**
@@ -210,12 +208,10 @@ public:
   TiledIndexSpace operator()(const IndexVector& dep_idx_vec = {}) const {
     if(dep_idx_vec.empty()) { return (*this); }
     const auto& t_dep_map = tiled_info_->tiled_dep_map_;
-    EXPECTS(t_dep_map.find(dep_idx_vec) != t_dep_map.end());
-    // if(t_dep_map.find(dep_idx_vec) == t_dep_map.end()){
-    //     return TiledIndexSpace{IndexSpace{{}}};
-    // }
-
-    return t_dep_map.at(dep_idx_vec);
+    // Single lookup instead of find() (in EXPECTS) + at().
+    auto it = t_dep_map.find(dep_idx_vec);
+    EXPECTS(it != t_dep_map.end());
+    return it->second;
   }
 
   /**
@@ -230,14 +226,11 @@ public:
   lookup_dependent_space(const IndexVector& dep_idx_vec = {}) const {
     if(dep_idx_vec.empty()) { return {(*this), true}; }
     const auto& t_dep_map = tiled_info_->tiled_dep_map_;
-    if(t_dep_map.find(dep_idx_vec) == t_dep_map.end()) {
-      return {TiledIndexSpace{IndexSpace{IndexVector{}}}, false};
-    }
-    else if(t_dep_map.at(dep_idx_vec) == TiledIndexSpace{IndexSpace{IndexVector{}}}) {
-      return {t_dep_map.at(dep_idx_vec), false};
-    }
-
-    return {t_dep_map.at(dep_idx_vec), true};
+    // Single lookup instead of find() + up to three at() calls.
+    auto it = t_dep_map.find(dep_idx_vec);
+    if(it == t_dep_map.end()) { return {TiledIndexSpace{IndexSpace{IndexVector{}}}, false}; }
+    const bool is_empty = (it->second == TiledIndexSpace{IndexSpace{IndexVector{}}});
+    return {it->second, !is_empty};
   }
 
   /**
@@ -1395,7 +1388,8 @@ protected:
                                                           TiledIndexSpaceInfo object*/
   std::shared_ptr<TiledIndexSpace> parent_tis_;        /**< Shared pointer to the parent
                                                         TiledIndexSpace object*/
-  size_t hash_value_;
+  size_t hash_value_{0};  // 0 for a default-constructed TiledIndexSpace; avoids
+                          // reading an indeterminate value in hash()/is_identical.
   bool   is_dense_subspace_ = false;
 
   /**

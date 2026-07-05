@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 
+#include "tamm/block_scratch.hpp"
 #include "tamm/boundvec.hpp"
 #include "tamm/errors.hpp"
 #include "tamm/label_translator.hpp"
@@ -26,102 +27,45 @@ namespace tamm::internal {
 template<typename T, typename LabeledTensorT>
 struct SetOpPlanBase {
   using SetOpT = SetOp<T, LabeledTensorT>;
+
+  // writes()/accumulates() are identical for every plan: an assign writes the
+  // LHS, an update accumulates into it.  (The former local/global split was a
+  // no-op — local+global were always concatenated and only element [0] used —
+  // and no code queried the local/global variants individually.)
   TensorBase* writes(const SetOpT& setop) const {
-    auto ret1 = local_writes(setop);
-    auto ret2 = global_writes(setop);
-    ret1.insert(ret1.end(), ret2.begin(), ret2.end());
-    return !ret1.empty() ? ret1[0] : nullptr;
+    return setop.is_assign() ? setop.lhs().base_ptr() : nullptr;
   }
-
   TensorBase* accumulates(const SetOpT& setop) const {
-    auto ret1 = local_accumulates(setop);
-    auto ret2 = global_accumulates(setop);
-    ret1.insert(ret1.end(), ret2.begin(), ret2.end());
-    return !ret1.empty() ? ret1[0] : nullptr;
+    return setop.is_assign() ? nullptr : setop.lhs().base_ptr();
   }
 
-  virtual std::vector<TensorBase*> global_writes(const SetOpT& setop) const      = 0;
-  virtual std::vector<TensorBase*> global_accumulates(const SetOpT& setop) const = 0;
-  virtual std::vector<TensorBase*> local_writes(const SetOpT& setop) const       = 0;
-  virtual std::vector<TensorBase*> local_accumulates(const SetOpT& setop) const  = 0;
-  virtual void apply(const SetOpT& setop, ExecutionContext& ec, ExecutionHW hw)  = 0;
+  virtual void apply(const SetOpT& setop, ExecutionContext& ec, ExecutionHW hw) = 0;
+  virtual ~SetOpPlanBase()                                                      = default;
 }; // SetOpPlanBase
 
 template<typename T, typename LabeledTensorT>
 struct FlatPlan: public SetOpPlanBase<T, LabeledTensorT> {
   using SetOpT = SetOp<T, LabeledTensorT>;
-  std::vector<TensorBase*> global_writes(const SetOpT& setop) const override { return {}; }
-  std::vector<TensorBase*> global_accumulates(const SetOpT& setop) const override { return {}; }
-  std::vector<TensorBase*> local_writes(const SetOpT& setop) const override {
-    if(setop.is_assign()) { return {setop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const SetOpT& setop) const override {
-    if(!setop.is_assign()) { return {setop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
   void apply(const SetOpT& setop, ExecutionContext& ec, ExecutionHW hw) override;
 };
 
 template<typename T, typename LabeledTensorT>
 struct LHSPlan: public SetOpPlanBase<T, LabeledTensorT> {
   using SetOpT = SetOp<T, LabeledTensorT>;
-  std::vector<TensorBase*> global_writes(const SetOpT& setop) const override { return {}; }
-  std::vector<TensorBase*> global_accumulates(const SetOpT& setop) const override { return {}; }
-  std::vector<TensorBase*> local_writes(const SetOpT& setop) const override {
-    if(setop.is_assign()) { return {setop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const SetOpT& setop) const override {
-    if(!setop.is_assign()) { return {setop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
   void apply(const SetOpT& setop, ExecutionContext& ec, ExecutionHW hw) override;
-}; // namespace tamm::internal
+};
 
 template<typename T, typename LabeledTensorT>
 struct GeneralFlatPlan: public SetOpPlanBase<T, LabeledTensorT> {
   using SetOpT = SetOp<T, LabeledTensorT>;
-  std::vector<TensorBase*> global_writes(const SetOpT& setop) const override {
-    if(setop.is_assign()) { return {setop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_accumulates(const SetOpT& setop) const override {
-    if(!setop.is_assign()) { return {setop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_writes(const SetOpT& setop) const override {
-    if(setop.is_assign()) { return {setop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const SetOpT& setop) const override {
-    if(!setop.is_assign()) { return {setop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
   void apply(const SetOpT& setop, ExecutionContext& ec, ExecutionHW hw) override;
-}; // GeneralFlatPlan
+};
 
 template<typename T, typename LabeledTensorT>
 struct GeneralLHSPlan: public SetOpPlanBase<T, LabeledTensorT> {
   using SetOpT = SetOp<T, LabeledTensorT>;
-  std::vector<TensorBase*> global_writes(const SetOpT& setop) const override {
-    if(setop.is_assign()) { return {setop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_accumulates(const SetOpT& setop) const override {
-    if(!setop.is_assign()) { return {setop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_writes(const SetOpT& setop) const override {
-    if(setop.is_assign()) { return {setop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const SetOpT& setop) const override {
-    if(!setop.is_assign()) { return {setop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
   void apply(const SetOpT& setop, ExecutionContext& ec, ExecutionHW hw) override;
-}; // GeneralLHSPlan
+};
 
 } // namespace tamm::internal
 
@@ -140,7 +84,7 @@ public:
     if(!lhs.has_str_lbl() && !lhs.labels().empty()) {
       auto lbls = lhs.labels();
       internal::update_labels(lbls);
-      lhs_.set_labels(lbls);
+      lhs_.set_labels(std::move(lbls));
     }
 
     if(lhs.has_str_lbl()) { fillin_labels(); }
@@ -162,7 +106,7 @@ public:
     EXPECTS(plan_obj_ != nullptr);
   }
 
-  SetOp(const SetOp<T, LabeledTensorT>&) = default;
+  // Copy/move are implicitly generated (Rule of Zero); clone() copies.
 
   T alpha() const { return alpha_; }
 
@@ -173,7 +117,7 @@ public:
   OpList canonicalize() const override { return OpList{(*this)}; }
 
   std::shared_ptr<Op> clone() const override {
-    return std::shared_ptr<Op>(new SetOp<T, LabeledTensorT>{*this});
+    return std::make_shared<SetOp>(*this);
   }
 
   OpType op_type() const override { return OpType::set; }
@@ -194,17 +138,17 @@ public:
 
   TensorBase* writes(const ExecutionContext& ec) const {
     if(lhs_.tensor().pg() == ec.pg()) { return plan_obj_->writes(*this); }
-    else { general_plan_obj_->writes(*this); }
+    else { return general_plan_obj_->writes(*this); }
   }
 
   std::vector<TensorBase*> reads(const ExecutionContext& ec) const {
     if(lhs_.tensor().pg() == ec.pg()) { return plan_obj_->reads(*this); }
-    else { general_plan_obj_->reads(*this); }
+    else { return general_plan_obj_->reads(*this); }
   }
 
   TensorBase* accumulates(const ExecutionContext& ec) const {
     if(lhs_.tensor().pg() == ec.pg()) { return plan_obj_->accumulates(*this); }
-    else { general_plan_obj_->accumulates(*this); }
+    else { return general_plan_obj_->accumulates(*this); }
   }
 
   bool is_memory_barrier() const { return false; }
@@ -234,29 +178,7 @@ protected:
    */
   void validate() {
     IndexLabelVec ilv{lhs_.labels()};
-
-    for(size_t i = 0; i < ilv.size(); i++) {
-      for(const auto& dl: ilv[i].secondary_labels()) {
-        size_t j;
-        for(j = 0; j < ilv.size(); j++) {
-          if(dl.tiled_index_space() == ilv[j].tiled_index_space() && dl.label() == ilv[j].label()) {
-            break;
-          }
-        }
-        EXPECTS(j < ilv.size());
-      }
-    }
-
-    for(size_t i = 0; i < ilv.size(); i++) {
-      const auto& ilbl = ilv[i];
-      for(size_t j = i + 1; j < ilv.size(); j++) {
-        const auto& jlbl = ilv[j];
-        if(ilbl.tiled_index_space() == jlbl.tiled_index_space() && ilbl.label() == jlbl.label() &&
-           ilbl.label_str() == jlbl.label_str()) {
-          EXPECTS(ilbl == jlbl);
-        }
-      }
-    }
+    internal::validate_index_labels(ilv);
   }
 
   LabeledTensorT lhs_;
@@ -355,14 +277,17 @@ void GeneralFlatPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& s
 
   // EXPECTS(pg_lhs.size() == pg_ec.size());
 
-  BlockSetPlan::OpType optype = is_assign ? optype = BlockSetPlan::OpType::set
-                                          : BlockSetPlan::OpType::update;
+  BlockSetPlan::OpType optype =
+    is_assign ? BlockSetPlan::OpType::set : BlockSetPlan::OpType::update;
   BlockSetPlan         plan{lhs_lt.labels(), optype};
 
   std::vector<Proc> pg_lhs_in_ec = pg_lhs.rank_translate(pg_ec);
 
   Proc round_robin_counter = 0;
   Proc ec_pg_size          = Proc{ec.pg().size()};
+
+  // Reused (grow-only) scratch for the remote-copy case; RAII-owned.
+  internal::BlockScratch<LHS_ElType> lhs_scratch;
 
   for(size_t i = 0; i < pg_lhs_in_ec.size(); i++) {
     Proc assigned_proc;
@@ -377,19 +302,16 @@ void GeneralFlatPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& s
     }
 
     if(proc_me_in_ec == assigned_proc) {
-      bool        alloced_lhs_buf{false};
       LHS_ElType* lhs_buf{nullptr};
 
       /// get total buffer size for a given Proc
       size_t lhs_size = lhs_tensor.total_buf_size(i);
       if(lhs_size <= 0) continue;
       if(proc_me_in_ec == pg_lhs_in_ec[i]) {
-        lhs_buf         = lhs_tensor.access_local_buf();
-        alloced_lhs_buf = false;
+        lhs_buf = lhs_scratch.view(lhs_tensor.access_local_buf());
       }
       else {
-        lhs_buf              = new LHS_ElType[lhs_size];
-        alloced_lhs_buf      = true;
+        lhs_buf              = lhs_scratch.owned(lhs_size);
         auto* lhs_mem_region = lhs_tensor.memory_region();
         /// get all of lhs's buf at i-th proc to lhs_buf
         lhs_mem_region->get(Proc{i}, Offset{0}, Size{lhs_size}, lhs_buf);
@@ -406,7 +328,6 @@ void GeneralFlatPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& s
         auto* lhs_mem_region = lhs_tensor.memory_region();
         lhs_mem_region->put(Proc{i}, Offset{0}, Size{lhs_size}, lhs_buf);
       }
-      if(alloced_lhs_buf) { delete[] lhs_buf; }
     }
   }
 }
@@ -437,21 +358,21 @@ void GeneralLHSPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& se
 
   LabelLoopNest loop_nest{lhs_lt.labels()};
 
+  // Reused (grow-only) scratch for the non-local / view case; RAII-owned.
+  internal::BlockScratch<LHS_ElType> lhs_scratch;
+
   auto lambda = [&](const IndexVector& l_blockid) {
     auto [lhs_proc, lhs_offset] = ldist.locate(l_blockid);
     auto        lhs_blocksize   = lhs_tensor.block_size(l_blockid);
     auto        lhs_blockdims   = lhs_tensor.block_dims(l_blockid);
     LHS_ElType* lhs_buf{nullptr};
-    bool        lhs_alloced{false};
 
     if(proc_lhs_to_ec[lhs_proc.value()] == proc_me_in_ec &&
        lhs_tensor.kind() != TensorBase::TensorKind::view) {
-      lhs_buf     = lhs_tensor.access_local_buf() + lhs_offset.value();
-      lhs_alloced = false;
+      lhs_buf = lhs_scratch.view(lhs_tensor.access_local_buf() + lhs_offset.value());
     }
     else {
-      lhs_buf     = new LHS_ElType[lhs_blocksize];
-      lhs_alloced = true;
+      lhs_buf = lhs_scratch.owned(lhs_blocksize);
       span<LHS_ElType> lhs_span{lhs_buf, lhs_blocksize};
       lhs_tensor.get(l_blockid, lhs_span);
     }
@@ -465,7 +386,6 @@ void GeneralLHSPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& se
       span<LHS_ElType> lhs_span{lhs_buf, lhs_blocksize};
       lhs_tensor.put(l_blockid, lhs_span);
     }
-    if(lhs_alloced) { delete[] lhs_buf; }
   };
 
   Proc                      round_robin_counter = 0;

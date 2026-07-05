@@ -127,13 +127,13 @@ public:
 
   void set_ga_handle(int ga_handle) { ga_ = ga_handle; }
 
-  void set_proc_grid(std::vector<Proc> pg) { proc_grid_ = pg; }
+  void set_proc_grid(std::vector<Proc> pg) { proc_grid_ = std::move(pg); }
 
   void set_proc_buf_size(Size proc_buf_size) { proc_buf_size_ = proc_buf_size; }
 
   void set_max_proc_buf_size(Size max_proc_buf_size) { max_proc_buf_size_ = max_proc_buf_size; }
 
-  std::vector<Proc> proc_grid() const { return proc_grid_; }
+  [[nodiscard]] const std::vector<Proc>& proc_grid() const { return proc_grid_; }
 
   /**
    * @brief Construct a new Distribution object using a TensorBase object and

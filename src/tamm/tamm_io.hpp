@@ -195,10 +195,10 @@ hid_t get_hdf5_dt() {
   else if constexpr(is_same_v<float, T>) return H5T_NATIVE_FLOAT;
   else if constexpr(is_same_v<double, T>) return H5T_NATIVE_DOUBLE;
   else if constexpr(is_same_v<std::complex<float>, T>) {
-    typedef struct {
+    struct complex_t {
       float re; /*real part*/
       float im; /*imaginary part*/
-    } complex_t;
+    };
 
     hid_t complex_id = H5Tcreate(H5T_COMPOUND, sizeof(complex_t));
     H5Tinsert(complex_id, "real", HOFFSET(complex_t, re), H5T_NATIVE_FLOAT);
@@ -206,10 +206,10 @@ hid_t get_hdf5_dt() {
     return complex_id;
   }
   else if constexpr(is_same_v<std::complex<double>, T>) {
-    typedef struct {
+    struct complex_t {
       double re; /*real part*/
       double im; /*imaginary part*/
-    } complex_t;
+    };
 
     hid_t complex_id = H5Tcreate(H5T_COMPOUND, sizeof(complex_t));
     H5Tinsert(complex_id, "real", HOFFSET(complex_t, re), H5T_NATIVE_DOUBLE);

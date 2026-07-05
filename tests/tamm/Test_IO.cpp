@@ -113,8 +113,26 @@ void read_write(Tensor<T> tensor, std::string tstring) {
   std::string hdf5_str  = tstring + "_hdf5";
   std::string mpiio_str = tstring + "_mpiio";
 
+  auto* ec = tensor.execution_context();
+
+  // Roundtrip verification: fill with non-uniform data, hash it, write, zero the
+  // in-memory tensor, read back, and require the hash to match.  Previously this
+  // helper wrote+read without verifying the read-back values at all.
+  random_ip(tensor, /*seed=*/12345u);
+  ec->pg().barrier();
+  const size_t hash_before = hash_tensor(tensor);
+
   write_to_disk(tensor, hdf5_str, tammio, profileio);
+
+  // Clobber the in-memory data so a no-op read would be detected.
+  Scheduler{*ec}(tensor() = T{0}).execute();
+  ec->pg().barrier();
+
   read_from_disk(tensor, hdf5_str, tammio, {}, profileio);
+  ec->pg().barrier();
+
+  const size_t hash_after = hash_tensor(tensor);
+  EXPECTS(hash_before == hash_after);
   // write_to_disk_mpiio(tensor,mpiio_str,tammio,profileio);
   // read_from_disk_mpiio(tensor,mpiio_str,tammio,{},profileio);
 }

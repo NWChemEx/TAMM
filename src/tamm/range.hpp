@@ -147,9 +147,12 @@ public:
   }
 
 protected:
-  Index lo_;   /**< Low end of range */
-  Index hi_;   /**< High end of range */
-  Index step_; /**< step size for the range */
+  // In-class initializers: a default-constructed Range (Range() = default) must
+  // not leave these members uninitialized — Range is used as a map value and in
+  // hashing, which would otherwise read indeterminate values (UB).
+  Index lo_{0};   /**< Low end of range */
+  Index hi_{0};   /**< High end of range */
+  Index step_{1}; /**< step size for the range */
 
 private:
   /**
@@ -238,8 +241,8 @@ using AttributeToRangeMap = std::map<AttributeType, std::vector<Range>>;
 namespace std {
 template<>
 struct hash<tamm::Range> {
-  typedef tamm::Range argument_type;
-  typedef std::size_t result_type;
+  using argument_type = tamm::Range;
+  using result_type   = std::size_t;
   result_type         operator()(argument_type const& range) const noexcept {
             using tamm::internal::hash_combine;
 

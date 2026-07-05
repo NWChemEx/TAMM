@@ -18,10 +18,8 @@ prep_buffers(T1 lscale, BlockSpan<T1>& lhs, T1 rscale, BlockSpan<T2>& rhs1, Bloc
   auto         adims = rhs1.block_dims();
   auto         bdims = rhs2.block_dims();
   auto         cdims = lhs.block_dims();
-  const size_t asize =
-    std::accumulate(adims.begin(), adims.end(), (size_t) 1, std::multiplies<size_t>());
-  const size_t bsize =
-    std::accumulate(bdims.begin(), bdims.end(), (size_t) 1, std::multiplies<size_t>());
+  const size_t asize = std::reduce(adims.begin(), adims.end(), size_t{1}, std::multiplies<>{});
+  const size_t bsize = std::reduce(bdims.begin(), bdims.end(), size_t{1}, std::multiplies<>{});
   // const size_t csize =
   //   std::accumulate(cdims.begin(), cdims.end(), (size_t) 1, std::multiplies<size_t>());
 

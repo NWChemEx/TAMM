@@ -56,14 +56,20 @@ public:
     return {hit, cached_value_[key]};
   }
 
+  /// Return a reference to the cached value for @p key.
+  /// @pre key is present in the cache (checked via EXPECTS)
   Value& access(const Key& key) {
-    EXPECTS(cached_value_.find(key) != cached_value_.end());
-    return *cached_value_.find(key);
+    auto it = cached_value_.find(key);
+    EXPECTS(it != cached_value_.end());
+    return it->second;
   }
 
+  /// Return a const reference to the cached value for @p key.
+  /// @pre key is present in the cache (checked via EXPECTS)
   const Value& access(const Key& key) const {
-    EXPECTS(cached_value_.find(key) != cached_value_.end());
-    return *cached_value_.find(key);
+    auto it = cached_value_.find(key);
+    EXPECTS(it != cached_value_.end());
+    return it->second;
   }
 
   void gather_stats(std::vector<uint32_t>& vec) {
@@ -84,7 +90,7 @@ private:
     }
   };
   uint32_t                                max_size_;
-  uint32_t                                cycle_;
+  uint32_t                                cycle_{0};  // fix: initialize to avoid UB
   std::map<Key, uint32_t, KeyComp<KeyEl>> cache_;
   std::map<uint32_t, Key>                 cycle_to_key_;
   std::map<Key, Value>                    cached_value_;

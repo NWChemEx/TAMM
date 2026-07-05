@@ -246,10 +246,15 @@ protected:
    * @tparam ContainerType stl container type with iterator
    * (RandomAccessIterator) support
    * @param [in] data_vec input vector
-   * @returns true returned if there are duplicates
+   * @returns true returned if there are no duplicate elements
+   *
+   * NOTE: name deliberately reads "no_duplicate" — it returns true when the
+   * input is duplicate-free.  (The previous name has_duplicate() was inverted
+   * relative to its return value; callers use it as a uniqueness precondition
+   * via EXPECTS(has_no_duplicate(...)).)
    */
   template<typename ContainerType>
-  static bool has_duplicate(const ContainerType& data_vec) {
+  static bool has_no_duplicate(const ContainerType& data_vec) {
     ContainerType temp_vec = data_vec;
     std::sort(temp_vec.begin(), temp_vec.end());
 
@@ -281,7 +286,7 @@ protected:
     }
     // Check no overlap on the ranges
     std::sort(att_indices.begin(), att_indices.end());
-    EXPECTS(has_duplicate<IndexVector>(att_indices));
+    EXPECTS(has_no_duplicate<IndexVector>(att_indices));
 
     // Check for full coverage of the indices
     EXPECTS(indices.size() == att_indices.size());
@@ -333,7 +338,7 @@ public:
     named_subspaces_{construct_subspaces(named_ranges, spin)},
     spin_{construct_spin(spin)},
     spatial_{construct_spatial(spatial)} {
-    EXPECTS(has_duplicate<IndexVector>(indices_));
+    EXPECTS(has_no_duplicate<IndexVector>(indices_));
   }
 
   /// @todo do we need these copy/move constructor/operators?
@@ -694,7 +699,7 @@ public:
     indices_{construct_indices(spaces)},
     named_ranges_{named_ranges},
     named_subspaces_{construct_subspaces(named_ranges)} {
-    // EXPECTS(has_duplicate<IndexVector>(indices_));
+    // EXPECTS(has_no_duplicate<IndexVector>(indices_));
     if(names.size() > 0) { add_ref_names(spaces, names); }
     if(subspace_references.size() > 0) { add_subspace_references(subspace_references); }
   }

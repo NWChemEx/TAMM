@@ -649,7 +649,7 @@ public:
         auto             optimized_op = optimizer.optimize();
         optimized_ops.push_back(std::move(optimized_op));
       }
-      else { optimized_ops.push_back(std::move(op->clone())); }
+      else { optimized_ops.push_back(op->clone()); }
     }
 
     std::unique_ptr<new_ops::Op> result_op = (*optimized_ops.at(0)).clone();
@@ -661,7 +661,7 @@ public:
     result_op->accept(clear_visitor);
     result_op->set_attribute<new_ops::NeededLabelsAttribute>(lhs_labels);
 
-    return std::move(result_op);
+    return result_op;
   }
 
 protected:

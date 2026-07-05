@@ -1,4 +1,7 @@
 #include "ccse_tensors.hpp"
+#include <bit>
+#include <cmath>
+#include <cstdint>
 #include <tamm/tamm_git.hpp>
 
 using CCEType = double;
@@ -765,12 +768,14 @@ int main(int argc, char* argv[]) {
                                  _a017, _a019, _a020, _a021);
   sch.execute();
 
-  tamm::random_ip(f1_oo("aa"));
-  tamm::random_ip(f1_ov("aa"));
-  tamm::random_ip(f1_vv("aa"));
-  tamm::random_ip(chol3d_oo("aa"));
-  tamm::random_ip(chol3d_ov("aa"));
-  tamm::random_ip(chol3d_vv("aa"));
+  // Fixed seeds so the (otherwise random) inputs are reproducible run-to-run,
+  // enabling the sanity gate on the computed residual below.
+  tamm::random_ip(f1_oo("aa"), 101u);
+  tamm::random_ip(f1_ov("aa"), 102u);
+  tamm::random_ip(f1_vv("aa"), 103u);
+  tamm::random_ip(chol3d_oo("aa"), 104u);
+  tamm::random_ip(chol3d_ov("aa"), 105u);
+  tamm::random_ip(chol3d_vv("aa"), 106u);
 
   // clang-format off
   sch
@@ -795,6 +800,31 @@ int main(int argc, char* argv[]) {
     std::chrono::duration_cast<std::chrono::duration<double>>((timer_end - timer_start)).count();
 
   if(ec.print()) std::cout << "Time taken for closed-shell CD-CCSD: " << iter_time << std::endl;
+
+  // Sanity gate on the computed residual: with reproducible (fixed-seed) random
+  // inputs the residual and energy must be finite and non-trivial.  A
+  // contraction/scheduler regression that produces NaN/Inf or an all-zero
+  // residual (e.g. a dropped accumulate) is caught here.  This is a robustness
+  // check, not a physical-energy reference (the integrals are synthetic).
+  {
+    const double r1n = std::abs(tamm::norm(r1_aa));
+    const double r2n = std::abs(tamm::norm(r2_abab));
+    T            de_val{};
+    d_e.get({}, {&de_val, 1});
+    const double den = std::abs(de_val);
+    // -ffast-math/-fp-model fast assumes no NaN/Inf, so std::isfinite() is elided to a
+    // no-op (and warns).  Test the IEEE-754 bit pattern directly instead: exponent field
+    // all-ones (0x7ff) means Inf or NaN.  This survives fast-math and actually catches it.
+    auto finite_bits = [](double x) {
+      return (std::bit_cast<std::uint64_t>(x) & 0x7ff0000000000000ULL) != 0x7ff0000000000000ULL;
+    };
+    EXPECTS(finite_bits(r1n) && finite_bits(r2n) && finite_bits(den));
+    EXPECTS(r1n > 0.0 && r2n > 0.0);
+    if(ec.print()) {
+      std::cout << "CCSD residual sanity: |r1|=" << r1n << " |r2|=" << r2n << " |E|=" << den
+                << std::endl;
+    }
+  }
 
   if(profile && ec.print()) {
     std::string profile_csv = "ccsd_profile_" + std::to_string(nbf) + "bf_" +

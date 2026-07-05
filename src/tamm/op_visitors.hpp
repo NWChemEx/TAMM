@@ -1,7 +1,6 @@
 #pragma once
 
 #include "tamm/interfaces.hpp"
-#include "tamm/op_cost.hpp"
 #include "tamm/op_dag.hpp"
 #include "tamm/tiled_index_space.hpp"
 #include "tamm/types.hpp"
@@ -1924,7 +1923,7 @@ private:
     }
 
     if(no_slicing) {
-      canonicalized_ops_.push_back({std::move(parforop.op().clone()), LabelPair{}});
+      canonicalized_ops_.push_back({parforop.op().clone(), LabelPair{}});
     }
   }
 

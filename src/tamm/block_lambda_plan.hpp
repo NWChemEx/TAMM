@@ -2,6 +2,8 @@
 
 #include "tamm/blockops_cpu.hpp"
 #include "tamm/types.hpp"
+#include <algorithm>
+#include <array>
 
 namespace tamm {
 ///////////////////////////////////////////////////////////////////////////////
@@ -46,23 +48,17 @@ private:
   void prep_flat_plan() {
     plan_ = Plan::flat;
     std::array<IndexLabelVec, sizeof...(Labels)> labels_list{labels_};
-    for(size_t i = 1; i < labels_list.size(); i++) {
-      if(labels_list[0].size() != labels_list[1].size()) {
-        plan_ = Plan::invalid;
-        return;
-      }
-    }
-    if(labels_list.size() > 0 &&
-       internal::unique_entries(labels_list[0]).size() != labels_list[0].size()) {
-      plan_ = Plan::invalid;
-      return;
-    }
-    for(size_t i = 1; i < labels_list.size(); i++) {
-      if(!std::equal(labels_list[0].begin(), labels_list[0].end(), labels_list[i].begin())) {
-        plan_ = Plan::invalid;
-        return;
-      }
-    }
+    if(labels_list.empty()) return;
+
+    // The flat plan applies only when every operand has the exact same label
+    // list (same size and same labels), and those labels are unique.
+    // Bug fix: the size check previously compared against labels_list[1] for
+    // every i (a fixed index) instead of labels_list[i].
+    const auto& ref = labels_list[0];
+    const bool  all_same =
+      internal::unique_entries(ref).size() == ref.size() &&
+      std::ranges::all_of(labels_list, [&](const auto& l) { return std::ranges::equal(l, ref); });
+    if(!all_same) { plan_ = Plan::invalid; }
   }
 
   void prep_ipgen_loop_plan() {

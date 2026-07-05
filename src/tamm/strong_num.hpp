@@ -43,7 +43,8 @@ concept StrongNumeric = std::integral<T> || std::floating_point<T>;
  * @return Value after type casting
  */
 template<StrongNumeric Target, StrongNumeric Source>
-requires(!std::is_same_v<Target, Source>) constexpr Target checked_cast(Source s) noexcept(false) {
+  requires(!std::is_same_v<Target, Source>)
+constexpr Target checked_cast(Source s) noexcept(false) {
   auto r = static_cast<Target>(s);
 #if defined(TAMM_DEBUG_STRONGNUM)
   assert(static_cast<Source>(r) == s && "checked_cast: narrowing lost data");
@@ -114,7 +115,7 @@ struct StrongNum {
   /// and `Size sz = block_size(...)`.  Making it explicit breaks hundreds of
   /// call sites, so the original (implicit) behaviour is preserved here.
   template<StrongNumeric T2>
-  requires std::is_convertible_v<T2, T>
+    requires std::is_convertible_v<T2, T>
   constexpr StrongNum(T2 v1) noexcept: v{checked_cast<T>(v1)} {}
 
   // ---- Assignment from raw arithmetic -----------------------------------

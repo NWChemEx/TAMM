@@ -1,11 +1,11 @@
 #pragma once
 
 #include "tamm/proc_group.hpp"
-//#include "tamm/tensor_impl.hpp"
+// #include "tamm/tensor_impl.hpp"
 #include "tamm/atomic_counter.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
-//#include "tamm/distribution.hpp"
+// #include "tamm/distribution.hpp"
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>

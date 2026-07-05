@@ -703,25 +703,23 @@ inline constexpr bool is_expr_scalar_type_v =
 
 template<typename LhsT, typename RhsT>
 inline constexpr bool make_op_direct_lt_supported_v =
-  (std::is_same_v<LhsT, double> ||
-   std::is_same_v<LhsT, std::complex<double>>) &&is_ltd_or_ltz_type_v<RhsT>;
+  (std::is_same_v<LhsT, double> || std::is_same_v<LhsT, std::complex<double>>) &&
+  is_ltd_or_ltz_type_v<RhsT>;
 
 template<typename LhsT, typename AlphaT, typename RhsT>
-inline constexpr bool
-  make_op_scaled_lt_supported_v = (std::is_same_v<LhsT, double> &&
-                                   std::is_same_v<std::decay_t<AlphaT>, double> &&
-                                   is_ltd_type_v<RhsT>) ||
-                                  (std::is_same_v<LhsT, std::complex<double>> &&
-                                   is_expr_scalar_type_v<AlphaT> && is_ltd_or_ltz_type_v<RhsT>);
+inline constexpr bool make_op_scaled_lt_supported_v =
+  (std::is_same_v<LhsT, double> && std::is_same_v<std::decay_t<AlphaT>, double> &&
+   is_ltd_type_v<RhsT>) ||
+  (std::is_same_v<LhsT, std::complex<double>> && is_expr_scalar_type_v<AlphaT> &&
+   is_ltd_or_ltz_type_v<RhsT>);
 
 template<typename LhsT, typename AT, typename BT>
-inline constexpr bool make_op_product_supported_v = (std::is_same_v<LhsT, double> &&
-                                                     ((is_ltd_type_v<AT> && is_ltd_type_v<BT>) ||
-                                                      (is_ltd_type_v<AT> && is_ltz_type_v<BT>) ||
-                                                      (is_ltz_type_v<AT> && is_ltd_type_v<BT>) )) ||
-                                                    (std::is_same_v<LhsT, std::complex<double>> &&
-                                                     is_ltd_or_ltz_type_v<AT> &&
-                                                     is_ltd_or_ltz_type_v<BT>);
+inline constexpr bool make_op_product_supported_v =
+  (std::is_same_v<LhsT, double> &&
+   ((is_ltd_type_v<AT> && is_ltd_type_v<BT>) || (is_ltd_type_v<AT> && is_ltz_type_v<BT>) ||
+    (is_ltz_type_v<AT> && is_ltd_type_v<BT>) )) ||
+  (std::is_same_v<LhsT, std::complex<double>> && is_ltd_or_ltz_type_v<AT> &&
+   is_ltd_or_ltz_type_v<BT>);
 
 template<typename LhsT, typename AlphaT, typename AT, typename BT>
 inline constexpr bool make_op_scaled_product_supported_v =
@@ -2306,8 +2304,8 @@ void bind_tensor_family(py::module_& m, py::class_<Scheduler>& scheduler_cls) {
 
              auto py_blockid = from_index_vector(blockid);
              auto py_buff    = py::array_t<T>({static_cast<py::ssize_t>(buff.size())},
-                                           {static_cast<py::ssize_t>(sizeof(T))}, buff.data(),
-                                           py::none());
+                                              {static_cast<py::ssize_t>(sizeof(T))}, buff.data(),
+                                              py::none());
 
              pyfunc(py_blockid, py_buff);
            };
@@ -3288,9 +3286,7 @@ static void bind_loop_nests(py::module_& m) {
       for(const auto& lbl: labels) bounds.emplace_back(lbl);
       return IndexLoopNest{bounds};
     }))
-    .def(py::init([](const TiledIndexSpaceVec& tiss) {
-      return IndexLoopNest{tiss, {}, {}, {}};
-    }))
+    .def(py::init([](const TiledIndexSpaceVec& tiss) { return IndexLoopNest{tiss, {}, {}, {}}; }))
     .def(
       "__iter__", [](IndexLoopNest& self) { return IndexLoopNest::Iterator{&self}; },
       py::keep_alive<0, 1>());
@@ -3401,9 +3397,7 @@ static void bind_expression_types(py::module_& m) {
 
   m.def(
     "make_dag",
-    [](py::function func, py::args args) -> PyDAG {
-      return PyDAG{func, py::tuple(args)};
-    },
+    [](py::function func, py::args args) -> PyDAG { return PyDAG{func, py::tuple(args)}; },
     py::arg("func"));
 }
 

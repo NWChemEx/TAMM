@@ -123,7 +123,7 @@ public:
     EXPECTS(plan_ != Plan::invalid);
     if(lhs_.tensor().kind() != TensorBase::TensorKind::view &&
        lhs_.tensor().execution_context()->pg() == ec.pg()) {
-        plan_obj_->apply(*this, ec, hw);
+      plan_obj_->apply(*this, ec, hw);
     }
     else { general_plan_obj_->apply(*this, ec, hw); }
   }

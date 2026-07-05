@@ -167,8 +167,7 @@ static void ddb_ex(const int64_t ndims, const std::vector<int64_t> ardims, const
         /*- Increment the number of processes assigned to the current
          *- array axis.
          */
-        for(tdims[pc] += 1; stack[pc] % tdims[pc] != 0; tdims[pc] += 1)
-          ;
+        for(tdims[pc] += 1; stack[pc] % tdims[pc] != 0; tdims[pc] += 1);
         pc += 1;
         stack[pc] = npes;
         for(i = 0; i < pc; i++) stack[pc] /= tdims[i];

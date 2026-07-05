@@ -162,7 +162,7 @@ template<typename T>
 
 /// Build a BlockSpan from a raw pointer + contiguous range of dimensions.
 template<typename T, std::ranges::contiguous_range R>
-requires std::is_convertible_v<std::ranges::range_value_t<R>, size_t>
+  requires std::is_convertible_v<std::ranges::range_value_t<R>, size_t>
 [[nodiscard]] inline BlockSpan<T> make_block_span(T* buf, const R& dims) {
   std::vector<size_t> dv(std::ranges::begin(dims), std::ranges::end(dims));
   return BlockSpan<T>{buf, std::span<const size_t>{dv}};

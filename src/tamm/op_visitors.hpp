@@ -860,8 +860,7 @@ public:
     apply(aop);
   }
 
-  void visit(LTOp& ltop) override { /*no-op*/
-  }
+  void visit(LTOp& ltop) override { /*no-op*/ }
 
   void visit(EinSumOp& einsumop) override {}
 

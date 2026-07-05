@@ -299,9 +299,9 @@ public:
       }
 
 #else
-      const auto  translated_cblockid = internal::translate_blockid(cblockid, lhs_);
-      const auto  translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
-      const auto  translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
+      const auto translated_cblockid = internal::translate_blockid(cblockid, lhs_);
+      const auto translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
+      const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
 
 #endif
       if(!ctensor.is_non_zero(translated_cblockid) || !atensor.is_non_zero(translated_ablockid) ||

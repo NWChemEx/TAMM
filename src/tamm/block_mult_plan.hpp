@@ -557,8 +557,9 @@ public:
   // reinterpret_cast<BlockSpan<T1>&>(rhs) UB (valid only when the types were
   // already identical) can no longer be reached with incompatible types.
   template<typename T1, typename T2, typename T3>
-  requires(std::is_same_v<T1, T2>&& std::is_same_v<T1, T3>) void apply(
-    Scalar lscale, BlockSpan<T1>& lhs, Scalar rscale, BlockSpan<T2>& rhs1, BlockSpan<T3>& rhs2) {
+    requires(std::is_same_v<T1, T2> && std::is_same_v<T1, T3>)
+  void apply(Scalar lscale, BlockSpan<T1>& lhs, Scalar rscale, BlockSpan<T2>& rhs1,
+             BlockSpan<T3>& rhs2) {
     apply_impl(lscale.template get<T1>(), lhs, rscale.template get<T1>(), rhs1, rhs2);
   }
 

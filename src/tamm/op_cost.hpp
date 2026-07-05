@@ -105,11 +105,11 @@ public:
 private:
   std::vector<OpCostTerm> terms_; // sum of terms
   friend OpCostExpr       operator*(const OpCostExpr& oce1, const OpCostExpr& oce2) {
-          OpCostExpr ret;
-          for(const auto& oct1: oce1.terms()) {
-            for(const auto& oct2: oce2.terms()) { ret += oct1 * oct2; }
+    OpCostExpr ret;
+    for(const auto& oct1: oce1.terms()) {
+      for(const auto& oct2: oce2.terms()) { ret += oct1 * oct2; }
     }
-          return ret;
+    return ret;
   }
 
   friend OpCostExpr operator+(const OpCostExpr& oce1, const OpCostExpr& oce2) {

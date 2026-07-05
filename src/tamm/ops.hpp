@@ -9,8 +9,8 @@
 #include "tamm/scanop.hpp"
 #include "tamm/setop.hpp"
 
-//#define DO_NB
-//#define DO_NB_GET
+// #define DO_NB
+// #define DO_NB_GET
 
 namespace tamm::internal {
 template<typename T>
@@ -76,7 +76,7 @@ constexpr auto LabeledTensor<T>::make_op(T1&& rhs, const bool is_assign, const i
 
     if constexpr(tuple_size_v<T1> == 2) {
       // LT = alpha * LT
-      if constexpr((is_convertible_v<rhs0_t, T>) &&is_same_v<rhs1_t, LTT>)
+      if constexpr((is_convertible_v<rhs0_t, T>) && is_same_v<rhs1_t, LTT>)
         return AddOp<T, LTT, rhs1_t>{*this, static_cast<T>(sub_v) * static_cast<T>(get<0>(rhs)),
                                      get<1>(rhs), is_assign};
       else if constexpr(is_convertible_v<rhs0_t, T> && is_complex_v<T> &&

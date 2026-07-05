@@ -471,6 +471,6 @@ protected:
   std::shared_ptr<IndexSpaceInterface> impl_; /**< shared pointer to the implementation */
   size_t hash_value_{0};                      /**< hash value associated with the IndexSpace (0 for
                                                  a default-constructed / empty IndexSpace) */
-};                                            // class IndexSpace
+}; // class IndexSpace
 
 } // namespace tamm

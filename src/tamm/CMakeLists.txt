@@ -2,25 +2,6 @@ cmake_minimum_required(VERSION ${CMAKE_VERSION})
 project(TAMM VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 include(TargetMacros) #For cmsb_add_library
 
-# ---------------------------------------------------------------------------
-# Require C++20
-# ---------------------------------------------------------------------------
-if(NOT DEFINED CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 20)
-endif()
-if(CMAKE_CXX_STANDARD LESS 20)
-  message(FATAL_ERROR "TAMM requires C++20 or later (set CMAKE_CXX_STANDARD=20).")
-endif()
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS        OFF)
-
-# ---------------------------------------------------------------------------
-# NOTE: TAMM does not use std::mdspan.  Tensor blocks have a runtime rank and
-# the standard mdspan fixes rank at compile time (there is no dynamic-rank
-# mdspan), so BlockSpan models blocks as pointer + runtime extents instead.
-# The former kokkos/mdspan FetchContent fallback has been removed.
-# ---------------------------------------------------------------------------
-
 if(${PROJECT_NAME}_HAS_CUDA OR ${PROJECT_NAME}_HAS_HIP OR ${PROJECT_NAME}_HAS_DPCPP)
   set(tamm_gpu_INCS
     gpu_streams.hpp
@@ -131,6 +112,3 @@ set(TAMM_CFLAGS )
 set(TAMM_LFLAGS )
 
 cmsb_add_library(tamm TAMM_SRCS TAMM_INCLUDES TAMM_CFLAGS TAMM_LFLAGS)
-
-# C++20 standard
-target_compile_features(tamm PUBLIC cxx_std_20)

@@ -11,9 +11,9 @@
 #include "tamm/tensor_base.hpp"
 #include <algorithm>
 #include <functional>
-#include <gsl/span>
 #include <memory>
 #include <numeric>
+#include <span>
 #include <type_traits>
 #include <utility>
 #if defined(USE_UPCXX)
@@ -22,7 +22,7 @@
 
 namespace tamm {
 
-using gsl::span;
+using std::span;
 
 #if defined(USE_UPCXX)
 class TensorTile {

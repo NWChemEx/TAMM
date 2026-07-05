@@ -1988,7 +1988,7 @@ TEST_CASE("MultOp with RHS reduction") {
 // summation index.  A permutation/stride bug that a uniform fill would hide is
 // caught by the per-element reference here.
 TEST_CASE("Op label validation and non-uniform contraction") {
-  using T = double;
+  using T              = double;
   ProcGroup         pg = ProcGroup::create_world_coll();
   ExecutionContext* ec = new ExecutionContext{pg, DistributionKind::nw, MemoryManagerKind::ga};
 

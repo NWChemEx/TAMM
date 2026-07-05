@@ -13,9 +13,12 @@ namespace tamm {
 namespace detail {
 // Local, dependency-free complex trait (avoids pulling in the heavyweight
 // tamm/utils.hpp just for internal::is_complex_v).
-template<typename T> struct is_complex: std::false_type {};
-template<typename T> struct is_complex<std::complex<T>>: std::true_type {};
-template<typename T> inline constexpr bool is_complex_v = is_complex<T>::value;
+template<typename T>
+struct is_complex: std::false_type {};
+template<typename T>
+struct is_complex<std::complex<T>>: std::true_type {};
+template<typename T>
+inline constexpr bool is_complex_v = is_complex<T>::value;
 } // namespace detail
 
 /**
@@ -107,14 +110,11 @@ public:
           if constexpr(detail::is_complex_v<V>)
             return T{static_cast<typename T::value_type>(v.real()),
                      static_cast<typename T::value_type>(v.imag())};
-          else
-            return T{static_cast<typename T::value_type>(v)};
+          else return T{static_cast<typename T::value_type>(v)};
         }
         else {
-          if constexpr(detail::is_complex_v<V>)
-            return static_cast<T>(v.real());
-          else
-            return static_cast<T>(v);
+          if constexpr(detail::is_complex_v<V>) return static_cast<T>(v.real());
+          else return static_cast<T>(v);
         }
       },
       value_);

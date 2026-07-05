@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <array>
-#include <iterator>  // std::ssize
+#include <iterator> // std::ssize
 #include <set>
 #include <span>
 #include <vector>
@@ -292,9 +292,7 @@ void index_permute_assign(TL* lbuf, const TR* rbuf, const PermVector& perm_to_de
     std::array<size_t, 2> i{};
     size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
-      for(i[1] = 0; i[1] < ldims[1]; i[1]++, c++) {
-        lbuf[c] = rbuf[idx(i, ldims, perm_to_dest)];
-      }
+      for(i[1] = 0; i[1] < ldims[1]; i[1]++, c++) { lbuf[c] = rbuf[idx(i, ldims, perm_to_dest)]; }
     }
   }
   else if(ndim == 3) {
@@ -302,9 +300,7 @@ void index_permute_assign(TL* lbuf, const TR* rbuf, const PermVector& perm_to_de
     size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
-        for(i[2] = 0; i[2] < ldims[2]; i[2]++, c++) {
-          lbuf[c] = rbuf[idx(i, ldims, perm_to_dest)];
-        }
+        for(i[2] = 0; i[2] < ldims[2]; i[2]++, c++) { lbuf[c] = rbuf[idx(i, ldims, perm_to_dest)]; }
       }
     }
   }
@@ -390,9 +386,7 @@ void index_permute_update(TL* lbuf, const TR* rbuf, const PermVector& perm_to_de
     std::array<size_t, 2> i{};
     size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
-      for(i[1] = 0; i[1] < ldims[1]; i[1]++, c++) {
-        lbuf[c] += rbuf[idx(i, ldims, perm_to_dest)];
-      }
+      for(i[1] = 0; i[1] < ldims[1]; i[1]++, c++) { lbuf[c] += rbuf[idx(i, ldims, perm_to_dest)]; }
     }
   }
   else if(ndim == 3) {

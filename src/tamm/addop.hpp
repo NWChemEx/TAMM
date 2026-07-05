@@ -57,9 +57,7 @@ struct AddOpPlanBase {
   TensorBase* accumulates(const AddOpT& addop) const {
     return addop.is_assign() ? nullptr : addop.lhs().base_ptr();
   }
-  std::vector<TensorBase*> reads(const AddOpT& addop) const {
-    return {addop.rhs().base_ptr()};
-  }
+  std::vector<TensorBase*> reads(const AddOpT& addop) const { return {addop.rhs().base_ptr()}; }
 
   virtual void apply(const AddOpT& addop, ExecutionContext& ec, ExecutionHW hw) = 0;
   virtual ~AddOpPlanBase()                                                      = default;
@@ -149,9 +147,7 @@ public:
     return result;
   }
 
-  std::shared_ptr<Op> clone() const override {
-    return std::make_shared<AddOp>(*this);
-  }
+  std::shared_ptr<Op> clone() const override { return std::make_shared<AddOp>(*this); }
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     EXPECTS(lhs_.tensor().execution_context() != nullptr);
@@ -431,8 +427,8 @@ void GeneralFlatAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(const AddOpT
   // EXPECTS(pg_lhs.size() == pg_rhs.size());
   // EXPECTS(pg_lhs.size() == pg_ec.size());
 
-  BlockAssignPlan::OpType optype =
-    is_assign ? BlockAssignPlan::OpType::set : BlockAssignPlan::OpType::update;
+  BlockAssignPlan::OpType optype = is_assign ? BlockAssignPlan::OpType::set
+                                             : BlockAssignPlan::OpType::update;
   BlockAssignPlan         plan{lhs_lt.labels(), rhs_lt.labels(), optype};
 
   std::vector<Proc> pg_lhs_in_ec = pg_lhs.rank_translate(pg_ec);
@@ -470,14 +466,18 @@ void GeneralFlatAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(const AddOpT
       size_t rhs_size = rhs_tensor.total_buf_size(i);
       EXPECTS(lhs_size == rhs_size);
       if(lhs_size <= 0) continue;
-      if(proc_me_in_ec == pg_lhs_in_ec[i]) { lhs_buf = lhs_scratch.view(lhs_tensor.access_local_buf()); }
+      if(proc_me_in_ec == pg_lhs_in_ec[i]) {
+        lhs_buf = lhs_scratch.view(lhs_tensor.access_local_buf());
+      }
       else {
         lhs_buf              = lhs_scratch.owned(lhs_size);
         auto* lhs_mem_region = lhs_tensor.memory_region();
         /// get all of lhs's buf at i-th proc to lhs_buf
         lhs_mem_region->get(Proc{i}, Offset{0}, Size{lhs_size}, lhs_buf);
       }
-      if(proc_me_in_ec == pg_rhs_in_ec[i]) { rhs_buf = rhs_scratch.view(rhs_tensor.access_local_buf()); }
+      if(proc_me_in_ec == pg_rhs_in_ec[i]) {
+        rhs_buf = rhs_scratch.view(rhs_tensor.access_local_buf());
+      }
       else {
         rhs_buf = rhs_scratch.owned(rhs_size);
         EXPECTS(rhs_buf != nullptr);

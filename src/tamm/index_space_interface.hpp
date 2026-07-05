@@ -1104,6 +1104,6 @@ protected:
   std::vector<Range> empty_range_; /**< Empty range vector for spin relation */
   std::map<std::string, IndexSpace>
     empty_named_subspace_map_; /**< Empty map for named (sub) IndexSpaces */
-};                             // DependentIndexSpaceImpl
+}; // DependentIndexSpaceImpl
 
 } // namespace tamm

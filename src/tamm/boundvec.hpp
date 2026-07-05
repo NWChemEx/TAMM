@@ -29,12 +29,12 @@ public:
   // -----------------------------------------------------------------------
   // Type aliases (mirror std::vector interface)
   // -----------------------------------------------------------------------
-  using value_type      = T;
-  using size_type       = std::size_t;
-  using reference       = T&;
-  using const_reference = const T&;
-  using pointer         = T*;
-  using const_pointer   = const T*;
+  using value_type             = T;
+  using size_type              = std::size_t;
+  using reference              = T&;
+  using const_reference        = const T&;
+  using pointer                = T*;
+  using const_pointer          = const T*;
   using iterator               = typename std::array<T, maxsize>::iterator;
   using const_iterator         = typename std::array<T, maxsize>::const_iterator;
   using reverse_iterator       = typename std::array<T, maxsize>::reverse_iterator;
@@ -215,10 +215,10 @@ public:
   const_iterator cend() const noexcept { return data_.begin() + size_; }
 
   /** @brief Reverse iterator to the last live element. */
-  reverse_iterator rbegin() noexcept { return reverse_iterator{end()}; }
+  reverse_iterator       rbegin() noexcept { return reverse_iterator{end()}; }
   const_reverse_iterator rbegin() const noexcept { return const_reverse_iterator{end()}; }
   /** @brief Reverse iterator one before the first live element. */
-  reverse_iterator rend() noexcept { return reverse_iterator{begin()}; }
+  reverse_iterator       rend() noexcept { return reverse_iterator{begin()}; }
   const_reverse_iterator rend() const noexcept { return const_reverse_iterator{begin()}; }
 
   // -----------------------------------------------------------------------
@@ -293,7 +293,7 @@ public:
 
 private:
   /** @brief Size of the vector */
-  size_type           size_{0};
+  size_type              size_{0};
   std::array<T, maxsize> data_{};
 };
 

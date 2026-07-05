@@ -181,9 +181,7 @@ public:
     return result;
   }
 
-  std::shared_ptr<Op> clone() const override {
-    return std::make_shared<MultOp>(*this);
-  }
+  std::shared_ptr<Op> clone() const override { return std::make_shared<MultOp>(*this); }
 
   using TensorElType1 = typename LabeledTensorT1::element_type;
   using TensorElType2 = typename LabeledTensorT2::element_type;
@@ -301,9 +299,9 @@ public:
       }
 
 #else
-      const auto  translated_cblockid = internal::translate_blockid(cblockid, lhs_);
-      const auto  translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
-      const auto  translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
+      const auto translated_cblockid = internal::translate_blockid(cblockid, lhs_);
+      const auto translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
+      const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
 
 #endif
       if(!ctensor.is_non_zero(translated_cblockid) || !atensor.is_non_zero(translated_ablockid) ||
@@ -900,8 +898,8 @@ protected:
       tamm_terminate(os.str());
     }
 
-    const auto ilv = internal::merge_vector<IndexLabelVec>(lhs_.labels(), rhs1_.labels(),
-                                                           rhs2_.labels());
+    const auto ilv =
+      internal::merge_vector<IndexLabelVec>(lhs_.labels(), rhs1_.labels(), rhs2_.labels());
     internal::validate_index_labels(ilv);
   }
 

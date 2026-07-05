@@ -143,10 +143,10 @@ TEST_CASE("Block Sparse Tensor Construction") {
   Char2TISMap char2MOstr = {{'i', "occ"},  {'j', "occ"},  {'k', "occ"},  {'l', "occ"},
                             {'a', "virt"}, {'b', "virt"}, {'c', "virt"}, {'d', "virt"}};
   TensorInfo  tensor_info{
-    {MO, MO, MO, MO},                                 // Tensor dims
-    {"ijab", "iajb", "ijka", "ijkl", "iabc", "abcd"}, // Allowed blocks
+     {MO, MO, MO, MO},                                 // Tensor dims
+     {"ijab", "iajb", "ijka", "ijkl", "iabc", "abcd"}, // Allowed blocks
     char2MOstr,                                       // Char to named sub-space string
-    {"abij",
+     {"abij",
       "aibj"} // Disallowed blocks - note that allowed blocks will precedence over disallowed blocks
   };
 
@@ -323,8 +323,8 @@ TEST_CASE("Block Sparse Tensor Construction") {
     TiledIndexSpace Occ  = MO("occ");
     TiledIndexSpace Virt = MO("virt");
     Tensor<T>       tensorA{
-      {MO, MO, MO, MO},
-      {TiledIndexSpaceVec{Occ, Occ, Virt, Virt}, TiledIndexSpaceVec{Occ, Occ, Occ, Occ}}};
+            {MO, MO, MO, MO},
+            {TiledIndexSpaceVec{Occ, Occ, Virt, Virt}, TiledIndexSpaceVec{Occ, Occ, Occ, Occ}}};
     Tensor<T> tensorB{
       {MO, MO, MO, MO},
       {TiledIndexSpaceVec{Occ, Occ, Occ, Virt}, TiledIndexSpaceVec{Occ, Virt, Occ, Virt}}};

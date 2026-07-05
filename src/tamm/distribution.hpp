@@ -499,7 +499,7 @@ private:
   std::vector<Offset> key_offsets_;      /**< Vector of offsets for each key value */
   Proc                start_proc_;       /**< Proc with 0-th block */
   Proc                step_proc_;        /**< Step size in distributing blocks */
-};                                       // class Distribution_SimpleRoundRobin
+}; // class Distribution_SimpleRoundRobin
 
 /**
  * @brief Dense distribution logic for dense multidimensional tensors.

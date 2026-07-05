@@ -116,16 +116,14 @@ public:
 
   OpList canonicalize() const override { return OpList{(*this)}; }
 
-  std::shared_ptr<Op> clone() const override {
-    return std::make_shared<SetOp>(*this);
-  }
+  std::shared_ptr<Op> clone() const override { return std::make_shared<SetOp>(*this); }
 
   OpType op_type() const override { return OpType::set; }
   void   execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     EXPECTS(plan_ != Plan::invalid);
     if(lhs_.tensor().kind() != TensorBase::TensorKind::view &&
        lhs_.tensor().execution_context()->pg() == ec.pg()) {
-        plan_obj_->apply(*this, ec, hw);
+      plan_obj_->apply(*this, ec, hw);
     }
     else { general_plan_obj_->apply(*this, ec, hw); }
   }
@@ -277,8 +275,8 @@ void GeneralFlatPlan<T, LabeledTensorT>::apply(const SetOp<T, LabeledTensorT>& s
 
   // EXPECTS(pg_lhs.size() == pg_ec.size());
 
-  BlockSetPlan::OpType optype =
-    is_assign ? BlockSetPlan::OpType::set : BlockSetPlan::OpType::update;
+  BlockSetPlan::OpType optype = is_assign ? BlockSetPlan::OpType::set
+                                          : BlockSetPlan::OpType::update;
   BlockSetPlan         plan{lhs_lt.labels(), optype};
 
   std::vector<Proc> pg_lhs_in_ec = pg_lhs.rank_translate(pg_ec);

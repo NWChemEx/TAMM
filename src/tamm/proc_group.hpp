@@ -131,7 +131,7 @@ public:
     const bool   in_new_team = (parent_group.rank() < ranks.size());
     upcxx::team* gcomm       = parent_group.comm();
     upcxx::team* scomm       = new upcxx::team(
-            gcomm->split(in_new_team ? 0 : upcxx::team::color_none, parent_group.rank().value()));
+      gcomm->split(in_new_team ? 0 : upcxx::team::color_none, parent_group.rank().value()));
     ProcGroup pg = create_coll(*scomm);
 #else
     MPI_Comm  scomm;
@@ -851,7 +851,7 @@ private:
 #if defined(USE_UPCXX)
     return lhs.pginfo_->team_->id() == rhs.pginfo_->team_->id();
 #else
-    int      result;
+    int result;
     MPI_Comm_compare(lhs.pginfo_->mpi_comm_, rhs.pginfo_->mpi_comm_, &result);
     return result == MPI_IDENT;
 #endif

@@ -5,7 +5,7 @@
 
 #include <cassert>
 #include <iostream>
-#include <source_location>  // C++20
+#include <source_location> // C++20
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -17,40 +17,32 @@ namespace tamm {
 // ---------------------------------------------------------------------------
 
 /// Throw a descriptive runtime_error with full source location.
-[[noreturn]] inline void
-tamm_error(std::string_view msg,
-           std::source_location loc = std::source_location::current()) {
-  std::string full = std::string{loc.file_name()} + ':' +
-                     std::to_string(loc.line()) +
-                     " in '" + loc.function_name() + "': " +
-                     std::string{msg};
+[[noreturn]] inline void tamm_error(std::string_view     msg,
+                                    std::source_location loc = std::source_location::current()) {
+  std::string full = std::string{loc.file_name()} + ':' + std::to_string(loc.line()) + " in '" +
+                     loc.function_name() + "': " + std::string{msg};
   std::cerr << "TAMM ERROR: " << full << '\n';
   throw std::runtime_error(full);
 }
 
 /// Precondition check: throws if cond is false.
-inline void
-tamm_expects(bool cond, std::string_view msg,
-             std::source_location loc = std::source_location::current()) {
-  if (!cond) [[unlikely]] {
-    std::string full = std::string{loc.file_name()} + ':' +
-                       std::to_string(loc.line()) +
-                       " in '" + loc.function_name() + "': EXPECTS failed [" +
-                       std::string{msg} + ']';
+inline void tamm_expects(bool cond, std::string_view msg,
+                         std::source_location loc = std::source_location::current()) {
+  if(!cond) [[unlikely]] {
+    std::string full = std::string{loc.file_name()} + ':' + std::to_string(loc.line()) + " in '" +
+                       loc.function_name() + "': EXPECTS failed [" + std::string{msg} + ']';
     std::cerr << full << '\n';
     throw std::runtime_error(full);
   }
 }
 
 /// Precondition check with custom message.
-inline void
-tamm_expects_str(bool cond, std::string_view cond_str, std::string_view user_msg,
-                 std::source_location loc = std::source_location::current()) {
-  if (!cond) [[unlikely]] {
-    std::string full = std::string{loc.file_name()} + ':' +
-                       std::to_string(loc.line()) +
-                       " in '" + loc.function_name() + "': " +
-                       std::string{cond_str} + " -- " + std::string{user_msg};
+inline void tamm_expects_str(bool cond, std::string_view cond_str, std::string_view user_msg,
+                             std::source_location loc = std::source_location::current()) {
+  if(!cond) [[unlikely]] {
+    std::string full = std::string{loc.file_name()} + ':' + std::to_string(loc.line()) + " in '" +
+                       loc.function_name() + "': " + std::string{cond_str} + " -- " +
+                       std::string{user_msg};
     std::cerr << full << '\n';
     throw std::runtime_error(full);
   }

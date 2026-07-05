@@ -118,7 +118,7 @@ TensorBase::TensorBase(const TiledIndexSpace& tis, Ts... rest) {
 }
 
 // Dtor
-TensorBase::~TensorBase(){
+TensorBase::~TensorBase() {
   // EXPECTS(allocation_status_ == AllocationStatus::invalid);
 };
 

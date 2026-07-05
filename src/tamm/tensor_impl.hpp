@@ -1003,7 +1003,7 @@ public:
 
         // distribution->set_proc_grid(proc_grid_);
 
-        auto map_size = std::accumulate(nblock, nblock + ndims, (int64_t) 0);
+        auto                 map_size = std::accumulate(nblock, nblock + ndims, (int64_t) 0);
         std::vector<int64_t> k_map(map_size);
         {
           auto mi = 0;
@@ -1073,7 +1073,7 @@ public:
     if(pbs > 0) distribution_->set_proc_buf_size((Size) pbs);
 
     int64_t lmax_pbs{pbs};
-    auto gmax_pbs = ec->pg().allreduce(&lmax_pbs, ReduceOp::max);
+    auto    gmax_pbs = ec->pg().allreduce(&lmax_pbs, ReduceOp::max);
     if(gmax_pbs > 0) distribution_->set_max_proc_buf_size((Size) gmax_pbs);
 
 #endif
@@ -1410,7 +1410,7 @@ public:
 #if defined(USE_UPCXX)
     res = (size_t) local_nelems_;
 #else
-    T* ptr;
+    T*      ptr;
     int64_t len;
     NGA_Access_block_segment64(ga_, GA_Pgroup_nodeid(GA_Get_pgroup(ga_)),
                                reinterpret_cast<void*>(&ptr), &len);
@@ -1463,7 +1463,7 @@ protected:
   std::vector<TensorTile>                 tiles_;
   std::vector<TensorTile>                 local_tiles_;
 #else
-  int ga_;
+  int      ga_;
   ProcGrid proc_grid_;
 #endif
 

@@ -240,8 +240,7 @@ public:
   Spin spin_total() const { return spin_total_; }
 
   [[nodiscard]] bool is_dense() const {
-    return std::ranges::none_of(block_indices_,
-                                [](const auto& tis) { return tis.is_dependent(); });
+    return std::ranges::none_of(block_indices_, [](const auto& tis) { return tis.is_dependent(); });
   }
 
   bool is_non_zero(const IndexVector& blockid) const {

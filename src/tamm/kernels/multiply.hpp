@@ -69,8 +69,8 @@ void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, i
                   cinter_buf + i * cbatch_ld, cinter_ld);
 
       } // for-i
-    }   // for-bri
-  }     // for-ari
+    } // for-bri
+  } // for-ari
 }
 
 template<typename T>

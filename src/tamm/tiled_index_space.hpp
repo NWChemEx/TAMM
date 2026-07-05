@@ -195,7 +195,7 @@ public:
     std::ostringstream os;
     os << "[TAMM ERROR] Named sub-space doesn't exist!\n" << __FILE__ << ":L" << __LINE__;
     tamm_terminate(os.str());
-    return {};  // unreachable (tamm_terminate does not return)
+    return {}; // unreachable (tamm_terminate does not return)
   }
 
   /**
@@ -1388,9 +1388,9 @@ protected:
                                                           TiledIndexSpaceInfo object*/
   std::shared_ptr<TiledIndexSpace> parent_tis_;        /**< Shared pointer to the parent
                                                         TiledIndexSpace object*/
-  size_t hash_value_{0};  // 0 for a default-constructed TiledIndexSpace; avoids
-                          // reading an indeterminate value in hash()/is_identical.
-  bool   is_dense_subspace_ = false;
+  size_t hash_value_{0}; // 0 for a default-constructed TiledIndexSpace; avoids
+                         // reading an indeterminate value in hash()/is_identical.
+  bool is_dense_subspace_ = false;
 
   /**
    * @brief Return the corresponding tile position of an index for a give

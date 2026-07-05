@@ -128,7 +128,7 @@ TEST_CASE("BoundVec: reverse iterators") {
 }
 
 TEST_CASE("BoundVec: data() points at contiguous storage") {
-  BV v{5, 6, 7};
+  BV   v{5, 6, 7};
   int* p = v.data();
   CHECK(p[0] == 5);
   CHECK(p[1] == 6);
@@ -136,7 +136,7 @@ TEST_CASE("BoundVec: data() points at contiguous storage") {
   p[1] = 60; // mutable
   CHECK(v[1] == 60);
 
-  const BV& cv = v;
+  const BV&  cv = v;
   const int* cp = cv.data();
   CHECK(cp[0] == 5);
 }

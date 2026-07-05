@@ -62,7 +62,7 @@ static std::vector<std::vector<T>> matmul(const std::vector<std::vector<T>>& a,
 }
 
 TEST_CASE("Scheduler orders dependent contractions within one batch") {
-  using T = double;
+  using T             = double;
   ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
 

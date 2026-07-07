@@ -376,6 +376,40 @@ private:
       CUBLAS_CHECK(cublasCreate(&gpu_blashandle));
       CUBLAS_CHECK(cublasSetStream(gpu_blashandle, gpu_stream));
 
+      // FP64 Tensor-Core emulation (Ozaki/fixed-point scheme).
+      // Accelerates double-precision GEMMs (e.g. cublasDgemm) on Tensor Cores
+      // while preserving accuracy >= native FP64 via cuBLAS' dynamic-mantissa
+      // (ADP) framework. Enabled purely as a handle property, so existing
+      // cublasDgemm call sites pick it up automatically with no other changes.
+      //
+      // Gated on two requirements documented by NVIDIA:
+      //   (a) CUDA Toolkit >= 13.0 Update 2 (CUDART_VERSION >= 13020) -- first
+      //       release shipping FP64 fixed-point emulation. The guard also keeps
+      //       older toolkits compiling, since the emulation symbols below only
+      //       exist in 13.0u2+ headers.
+      //   (b) GPU compute capability >= 8.0 (Ampere/Hopper/Blackwell, i.e.
+      //       cc 8.x/9.0/10.x/11.0/12.x). Checked at runtime per device.
+      // PERFORMANT strategy lets cuBLAS choose emulation only when it is a net
+      // win and transparently fall back to native FP64 otherwise (e.g. tiny
+      // GEMMs or when required mantissa bits exceed the cap), so no manual GEMM
+      // tiling is needed -- cuBLAS handles all shapes internally.
+      //
+      // To verify emulation/Tensor-Core engagement at runtime, enable cuBLAS
+      // logging (CUBLAS_LOGINFO_DBG=1 CUBLAS_LOGDEST_DBG=stdout) and inspect the
+      // selected kernel names, or profile with Nsight Compute (Tensor Active
+      // metric). cublasGetMathMode() can confirm the handle accepted the mode.
+#if defined(USE_CUDA) && (CUDART_VERSION >= 13020)
+      {
+        cudaDeviceProp emu_prop;
+        CUDA_CHECK(cudaGetDeviceProperties(&emu_prop, default_deviceID));
+        if(emu_prop.major >= 8) {
+          CUBLAS_CHECK(cublasSetMathMode(gpu_blashandle, CUBLAS_FP64_EMULATED_FIXEDPOINT_MATH));
+          CUBLAS_CHECK(
+            cublasSetEmulationStrategy(gpu_blashandle, CUBLAS_EMULATION_STRATEGY_PERFORMANT));
+        }
+      }
+#endif // USE_CUDA && CUDART_VERSION >= 13020
+
       _devStream.push_back(std::make_pair(gpu_stream, gpu_blashandle));
 #elif defined(USE_HIP)
       hipStream_t gpu_stream;

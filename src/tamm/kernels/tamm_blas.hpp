@@ -22,8 +22,16 @@ template<typename T, typename T1, typename T2, typename T3>
 void gemm(int n, int m, int k, const T alpha, const T3* B, int ldb, const T2* A, int lda,
           const T beta, T1* C, int ldc, gpuStream_t& gpuhandle);
 
+// Out-of-place N-dimensional axis-permuting transpose (reorder).
+// Replaces the previous librett-based implementation.
+//   out     : destination buffer (device), sized as the permuted tensor
+//   in      : source buffer (device)
+//   ndim    : tensor rank (supports up to tamm::maxrank)
+//   outDims : extents of the output (permuted) tensor, length ndim
+//   perm    : output-axis -> source-axis map, length ndim
 template<typename T>
-void transpose_inplace(T* out, const T* in, int* outDims, int* inDims, int* rdims, gpuStream_t& thandle);
+void transpose_reorder(T* out, const T* in, int ndim, const int* outDims, const int* perm,
+                       gpuStream_t& handle);
 
 } // namespace gpu
 #endif

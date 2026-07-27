@@ -14,9 +14,7 @@
 #include "tamm/utils.hpp"
 #include "tamm_blas.hpp"
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-// #include "librett/librett.h"
-#else
+#if !defined(USE_CUDA) && !defined(USE_HIP) && !defined(USE_DPCPP)
 namespace tamm {
 using gpuStream_t = int; // not used
 }
@@ -141,22 +139,11 @@ void assign_gpu(gpuStream_t& thandle, T*& dst, const SizeVec& ddims, const IntLa
     perm[i] = it - r_slabels.begin();
   }
 
-//   // create plan
-//   librettHandle plan;
-// #if defined(USE_DPCPP)
-//   sycl::queue* ptrQueue = &(thandle.first);
-//   librettPlan(&plan, ndim, size, perm, sizeof(T), ptrQueue);
-// #else
-//   librettPlan(&plan, ndim, size, perm, sizeof(T), thandle.first);
-// #endif
-
-//   // ABB: following casts were required since librett API only accepts void* as args
-//   librettExecute(plan, reinterpret_cast<void*>(const_cast<T*>(src)), reinterpret_cast<void*>(dst));
-//   librettDestroy(plan);
-
-  int outSize[ndim];
-  for (int i = 0; i < ndim; i++) { outSize[i] = size[perm[i]]; }
-  gpu::transpose_inplace(dst, src, outSize, size, perm, thandle);
+  // Out-of-place N-dimensional axis-permuting transpose (in-house reorder
+  // kernel; replaces the previous librett-based implementation).
+  int outDims[ndim];
+  for(int i = 0; i < ndim; i++) { outDims[i] = size[perm[i]]; }
+  gpu::transpose_reorder<T>(dst, src, ndim, outDims, perm, thandle);
 }
 #endif
 

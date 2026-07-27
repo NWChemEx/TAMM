@@ -12,7 +12,7 @@ if(${PROJECT_NAME}_HAS_CUDA OR ${PROJECT_NAME}_HAS_HIP OR ${PROJECT_NAME}_HAS_DP
 
   set(tamm_gpu_SRCS
     kernels/gpu_blas.cpp
-    kernels/transpose_inplace.cpp
+    kernels/gpu_reorder.cpp
   )
 endif()
 if(${PROJECT_NAME}_HAS_DPCPP)

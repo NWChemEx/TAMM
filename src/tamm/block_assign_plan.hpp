@@ -168,8 +168,9 @@ public:
             apply_impl(lhs, static_cast<T1>(alpha), rhs);
           }
           else if constexpr(internal::is_complex_v<T1> ||
-                            internal::is_complex_v<T2> &&
-                            std::is_convertible_v<decltype(alpha), T1>) {
+                            (internal::is_complex_v<T2> &&
+                            std::is_convertible_v<decltype(alpha), T1>) 
+                            ) {
             std::vector<T1> new_rhs_vec(rhs.num_elements());
             blockops::bops_blas::prep_rhs_buffer<T1>(rhs, new_rhs_vec);
             BlockSpan<T1> rhs_new{new_rhs_vec.data(), rhs.block_dims()};
@@ -232,9 +233,9 @@ public:
   void apply(T1 lscale, BlockSpan<T1>& lhs, T2 rscale, const BlockSpan<T2>& rhs) {
     std::visit(overloaded{[&](auto beta, auto alpha) {
                  if constexpr(internal::is_complex_v<T1> ||
-                              internal::is_complex_v<T2> &&
-                                std::is_convertible_v<decltype(beta), T1> &&
-                                std::is_convertible_v<decltype(alpha), T2>) {
+                              (internal::is_complex_v<T2> &&
+                               std::is_convertible_v<decltype(beta), T1> &&
+                               std::is_convertible_v<decltype(alpha), T2>) ) {
                    std::vector<T1> new_rhs_vec(rhs.num_elements());
                    blockops::bops_blas::prep_rhs_buffer<T1>(rhs, new_rhs_vec);
                    BlockSpan<T1> rhs_new{new_rhs_vec.data(), rhs.block_dims()};

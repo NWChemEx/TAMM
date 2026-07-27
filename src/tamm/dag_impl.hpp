@@ -120,7 +120,7 @@ public:
 protected:
   Func                func_; /**< lambda function assigned to the DAG unit */
   std::tuple<Args...> args_; /**< set of arguments bind to the DAG unit */
-};                           // DAGImpl
+}; // DAGImpl
 
 } // namespace internal
 

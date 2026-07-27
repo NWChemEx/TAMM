@@ -31,77 +31,35 @@ namespace tamm::internal {
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 struct MultOpPlanBase {
   using MultOpT = MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>;
+
+  // writes()/accumulates()/reads() are identical for every plan: an assign
+  // writes the LHS, an update accumulates into it, and both RHS operands are
+  // read.  (The former local/global split was a no-op for scheduling — the
+  // variants were concatenated and only membership matters for dependency
+  // tests — and no code queried the local/global variants individually.)
   TensorBase* writes(const MultOpT& multop) const {
-    auto ret1 = local_writes(multop);
-    auto ret2 = global_writes(multop);
-    ret1.insert(ret1.end(), ret2.begin(), ret2.end());
-    return !ret1.empty() ? ret1[0] : nullptr;
+    return multop.is_assign() ? multop.lhs().base_ptr() : nullptr;
   }
-
   TensorBase* accumulates(const MultOpT& multop) const {
-    auto ret1 = local_accumulates(multop);
-    auto ret2 = global_accumulates(multop);
-    ret1.insert(ret1.end(), ret2.begin(), ret2.end());
-    return !ret1.empty() ? ret1[0] : nullptr;
+    return multop.is_assign() ? nullptr : multop.lhs().base_ptr();
   }
-
   std::vector<TensorBase*> reads(const MultOpT& multop) const {
-    auto ret1 = local_reads(multop);
-    auto ret2 = global_reads(multop);
-    ret1.insert(ret1.end(), ret2.begin(), ret2.end());
-    return !ret1.empty() ? ret1 : std::vector<TensorBase*>{};
+    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
   }
-
-  virtual std::vector<TensorBase*> global_writes(const MultOpT& multop) const      = 0;
-  virtual std::vector<TensorBase*> global_accumulates(const MultOpT& multop) const = 0;
-  virtual std::vector<TensorBase*> global_reads(const MultOpT& multop) const       = 0;
-  virtual std::vector<TensorBase*> local_writes(const MultOpT& multop) const       = 0;
-  virtual std::vector<TensorBase*> local_accumulates(const MultOpT& multop) const  = 0;
-  virtual std::vector<TensorBase*> local_reads(const MultOpT& multop) const        = 0;
 
   virtual void apply(const MultOpT& multop, ExecutionContext& ec, ExecutionHW hw) = 0;
+  virtual ~MultOpPlanBase()                                                       = default;
 }; // MultOpPlanBase
 
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 struct FlatMultPlan: public MultOpPlanBase<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3> {
   using MultOpT = MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>;
-  std::vector<TensorBase*> global_writes(const MultOpT& multop) const override { return {}; }
-  std::vector<TensorBase*> global_accumulates(const MultOpT& multop) const override { return {}; }
-
-  std::vector<TensorBase*> global_reads(const MultOpT& multop) const override { return {}; }
-
-  std::vector<TensorBase*> local_writes(const MultOpT& multop) const override {
-    if(multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const MultOpT& multop) const override {
-    if(!multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_reads(const MultOpT& multop) const override {
-    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
-  }
   void apply(const MultOpT& multop, ExecutionContext& ec, ExecutionHW hw) override;
 }; // FlatMultPlan
 
 template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typename LabeledTensorT3>
 struct LHSMultPlan: public MultOpPlanBase<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3> {
   using MultOpT = MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>;
-  std::vector<TensorBase*> global_writes(const MultOpT& multop) const override { return {}; }
-  std::vector<TensorBase*> global_accumulates(const MultOpT& multop) const override { return {}; }
-  std::vector<TensorBase*> global_reads(const MultOpT& multop) const override { return {}; }
-
-  std::vector<TensorBase*> local_writes(const MultOpT& multop) const override {
-    if(multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const MultOpT& multop) const override {
-    if(!multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_reads(const MultOpT& multop) const override {
-    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
-  }
   void apply(const MultOpT& multop, ExecutionContext& ec, ExecutionHW hw) override;
 }; // LHSMultPlan
 
@@ -109,29 +67,6 @@ template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typenam
 struct GeneralFlatMultPlan:
   public MultOpPlanBase<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3> {
   using MultOpT = MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>;
-  std::vector<TensorBase*> global_writes(const MultOpT& multop) const override {
-    if(multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_accumulates(const MultOpT& multop) const override {
-    if(!multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_reads(const MultOpT& multop) const override {
-    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
-  }
-
-  std::vector<TensorBase*> local_writes(const MultOpT& multop) const override {
-    if(multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const MultOpT& multop) const override {
-    if(!multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_reads(const MultOpT& multop) const override {
-    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
-  }
   void apply(const MultOpT& multop, ExecutionContext& ec, ExecutionHW hw) override;
 }; // GeneralFlatMultPlan
 
@@ -139,28 +74,6 @@ template<typename T, typename LabeledTensorT1, typename LabeledTensorT2, typenam
 struct GeneralLHSMultPlan:
   public MultOpPlanBase<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3> {
   using MultOpT = MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>;
-  std::vector<TensorBase*> global_writes(const MultOpT& multop) const override {
-    if(multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_accumulates(const MultOpT& multop) const override {
-    if(!multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> global_reads(const MultOpT& multop) const override {
-    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
-  }
-  std::vector<TensorBase*> local_writes(const MultOpT& multop) const override {
-    if(multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_accumulates(const MultOpT& multop) const override {
-    if(!multop.is_assign()) { return {multop.lhs().base_ptr()}; }
-    else { return {}; }
-  }
-  std::vector<TensorBase*> local_reads(const MultOpT& multop) const override {
-    return {multop.rhs1().base_ptr(), multop.rhs2().base_ptr()};
-  }
   void apply(const MultOpT& multop, ExecutionContext& ec, ExecutionHW hw) override;
 }; // GeneralLHSMultPlan
 
@@ -172,7 +85,7 @@ template<typename T1, typename T2, typename T3>
 struct AddBuf {
   AddBuf(T2* ta, T3* tb, T1* cbuf, const IndexVector& blockid):
     blockid_{blockid}, cbuf_{cbuf}, ta_{ta}, tb_{tb} {}
-  ~AddBuf() {}
+  ~AddBuf() = default;
 
   T1*         cbuf_;
   T2*         abuf_;
@@ -227,9 +140,9 @@ public:
       rhs2_lbls = IndexLabelVec(labels.begin() + lhs.labels().size() + rhs1.labels().size(),
                                 labels.begin() + lhs.labels().size() + rhs1.labels().size() +
                                   rhs2.labels().size());
-      lhs_.set_labels(lhs_lbls);
-      rhs1_.set_labels(rhs1_lbls);
-      rhs2_.set_labels(rhs2_lbls);
+      lhs_.set_labels(std::move(lhs_lbls));
+      rhs1_.set_labels(std::move(rhs1_lbls));
+      rhs2_.set_labels(std::move(rhs2_lbls));
     }
 
     if(lhs.has_str_lbl()) { fillin_labels(); }
@@ -238,7 +151,7 @@ public:
     validate();
   }
 
-  MultOp(const MultOp<T, LabeledTensorT1, LabeledTensorT2, LabeledTensorT3>&) = default;
+  // Copy/move are implicitly generated (Rule of Zero); clone() copies.
 
   LabeledTensorT1 lhs() const { return lhs_; }
 
@@ -268,7 +181,7 @@ public:
     return result;
   }
 
-  std::shared_ptr<Op> clone() const override { return std::shared_ptr<Op>(new MultOp{*this}); }
+  std::shared_ptr<Op> clone() const override { return std::make_shared<MultOp>(*this); }
 
   using TensorElType1 = typename LabeledTensorT1::element_type;
   using TensorElType2 = typename LabeledTensorT2::element_type;
@@ -278,14 +191,14 @@ public:
     EXPECTS(!is_assign_);
     auto& oprof = tamm::OpProfiler::instance();
 
-    using TensorElType = typename LabeledTensorT1::element_type;
+    // using TensorElType = typename LabeledTensorT1::element_type;
     // determine set of all labels
     IndexLabelVec all_labels{lhs_.labels()};
     all_labels.insert(all_labels.end(), rhs1_.labels().begin(), rhs1_.labels().end());
     all_labels.insert(all_labels.end(), rhs2_.labels().begin(), rhs2_.labels().end());
     LabelLoopNest loop_nest{all_labels};
 
-    std::vector<AddBuf<TensorElType1, TensorElType2, TensorElType3>*> add_bufs;
+    std::vector<std::unique_ptr<AddBuf<TensorElType1, TensorElType2, TensorElType3>>> add_bufs;
     // function to compute one block
     auto lambda = [=, &oprof, &add_bufs, &loop_nest, &ec](const IndexVector itval) {
       auto ctensor = lhs_.tensor();
@@ -386,9 +299,9 @@ public:
       }
 
 #else
-      const auto  translated_cblockid = internal::translate_blockid(cblockid, lhs_);
-      const auto  translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
-      const auto  translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
+      const auto translated_cblockid = internal::translate_blockid(cblockid, lhs_);
+      const auto translated_ablockid = internal::translate_blockid(ablockid, rhs1_);
+      const auto translated_bblockid = internal::translate_blockid(bblockid, rhs2_);
 
 #endif
       if(!ctensor.is_non_zero(translated_cblockid) || !atensor.is_non_zero(translated_ablockid) ||
@@ -461,15 +374,16 @@ public:
         th_a = static_cast<TensorElType2*>(memDevicePool.allocate(asize * sizeof(TensorElType2)));
         th_b = static_cast<TensorElType3*>(memDevicePool.allocate(bsize * sizeof(TensorElType3)));
 
-        ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{th_a, th_b, cbuf,
-                                                                     translated_cblockid};
+        add_bufs.push_back(std::make_unique<AddBuf<TensorElType1, TensorElType2, TensorElType3>>(
+          th_a, th_b, cbuf, translated_cblockid));
 #else
-        ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{ctensor, cbuf,
-                                                                     translated_cblockid};
+        add_bufs.push_back(std::make_unique<AddBuf<TensorElType1, TensorElType2, TensorElType3>>(
+          ctensor, cbuf, translated_cblockid));
 #endif
-        add_bufs.push_back(ab);
+        ab = add_bufs.back().get();
 
         {
+          TimerGuard     tg_bc{&oprof.multOpBCTime};
           TensorElType1* cbuf_dev_ptr{nullptr};
           TensorElType1* cbuf_tmp_dev_ptr{nullptr};
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
@@ -485,16 +399,12 @@ public:
                            csize * sizeof(TensorElType1), thandle);
           }
 #endif
-          {
-            TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
-            kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
+          kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-              th_a, th_b,
+            th_a, th_b,
 #endif
-              thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
-              cscale, ab->cbuf_, cdims_sz, lhs_int_labels_, hw, true, cbuf_dev_ptr,
-              cbuf_tmp_dev_ptr);
-          }
+            thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
+            cscale, ab->cbuf_, cdims_sz, lhs_int_labels_, hw, true, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
           if(hw == ExecutionHW::GPU) {
@@ -506,9 +416,9 @@ public:
               TimerGuard tg_copy{&oprof.multOpCopyTime};
               gpuMemcpyAsync<TensorElType1>(cbuf_tmp, cbuf_dev_ptr, csize, gpuMemcpyDeviceToHost,
                                             thandle);
+              gpuStreamSynchronize(thandle);
             }
             // cbuf+=cbuf_tmp
-            gpuStreamSynchronize(thandle);
             blas::axpy(csize, TensorElType1{1}, cbuf_tmp, 1, ab->cbuf_, 1);
 
             memDevicePool.deallocate(cbuf_dev_ptr, csize * sizeof(TensorElType1));
@@ -533,7 +443,6 @@ public:
           // add the computed update to the tensor
           ctensor.add(translated_cblockid, {ab->cbuf_, csize});
         }
-        delete ab;
         add_bufs.clear();
 #endif
       }
@@ -543,13 +452,8 @@ public:
     //@todo make parallel
     // do_work(ec, loop_nest, lambda);
 
-    bool has_sparse_labels = false;
-    for(auto& lbl: all_labels) {
-      if(lbl.is_dependent()) {
-        has_sparse_labels = true;
-        break;
-      }
-    }
+    const bool has_sparse_labels =
+      std::ranges::any_of(all_labels, [](const auto& lbl) { return lbl.is_dependent(); });
 
     if(1 && (lhs_.tensor().is_dense() /* && !lhs_.tensor().has_spin() */) &&
        (rhs1_.tensor().is_dense() /* && !rhs1_.tensor().has_spin() */) &&
@@ -568,7 +472,6 @@ public:
       for(auto& ab: add_bufs) {
         (ab->tensor_).nb_add(ab->blockid_, ab->cbuf_, &(ab->nbhdl_));
         ab->wait();
-        delete ab;
       }
       add_bufs.clear();
     }
@@ -665,24 +568,24 @@ public:
       SizeVec cdims_sz;
       for(const auto v: cdims) { cdims_sz.push_back(v); }
 
-      AddBuf<TensorElType1, TensorElType2, TensorElType3>* ab{nullptr};
+      std::unique_ptr<AddBuf<TensorElType1, TensorElType2, TensorElType3>> ab;
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       TensorElType2* th_a{nullptr};
       TensorElType3* th_b{nullptr};
 
-      ab = new AddBuf<TensorElType1, TensorElType2, TensorElType3>{
-        th_a, th_b, {}, translated_cblockid};
+      ab = std::make_unique<AddBuf<TensorElType1, TensorElType2, TensorElType3>>(
+        th_a, th_b, static_cast<TensorElType1*>(nullptr), translated_cblockid);
 #else
-      ab =
-        new AddBuf<TensorElType1, TensorElType2, TensorElType3>{ctensor, {}, translated_cblockid};
+      ab = std::make_unique<AddBuf<TensorElType1, TensorElType2, TensorElType3>>(
+        ctensor, nullptr, translated_cblockid);
 #endif
 
       {
         // LabelLoopNest inner_loop{reduction_lbls};
         LabelLoopNest inner_loop{reduction_labels};
 
-        int loop_counter = 0;
 #if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
+        int loop_counter     = 0;
         nranks_per_lhs_block = (ec.pg().size().value() / n_lhs_blocks) + 1 -
                                (lhs_counter >= (ec.pg().size().value() % n_lhs_blocks));
 #endif
@@ -781,6 +684,7 @@ public:
 
           // A*B
           {
+            TimerGuard tg_bc{&oprof.multOpBCTime};
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
             TensorElType2* abuf_dev{nullptr};
             TensorElType3* bbuf_dev{nullptr};
@@ -792,15 +696,12 @@ public:
             }
 #endif
 
-            {
-              TimerGuard tg_dgemm{&oprof.multOpDgemmTime};
-              kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
+            kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-                abuf_dev, bbuf_dev,
+              abuf_dev, bbuf_dev,
 #endif
-                thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
-                cscale, cbuf, cdims_sz, lhs_int_labels_, hw, false, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
-            }
+              thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
+              cscale, cbuf, cdims_sz, lhs_int_labels_, hw, false, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
             if(hw == ExecutionHW::GPU) {
@@ -820,6 +721,7 @@ public:
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
           // copy to host
           if(hw == ExecutionHW::GPU) {
+            TimerGuard     tg_bc{&oprof.multOpBCTime};
             TensorElType1* cbuf_tmp{nullptr};
             cbuf_tmp =
               static_cast<TensorElType1*>(memHostPool.allocate(csize * sizeof(TensorElType1)));
@@ -828,9 +730,9 @@ public:
               TimerGuard tg_copy{&oprof.multOpCopyTime};
               gpuMemcpyAsync<TensorElType1>(cbuf_tmp, cbuf_dev_ptr, csize, gpuMemcpyDeviceToHost,
                                             thandle);
+              gpuStreamSynchronize(thandle);
             }
             // cbuf+=cbuf_tmp
-            gpuStreamSynchronize(thandle);
             blas::axpy(csize, TensorElType1{1}, cbuf_tmp, 1, cbuf, 1);
 
             memHostPool.deallocate(cbuf_tmp, csize * sizeof(TensorElType1));
@@ -850,7 +752,7 @@ public:
 #endif
       } // multoptime
 
-      delete ab;
+      ab.reset();
       memHostPool.deallocate(cbuf, csize * sizeof(TensorElType1));
     };
     //@todo use a scheduler
@@ -946,7 +848,7 @@ protected:
     std::map<std::string, Label> str_to_labels;
     const size_t                 lsize  = lhs_.labels().size();
     const size_t                 r1size = rhs1_.labels().size();
-    const size_t                 r2size = rhs2_.labels().size();
+    // const size_t                 r2size = rhs2_.labels().size();
 
     update_fillin_map(str_to_labels, lhs_.str_map(), lhs_.str_labels(), 0);
     update_fillin_map(str_to_labels, rhs1_.str_map(), rhs1_.str_labels(), lsize);
@@ -988,36 +890,17 @@ protected:
    *  invoked
    */
   void validate() {
-    EXPECTS_STR((lhs_.tensor().base_ptr() != rhs1_.tensor().base_ptr() &&
-                 lhs_.tensor().base_ptr() != rhs2_.tensor().base_ptr()),
-                "Self assignment is not supported in tensor operations!");
-
-    IndexLabelVec ilv{lhs_.labels()};
-    ilv.insert(ilv.end(), rhs1_.labels().begin(), rhs1_.labels().end());
-    ilv.insert(ilv.end(), rhs2_.labels().begin(), rhs2_.labels().end());
-
-    for(size_t i = 0; i < ilv.size(); i++) {
-      for(const auto& dl: ilv[i].secondary_labels()) {
-        size_t j;
-        for(j = 0; j < ilv.size(); j++) {
-          if(dl.tiled_index_space() == ilv[j].tiled_index_space() && dl.label() == ilv[j].label()) {
-            break;
-          }
-        }
-        EXPECTS(j < ilv.size());
-      }
+    if(!(lhs_.tensor().base_ptr() != rhs1_.tensor().base_ptr() &&
+         lhs_.tensor().base_ptr() != rhs2_.tensor().base_ptr())) {
+      std::ostringstream os;
+      os << "[TAMM ERROR] Self assignment is not supported in tensor operations!\n"
+         << __FILE__ << ":L" << __LINE__;
+      tamm_terminate(os.str());
     }
 
-    for(size_t i = 0; i < ilv.size(); i++) {
-      const auto& ilbl = ilv[i];
-      for(size_t j = i + 1; j < ilv.size(); j++) {
-        const auto& jlbl = ilv[j];
-        if(ilbl.tiled_index_space() == jlbl.tiled_index_space() && ilbl.label() == jlbl.label() &&
-           ilbl.label_str() == jlbl.label_str()) {
-          EXPECTS(ilbl == jlbl);
-        }
-      }
-    }
+    const auto ilv =
+      internal::merge_vector<IndexLabelVec>(lhs_.labels(), rhs1_.labels(), rhs2_.labels());
+    internal::validate_index_labels(ilv);
   }
 
   LabeledTensorT1 lhs_;

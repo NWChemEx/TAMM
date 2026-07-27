@@ -86,7 +86,7 @@ public:
 #endif
     pg_{pg} {
 #if defined(USE_UPCXX)
-    ad_i64 = new upcxx::atomic_domain<int64_t>({upcxx::atomic_op::fetch_add}, *pg.team());
+    ad_i64 = new upcxx::atomic_domain<int64_t>({upcxx::atomic_op::fetch_add}, *pg.comm());
 #endif
   }
 
@@ -110,7 +110,7 @@ public:
     {
       // upcxx::persona_scope master_scope(master_mtx,
       //        upcxx::master_persona());
-      dobj = new upcxx::dist_object<upcxx::global_ptr<int64_t>>(local_gptr, *pg_.team());
+      dobj = new upcxx::dist_object<upcxx::global_ptr<int64_t>>(local_gptr, *pg_.comm());
     }
 
     pg_.barrier();

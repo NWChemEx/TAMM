@@ -42,9 +42,9 @@ using namespace tamm;
 
 class EigenTensorBase {
 public:
-  EigenTensorBase(){};
+  EigenTensorBase() {};
 
-  virtual ~EigenTensorBase(){};
+  virtual ~EigenTensorBase() {};
 };
 
 template<int ndim>

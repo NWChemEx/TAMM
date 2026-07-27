@@ -33,6 +33,8 @@ int main(int argc, char* argv[]) {
   int64_t dim = dim1 * dim1 * dim1 * dim1;
   if(dim2 > 0) dim = dim1 * dim1 * dim2 * dim2;
 
+  if(mpi_rank == 0) std::cout << "GA size = " << dim * 8.0 / (1024.0 * 1024.0 * 1024.0) << "GiB\n";
+
   const auto  timer_start = std::chrono::high_resolution_clock::now();
   int         g_a         = 0;
   std::string array_name  = "A";
@@ -47,8 +49,9 @@ int main(int argc, char* argv[]) {
   if(!g_a) GA_Error(const_cast<char*>(error_msg.c_str()), dim1 * dim2);
   if(mpi_rank == 0) printf("GA create successful\n");
 
-  if(mpi_rank == 0) std::cout << "GA size = " << dim * 8.0 / (1024.0 * 1024.0 * 1024.0) << "GiB\n";
   if(mpi_rank == 0) std::cout << "GA create time = " << ga_ct << "s" << std::endl;
+  NGA_Destroy(g_a);
+
   GA_Terminate();
   MPI_Finalize();
 

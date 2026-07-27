@@ -83,6 +83,9 @@ void test_evp(size_t N, size_t mb) {
   MPI_Comm scacomm;
   MPI_Comm_create(gcomm, sca_group, &scacomm);
 
+  MPI_Group_free(&wgroup);
+  MPI_Group_free(&sca_group);
+
   if(rank < hf_nranks) {
     EXPECTS(hf_comm != MPI_COMM_NULL);
     ScalapackInfo scalapack_info;
@@ -235,8 +238,8 @@ void test_evp(size_t N, size_t mb) {
 int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);
 
-  size_t N = 100, mb = 32;
 #if defined(USE_SCALAPACK)
+  size_t N = 100, mb = 32;
   if(argc >= 2) N = std::atoi(argv[1]);
   if(argc == 3) mb = std::atoi(argv[2]);
   test_evp(N, mb);

@@ -18,27 +18,25 @@ class AllocOp: public Op {
 public:
   AllocOp(TensorType tensor, ExecutionContext& ec): tensor_{tensor}, ec_{ec} {}
 
-  AllocOp(const AllocOp<TensorType>&) = default;
-
   TensorType tensor() const { return tensor_; }
 
   OpList canonicalize() const override { return OpList{(*this)}; }
 
   OpType op_type() const override { return OpType::alloc; }
 
-  std::shared_ptr<Op> clone() const override { return std::shared_ptr<Op>(new AllocOp{*this}); }
+  std::shared_ptr<Op> clone() const override { return std::make_shared<AllocOp>(*this); }
 
   void execute(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) override {
     tensor_.allocate(&ec_);
   }
 
-  TensorBase* writes() const { return tensor_.base_ptr(); }
+  TensorBase* writes() const override { return tensor_.base_ptr(); }
 
-  TensorBase* accumulates() const { return nullptr; }
+  TensorBase* accumulates() const override { return nullptr; }
 
-  std::vector<TensorBase*> reads() const { return {}; }
+  std::vector<TensorBase*> reads() const override { return {}; }
 
-  bool is_memory_barrier() const { return false; }
+  bool is_memory_barrier() const override { return false; }
 
 protected:
   TensorType        tensor_;

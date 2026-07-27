@@ -23,6 +23,10 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   TiledIndexSpace tis1{IndexSpace{range(N)}, tilesize};
   auto [i, j, k, l, m, o] = tis1.labels<6>("all");
 
+  Tensor<T> imat = tamm::identity_matrix<T>(sch.ec(), tis1);
+  // print_tensor(imat);
+  sch.deallocate(imat);
+
   Tensor<CT> A{i, j, m, o}; // complex
   Tensor<T>  B{m, o, k, l}; // real
   Tensor<CT> C{i, j, k, l}; // complex

@@ -127,13 +127,13 @@ public:
 
   void set_ga_handle(int ga_handle) { ga_ = ga_handle; }
 
-  void set_proc_grid(std::vector<Proc> pg) { proc_grid_ = pg; }
+  void set_proc_grid(std::vector<Proc> pg) { proc_grid_ = std::move(pg); }
 
   void set_proc_buf_size(Size proc_buf_size) { proc_buf_size_ = proc_buf_size; }
 
   void set_max_proc_buf_size(Size max_proc_buf_size) { max_proc_buf_size_ = max_proc_buf_size; }
 
-  std::vector<Proc> proc_grid() const { return proc_grid_; }
+  [[nodiscard]] const std::vector<Proc>& proc_grid() const { return proc_grid_; }
 
   /**
    * @brief Construct a new Distribution object using a TensorBase object and
@@ -257,7 +257,7 @@ public:
     set_hash(compute_hash());
   }
 
-  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
+  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const override {
     /** @warning
      *  totalview LD on following statement
      *  back traced to tamm::Tensor<double>::alloc shared_ptr_base.h
@@ -267,7 +267,7 @@ public:
     return new Distribution_NW(tensor_structure, nproc);
   }
 
-  std::pair<Proc, Offset> locate(const IndexVector& blockid) const {
+  std::pair<Proc, Offset> locate(const IndexVector& blockid) const override {
     auto key = compute_key(blockid);
     auto itr = std::lower_bound(
       hash_.begin(), hash_.end(), KeyOffsetPair{key, 0},
@@ -284,7 +284,7 @@ public:
     return {proc, offset};
   }
 
-  Size buf_size(Proc proc) const {
+  Size buf_size(Proc proc) const override {
     EXPECTS(proc >= 0);
     EXPECTS(proc < nproc_);
     EXPECTS(proc_offsets_.size() > static_cast<uint64_t>(proc.value()) + 1);
@@ -401,7 +401,7 @@ public:
     step_proc_  = std::max(Proc{nproc_.value() / total_num_blocks_.value()}, Proc{1});
   }
 
-  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
+  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const override {
     /** @warning
      *  totalview LD on following statement
      *  back traced to tamm::Tensor<double>::alloc shared_ptr_base.h
@@ -411,18 +411,18 @@ public:
     return new Distribution_SimpleRoundRobin(tensor_structure, nproc);
   }
 
-  std::pair<Proc, Offset> locate(const IndexVector& blockid) const {
+  std::pair<Proc, Offset> locate(const IndexVector& blockid) const override {
     auto key = compute_key(blockid);
     EXPECTS(key >= 0 && key < total_num_blocks_);
     // return {key % nproc_.value(), (key / nproc_.value()) * max_block_size_.value()};
     Proc proc = (key * step_proc_.value() + start_proc_.value()) % nproc_.value();
-    EXPECTS(step_proc_ == 1 || total_num_blocks_.value() <= nproc_.value());
+    EXPECTS(step_proc_ == 1 || total_num_blocks_.value() <= (uint64_t) nproc_.value());
     Offset offset =
       (step_proc_ != Proc{1} ? Offset{0} : (key / nproc_.value()) * max_block_size_.value());
     return {proc, offset};
   }
 
-  Size buf_size(Proc proc) const {
+  Size buf_size(Proc proc) const override {
     EXPECTS(proc >= 0);
     EXPECTS(proc < nproc_);
     return max_proc_buf_size_;
@@ -499,7 +499,7 @@ private:
   std::vector<Offset> key_offsets_;      /**< Vector of offsets for each key value */
   Proc                start_proc_;       /**< Proc with 0-th block */
   Proc                step_proc_;        /**< Step size in distributing blocks */
-};                                       // class Distribution_SimpleRoundRobin
+}; // class Distribution_SimpleRoundRobin
 
 /**
  * @brief Dense distribution logic for dense multidimensional tensors.
@@ -543,7 +543,7 @@ public:
       auto pgrid = internal::compute_proc_grid(ardims.size(), ardims, nproc.value(), 0.0, 0, nchnk);
       nchnk.erase(std::remove(nchnk.begin(), nchnk.end(), -2), nchnk.end());
       ardims.erase(std::remove(ardims.begin(), ardims.end(), -2), ardims.end());
-      auto rndim = ardims.size();
+      const int rndim = ardims.size();
       if(rndim > 0 && rndim < ndim_)
         pgrid = internal::compute_proc_grid(rndim, ardims, nproc.value(), 0.0, 0, nchnk);
       int pgi = 0;
@@ -581,7 +581,7 @@ public:
    * @return Distribution* Cloned distrbution object for @param tensor_structure
    * and @param nproc
    */
-  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const {
+  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const override {
     /** @warning
      *  totalview LD on following statement
      *  back traced to tamm::Tensor<double>::alloc shared_ptr_base.h
@@ -610,7 +610,7 @@ public:
 
   Size total_size() const override {
     Size result{1};
-    for(size_t i = 0; i < ndim_; i++) { result *= tiss_[i].max_num_indices(); }
+    for(int i = 0; i < ndim_; i++) { result *= tiss_[i].max_num_indices(); }
     return result;
   }
 
@@ -668,7 +668,7 @@ public:
    * @pre blockid.size() == ndim_
    * @pre forall i: blockid[i] >= 0 && blockid[i] < num_tiles_[i]
    */
-  std::pair<Proc, Offset> locate(const IndexVector& blockid) const {
+  std::pair<Proc, Offset> locate(const IndexVector& blockid) const override {
     // Dense tensors have default distribution created by GA.
     // return {block_owner(blockid), block_offset_within_proc(blockid)};
     std::vector<int64_t> lo = compute_lo(blockid);
@@ -819,7 +819,9 @@ public:
 
   Size buf_size(Proc proc) const override { return ref_dist_->buf_size(proc); }
 
-  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const { NOT_ALLOWED(); }
+  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const override {
+    NOT_ALLOWED();
+  }
 
   Size max_proc_buf_size() const override { return ref_dist_->max_proc_buf_size(); }
 
@@ -827,7 +829,7 @@ public:
 
   Size total_size() const override { return ref_dist_->total_size(); }
 
-  size_t compute_hash() const { return ref_dist_->compute_hash(); }
+  size_t compute_hash() const override { return ref_dist_->compute_hash(); }
 
 protected:
   const Distribution* ref_dist_;
@@ -858,7 +860,9 @@ public:
 
   Size buf_size(Proc proc) const override { return ref_dist_->buf_size(proc); }
 
-  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const { NOT_ALLOWED(); }
+  Distribution* clone(const TensorBase* tensor_structure, Proc nproc) const override {
+    NOT_ALLOWED();
+  }
 
   Size max_proc_buf_size() const override { return ref_dist_->max_proc_buf_size(); }
 
@@ -866,7 +870,7 @@ public:
 
   Size total_size() const override { return ref_dist_->total_size(); }
 
-  size_t compute_hash() const { return ref_dist_->compute_hash(); }
+  size_t compute_hash() const override { return ref_dist_->compute_hash(); }
 
   IndexVector translate_blockid(const IndexVector& blockid) const {
     IndexVector translated_blockid = blockid;

@@ -1,13 +1,16 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <iterator> // std::ssize
 #include <set>
+#include <span>
 #include <vector>
 
 #include "tamm/block_span.hpp"
 #include "tamm/iteration.hpp"
 #include "tamm/perm.hpp"
-//#include "tamm/scalar.hpp"
+#include "tamm/scalar.hpp"
 #include "tamm/types.hpp"
 
 namespace tamm::blockops::cpu {
@@ -20,9 +23,8 @@ namespace tamm::blockops::cpu {
 
 template<typename T1, typename T2>
 void flat_set(BlockSpan<T1>& lhs, const T2& value_) {
-  auto   buf          = lhs.buf();
-  size_t num_elements = lhs.num_elements();
-  for(size_t i = 0; i < num_elements; ++i) { buf[i] = value_; }
+  auto* buf = lhs.buf();
+  std::fill(buf, buf + lhs.num_elements(), static_cast<T1>(value_));
 }
 
 template<typename T1, typename T2>
@@ -176,7 +178,7 @@ void flat_assign(BlockSpan<TL>& lhs, const BlockSpan<TR>& rhs) {
   TL*          lbuf         = lhs.buf();
   const TR*    rbuf         = rhs.buf();
   const size_t num_elements = lhs.num_elements();
-  for(int i = 0; i < num_elements; i++) { *lbuf++ = *rbuf++; }
+  std::copy(rbuf, rbuf + num_elements, lbuf);
 }
 
 template<typename TL, typename TR>
@@ -252,8 +254,8 @@ void flat_update(const Scalar& lscale, BlockSpan<TL>& lhs, const Scalar& rscale,
 template<typename Func, typename T, typename... BlockSpans>
 void flat_lambda(Func&& func, BlockSpan<T>& block, BlockSpans&&... rest) {
   EXPECTS(((block.buf() != nullptr) && ... && (rest.buf() != nullptr)));
-  int num_elements = block.tensor().block_size(block.blockid());
-  for(int i = 0; i < num_elements; i++) {
+  const size_t num_elements = block.tensor().block_size(block.blockid());
+  for(size_t i = 0; i < num_elements; i++) {
     std::forward<Func>(func)(block.buf()[i], (std::forward<BlockSpans>(rest).buf()[i])...);
   }
 }
@@ -264,9 +266,11 @@ void flat_lambda(Func&& func, BlockSpan<T>& block, BlockSpans&&... rest) {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-inline size_t idx(int n, const size_t* id, const std::vector<size_t>& ldims, const PermVector& p) {
-  size_t idx = 0;
-  for(int i = 0; i < n - 1; i++) { idx = (idx + id[p[i]]) * ldims[p[i + 1]]; }
+inline size_t idx(std::span<const size_t> id, const std::vector<size_t>& ldims,
+                  const PermVector& p) {
+  const size_t n   = id.size();
+  size_t       idx = 0;
+  for(size_t i = 0; i + 1 < n; i++) { idx = (idx + id[p[i]]) * ldims[p[i + 1]]; }
   if(n > 0) { idx += id[p[n - 1]]; }
   return idx;
 }
@@ -285,30 +289,29 @@ void index_permute_assign(TL* lbuf, const TR* rbuf, const PermVector& perm_to_de
     for(size_t i = 0; i < ldims[0]; i++) { lbuf[i] = rbuf[i]; }
   }
   else if(ndim == 2) {
-    size_t i[2], c;
+    std::array<size_t, 2> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
-      for(i[1] = 0; i[1] < ldims[1]; i[1]++, c++) {
-        lbuf[c] = rbuf[idx(2, i, ldims, perm_to_dest)];
-      }
+      for(i[1] = 0; i[1] < ldims[1]; i[1]++, c++) { lbuf[c] = rbuf[idx(i, ldims, perm_to_dest)]; }
     }
   }
   else if(ndim == 3) {
-    size_t i[3], c;
+    std::array<size_t, 3> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
-        for(i[2] = 0; i[2] < ldims[2]; i[2]++, c++) {
-          lbuf[c] = rbuf[idx(3, i, ldims, perm_to_dest)];
-        }
+        for(i[2] = 0; i[2] < ldims[2]; i[2]++, c++) { lbuf[c] = rbuf[idx(i, ldims, perm_to_dest)]; }
       }
     }
   }
   else if(ndim == 4) {
-    size_t i[4], c;
+    std::array<size_t, 4> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
         for(i[2] = 0; i[2] < ldims[2]; i[2]++) {
           for(i[3] = 0; i[3] < ldims[3]; i[3]++, c++) {
-            lbuf[c] = rbuf[idx(4, i, ldims, perm_to_dest)];
+            lbuf[c] = rbuf[idx(i, ldims, perm_to_dest)];
           }
         }
       }
@@ -331,30 +334,33 @@ void index_permute_assign(TL* lbuf, TL rscale, const TR* rbuf, const PermVector&
     for(size_t i = 0; i < ldims[0]; i++) { lbuf[i] = rscale * rbuf[i]; }
   }
   else if(ndim == 2) {
-    size_t i[2], c;
+    std::array<size_t, 2> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++, c++) {
-        lbuf[c] = rscale * rbuf[idx(2, i, ldims, perm_to_dest)];
+        lbuf[c] = rscale * rbuf[idx(i, ldims, perm_to_dest)];
       }
     }
   }
   else if(ndim == 3) {
-    size_t i[3], c;
+    std::array<size_t, 3> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
         for(i[2] = 0; i[2] < ldims[2]; i[2]++, c++) {
-          lbuf[c] = rscale * rbuf[idx(3, i, ldims, perm_to_dest)];
+          lbuf[c] = rscale * rbuf[idx(i, ldims, perm_to_dest)];
         }
       }
     }
   }
   else if(ndim == 4) {
-    size_t i[4], c;
+    std::array<size_t, 4> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
         for(i[2] = 0; i[2] < ldims[2]; i[2]++) {
           for(i[3] = 0; i[3] < ldims[3]; i[3]++, c++) {
-            lbuf[c] = rscale * rbuf[idx(4, i, ldims, perm_to_dest)];
+            lbuf[c] = rscale * rbuf[idx(i, ldims, perm_to_dest)];
           }
         }
       }
@@ -377,30 +383,31 @@ void index_permute_update(TL* lbuf, const TR* rbuf, const PermVector& perm_to_de
     for(size_t i = 0; i < ldims[0]; i++) { lbuf[i] += rbuf[i]; }
   }
   else if(ndim == 2) {
-    size_t i[2], c;
+    std::array<size_t, 2> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
-      for(i[1] = 0; i[1] < ldims[1]; i[1]++, c++) {
-        lbuf[c] += rbuf[idx(2, i, ldims, perm_to_dest)];
-      }
+      for(i[1] = 0; i[1] < ldims[1]; i[1]++, c++) { lbuf[c] += rbuf[idx(i, ldims, perm_to_dest)]; }
     }
   }
   else if(ndim == 3) {
-    size_t i[3], c;
+    std::array<size_t, 3> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
         for(i[2] = 0; i[2] < ldims[2]; i[2]++, c++) {
-          lbuf[c] += rbuf[idx(3, i, ldims, perm_to_dest)];
+          lbuf[c] += rbuf[idx(i, ldims, perm_to_dest)];
         }
       }
     }
   }
   else if(ndim == 4) {
-    size_t i[4], c;
+    std::array<size_t, 4> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
         for(i[2] = 0; i[2] < ldims[2]; i[2]++) {
           for(i[3] = 0; i[3] < ldims[3]; i[3]++, c++) {
-            lbuf[c] += rbuf[idx(4, i, ldims, perm_to_dest)];
+            lbuf[c] += rbuf[idx(i, ldims, perm_to_dest)];
           }
         }
       }
@@ -423,30 +430,33 @@ void index_permute_update(TL* lbuf, TL rscale, const TR* rbuf, const PermVector&
     for(size_t i = 0; i < ldims[0]; i++) { lbuf[i] += rscale * rbuf[i]; }
   }
   else if(ndim == 2) {
-    size_t i[2], c;
+    std::array<size_t, 2> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++, c++) {
-        lbuf[c] += rscale * rbuf[idx(2, i, ldims, perm_to_dest)];
+        lbuf[c] += rscale * rbuf[idx(i, ldims, perm_to_dest)];
       }
     }
   }
   else if(ndim == 3) {
-    size_t i[3], c;
+    std::array<size_t, 3> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
         for(i[2] = 0; i[2] < ldims[2]; i[2]++, c++) {
-          lbuf[c] += rscale * rbuf[idx(3, i, ldims, perm_to_dest)];
+          lbuf[c] += rscale * rbuf[idx(i, ldims, perm_to_dest)];
         }
       }
     }
   }
   else if(ndim == 4) {
-    size_t i[4], c;
+    std::array<size_t, 4> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
         for(i[2] = 0; i[2] < ldims[2]; i[2]++) {
           for(i[3] = 0; i[3] < ldims[3]; i[3]++, c++) {
-            lbuf[c] += rscale * rbuf[idx(4, i, ldims, perm_to_dest)];
+            lbuf[c] += rscale * rbuf[idx(i, ldims, perm_to_dest)];
           }
         }
       }
@@ -469,30 +479,33 @@ void index_permute_update(TL lscale, TL* lbuf, TL rscale, const TR* rbuf,
     for(size_t i = 0; i < ldims[0]; i++) { lbuf[i] = lscale * lbuf[i] + rscale * rbuf[i]; }
   }
   else if(ndim == 2) {
-    size_t i[2], c;
+    std::array<size_t, 2> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++, c++) {
-        lbuf[c] = lscale * lbuf[i] + rscale * rbuf[idx(2, i, ldims, perm_to_dest)];
+        lbuf[c] = lscale * lbuf[c] + rscale * rbuf[idx(i, ldims, perm_to_dest)];
       }
     }
   }
   else if(ndim == 3) {
-    size_t i[3], c;
+    std::array<size_t, 3> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
         for(i[2] = 0; i[2] < ldims[2]; i[2]++, c++) {
-          lbuf[c] = lscale * lbuf[i] + rscale * rbuf[idx(3, i, ldims, perm_to_dest)];
+          lbuf[c] = lscale * lbuf[c] + rscale * rbuf[idx(i, ldims, perm_to_dest)];
         }
       }
     }
   }
   else if(ndim == 4) {
-    size_t i[4], c;
+    std::array<size_t, 4> i{};
+    size_t                c;
     for(c = 0, i[0] = 0; i[0] < ldims[0]; i[0]++) {
       for(i[1] = 0; i[1] < ldims[1]; i[1]++) {
         for(i[2] = 0; i[2] < ldims[2]; i[2]++) {
           for(i[3] = 0; i[3] < ldims[3]; i[3]++, c++) {
-            lbuf[c] = lscale * lbuf[i] + rscale * rbuf[idx(4, i, ldims, perm_to_dest)];
+            lbuf[c] = lscale * lbuf[c] + rscale * rbuf[idx(i, ldims, perm_to_dest)];
           }
         }
       }
@@ -510,7 +523,10 @@ void index_permute_update(TL lscale, TL* lbuf, TL rscale, const TR* rbuf,
 inline size_t ipgen_idx(const std::vector<size_t>& index_vec, const std::vector<size_t>& dims_vec) {
   size_t ret = 0, ld = 1;
   EXPECTS(index_vec.size() == dims_vec.size());
-  for(int i = index_vec.size(); i >= 0; i--) {
+  // Iterate the valid range [size-1 .. 0].  The previous start value of
+  // index_vec.size() read index_vec[size()] / dims_vec[size()] out of bounds
+  // on the first iteration.
+  for(std::ptrdiff_t i = std::ssize(index_vec) - 1; i >= 0; i--) {
     ret += ld * index_vec[i];
     ld *= dims_vec[i];
   }

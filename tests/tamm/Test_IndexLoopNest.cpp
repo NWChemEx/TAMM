@@ -21,7 +21,7 @@ TEST_CASE("Zero-dimensional index loop nest with index bound constructor") {
   IndexLoopNest iln{};
   int           cnt = 0;
   REQUIRE(iln.begin() != iln.end());
-  for(const auto& it: iln) { cnt += 1; }
+  std::for_each(iln.begin(), iln.end(), [&](const auto&) { cnt += 1; });
   REQUIRE(cnt == 1);
 }
 
@@ -29,7 +29,7 @@ TEST_CASE("Zero-dimensional index loop nest with list of arguments constructor")
   IndexLoopNest iln{{}, {}, {}, {}};
   int           cnt = 0;
   REQUIRE(iln.begin() != iln.end());
-  for(const auto& it: iln) { cnt += 1; }
+  std::for_each(iln.begin(), iln.end(), [&](const auto&) { cnt += 1; });
   REQUIRE(cnt == 1);
 }
 

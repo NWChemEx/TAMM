@@ -1,7 +1,6 @@
 #pragma once
 
 #include "tamm/interfaces.hpp"
-#include "tamm/op_cost.hpp"
 #include "tamm/op_dag.hpp"
 #include "tamm/tiled_index_space.hpp"
 #include "tamm/types.hpp"
@@ -861,8 +860,7 @@ public:
     apply(aop);
   }
 
-  void visit(LTOp& ltop) override { /*no-op*/
-  }
+  void visit(LTOp& ltop) override { /*no-op*/ }
 
   void visit(EinSumOp& einsumop) override {}
 
@@ -1923,9 +1921,7 @@ private:
       }
     }
 
-    if(no_slicing) {
-      canonicalized_ops_.push_back({std::move(parforop.op().clone()), LabelPair{}});
-    }
+    if(no_slicing) { canonicalized_ops_.push_back({parforop.op().clone(), LabelPair{}}); }
   }
 
   void canonicalize_binary_op(Op& op) { canonicalized_ops_.push_back({op.clone(), LabelPair{}}); }

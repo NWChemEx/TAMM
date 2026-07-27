@@ -267,7 +267,7 @@ public:
     for(size_t i = 0; i < mp.local_nelements().value(); i++) {
       switch(mp.eltype_) {
         case ElementType::double_precision:
-          os << i << "     " << (reinterpret_cast<const double*>(mp.buf_))[i] << std::endl;
+          os << i << "     " << (reinterpret_cast<const double*>(mp.buf_))[i] << '\n';
           break;
         default: NOT_IMPLEMENTED();
       }

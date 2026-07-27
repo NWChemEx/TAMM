@@ -10,6 +10,17 @@
 
 namespace tamm {
 
+namespace detail {
+// Local, dependency-free complex trait (avoids pulling in the heavyweight
+// tamm/utils.hpp just for internal::is_complex_v).
+template<typename T>
+struct is_complex: std::false_type {};
+template<typename T>
+struct is_complex<std::complex<T>>: std::true_type {};
+template<typename T>
+inline constexpr bool is_complex_v = is_complex<T>::value;
+} // namespace detail
+
 /**
  * @brief Scalar object for representing scalar values from different data types
  *
@@ -24,11 +35,11 @@ public:
 
   Scalar(ElType eltype) {
     switch(eltype) {
-      case ElType::inv: value_ = (double) 1.0; break;
-      case ElType::i32: value_ = (int) 1; break;
-      case ElType::i64: value_ = (int64_t) 1; break;
-      case ElType::fp32: value_ = (float) 1.0; break;
-      case ElType::fp64: value_ = (double) 1.0; break;
+      case ElType::inv: value_ = 1.0; break;
+      case ElType::i32: value_ = 1; break;
+      case ElType::i64: value_ = int64_t{1}; break;
+      case ElType::fp32: value_ = 1.0f; break;
+      case ElType::fp64: value_ = 1.0; break;
       case ElType::cfp32: value_ = std::complex<float>(1.0, 0.0); break;
       case ElType::cfp64: value_ = std::complex<double>(1.0, 0.0); break;
     }
@@ -80,6 +91,34 @@ public:
   }
 
   ElementType value() const { return value_; }
+
+  /**
+   * @brief Extract the stored value converted to the requested element type T.
+   *
+   * Visits the underlying variant and converts the active alternative to T.
+   * Real target types drop the imaginary part of a stored complex value;
+   * complex target types are constructed from real alternatives.  This is the
+   * type-safe replacement for `static_cast<T>(scalar)`, which is ill-formed
+   * because Scalar holds a std::variant with no implicit numeric conversion.
+   */
+  template<typename T>
+  [[nodiscard]] T get() const {
+    return std::visit(
+      [](auto v) -> T {
+        using V = std::decay_t<decltype(v)>;
+        if constexpr(detail::is_complex_v<T>) {
+          if constexpr(detail::is_complex_v<V>)
+            return T{static_cast<typename T::value_type>(v.real()),
+                     static_cast<typename T::value_type>(v.imag())};
+          else return T{static_cast<typename T::value_type>(v)};
+        }
+        else {
+          if constexpr(detail::is_complex_v<V>) return static_cast<T>(v.real());
+          else return static_cast<T>(v);
+        }
+      },
+      value_);
+  }
 
 private:
   ElementType value_;

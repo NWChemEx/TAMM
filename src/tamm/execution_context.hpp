@@ -1,11 +1,11 @@
 #pragma once
 
 #include "tamm/proc_group.hpp"
-//#include "tamm/tensor_impl.hpp"
+// #include "tamm/tensor_impl.hpp"
 #include "tamm/atomic_counter.hpp"
 #include "tamm/memory_manager_ga.hpp"
 #include "tamm/memory_manager_local.hpp"
-//#include "tamm/distribution.hpp"
+// #include "tamm/distribution.hpp"
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
@@ -90,6 +90,17 @@ class Distribution_SimpleRoundRobin;
  * default to false?
  */
 class RuntimeEngine;
+
+struct meminfo {
+  size_t      gpu_mem_per_device; // single gpu mem per rank (GiB)
+  size_t      gpu_mem_per_node;   // total gpu mem per node (GiB)
+  size_t      total_gpu_mem;      // total gpu mem across all nodes (GiB)
+  size_t      cpu_mem_per_node;   // cpu mem on single node (GiB)
+  size_t      total_cpu_mem;      // total cpu mem across all nodes (GiB)
+  std::string cpu_name;           // cpu name
+  std::string gpu_name;           // gpu name
+};
+
 class ExecutionContext {
 public:
   ExecutionContext(): ac_{IndexedAC{nullptr, 0}} {
@@ -204,12 +215,7 @@ public:
    *
    * @param [in] pg input ProcGroup object
    */
-  void set_pg(const ProcGroup& pg) {
-    pg_ = pg;
-#if defined(USE_UPCXX_DISTARRAY)
-    hint_ = pg.size().value();
-#endif
-  }
+  void set_pg(const ProcGroup& pg) { pg_ = pg; }
 
   /**
    * Get the default distribution
@@ -259,23 +265,6 @@ public:
   MemoryManager* memory_manager(Args&&... args) const {
     return memory_manager_factory(memory_manager_kind_, std::forward<Args>(args)...).release();
   }
-
-#if defined(USE_UPCXX_DISTARRAY)
-  /**
-   * @brief Set cache size for MemoryRegionGAs created by MemoryManagerGAs of this
-   * ExecutionContext
-   *
-   * @param [in] hint input Size of cache for MemoryRegionsGAs
-   */
-  void set_memory_manager_cache(const upcxx::intrank_t hint = 0) {
-    hint_ = (hint ? hint : pg_.size().value());
-  }
-  /**
-   * Cache size hint for this execution context
-   * @return Cache size used by MemoryRegionGAs within this ExecutionContext
-   */
-  upcxx::intrank_t hint() const { return hint_; }
-#endif
 
   /**
    * @brief Set the default memory manager for ExecutionContext
@@ -344,16 +333,6 @@ public:
   int ppn() const { return ranks_pn_; }
   int gpn() const { return gpus_pn_; }
 
-  struct meminfo {
-    size_t      gpu_mem_per_device; // single gpu mem per rank (GiB)
-    size_t      gpu_mem_per_node;   // total gpu mem per node (GiB)
-    size_t      total_gpu_mem;      // total gpu mem across all nodes (GiB)
-    size_t      cpu_mem_per_node;   // cpu mem on single node (GiB)
-    size_t      total_cpu_mem;      // total cpu mem across all nodes (GiB)
-    std::string cpu_name;           // cpu name
-    std::string gpu_name;           // gpu name
-  };
-
   meminfo mem_info() const { return minfo_; }
 
   void print_mem_info() {
@@ -377,12 +356,11 @@ public:
   std::stringstream& get_profile_data() { return profile_data_; }
 
   std::string get_profile_header() {
-    std::string pheader = "ID;Level;OP;total_op_time_min;total_op_time_max;total_op_time_avg;";
-    pheader += "get_time_min;get_time_max;get_time_avg;";
-    pheader += "gemm_time_min;gemm_time_max;gemm_time_avg;";
-    pheader += "copy_time_min;copy_time_max;copy_time_avg;";
-    pheader += "acc_time_min;acc_time_max;acc_time_avg";
-    return pheader;
+    return "ID;Level;OpType;OP;total_op_time_min;total_op_time_max;total_op_time_avg;"
+           "get_time_min;get_time_max;get_time_avg;"
+           "block_compute_time_min;block_compute_time_max;block_compute_time_avg;"
+           "copy_time_min;copy_time_max;copy_time_avg;"
+           "acc_time_min;acc_time_max;acc_time_avg";
   }
 
   template<typename... Args>
@@ -398,8 +376,8 @@ public:
       case DistributionKind::simple_round_robin:
         return std::make_unique<Distribution_SimpleRoundRobin>(std::forward<Args>(args)...);
         break;
+      default: UNREACHABLE();
     }
-    UNREACHABLE();
     return nullptr;
   }
 
@@ -445,10 +423,6 @@ private:
   std::stringstream          profile_data_;
   std::vector<MemoryRegion*> mem_regs_to_dealloc_;
   std::vector<MemoryRegion*> unregistered_mem_regs_;
-
-#if defined(USE_UPCXX_DISTARRAY)
-  upcxx::intrank_t hint_;
-#endif
 
 }; // class ExecutionContext
 

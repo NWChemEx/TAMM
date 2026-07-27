@@ -452,11 +452,14 @@ int main(int argc, char* argv[]) {
     std::cout << "nnodes: " << ec.nnodes() << ", ";
     std::cout << "nproc_per_node: " << ec.ppn() << ", ";
     std::cout << "nproc_total: " << ec.nnodes() * ec.ppn() << ", ";
-    std::cout << "ngpus_per_node: " << ec.gpn() << ", ";
-    std::cout << "ngpus_total: " << ec.nnodes() * ec.gpn() << std::endl;
-    std::cout << "dim, tile sizes = " << is_size << ", " << tile_size << std::endl;
+    if(ec.has_gpu()) {
+      std::cout << "ngpus_per_node: " << ec.gpn() << ", ";
+      std::cout << "ngpus_total: " << ec.nnodes() * ec.gpn() << std::endl;
+    }
+    std::cout << std::endl;
     ec.print_mem_info();
-    std::cout << std::endl << std::endl;
+    std::cout << std::endl;
+    std::cout << "dim, tile sizes = " << is_size << ", " << tile_size << std::endl << std::endl;
   }
 
   const bool profile = true;

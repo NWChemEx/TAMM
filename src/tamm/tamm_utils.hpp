@@ -43,7 +43,7 @@ void print_tensor(const Tensor<T>& tensor, std::string filename = "") {
     return false;
   };
 
-  int                  ndims = tensor.num_modes();
+  // int                  ndims = tensor.num_modes();
   std::vector<int64_t> dims;
   for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
 
@@ -83,7 +83,7 @@ void print_tensor_all(const Tensor<T>& tensor, std::string filename = "") {
   std::stringstream tstring;
   auto              lt = tensor();
 
-  int                  ndims = tensor.num_modes();
+  // int                  ndims = tensor.num_modes();
   std::vector<int64_t> dims;
   for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
 
@@ -152,7 +152,7 @@ std::string tensor_to_string(const Tensor<T>& tensor) {
   std::stringstream tstring;
   auto              lt = tensor();
 
-  int                  ndims = tensor.num_modes();
+  // int                  ndims = tensor.num_modes();
   std::vector<int64_t> dims;
   for(auto tis: tensor.tiled_index_spaces()) dims.push_back(tis.index_space().num_indices());
 
@@ -183,7 +183,8 @@ std::string tensor_to_string(const Tensor<T>& tensor) {
 template<typename T>
 void print_vector(std::vector<T> vec, std::string filename = "") {
   std::stringstream tstring;
-  for(size_t i = 0; i < vec.size(); i++) tstring << i + 1 << "\t" << vec[i] << std::endl;
+  for(size_t i = 0; i < vec.size(); i++)
+    tstring << i + 1 << "\t" << std::fixed << std::setprecision(12) << vec[i] << '\n';
 
   if(!filename.empty()) {
     std::ofstream tos(filename, std::ios::out);
@@ -324,12 +325,13 @@ void update_tensor(LabeledTensor<T> labeled_tensor, Func lambda) {
  * TODO: update local buf directly to avoid get/put
  */
 template<typename T>
-void update_tensor_val(LabeledTensor<T> ltensor, std::vector<size_t> coord, T val) {
+void update_tensor_val(ExecutionContext& ec, LabeledTensor<T> ltensor, std::vector<size_t> coord,
+                       T val) {
   Tensor<T>    tensor = ltensor.tensor();
   const size_t ndims  = tensor.num_modes();
   EXPECTS(ndims == coord.size());
 
-  if((tensor.execution_context())->pg().rank() == 0) {
+  if(ec.pg().rank() == 0) {
     LabelLoopNest loop_nest{ltensor.labels()};
 
     for(auto it: tensor.loop_nest()) {
@@ -365,12 +367,25 @@ void update_tensor_val(LabeledTensor<T> ltensor, std::vector<size_t> coord, T va
       }
     }
   }
-  (tensor.execution_context())->pg().barrier();
+  ec.pg().barrier();
+}
+
+template<typename T>
+void update_tensor_val(LabeledTensor<T> ltensor, std::vector<size_t> coord, T val) {
+  ExecutionContext& ec = get_ec(ltensor);
+  update_tensor_val(ec, ltensor, coord, val);
 }
 
 template<typename T>
 void update_tensor_val(Tensor<T>& tensor, std::vector<size_t> coord, T val) {
-  update_tensor_val(tensor(), coord, val);
+  LabeledTensor<T>  ltensor = tensor();
+  ExecutionContext& ec      = get_ec(ltensor);
+  update_tensor_val(ec, ltensor, coord, val);
+}
+
+template<typename T>
+void update_tensor_val(ExecutionContext& ec, Tensor<T>& tensor, std::vector<size_t> coord, T val) {
+  update_tensor_val(ec, tensor(), coord, val);
 }
 
 /**
@@ -595,12 +610,40 @@ std::vector<TensorType> diagonal(LabeledTensor<TensorType> ltensor) {
     }
   }
 
-  int dsize = (int) dvec.size();
+  int dsize = static_cast<int>(dvec.size());
   ec.pg().broadcast(&dsize, 0);
   if(ec.pg().rank() != 0) dvec.resize(dsize);
   ec.pg().broadcast(dvec.data(), dsize, 0);
 
   return dvec;
+}
+
+template<typename TensorType>
+Tensor<TensorType> identity_matrix(ExecutionContext& ec, const TiledIndexSpace& tis) {
+  Tensor<TensorType> tensor{tis, tis};
+  Tensor<TensorType>::allocate(&ec, tensor);
+  Scheduler{ec}(tensor() = 0.0).execute();
+
+  if(ec.pg().rank() == 0) {
+    LabelLoopNest loop_nest{tensor().labels()};
+
+    for(const IndexVector& blockid: loop_nest) {
+      if(blockid[0] == blockid[1]) {
+        const TAMM_SIZE         size = tensor.block_size(blockid);
+        std::vector<TensorType> buf(size);
+        tensor.get(blockid, buf);
+        auto   block_dims   = tensor.block_dims(blockid);
+        auto   block_offset = tensor.block_offsets(blockid);
+        auto   dim          = block_dims[0];
+        auto   offset       = block_offset[0];
+        size_t i            = 0;
+        for(auto p = offset; p < offset + dim; p++, i++) { buf[i * dim + i] = 1; }
+        tensor.put(blockid, buf);
+      }
+    }
+  }
+  ec.pg().barrier();
+  return tensor;
 }
 
 /**
@@ -697,11 +740,10 @@ void fill_sparse_tensor(LabeledTensor<TensorType>                               
   block_for(ec, ltensor, lambda);
 }
 
+// When redistribution of a tensor needs to happen on specific process group
 template<typename TensorType>
-Tensor<TensorType> redistribute_tensor(Tensor<TensorType> stensor, TiledIndexSpaceVec tis,
-                                       std::vector<size_t> spins = {}) {
-  ExecutionContext& ec = get_ec(stensor());
-
+Tensor<TensorType> redistribute_tensor(ExecutionContext& ec, Tensor<TensorType> stensor,
+                                       TiledIndexSpaceVec tis, std::vector<size_t> spins = {}) {
 #if defined(USE_UPCXX)
   ga_over_upcxx<TensorType>* wmn_ga = tamm_to_ga(ec, stensor);
 #else
@@ -724,6 +766,14 @@ Tensor<TensorType> redistribute_tensor(Tensor<TensorType> stensor, TiledIndexSpa
   return dtensor;
 }
 
+template<typename TensorType>
+Tensor<TensorType> redistribute_tensor(Tensor<TensorType> stensor, TiledIndexSpaceVec tis,
+                                       std::vector<size_t> spins = {}) {
+  ExecutionContext& ec = get_ec(stensor());
+
+  return redistribute_tensor(ec, stensor, tis, spins);
+}
+
 /**
  * @brief retile a tamm tensor
  *
@@ -736,7 +786,7 @@ void retile_tamm_tensor(Tensor<TensorType> stensor, Tensor<TensorType>& dtensor,
                         std::string tname = "") {
   auto io_t1 = std::chrono::high_resolution_clock::now();
 
-  ExecutionContext& ec   = get_ec(stensor());
+  ExecutionContext& ec   = get_ec(dtensor());
   int               rank = ec.pg().rank().value();
 
 #if defined(USE_UPCXX)
@@ -774,7 +824,7 @@ TensorType linf_norm(LabeledTensor<TensorType> ltensor) {
   auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor);
 #if defined(USE_UPCXX)
   upcxx::team* sub_comm =
-    new upcxx::team(gec.pg().team()->split(rank < subranks ? 0 : upcxx::team::color_none, 0));
+    new upcxx::team(gec.pg().comm()->split(rank < subranks ? 0 : upcxx::team::color_none, 0));
 #else
   MPI_Comm sub_comm;
   subcomm_from_subranks(gec, subranks, sub_comm);
@@ -842,7 +892,7 @@ void apply_ewise_ip(LabeledTensor<TensorType> ltensor, std::function<TensorType(
   auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor);
 #if defined(USE_UPCXX)
   upcxx::team* sub_comm = new upcxx::team(
-    gec.pg().team()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
+    gec.pg().comm()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
 #else
   MPI_Comm sub_comm;
   subcomm_from_subranks(gec, subranks, sub_comm);
@@ -1030,10 +1080,24 @@ Tensor<TensorType> sqrt(Tensor<TensorType> tensor) {
   return sqrt(tensor(), false);
 }
 
+// Normally, a setop is used instead of this routine.
 template<typename TensorType>
-void random_ip(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
+void set_val_ip(LabeledTensor<TensorType> ltensor, TensorType alpha) {
+  std::function<TensorType(TensorType)> func = [&](TensorType a) { return alpha; };
+  apply_ewise_ip(ltensor, func);
+}
+
+template<typename TensorType>
+void set_val_ip(Tensor<TensorType> tensor, TensorType alpha) {
+  set_val_ip(tensor(), alpha);
+}
+
+template<typename TensorType>
+void random_ip(LabeledTensor<TensorType> ltensor, unsigned int seed = 0) {
   std::mt19937                           generator(get_ec(ltensor).pg().rank().value());
   std::uniform_real_distribution<double> tensor_rand_dist(0.0, 1.0);
+
+  if(seed > 0) { generator.seed(seed); }
 
   if constexpr(!tamm::internal::is_complex_v<TensorType>) {
     std::function<TensorType(TensorType)> func = [&](TensorType a) {
@@ -1050,8 +1114,8 @@ void random_ip(LabeledTensor<TensorType> ltensor, bool is_lt = true) {
 }
 
 template<typename TensorType>
-void random_ip(Tensor<TensorType> tensor) {
-  random_ip(tensor(), false);
+void random_ip(Tensor<TensorType> tensor, unsigned int seed = 0) {
+  random_ip(tensor(), seed);
 }
 
 template<typename TensorType>
@@ -1067,7 +1131,7 @@ TensorType sum(LabeledTensor<TensorType> ltensor) {
   auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor);
 #if defined(USE_UPCXX)
   upcxx::team* sub_comm = new upcxx::team(
-    gec.pg().team()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
+    gec.pg().comm()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
 #else
   MPI_Comm sub_comm;
   subcomm_from_subranks(gec, subranks, sub_comm);
@@ -1165,7 +1229,7 @@ TensorType norm(ExecutionContext& gec, LabeledTensor<TensorType> ltensor) {
   auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor);
 #if defined(USE_UPCXX)
   upcxx::team* sub_comm =
-    new upcxx::team(gec.pg().team()->split(rank < subranks ? 0 : upcxx::team::color_none, 0));
+    new upcxx::team(gec.pg().comm()->split(rank < subranks ? 0 : upcxx::team::color_none, 0));
 #else
   MPI_Comm sub_comm;
   subcomm_from_subranks(gec, subranks, sub_comm);
@@ -1572,8 +1636,11 @@ template<typename TensorType>
 void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> tensor,
                               bool is_bc = true) {
   const auto ndims = bc_tensor.num_modes();
-  EXPECTS(ndims == 2);
-  if(is_bc) EXPECTS(bc_tensor.is_block_cyclic());
+
+  if(is_bc) {
+    EXPECTS(ndims == 2);
+    EXPECTS(bc_tensor.is_block_cyclic());
+  }
   EXPECTS(bc_tensor.kind() == TensorBase::TensorKind::dense);
   EXPECTS(bc_tensor.distribution().kind() == DistributionKind::dense);
 
@@ -1615,6 +1682,26 @@ void from_block_cyclic_tensor(Tensor<TensorType> bc_tensor, Tensor<TensorType> t
   };
 
   block_for(ec, tensor(), tamm_bc_lambda);
+}
+
+// tamm does not support set, add, mult ops for dense tensors
+template<typename TensorType>
+void copy_dense_tensor(Tensor<TensorType> stensor, Tensor<TensorType> dtensor) {
+  EXPECTS(stensor.kind() == TensorBase::TensorKind::dense);
+  EXPECTS(stensor.distribution().kind() == DistributionKind::dense);
+  EXPECTS(dtensor.kind() == TensorBase::TensorKind::dense);
+  EXPECTS(dtensor.distribution().kind() == DistributionKind::dense);
+
+  // stensor might be on a smaller process group
+  ExecutionContext& ec = get_ec(stensor());
+
+  auto tamm_bc_lambda = [&](const IndexVector& blockid) {
+    std::vector<TensorType> buffer(stensor.block_size(blockid));
+    stensor.get(blockid, buffer);
+    dtensor.put(blockid, buffer);
+  };
+
+  block_for(ec, dtensor(), tamm_bc_lambda);
 }
 
 // convert dense tamm tensor to regular tamm tensor
@@ -1957,14 +2044,14 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
       size_t c = 0;
       if(ndims == 1) {
         for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++, c++) {
-          if(func({i}) && nz_check(buf[c])) tstring << i + 1 << "   " << buf[c] << std::endl;
+          if(func({i}) && nz_check(buf[c])) tstring << i + 1 << "   " << buf[c] << '\n';
         }
       }
       else if(ndims == 2) {
         for(size_t i = block_offset[0]; i < block_offset[0] + block_dims[0]; i++) {
           for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++, c++) {
             if(func({i, j}) && nz_check(buf[c]))
-              tstring << i + 1 << "   " << j + 1 << "   " << buf[c] << std::endl;
+              tstring << i + 1 << "   " << j + 1 << "   " << buf[c] << '\n';
           }
         }
       }
@@ -1973,8 +2060,7 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
           for(size_t j = block_offset[1]; j < block_offset[1] + block_dims[1]; j++) {
             for(size_t k = block_offset[2]; k < block_offset[2] + block_dims[2]; k++, c++) {
               if(func({i, j, k}) && nz_check(buf[c]))
-                tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << buf[c]
-                        << std::endl;
+                tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << buf[c] << '\n';
             }
           }
         }
@@ -1986,7 +2072,7 @@ void print_dense_tensor(const Tensor<T>& tensor, std::function<bool(std::vector<
               for(size_t l = block_offset[3]; l < block_offset[3] + block_dims[3]; l++, c++) {
                 if(func({i, j, k, l}) && nz_check(buf[c]))
                   tstring << i + 1 << "   " << j + 1 << "   " << k + 1 << "   " << l + 1 << "   "
-                          << buf[c] << std::endl;
+                          << buf[c] << '\n';
               }
             }
           }

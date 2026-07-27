@@ -5,10 +5,6 @@
 #include "ga/ga.h"
 #include "tamm/memory_manager.hpp"
 
-#if defined(USE_UPCXX_DISTARRAY)
-#include <type_traits>
-#include <upcxx-extras/dist_array.hpp>
-#endif
 #include <numeric>
 #include <string>
 #include <vector>
@@ -41,20 +37,11 @@ public:
 
 private:
 #if defined(USE_UPCXX)
-#if defined(USE_UPCXX_DISTARRAY)
-  // Dist array data structures
-  upcxx::extras::dist_array<float>*                                               daf_;
-  upcxx::extras::dist_array<double>*                                              dad_;
-  upcxx::extras::dist_array<SingleComplex>*                                       dasc_;
-  upcxx::extras::dist_array<DoubleComplex>*                                       dadc_;
-  std::unordered_map<upcxx::intrank_t, std::chrono::duration<double, std::micro>> lookup;
-#else
   // UPC++ data structures
   upcxx::global_ptr<uint8_t>* gptrs_;
   ElementType                 eltype_;
   size_t                      eltype_size_;
-#endif
-  upcxx::future<> fut_ = upcxx::make_future();
+  upcxx::future<>             fut_ = upcxx::make_future();
 #else
   // GA data structures
   int                  ga_;
@@ -93,64 +80,15 @@ public:
       case ElementType::double_precision: return sizeof(double);
       case ElementType::single_complex: return sizeof(SingleComplex);
       case ElementType::double_complex: return sizeof(DoubleComplex);
-      case ElementType::invalid:
-      default: UNREACHABLE();
+      // case ElementType::invalid:
+      default: UNREACHABLE(); return 0;
     }
   }
 
 #if defined(USE_UPCXX)
-#if defined(USE_UPCXX_DISTARRAY)
-  void alloc_coll_upcxx_dist_array(ElementType eltype, Size local_nelements, MemoryRegionGA* pmr,
-                                   int nranks, size_t element_size, int64_t nels) {
-    upcxx::team* team = pg_.team();
-
-    size_t loc_size;
-    pmr->daf_  = nullptr;
-    pmr->dad_  = nullptr;
-    pmr->dasc_ = nullptr;
-    pmr->dadc_ = nullptr;
-
-    switch(eltype) {
-      case ElementType::single_precision:
-        pmr->daf_ = new upcxx::extras::dist_array<float>(
-          nranks * nels, nels, *team, upcxx::extras::dist_array<float>::params(nranks));
-        loc_size = pmr->daf_->process_size(team->rank_me());
-        memset(pmr->daf_->data(), 0x00, nels * element_size);
-        break;
-      case ElementType::double_precision:
-        pmr->dad_ = new upcxx::extras::dist_array<double>(
-          nranks * nels, nels, *team, upcxx::extras::dist_array<double>::params(nranks));
-        loc_size = pmr->dad_->process_size(team->rank_me());
-        memset(pmr->dad_->data(), 0x00, nels * element_size);
-        break;
-      case ElementType::single_complex:
-        pmr->dasc_ = new upcxx::extras::dist_array<SingleComplex>(
-          nranks * nels, nels, *team, upcxx::extras::dist_array<SingleComplex>::params(nranks));
-        loc_size = pmr->dasc_->process_size(team->rank_me());
-        memset(pmr->dasc_->data(), 0x00, nels * element_size);
-        break;
-      case ElementType::double_complex:
-        pmr->dadc_ = new upcxx::extras::dist_array<DoubleComplex>(
-          nranks * nels, nels, *team, upcxx::extras::dist_array<DoubleComplex>::params(nranks));
-        loc_size = pmr->dadc_->process_size(team->rank_me());
-        memset(pmr->dadc_->data(), 0x00, nels * element_size);
-        break;
-      case ElementType::invalid:
-      default:
-        fprintf(stderr, "Rank %d reached unreachable code in alloc_call\n", upcxx::rank_me());
-        UNREACHABLE();
-    }
-
-    int64_t minelts = upcxx::reduce_all(loc_size, upcxx::op_fast_min, *team).wait();
-    int64_t maxelts = upcxx::reduce_all(loc_size, upcxx::op_fast_max, *team).wait();
-    if(minelts != maxelts) {
-      abort(); // only allocating same # of elements on each rank
-    }
-  }
-#else // USE_UPCXX_DISTARRAY
   void alloc_coll_upcxx(ElementType eltype, Size local_nelements, MemoryRegionGA* pmr, int nranks,
                         int64_t element_size, int64_t nels) {
-    upcxx::team* team     = pg_.team();
+    upcxx::team* team     = pg_.comm();
     pmr->gptrs_           = new upcxx::global_ptr<uint8_t>[nranks];
     pmr->eltype_          = eltype;
     pmr->eltype_size_     = get_element_size(eltype);
@@ -183,7 +121,6 @@ public:
     for(int r = 0; r < nranks; r++) { pmr->gptrs_[r] = futs[r].wait(); }
   }
 #endif
-#endif
 
   /**
    * @copydoc MemoryManager::alloc_coll
@@ -193,15 +130,11 @@ public:
     {
       pmr = new MemoryRegionGA(*this);
 
-      int     nranks       = pg_.size().value();
-      int64_t element_size = get_element_size(eltype);
-      int64_t nels         = local_nelements.value();
+      int     nranks = pg_.size().value();
+      int64_t nels   = local_nelements.value();
 #if defined(USE_UPCXX)
-#if defined(USE_UPCXX_DISTARRAY)
-      alloc_coll_upcxx_dist_array(eltype, local_nelements, pmr, nranks, element_size, nels);
-#else  // USE_UPCXX_DISTARRAY
+      int64_t element_size = get_element_size(eltype);
       alloc_coll_upcxx(eltype, local_nelements, pmr, nranks, element_size, nels);
-#endif // USE_UPCXX_DISTARRAY
 #else  // USE_UPCXX
       int ga_pg_default = GA_Pgroup_get_default();
       GA_Pgroup_set_default(ga_pg_);
@@ -312,17 +245,9 @@ public:
     MemoryRegionGA* pmr    = new MemoryRegionGA(*this);
 
 #if defined(USE_UPCXX)
-#if defined(USE_UPCXX_DISTARRAY)
-    pmr->lookup = mr_rhs.lookup;
-    pmr->daf_   = mr_rhs.daf_;
-    pmr->dad_   = mr_rhs.dad_;
-    pmr->dasc_  = mr_rhs.dasc_;
-    pmr->dadc_  = mr_rhs.dadc_;
-#else
     pmr->gptrs_       = mr_rhs.gptrs_;
     pmr->eltype_      = mr_rhs.eltype_;
     pmr->eltype_size_ = mr_rhs.eltype_size_;
-#endif
 #else
     pmr->map_    = mr_rhs.map_;
     pmr->eltype_ = mr_rhs.eltype_;
@@ -349,23 +274,14 @@ public:
   }
 
 protected:
-  explicit MemoryManagerGA(ProcGroup pg
-#if defined(USE_UPCXX_DISTARRAY)
-                           ,
-                           upcxx::intrank_t hint = 0
-#endif
-                           ):
-    MemoryManager{pg, MemoryManagerKind::ga} {
+  explicit MemoryManagerGA(ProcGroup pg): MemoryManager{pg, MemoryManagerKind::ga} {
     EXPECTS(pg.is_valid());
 #if defined(USE_UPCXX)
-    team_ = pg.team();
-#if defined(USE_UPCXX_DISTARRAY)
-    slots = (hint ? hint : pg.size().value());
-#endif
-#else  // USE_UPCXX
+    team_ = pg.comm();
+#else
     pg_    = pg;
     ga_pg_ = pg.ga_pg();
-#endif // USE_UPCXX
+#endif
   }
 
   ~MemoryManagerGA() = default;
@@ -380,66 +296,8 @@ public:
 #endif
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 #if defined(USE_UPCXX)
-#if defined(USE_UPCXX_DISTARRAY)
-    if(mr.daf_) mr.daf_->destroy();
-    else if(mr.dad_) mr.dad_->destroy();
-    else if(mr.dasc_) mr.dasc_->destroy();
-    else if(mr.dadc_) mr.dadc_->destroy();
-    else {
-      fprintf(stderr, "Rank %d reached unreachable code in dealloc_call\n", upcxx::rank_me());
-      UNREACHABLE();
-    }
-    size_t orig_size  = upcxx::reduce_one(mr.lookup.size(), upcxx::op_fast_add, 0, *team_).wait();
-    size_t again_size = upcxx::reduce_one(again.size(), upcxx::op_fast_add, 0, *team_).wait();
-    size_t near_size  = upcxx::reduce_one(near.size(), upcxx::op_fast_add, 0, *team_).wait();
-    size_t far_size   = upcxx::reduce_one(far.size(), upcxx::op_fast_add, 0, *team_).wait();
-
-    auto zero = std::chrono::duration<double, std::micro>::zero();
-    for(auto& it: mr.lookup) zero += it.second;
-    auto orig_avg = zero.count();
-    if(mr.lookup.size()) orig_avg /= mr.lookup.size();
-    auto again_avg = std::accumulate(again.begin(), again.end(), zero).count();
-    if(again.size()) again_avg /= again.size();
-    auto near_avg = std::accumulate(near.begin(), near.end(), zero).count();
-    if(near.size()) near_avg /= near.size();
-    auto far_avg = std::accumulate(far.begin(), far.end(), zero).count();
-    if(far.size()) far_avg /= far.size();
-
-    auto orig_sum  = upcxx::reduce_one(orig_avg, upcxx::op_fast_add, 0, *team_).wait();
-    auto again_sum = upcxx::reduce_one(again_avg, upcxx::op_fast_add, 0, *team_).wait();
-    auto near_sum  = upcxx::reduce_one(near_avg, upcxx::op_fast_add, 0, *team_).wait();
-    auto far_sum   = upcxx::reduce_one(far_avg, upcxx::op_fast_add, 0, *team_).wait();
-
-    if(team_->rank_me() == 0) {
-      size_t nranks = team_->rank_n();
-      size_t total  = near_size + far_size + orig_size + again_size;
-      std::cout << std::endl;
-      std::cout << "MEMORY_MANAGER_GA: pure blocking" << std::endl;
-      std::cout << nranks << " ranks with " << slots << " slots per cache" << std::endl;
-      std::cout << orig_size << " of " << total << " lookups were for new ranks" << std::endl;
-      std::cout << "new lookups were " << (100. * orig_size) / (slots * nranks) << "% of cache size"
-                << std::endl;
-      std::cout << 100. * far_size / total << "% of lookups were off-node" << std::endl;
-      std::cout << "Average time to obtain pointers" << std::endl;
-      if(orig_size) std::cout << "\tnew rank: " << orig_sum / nranks << " us" << std::endl;
-      else std::cout << "\tno lookups of new ranks" << std::endl;
-      if(again_size) std::cout << "\trepeat rank: " << again_sum / nranks << " us" << std::endl;
-      else std::cout << "\tno lookups of previous ranks" << std::endl;
-      if(near_size) std::cout << "\tlocal rank: " << near_sum / nranks << " us" << std::endl;
-      else std::cout << "\tno lookups of local ranks" << std::endl;
-      if(far_size) std::cout << "\tremote rank: " << far_sum / nranks << " us" << std::endl;
-      else std::cout << "\tno lookups of remote ranks" << std::endl;
-      std::cout << std::endl;
-    }
-    again.clear();
-    near.clear();
-    far.clear();
-    mr.lookup.clear();
-    pg_.barrier();
-#else
     upcxx::delete_array(mr.gptrs_[pg_.rank().value()]);
-    mr.gptrs_                                    = NULL;
-#endif
+    mr.gptrs_ = nullptr;
     upcxx::barrier(*team_);
 #else  // USE_UPCXX
     NGA_Destroy(mr.ga_);
@@ -456,18 +314,7 @@ public:
 #endif
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 #if defined(USE_UPCXX)
-#if defined(USE_UPCXX_DISTARRAY)
-    if(mr.daf_) mr.daf_ = nullptr;
-    else if(mr.dad_) mr.dad_ = nullptr;
-    else if(mr.dasc_) mr.dasc_ = nullptr;
-    else if(mr.dadc_) mr.dadc_ = nullptr;
-    else {
-      fprintf(stderr, "Rank %d reached unreachable code in detach_call\n", upcxx::rank_me());
-      UNREACHABLE();
-    }
-#else
-    mr.gptrs_                                    = NULL;
-#endif
+    mr.gptrs_ = nullptr;
     upcxx::barrier(*team_);
 #else  // USE_UPCXX
     mr.ga_ = -1;
@@ -480,21 +327,10 @@ public:
   const void* access(const MemoryRegion& mrb, Offset off) const override {
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
 #if defined(USE_UPCXX)
-#if defined(USE_UPCXX_DISTARRAY)
-    if(mr.daf_) return static_cast<void*>(mr.daf_->data() + off.value());
-    else if(mr.dad_) return static_cast<void*>(mr.dad_->data() + off.value());
-    else if(mr.dasc_) return static_cast<void*>(mr.dasc_->data() + off.value());
-    else if(mr.dadc_) return static_cast<void*>(mr.dadc_->data() + off.value());
-    else {
-      fprintf(stderr, "Rank %d reached unreachable code in access\n", upcxx::rank_me());
-      UNREACHABLE();
-    }
-#else
     size_t                     element_size      = mr.eltype_size_;
     size_t                     local_byte_offset = off.value() * element_size;
     upcxx::global_ptr<uint8_t> local_arr         = mr.gptrs_[pg_.rank().value()];
     return static_cast<void*>(local_arr.local() + local_byte_offset);
-#endif
 #else
     Proc      proc{pg_.rank()};
     TAMM_SIZE nels{1};
@@ -512,55 +348,8 @@ public:
   void get(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, void* to_buf) override {
 #if defined(USE_UPCXX)
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
-#if defined(USE_UPCXX_DISTARRAY)
-    upcxx::future<>                                f;
-    std::chrono::high_resolution_clock::time_point start, end;
-    if(mr.daf_) {
-      size_t idx = mr.daf_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                         = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<float> gptr = mr.daf_->ptr(idx).wait();
-      end                           = std::chrono::high_resolution_clock::now();
-      f                             = upcxx::rget(gptr, (float*) to_buf, nelements.value());
-    }
-    else if(mr.dad_) {
-      size_t idx = mr.dad_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                          = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<double> gptr = mr.dad_->ptr(idx).wait();
-      end                            = std::chrono::high_resolution_clock::now();
-      f                              = upcxx::rget(gptr, (double*) to_buf, nelements.value());
-    }
-    else if(mr.dasc_) {
-      size_t idx = mr.dasc_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                                 = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<SingleComplex> gptr = mr.dasc_->ptr(idx).wait();
-      end                                   = std::chrono::high_resolution_clock::now();
-      f = upcxx::rget(gptr, (SingleComplex*) to_buf, nelements.value());
-    }
-    else if(mr.dadc_) {
-      size_t idx = mr.dadc_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                                 = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<DoubleComplex> gptr = mr.dadc_->ptr(idx).wait();
-      end                                   = std::chrono::high_resolution_clock::now();
-      f = upcxx::rget(gptr, (DoubleComplex*) to_buf, nelements.value());
-    }
-    else {
-      fprintf(stderr, "Rank %d reached unreachable code in get\n", upcxx::rank_me());
-      UNREACHABLE();
-    }
-    auto elapsed =
-      std::chrono::duration_cast<std::chrono::duration<double, std::micro>>(end - start);
-    if(mr.lookup.find(proc.value()) == mr.lookup.end()) mr.lookup.insert({proc.value(), elapsed});
-    else again.push_back(elapsed);
-    if(upcxx::local_team_contains((*team_)[proc.value()])) near.push_back(elapsed);
-    else far.push_back(elapsed);
-#else
-    upcxx::future<> f = upcxx::rget(mr.gptrs_[proc.value()] + off.value() * mr.eltype_size_,
-                                    (uint8_t*) to_buf, nelements.value() * mr.eltype_size_);
-#endif
+    upcxx::future<> f  = upcxx::rget(mr.gptrs_[proc.value()] + off.value() * mr.eltype_size_,
+                                     (uint8_t*) to_buf, nelements.value() * mr.eltype_size_);
     f.wait();
 #else
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
@@ -577,56 +366,9 @@ public:
               DataCommunicationHandlePtr data_comm_handle) override {
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 #if defined(USE_UPCXX)
-#if defined(USE_UPCXX_DISTARRAY)
-    upcxx::future<>                                f;
-    std::chrono::high_resolution_clock::time_point start, end;
-    if(mr.daf_) {
-      size_t idx = mr.daf_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                         = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<float> gptr = mr.daf_->ptr(idx).wait();
-      end                           = std::chrono::high_resolution_clock::now();
-      f                             = upcxx::rget(gptr, (float*) to_buf, nelements.value());
-    }
-    else if(mr.dad_) {
-      size_t idx = mr.dad_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                          = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<double> gptr = mr.dad_->ptr(idx).wait();
-      end                            = std::chrono::high_resolution_clock::now();
-      f                              = upcxx::rget(gptr, (double*) to_buf, nelements.value());
-    }
-    else if(mr.dasc_) {
-      size_t idx = mr.dasc_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                                 = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<SingleComplex> gptr = mr.dasc_->ptr(idx).wait();
-      end                                   = std::chrono::high_resolution_clock::now();
-      f = upcxx::rget(gptr, (SingleComplex*) to_buf, nelements.value());
-    }
-    else if(mr.dadc_) {
-      size_t idx = mr.dadc_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                                 = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<DoubleComplex> gptr = mr.dadc_->ptr(idx).wait();
-      end                                   = std::chrono::high_resolution_clock::now();
-      f = upcxx::rget(gptr, (DoubleComplex*) to_buf, nelements.value());
-    }
-    else {
-      fprintf(stderr, "Rank %d reached unreachable code in nb_get\n", upcxx::rank_me());
-      UNREACHABLE();
-    }
-    auto elapsed =
-      std::chrono::duration_cast<std::chrono::duration<double, std::micro>>(end - start);
-    if(mr.lookup.find(proc.value()) == mr.lookup.end()) mr.lookup.insert({proc.value(), elapsed});
-    else again.push_back(elapsed);
-    if(upcxx::local_team_contains((*team_)[proc.value()])) near.push_back(elapsed);
-    else far.push_back(elapsed);
-#else
     upcxx::future<> f = upcxx::rget(mr.gptrs_[proc.value()] + off.value() * mr.eltype_size_,
                                     (uint8_t*) to_buf, nelements.value() * mr.eltype_size_);
-#endif
-    mr.fut_ = upcxx::when_all(mr.fut_, f);
+    mr.fut_           = upcxx::when_all(mr.fut_, f);
 #else
     TAMM_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     int64_t   lo = ioffset, hi = ioffset + nelements.value() - 1, ld = -1;
@@ -647,57 +389,9 @@ public:
            const void* from_buf) override {
 #if defined(USE_UPCXX)
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
-#if defined(USE_UPCXX_DISTARRAY)
-    std::chrono::high_resolution_clock::time_point start, end;
-    if(mr.daf_) {
-      size_t idx = mr.daf_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                         = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<float> gptr = mr.daf_->ptr(idx).wait();
-      end                           = std::chrono::high_resolution_clock::now();
-      upcxx::rput((float*) from_buf, gptr, nelements.value()).wait();
-    }
-    else if(mr.dad_) {
-      size_t idx = mr.dad_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                          = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<double> gptr = mr.dad_->ptr(idx).wait();
-      end                            = std::chrono::high_resolution_clock::now();
-      upcxx::rput((double*) from_buf, gptr, nelements.value()).wait();
-    }
-    else if(mr.dasc_) {
-      size_t idx = mr.dasc_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                                 = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<SingleComplex> gptr = mr.dasc_->ptr(idx).wait();
-      end                                   = std::chrono::high_resolution_clock::now();
-      upcxx::rput((SingleComplex*) from_buf, gptr, nelements.value()).wait();
-    }
-    else if(mr.dadc_) {
-      size_t idx = mr.dadc_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                                 = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<DoubleComplex> gptr = mr.dadc_->ptr(idx).wait();
-      end                                   = std::chrono::high_resolution_clock::now();
-      upcxx::rput((DoubleComplex*) from_buf, gptr, nelements.value()).wait();
-    }
-    else {
-      fprintf(stderr, "Rank %d reached unreachable code in put\n", upcxx::rank_me());
-      UNREACHABLE();
-    }
-
-    auto elapsed =
-      std::chrono::duration_cast<std::chrono::duration<double, std::micro>>(end - start);
-    if(mr.lookup.find(proc.value()) == mr.lookup.end()) mr.lookup.insert({proc.value(), elapsed});
-    else again.push_back(elapsed);
-    if(upcxx::local_team_contains((*team_)[proc.value()])) near.push_back(elapsed);
-    else far.push_back(elapsed);
-
-#else  // USE_UPCXX_DISTARRAY
     upcxx::rput((uint8_t*) from_buf, mr.gptrs_[proc.value()] + off.value() * mr.eltype_size_,
                 nelements.value() * mr.eltype_size_)
       .wait();
-#endif // USE_UPCXX_DISTARRAY
 #else
     const MemoryRegionGA& mr = static_cast<const MemoryRegionGA&>(mrb);
     TAMM_SIZE             ioffset{mr.map_[proc.value()] + off.value()};
@@ -711,57 +405,10 @@ public:
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 
 #if defined(USE_UPCXX)
-#if defined(USE_UPCXX_DISTARRAY)
-    std::chrono::high_resolution_clock::time_point start, end;
-    upcxx::future<>                                f;
-    if(mr.daf_) {
-      size_t idx = mr.daf_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                         = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<float> gptr = mr.daf_->ptr(idx).wait();
-      end                           = std::chrono::high_resolution_clock::now();
-      f                             = upcxx::rput((float*) from_buf, gptr, nelements.value());
-    }
-    else if(mr.dad_) {
-      size_t idx = mr.dad_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                          = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<double> gptr = mr.dad_->ptr(idx).wait();
-      end                            = std::chrono::high_resolution_clock::now();
-      f                              = upcxx::rput((double*) from_buf, gptr, nelements.value());
-    }
-    else if(mr.dasc_) {
-      size_t idx = mr.dasc_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                                 = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<SingleComplex> gptr = mr.dasc_->ptr(idx).wait();
-      end                                   = std::chrono::high_resolution_clock::now();
-      f = upcxx::rput((SingleComplex*) from_buf, gptr, nelements.value());
-    }
-    else if(mr.dadc_) {
-      size_t idx = mr.dadc_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                                 = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<DoubleComplex> gptr = mr.dadc_->ptr(idx).wait();
-      end                                   = std::chrono::high_resolution_clock::now();
-      f = upcxx::rput((DoubleComplex*) from_buf, gptr, nelements.value());
-    }
-    else {
-      fprintf(stderr, "Rank %d reached unreachable code in nb_put\n", upcxx::rank_me());
-      UNREACHABLE();
-    }
-    auto elapsed =
-      std::chrono::duration_cast<std::chrono::duration<double, std::micro>>(end - start);
-    if(mr.lookup.find(proc.value()) == mr.lookup.end()) mr.lookup.insert({proc.value(), elapsed});
-    else again.push_back(elapsed);
-    if(upcxx::local_team_contains((*team_)[proc.value()])) near.push_back(elapsed);
-    else far.push_back(elapsed);
-#else
     upcxx::future<> f = upcxx::rput((uint8_t*) from_buf,
                                     mr.gptrs_[proc.value()] + off.value() * mr.eltype_size_,
                                     nelements.value() * mr.eltype_size_);
-#endif
-    mr.fut_ = upcxx::when_all(mr.fut_, f);
+    mr.fut_           = upcxx::when_all(mr.fut_, f);
 #else
     TAMM_SIZE ioffset{mr.map_[proc.value()] + off.value()};
     int64_t   lo = ioffset, hi = ioffset + nelements.value() - 1, ld = -1;
@@ -780,118 +427,6 @@ public:
   void add_helper(MemoryRegion& mrb, Proc proc, Offset off, Size nelements, const void* from_buf) {
     MemoryRegionGA& mr = static_cast<MemoryRegionGA&>(mrb);
 
-#if defined(USE_UPCXX_DISTARRAY)
-    std::chrono::high_resolution_clock::time_point start, end;
-    if(mr.daf_) {
-      size_t idx = mr.daf_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                         = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<float> gptr = mr.daf_->ptr(idx).wait();
-      end                           = std::chrono::high_resolution_clock::now();
-      upcxx::view<float> buf_view =
-        upcxx::make_view((float*) from_buf, (float*) from_buf + nelements.value());
-      upcxx::rpc_ff(
-        *team_, proc.value(),
-        [](const upcxx::global_ptr<float>& dst_buf, const upcxx::view<float>& src_buf,
-           upcxx::dist_object<int64_t>& executed_ops) {
-          float*             dst      = dst_buf.local();
-          float const* const src      = src_buf.begin();
-          int                lim      = src_buf.size();
-          int                nthreads = (lim >= 1000000 ? 2 : 1);
-          // #pragma omp parallel for schedule(static) firstprivate(dst, src, lim)
-          // num_threads(nthreads)
-          for(int i = 0; i < lim; i++) dst[i] += src[i];
-          *executed_ops += 1;
-        },
-        gptr, buf_view, *(pg_.get_recvd_ops_object()));
-    }
-    else if(mr.dad_) {
-      size_t idx = mr.dad_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                          = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<double> gptr = mr.dad_->ptr(idx).wait();
-      end                            = std::chrono::high_resolution_clock::now();
-      upcxx::view<double> buf_view =
-        upcxx::make_view((double*) from_buf, (double*) from_buf + nelements.value());
-      upcxx::rpc_ff(
-        *team_, proc.value(),
-        [](const upcxx::global_ptr<double>& dst_buf, const upcxx::view<double>& src_buf,
-           upcxx::dist_object<int64_t>& executed_ops) {
-          double*             dst      = dst_buf.local();
-          double const* const src      = src_buf.begin();
-          int                 lim      = src_buf.size();
-          int                 nthreads = (lim >= 1000000 ? 2 : 1);
-          // #pragma omp parallel for schedule(static) firstprivate(dst, src, lim)
-          // num_threads(nthreads)
-          for(int i = 0; i < lim; i++) dst[i] += src[i];
-          *executed_ops += 1;
-        },
-        gptr, buf_view, *(pg_.get_recvd_ops_object()));
-    }
-    else if(mr.dasc_) {
-      size_t idx = mr.dasc_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                                 = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<SingleComplex> gptr = mr.dasc_->ptr(idx).wait();
-      end                                   = std::chrono::high_resolution_clock::now();
-      upcxx::view<SingleComplex> buf_view =
-        upcxx::make_view((SingleComplex*) from_buf, (SingleComplex*) from_buf + nelements.value());
-      upcxx::rpc_ff(
-        *team_, proc.value(),
-        [](const upcxx::global_ptr<SingleComplex>& dst_buf,
-           const upcxx::view<SingleComplex>& src_buf, upcxx::dist_object<int64_t>& executed_ops) {
-          SingleComplex*             dst      = dst_buf.local();
-          SingleComplex const* const src      = src_buf.begin();
-          int                        lim      = src_buf.size();
-          int                        nthreads = (lim >= 1000000 ? 2 : 1);
-          // #pragma omp parallel for schedule(static) firstprivate(dst, src, lim)
-          // num_threads(nthreads)
-          for(int i = 0; i < lim; i++) {
-            dst[i].real += src[i].real;
-            dst[i].imag += src[i].imag;
-          }
-          *executed_ops += 1;
-        },
-        gptr, buf_view, *(pg_.get_recvd_ops_object()));
-    }
-    else if(mr.dadc_) {
-      size_t idx = mr.dadc_->process_size() * proc.value() +
-                   off.value(); // assumes equal allocation across ranks
-      start                                 = std::chrono::high_resolution_clock::now();
-      upcxx::global_ptr<DoubleComplex> gptr = mr.dadc_->ptr(idx).wait();
-      end                                   = std::chrono::high_resolution_clock::now();
-      upcxx::view<DoubleComplex> buf_view =
-        upcxx::make_view((DoubleComplex*) from_buf, (DoubleComplex*) from_buf + nelements.value());
-      upcxx::rpc_ff(
-        *team_, proc.value(),
-        [](const upcxx::global_ptr<DoubleComplex>& dst_buf,
-           const upcxx::view<DoubleComplex>& src_buf, upcxx::dist_object<int64_t>& executed_ops) {
-          DoubleComplex*             dst      = dst_buf.local();
-          DoubleComplex const* const src      = src_buf.begin();
-          int                        lim      = src_buf.size();
-          int                        nthreads = (lim >= 1000000 ? 2 : 1);
-          // #pragma omp parallel for schedule(static) firstprivate(dst, src, lim)
-          // num_threads(nthreads)
-          for(int i = 0; i < lim; i++) {
-            dst[i].real += src[i].real;
-            dst[i].imag += src[i].imag;
-          }
-          *executed_ops += 1;
-        },
-        gptr, buf_view, *(pg_.get_recvd_ops_object()));
-    }
-    else {
-      fprintf(stderr, "Rank %d reached unreachable code in nb_put\n", upcxx::rank_me());
-      UNREACHABLE();
-    }
-    auto elapsed =
-      std::chrono::duration_cast<std::chrono::duration<double, std::micro>>(end - start);
-    if(mr.lookup.find(proc.value()) == mr.lookup.end()) mr.lookup.insert({proc.value(), elapsed});
-    else again.push_back(elapsed);
-    if(upcxx::local_team_contains((*team_)[proc.value()])) near.push_back(elapsed);
-    else far.push_back(elapsed);
-
-#else // USE_UPCXX_DISTARRAY
     switch(mr.eltype_) {
       case ElementType::single_precision: {
         upcxx::global_ptr<float> typed_dst =
@@ -986,7 +521,6 @@ public:
       case ElementType::invalid:
       default: UNREACHABLE();
     }
-#endif
   }
 #endif // USE_UPCXX
 
@@ -1008,8 +542,8 @@ public:
       case ElementType::double_precision: alpha = reinterpret_cast<void*>(&dp_alpha); break;
       case ElementType::single_complex: alpha = reinterpret_cast<void*>(&scp_alpha); break;
       case ElementType::double_complex: alpha = reinterpret_cast<void*>(&dcp_alpha); break;
-      case ElementType::invalid:
-      default: UNREACHABLE();
+      // case ElementType::invalid:
+      default: alpha = nullptr; UNREACHABLE();
     }
     NGA_Acc64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, alpha);
 #endif
@@ -1032,8 +566,8 @@ public:
       case ElementType::double_precision: alpha = reinterpret_cast<void*>(&dp_alpha); break;
       case ElementType::single_complex: alpha = reinterpret_cast<void*>(&scp_alpha); break;
       case ElementType::double_complex: alpha = reinterpret_cast<void*>(&dcp_alpha); break;
-      case ElementType::invalid:
-      default: UNREACHABLE();
+      // case ElementType::invalid:
+      default: alpha = nullptr; UNREACHABLE();
     }
     data_comm_handle->resetCompletionStatus();
     NGA_NbAcc64(mr.ga_, &lo, &hi, const_cast<void*>(from_buf), &ld, alpha,
@@ -1054,10 +588,6 @@ public:
 private:
 #if defined(USE_UPCXX)
   upcxx::team* team_;
-#if defined(USE_UPCXX_DISTARRAY)
-  size_t                                                 slots;
-  std::vector<std::chrono::duration<double, std::micro>> near, far, again;
-#endif
 #else
   ProcGroup pg_;             /**< Underlying ProcGroup */
   int       ga_pg_;          /**< GA pgroup underlying pg_ */

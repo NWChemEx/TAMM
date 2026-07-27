@@ -25,12 +25,8 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #if defined(USE_UPCXX)
   pg_self_ = ProcGroup{team_self};
 
-#if defined(USE_UPCXX_DISTARRAY)
-  hint_ = pg.size().value();
-#endif
-
 #else
-  pg_self_  = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
+  pg_self_ = ProcGroup{MPI_COMM_SELF, ProcGroup::self_ga_pgroup()};
 #endif
 
 #if defined(USE_UPCXX)
@@ -38,8 +34,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #else
   ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_proc_nodeid(pg.rank().value()));
 #endif
-  nnodes_  = pg.size().value() / ranks_pn_;
-  gpus_pn_ = ranks_pn_ / ranks_per_gpu_pool();
+  nnodes_ = pg.size().value() / ranks_pn_;
 
 #if defined(__APPLE__)
   {
@@ -60,7 +55,7 @@ ExecutionContext::ExecutionContext(ProcGroup pg, DistributionKind default_dist_k
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   has_gpu_ = true;
   exhw_    = ExecutionHW::GPU;
-
+  gpus_pn_ = ranks_pn_ / ranks_per_gpu_pool();
   {
     size_t free_{};
     minfo_.gpu_name = getDeviceName() + ", " + getRuntimeVersion();

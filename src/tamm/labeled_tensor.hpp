@@ -3,6 +3,7 @@
 // #include "tamm/ops.hpp"
 #include "tamm/tensor.hpp"
 #include <type_traits>
+#include <utility>
 
 namespace tamm {
 template<typename T>
@@ -40,9 +41,9 @@ public:
   const StringLabelVec&    str_labels() const { return slv_; }
   const std::vector<bool>& str_map() const { return str_map_; }
 
-  void set_labels(const IndexLabelVec& ilv) {
+  void set_labels(IndexLabelVec ilv) {
     EXPECTS(ilv_.size() == ilv.size());
-    ilv_ = ilv;
+    ilv_ = std::move(ilv);
     slv_.clear();
     slv_.resize(ilv_.size());
     str_map_ = std::vector<bool>(ilv_.size(), false);
@@ -208,6 +209,26 @@ private:
     for(const auto& lbl: ilv_) {
       for(const auto& dlbl: lbl.secondary_labels()) { EXPECTS(lbl.primary_label() != dlbl); }
     }
+
+    auto tensor_base = tensor_.base_ptr();
+    EXPECTS(tensor_base != nullptr);
+
+    if(tensor_base->kind() == TensorBase::TensorKind::block_sparse) {
+      bool          has_non_zero = false;
+      LabelLoopNest loop_nest{ilv_};
+
+      for(const auto& blockid: loop_nest) {
+        auto translated_blockid =
+          internal::translate_blockid_with_labels(blockid, ilv_, tensor_.tiled_index_spaces());
+
+        if(tensor_base->is_non_zero(translated_blockid)) {
+          has_non_zero = true;
+          break;
+        }
+      }
+      EXPECTS_STR(has_non_zero, "Labeled tensor should be constructed over an allowed block!");
+    }
+
   } // validate
 
   void unpack(size_t index) {

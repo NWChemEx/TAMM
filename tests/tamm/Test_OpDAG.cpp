@@ -837,6 +837,9 @@ void test_gfcc_failed_case() {
   MPI_Comm subcomm;
   MPI_Comm_create(world_comm, subgroup, &subcomm);
 
+  MPI_Group_free(&world_group);
+  MPI_Group_free(&subgroup);
+
   ProcGroup         sub_pg           = ProcGroup::create_coll(subcomm);
   MemoryManagerGA*  sub_mgr          = MemoryManagerGA::create_coll(sub_pg);
   Distribution_NW*  sub_distribution = new Distribution_NW();

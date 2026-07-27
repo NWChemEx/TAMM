@@ -170,14 +170,17 @@ public:
       iss_.push_back(ibc.this_label().tiled_index_space());
       indep_indices_.push_back({});
       size_t pos = 0;
-      for(const TileLabelElement& slbl: ibc.this_label().secondary_labels()) {
-        auto it = std::find_if(labels.begin(), labels.end(), [&](const TiledIndexLabel& a) -> bool {
-          return a.primary_label() == slbl;
-        });
-        EXPECTS(it != labels.end());
-        EXPECTS(it - labels.begin() < static_cast<decltype(it - labels.begin())>(pos));
-        indep_indices_.back().push_back(it - labels.begin());
-        pos += 1;
+      if(ibc.this_label().secondary_labels().size() > 0) {
+        for(const TileLabelElement& slbl: ibc.this_label().secondary_labels()) {
+          auto it =
+            std::find_if(labels.begin(), labels.end(), [&](const TiledIndexLabel& a) -> bool {
+              return a.primary_label() == slbl;
+            });
+          EXPECTS(it != labels.end());
+          EXPECTS(it - labels.begin() < static_cast<decltype(it - labels.begin())>(pos));
+          indep_indices_.back().push_back(it - labels.begin());
+          pos += 1;
+        }
       }
 
       ub_indices_.push_back({});
@@ -347,13 +350,13 @@ public:
 
   template<typename Func>
   void iterate(Func&& func) const {
-    bool   dense_case = is_dense_case();
-    size_t ndim       = iss_.size();
+    // bool   dense_case = is_dense_case();
+    const int ndim = iss_.size();
 
     if(is_dense_case() && ndim <= 4) {
       IndexVector blockid(ndim);
       size_t      dims[ndim];
-      for(int i = 0; i < iss_.size(); i++) { dims[i] = iss_[i].num_tiles(); }
+      for(int i = 0; i < ndim; i++) { dims[i] = iss_[i].num_tiles(); }
       if(ndim == 0) { func(blockid); }
       else if(ndim == 1) {
         for(blockid[0] = 0; blockid[0] < dims[0]; ++blockid[0]) { func(blockid); }

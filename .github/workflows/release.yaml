@@ -1,0 +1,47 @@
+name: Release assets
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: ver
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build tarball
+        shell: bash
+        run: |
+          VER="${{ steps.ver.outputs.version }}"
+          NAME="tamm-${VER}"
+
+          git archive \
+            --format=tar.gz \
+            --prefix="${NAME}/" \
+            "$GITHUB_REF_NAME" \
+            > "${NAME}.tar.gz"
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: TAMM ${{ steps.ver.outputs.version }}
+          body: |
+            The TAMM ${{ steps.ver.outputs.version }} release is now available.
+
+            Documentation available at: https://tamm.readthedocs.io/
+          files: |
+            tamm-*.tar.gz
+

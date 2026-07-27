@@ -1,4 +1,4 @@
-The prerequisites needed to build this repository can be found
+The prerequisites needed to build this repository can be found :doc:`here <prerequisites>`.
 
 Build Instructions
 ==================
@@ -8,7 +8,7 @@ Dependencies
 
 **External dependencies**
 
-* cmake >= 3.22
+* cmake >= 3.26
 * MPI 
 * C++17 compiler (information on supported compilers here :doc:`here <prerequisites>`.)
 * CUDA >= 11.7 (Required only for CUDA builds)
@@ -84,15 +84,9 @@ In addition to the build options chosen, there are various build configurations 
 
 - :ref:`Build using Intel MKL <build-using-intel-mkl>`
 
-- :ref:`Build instructions for Summit using ESSL <build-summit-using-essl>`
-
-- :ref:`Build instructions for Summit using ESSL and UPC++ <build-summit-using-essl-and-upc++>`
-
 - :ref:`Build instructions for Frontier <build-frontier>`
 
 - :ref:`Build instructions for Perlmutter and Polaris <build-perlmutter-and-polaris>`
-
-- :ref:`SYCL build instructions <build-sycl>`
 
 - :ref:`Build instructions for Aurora <build-aurora>`
 
@@ -125,7 +119,7 @@ Default build on MACOS
 ::
 
    cd $REPO_ROOT_PATH/build 
-   CC=gcc-12 CXX=g++-12 FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
+   FC=gfortran cmake -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH -DLINALG_VENDOR=OpenBLAS ..
 
    make -j3
    make install
@@ -148,62 +142,6 @@ To enable CUDA build, add ``-DTAMM_ENABLE_CUDA=ON`` and ``-DGPU_ARCH=<value>``
    make -j3
    make install
 
-.. _build-summit-using-essl:
-
-Build instructions for Summit using ESSL
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
-
-   module load gcc
-   module load cmake
-   module load essl/6.3.0
-   module load cuda
-
-::
-
-   cd $REPO_ROOT_PATH/build
-
-   CC=gcc CXX=g++ FC=gfortran cmake \
-   -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
-   -DBLIS_CONFIG=power9 \
-   -DLINALG_VENDOR=IBMESSL -DTAMM_ENABLE_CUDA=ON \
-   -DLINALG_PREFIX=/sw/summit/essl/6.3.0/essl/6.3 ..
-
-   make -j3
-   make install
-
-.. _build-summit-using-essl-and-upc++:
-
-Build instructions for Summit using ESSL and UPC++
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. note:: UPC++ support is currently experimental.
-
-::
-
-   module load gcc
-   module load cmake
-   module load essl/6.3.0
-   module load cuda
-   module load upcxx
-
-::
-
-   cd $REPO_ROOT_PATH/build
-
-   UPCXX_CODEMODE=O3 CC=gcc CXX=upcxx FC=gfortran cmake \
-   -DCMAKE_BUILD_TYPE=Release \
-   -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
-   -DBLIS_CONFIG=power9 \
-   -DLINALG_VENDOR=IBMESSL \
-   -DLINALG_PREFIX=/sw/summit/essl/6.3.0/essl/6.3 \
-   -DTAMM_ENABLE_CUDA=ON \
-   -DUSE_UPCXX=ON ..
-
-   UPCXX_CODEMODE=O3 make -j3
-   UPCXX_CODEMODE=O3 make install
-
 .. _build-frontier:
 
 Build instructions for Frontier
@@ -211,10 +149,11 @@ Build instructions for Frontier
 
 ::
 
-   module load cray-python cmake 
-   module load cray-hdf5-parallel
-   module load cpe/23.05
-   module load rocm/5.5.1
+   module load cpe
+   module load cray-python cmake cray-hdf5-parallel
+   module load cce
+   module load cray-mpich
+   module load rocm
    export CRAYPE_LINK_TYPE=dynamic
 
 ::
@@ -225,7 +164,6 @@ Build instructions for Frontier
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DGPU_ARCH=gfx90a \
    -DTAMM_ENABLE_HIP=ON -DROCM_ROOT=$ROCM_PATH \
-   -DGCCROOT=/opt/gcc/12.2.0/snos \
    -DHDF5_ROOT=$HDF5_ROOT ..
 
    make -j3
@@ -237,22 +175,32 @@ Build instructions for Frontier
 Build instructions for Perlmutter and Polaris
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Perlmutter modules and env
+
 ::
 
    module load PrgEnv-gnu
-   module load craype-x86-milan
    module load cmake
    module load cpe-cuda
-
-   module load cudatoolkit (Perlmutter Only)
-   module load cudatoolkit-standalone (Polaris Only)
-
+   module load cudatoolkit
    module unload craype-accel-nvidia80
 
    export CRAYPE_LINK_TYPE=dynamic
    export MPICH_GPU_SUPPORT_ENABLED=0
 
-.. note:: Currently need to add ``-DUSE_CRAYSHASTA=ON`` to the cmake line below only for Polaris builds.
+Polaris modules and env
+
+:: 
+
+   module use /soft/modulefiles/
+   module load PrgEnv-gnu
+   module load cudatoolkit-standalone/12.6.1 spack-pe-base cmake
+   module unload craype-accel-nvidia80
+
+   export CRAYPE_LINK_TYPE=dynamic
+   export MPICH_GPU_SUPPORT_ENABLED=0   
+
+Common build steps
 
 ::
 
@@ -264,30 +212,6 @@ Build instructions for Perlmutter and Polaris
    make -j3
    make install
 
-.. _build-sycl:
-
-SYCL build instructions using Intel OneAPI
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
--  ``MPI:`` Only tested using ``MPICH``.
--  Set ROOT dir of the GCC installation (need gcc >= v9.1)
-
-::
-
-   export GCC_ROOT_PATH=/opt/gcc-9.1.0
-
-::
-
-   cd $REPO_ROOT_PATH/build 
-
-   CC=icx CXX=icpx FC=ifx cmake \
-   -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
-   -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=/opt/oneapi/mkl/latest \
-   -DTAMM_ENABLE_DPCPP=ON -DGCCROOT=$GCC_ROOT_PATH \
-   -DTAMM_CXX_FLAGS="-fma -ffast-math -fsycl -fsycl-default-sub-group-size 16 -fsycl-unnamed-lambda -fsycl-device-code-split=per_kernel -sycl-std=2020"
-
-   make -j3
-   make install
 
 .. _build-aurora:
 
@@ -295,11 +219,8 @@ Build instructions for Aurora
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 :: 
 
-   module use /soft/modulefiles/
-   module load spack-pe-gcc/0.4-rc1 numactl/2.0.14-gcc-testing cmake
-   module load oneapi/release/2023.12.15.001
-   export MPIR_CVAR_ENABLE_GPU=0
-   export GCC_ROOT_PATH=/opt/cray/pe/gcc/11.2.0/snos
+   module restore
+   module load cmake python
 
 ::
 
@@ -308,8 +229,8 @@ Build instructions for Aurora
    CC=icx CXX=icpx FC=ifx cmake \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=$MKLROOT \
-   -DTAMM_ENABLE_DPCPP=ON -DGCCROOT=$GCC_ROOT_PATH \
-   -DTAMM_CXX_FLAGS="-march=sapphirerapids -mtune=sapphirerapids -ffast-math -fsycl -fsycl-default-sub-group-size 16 -fsycl-unnamed-lambda -fsycl-device-code-split=per_kernel -sycl-std=2020"
+   -DTAMM_ENABLE_DPCPP=ON \
+   -DTAMM_CXX_FLAGS="-march=sapphirerapids -mtune=sapphirerapids -ffast-math -fsycl -fsycl-device-code-split=per_kernel -fsycl-targets=intel_gpu_pvc -sycl-std=2020"
 
    make -j12
    make install

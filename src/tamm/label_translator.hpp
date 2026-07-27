@@ -143,5 +143,3 @@ private:
 }; // class LabelTranslator
 
 } // namespace tamm::internal
-
-#pragma once

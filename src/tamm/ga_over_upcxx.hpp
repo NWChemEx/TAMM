@@ -554,7 +554,7 @@ public:
                                    k * chunks_per_dim[3] + l;
             ga_over_upcxx_chunk<T>* chunk = all_chunks[chunk_offset];
             fut                           = upcxx::when_all(
-                                        fut, chunk->get_any(low0, low1, low2, low3, high0, high1, high2, high3, out));
+              fut, chunk->get_any(low0, low1, low2, low3, high0, high1, high2, high3, out));
           }
         }
       }
@@ -596,7 +596,7 @@ public:
                                    k * chunks_per_dim[3] + l;
             ga_over_upcxx_chunk<T>* chunk = all_chunks[chunk_offset];
             fut                           = upcxx::when_all(
-                                        fut, chunk->put_any(low0, low1, low2, low3, high0, high1, high2, high3, in));
+              fut, chunk->put_any(low0, low1, low2, low3, high0, high1, high2, high3, in));
           }
         }
       }

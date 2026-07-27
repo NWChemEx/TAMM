@@ -18,7 +18,13 @@ void dlpno_test(const json& params) {
   size_t mo_size   = dim_sizes.at("MO");
   size_t occ_size  = dim_sizes.at("MO_occ");
   size_t virt_size = dim_sizes.at("MO_virt");
-  EXPECTS_STR(occ_size + virt_size == mo_size, "MO size should be equal to Virt + Occ!");
+  if((occ_size + virt_size) != mo_size) {
+    std::ostringstream os;
+    os << "[TAMM ERROR] MO(" << mo_size << ") size should be equal "
+       << "to Virt(" << virt_size << ") + Occ(" << occ_size << ")!\n"
+       << __FILE__ << ":L" << __LINE__;
+    tamm_terminate(os.str());
+  }
 
   size_t df_size   = dim_sizes.at("DF");
   size_t lmop_size = dim_sizes.at("LMOP");

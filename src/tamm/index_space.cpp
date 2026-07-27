@@ -160,4 +160,31 @@ bool operator>=(const IndexSpace& lhs, const IndexSpace& rhs) {
   return (lhs > rhs) || (lhs == rhs);
 }
 
+// Defined here (rather than in index_space_interface.hpp) so that the
+// std::vector<TiledIndexSpace> members are only ever destroyed/copied where
+// TiledIndexSpace is a complete type. Required since C++20.
+namespace internal {
+const std::vector<TiledIndexSpace>& empty_tiled_index_space_vec() {
+  static const std::vector<TiledIndexSpace> empty;
+  return empty;
+}
+} // namespace internal
+
+DependentIndexSpaceImpl::DependentIndexSpaceImpl(
+  const std::vector<TiledIndexSpace>&      indep_spaces,
+  const std::map<IndexVector, IndexSpace>& dep_space_relation):
+  dep_spaces_{indep_spaces}, dep_space_relation_{dep_space_relation}, named_ranges_{} {
+  max_size_ = 0;
+  for(const auto& pair: dep_space_relation) {
+    max_size_ = std::max(max_size_, pair.second.num_indices());
+  }
+}
+
+DependentIndexSpaceImpl::DependentIndexSpaceImpl(
+  const std::vector<TiledIndexSpace>& indep_spaces, const IndexSpace& ref_space,
+  const std::map<IndexVector, IndexSpace>& dep_space_relation):
+  dep_spaces_{indep_spaces}, dep_space_relation_{dep_space_relation}, named_ranges_{} {}
+
+size_t DependentIndexSpaceImpl::num_key_tiled_index_spaces() const { return dep_spaces_.size(); }
+
 } // namespace tamm

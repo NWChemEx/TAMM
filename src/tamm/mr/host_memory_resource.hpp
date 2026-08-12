@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cstddef>
+#include <span>
 #include <utility>
 
 namespace tamm::rmm::mr {
@@ -65,8 +66,41 @@ public:
    * @param alignment Alignment of the allocation
    * @return void* Pointer to the newly allocated memory
    */
-  void* allocate(std::size_t bytes, std::size_t alignment = alignof(std::max_align_t)) {
+  [[nodiscard]] void* allocate(std::size_t bytes,
+                               std::size_t alignment = alignof(std::max_align_t)) {
     return do_allocate(bytes, alignment);
+  }
+
+  /**
+   * @brief Allocate storage for `count` objects of type `T` and return it as a span.
+   *
+   * Prefer this over the raw `allocate`/`deallocate` pair. The returned span carries its own
+   * length, so the matching `deallocate(span)` derives the byte count instead of the caller
+   * recomputing `count * sizeof(T)` at a distant call site. A size mismatch between
+   * allocation and deallocation silently corrupts the pool's free list -- freeing short
+   * orphans the remainder forever, freeing long makes the pool hand out live memory -- and
+   * this API makes that mismatch impossible to express.
+   *
+   * @tparam T Element type
+   * @param count Number of elements
+   * @return std::span<T> over `count` default-uninitialized elements
+   */
+  template<typename T>
+  [[nodiscard]] std::span<T> allocate_span(std::size_t count) {
+    if(count == 0) { return {}; }
+    return {static_cast<T*>(allocate(count * sizeof(T), alignof(T))), count};
+  }
+
+  /**
+   * @brief Deallocate storage previously obtained from `allocate_span<T>`.
+   *
+   * @param span The span returned by `allocate_span`. Must not have been resized or
+   * subspanned -- the pool frees exactly `span.size_bytes()`.
+   */
+  template<typename T>
+  void deallocate(std::span<T> span) {
+    if(span.empty()) { return; }
+    deallocate(static_cast<void*>(span.data()), span.size_bytes(), alignof(T));
   }
 
   /**

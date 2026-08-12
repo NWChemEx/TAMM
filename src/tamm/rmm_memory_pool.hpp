@@ -11,10 +11,16 @@
 
 #include <tamm/errors.hpp>
 
+#include "tamm/mr/aligned.hpp"
 #include "tamm/mr/device_memory_resource.hpp"
 #include "tamm/mr/host_memory_resource.hpp"
 #include "tamm/mr/new_delete_resource.hpp"
 #include "tamm/mr/pool_memory_resource.hpp"
+
+#include <cstdint>
+#include <cstdlib>
+#include <iostream>
+#include <sstream>
 
 namespace tamm {
 
@@ -27,22 +33,36 @@ static const uint32_t tamm_enable_sprhbm = [] {
   return usinghbm;
 }();
 
-// TAMM_GPU_POOL
-static const uint32_t tamm_gpu_pool = [] {
-  uint32_t usinggpupool = 80;
-  if(const char* tammGpupoolsize = std::getenv("TAMM_GPU_POOL")) {
-    usinggpupool = std::atoi(tammGpupoolsize);
+// Parse a percentage-valued env var. Values outside (0,100] are rejected rather than
+// silently wrapped: these feed directly into the pool size, and e.g. TAMM_GPU_POOL=-50
+// would otherwise wrap through uint32_t to ~4.29e9 and produce a nonsense pool request.
+static uint32_t parse_pool_percent(const char* name, uint32_t default_value) {
+  const char* raw = std::getenv(name);
+  if(raw == nullptr) { return default_value; }
+
+  char*     end = nullptr;
+  long long val = std::strtoll(raw, &end, 10);
+  if(end == raw || *end != '\0' || val <= 0 || val > 100) {
+    std::ostringstream os;
+    os << "[TAMM ERROR] " << name << " must be an integer percentage in (0, 100]; got \"" << raw
+       << "\".\n"
+       << __FILE__ << ":L" << __LINE__;
+    tamm_terminate(os.str());
   }
-  return usinggpupool;
-}();
+  return static_cast<uint32_t>(val);
+}
+
+// TAMM_GPU_POOL
+static const uint32_t tamm_gpu_pool = parse_pool_percent("TAMM_GPU_POOL", 80);
 
 // TAMM_CPU_POOL
-static const uint32_t tamm_cpu_pool = [] {
-  uint32_t usingcpupool = 100;
-  if(const char* tammCpupoolsize = std::getenv("TAMM_CPU_POOL")) {
-    usingcpupool = std::atoi(tammCpupoolsize);
-  }
-  return usingcpupool;
+static const uint32_t tamm_cpu_pool = parse_pool_percent("TAMM_CPU_POOL", 100);
+
+// TAMM_RMM_DEBUG = 0(default), 1
+// When set, rank 0 reports the computed pool sizes and the inputs used to derive them.
+static const bool tamm_rmm_debug = [] {
+  const char* tammRmmDebug = std::getenv("TAMM_RMM_DEBUG");
+  return (tammRmmDebug != nullptr) && (std::atoi(tammRmmDebug) != 0);
 }();
 
 } // namespace detail
@@ -106,6 +126,15 @@ public:
     ranks_pn_ = GA_Cluster_nprocs(GA_Cluster_nodeid());
 #endif
 
+    // ranks_pn_ is used as a divisor when apportioning the host pool; a zero here would be
+    // an integer division by zero (SIGFPE) rather than a wrapped value.
+    if(ranks_pn_ <= 0) {
+      std::ostringstream os;
+      os << "[TAMM ERROR] Detected " << ranks_pn_ << " ranks per node; expected at least 1.\n"
+         << __FILE__ << ":L" << __LINE__;
+      tamm_terminate(os.str());
+    }
+
     long max_host_bytes{0};
 
     // Currently these checks are limited to CUDA & HIP.
@@ -122,13 +151,20 @@ public:
 
     if(world_rank_ == 0) { tamm::getHardwareGPUCount(&ngpus_per_node); }
 
+    // Only ngpus_per_node is rank-0 data. tamm_rpg is derived identically on every rank from
+    // ngpus_per_node below, so broadcasting it here (before it is computed) was a no-op.
 #if defined(USE_UPCXX)
-    upcxx::broadcast(&tamm_rpg, 0).wait();
     upcxx::broadcast(&ngpus_per_node, 0).wait();
 #else
-    MPI_Bcast(&tamm_rpg, 1, MPI_UNSIGNED, 0, GA_MPI_Comm());
     MPI_Bcast(&ngpus_per_node, 1, MPI_INT, 0, GA_MPI_Comm());
 #endif
+
+    if(ngpus_per_node <= 0) {
+      std::ostringstream os;
+      os << "[TAMM ERROR] Detected " << ngpus_per_node << " GPUs per node; expected at least 1.\n"
+         << __FILE__ << ":L" << __LINE__;
+      tamm_terminate(os.str());
+    }
 
     if(ranks_pn_ > ngpus_per_node) {
       if(ranks_pn_ % ngpus_per_node != 0) {
@@ -227,11 +263,48 @@ public:
                          : ranks_pn_);
 #endif
 
+    // Validate the host size before reserving anything from the GPU, so a bad host-memory
+    // query does not leave an orphaned device reservation behind when we terminate.
+    // max_host_bytes is a signed long fed by numa_node_size()/sysinfo(), either of which can
+    // report failure as a negative value; casting that to size_t would wrap to a huge request.
+    if(max_host_bytes <= 0) {
+      std::ostringstream os;
+      os << "[TAMM ERROR] Computed a non-positive CPU memory-pool size (" << max_host_bytes
+         << " bytes).\n"
+         << "  The available-memory query failed, or TAMM_CPU_POOL is too small.\n"
+         << __FILE__ << ":L" << __LINE__;
+      tamm_terminate(os.str());
+    }
+
+    size_t const max_host_bytes_aligned = rmm::detail::align_down(
+      static_cast<size_t>(max_host_bytes), rmm::detail::RMM_ALLOCATION_ALIGNMENT);
+
+    if(max_host_bytes_aligned == 0) {
+      std::ostringstream os;
+      os << "[TAMM ERROR] CPU memory-pool size rounds down to zero (" << max_host_bytes
+         << " bytes before alignment).\n"
+         << __FILE__ << ":L" << __LINE__;
+      tamm_terminate(os.str());
+    }
+
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
     size_t free{}, total{};
     gpuMemGetInfo(&free, &total);
     size_t max_device_bytes{0};
     max_device_bytes = ((detail::tamm_gpu_pool / 100.0) * free) / tamm_rpg;
+    // The pool is fixed-size and never grows, so hand it an aligned size; otherwise the
+    // trailing partial-alignment bytes are unusable and silently shrink the usable pool.
+    max_device_bytes =
+      rmm::detail::align_down(max_device_bytes, rmm::detail::RMM_ALLOCATION_ALIGNMENT);
+
+    if(detail::tamm_rmm_debug && world_rank_ == 0) {
+      std::cout << "[TAMM RMM] device pool: " << max_device_bytes << " B ("
+                << (max_device_bytes / (1024.0 * 1024.0 * 1024.0)) << " GiB) per rank | "
+                << "gpu free=" << free << " B, total=" << total << " B | "
+                << "ranks/node=" << ranks_pn_ << ", gpus/node=" << ngpus_per_node
+                << ", ranks-per-gpu=" << tamm_rpg << ", TAMM_GPU_POOL=" << detail::tamm_gpu_pool
+                << "%" << std::endl;
+    }
 
     deviceMR = std::make_unique<device_pool_mr>(new rmm::mr::gpu_memory_resource, max_device_bytes);
 
@@ -241,7 +314,24 @@ public:
     //   std::make_unique<pinned_pool_mr>(new rmm::mr::pinned_memory_resource,
     //   max_pinned_host_bytes);
 #endif
-    hostMR = std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes);
+
+    if(detail::tamm_rmm_debug) {
+      int host_dbg_rank = 0;
+#if defined(USE_UPCXX)
+      host_dbg_rank = upcxx::rank_me();
+#else
+      host_dbg_rank = GA_Nodeid();
+#endif
+      if(host_dbg_rank == 0) {
+        std::cout << "[TAMM RMM] host pool  : " << max_host_bytes_aligned << " B ("
+                  << (max_host_bytes_aligned / (1024.0 * 1024.0 * 1024.0)) << " GiB) per rank | "
+                  << "ranks/node=" << ranks_pn_ << ", TAMM_CPU_POOL=" << detail::tamm_cpu_pool
+                  << "%" << std::endl;
+      }
+    }
+
+    hostMR =
+      std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes_aligned);
 
     // after setting up the pool: change the invalid_state to FALSE
     invalid_state = false;

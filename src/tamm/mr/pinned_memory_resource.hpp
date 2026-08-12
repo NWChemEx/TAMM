@@ -94,15 +94,20 @@ private:
   void do_deallocate(void* ptr, std::size_t bytes,
                      std::size_t alignment = alignof(std::max_align_t)) override {
     if(nullptr == ptr) { return; }
-    rmm::detail::aligned_deallocate(ptr, bytes, alignment, [](void* ptr) {
+    // dealloc callable is binary: (original pointer, padded size). These pinned-host
+    // deallocators are size-agnostic, so the padded size is unused here.
+    rmm::detail::aligned_deallocate(
+      ptr, bytes, alignment, [](void* original, std::size_t /*padded*/) {
 #if defined(USE_CUDA)
-      cudaFreeHost(ptr);
+        cudaFreeHost(original);
 #elif defined(USE_HIP)
-      hipFreeHost(ptr);
+        hipFreeHost(original);
 #elif defined(USE_DPCPP)
-      sycl::free(ptr, GPUStreamPool::getInstance().getStream().first);
+      sycl::free(original, GPUStreamPool::getInstance().getStream().first);
+#else
+        (void) original;
 #endif
-    });
+      });
   }
 };
 } // namespace tamm::rmm::mr

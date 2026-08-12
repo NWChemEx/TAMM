@@ -56,11 +56,9 @@ private:
    */
   void* do_allocate(std::size_t bytes,
                     std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) override {
-    // If the requested alignment isn't supported, use default
-    alignment = (rmm::detail::is_supported_alignment(alignment))
-                  ? alignment
-                  : rmm::detail::RMM_ALLOCATION_ALIGNMENT;
-
+    // Alignment normalization now happens inside aligned_allocate/aligned_deallocate, so
+    // both sides derive the same padded size. Doing it only here made the deallocate side
+    // compute a different padded size for a non-power-of-two alignment.
 #if defined(__APPLE__) || defined(TAMM_DISABLE_LIBNUMA)
     return rmm::detail::aligned_allocate(bytes, alignment,
                                          [](std::size_t size) { return ::operator new(size); });
@@ -68,6 +66,8 @@ private:
     return rmm::detail::aligned_allocate(
       bytes, alignment, [](std::size_t size) { return numa_alloc_onnode(size, numa_preferred()); });
 #endif
+    // NOTE: whatever size the lambda above receives is the padded size; the matching
+    // deallocation below must free exactly that many bytes.
   }
 
   /**
@@ -88,11 +88,17 @@ private:
   void do_deallocate(void* ptr, std::size_t bytes,
                      std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) override {
 #if defined(__APPLE__) || defined(TAMM_DISABLE_LIBNUMA)
-    rmm::detail::aligned_deallocate(ptr, bytes, alignment,
-                                    [](void* ptr) { ::operator delete(ptr); });
+    rmm::detail::aligned_deallocate(
+      ptr, bytes, alignment, [](void* original, std::size_t /*padded*/) {
+        ::operator delete(original);
+      });
 #else
-    rmm::detail::aligned_deallocate(ptr, bytes, alignment,
-                                    [bytes](void* ptr) { numa_free(ptr, bytes); });
+    // numa_free() unmaps exactly the length it is given, so it must receive the PADDED
+    // size that aligned_allocate actually requested -- not the caller's `bytes`. Passing
+    // `bytes` left `alignment + sizeof(ptrdiff_t)` bytes mapped on every upstream block.
+    rmm::detail::aligned_deallocate(
+      ptr, bytes, alignment,
+      [](void* original, std::size_t padded) { numa_free(original, padded); });
 #endif
   }
 };

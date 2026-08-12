@@ -1,8 +1,11 @@
 #pragma once
 
 #include <algorithm>
+#include <concepts>
+#include <cstddef>
 #include <iostream>
-#include <list>
+#include <set>
+#include <utility>
 
 namespace tamm::rmm::mr::detail {
 
@@ -19,19 +22,54 @@ struct block_base {
 };
 
 /**
+ * @brief Requirements on a block type stored in a `free_list`.
+ */
+template<typename T>
+concept BlockConcept = requires(T blk, std::size_t n, T other) {
+  { blk.pointer() } -> std::convertible_to<char*>;
+  { blk.size() } -> std::convertible_to<std::size_t>;
+  { blk.is_head() } -> std::convertible_to<bool>;
+  { blk.is_valid() } -> std::convertible_to<bool>;
+  { blk.fits(n) } -> std::convertible_to<bool>;
+  { blk.is_contiguous_before(other) } -> std::convertible_to<bool>;
+};
+
+/**
+ * @brief Comparator for block types based on pointer address.
+ *
+ * This comparator allows searching associative containers of blocks by pointer rather than
+ * having to search by the contained type. Saves potentially error-prone temporary construction of
+ * a block when you just want to search by pointer.
+ */
+template<typename block_type>
+struct compare_blocks {
+  // is_transparent (C++14 feature) allows search key type for set<block_type>::find()
+  using is_transparent = void;
+
+  bool operator()(block_type const& lhs, block_type const& rhs) const {
+    return lhs.pointer() < rhs.pointer();
+  }
+  bool operator()(char const* ptr, block_type const& rhs) const { return ptr < rhs.pointer(); }
+  bool operator()(block_type const& lhs, char const* ptr) const { return lhs.pointer() < ptr; };
+};
+
+/**
  * @brief Base class defining an interface for a list of free memory blocks.
  *
- * Derived classes typically provide additional methods such as the following (see
- * fixed_size_free_list.hpp and coalescing_free_list.hpp). However this is not a required interface.
+ * Blocks are held in an address-ordered `std::set`, giving O(log n) insertion, erasure and
+ * neighbour lookup. The previous implementation used a `std::list`, which forced an O(n)
+ * linear scan on every insert (to find the ordered position) and on every best-fit search.
+ * In a CCSD contraction the free list routinely holds thousands of blocks and both
+ * operations sit directly in the allocation hot path.
  *
- *  - `void insert(block_type const& b)  // insert a block into the free list`
- *  - `void insert(free_list&& other)    // insert / merge another free list`
- *  - `block_type get_block(std::size_t size) // get a block of at least size bytes
- *  - `void print()                      // print the block`
+ * @note The mutating operations (`insert_at`, `erase`, `clear`) are deliberately
+ * **protected**. `coalescing_free_list` maintains a second, size-ordered index alongside
+ * this one, and the two must be updated together; exposing raw mutators here would let a
+ * caller desynchronize them silently. Derived classes expose only the synchronized API.
  *
- * @tparam list_type the type of the internal list data structure.
+ * @tparam BlockType the type of block stored in the list.
  */
-template<typename BlockType, typename ListType = std::list<BlockType>>
+template<BlockConcept BlockType>
 class free_list {
 public:
   free_list()          = default;
@@ -43,10 +81,10 @@ public:
   free_list& operator=(free_list&&)      = delete;
 
   using block_type     = BlockType;
-  using list_type      = ListType;
-  using size_type      = typename list_type::size_type;
-  using iterator       = typename list_type::iterator;
-  using const_iterator = typename list_type::const_iterator;
+  using set_type       = std::set<BlockType, compare_blocks<BlockType>>;
+  using size_type      = typename set_type::size_type;
+  using iterator       = typename set_type::iterator;
+  using const_iterator = typename set_type::const_iterator;
 
   /// beginning of the free list
   [[nodiscard]] iterator begin() noexcept { return blocks.begin(); }
@@ -78,6 +116,34 @@ public:
   [[nodiscard]] bool is_empty() const noexcept { return blocks.empty(); }
 
   /**
+   * @brief Summarize the contents of the free list.
+   *
+   * Intended for diagnostics when an allocation cannot be satisfied: the pair
+   * distinguishes "the pool is fragmented" (large total, small largest) from
+   * "the pool is exhausted" (both small).
+   *
+   * @return Pair of {largest available block, total free bytes}.
+   */
+  [[nodiscard]] std::pair<std::size_t, std::size_t> summary() const noexcept {
+    std::size_t largest{0};
+    std::size_t total{0};
+    for(auto const& blk: blocks) {
+      total += blk.size();
+      largest = std::max(largest, blk.size());
+    }
+    return {largest, total};
+  }
+
+protected:
+  /**
+   * @brief Insert a block into the address-ordered set.
+   *
+   * @param block The block to insert.
+   * @return iterator to the inserted block.
+   */
+  iterator insert_at(block_type const& block) { return blocks.insert(block).first; }
+
+  /**
    * @brief Removes the block indicated by `iter` from the free list.
    *
    * @param iter An iterator referring to the block to erase.
@@ -86,53 +152,15 @@ public:
 
   /**
    * @brief Erase all blocks from the free_list.
-   *
    */
-  void clear() noexcept { blocks.clear(); }
+  void clear_blocks() noexcept { blocks.clear(); }
 
-protected:
-  /**
-   * @brief Insert a block in the free list before the specified position
-   *
-   * @param pos iterator before which the block will be inserted. pos may be the end() iterator.
-   * @param block The block to insert.
-   */
-  void insert(const_iterator pos, block_type const& block) { blocks.insert(pos, block); }
-
-  /**
-   * @brief Inserts a list of blocks in the free list before the specified position
-   *
-   * @param pos iterator before which the block will be inserted. pos may be the end() iterator.
-   * @param other The free list to insert.
-   */
-  void splice(const_iterator pos, free_list&& other) {
-    return blocks.splice(pos, std::move(other.blocks));
-  }
-
-  /**
-   * @brief Appends the given block to the end of the free list.
-   *
-   * @param block The block to append.
-   */
-  void push_back(const block_type& block) { blocks.push_back(block); }
-
-  /**
-   * @brief Appends the given block to the end of the free list. `b` is moved to the new element.
-   *
-   * @param block The block to append.
-   */
-  void push_back(block_type&& block) { blocks.push_back(std::move(block)); }
-
-  /**
-   * @brief Removes the first element of the free list. If there are no elements in the free list,
-   * the behavior is undefined.
-   *
-   * References and iterators to the erased element are invalidated.
-   */
-  void pop_front() { blocks.pop_front(); }
+  /// Direct access for derived classes that must query neighbours.
+  [[nodiscard]] set_type&       block_set() noexcept { return blocks; }
+  [[nodiscard]] set_type const& block_set() const noexcept { return blocks; }
 
 private:
-  list_type blocks; // The internal container of blocks
+  set_type blocks; // The internal container of blocks, ordered by address
 };
 
 } // namespace tamm::rmm::mr::detail

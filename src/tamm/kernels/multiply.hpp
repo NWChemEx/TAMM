@@ -7,6 +7,7 @@
 #include <complex>
 #include <cstring> // for std::memset
 #include <numeric>
+#include <span>
 #include <vector>
 
 #include "tamm/op_profiler.hpp"
@@ -73,35 +74,46 @@ void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, i
   } // for-ari
 }
 
+// Buffer helpers return and consume std::span rather than a raw pointer plus a separately
+// recomputed size. The span carries its own length, so a free can no longer disagree with
+// its allocation -- the failure mode that silently orphans or overlaps pool blocks.
+//
+// An empty span is the "not allocated on this hardware path" state, replacing the previous
+// convention of leaving a raw pointer null. Freeing an empty span is a no-op, so the
+// conditional-free asymmetries that leaked here before are now impossible.
+
 template<typename T>
-void allocate_host_buffers(ExecutionHW hw, T*& host_buf, size_t buf_size) {
-  if(hw == ExecutionHW::GPU) return;
+[[nodiscard]] std::span<T> allocate_host_buffer(ExecutionHW hw, size_t buf_size) {
+  if(hw == ExecutionHW::GPU) return {};
   auto& memPool = RMMMemoryManager::getInstance().getHostMemoryPool();
-  host_buf      = static_cast<T*>(memPool.allocate(buf_size * sizeof(T)));
+  return memPool.template allocate_span<T>(buf_size);
 }
 
 template<typename T>
-void free_host_buffers(ExecutionHW hw, T*& host_buf, std::size_t buf_size) {
+void free_host_buffer(ExecutionHW hw, std::span<T> host_buf) {
   if(hw == ExecutionHW::GPU) return;
   auto& memPool = RMMMemoryManager::getInstance().getHostMemoryPool();
-  memPool.deallocate(host_buf, buf_size * sizeof(T));
+  memPool.deallocate(host_buf);
 }
 
 template<typename T>
-void allocate_device_buffers(ExecutionHW hw, T*& dev_buf, size_t buf_size) {
-  if(hw == ExecutionHW::CPU) return;
+[[nodiscard]] std::span<T> allocate_device_buffer([[maybe_unused]] ExecutionHW hw,
+                                                  [[maybe_unused]] size_t      buf_size) {
+  if(hw == ExecutionHW::CPU) return {};
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   auto& memPool = RMMMemoryManager::getInstance().getDeviceMemoryPool();
-  dev_buf       = static_cast<T*>(memPool.allocate(buf_size * sizeof(T)));
+  return memPool.template allocate_span<T>(buf_size);
+#else
+  return {};
 #endif
 }
 
 template<typename T>
-void free_device_buffers(ExecutionHW hw, T*& dev_buf, std::size_t buf_size) {
+void free_device_buffer([[maybe_unused]] ExecutionHW hw, [[maybe_unused]] std::span<T> dev_buf) {
   if(hw == ExecutionHW::CPU) return;
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   auto& memPool = RMMMemoryManager::getInstance().getDeviceMemoryPool();
-  memPool.deallocate(static_cast<void*>(dev_buf), buf_size * sizeof(T));
+  memPool.deallocate(dev_buf);
 #endif
 }
 
@@ -169,20 +181,19 @@ bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, T2* ainter_buf,
   if(hw == ExecutionHW::GPU) {
     gpu_trans = true;
 
-    T2* ainter_buf_dev_in{nullptr};
-    T3* binter_buf_dev_in{nullptr};
-    allocate_device_buffers(hw, ainter_buf_dev_in, asize);
-    allocate_device_buffers(hw, binter_buf_dev_in, bsize);
+    std::span<T2> ainter_dev_in = allocate_device_buffer<T2>(hw, asize);
+    std::span<T3> binter_dev_in = allocate_device_buffer<T3>(hw, bsize);
 
-    copy_data_to_gpu(hw, thandle, abuf, asize, ainter_buf_dev_in, bbuf, bsize, binter_buf_dev_in);
+    copy_data_to_gpu(hw, thandle, abuf, asize, ainter_dev_in.data(), bbuf, bsize,
+                     binter_dev_in.data());
 
-    assign_gpu<T2>(thandle, ainter_buf_dev, ainter_dims, ainter_labels, T2{1}, ainter_buf_dev_in,
-                   adims, alabels, true);
-    assign_gpu<T3>(thandle, binter_buf_dev, binter_dims, binter_labels, T3{1}, binter_buf_dev_in,
-                   bdims, blabels, true);
+    assign_gpu<T2>(thandle, ainter_buf_dev, ainter_dims, ainter_labels, T2{1},
+                   ainter_dev_in.data(), adims, alabels, true);
+    assign_gpu<T3>(thandle, binter_buf_dev, binter_dims, binter_labels, T3{1},
+                   binter_dev_in.data(), bdims, blabels, true);
 
-    free_device_buffers(hw, ainter_buf_dev_in, asize);
-    free_device_buffers(hw, binter_buf_dev_in, bsize);
+    free_device_buffer(hw, ainter_dev_in);
+    free_device_buffer(hw, binter_dev_in);
 
     return gpu_trans;
   }
@@ -340,11 +351,12 @@ void block_multiply(
 
   bool gpu_trans = false;
 
-  T1* cinter_buf{nullptr};
-  allocate_host_buffers(hw, cinter_buf, static_cast<size_t>(csize.value()));
+  std::span<T1> cinter_span =
+    allocate_host_buffer<T1>(hw, static_cast<size_t>(csize.value()));
+  T1* cinter_buf = cinter_span.data();
   if(hw == ExecutionHW::CPU) {
     // if(csize.value() != 1)
-    std::memset(static_cast<void*>(cinter_buf), 0, static_cast<size_t>(csize.value() * sizeof(T1)));
+    std::memset(static_cast<void*>(cinter_span.data()), 0, cinter_span.size_bytes());
   }
 
   T2* ainter_buf_dev{nullptr};
@@ -356,10 +368,10 @@ void block_multiply(
 
   // dgemm
   if constexpr(std::is_same_v<T1, T2> && std::is_same_v<T1, T3>) { // R=RxR, C=CxC
-    T2* ainter_buf{nullptr};
-    T3* binter_buf{nullptr};
-    allocate_host_buffers(hw, ainter_buf, asize.value());
-    allocate_host_buffers(hw, binter_buf, bsize.value());
+    std::span<T2> ainter_span = allocate_host_buffer<T2>(hw, asize.value());
+    std::span<T3> binter_span = allocate_host_buffer<T3>(hw, bsize.value());
+    T2*           ainter_buf  = ainter_span.data();
+    T3*           binter_buf  = binter_span.data();
 
     gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                  asize.value(), adims, alabels, binter_buf, binter_dims,
@@ -376,28 +388,32 @@ void block_multiply(
     transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
                      clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
-    free_host_buffers(hw, ainter_buf, asize.value());
-    free_host_buffers(hw, binter_buf, bsize.value());
+    free_host_buffer(hw, ainter_span);
+    free_host_buffer(hw, binter_span);
   }
   else {
     T2* abufp = const_cast<T2*>(abuf);
     T3* bbufp = const_cast<T3*>(bbuf);
     // TODO: actually check if one of T2, T3 is real, T1 is complex
     if constexpr(std::is_same_v<T1, T2>) {
-      T2* ainter_buf{nullptr};
-      T1* binter_buf{nullptr};
-      allocate_host_buffers(hw, ainter_buf, asize.value());
-      allocate_host_buffers(hw, binter_buf, bsize.value());
+      std::span<T2> ainter_span = allocate_host_buffer<T2>(hw, asize.value());
+      std::span<T1> binter_span = allocate_host_buffer<T1>(hw, bsize.value());
+      T2*           ainter_buf  = ainter_span.data();
+      T1*           binter_buf  = binter_span.data();
 
       // T2 (matrix A) is complex, T3 (B) is real, C=CxR
       if constexpr(internal::is_complex_v<T1>) {
-        // copy B to complex buffer
-        T1* bbuf_complex{nullptr};
-        allocate_host_buffers(ExecutionHW::CPU, bbuf_complex, bsize.value());
-        std::copy(bbufp, bbufp + bsize.value(), bbuf_complex);
+        // copy B to complex buffer.
+        // `*_owned` holds the pool allocation and is never reassigned, so it can always be
+        // returned to the pool with the size it was allocated with. `bbuf_complex` is only a
+        // view, which may be re-pointed at `binter_buf` on the CPU path.
+        std::span<T1> bbuf_complex_span =
+          allocate_host_buffer<T1>(ExecutionHW::CPU, bsize.value());
+        std::copy(bbufp, bbufp + bsize.value(), bbuf_complex_span.data());
+        T1* bbuf_complex = bbuf_complex_span.data();
 
-        T1* bbuf_complex_dev{nullptr};
-        allocate_device_buffers(hw, bbuf_complex_dev, bsize.value());
+        std::span<T1> bbuf_complex_dev_span = allocate_device_buffer<T1>(hw, bsize.value());
+        T1*           bbuf_complex_dev      = bbuf_complex_dev_span.data();
 
         gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                      asize.value(), adims, alabels, binter_buf, binter_dims,
@@ -415,18 +431,18 @@ void block_multiply(
         transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
-        free_device_buffers(hw, bbuf_complex_dev, bsize.value());
-        if(gpu_trans) free_host_buffers(ExecutionHW::CPU, bbuf_complex, bsize.value());
+        free_device_buffer(hw, bbuf_complex_dev_span);
+        free_host_buffer(ExecutionHW::CPU, bbuf_complex_span);
       } // is_complex<T1>
       else {
         // T1,T2 (C,A) are real, T3 (B) is complex, R=RxC
-        T1* bbuf_real{nullptr};
-        allocate_host_buffers(ExecutionHW::CPU, bbuf_real, bsize.value());
-        std::transform(bbufp, bbufp + bsize.value(), bbuf_real,
+        std::span<T1> bbuf_real_span = allocate_host_buffer<T1>(ExecutionHW::CPU, bsize.value());
+        std::transform(bbufp, bbufp + bsize.value(), bbuf_real_span.data(),
                        [](const T3& val) { return val.real(); });
+        T1* bbuf_real = bbuf_real_span.data();
 
-        T1* bbuf_real_dev{nullptr};
-        allocate_device_buffers(hw, bbuf_real_dev, bsize.value());
+        std::span<T1> bbuf_real_dev_span = allocate_device_buffer<T1>(hw, bsize.value());
+        T1*           bbuf_real_dev      = bbuf_real_dev_span.data();
 
         gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                      asize.value(), adims, alabels, binter_buf, binter_dims,
@@ -444,27 +460,30 @@ void block_multiply(
         transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
-        free_device_buffers(hw, bbuf_real_dev, bsize.value());
-        if(gpu_trans) free_host_buffers(ExecutionHW::CPU, bbuf_real, bsize.value());
+        free_device_buffer(hw, bbuf_real_dev_span);
+        free_host_buffer(ExecutionHW::CPU, bbuf_real_span);
       } // is_real<T1>
 
-      free_host_buffers(hw, ainter_buf, asize.value());
-      free_host_buffers(hw, binter_buf, bsize.value());
+      free_host_buffer(hw, ainter_span);
+      free_host_buffer(hw, binter_span);
     } // is_same_v<T1,T2>
     else if constexpr(std::is_same_v<T1, T3>) {
-      T1* ainter_buf{nullptr};
-      T3* binter_buf{nullptr};
-      allocate_host_buffers(hw, ainter_buf, asize.value());
-      allocate_host_buffers(hw, binter_buf, bsize.value());
+      std::span<T1> ainter_span = allocate_host_buffer<T1>(hw, asize.value());
+      std::span<T3> binter_span = allocate_host_buffer<T3>(hw, bsize.value());
+      T1*           ainter_buf  = ainter_span.data();
+      T3*           binter_buf  = binter_span.data();
 
       // T3 (matrix B) is complex, T2 (A) is real, C=RxC
       if constexpr(internal::is_complex_v<T1>) {
-        T1* abuf_complex{nullptr};
-        allocate_host_buffers(ExecutionHW::CPU, abuf_complex, asize.value());
-        std::copy(abufp, abufp + asize.value(), abuf_complex);
+        // `*_owned` holds the pool allocation and is never reassigned; `abuf_complex` is a view
+        // that may be re-pointed at `ainter_buf` on the CPU path.
+        std::span<T1> abuf_complex_span =
+          allocate_host_buffer<T1>(ExecutionHW::CPU, asize.value());
+        std::copy(abufp, abufp + asize.value(), abuf_complex_span.data());
+        T1* abuf_complex = abuf_complex_span.data();
 
-        T1* abuf_complex_dev{nullptr};
-        allocate_device_buffers(hw, abuf_complex_dev, asize.value());
+        std::span<T1> abuf_complex_dev_span = allocate_device_buffer<T1>(hw, asize.value());
+        T1*           abuf_complex_dev      = abuf_complex_dev_span.data();
 
         gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels,
                                      abuf_complex, asize.value(), adims, alabels, binter_buf,
@@ -483,18 +502,18 @@ void block_multiply(
         transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
-        free_device_buffers(hw, abuf_complex_dev, asize.value());
-        if(gpu_trans) free_host_buffers(ExecutionHW::CPU, abuf_complex, asize.value());
+        free_device_buffer(hw, abuf_complex_dev_span);
+        free_host_buffer(ExecutionHW::CPU, abuf_complex_span);
       }
       else {
         // T1,T3 (C,B) are real, T2 (A) is complex, //R=CxR
-        T1* abuf_real{nullptr};
-        allocate_host_buffers(ExecutionHW::CPU, abuf_real, asize.value());
-        std::transform(abufp, abufp + asize.value(), abuf_real,
+        std::span<T1> abuf_real_span = allocate_host_buffer<T1>(ExecutionHW::CPU, asize.value());
+        std::transform(abufp, abufp + asize.value(), abuf_real_span.data(),
                        [](const T2& val) { return val.real(); });
+        T1* abuf_real = abuf_real_span.data();
 
-        T1* abuf_real_dev{nullptr};
-        allocate_device_buffers(hw, abuf_real_dev, asize.value());
+        std::span<T1> abuf_real_dev_span = allocate_device_buffer<T1>(hw, asize.value());
+        T1*           abuf_real_dev      = abuf_real_dev_span.data();
 
         gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf_real,
                                      asize.value(), adims, alabels, binter_buf, binter_dims,
@@ -512,29 +531,29 @@ void block_multiply(
         transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
-        free_device_buffers(hw, abuf_real_dev, asize.value());
-        if(gpu_trans) free_host_buffers(ExecutionHW::CPU, abuf_real, asize.value());
+        free_device_buffer(hw, abuf_real_dev_span);
+        free_host_buffer(ExecutionHW::CPU, abuf_real_span);
       }
 
-      free_host_buffers(hw, ainter_buf, asize.value());
-      free_host_buffers(hw, binter_buf, bsize.value());
+      free_host_buffer(hw, ainter_span);
+      free_host_buffer(hw, binter_span);
     } // is_same_v<T1,T3>
 
     else if constexpr(internal::is_complex_v<T1> && std::is_same_v<T2, T3>) { // C=RxR
-      T2* ainter_buf{nullptr};
-      T2* binter_buf{nullptr};
-      T2* cinter_buf_real{nullptr};
-      allocate_host_buffers(hw, ainter_buf, asize.value());
-      allocate_host_buffers(hw, binter_buf, bsize.value());
-      allocate_host_buffers(hw, cinter_buf_real, csize.value());
+      std::span<T2> ainter_span      = allocate_host_buffer<T2>(hw, asize.value());
+      std::span<T2> binter_span      = allocate_host_buffer<T2>(hw, bsize.value());
+      std::span<T2> cinter_real_span = allocate_host_buffer<T2>(hw, csize.value());
+      T2*           ainter_buf       = ainter_span.data();
+      T2*           binter_buf       = binter_span.data();
+      T2*           cinter_buf_real  = cinter_real_span.data();
 #if !defined(USE_CUDA) && !defined(USE_HIP) && !defined(USE_DPCPP)
-      std::memset(static_cast<void*>(cinter_buf_real), 0, csize.value() * sizeof(T2));
+      std::memset(static_cast<void*>(cinter_real_span.data()), 0, cinter_real_span.size_bytes());
 #endif
 
-      T2* cbuf_tmp_real_dev{nullptr};
-      allocate_device_buffers(hw, cbuf_tmp_real_dev, csize.value());
+      std::span<T2> cbuf_tmp_real_dev_span = allocate_device_buffer<T2>(hw, csize.value());
+      T2*           cbuf_tmp_real_dev      = cbuf_tmp_real_dev_span.data();
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-      gpuMemsetAsync(reinterpret_cast<void*&>(cbuf_tmp_real_dev), csize.value() * sizeof(T2),
+      gpuMemsetAsync(cbuf_tmp_real_dev, csize.value() * sizeof(T2),
                      thandle);
 #endif
 
@@ -563,10 +582,10 @@ void block_multiply(
                        clabels, cinter_buf_dev, reinterpret_cast<T1*&>(cinter_tmp_buf_dev),
                        is_assign);
 
-      free_device_buffers(hw, cbuf_tmp_real_dev, csize.value());
-      free_host_buffers(hw, ainter_buf, asize.value());
-      free_host_buffers(hw, binter_buf, bsize.value());
-      free_host_buffers(hw, cinter_buf_real, csize.value());
+      free_device_buffer(hw, cbuf_tmp_real_dev_span);
+      free_host_buffer(hw, ainter_span);
+      free_host_buffer(hw, binter_span);
+      free_host_buffer(hw, cinter_real_span);
     }
 
     else NOT_IMPLEMENTED();
@@ -580,7 +599,7 @@ void block_multiply(
   if(is_assign && hw != ExecutionHW::GPU) // not using bufacc code path
     assign<T1>(cbuf, cdims, clabels, T{1}, cinter_buf, cinter_dims, cinter_labels, is_assign);
 
-  free_host_buffers(hw, cinter_buf, csize.value());
+  free_host_buffer(hw, cinter_span);
 
 } // block_multiply()
 

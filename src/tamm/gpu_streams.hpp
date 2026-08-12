@@ -283,7 +283,11 @@ static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kin
 #endif
 }
 
-static inline void gpuMemsetAsync(void*& ptr, size_t sizeInBytes, gpuStream_t stream) {
+// NOTE: `ptr` is taken by value. It was previously `void*&`, which forced every call site
+// to write `reinterpret_cast<void*&>(typed_ptr)` -- a strict-aliasing violation, since a
+// `T*` lvalue may not legally be reinterpreted as a `void*` lvalue. Nothing here ever
+// wrote through the reference, so the parameter was gratuitously mutable.
+static inline void gpuMemsetAsync(void* ptr, size_t sizeInBytes, gpuStream_t stream) {
 #if defined(USE_DPCPP)
   stream.first.memset(ptr, 0, sizeInBytes);
 #elif defined(USE_HIP)

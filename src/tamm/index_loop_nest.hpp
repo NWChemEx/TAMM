@@ -164,14 +164,22 @@ public:
     std::vector<TiledIndexLabel> labels;
 
     for(const auto& ibc: ibcs) {
+      // this_label() returns TiledIndexLabel by value; secondary_labels() returns a
+      // reference into that value's own storage. Binding to a named local keeps the
+      // temporary (and the vector it owns) alive for the loop below -- calling
+      // this_label().secondary_labels() directly in the range-for's range-expression
+      // would bind the reference to a temporary that is destroyed at the end of that
+      // full expression, leaving `slbl` dangling on every iteration.
+      const TiledIndexLabel this_lbl = ibc.this_label();
+
       // every label is unique
-      EXPECTS(std::find(labels.begin(), labels.end(), ibc.this_label()) == labels.end());
-      labels.push_back(ibc.this_label());
-      iss_.push_back(ibc.this_label().tiled_index_space());
+      EXPECTS(std::find(labels.begin(), labels.end(), this_lbl) == labels.end());
+      labels.push_back(this_lbl);
+      iss_.push_back(this_lbl.tiled_index_space());
       indep_indices_.push_back({});
       size_t pos = 0;
-      if(ibc.this_label().secondary_labels().size() > 0) {
-        for(const TileLabelElement& slbl: ibc.this_label().secondary_labels()) {
+      if(this_lbl.secondary_labels().size() > 0) {
+        for(const TileLabelElement& slbl: this_lbl.secondary_labels()) {
           auto it =
             std::find_if(labels.begin(), labels.end(), [&](const TiledIndexLabel& a) -> bool {
               return a.primary_label() == slbl;

@@ -201,7 +201,7 @@ public:
 
     std::vector<std::unique_ptr<AddBuf<TensorElType1, TensorElType2, TensorElType3>>> add_bufs;
     // function to compute one block
-    auto lambda = [=, &oprof, &add_bufs, &loop_nest, &ec](const IndexVector itval) {
+    auto lambda = [=, this, &oprof, &add_bufs, &loop_nest, &ec](const IndexVector itval) {
       auto ctensor = lhs_.tensor();
       auto atensor = rhs1_.tensor();
       auto btensor = rhs2_.tensor();

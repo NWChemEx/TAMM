@@ -5,6 +5,7 @@
 #include "tamm/types.hpp"
 
 #include <complex>
+#include <cstdint>
 #include <cstring> // for std::memset
 #include <numeric>
 #include <span>
@@ -45,18 +46,35 @@ void gemm_wrapper(ExecutionHW hw, gpuStream_t& thandle, int AR, int BR, int B, i
                   T alpha, T beta, const T2* ainter_buf, const T2* ainter_buf_dev,
                   const T3* binter_buf, const T3* binter_buf_dev, T1*& cinter_buf,
                   T1*& cinter_buf_dev) {
-  int ainter_ld  = K;
-  int binter_ld  = N;
-  int cinter_ld  = N;
-  int cbatch_ld  = M * N;
-  int abatch_ld  = M * K;
-  int bbatch_ld  = K * N;
-  int areduce_ld = B * abatch_ld;
-  int breduce_ld = B * bbatch_ld;
+  // Leading dimensions stay `int`: they are passed straight to the BLAS lda/ldb/ldc
+  // parameters, which are `int` in the cuBLAS/rocBLAS/MKL interfaces used here.
+  int const ainter_ld = K;
+  int const binter_ld = N;
+  int const cinter_ld = N;
 
-  for(size_t ari = 0; ari < AR; ari++) {
-    for(size_t bri = 0; bri < BR; bri++) {
-      for(size_t i = 0; i < B; i++) {
+  // Batch/reduction strides are computed in int64_t. Previously these were `int`, so the
+  // products below were evaluated in int arithmetic and could overflow before any
+  // promotion took place. The offset *accumulation* was already 64-bit (the loop counters
+  // were size_t, which promoted the int strides), so the failure is in the strides
+  // themselves:
+  //
+  //   B=256, K=N=4096  ->  breduce_ld = B*K*N = 2^32, which wraps to exactly 0 in int.
+  //
+  // With BR > 1 every reduction iteration then re-reads batch 0 instead of advancing,
+  // producing silently wrong results rather than a crash. M*K overflows the same way once
+  // a single stride exceeds INT_MAX. Both are signed overflow, i.e. UB.
+  //
+  // Note the loop counters are int64_t here too, so the offsets stay exact without relying
+  // on the old size_t-promotion accident.
+  std::int64_t const cbatch_ld  = static_cast<std::int64_t>(M) * N;
+  std::int64_t const abatch_ld  = static_cast<std::int64_t>(M) * K;
+  std::int64_t const bbatch_ld  = static_cast<std::int64_t>(K) * N;
+  std::int64_t const areduce_ld = static_cast<std::int64_t>(B) * abatch_ld;
+  std::int64_t const breduce_ld = static_cast<std::int64_t>(B) * bbatch_ld;
+
+  for(std::int64_t ari = 0; ari < AR; ari++) {
+    for(std::int64_t bri = 0; bri < BR; bri++) {
+      for(std::int64_t i = 0; i < B; i++) {
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         if(hw == ExecutionHW::GPU) {
           gpu::gemm(N, M, K, alpha, binter_buf_dev + bri * breduce_ld + i * bbatch_ld, binter_ld,
@@ -191,6 +209,13 @@ bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, T2* ainter_buf,
                    ainter_dev_in.data(), adims, alabels, true);
     assign_gpu<T3>(thandle, binter_buf_dev, binter_dims, binter_labels, T3{1},
                    binter_dev_in.data(), bdims, blabels, true);
+
+    // The H2D copies above and librettExecute() inside assign_gpu() are enqueued on
+    // `thandle` and return immediately on CUDA/HIP, but returning these staging buffers to
+    // the pool makes their addresses instantly re-allocatable (the pool's deallocate is
+    // host-side bookkeeping, not a stream-ordered free). Without this sync the next
+    // allocation can alias memory that librett is still reading.
+    gpuStreamSynchronize(thandle);
 
     free_device_buffer(hw, ainter_dev_in);
     free_device_buffer(hw, binter_dev_in);
@@ -431,6 +456,13 @@ void block_multiply(
         transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+        // gemm_wrapper() and transpose_output() enqueue stream-async work on CUDA/HIP;
+        // sync before returning this device block to the pool, which makes the address
+        // immediately re-allocatable.
+        if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
+#endif
+
         free_device_buffer(hw, bbuf_complex_dev_span);
         free_host_buffer(ExecutionHW::CPU, bbuf_complex_span);
       } // is_complex<T1>
@@ -459,6 +491,13 @@ void block_multiply(
                      bbuf_real, bbuf_real_dev, cinter_buf, cinter_tmp_buf_dev);
         transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+        // gemm_wrapper() and transpose_output() enqueue stream-async work on CUDA/HIP;
+        // sync before returning this device block to the pool, which makes the address
+        // immediately re-allocatable.
+        if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
+#endif
 
         free_device_buffer(hw, bbuf_real_dev_span);
         free_host_buffer(ExecutionHW::CPU, bbuf_real_span);
@@ -502,6 +541,13 @@ void block_multiply(
         transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+        // gemm_wrapper() and transpose_output() enqueue stream-async work on CUDA/HIP;
+        // sync before returning this device block to the pool, which makes the address
+        // immediately re-allocatable.
+        if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
+#endif
+
         free_device_buffer(hw, abuf_complex_dev_span);
         free_host_buffer(ExecutionHW::CPU, abuf_complex_span);
       }
@@ -530,6 +576,13 @@ void block_multiply(
                      binter_buf, binter_buf_dev, cinter_buf, cinter_tmp_buf_dev);
         transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+        // gemm_wrapper() and transpose_output() enqueue stream-async work on CUDA/HIP;
+        // sync before returning this device block to the pool, which makes the address
+        // immediately re-allocatable.
+        if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
+#endif
 
         free_device_buffer(hw, abuf_real_dev_span);
         free_host_buffer(ExecutionHW::CPU, abuf_real_span);
@@ -582,6 +635,13 @@ void block_multiply(
                        clabels, cinter_buf_dev, reinterpret_cast<T1*&>(cinter_tmp_buf_dev),
                        is_assign);
 
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+      // gpu::axpy and the librett transpose in transpose_output are stream-async on
+      // CUDA/HIP; sync before returning this device block to the pool, which would
+      // otherwise make it immediately re-allocatable while that work is still reading it.
+      if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
+#endif
+
       free_device_buffer(hw, cbuf_tmp_real_dev_span);
       free_host_buffer(hw, ainter_span);
       free_host_buffer(hw, binter_span);
@@ -594,6 +654,22 @@ void block_multiply(
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   th_a = ainter_buf_dev;
   th_b = binter_buf_dev;
+
+  // Establish the postcondition that every device buffer passed in (th_a/th_b, the
+  // cinter_*_dev buffers) and every device buffer allocated internally is free of
+  // in-flight work by the time this function returns.
+  //
+  // On CUDA/HIP the cuBLAS/rocBLAS gemm above is enqueued on `thandle` and returns
+  // immediately, whereas the memory pool's deallocate() is pure host-side bookkeeping that
+  // makes a block instantly re-allocatable -- it does not defer the reuse behind a stream
+  // event the way upstream RMM's stream-ordered free lists do. Callers that free a device
+  // buffer right after this call (e.g. the reduction loop in MultOp::execute_bufacc, and
+  // the equivalent loops in exachem's cd_ccsd_{cs,os}_ann.cpp) would otherwise hand the
+  // same address to the next iteration's allocation while the gemm is still reading it.
+  //
+  // DPC++ already synchronises inside gpu::gemm (gemm_event.wait()), so this is a no-op
+  // there; the cost on CUDA/HIP is the sync the callers' correctness already assumed.
+  if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
 #endif
 
   if(is_assign && hw != ExecutionHW::GPU) // not using bufacc code path

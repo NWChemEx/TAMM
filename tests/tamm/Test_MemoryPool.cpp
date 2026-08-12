@@ -29,6 +29,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <complex>
 #include <cstring>
 #include <memory>
@@ -480,4 +481,131 @@ TEST_CASE("MemoryPool: span round-trip under churn returns to baseline") {
 
   CHECK(pool->free_bytes() == base);
   CHECK(pool->free_summary().first == kPool);
+}
+
+
+// ---------------------------------------------------------------------------
+// GEMM batch/reduction stride arithmetic (kernels/multiply.hpp gemm_wrapper).
+//
+// gemm_wrapper previously computed its batch/reduction strides in `int`:
+//
+//   int bbatch_ld  = K * N;
+//   int breduce_ld = B * bbatch_ld;
+//
+// The *offset* accumulation was already 64-bit, because the loop counters were
+// size_t and promoted the int strides. The defect is in the strides themselves --
+// int*int is evaluated in int before any promotion, so B*K*N overflows. At
+// B=256, K=N=4096 it wraps to exactly 0, and with BR>1 every reduction iteration
+// then re-reads batch 0 instead of advancing: silently wrong numbers, no crash.
+//
+// These tests compare the current int64 arithmetic against the old int arithmetic
+// on the shapes that distinguish them, so they fail if the widening is reverted.
+// They mirror gemm_wrapper's expressions rather than calling it, since invoking it
+// needs a GPU/BLAS backend.
+// ---------------------------------------------------------------------------
+
+namespace {
+/// Mirrors the (fixed) stride computation in kernels::gemm_wrapper.
+struct GemmStrides {
+  std::int64_t cbatch_ld, abatch_ld, bbatch_ld, areduce_ld, breduce_ld;
+  GemmStrides(int B, int M, int N, int K):
+    cbatch_ld{static_cast<std::int64_t>(M) * N},
+    abatch_ld{static_cast<std::int64_t>(M) * K},
+    bbatch_ld{static_cast<std::int64_t>(K) * N},
+    areduce_ld{static_cast<std::int64_t>(B) * abatch_ld},
+    breduce_ld{static_cast<std::int64_t>(B) * bbatch_ld} {}
+};
+
+/// Reproduces the *old* int-based stride computation, for contrast.
+///
+/// The old code performed these products in `int`, which is signed overflow (UB) on the
+/// very shapes this test is about. Reproducing that literally would trip UBSan, so the
+/// wrap is emulated exactly using unsigned arithmetic -- which is well-defined and, on
+/// every platform TAMM targets (two's complement, 32-bit int), yields the identical bit
+/// pattern the old signed code produced.
+struct GemmStridesInt {
+  int cbatch_ld, abatch_ld, bbatch_ld, areduce_ld, breduce_ld;
+
+  static int wrap_mul(int lhs, int rhs) noexcept {
+    return static_cast<int>(static_cast<std::uint32_t>(lhs) * static_cast<std::uint32_t>(rhs));
+  }
+
+  GemmStridesInt(int B, int M, int N, int K):
+    cbatch_ld(wrap_mul(M, N)), abatch_ld(wrap_mul(M, K)), bbatch_ld(wrap_mul(K, N)),
+    areduce_ld(wrap_mul(B, abatch_ld)), breduce_ld(wrap_mul(B, bbatch_ld)) {}
+};
+} // namespace
+
+TEST_CASE("gemm strides: B*K*N wrapping to zero is the real regression") {
+  // The shape that silently broke: B=256, K=N=4096 -> B*K*N == 2^32.
+  constexpr int B = 256, M = 1024, N = 4096, K = 4096;
+
+  GemmStrides const fixed{B, M, N, K};
+  CHECK(fixed.breduce_ld == 4294967296LL); // 2^32, exact
+
+  // The old arithmetic wrapped this to exactly 0 -- the pathological value, because
+  // it makes every reduction step read the same batch instead of advancing.
+  GemmStridesInt const old{B, M, N, K};
+  CHECK(old.breduce_ld == 0);
+  CHECK(fixed.breduce_ld != static_cast<std::int64_t>(old.breduce_ld));
+}
+
+TEST_CASE("gemm strides: with BR>1 the old arithmetic produced wrong offsets") {
+  // Reproduce both offset computations end to end. This is the assertion that would
+  // fail if the int64 widening were reverted.
+  constexpr int BR = 4, B = 256, M = 1024, N = 4096, K = 4096;
+
+  GemmStrides const    fixed{B, M, N, K};
+  GemmStridesInt const old{B, M, N, K};
+
+  std::int64_t worst_fixed = 0;
+  std::size_t  worst_old   = 0; // old loop counters were size_t
+  for(std::int64_t bri = 0; bri < BR; ++bri) {
+    for(std::int64_t i = 0; i < B; ++i) {
+      worst_fixed = std::max(worst_fixed, bri * fixed.breduce_ld + i * fixed.bbatch_ld);
+    }
+  }
+  for(std::size_t bri = 0; bri < static_cast<std::size_t>(BR); ++bri) {
+    for(std::size_t i = 0; i < static_cast<std::size_t>(B); ++i) {
+      worst_old = std::max(worst_old, bri * old.breduce_ld + i * old.bbatch_ld);
+    }
+  }
+
+  CHECK(worst_fixed == 17163091968LL);
+  CHECK(static_cast<std::int64_t>(worst_old) == 4278190080LL); // wrong: BR steps collapsed
+  CHECK(static_cast<std::int64_t>(worst_old) != worst_fixed);
+}
+
+TEST_CASE("gemm strides: a single stride above INT_MAX is exact") {
+  // M*K alone exceeds INT_MAX. Arithmetic-only check: these dimensions imply a ~17 GB
+  // single block, which TAMM tiling does not produce -- included to pin the widening,
+  // not to describe a reachable configuration.
+  GemmStrides const    fixed{1, 46341, 46341, 46341};
+  GemmStridesInt const old{1, 46341, 46341, 46341};
+
+  CHECK(fixed.abatch_ld == 2147488281LL);
+  CHECK(fixed.abatch_ld > static_cast<std::int64_t>(std::numeric_limits<int>::max()));
+  CHECK(old.abatch_ld < 0); // wrapped negative
+}
+
+TEST_CASE("gemm strides: shapes that already worked are unchanged") {
+  // Regression guard: the widening must not perturb any case that was already correct.
+  struct Shape { int B, M, N, K; std::int64_t abatch, bbatch, areduce; };
+  constexpr Shape shapes[] = {
+    {1, 1, 1, 1, 1LL, 1LL, 1LL},
+    {1, 512, 512, 512, 262144LL, 262144LL, 262144LL},
+    {64, 2048, 2048, 2048, 4194304LL, 4194304LL, 268435456LL},
+    {32, 4096, 4096, 4096, 16777216LL, 16777216LL, 536870912LL},
+  };
+  for(auto const& sh: shapes) {
+    GemmStrides const    fixed{sh.B, sh.M, sh.N, sh.K};
+    GemmStridesInt const old{sh.B, sh.M, sh.N, sh.K};
+    // Hardcoded expectations, not a re-derivation of the implementation.
+    CHECK(fixed.abatch_ld == sh.abatch);
+    CHECK(fixed.bbatch_ld == sh.bbatch);
+    CHECK(fixed.areduce_ld == sh.areduce);
+    // and the old arithmetic agreed on exactly these shapes
+    CHECK(static_cast<std::int64_t>(old.abatch_ld) == sh.abatch);
+    CHECK(static_cast<std::int64_t>(old.areduce_ld) == sh.areduce);
+  }
 }

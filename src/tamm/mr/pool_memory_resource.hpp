@@ -323,17 +323,26 @@ protected:
 
     // Report leaks before tearing the pool down. Deliberately does not terminate: this runs
     // from the destructor, and aborting during static destruction is worse than a warning.
+    // On a fatal abort the outstanding blocks are whatever was legitimately live when the
+    // process was killed, so they are reported without calling them leaks.
     if(detail::rmm_track_allocations() && !outstanding_.empty()) {
       std::size_t bytes{0};
       for(auto const& [ptr, sz]: outstanding_) { bytes += sz; }
-      std::cerr << "[TAMM RMM] LEAK: " << outstanding_.size()
-                << " allocation(s) still outstanding at pool teardown, totalling " << bytes
-                << " B.\n";
+      if(tamm::tamm_terminating()) {
+        std::cerr << "[TAMM RMM] " << outstanding_.size()
+                  << " allocation(s) live at abort (not necessarily leaks), totalling " << bytes
+                  << " B.\n";
+      }
+      else {
+        std::cerr << "[TAMM RMM] LEAK: " << outstanding_.size()
+                  << " allocation(s) still outstanding at pool teardown, totalling " << bytes
+                  << " B.\n";
+      }
 
-      // Group by size: a repeated size points straight at one leaking call site.
+      // Group by size: a repeated size points straight at one call site.
       std::map<std::size_t, std::size_t> by_size;
       for(auto const& [ptr, sz]: outstanding_) { ++by_size[sz]; }
-      std::cerr << "[TAMM RMM]   leaked blocks by size (size B x count):\n";
+      std::cerr << "[TAMM RMM]   outstanding blocks by size (size B x count):\n";
       for(auto const& [sz, count]: by_size) {
         std::cerr << "[TAMM RMM]     " << sz << " x " << count << "\n";
       }

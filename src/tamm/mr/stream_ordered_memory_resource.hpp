@@ -277,20 +277,31 @@ private:
    * passed to tamm_terminate() only after the lock has been released.
    *
    * The pool is fixed-size -- it is never grown from upstream after construction -- so the
-   * two failure modes have different remedies and are reported separately.
+   * failure modes have different remedies and are reported separately.
    */
   std::string no_block_message(std::size_t size) const {
     auto const [largest, total_free] = free_blocks_.summary();
+    std::size_t const pool_total     = this->underlying().pool_size();
 
     std::ostringstream os;
     os << "[TAMM ERROR] Pool allocation failed: no free block large enough.\n"
        << "  requested   : " << format_bytes(size) << " (alignment-adjusted)\n"
        << pool_state_report();
 
-    if(total_free < size) {
+    if(size > pool_total) {
+      os << "  cause       : REQUEST EXCEEDS POOL - this single request is larger than the\n"
+         << "                entire pool, so no occupancy pattern could satisfy it.\n"
+         << "                Reduce the problem size or tilesize. Raising TAMM_GPU_POOL /\n"
+         << "                TAMM_CPU_POOL only helps if the hardware has the memory.\n";
+    }
+    else if(total_free < size) {
+      std::size_t const in_use = pool_total >= total_free ? pool_total - total_free : 0;
       os << "  cause       : POOL EXHAUSTED - total free memory is less than the request.\n"
-         << "                Reduce tilesize, lower the number of ranks sharing this pool,\n"
-         << "                or raise TAMM_GPU_POOL / TAMM_CPU_POOL.\n";
+         << "  peak demand : " << format_bytes(in_use + size) << " (in use + requested)\n"
+         << "                If peak demand exceeds the physical memory of this device, no\n"
+         << "                TAMM_GPU_POOL / TAMM_CPU_POOL setting can satisfy it; reduce the\n"
+         << "                problem size, tilesize, or ranks sharing this pool. Otherwise\n"
+         << "                raise TAMM_GPU_POOL / TAMM_CPU_POOL.\n";
     }
     else {
       os << "  cause       : FRAGMENTATION - enough total free memory (" << format_bytes(total_free)

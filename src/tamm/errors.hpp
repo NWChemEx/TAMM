@@ -106,4 +106,8 @@ inline void tamm_expects_str(bool cond, std::string_view cond_str, std::string_v
 
 void tamm_terminate(std::string msg);
 
+/// True once tamm_terminate() has begun. Lets destructors that run from exit()
+/// distinguish a fatal abort from a clean shutdown.
+bool tamm_terminating();
+
 } // namespace tamm

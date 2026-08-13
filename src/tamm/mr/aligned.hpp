@@ -16,11 +16,24 @@ namespace tamm::rmm::detail {
  *
  */
 #if defined(USE_DPCPP)
-// currently L0 uses 4 bytes alignment (default)
-static constexpr std::size_t RMM_ALLOCATION_ALIGNMENT{4};
+// SYCL 2020 section 4.8.3, Table 70 ("Alignment guarantees of USM allocation functions"):
+// for the non-templated overload with no alignment parameter -- which is what
+// sycl::malloc_device(bytes, queue) is -- the returned pointer is only guaranteed
+// "suitably aligned for any object with fundamental alignment whose size is less than or
+// equal to the requested allocation size". That is alignof(std::max_align_t), not 4.
+//
+// The previous value of 4 described the Level Zero backend's own granularity, not the API
+// contract, and was below alignof(std::complex<double>) -- a type this pool routinely
+// hands out. gpu_memory_resource/pinned_memory_resource now call the aligned_alloc_*
+// overloads with this value so the alignment is requested explicitly rather than inferred.
+static constexpr std::size_t RMM_ALLOCATION_ALIGNMENT{alignof(std::max_align_t)};
 #elif defined(USE_HIP)
+// NOTE: inherited from the original port; not verified against AMD/ROCm documentation.
 static constexpr std::size_t RMM_ALLOCATION_ALIGNMENT{128};
 #elif defined(USE_CUDA)
+// cudaMalloc documents only that "the allocated memory is suitably aligned for any kind of
+// variable" (CUDA Runtime API, Memory Management). 256 is the conventional value, carried
+// over from upstream RMM's CUDA_ALLOCATION_ALIGNMENT.
 static constexpr std::size_t RMM_ALLOCATION_ALIGNMENT{256};
 #else
 // Default alignment used for host memory allocated by RMM.

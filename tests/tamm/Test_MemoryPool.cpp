@@ -124,10 +124,28 @@ TEST_CASE("MemoryPool: allocations are correctly aligned and non-overlapping") {
   constexpr std::size_t kPool = 1u << 20;
   auto                  pool  = make_pool(kPool);
 
+  // Report the base slab's alignment once, up front. Every suballocation is carved from
+  // this slab, so a misaligned base makes all of the per-allocation checks below fail with
+  // the same remainder -- one bug, not N. Seeing the base here distinguishes "the upstream
+  // allocation was under-aligned" from "the suballocator lost alignment while splitting".
+  {
+    void* base = pool->allocate(kPool); // exact fit -> the slab base itself
+    REQUIRE(base != nullptr);
+    std::uintptr_t const base_rem = reinterpret_cast<std::uintptr_t>(base) % kAlign;
+    INFO("RMM_ALLOCATION_ALIGNMENT = " << kAlign);
+    INFO("pool base slab address mod alignment = " << base_rem
+                                                   << " (nonzero => upstream slab is "
+                                                      "under-aligned; every suballocation "
+                                                      "below inherits this offset)");
+    CHECK(base_rem == 0);
+    pool->deallocate(base, kPool);
+  }
+
   std::vector<std::pair<char*, std::size_t>> allocs;
   for(std::size_t sz: {1u, 7u, 64u, 100u, 255u, 256u, 1000u}) {
     void* p = pool->allocate(sz);
     REQUIRE(p != nullptr);
+    INFO("allocation size = " << sz << ", alignment = " << kAlign);
     CHECK(reinterpret_cast<std::uintptr_t>(p) % kAlign == 0);
     allocs.emplace_back(static_cast<char*>(p), aligned(sz));
   }

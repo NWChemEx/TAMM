@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tamm/errors.hpp"
+#include "tamm/mr/aligned.hpp" // rmm::detail::RMM_ALLOCATION_ALIGNMENT
 #include <array>
 #include <memory>
 #include <optional>
@@ -449,8 +450,12 @@ static inline void* getPinnedMem(size_t bytes) {
 #elif defined(USE_HIP)
   hipMallocHost((void**) &ptr, bytes);
 #elif defined(USE_DPCPP)
-  ptr = (void*) sycl::malloc_host(bytes, tamm::GPUStreamPool::getInstance().getStream().first);
+  // aligned_alloc_host, not malloc_host: the plain overload guarantees only fundamental
+  // alignment (SYCL 2020 sec. 4.8.3, Table 70).
+  ptr = (void*) sycl::aligned_alloc_host(tamm::rmm::detail::RMM_ALLOCATION_ALIGNMENT, bytes,
+                                         tamm::GPUStreamPool::getInstance().getStream().first);
 #endif
+  // NOTE: callers must check for nullptr -- none of the three backends throws on failure.
   return ptr;
 }
 

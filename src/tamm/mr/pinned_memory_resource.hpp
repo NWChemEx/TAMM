@@ -43,7 +43,7 @@ private:
    * @brief Allocates pinned memory on the host of size at least `bytes` bytes.
    *
    * The returned storage is aligned to the specified `alignment` if supported, and to
-   * `alignof(std::max_align_t)` otherwise.
+   * `rmm::detail::RMM_ALLOCATION_ALIGNMENT` otherwise.
    *
    * @throws std::bad_alloc When the requested `bytes` and `alignment` cannot be allocated.
    *
@@ -51,7 +51,8 @@ private:
    * @param alignment Alignment of the allocation
    * @return void* Pointer to the newly allocated memory
    */
-  void* do_allocate(std::size_t bytes, std::size_t alignment = alignof(std::max_align_t)) override {
+  void* do_allocate(std::size_t bytes,
+                    std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) override {
     // don't allocate anything if the user requested zero bytes
     if(0 == bytes) { return nullptr; }
 
@@ -69,8 +70,10 @@ private:
       auto status = hipMallocHost(&ptr, size);
       if (hipSuccess != status) { throw std::bad_alloc{}; }
 #elif defined(USE_DPCPP)
-      ptr = sycl::malloc_host(size, GPUStreamPool::getInstance().getStream().first);
-      if (ptr == nullptr) { throw std::bad_alloc{}; }
+      // aligned_alloc_host, not malloc_host -- see the note in gpu_memory_resource.hpp.
+      ptr = sycl::aligned_alloc_host(rmm::detail::RMM_ALLOCATION_ALIGNMENT, size,
+                                     GPUStreamPool::getInstance().getStream().first);
+      if(ptr == nullptr) { throw std::bad_alloc{}; }
 #endif
       return ptr;
     });
@@ -92,7 +95,7 @@ private:
    *                  that was passed to the `allocate` call that returned `ptr`.
    */
   void do_deallocate(void* ptr, std::size_t bytes,
-                     std::size_t alignment = alignof(std::max_align_t)) override {
+                     std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) override {
     if(nullptr == ptr) { return; }
     // dealloc callable is binary: (original pointer, padded size). These pinned-host
     // deallocators are size-agnostic, so the padded size is unused here.

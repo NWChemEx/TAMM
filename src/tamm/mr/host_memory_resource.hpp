@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include "aligned.hpp" // rmm::detail::RMM_ALLOCATION_ALIGNMENT
+
 #include <cstddef>
 #include <span>
 #include <utility>
@@ -58,7 +60,8 @@ public:
    * @brief Allocates memory on the host of size at least `bytes` bytes.
    *
    * The returned storage is aligned to the specified `alignment` if supported, and to
-   * `alignof(std::max_align_t)` otherwise.
+   * `rmm::detail::RMM_ALLOCATION_ALIGNMENT` otherwise (the backend-dependent default:
+   * 256 under CUDA, 128 under HIP, `alignof(std::max_align_t)` on a host-only build).
    *
    * @throws std::bad_alloc When the requested `bytes` and `alignment` cannot be allocated.
    *
@@ -67,7 +70,7 @@ public:
    * @return void* Pointer to the newly allocated memory
    */
   [[nodiscard]] void* allocate(std::size_t bytes,
-                               std::size_t alignment = alignof(std::max_align_t)) {
+                               std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) {
     return do_allocate(bytes, alignment);
   }
 
@@ -88,7 +91,10 @@ public:
   template<typename T>
   [[nodiscard]] std::span<T> allocate_span(std::size_t count) {
     if(count == 0) { return {}; }
-    return {static_cast<T*>(allocate(count * sizeof(T), alignof(T))), count};
+    // Deliberately does NOT pass alignof(T): that would request 8 or 16 bytes and undercut
+    // RMM_ALLOCATION_ALIGNMENT, which is the alignment this resource promises (256 under
+    // CUDA, 128 under HIP). Relying on the default keeps a single source of truth.
+    return {static_cast<T*>(allocate(count * sizeof(T))), count};
   }
 
   /**
@@ -100,7 +106,10 @@ public:
   template<typename T>
   void deallocate(std::span<T> span) {
     if(span.empty()) { return; }
-    deallocate(static_cast<void*>(span.data()), span.size_bytes(), alignof(T));
+    // Must mirror allocate_span exactly: the alignment feeds detail_padded_size(), so an
+    // allocate/deallocate mismatch here hands the wrong byte count to size-aware
+    // deallocators such as numa_free().
+    deallocate(static_cast<void*>(span.data()), span.size_bytes());
   }
 
   /**
@@ -119,7 +128,8 @@ public:
    *                  that was passed to the `allocate` call that returned `ptr`.
    * @param stream Stream on which to perform deallocation
    */
-  void deallocate(void* ptr, std::size_t bytes, std::size_t alignment = alignof(std::max_align_t)) {
+  void deallocate(void* ptr, std::size_t bytes,
+                  std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) {
     do_deallocate(ptr, bytes, alignment);
   }
 
@@ -144,7 +154,8 @@ private:
    * @brief Allocates memory on the host of size at least `bytes` bytes.
    *
    * The returned storage is aligned to the specified `alignment` if supported, and to
-   * `alignof(std::max_align_t)` otherwise.
+   * `rmm::detail::RMM_ALLOCATION_ALIGNMENT` otherwise (the backend-dependent default:
+   * 256 under CUDA, 128 under HIP, `alignof(std::max_align_t)` on a host-only build).
    *
    * @throws std::bad_alloc When the requested `bytes` and `alignment` cannot be allocated.
    *
@@ -153,7 +164,7 @@ private:
    * @return void* Pointer to the newly allocated memory
    */
   virtual void* do_allocate(std::size_t bytes,
-                            std::size_t alignment = alignof(std::max_align_t)) = 0;
+                            std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) = 0;
 
   /**
    * @brief Deallocate memory pointed to by `ptr`.
@@ -171,7 +182,7 @@ private:
    *                  that was passed to the `allocate` call that returned `ptr`.
    */
   virtual void do_deallocate(void* ptr, std::size_t bytes,
-                             std::size_t alignment = alignof(std::max_align_t)) = 0;
+                             std::size_t alignment = rmm::detail::RMM_ALLOCATION_ALIGNMENT) = 0;
 
   /**
    * @brief Compare this resource to another.

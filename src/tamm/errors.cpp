@@ -9,7 +9,16 @@
 
 namespace tamm {
 
+namespace {
+bool g_terminating = false;
+}
+
+bool tamm_terminating() { return g_terminating; }
+
 void tamm_terminate(std::string msg) {
+  // Set before exit() so destructors running from it can see the abort.
+  g_terminating = true;
+
   int world_rank_ = 0;
 #if defined(USE_UPCXX)
   world_rank_ = upcxx::rank_me();
@@ -28,7 +37,7 @@ void tamm_terminate(std::string msg) {
   if(flag) { MPI_Finalize(); }
 #endif
 
-  exit(0);
+  exit(1);
 }
 
 } // namespace tamm

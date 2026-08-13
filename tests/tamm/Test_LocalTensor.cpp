@@ -33,7 +33,7 @@ bool check_local_tensor_values(const LocalTensor<T>& l_tensor, T value) {
   bool result    = true;
   auto tis_sizes = l_tensor.dim_sizes();
 
-  auto num_elements = 1;
+  size_t num_elements = 1;
 
   for(auto tis_sz: tis_sizes) { num_elements *= tis_sz; }
   auto* local_buf = l_tensor.access_local_buf();
@@ -267,8 +267,8 @@ void test_local_tensor(Scheduler& sch, size_t N, Tile tilesize) {
   new_local3.init(42.0);
 
   std::cout << "value at 5,5,5 - " << new_local3.get(5, 5, 5) << std::endl;
-  new_local3.set({5, 5, 5}, 1.0);       // memset val
-  auto val = new_local3.get({5, 5, 5}); // memset val
+  new_local3.set({5, 5, 5}, 1.0);                        // memset val
+  [[maybe_unused]] auto val = new_local3.get({5, 5, 5}); // memset val
 
   std::cout << "new value at 5,5,5 - " << new_local3.get(5, 5, 5) << std::endl;
   std::cout << "new_local4* before resize - " << new_local4.base_ptr() << std::endl;
@@ -300,8 +300,6 @@ int main(int argc, char* argv[]) {
 
   ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
-
-  ExecutionHW ex_hw = ec.exhw();
 
   Scheduler sch{ec};
 

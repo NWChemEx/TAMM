@@ -38,7 +38,13 @@ private:
     auto status = hipMalloc(&ptr, bytes);
     if(hipSuccess != status) { throw std::bad_alloc{}; }
 #elif defined(USE_DPCPP)
-    ptr = sycl::malloc_device(bytes, GPUStreamPool::getInstance().getStream().first);
+    // aligned_alloc_device, not malloc_device: the plain overload guarantees only
+    // fundamental alignment (SYCL 2020 sec. 4.8.3, Table 70), whereas this resource
+    // promises RMM_ALLOCATION_ALIGNMENT. Per that table the aligned_* overloads return
+    // nullptr if the implementation cannot honour the alignment, which the check below
+    // already turns into std::bad_alloc.
+    ptr = sycl::aligned_alloc_device(rmm::detail::RMM_ALLOCATION_ALIGNMENT, bytes,
+                                     GPUStreamPool::getInstance().getStream().first);
     if(ptr == nullptr) { throw std::bad_alloc{}; }
 #endif
 

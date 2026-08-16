@@ -1,3 +1,4 @@
+#include <tamm/eigen_utils.hpp>
 #include <tamm/op_executor.hpp>
 #include <tamm/opmin.hpp>
 #include <tamm/tamm.hpp>
@@ -2174,6 +2175,28 @@ void bind_tamm_utils_for_type(py::module_& m) {
       },
       py::arg("rank"), py::arg("mstring") = "");
   }
+
+  // SOLVERS
+
+  // Singular Value Decomposition
+  m.def(
+    "svd",
+    [](ExecutionContext& ec, std::shared_ptr<PyTensorT> t, tamm::SVDOptions opts,
+       ExecutionHW execute_on) {
+      using real_t          = blas::real_type<T>;
+      Tensor<T>           A = raw_tensor(t);
+      Tensor<T>           U, Vh;
+      std::vector<real_t> S;
+      {
+        py::gil_scoped_release release;
+        std::tie(U, S, Vh) = tamm::svd<T>(ec, A, opts, execute_on);
+      }
+      py::object U_obj  = opts.compute_uv ? py::cast(wrap_tensor<T>(U)) : py::none();
+      py::object Vh_obj = opts.compute_uv ? py::cast(wrap_tensor<T>(Vh)) : py::none();
+      return py::make_tuple(U_obj, std::move(S), Vh_obj);
+    },
+    py::arg("ec"), py::arg("tensor"), py::arg("opts") = tamm::SVDOptions{},
+    py::arg("execute_on") = ExecutionHW::CPU);
 }
 
 // -----------------------------------------------------------------------------
@@ -3328,6 +3351,7 @@ static void bind_execution_contexts(py::module_& m) {
     .def("print", &ExecutionContext::print)
     .def("nnodes", &ExecutionContext::nnodes)
     .def("ppn", &ExecutionContext::ppn)
+    .def("gpn", &ExecutionContext::gpn)
     .def("has_gpu", &ExecutionContext::has_gpu)
     .def("get_profile_header", &ExecutionContext::get_profile_header)
     .def("get_profile_data", [](ExecutionContext& ec) { return ec.get_profile_data().str(); })
@@ -3626,6 +3650,28 @@ PYBIND11_MODULE(pytamm, m) {
 
   bind_local_tensor_family<double>(m, scheduler_cls);
   bind_local_tensor_family<std::complex<double>>(m, scheduler_cls);
+
+  // Options for svd()
+  py::class_<tamm::SVDOptions>(m, "SVDOptions")
+    .def(py::init<>())
+    .def(py::init([](bool full_matrices, bool compute_uv) {
+           tamm::SVDOptions o;
+           o.full_matrices = full_matrices;
+           o.compute_uv    = compute_uv;
+           //  o.hermitian     = hermitian;
+           return o;
+         }),
+         py::arg("full_matrices") = true, py::arg("compute_uv") = true)
+    //  py::arg("hermitian") = false)
+    .def_readwrite("full_matrices", &tamm::SVDOptions::full_matrices)
+    .def_readwrite("compute_uv", &tamm::SVDOptions::compute_uv)
+    // .def_readwrite("hermitian", &tamm::SVDOptions::hermitian)
+    .def("__repr__", [](const tamm::SVDOptions& o) {
+      return std::string("<pytamm.SVDOptions full_matrices=") +
+             (o.full_matrices ? "True" : "False") +
+             " compute_uv=" + (o.compute_uv ? "True" : "False") + ">";
+      //  " hermitian=" + (o.hermitian ? "True" : "False") + ">";
+    });
 
   bind_tamm_utils_for_type<double>(m);
   bind_tamm_utils_for_type<std::complex<double>>(m);

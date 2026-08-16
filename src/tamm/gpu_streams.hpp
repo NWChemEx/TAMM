@@ -13,14 +13,17 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
+#include <cusolverDn.h>
 #include <nvml.h>
 #elif defined(USE_HIP)
 #include <hip/hip_runtime.h>
 #include <rocblas/rocblas.h>
 #include <rocm_smi/rocm_smi.h>
+#include <rocsolver/rocsolver.h>
 #elif defined(USE_DPCPP)
 #include "sycl_device.hpp"
 #include <oneapi/mkl/blas.hpp>
+#include <oneapi/mkl/lapack.hpp>
 #endif
 
 namespace tamm {
@@ -86,6 +89,18 @@ using gpuMemcpyKind = cudaMemcpyKind;
           << __LINE__ << std::endl;                                                          \
       throw std::runtime_error(msg.str());                                                   \
     }                                                                                        \
+  } while(0)
+
+// cusolver has no cusolverGetStatusString-style helper; report the raw status code.
+#define CUSOLVER_CHECK(FUNC)                                                                     \
+  do {                                                                                           \
+    cusolverStatus_t err_ = (FUNC);                                                              \
+    if(err_ != CUSOLVER_STATUS_SUCCESS) {                                                        \
+      std::ostringstream msg;                                                                    \
+      msg << "CUSOLVER Error: status " << static_cast<int>(err_) << ", at " << __FILE__ << " : " \
+          << __LINE__ << std::endl;                                                              \
+      throw std::runtime_error(msg.str());                                                       \
+    }                                                                                            \
   } while(0)
 #endif // USE_CUDA
 

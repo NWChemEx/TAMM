@@ -1,7 +1,7 @@
 #pragma once
 
-#include "eigen_includes.hpp"
 #include "tamm_io.hpp"
+#include "tamm_solvers.hpp"
 
 namespace tamm {
 

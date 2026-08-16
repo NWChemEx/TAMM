@@ -10,7 +10,7 @@ if(${PROJECT_NAME}_HAS_CUDA OR ${PROJECT_NAME}_HAS_HIP OR ${PROJECT_NAME}_HAS_DP
     mr/per_device_resource.hpp
   )
 
-  set(tamm_gpu_SRCS kernels/gpu_blas.cpp)
+  set(tamm_gpu_SRCS kernels/gpu_blas.cpp kernels/gpu_lapack.cpp)
 endif()
 if(${PROJECT_NAME}_HAS_DPCPP)
   list(APPEND tamm_gpu_INCS sycl_device.hpp)
@@ -62,6 +62,7 @@ set(TAMM_INCLUDES
     utils.hpp
     tamm_io.hpp
     tamm_utils.hpp
+    tamm_solvers.hpp
     ga_over_upcxx.hpp
     eigen_utils.hpp
     eigen_includes.hpp

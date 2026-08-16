@@ -52,6 +52,16 @@ DPCPP options
 
    -DTAMM_ENABLE_DPCPP=ON (OFF by default)
 
+Python interface options
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+::
+
+   -DTAMM_ENABLE_PYTHON=ON (OFF by default)
+
+.. note::
+   ``pytest`` and ``numpy`` packages are required to run the Python tests successfully.
+
 CMake options for developers (optional)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

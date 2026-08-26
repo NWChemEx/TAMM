@@ -71,11 +71,11 @@ TEST_CASE("MemoryPool: allocate then deallocate returns to baseline") {
 
   std::size_t const baseline = pool->free_bytes();
 
-  void* ptr = pool->allocate(4096);
-  REQUIRE(ptr != nullptr);
+  auto ptr = pool->allocate_span<char>(4096);
+  REQUIRE(!ptr.empty());
   CHECK(pool->free_bytes() == baseline - aligned(4096));
 
-  pool->deallocate(ptr, 4096);
+  pool->deallocate(ptr);
   CHECK(pool->free_bytes() == baseline);
 
   // and the pool is one contiguous block again
@@ -94,12 +94,12 @@ TEST_CASE("MemoryPool: repeated alloc/free cycles do not leak") {
   std::size_t const baseline = pool->free_bytes();
 
   for(int i = 0; i < 1000; ++i) {
-    void* a = pool->allocate(1024);
-    void* b = pool->allocate(2048);
-    void* c = pool->allocate(512);
-    pool->deallocate(b, 2048);
-    pool->deallocate(a, 1024);
-    pool->deallocate(c, 512);
+    auto a = pool->allocate_span<char>(1024);
+    auto b = pool->allocate_span<char>(2048);
+    auto c = pool->allocate_span<char>(512);
+    pool->deallocate(b);
+    pool->deallocate(a);
+    pool->deallocate(c);
   }
 
   CHECK(pool->free_bytes() == baseline);
@@ -111,12 +111,11 @@ TEST_CASE("MemoryPool: zero-size allocation is a no-op") {
   auto pool = make_pool(1u << 20);
 
   std::size_t const baseline = pool->free_bytes();
-  CHECK(pool->allocate(0) == nullptr);
+  CHECK(pool->allocate_span<char>(0).empty());
   CHECK(pool->free_bytes() == baseline);
 
-  // deallocating null / zero must not corrupt the free list
-  pool->deallocate(nullptr, 0);
-  pool->deallocate(nullptr, 128);
+  // deallocating an empty span must not corrupt the free list
+  pool->deallocate(std::span<char>{});
   CHECK(pool->free_bytes() == baseline);
 }
 
@@ -129,38 +128,40 @@ TEST_CASE("MemoryPool: allocations are correctly aligned and non-overlapping") {
   // the same remainder -- one bug, not N. Seeing the base here distinguishes "the upstream
   // allocation was under-aligned" from "the suballocator lost alignment while splitting".
   {
-    void* base = pool->allocate(kPool); // exact fit -> the slab base itself
-    REQUIRE(base != nullptr);
-    std::uintptr_t const base_rem = reinterpret_cast<std::uintptr_t>(base) % kAlign;
+    auto base = pool->allocate_span<char>(kPool); // exact fit -> the slab base itself
+    REQUIRE(!base.empty());
+    std::uintptr_t const base_rem = reinterpret_cast<std::uintptr_t>(base.data()) % kAlign;
     INFO("RMM_ALLOCATION_ALIGNMENT = " << kAlign);
     INFO("pool base slab address mod alignment = " << base_rem
                                                    << " (nonzero => upstream slab is "
                                                       "under-aligned; every suballocation "
                                                       "below inherits this offset)");
     CHECK(base_rem == 0);
-    pool->deallocate(base, kPool);
+    pool->deallocate(base);
   }
 
-  std::vector<std::pair<char*, std::size_t>> allocs;
+  std::vector<std::pair<std::span<char>, std::size_t>> allocs;
   for(std::size_t sz: {1u, 7u, 64u, 100u, 255u, 256u, 1000u}) {
-    void* p = pool->allocate(sz);
-    REQUIRE(p != nullptr);
+    auto p = pool->allocate_span<char>(sz);
+    REQUIRE(!p.empty());
     INFO("allocation size = " << sz << ", alignment = " << kAlign);
-    CHECK(reinterpret_cast<std::uintptr_t>(p) % kAlign == 0);
-    allocs.emplace_back(static_cast<char*>(p), aligned(sz));
+    CHECK(reinterpret_cast<std::uintptr_t>(p.data()) % kAlign == 0);
+    allocs.emplace_back(p, aligned(sz));
   }
 
   // no two live allocations may overlap
   for(size_t i = 0; i < allocs.size(); ++i) {
     for(size_t j = i + 1; j < allocs.size(); ++j) {
-      auto const& [pi, si] = allocs[i];
-      auto const& [pj, sj] = allocs[j];
-      bool const disjoint  = (pi + si <= pj) || (pj + sj <= pi);
+      auto const& [si_span, si] = allocs[i];
+      auto const& [sj_span, sj] = allocs[j];
+      char* const pi            = si_span.data();
+      char* const pj            = sj_span.data();
+      bool const  disjoint      = (pi + si <= pj) || (pj + sj <= pi);
       CHECK(disjoint);
     }
   }
 
-  for(auto const& [p, s]: allocs) { pool->deallocate(p, s); }
+  for(auto const& [sp, s]: allocs) { pool->deallocate(sp); }
   CHECK(pool->free_bytes() == kPool);
 }
 
@@ -168,12 +169,12 @@ TEST_CASE("MemoryPool: exact-fit allocation consumes the whole pool") {
   constexpr std::size_t kPool = 64u * 1024u;
   auto                  pool  = make_pool(kPool);
 
-  void* p = pool->allocate(kPool);
-  REQUIRE(p != nullptr);
+  auto p = pool->allocate_span<char>(kPool);
+  REQUIRE(!p.empty());
   CHECK(pool->free_bytes() == 0);
   CHECK(pool->free_summary().first == 0);
 
-  pool->deallocate(p, kPool);
+  pool->deallocate(p);
   CHECK(pool->free_bytes() == kPool);
 }
 
@@ -183,11 +184,11 @@ TEST_CASE("MemoryPool: fragmentation is recovered by coalescing") {
   auto                  pool   = make_pool(kPool);
 
   // carve the pool into many chunks
-  std::vector<void*> chunks;
-  for(int i = 0; i < 64; ++i) { chunks.push_back(pool->allocate(kChunk)); }
+  std::vector<std::span<char>> chunks;
+  for(int i = 0; i < 64; ++i) { chunks.push_back(pool->allocate_span<char>(kChunk)); }
 
   // free every other one -> heavily fragmented, lots of free bytes but small blocks
-  for(size_t i = 0; i < chunks.size(); i += 2) { pool->deallocate(chunks[i], kChunk); }
+  for(size_t i = 0; i < chunks.size(); i += 2) { pool->deallocate(chunks[i]); }
 
   // 32 of the 64 chunks are free, plus whatever tail was never carved.
   auto const [frag_largest, frag_total] = pool->free_summary();
@@ -198,7 +199,7 @@ TEST_CASE("MemoryPool: fragmentation is recovered by coalescing") {
   CHECK(frag_largest < frag_total);
 
   // free the rest -> everything must coalesce back into one block
-  for(size_t i = 1; i < chunks.size(); i += 2) { pool->deallocate(chunks[i], kChunk); }
+  for(size_t i = 1; i < chunks.size(); i += 2) { pool->deallocate(chunks[i]); }
 
   CHECK(pool->free_bytes() == kPool);
   CHECK(pool->free_summary().first == kPool);
@@ -208,23 +209,23 @@ TEST_CASE("MemoryPool: best-fit reuses the tightest hole") {
   constexpr std::size_t kPool = 1u << 20;
   auto                  pool  = make_pool(kPool);
 
-  void* a = pool->allocate(8192);
-  void* b = pool->allocate(1024); // small hole to be
-  void* c = pool->allocate(8192);
-  void* d = pool->allocate(4096); // larger hole to be
-  void* e = pool->allocate(8192); // keeps d's hole from merging with the tail
+  auto a = pool->allocate_span<char>(8192);
+  auto b = pool->allocate_span<char>(1024); // small hole to be
+  auto c = pool->allocate_span<char>(8192);
+  auto d = pool->allocate_span<char>(4096); // larger hole to be
+  auto e = pool->allocate_span<char>(8192); // keeps d's hole from merging with the tail
 
-  pool->deallocate(b, 1024);
-  pool->deallocate(d, 4096);
+  pool->deallocate(b);
+  pool->deallocate(d);
 
   // a 1024 request should take the 1024 hole, not split the 4096 one
-  void* reused = pool->allocate(1024);
-  CHECK(reused == b);
+  auto reused = pool->allocate_span<char>(1024);
+  CHECK(reused.data() == b.data());
 
-  pool->deallocate(reused, 1024);
-  pool->deallocate(a, 8192);
-  pool->deallocate(c, 8192);
-  pool->deallocate(e, 8192);
+  pool->deallocate(reused);
+  pool->deallocate(a);
+  pool->deallocate(c);
+  pool->deallocate(e);
   CHECK(pool->free_bytes() == kPool);
 }
 
@@ -261,13 +262,13 @@ TEST_CASE("MemoryPool: concurrent allocate/deallocate is safe") {
     threads.emplace_back([&pool, t]() {
       std::size_t const sz = 256u << (t % 4); // 256..2048 B
       for(int i = 0; i < kIters; ++i) {
-        void* p = pool->allocate(sz);
+        auto p = pool->allocate_span<char>(sz);
         // allocate() only returns null for a zero-size request; a genuine failure
         // terminates the process, so this is a hard requirement rather than a tally.
-        REQUIRE(p != nullptr);
+        REQUIRE(!p.empty());
         // touch the memory so overlapping handouts show up under TSan/ASan
-        std::memset(p, 0xAB, sz);
-        pool->deallocate(p, sz);
+        std::memset(p.data(), 0xAB, sz);
+        pool->deallocate(p);
       }
     });
   }
@@ -282,15 +283,16 @@ TEST_CASE("MemoryPool: distinct live allocations never alias") {
   constexpr std::size_t kPool = 1u << 20;
   auto                  pool  = make_pool(kPool);
 
-  std::set<void*>    seen;
-  std::vector<void*> live;
+  std::set<void*>              seen;
+  std::vector<std::span<char>> live;
   for(int i = 0; i < 200; ++i) {
-    void* p = pool->allocate(512);
-    REQUIRE(p != nullptr);
-    CHECK(seen.insert(p).second); // must not hand out a pointer that is already live
+    auto p = pool->allocate_span<char>(512);
+    REQUIRE(!p.empty());
+    // must not hand out a pointer that is already live
+    CHECK(seen.insert(static_cast<void*>(p.data())).second);
     live.push_back(p);
   }
-  for(void* p: live) { pool->deallocate(p, 512); }
+  for(auto s: live) { pool->deallocate(s); }
   CHECK(pool->free_bytes() == kPool);
 }
 
@@ -309,7 +311,7 @@ TEST_CASE("MemoryPool: indices stay consistent under interleaved alloc/free") {
   constexpr std::size_t kPool = 1u << 20;
   auto                  pool  = make_pool(kPool);
 
-  std::vector<std::pair<void*, std::size_t>> live;
+  std::vector<std::pair<std::span<char>, std::size_t>> live;
   std::size_t                                live_bytes = 0;
 
   // Deterministic pseudo-random interleaving: allocations of many different sizes,
@@ -328,8 +330,8 @@ TEST_CASE("MemoryPool: indices stay consistent under interleaved alloc/free") {
 
     if(do_alloc) {
       std::size_t const sz = 64 + ((next() >> 16) % 4096);
-      void*             p  = pool->allocate(sz);
-      REQUIRE(p != nullptr);
+      auto              p  = pool->allocate_span<char>(sz);
+      REQUIRE(!p.empty());
       live.emplace_back(p, sz);
       live_bytes += aligned(sz);
     }
@@ -338,7 +340,7 @@ TEST_CASE("MemoryPool: indices stay consistent under interleaved alloc/free") {
       auto const [ptr, sz]     = live[idx];
       live[idx]                = live.back();
       live.pop_back();
-      pool->deallocate(ptr, sz);
+      pool->deallocate(ptr);
       live_bytes -= aligned(sz);
     }
 
@@ -346,7 +348,7 @@ TEST_CASE("MemoryPool: indices stay consistent under interleaved alloc/free") {
     REQUIRE(pool->free_bytes() == kPool - live_bytes);
   }
 
-  for(auto const& [ptr, sz]: live) { pool->deallocate(ptr, sz); }
+  for(auto const& [ptr, sz]: live) { pool->deallocate(ptr); }
 
   // Everything returned, everything coalesced back into one block.
   CHECK(pool->free_bytes() == kPool);
@@ -360,22 +362,22 @@ TEST_CASE("MemoryPool: size index survives coalescing of equal-sized blocks") {
   constexpr std::size_t kChunk = 8192;
   auto                  pool   = make_pool(kPool);
 
-  std::vector<void*> chunks;
-  for(int i = 0; i < 16; ++i) { chunks.push_back(pool->allocate(kChunk)); }
+  std::vector<std::span<char>> chunks;
+  for(int i = 0; i < 16; ++i) { chunks.push_back(pool->allocate_span<char>(kChunk)); }
 
   // Free alternating chunks -> several free blocks all of exactly kChunk bytes.
-  for(size_t i = 0; i < chunks.size(); i += 2) { pool->deallocate(chunks[i], kChunk); }
+  for(size_t i = 0; i < chunks.size(); i += 2) { pool->deallocate(chunks[i]); }
 
   // Each equal-sized hole must be independently reusable.
-  std::vector<void*> reused;
+  std::vector<std::span<char>> reused;
   for(int i = 0; i < 8; ++i) {
-    void* p = pool->allocate(kChunk);
-    REQUIRE(p != nullptr);
+    auto p = pool->allocate_span<char>(kChunk);
+    REQUIRE(!p.empty());
     reused.push_back(p);
   }
 
-  for(void* p: reused) { pool->deallocate(p, kChunk); }
-  for(size_t i = 1; i < chunks.size(); i += 2) { pool->deallocate(chunks[i], kChunk); }
+  for(auto s: reused) { pool->deallocate(s); }
+  for(size_t i = 1; i < chunks.size(); i += 2) { pool->deallocate(chunks[i]); }
 
   CHECK(pool->free_bytes() == kPool);
   CHECK(pool->free_summary().first == kPool);
@@ -389,22 +391,22 @@ TEST_CASE("MemoryPool: full carve and release recoalesces completely") {
   constexpr std::size_t kChunk = 1024;
   auto                  pool   = make_pool(kPool);
 
-  std::vector<void*> chunks;
-  while(pool->free_bytes() >= kChunk) { chunks.push_back(pool->allocate(kChunk)); }
+  std::vector<std::span<char>> chunks;
+  while(pool->free_bytes() >= kChunk) { chunks.push_back(pool->allocate_span<char>(kChunk)); }
   CHECK(chunks.size() == kPool / kChunk);
 
   // Release in a scattered order so coalescing has to merge from both directions.
-  for(size_t i = 0; i < chunks.size(); i += 3) { pool->deallocate(chunks[i], kChunk); }
-  for(size_t i = 1; i < chunks.size(); i += 3) { pool->deallocate(chunks[i], kChunk); }
-  for(size_t i = 2; i < chunks.size(); i += 3) { pool->deallocate(chunks[i], kChunk); }
+  for(size_t i = 0; i < chunks.size(); i += 3) { pool->deallocate(chunks[i]); }
+  for(size_t i = 1; i < chunks.size(); i += 3) { pool->deallocate(chunks[i]); }
+  for(size_t i = 2; i < chunks.size(); i += 3) { pool->deallocate(chunks[i]); }
 
   CHECK(pool->free_bytes() == kPool);
   CHECK(pool->free_summary().first == kPool);
 
   // The whole pool must be allocatable as one contiguous block again.
-  void* whole = pool->allocate(kPool);
-  REQUIRE(whole != nullptr);
-  pool->deallocate(whole, kPool);
+  auto whole = pool->allocate_span<char>(kPool);
+  REQUIRE(!whole.empty());
+  pool->deallocate(whole);
 }
 
 // ---------------------------------------------------------------------------

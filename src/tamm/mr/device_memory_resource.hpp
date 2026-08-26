@@ -74,28 +74,16 @@ public:
   device_memory_resource& operator=(device_memory_resource&&) noexcept = default;
 
   /**
-   * @brief Allocates memory of size at least \p bytes.
-   *
-   * The returned pointer will have at minimum 256 byte alignment.
-   *
-   * @throws `rmm::bad_alloc` When the requested `bytes` cannot be allocated
-   *
-   * @param bytes The size of the allocation
-   * @return void* Pointer to the newly allocated memory
-   */
-  [[nodiscard]] void* allocate(std::size_t bytes) {
-    return do_allocate(rmm::detail::align_up(bytes, rmm::detail::RMM_ALLOCATION_ALIGNMENT));
-  }
-
-  /**
    * @brief Allocate storage for `count` objects of type `T` and return it as a span.
    *
-   * Prefer this over the raw `allocate`/`deallocate` pair. The returned span carries its own
-   * length, so the matching `deallocate(span)` derives the byte count instead of the caller
+   * This is the only allocation entry point. The returned span carries its own length, so
+   * the matching `deallocate(span)` derives the byte count instead of the caller
    * recomputing `count * sizeof(T)` at a distant call site. A size mismatch between
    * allocation and deallocation silently corrupts the pool's free list -- freeing short
    * orphans the remainder forever, freeing long makes the pool hand out live memory -- and
    * this API makes that mismatch impossible to express.
+   *
+   * @throws `rmm::bad_alloc` When the requested size cannot be allocated
    *
    * @tparam T Element type
    * @param count Number of elements
@@ -104,11 +92,15 @@ public:
   template<typename T>
   [[nodiscard]] std::span<T> allocate_span(std::size_t count) {
     if(count == 0) { return {}; }
-    return {static_cast<T*>(allocate(count * sizeof(T))), count};
+    void* ptr =
+      do_allocate(rmm::detail::align_up(count * sizeof(T), rmm::detail::RMM_ALLOCATION_ALIGNMENT));
+    return {static_cast<T*>(ptr), count};
   }
 
   /**
    * @brief Deallocate storage previously obtained from `allocate_span<T>`.
+   *
+   * @throws Nothing.
    *
    * @param span The span returned by `allocate_span`. Must not have been resized or
    * subspanned -- the pool frees exactly `span.size_bytes()`.
@@ -116,25 +108,8 @@ public:
   template<typename T>
   void deallocate(std::span<T> span) {
     if(span.empty()) { return; }
-    deallocate(static_cast<void*>(span.data()), span.size_bytes());
-  }
-
-  /**
-   * @brief Deallocate memory pointed to by \p p.
-   *
-   * `p` must have been returned by a prior call to `allocate(bytes)` on
-   * a `device_memory_resource` that compares equal to `*this`, and the storage
-   * it points to must not yet have been deallocated, otherwise behavior is
-   * undefined.
-   *
-   * @throws Nothing.
-   *
-   * @param p Pointer to be deallocated
-   * @param bytes The size in bytes of the allocation. This must be equal to the
-   * value of `bytes` that was passed to the `allocate` call that returned `p`.
-   */
-  void deallocate(void* ptr, std::size_t bytes) {
-    do_deallocate(ptr, rmm::detail::align_up(bytes, rmm::detail::RMM_ALLOCATION_ALIGNMENT));
+    do_deallocate(static_cast<void*>(span.data()),
+                  rmm::detail::align_up(span.size_bytes(), rmm::detail::RMM_ALLOCATION_ALIGNMENT));
   }
 
   /**

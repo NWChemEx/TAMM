@@ -18,6 +18,7 @@
 #include <mutex>
 #include <numeric>
 #include <set>
+#include <span>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -265,9 +266,10 @@ protected:
     if(size == 0) { return {}; }
 
     try {
-      void* ptr = get_upstream()->allocate(size);
-      return std::optional<block_type>{
-        *upstream_blocks_.emplace(static_cast<char*>(ptr), size, true).first};
+      // char, so size_bytes() == size: the block is raw storage, and the pool records the
+      // byte count itself in upstream_blocks_ for the matching free in release().
+      std::span<char> const chunk = get_upstream()->template allocate_span<char>(size);
+      return std::optional<block_type>{*upstream_blocks_.emplace(chunk.data(), size, true).first};
     } catch(std::exception const& e) { return std::nullopt; }
   }
 
@@ -452,7 +454,9 @@ protected:
     }
     outstanding_.clear();
 
-    for(auto block: upstream_blocks_) { get_upstream()->deallocate(block.pointer(), block.size()); }
+    for(auto block: upstream_blocks_) {
+      get_upstream()->deallocate(std::span<char>{block.pointer(), block.size()});
+    }
     upstream_blocks_.clear();
     current_pool_size_ = 0;
   }

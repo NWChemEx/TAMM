@@ -5,7 +5,10 @@
 
 #include <algorithm>
 #include <complex>
+#include <cstddef>
+#include <span>
 #include <sstream>
+#include <type_traits>
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 
@@ -77,12 +80,22 @@ void tamm::kernels::gpu::gesvd(lapack::Job jobu, lapack::Job jobvt, int64_t m, i
 
   const size_t rwork_size = static_cast<size_t>(std::max<int64_t>(1, k - 1));
 
-  T*      d_A     = static_cast<T*>(devpool.allocate(a_size * sizeof(T)));
-  real_t* d_S     = static_cast<real_t*>(devpool.allocate(static_cast<size_t>(k) * sizeof(real_t)));
-  T*      d_U     = u_size ? static_cast<T*>(devpool.allocate(u_size * sizeof(T))) : nullptr;
-  T*      d_VT    = vt_size ? static_cast<T*>(devpool.allocate(vt_size * sizeof(T))) : nullptr;
-  real_t* d_rwork = static_cast<real_t*>(devpool.allocate(rwork_size * sizeof(real_t)));
-  int*    d_info  = static_cast<int*>(devpool.allocate(sizeof(int)));
+  // The spans own the pool blocks; .data() is what the cuSolver API takes. Each
+  // deallocate() below derives its byte count from the span, so it cannot disagree with
+  // the allocation.
+  std::span<T>      sp_A     = devpool.allocate_span<T>(a_size);
+  std::span<real_t> sp_S     = devpool.allocate_span<real_t>(static_cast<size_t>(k));
+  std::span<T>      sp_U     = devpool.allocate_span<T>(u_size);
+  std::span<T>      sp_VT    = devpool.allocate_span<T>(vt_size);
+  std::span<real_t> sp_rwork = devpool.allocate_span<real_t>(rwork_size);
+  std::span<int>    sp_info  = devpool.allocate_span<int>(1);
+
+  T*      d_A     = sp_A.data();
+  real_t* d_S     = sp_S.data();
+  T*      d_U     = u_size ? sp_U.data() : nullptr;
+  T*      d_VT    = vt_size ? sp_VT.data() : nullptr;
+  real_t* d_rwork = sp_rwork.data();
+  int*    d_info  = sp_info.data();
 
   gpuMemcpyAsync<T>(d_A, A, a_size, gpuMemcpyHostToDevice, gpustream);
 
@@ -94,7 +107,8 @@ void tamm::kernels::gpu::gesvd(lapack::Job jobu, lapack::Job jobvt, int64_t m, i
     CUSOLVER_CHECK(cusolverDnZgesvd_bufferSize(handle, im, in, &lwork));
   }
 
-  T* d_work = static_cast<T*>(devpool.allocate(static_cast<size_t>(lwork) * sizeof(T)));
+  std::span<T> sp_work = devpool.allocate_span<T>(static_cast<size_t>(std::max(lwork, 0)));
+  T*           d_work  = sp_work.data();
 
   if constexpr(std::is_same_v<T, double>) {
     CUSOLVER_CHECK(cusolverDnDgesvd(handle, jobu_c, jobvt_c, im, in, d_A, ilda, d_S, d_U, ildu,
@@ -122,13 +136,13 @@ void tamm::kernels::gpu::gesvd(lapack::Job jobu, lapack::Job jobvt, int64_t m, i
   if(d_VT != nullptr) gpuMemcpyAsync<T>(VT, d_VT, vt_size, gpuMemcpyDeviceToHost, gpustream);
   gpuStreamSynchronize(gpustream);
 
-  devpool.deallocate(d_A, a_size * sizeof(T));
-  devpool.deallocate(d_S, static_cast<size_t>(k) * sizeof(real_t));
-  if(d_U != nullptr) devpool.deallocate(d_U, u_size * sizeof(T));
-  if(d_VT != nullptr) devpool.deallocate(d_VT, vt_size * sizeof(T));
-  devpool.deallocate(d_rwork, rwork_size * sizeof(real_t));
-  devpool.deallocate(d_work, static_cast<size_t>(lwork) * sizeof(T));
-  devpool.deallocate(d_info, sizeof(int));
+  devpool.deallocate(sp_A);
+  devpool.deallocate(sp_S);
+  devpool.deallocate(sp_U);
+  devpool.deallocate(sp_VT);
+  devpool.deallocate(sp_rwork);
+  devpool.deallocate(sp_work);
+  devpool.deallocate(sp_info);
 
   CUSOLVER_CHECK(cusolverDnDestroy(handle));
 
@@ -148,12 +162,22 @@ void tamm::kernels::gpu::gesvd(lapack::Job jobu, lapack::Job jobvt, int64_t m, i
 
   const size_t e_size = static_cast<size_t>(std::max<int64_t>(1, k - 1));
 
-  T*      d_A = static_cast<T*>(devpool.allocate(a_size * sizeof(T)));
-  real_t* d_S = static_cast<real_t*>(devpool.allocate(static_cast<size_t>(k) * sizeof(real_t)));
-  T*      d_U = u_size ? static_cast<T*>(devpool.allocate(u_size * sizeof(T))) : nullptr;
-  T*      d_V = vt_size ? static_cast<T*>(devpool.allocate(vt_size * sizeof(T))) : nullptr;
-  real_t* d_E = static_cast<real_t*>(devpool.allocate(e_size * sizeof(real_t)));
-  rocblas_int* d_info = static_cast<rocblas_int*>(devpool.allocate(sizeof(rocblas_int)));
+  // The spans own the pool blocks; .data() is what the rocSOLVER API takes. Each
+  // deallocate() below derives its byte count from the span, so it cannot disagree with
+  // the allocation.
+  std::span<T>           sp_A    = devpool.allocate_span<T>(a_size);
+  std::span<real_t>      sp_S    = devpool.allocate_span<real_t>(static_cast<size_t>(k));
+  std::span<T>           sp_U    = devpool.allocate_span<T>(u_size);
+  std::span<T>           sp_V    = devpool.allocate_span<T>(vt_size);
+  std::span<real_t>      sp_E    = devpool.allocate_span<real_t>(e_size);
+  std::span<rocblas_int> sp_info = devpool.allocate_span<rocblas_int>(1);
+
+  T*           d_A    = sp_A.data();
+  real_t*      d_S    = sp_S.data();
+  T*           d_U    = u_size ? sp_U.data() : nullptr;
+  T*           d_V    = vt_size ? sp_V.data() : nullptr;
+  real_t*      d_E    = sp_E.data();
+  rocblas_int* d_info = sp_info.data();
 
   gpuMemcpyAsync<T>(d_A, A, a_size, gpuMemcpyHostToDevice, gpustream);
 
@@ -184,12 +208,12 @@ void tamm::kernels::gpu::gesvd(lapack::Job jobu, lapack::Job jobvt, int64_t m, i
   if(d_V != nullptr) gpuMemcpyAsync<T>(VT, d_V, vt_size, gpuMemcpyDeviceToHost, gpustream);
   gpuStreamSynchronize(gpustream);
 
-  devpool.deallocate(d_A, a_size * sizeof(T));
-  devpool.deallocate(d_S, static_cast<size_t>(k) * sizeof(real_t));
-  if(d_U != nullptr) devpool.deallocate(d_U, u_size * sizeof(T));
-  if(d_V != nullptr) devpool.deallocate(d_V, vt_size * sizeof(T));
-  devpool.deallocate(d_E, e_size * sizeof(real_t));
-  devpool.deallocate(d_info, sizeof(rocblas_int));
+  devpool.deallocate(sp_A);
+  devpool.deallocate(sp_S);
+  devpool.deallocate(sp_U);
+  devpool.deallocate(sp_V);
+  devpool.deallocate(sp_E);
+  devpool.deallocate(sp_info);
 
 #elif defined(USE_DPCPP)
   // oneMKL's gesvd has no documented m>=n restriction (unlike cusolverDn/rocsolver), so
@@ -200,22 +224,30 @@ void tamm::kernels::gpu::gesvd(lapack::Job jobu, lapack::Job jobvt, int64_t m, i
   const oneapi::mkl::jobsvd ju  = job_to_oneapi_jobsvd(jobu);
   const oneapi::mkl::jobsvd jvt = job_to_oneapi_jobsvd(jobvt);
 
-  T*      d_A  = static_cast<T*>(devpool.allocate(a_size * sizeof(T)));
-  real_t* d_S  = static_cast<real_t*>(devpool.allocate(static_cast<size_t>(k) * sizeof(real_t)));
-  T*      d_U  = u_size ? static_cast<T*>(devpool.allocate(u_size * sizeof(T))) : nullptr;
-  T*      d_VT = vt_size ? static_cast<T*>(devpool.allocate(vt_size * sizeof(T))) : nullptr;
+  // The spans own the pool blocks; .data() is what the oneMKL API takes. Each deallocate()
+  // below derives its byte count from the span, so it cannot disagree with the allocation.
+  std::span<T>      sp_A  = devpool.allocate_span<T>(a_size);
+  std::span<real_t> sp_S  = devpool.allocate_span<real_t>(static_cast<size_t>(k));
+  std::span<T>      sp_U  = devpool.allocate_span<T>(u_size);
+  std::span<T>      sp_VT = devpool.allocate_span<T>(vt_size);
+
+  T*      d_A  = sp_A.data();
+  real_t* d_S  = sp_S.data();
+  T*      d_U  = u_size ? sp_U.data() : nullptr;
+  T*      d_VT = vt_size ? sp_VT.data() : nullptr;
 
   gpuMemcpyAsync<T>(d_A, A, a_size, gpuMemcpyHostToDevice, gpustream);
 
-  std::int64_t scratchpad_size = 0;
-  T*           d_scratch       = nullptr;
+  // Declared outside the try so the deallocate below is in scope on the success path.
+  std::span<T> sp_scratch;
   try {
-    scratchpad_size =
+    std::int64_t const scratchpad_size =
       oneapi::mkl::lapack::gesvd_scratchpad_size<T>(q, ju, jvt, m, n, lda, ldu, ldvt);
-    d_scratch = static_cast<T*>(devpool.allocate(static_cast<size_t>(scratchpad_size) * sizeof(T)));
+    sp_scratch =
+      devpool.allocate_span<T>(static_cast<size_t>(std::max<std::int64_t>(scratchpad_size, 0)));
 
     auto ev = oneapi::mkl::lapack::gesvd(q, ju, jvt, m, n, d_A, lda, d_S, d_U, ldu, d_VT, ldvt,
-                                         d_scratch, scratchpad_size);
+                                         sp_scratch.data(), scratchpad_size);
     ev.wait();
   } catch(oneapi::mkl::exception const& ex) {
     std::ostringstream msg;
@@ -228,12 +260,11 @@ void tamm::kernels::gpu::gesvd(lapack::Job jobu, lapack::Job jobvt, int64_t m, i
   if(d_VT != nullptr) gpuMemcpyAsync<T>(VT, d_VT, vt_size, gpuMemcpyDeviceToHost, gpustream);
   gpuStreamSynchronize(gpustream);
 
-  devpool.deallocate(d_A, a_size * sizeof(T));
-  devpool.deallocate(d_S, static_cast<size_t>(k) * sizeof(real_t));
-  if(d_U != nullptr) devpool.deallocate(d_U, u_size * sizeof(T));
-  if(d_VT != nullptr) devpool.deallocate(d_VT, vt_size * sizeof(T));
-  if(d_scratch != nullptr)
-    devpool.deallocate(d_scratch, static_cast<size_t>(scratchpad_size) * sizeof(T));
+  devpool.deallocate(sp_A);
+  devpool.deallocate(sp_S);
+  devpool.deallocate(sp_U);
+  devpool.deallocate(sp_VT);
+  devpool.deallocate(sp_scratch);
 #endif
 }
 

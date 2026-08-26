@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 
@@ -58,12 +59,13 @@ static const uint32_t tamm_gpu_pool = parse_pool_percent("TAMM_GPU_POOL", 80);
 // TAMM_CPU_POOL
 static const uint32_t tamm_cpu_pool = parse_pool_percent("TAMM_CPU_POOL", 100);
 
-// TAMM_RMM_DEBUG = 0(default), 1
-// When set, rank 0 reports the computed pool sizes and the inputs used to derive them.
-static const bool tamm_rmm_debug = [] {
-  const char* tammRmmDebug = std::getenv("TAMM_RMM_DEBUG");
-  return (tammRmmDebug != nullptr) && (std::atoi(tammRmmDebug) != 0);
-}();
+// TAMM_RMM_DEBUG = 0(default) | 1 | 2. Parsed once in tamm::rmm::mr::detail; see the
+// comment there for what each level costs and prints.
+//
+//   >= 1  rank 0 reports the computed pool sizes and the inputs used to derive them, and
+//         an occupancy report is emitted at finalize.
+//   >= 2  additionally logs every allocation and deallocation, per rank, for both pools.
+inline int tamm_rmm_debug_level() { return rmm::mr::detail::rmm_debug_level(); }
 
 } // namespace detail
 
@@ -297,7 +299,7 @@ public:
     max_device_bytes =
       rmm::detail::align_down(max_device_bytes, rmm::detail::RMM_ALLOCATION_ALIGNMENT);
 
-    if(detail::tamm_rmm_debug && world_rank_ == 0) {
+    if(detail::tamm_rmm_debug_level() >= 1 && world_rank_ == 0) {
       std::cout << "[TAMM RMM] device pool: " << max_device_bytes << " B ("
                 << (max_device_bytes / (1024.0 * 1024.0 * 1024.0)) << " GiB) per rank | "
                 << "gpu free=" << free << " B, total=" << total << " B | "
@@ -315,7 +317,7 @@ public:
     //   max_pinned_host_bytes);
 #endif
 
-    if(detail::tamm_rmm_debug) {
+    if(detail::tamm_rmm_debug_level() >= 1) {
       int host_dbg_rank = 0;
 #if defined(USE_UPCXX)
       host_dbg_rank = upcxx::rank_me();
@@ -333,8 +335,67 @@ public:
     hostMR =
       std::make_unique<host_pool_mr>(new rmm::mr::new_delete_resource, max_host_bytes_aligned);
 
+    // Label the pools for TAMM_RMM_DEBUG output. The mr/ layer is deliberately free of
+    // GA/UPC++, so it cannot look up its own rank, and host and device pools are the same
+    // template distinguished only by upstream type. Both facts have to be supplied here.
+    if(detail::tamm_rmm_debug_level() >= 1) {
+      int dbg_rank = 0;
+#if defined(USE_UPCXX)
+      dbg_rank = upcxx::rank_me();
+#else
+      dbg_rank = GA_Nodeid();
+#endif
+      hostMR->set_debug_identity(dbg_rank, "HOST");
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+      deviceMR->set_debug_identity(dbg_rank, "DEV ");
+#endif
+    }
+
     // after setting up the pool: change the invalid_state to FALSE
     invalid_state = false;
+  }
+
+  /**
+   * @brief Emit an occupancy report for both pools (TAMM_RMM_DEBUG >= 1).
+   *
+   * Prints from every rank: with per-rank pools, a single rank running out is exactly the
+   * case worth seeing, and rank 0 alone would hide it.
+   *
+   * @param tag Short label for the point in the run, e.g. "finalize".
+   */
+  void report(const char* tag) {
+    if(detail::tamm_rmm_debug_level() < 1 || invalid_state) { return; }
+
+    int dbg_rank = 0;
+#if defined(USE_UPCXX)
+    dbg_rank = upcxx::rank_me();
+#else
+    dbg_rank = GA_Nodeid();
+#endif
+
+    auto emit = [&](const char* label, auto& pool) {
+      auto const [largest, total_free] = pool.free_summary();
+      std::size_t const total          = pool.pool_size();
+      std::size_t const in_use         = (total >= total_free) ? total - total_free : 0;
+
+      std::ostringstream os;
+      os << "[TAMM RMM][r" << std::setw(4) << std::setfill('0') << dbg_rank << std::setfill(' ')
+         << "][" << label << "][" << tag << "] pool=" << total << " inuse=" << in_use
+         << " free=" << total_free << " largest_free=" << largest
+         << " peak=" << pool.peak_bytes_in_use();
+      if(detail::tamm_rmm_debug_level() >= 2) {
+        auto const [count, bytes] = pool.outstanding_summary();
+        os << " outstanding=" << count << " outstanding_bytes=" << bytes;
+      }
+      os << '\n';
+      std::cerr << os.str();
+    };
+
+    emit("HOST", *hostMR);
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+    emit("DEV ", *deviceMR);
+#endif
+    std::cerr.flush();
   }
 
   RMMMemoryManager(const RMMMemoryManager&)            = delete;

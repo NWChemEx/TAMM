@@ -11,11 +11,14 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <mutex>
 #include <numeric>
 #include <set>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -26,18 +29,45 @@
 namespace tamm::rmm::mr {
 
 namespace detail {
-// TAMM_RMM_TRACK = 0(default), 1
-// When set, the pool records every outstanding allocation and validates that each block is
-// returned with the size it was handed out with. A size mismatch silently corrupts the free
-// list (freeing short orphans a sliver forever; freeing long overlaps the next block), and
-// is otherwise almost impossible to attribute to a call site after the fact.
-inline bool rmm_track_allocations() {
-  static bool const enabled = [] {
-    const char* raw = std::getenv("TAMM_RMM_TRACK");
-    return (raw != nullptr) && (std::atoi(raw) != 0);
+// TAMM_RMM_DEBUG = 0 (default) | 1 | 2
+//
+//   0  silent.
+//
+//   1  pool sizing at startup and an occupancy report (total / peak in use / free /
+//      largest free block) at finalize, on rank 0. Costs one comparison per allocation
+//      to maintain the high-water mark; nothing else.
+//
+//   2  everything in 1, plus every allocation and deallocation logged to stderr from
+//      every rank for both the host and the device pool, plus a record of each
+//      outstanding block so that a deallocation can be validated against the size it
+//      was handed out with. A size mismatch silently corrupts the free list (freeing
+//      short orphans a sliver forever; freeing long overlaps the next block) and is
+//      otherwise almost impossible to attribute to a call site after the fact.
+//
+//      Level 2 is expensive: it adds a hash-map insert/erase to every alloc/free pair
+//      (measured ~+38%) on top of the I/O. It is a debugging tool, not a production
+//      setting.
+inline int rmm_debug_level() {
+  static int const level = [] {
+    const char* raw = std::getenv("TAMM_RMM_DEBUG");
+    if(raw == nullptr) { return 0; }
+
+    char*     end = nullptr;
+    long long val = std::strtoll(raw, &end, 10);
+    if(end == raw || *end != '\0' || val < 0 || val > 2) {
+      // No tamm_terminate() here: this is reached during static initialisation of the
+      // pool singleton, before MPI/GA are necessarily up.
+      std::cerr << "[TAMM RMM] TAMM_RMM_DEBUG must be 0, 1 or 2; got \"" << raw
+                << "\". Treating as 0.\n";
+      return 0;
+    }
+    return static_cast<int>(val);
   }();
-  return enabled;
+  return level;
 }
+
+// Level 2 records every outstanding block and validates each free against it.
+inline bool rmm_track_allocations() { return rmm_debug_level() >= 2; }
 } // namespace detail
 
 /**
@@ -112,6 +142,35 @@ public:
    * @return UpstreamResource* the upstream memory resource.
    */
   Upstream* get_upstream() const noexcept { return upstream_mr_; }
+
+  /**
+   * @brief Label this pool for TAMM_RMM_DEBUG output.
+   *
+   * The pool cannot determine either value for itself: this layer is deliberately free of
+   * GA/UPC++ (so it cannot ask for its own rank), and host and device pools are the same
+   * template distinguished only by their upstream type. Both are therefore injected by
+   * RMMMemoryManager once the runtime is up.
+   *
+   * Allocations made before this is called are logged with rank "????", which is honest
+   * about not knowing rather than reporting a wrong rank.
+   *
+   * @param rank  MPI/GA rank of this process.
+   * @param label Short tag identifying the pool, e.g. "HOST" or "DEV ".
+   */
+  void set_debug_identity(int rank, const char* label) noexcept {
+    debug_rank_  = rank;
+    debug_label_ = label;
+  }
+
+  /**
+   * @brief Peak bytes simultaneously handed out by this pool.
+   *
+   * Tracked whenever TAMM_RMM_DEBUG >= 1. This is the number that determines whether a
+   * pool is large enough; neither the current occupancy nor the total size answers that.
+   *
+   * @return std::size_t high-water mark in bytes.
+   */
+  [[nodiscard]] std::size_t peak_bytes_in_use() const noexcept { return peak_in_use_; }
 
   /**
    * @brief The total size of the pool, allocated plus free.
@@ -225,7 +284,14 @@ protected:
   split_block allocate_from_block(block_type const& block, std::size_t size) {
     block_type const alloc{block.pointer(), size, block.is_head()};
 
-    if(detail::rmm_track_allocations()) { outstanding_[block.pointer()] = size; }
+    if(detail::rmm_debug_level() >= 1) {
+      bytes_in_use_ += size;
+      if(bytes_in_use_ > peak_in_use_) { peak_in_use_ = bytes_in_use_; }
+    }
+    if(detail::rmm_track_allocations()) {
+      outstanding_[block.pointer()] = size;
+      log_event("ALLOC", block.pointer(), size);
+    }
 
     auto rest = (block.size() > size)
                   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -243,14 +309,41 @@ protected:
    * to the pool.
    */
   block_type free_block(void* ptr, std::size_t size, std::string& err) noexcept {
-    if(detail::rmm_track_allocations()) { validate_free(static_cast<char*>(ptr), size, err); }
+    if(detail::rmm_debug_level() >= 1) {
+      bytes_in_use_ = (bytes_in_use_ >= size) ? bytes_in_use_ - size : 0;
+    }
+    if(detail::rmm_track_allocations()) {
+      // Log before validating so the offending free still appears in the trace.
+      log_event("FREE ", static_cast<char*>(ptr), size);
+      validate_free(static_cast<char*>(ptr), size, err);
+    }
 
     auto const iter = upstream_blocks_.find(static_cast<char*>(ptr));
     return block_type{static_cast<char*>(ptr), size, (iter != upstream_blocks_.end())};
   }
 
   /**
-   * @brief Check a deallocation against the recorded allocation (TAMM_RMM_TRACK=1).
+   * @brief Emit one alloc/free line to stderr (TAMM_RMM_DEBUG=2).
+   *
+   * Called with the pool mutex held, so a line is never interleaved with another from the
+   * same rank. Lines from different ranks will interleave; the fixed-width rank and tag
+   * fields keep the result greppable and sortable.
+   *
+   * Built into a single string and written with one operator<< so the write is a single
+   * call, which in practice keeps lines intact across ranks sharing a terminal.
+   */
+  void log_event(const char* what, char* ptr, std::size_t size) const noexcept {
+    std::ostringstream os;
+    os << "[TAMM RMM][r";
+    if(debug_rank_ < 0) { os << "????"; }
+    else { os << std::setw(4) << std::setfill('0') << debug_rank_ << std::setfill(' '); }
+    os << "][" << debug_label_ << "][" << what << "] ptr=" << static_cast<void*>(ptr)
+       << " size=" << size << " inuse=" << bytes_in_use_ << " pool=" << current_pool_size_ << '\n';
+    std::cerr << os.str();
+  }
+
+  /**
+   * @brief Check a deallocation against the recorded allocation (TAMM_RMM_DEBUG=2).
    *
    * Reports, and does not attempt to repair, two classes of error:
    *  - freeing a pointer the pool never handed out (double free, or a foreign pointer)
@@ -298,7 +391,7 @@ protected:
 
 public:
   /**
-   * @brief Number of allocations, and total bytes, still outstanding (TAMM_RMM_TRACK=1).
+   * @brief Number of allocations, and total bytes, still outstanding (TAMM_RMM_DEBUG=2).
    *
    * A nonzero count once the application has released everything it believes it owns is a
    * leak. Returns {0,0} when tracking is disabled.
@@ -325,26 +418,35 @@ protected:
     // from the destructor, and aborting during static destruction is worse than a warning.
     // On a fatal abort the outstanding blocks are whatever was legitimately live when the
     // process was killed, so they are reported without calling them leaks.
-    if(detail::rmm_track_allocations() && !outstanding_.empty()) {
+    if(detail::rmm_track_allocations()) {
       std::size_t bytes{0};
       for(auto const& [ptr, sz]: outstanding_) { bytes += sz; }
-      if(tamm::tamm_terminating()) {
-        std::cerr << "[TAMM RMM] " << outstanding_.size()
+
+      // Report even when clean: "0 outstanding" is a result. Staying silent makes a
+      // correct run indistinguishable from a mistyped environment variable.
+      if(outstanding_.empty()) {
+        std::cerr << "[TAMM RMM][" << debug_label_ << "] 0 allocation(s) outstanding at pool"
+                  << " teardown (clean).\n";
+      }
+      else if(tamm::tamm_terminating()) {
+        std::cerr << "[TAMM RMM][" << debug_label_ << "] " << outstanding_.size()
                   << " allocation(s) live at abort (not necessarily leaks), totalling " << bytes
                   << " B.\n";
       }
       else {
-        std::cerr << "[TAMM RMM] LEAK: " << outstanding_.size()
+        std::cerr << "[TAMM RMM][" << debug_label_ << "] LEAK: " << outstanding_.size()
                   << " allocation(s) still outstanding at pool teardown, totalling " << bytes
                   << " B.\n";
       }
 
-      // Group by size: a repeated size points straight at one call site.
-      std::map<std::size_t, std::size_t> by_size;
-      for(auto const& [ptr, sz]: outstanding_) { ++by_size[sz]; }
-      std::cerr << "[TAMM RMM]   outstanding blocks by size (size B x count):\n";
-      for(auto const& [sz, count]: by_size) {
-        std::cerr << "[TAMM RMM]     " << sz << " x " << count << "\n";
+      if(!outstanding_.empty()) {
+        // Group by size: a repeated size points straight at one call site.
+        std::map<std::size_t, std::size_t> by_size;
+        for(auto const& [ptr, sz]: outstanding_) { ++by_size[sz]; }
+        std::cerr << "[TAMM RMM]   outstanding blocks by size (size B x count):\n";
+        for(auto const& [sz, count]: by_size) {
+          std::cerr << "[TAMM RMM]     " << sz << " x " << count << "\n";
+        }
       }
       std::cerr.flush();
     }
@@ -365,13 +467,22 @@ private:
   std::set<block_type, rmm::mr::detail::compare_blocks<block_type>> upstream_blocks_;
 
   // Outstanding allocations, keyed by the pointer handed to the caller. Populated only when
-  // TAMM_RMM_TRACK=1; empty and untouched otherwise, so the default path pays nothing beyond
+  // TAMM_RMM_DEBUG=2; empty and untouched otherwise, so the default path pays nothing beyond
   // one predictable branch.
   //
   // unordered_map, not map: measured on this workload, the ordered map costs ~114 ns per
   // alloc/free pair (+71% against a ~160 ns pair) versus ~61 ns (+38%) for the hash map.
   // Ordering is never needed here -- lookups are always by exact pointer.
   std::unordered_map<char*, std::size_t> outstanding_;
+
+  // Occupancy accounting, maintained when TAMM_RMM_DEBUG >= 1. Guarded by the pool mutex:
+  // every mutation is on a path that already holds it.
+  std::size_t bytes_in_use_{0};
+  std::size_t peak_in_use_{0};
+
+  // Set by RMMMemoryManager once the runtime is up; see set_debug_identity().
+  int         debug_rank_{-1};
+  const char* debug_label_{"POOL"};
 }; // namespace mr
 
 } // namespace tamm::rmm::mr

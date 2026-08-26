@@ -55,6 +55,12 @@ void initialize(int argc, char* argv[], bool is_mpi_tm) {
 }
 
 void finalize(bool tamm_mpi_finalize) {
+  // Before GA/MPI teardown: the pool singleton is a function-local static, so its
+  // destructor -- and hence its leak report -- runs during static destruction, after
+  // MPI_Finalize(), where the output is routinely lost. Report here instead, while the
+  // runtime is still up and ranks can still identify themselves.
+  RMMMemoryManager::getInstance().report("finalize");
+
 #if defined(USE_UPCXX)
   upcxx::finalize();
 #else

@@ -4,6 +4,10 @@
 #include <tamm/gpu_streams.hpp>
 #endif
 
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+#include <lapack.hh> // lapack::Job, blas::real_type
+#endif
+
 namespace tamm::kernels {
 
 namespace cpu {
@@ -33,6 +37,18 @@ template<typename T>
 void transpose_reorder(T* out, const T* in, int ndim, const int* outDims, const int* perm,
                        gpuStream_t& handle);
 
+} // namespace gpu
+#endif
+
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+namespace gpu {
+// GPU (cuSolver/rocSolver/oneMKL) counterpart of lapack::gesvd, used by tamm::svd. A/U/VT are
+// host pointers (column-major, same layout lapack::gesvd expects); device staging is handled
+// internally. On CUDA/HIP this requires m >= n (cusolverDn/rocsolver <t>gesvd's native
+// constraint); tamm::svd falls back to the LAPACK/CPU path otherwise.
+template<typename T>
+void gesvd(lapack::Job jobu, lapack::Job jobvt, int64_t m, int64_t n, T* A, int64_t lda,
+           blas::real_type<T>* S, T* U, int64_t ldu, T* VT, int64_t ldvt);
 } // namespace gpu
 #endif
 

@@ -15,8 +15,8 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
     Tensor<T>  scalar_t{};
     Tensor<CT> scalar_ct{};
     sch.allocate(scalar_t, scalar_ct).execute();
-    auto val_t  = tamm::get_scalar(scalar_t);
-    auto val_ct = tamm::get_scalar(scalar_ct);
+    [[maybe_unused]] auto val_t  = tamm::get_scalar(scalar_t);
+    [[maybe_unused]] auto val_ct = tamm::get_scalar(scalar_ct);
     sch.deallocate(scalar_t, scalar_ct).execute();
   }
 
@@ -57,11 +57,11 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
     tamm::random_ip(rtens);
 
     // trace
-    T  rtrace = tamm::trace(rtens);
-    CT ctrace = tamm::trace(ctens);
+    [[maybe_unused]] T  rtrace = tamm::trace(rtens);
+    [[maybe_unused]] CT ctrace = tamm::trace(ctens);
     // trace_sqr
-    T  rtrace_sqr = tamm::trace_sqr(rtens);
-    CT ctrace_sqr = tamm::trace_sqr(ctens);
+    [[maybe_unused]] T  rtrace_sqr = tamm::trace_sqr(rtens);
+    [[maybe_unused]] CT ctrace_sqr = tamm::trace_sqr(ctens);
     // diagonal
     auto rtens_diag = tamm::diagonal(rtens);
     auto ctens_diag = tamm::diagonal(ctens);
@@ -73,16 +73,16 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   }
 
   // sum
-  T  b_sum = tamm::sum(B);
-  CT c_sum = tamm::sum(C);
+  [[maybe_unused]] T  b_sum = tamm::sum(B);
+  [[maybe_unused]] CT c_sum = tamm::sum(C);
 
   // norm
-  T  b_norm = tamm::norm(B);
-  CT c_norm = tamm::norm(C);
+  [[maybe_unused]] T  b_norm = tamm::norm(B);
+  [[maybe_unused]] CT c_norm = tamm::norm(C);
 
   // linf_norm
-  T  b_linf_norm = tamm::linf_norm(B);
-  CT c_linf_norm = tamm::linf_norm(C);
+  [[maybe_unused]] T  b_linf_norm = tamm::linf_norm(B);
+  [[maybe_unused]] CT c_linf_norm = tamm::linf_norm(C);
 
   // sqrt
   Tensor<T>  b_sqrt = tamm::sqrt(B);
@@ -142,8 +142,8 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   update_tensor_val(C, t_coord, val_ct);
 
   // hash_tensor
-  auto b_hash = tamm::hash_tensor(B);
-  auto c_hash = tamm::hash_tensor(C);
+  [[maybe_unused]] auto b_hash = tamm::hash_tensor(B);
+  [[maybe_unused]] auto c_hash = tamm::hash_tensor(C);
 
   // permute_tensor
   Tensor<T>  b_perm = permute_tensor<T>(B, {1, 3, 2, 0});
@@ -155,8 +155,8 @@ void test_utils(Scheduler& sch, ExecutionHW ex_hw) {
   Tensor<CT> c_dens = tamm::to_dense_tensor(ec_dense, C);
 
   // get_tensor_element
-  T  b_dens_val = tamm::get_tensor_element(b_dens, {0, 0, 0, 0});
-  CT c_dens_val = tamm::get_tensor_element(c_dens, {0, 0, 0, 0});
+  [[maybe_unused]] T  b_dens_val = tamm::get_tensor_element(b_dens, {0, 0, 0, 0});
+  [[maybe_unused]] CT c_dens_val = tamm::get_tensor_element(c_dens, {0, 0, 0, 0});
 
   // tensor_block
   Tensor<T>  b_block = tamm::tensor_block(b_dens, {0, 0, 0, 0}, {N / 2, N / 2, N / 2, N / 2});

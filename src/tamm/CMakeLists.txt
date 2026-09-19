@@ -12,6 +12,7 @@ if(${PROJECT_NAME}_HAS_CUDA OR ${PROJECT_NAME}_HAS_HIP OR ${PROJECT_NAME}_HAS_DP
 
   set(tamm_gpu_SRCS
     kernels/gpu_blas.cpp
+    kernels/gpu_lapack.cpp
     kernels/gpu_reorder.cpp
   )
 endif()
@@ -65,6 +66,7 @@ set(TAMM_INCLUDES
     utils.hpp
     tamm_io.hpp
     tamm_utils.hpp
+    tamm_solvers.hpp
     ga_over_upcxx.hpp
     eigen_utils.hpp
     eigen_includes.hpp

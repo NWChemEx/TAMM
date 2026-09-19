@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tamm/errors.hpp"
+#include "tamm/mr/aligned.hpp" // rmm::detail::RMM_ALLOCATION_ALIGNMENT
 #include <array>
 #include <memory>
 #include <optional>
@@ -13,14 +14,17 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
+#include <cusolverDn.h>
 #include <nvml.h>
 #elif defined(USE_HIP)
 #include <hip/hip_runtime.h>
 #include <rocblas/rocblas.h>
 #include <rocm_smi/rocm_smi.h>
+#include <rocsolver/rocsolver.h>
 #elif defined(USE_DPCPP)
 #include "sycl_device.hpp"
 #include <oneapi/mkl/blas.hpp>
+#include <oneapi/mkl/lapack.hpp>
 #endif
 
 namespace tamm {
@@ -86,6 +90,18 @@ using gpuMemcpyKind = cudaMemcpyKind;
           << __LINE__ << std::endl;                                                          \
       throw std::runtime_error(msg.str());                                                   \
     }                                                                                        \
+  } while(0)
+
+// cusolver has no cusolverGetStatusString-style helper; report the raw status code.
+#define CUSOLVER_CHECK(FUNC)                                                                     \
+  do {                                                                                           \
+    cusolverStatus_t err_ = (FUNC);                                                              \
+    if(err_ != CUSOLVER_STATUS_SUCCESS) {                                                        \
+      std::ostringstream msg;                                                                    \
+      msg << "CUSOLVER Error: status " << static_cast<int>(err_) << ", at " << __FILE__ << " : " \
+          << __LINE__ << std::endl;                                                              \
+      throw std::runtime_error(msg.str());                                                       \
+    }                                                                                            \
   } while(0)
 #endif // USE_CUDA
 
@@ -283,7 +299,11 @@ static void gpuMemcpyAsync(T* dst, const T* src, size_t count, gpuMemcpyKind kin
 #endif
 }
 
-static inline void gpuMemsetAsync(void*& ptr, size_t sizeInBytes, gpuStream_t stream) {
+// NOTE: `ptr` is taken by value. It was previously `void*&`, which forced every call site
+// to write `reinterpret_cast<void*&>(typed_ptr)` -- a strict-aliasing violation, since a
+// `T*` lvalue may not legally be reinterpreted as a `void*` lvalue. Nothing here ever
+// wrote through the reference, so the parameter was gratuitously mutable.
+static inline void gpuMemsetAsync(void* ptr, size_t sizeInBytes, gpuStream_t stream) {
 #if defined(USE_DPCPP)
   stream.first.memset(ptr, 0, sizeInBytes);
 #elif defined(USE_HIP)
@@ -445,8 +465,12 @@ static inline void* getPinnedMem(size_t bytes) {
 #elif defined(USE_HIP)
   hipMallocHost((void**) &ptr, bytes);
 #elif defined(USE_DPCPP)
-  ptr = (void*) sycl::malloc_host(bytes, tamm::GPUStreamPool::getInstance().getStream().first);
+  // aligned_alloc_host, not malloc_host: the plain overload guarantees only fundamental
+  // alignment (SYCL 2020 sec. 4.8.3, Table 70).
+  ptr = (void*) sycl::aligned_alloc_host(tamm::rmm::detail::RMM_ALLOCATION_ALIGNMENT, bytes,
+                                         tamm::GPUStreamPool::getInstance().getStream().first);
 #endif
+  // NOTE: callers must check for nullptr -- none of the three backends throws on failure.
   return ptr;
 }
 

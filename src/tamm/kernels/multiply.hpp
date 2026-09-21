@@ -5,6 +5,7 @@
 #include "tamm/types.hpp"
 
 #include <complex>
+#include <cstddef>
 #include <cstdint>
 #include <cstring> // for std::memset
 #include <numeric>
@@ -26,6 +27,15 @@ using gpuStream_t = int; // not used
 namespace tamm {
 
 namespace kernels {
+
+// Device staging owned by one transpose_inputs() call. Type-erased to bytes
+// (the pool frees exactly size_bytes()) so block_multiply() can hold it in a
+// single function-scope variable across its differently-typed branches and
+// return it to the pool under the end-of-call drain.
+struct GpuTransposeStaging {
+  std::span<std::byte> a{};
+  std::span<std::byte> b{};
+};
 
 template<typename T2, typename T3>
 void copy_data_to_gpu(ExecutionHW hw, gpuStream_t& thandle, const T2* ainter_buf, size_t asize,
@@ -164,7 +174,8 @@ bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, T2* ainter_buf,
                       size_t asize, const SizeVec& adims, const IntLabelVec& alabels,
                       T3* binter_buf, const SizeVec& binter_dims, const IntLabelVec& binter_labels,
                       const T3* bbuf, size_t bsize, const SizeVec& bdims,
-                      const IntLabelVec& blabels, T2*& ainter_buf_dev, T3*& binter_buf_dev) {
+                      const IntLabelVec& blabels, T2*& ainter_buf_dev, T3*& binter_buf_dev,
+                      GpuTransposeStaging& staging) {
   bool gpu_trans = false;
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
@@ -182,15 +193,12 @@ bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, T2* ainter_buf,
     assign_gpu<T3>(thandle, binter_buf_dev, binter_dims, binter_labels, T3{1}, binter_dev_in.data(),
                    bdims, blabels, true);
 
-    // The H2D copies above and transpose_reorder() inside assign_gpu() are enqueued on
-    // `thandle` and return immediately on CUDA/HIP, but returning these staging buffers to
-    // the pool makes their addresses instantly re-allocatable (the pool's deallocate is
-    // host-side bookkeeping, not a stream-ordered free). Without this sync the next
-    // allocation can alias memory that the transpose is still reading.
-    gpuStreamSynchronize(thandle);
-
-    free_device_buffer(hw, ainter_dev_in);
-    free_device_buffer(hw, binter_dev_in);
+    // Staging is NOT freed here: it stays alive across GEMM/output-transpose
+    // and is returned to the pool just before block_multiply()'s single end
+    // drain, saving one device-wide sync per call. (On the in-order queue all
+    // of the above is ordered behind prior work by construction.)
+    staging.a = std::as_writable_bytes(ainter_dev_in);
+    staging.b = std::as_writable_bytes(binter_dev_in);
 
     return gpu_trans;
   }
@@ -356,6 +364,9 @@ void block_multiply(
   // int breduce_ld = B * bbatch_ld;
 
   bool gpu_trans = false;
+  // Input staging for the GPU path; returned to the pool under the
+  // end-of-call drain (see transpose_inputs).
+  GpuTransposeStaging transpose_staging{};
 
   std::span<T1> cinter_span = allocate_host_buffer<T1>(hw, static_cast<size_t>(csize.value()));
   T1*           cinter_buf  = cinter_span.data();
@@ -381,7 +392,7 @@ void block_multiply(
     gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                  asize.value(), adims, alabels, binter_buf, binter_dims,
                                  binter_labels, bbuf, bsize.value(), bdims, blabels, ainter_buf_dev,
-                                 binter_buf_dev);
+                                 binter_buf_dev, transpose_staging);
 
     if(!gpu_trans)
       copy_data_to_gpu(hw, thandle, ainter_buf, asize.value(), ainter_buf_dev, binter_buf,
@@ -422,7 +433,7 @@ void block_multiply(
         gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                      asize.value(), adims, alabels, binter_buf, binter_dims,
                                      binter_labels, bbuf_complex, bsize.value(), bdims, blabels,
-                                     ainter_buf_dev, bbuf_complex_dev);
+                                     ainter_buf_dev, bbuf_complex_dev, transpose_staging);
 
         if(!gpu_trans) {
           bbuf_complex = binter_buf;
@@ -458,7 +469,7 @@ void block_multiply(
         gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                      asize.value(), adims, alabels, binter_buf, binter_dims,
                                      binter_labels, bbuf_real, bsize.value(), bdims, blabels,
-                                     ainter_buf_dev, bbuf_real_dev);
+                                     ainter_buf_dev, bbuf_real_dev, transpose_staging);
 
         if(!gpu_trans) {
           bbuf_real = binter_buf;
@@ -505,7 +516,7 @@ void block_multiply(
         gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels,
                                      abuf_complex, asize.value(), adims, alabels, binter_buf,
                                      binter_dims, binter_labels, bbuf, bsize.value(), bdims,
-                                     blabels, abuf_complex_dev, binter_buf_dev);
+                                     blabels, abuf_complex_dev, binter_buf_dev, transpose_staging);
 
         if(!gpu_trans) {
           abuf_complex = ainter_buf;
@@ -542,7 +553,7 @@ void block_multiply(
         gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf_real,
                                      asize.value(), adims, alabels, binter_buf, binter_dims,
                                      binter_labels, bbuf, bsize.value(), bdims, blabels,
-                                     abuf_real_dev, binter_buf_dev);
+                                     abuf_real_dev, binter_buf_dev, transpose_staging);
 
         if(!gpu_trans) {
           abuf_real = ainter_buf;
@@ -590,7 +601,7 @@ void block_multiply(
       gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                    asize.value(), adims, alabels, binter_buf, binter_dims,
                                    binter_labels, bbuf, bsize.value(), bdims, blabels,
-                                   ainter_buf_dev, binter_buf_dev);
+                                   ainter_buf_dev, binter_buf_dev, transpose_staging);
 
       if(!gpu_trans) {
         copy_data_to_gpu(hw, thandle, ainter_buf, asize.value(), ainter_buf_dev, binter_buf,
@@ -648,6 +659,12 @@ void block_multiply(
   // reading it. This device-wide drain per block op is the price of the
   // immediate-free pool; removing it requires moving the device pool to a
   // stream-ordered resource (see mr/stream_ordered_memory_resource.hpp).
+  // The transpose-input staging is returned here, covered by the same drain
+  // (on the in-order queue the GEMM/output-transpose above are ordered
+  // behind the input transposes by construction), so each call now pays a
+  // single device-wide sync instead of two.
+  free_device_buffer(hw, transpose_staging.a);
+  free_device_buffer(hw, transpose_staging.b);
   if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
 #endif
 

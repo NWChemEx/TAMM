@@ -2,17 +2,8 @@
 
 #include "tamm_blas.hpp"
 
+#include <algorithm>
 #include <complex>
-#include <sstream>
-#include <stdexcept>
-
-#if defined(USE_CUDA)
-#include <cuda_runtime.h>
-#elif defined(USE_HIP)
-#include <hip/hip_runtime.h>
-#endif
-// For USE_DPCPP, SYCL is pulled in transitively via tamm_blas.hpp ->
-// gpu_streams.hpp -> sycl_device.hpp.
 
 namespace tamm::kernels::gpu {
 
@@ -56,24 +47,6 @@ reorder_kernel(T* out, const T* in, ReorderMeta meta, size_t total, double scale
     out[tid]         = accumulate ? reorder_add<T>(out[tid], y) : y;
   }
 }
-
-inline void reorder_check_launch() {
-#if defined(USE_CUDA)
-  const cudaError_t err = cudaGetLastError();
-  if(err != cudaSuccess) {
-    std::ostringstream msg;
-    msg << "TAMM reorder kernel launch failed: " << cudaGetErrorString(err);
-    throw std::runtime_error(msg.str());
-  }
-#elif defined(USE_HIP)
-  const hipError_t err = hipGetLastError();
-  if(err != hipSuccess) {
-    std::ostringstream msg;
-    msg << "TAMM reorder kernel launch failed: " << hipGetErrorString(err);
-    throw std::runtime_error(msg.str());
-  }
-#endif
-}
 #endif // USE_CUDA || USE_HIP
 
 template<typename T>
@@ -96,7 +69,6 @@ void transpose_reorder(T* out, const T* in, int ndim, const size_t* outDims, con
       meta.ndim = 0;
       reorder_kernel<T, uint32_t>
         <<<1, 1, 0, handle.first>>>(out, in, meta, 1, scale_re, scale_im, accumulate);
-      reorder_check_launch();
     }
 #elif defined(USE_DPCPP)
     if(reorder_scale_is_one(scale) && !accumulate) {
@@ -127,11 +99,12 @@ void transpose_reorder(T* out, const T* in, int ndim, const size_t* outDims, con
     return;
   }
 
+#if defined(USE_CUDA) || defined(USE_HIP)
+  // Bounded grid + stride loop (CUDA grid dims cap at 2^31-1, so a 1:1
+  // mapping is impossible for huge totals).
   constexpr size_t block     = 256;
   constexpr size_t maxBlocks = 1 << 20; // stride loop covers the rest
   const size_t nblocks = std::min<size_t>((total + block - 1) / block, maxBlocks);
-
-#if defined(USE_CUDA) || defined(USE_HIP)
   if(reorder_meta_fits32(meta, total)) {
     reorder_kernel<T, uint32_t><<<static_cast<unsigned>(nblocks), static_cast<unsigned>(block), 0,
                                           handle.first>>>(out, in, meta, total, scale_re, scale_im,
@@ -142,30 +115,24 @@ void transpose_reorder(T* out, const T* in, int ndim, const size_t* outDims, con
                                           handle.first>>>(out, in, meta, total, scale_re, scale_im,
                                                           accumulate);
   }
-  reorder_check_launch();
 #elif defined(USE_DPCPP)
-  const sycl::nd_range<1> ndr(sycl::range<1>(nblocks * block), sycl::range<1>(block));
+  // Flat one-item-per-element range: no grid sizing, no stride loop. (A
+  // literal single_task would serialize the whole transpose onto one
+  // work-item.)
   if(reorder_meta_fits32(meta, total)) {
-    handle.first.parallel_for(ndr, [=](sycl::nd_item<1> item) {
-      const size_t tid0   = item.get_global_id(0);
-      const size_t stride = item.get_global_range(0);
-      for(size_t t = tid0; t < total; t += stride) {
-        const uint32_t tid = static_cast<uint32_t>(t);
-        const size_t   src = reorder_src_index<uint32_t>(tid, meta);
-        const T        y   = reorder_scaled<T>(in[src], scale_re, scale_im);
-        out[tid]           = accumulate ? reorder_add<T>(out[tid], y) : y;
-      }
+    handle.first.parallel_for(sycl::range<1>(total), [=](sycl::id<1> idx) {
+      const uint32_t tid = static_cast<uint32_t>(idx[0]);
+      const size_t   src = reorder_src_index<uint32_t>(tid, meta);
+      const T        y   = reorder_scaled<T>(in[src], scale_re, scale_im);
+      out[tid]           = accumulate ? reorder_add<T>(out[tid], y) : y;
     });
   }
   else {
-    handle.first.parallel_for(ndr, [=](sycl::nd_item<1> item) {
-      const size_t tid0   = item.get_global_id(0);
-      const size_t stride = item.get_global_range(0);
-      for(size_t t = tid0; t < total; t += stride) {
-        const size_t src = reorder_src_index<uint64_t>(t, meta);
-        const T      y   = reorder_scaled<T>(in[src], scale_re, scale_im);
-        out[t]           = accumulate ? reorder_add<T>(out[t], y) : y;
-      }
+    handle.first.parallel_for(sycl::range<1>(total), [=](sycl::id<1> idx) {
+      const size_t t   = idx[0];
+      const size_t src = reorder_src_index<uint64_t>(t, meta);
+      const T      y   = reorder_scaled<T>(in[src], scale_re, scale_im);
+      out[t]           = accumulate ? reorder_add<T>(out[t], y) : y;
     });
   }
   // No wait: the caller's in-order queue preserves ordering, and

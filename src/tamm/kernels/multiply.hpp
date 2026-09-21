@@ -15,6 +15,7 @@
 #include "tamm/rmm_memory_pool.hpp"
 #include "tamm/utils.hpp"
 #include "tamm_blas.hpp"
+#include "gpu_reorder.hpp"
 
 #if !defined(USE_CUDA) && !defined(USE_HIP) && !defined(USE_DPCPP)
 namespace tamm {
@@ -138,42 +139,22 @@ template<typename T>
 void assign_gpu(gpuStream_t& thandle, T*& dst, const SizeVec& ddims, const IntLabelVec& dlabels,
                 T scale, const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
                 bool is_assign) {
-  const int ndim = sdims.size();
+  const size_t ndim = sdims.size();
+  EXPECTS(ddims.size() == ndim && dlabels.size() == ndim && slabels.size() == ndim);
+  EXPECTS(dst != nullptr && (ndim == 0 || src != nullptr));
+  EXPECTS(dst != src); // out-of-place only; in-place permutes need a temp buffer
 
   const Size ssize = std::accumulate(sdims.begin(), sdims.end(), Size{1}, std::multiplies<Size>());
-  if(ndim <= 1 || ssize.value() == 1) {
-    // device-->device copy
-    gpuMemcpyAsync<T>(dst, src, ssize.value(), gpuMemcpyDeviceToDevice, thandle);
-  }
+  if(ssize.value() == 0) return;
+  EXPECTS(ndim <= static_cast<size_t>(gpu::reorder_maxrank));
 
-  std::vector<int> r_sdims;
-  std::transform(std::begin(sdims), std::end(sdims), std::back_inserter(r_sdims),
-                 [](tamm::Size i) -> int { return i.value(); });
-
-  tamm::IntLabelVec r_dlabels = dlabels;
-  tamm::IntLabelVec r_slabels = slabels;
-
-  // if(is_assign)
-  std::reverse(r_sdims.begin(), r_sdims.end());
-  std::reverse(r_slabels.begin(), r_slabels.end());
-  std::reverse(r_dlabels.begin(), r_dlabels.end());
-
-  int perm[ndim];
-  int size[ndim];
-  // T beta         = is_assign ? 0 : 1;
-
-  for(size_t i = 0; i < r_sdims.size(); i++) { size[i] = r_sdims[i]; }
-  for(size_t i = 0; i < r_dlabels.size(); i++) {
-    auto it = std::find(r_slabels.begin(), r_slabels.end(), r_dlabels[i]);
-    EXPECTS(it != r_slabels.end());
-    perm[i] = it - r_slabels.begin();
-  }
-
-  // Out-of-place N-dimensional axis-permuting transpose (in-house reorder
-  // kernel; replaces the previous librett-based implementation).
-  int outDims[ndim];
-  for(int i = 0; i < ndim; i++) { outDims[i] = size[perm[i]]; }
-  gpu::transpose_reorder<T>(dst, src, ndim, outDims, perm, thandle);
+  // Fortran-order (reversed) spec for the column-major reorder kernel; this
+  // is exactly the row-major transpose the CPU assign() computes.
+  // Allocation-free (stack spec): no heap traffic in this hot path.
+  gpu::ReorderSpec spec{};
+  gpu::build_reorder_spec(sdims, slabels, dlabels, spec);
+  gpu::transpose_reorder<T>(dst, src, static_cast<int>(ndim), spec.outDims, spec.perm, scale,
+                            !is_assign, thandle);
 }
 #endif
 
@@ -201,11 +182,11 @@ bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, T2* ainter_buf,
     assign_gpu<T3>(thandle, binter_buf_dev, binter_dims, binter_labels, T3{1}, binter_dev_in.data(),
                    bdims, blabels, true);
 
-    // The H2D copies above and librettExecute() inside assign_gpu() are enqueued on
+    // The H2D copies above and transpose_reorder() inside assign_gpu() are enqueued on
     // `thandle` and return immediately on CUDA/HIP, but returning these staging buffers to
     // the pool makes their addresses instantly re-allocatable (the pool's deallocate is
     // host-side bookkeeping, not a stream-ordered free). Without this sync the next
-    // allocation can alias memory that librett is still reading.
+    // allocation can alias memory that the transpose is still reading.
     gpuStreamSynchronize(thandle);
 
     free_device_buffer(hw, ainter_dev_in);
@@ -227,8 +208,17 @@ void transpose_output(ExecutionHW hw, gpuStream_t& thandle, bool gpu_trans, T1* 
                       T1*& cinter_tmp_buf_dev, bool is_assign) {
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   if(hw == ExecutionHW::GPU) {
+    // NOTE: always overwrite (is_assign=true) on the GPU path, matching the
+    // old librett assign_gpu semantics (which ignored is_assign/scale).
+    // Accumulation across reduction iterations here is performed by GEMM
+    // itself (beta=cscale=1 accumulates in cinter_tmp_buf_dev in inter
+    // ordering), so the output transpose must overwrite cinter_buf_dev with
+    // the running total each iteration. Honoring is_assign=false here (D+=T)
+    // double-counts: iter2 adds T1+S2 on top of D=T1, giving 2*S1+S2.
+    // (CPU path differs: its per-call cinter_buf is freshly zeroed, so the
+    // transpose is the accumulator there and must honor is_assign.)
     assign_gpu<T1>(thandle, cinter_buf_dev, cdims, clabels, T1{1}, cinter_tmp_buf_dev, cinter_dims,
-                   cinter_labels, is_assign);
+                   cinter_labels, true);
     return;
   }
 #endif
@@ -623,7 +613,7 @@ void block_multiply(
                        is_assign);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-      // gpu::axpy and the librett transpose in transpose_output are stream-async on
+      // gpu::axpy and the reorder transpose in transpose_output are stream-async on
       // CUDA/HIP; sync before returning this device block to the pool, which would
       // otherwise make it immediately re-allocatable while that work is still reading it.
       if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
@@ -646,16 +636,18 @@ void block_multiply(
   // cinter_*_dev buffers) and every device buffer allocated internally is free of
   // in-flight work by the time this function returns.
   //
-  // On CUDA/HIP the cuBLAS/rocBLAS gemm above is enqueued on `thandle` and returns
-  // immediately, whereas the memory pool's deallocate() is pure host-side bookkeeping that
-  // makes a block instantly re-allocatable -- it does not defer the reuse behind a stream
-  // event the way upstream RMM's stream-ordered free lists do. Callers that free a device
-  // buffer right after this call (e.g. the reduction loop in MultOp::execute_bufacc, and
-  // the equivalent loops in exachem's cd_ccsd_{cs,os}_ann.cpp) would otherwise hand the
-  // same address to the next iteration's allocation while the gemm is still reading it.
-  //
-  // DPC++ already synchronises inside gpu::gemm (gemm_event.wait()), so this is a no-op
-  // there; the cost on CUDA/HIP is the sync the callers' correctness already assumed.
+  // On all backends the gemm/transpose work above is enqueued on `thandle` and
+  // returns immediately (CUDA/HIP: async BLAS; DPC++: in-order queue, no waits
+  // inside gpu::gemm by design), whereas the memory pool's deallocate() is pure
+  // host-side bookkeeping that makes a block instantly re-allocatable -- it does
+  // not defer the reuse behind a stream event the way upstream RMM's
+  // stream-ordered free lists do. Callers that free a device buffer right after
+  // this call (e.g. the reduction loop in MultOp::execute_bufacc, and the
+  // equivalent loops in exachem's cd_ccsd_{cs,os}_ann.cpp) would otherwise hand
+  // the same address to the next iteration's allocation while the gemm is still
+  // reading it. This device-wide drain per block op is the price of the
+  // immediate-free pool; removing it requires moving the device pool to a
+  // stream-ordered resource (see mr/stream_ordered_memory_resource.hpp).
   if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
 #endif
 

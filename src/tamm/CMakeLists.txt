@@ -15,6 +15,13 @@ if(${PROJECT_NAME}_HAS_CUDA OR ${PROJECT_NAME}_HAS_HIP OR ${PROJECT_NAME}_HAS_DP
     kernels/gpu_lapack.cpp
     kernels/gpu_reorder.cpp
   )
+  if(${PROJECT_NAME}_HAS_CUDA)
+    # gpu_reorder.cpp holds __global__ kernels + <<<>>> launches, so nvcc
+    # (not the C++ compiler) must compile it even though it is a .cpp file.
+    set_source_files_properties(kernels/gpu_reorder.cpp PROPERTIES LANGUAGE CUDA)
+  endif()
+  # NOTE: hipcc compiles .cpp HIP code directly, and icpx compiles the SYCL
+  # branch, so no LANGUAGE override is needed for HIP/DPCPP builds.
 endif()
 if(${PROJECT_NAME}_HAS_DPCPP)
   list(APPEND tamm_gpu_INCS sycl_device.hpp)
@@ -77,6 +84,7 @@ set(TAMM_INCLUDES
     kernels/assign.hpp
     kernels/multiply.hpp
     kernels/tamm_blas.hpp
+    kernels/gpu_reorder.hpp
     op_dag.hpp
     interfaces.hpp
     op_profiler.hpp

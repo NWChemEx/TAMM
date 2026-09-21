@@ -42,19 +42,20 @@ void tamm::kernels::gpu::axpy(const int64_t n, const T* src, const int incx, T*&
 
 template<typename T, typename T1, typename T2, typename T3>
 void tamm::kernels::gpu::gemm(int n, int m, int k, const T alpha, const T3* B, int ldb, const T2* A,
-                              int lda, const T beta, T1* C, int ldc, gpuStream_t& handle) {
+                               int lda, const T beta, T1* C, int ldc, gpuStream_t& handle) {
 #if defined(USE_DPCPP)
 
 #ifdef USE_PORT_BLAS
   blas::SB_Handle sb_handle(handle.first);
   blas::internal::_gemm(sb_handle, 'n', 'n', n, m, k, alpha, const_cast<T3*>(B), ldb,
                         const_cast<T2*>(A), lda, beta, C, ldc, {});
-  handle.first.wait();
+  // No wait: the caller's in-order queue preserves ordering and
+  // block_multiply() synchronizes before pool buffers are recycled.
 #else
-  auto gemm_event = oneapi::mkl::blas::column_major::gemm(handle.first, oneapi::mkl::transpose::N,
-                                                          oneapi::mkl::transpose::N, n, m, k, alpha,
-                                                          B, ldb, A, lda, beta, C, ldc);
-  gemm_event.wait();
+  // No wait (same reason); the event is intentionally discarded.
+  oneapi::mkl::blas::column_major::gemm(handle.first, oneapi::mkl::transpose::N,
+                                        oneapi::mkl::transpose::N, n, m, k, alpha, B, ldb, A,
+                                        lda, beta, C, ldc);
 #endif // USE_PORT_BLAS
 
 #elif defined(USE_CUDA)

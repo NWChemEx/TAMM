@@ -1,7 +1,10 @@
-#include "tamm/utils.hpp"
+#include "gpu_reorder.hpp"
+
 #include "tamm_blas.hpp"
 
 #include <complex>
+#include <sstream>
+#include <stdexcept>
 
 #if defined(USE_CUDA)
 #include <cuda_runtime.h>
@@ -13,124 +16,174 @@
 
 namespace tamm::kernels::gpu {
 
-// Maximum tensor rank supported by the reorder kernel. Must be >= tamm::maxrank.
-static constexpr int TAMM_REORDER_MAXRANK = 8;
+// Decompose the host-side scale into raw {real, imag} doubles for the kernel.
+template<typename T>
+inline void reorder_split_scale(T scale, double& re, double& im) {
+  if constexpr(reorder_is_complex_v<T>) {
+    re = static_cast<double>(scale.real());
+    im = static_cast<double>(scale.imag());
+  }
+  else {
+    re = static_cast<double>(scale);
+    im = 0.0;
+  }
+}
 
-// POD payload passed by value into the device kernel. Holds the per-axis
-// metadata needed to map an output linear index to the corresponding source
-// linear index for an arbitrary axis permutation.
-template<int MAXRANK>
-struct ReorderMeta {
-  int ndim;
-  int outDims[MAXRANK];    // extents of the (permuted) output tensor
-  int outStrides[MAXRANK]; // strides of the output tensor
-  int inStrides[MAXRANK];  // strides of the source tensor
-  int perm[MAXRANK];       // output-axis -> source-axis map
-};
+template<typename T>
+inline bool reorder_scale_is_one(T scale) {
+  if constexpr(reorder_is_complex_v<T>) { return scale.real() == 1 && scale.imag() == 0; }
+  else { return scale == T{1}; }
+}
 
 #if defined(USE_CUDA) || defined(USE_HIP)
-// Element type used inside the device kernel. std::complex<T>'s copy assignment
-// is not annotated __device__, so we transport values as a trivially-copyable
-// POD of the same size/alignment (a plain byte copy of the element), exactly as
-// the previous librett path did (it treated elements as opaque bytes).
-template<typename T>
-struct DevElem {
-  alignas(T) unsigned char bytes[sizeof(T)];
-};
-
-template<typename T>
-__global__ void reorder_kernel(DevElem<T>* out, const DevElem<T>* in,
-                               ReorderMeta<TAMM_REORDER_MAXRANK> meta, size_t total) {
-  size_t tid = static_cast<size_t>(blockIdx.x) * blockDim.x + threadIdx.x;
-  if(tid >= total) return;
-
-  const int ndim = meta.ndim;
-
-  // Decode output linear index -> per-axis output index -> source linear index.
-  // Column-major (first-axis-fastest) layout, matching librett's convention.
-  size_t iIdx = 0;
-  for(int k = 0; k < ndim; ++k) {
-    int oidx = static_cast<int>((tid / meta.outStrides[k]) % meta.outDims[k]);
-    // output axis k maps to source axis perm[k]
-    iIdx += static_cast<size_t>(oidx) * meta.inStrides[meta.perm[k]];
-  }
-  out[tid] = in[iIdx]; // trivially-copyable POD assignment (device-safe)
-}
+// One thread per output element, grid-stride loop: any total works with a
+// bounded grid, and the kernel never touches the caller's stream ordering
+// (no internal sync, no plan, no host round-trip).
+template<typename T, typename Idx>
+__global__ void
+#if defined(USE_CUDA) || defined(USE_HIP)
+__launch_bounds__(256)
 #endif
+reorder_kernel(T* out, const T* in, ReorderMeta meta, size_t total, double scale_re, double scale_im,
+               bool accumulate)
+{
+  const size_t tid0   = static_cast<size_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  const size_t stride = static_cast<size_t>(gridDim.x) * blockDim.x;
+  for(size_t t = tid0; t < total; t += stride) {
+    const Idx tid = static_cast<Idx>(t);
+    const size_t src = reorder_src_index<Idx>(tid, meta);
+    const T      y   = reorder_scaled<T>(in[src], scale_re, scale_im);
+    out[tid]         = accumulate ? reorder_add<T>(out[tid], y) : y;
+  }
+}
+
+inline void reorder_check_launch() {
+#if defined(USE_CUDA)
+  const cudaError_t err = cudaGetLastError();
+  if(err != cudaSuccess) {
+    std::ostringstream msg;
+    msg << "TAMM reorder kernel launch failed: " << cudaGetErrorString(err);
+    throw std::runtime_error(msg.str());
+  }
+#elif defined(USE_HIP)
+  const hipError_t err = hipGetLastError();
+  if(err != hipSuccess) {
+    std::ostringstream msg;
+    msg << "TAMM reorder kernel launch failed: " << hipGetErrorString(err);
+    throw std::runtime_error(msg.str());
+  }
+#endif
+}
+#endif // USE_CUDA || USE_HIP
 
 template<typename T>
-void transpose_reorder(T* out, const T* in, int ndim, const int* outDims, const int* perm,
-                       gpuStream_t& handle) {
-  EXPECTS(ndim >= 0 && ndim <= TAMM_REORDER_MAXRANK);
-  if(ndim == 0) return;
-
-  // Source extents: inDims[perm[k]] == outDims[k].
-  ReorderMeta<TAMM_REORDER_MAXRANK> meta{};
-  meta.ndim = ndim;
-
-  int inDims[TAMM_REORDER_MAXRANK] = {0};
-  for(int k = 0; k < ndim; ++k) {
-    meta.outDims[k] = outDims[k];
-    meta.perm[k]    = perm[k];
-    inDims[perm[k]] = outDims[k];
+void transpose_reorder(T* out, const T* in, int ndim, const size_t* outDims, const int* perm,
+                       T scale, bool accumulate, gpuStream_t& handle) {
+  EXPECTS(ndim >= 0 && ndim <= reorder_maxrank);
+  EXPECTS(out != in); // out-of-place only; in-place permutes need a temp buffer
+  if(ndim == 0) {
+    // Rank-0: single element, still honors scale/accumulate.
+    double scale_re, scale_im;
+    reorder_split_scale(scale, scale_re, scale_im);
+#if defined(USE_CUDA) || defined(USE_HIP)
+    // Route through the kernel for stream ordering (async, like every
+    // other path through this function).
+    if(reorder_scale_is_one(scale) && !accumulate) {
+      gpuMemcpyAsync<T>(out, in, 1, gpuMemcpyDeviceToDevice, handle);
+    }
+    else {
+      ReorderMeta meta{};
+      meta.ndim = 0;
+      reorder_kernel<T, uint32_t>
+        <<<1, 1, 0, handle.first>>>(out, in, meta, 1, scale_re, scale_im, accumulate);
+      reorder_check_launch();
+    }
+#elif defined(USE_DPCPP)
+    if(reorder_scale_is_one(scale) && !accumulate) {
+      gpuMemcpyAsync<T>(out, in, 1, gpuMemcpyDeviceToDevice, handle);
+    }
+    else {
+      handle.first.parallel_for(sycl::range<1>(1), [=](sycl::id<1>) {
+        const T y = reorder_scaled<T>(in[0], scale_re, scale_im);
+        out[0]    = accumulate ? reorder_add<T>(out[0], y) : y;
+      });
+    }
+#endif
+    return;
   }
+  EXPECTS(outDims != nullptr && perm != nullptr);
 
-  // Column-major (first-axis-fastest) contiguous strides for both tensors.
-  // This exactly matches librett's tensor-conversion convention (verified
-  // against librett's TensorTester reference), so this kernel is a drop-in
-  // replacement producing byte-identical output for any permutation/rank.
-  meta.outStrides[0] = 1;
-  meta.inStrides[0]  = 1;
-  for(int k = 1; k < ndim; ++k) {
-    meta.outStrides[k] = meta.outStrides[k - 1] * outDims[k - 1];
-    meta.inStrides[k]  = meta.inStrides[k - 1] * inDims[k - 1];
-  }
-
-  size_t total = 1;
-  for(int k = 0; k < ndim; ++k) total *= static_cast<size_t>(outDims[k]);
+  const ReorderMeta meta  = reorder_build_meta(ndim, outDims, perm);
+  const size_t    total = reorder_total(ndim, outDims);
   if(total == 0) return;
 
+  double scale_re, scale_im;
+  reorder_split_scale(scale, scale_re, scale_im);
+  if constexpr(!reorder_is_complex_v<T>) { EXPECTS(scale_im == 0.0); }
+
+  // Identity permutation with scale==1 and overwrite: pure copy, no kernel.
+  if(!accumulate && reorder_scale_is_one(scale) && reorder_is_identity(meta)) {
+    gpuMemcpyAsync<T>(out, in, total, gpuMemcpyDeviceToDevice, handle);
+    return;
+  }
+
+  constexpr size_t block     = 256;
+  constexpr size_t maxBlocks = 1 << 20; // stride loop covers the rest
+  const size_t nblocks = std::min<size_t>((total + block - 1) / block, maxBlocks);
+
 #if defined(USE_CUDA) || defined(USE_HIP)
-  constexpr unsigned block = 256;
-  unsigned           grid  = static_cast<unsigned>((total + block - 1) / block);
-  reorder_kernel<T><<<grid, block, 0, handle.first>>>(reinterpret_cast<DevElem<T>*>(out),
-                                                      reinterpret_cast<const DevElem<T>*>(in), meta,
-                                                      total);
+  if(reorder_meta_fits32(meta, total)) {
+    reorder_kernel<T, uint32_t><<<static_cast<unsigned>(nblocks), static_cast<unsigned>(block), 0,
+                                          handle.first>>>(out, in, meta, total, scale_re, scale_im,
+                                                          accumulate);
+  }
+  else {
+    reorder_kernel<T, uint64_t><<<static_cast<unsigned>(nblocks), static_cast<unsigned>(block), 0,
+                                          handle.first>>>(out, in, meta, total, scale_re, scale_im,
+                                                          accumulate);
+  }
+  reorder_check_launch();
 #elif defined(USE_DPCPP)
-  // Transport elements as trivially-copyable POD bytes (matches the CUDA/HIP
-  // path and the previous librett behavior of treating elements as opaque).
-  struct DevElem {
-    alignas(T) unsigned char bytes[sizeof(T)];
-  };
-  auto*       out_pod = reinterpret_cast<DevElem*>(out);
-  const auto* in_pod  = reinterpret_cast<const DevElem*>(in);
-
-  constexpr size_t  block = 256;
-  size_t            grid  = (total + block - 1) / block;
-  sycl::nd_range<1> ndr{sycl::range<1>(grid * block), sycl::range<1>(block)};
-  handle.first.parallel_for(ndr, [=](sycl::nd_item<1> item) {
-    size_t tid = item.get_global_id(0);
-    if(tid >= total) return;
-
-    const int ndim_ = meta.ndim;
-    size_t    iIdx  = 0;
-    // Column-major (first-axis-fastest) layout, matching librett's convention.
-    for(int k = 0; k < ndim_; ++k) {
-      int oidx = static_cast<int>((tid / meta.outStrides[k]) % meta.outDims[k]);
-      iIdx += static_cast<size_t>(oidx) * meta.inStrides[meta.perm[k]];
-    }
-    out_pod[tid] = in_pod[iIdx];
-  });
+  const sycl::nd_range<1> ndr(sycl::range<1>(nblocks * block), sycl::range<1>(block));
+  if(reorder_meta_fits32(meta, total)) {
+    handle.first.parallel_for(ndr, [=](sycl::nd_item<1> item) {
+      const size_t tid0   = item.get_global_id(0);
+      const size_t stride = item.get_global_range(0);
+      for(size_t t = tid0; t < total; t += stride) {
+        const uint32_t tid = static_cast<uint32_t>(t);
+        const size_t   src = reorder_src_index<uint32_t>(tid, meta);
+        const T        y   = reorder_scaled<T>(in[src], scale_re, scale_im);
+        out[tid]           = accumulate ? reorder_add<T>(out[tid], y) : y;
+      }
+    });
+  }
+  else {
+    handle.first.parallel_for(ndr, [=](sycl::nd_item<1> item) {
+      const size_t tid0   = item.get_global_id(0);
+      const size_t stride = item.get_global_range(0);
+      for(size_t t = tid0; t < total; t += stride) {
+        const size_t src = reorder_src_index<uint64_t>(t, meta);
+        const T      y   = reorder_scaled<T>(in[src], scale_re, scale_im);
+        out[t]           = accumulate ? reorder_add<T>(out[t], y) : y;
+      }
+    });
+  }
+  // No wait: the caller's in-order queue preserves ordering, and
+  // block_multiply() synchronizes before pool buffers are recycled.
 #endif
 }
 
-template void transpose_reorder(double* out, const double* in, int ndim, const int* outDims,
-                                const int* perm, gpuStream_t& handle);
-template void transpose_reorder(float* out, const float* in, int ndim, const int* outDims,
-                                const int* perm, gpuStream_t& handle);
+template void transpose_reorder(double* out, const double* in, int ndim, const size_t* outDims,
+                                const int* perm, double scale, bool accumulate,
+                                gpuStream_t& handle);
+template void transpose_reorder(float* out, const float* in, int ndim, const size_t* outDims,
+                                const int* perm, float scale, bool accumulate,
+                                gpuStream_t& handle);
 template void transpose_reorder(std::complex<double>* out, const std::complex<double>* in, int ndim,
-                                const int* outDims, const int* perm, gpuStream_t& handle);
+                                const size_t* outDims, const int* perm, std::complex<double> scale,
+                                bool accumulate, gpuStream_t& handle);
 template void transpose_reorder(std::complex<float>* out, const std::complex<float>* in, int ndim,
-                                const int* outDims, const int* perm, gpuStream_t& handle);
+                                const size_t* outDims, const int* perm, std::complex<float> scale,
+                                bool accumulate, gpuStream_t& handle);
 
 } // namespace tamm::kernels::gpu

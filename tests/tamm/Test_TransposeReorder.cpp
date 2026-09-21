@@ -11,6 +11,9 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
 
+#include <tamm/ip_reorder.hpp>
+#include <tamm/kernels/assign.hpp>
+#include <tamm/kernels/cpu_reorder.hpp>
 #include <tamm/kernels/gpu_reorder.hpp>
 
 #include <algorithm>
@@ -236,4 +239,175 @@ TEST_CASE("reorder metadata invariants") {
   CHECK(reorder_is_identity(idm));
   CHECK(reorder_meta_fits32(meta, 24));
   CHECK_FALSE(reorder_meta_fits32(meta, size_t{1} << 33));
+}
+
+// ---------------------------------------------------------------------------
+// CPU reorder kernel (HPTT replacement): same natural-order convention as the
+// reference above, so no reversal is needed. Covers general alpha/beta
+// (HPTT supported arbitrary output scaling), both entry points
+// (kernels::internal::ip_reorder and blockops::reorder::index_permute_reorder).
+// ---------------------------------------------------------------------------
+
+using namespace tamm::kernels::cpu;
+
+// Independent reference with general output scaling:
+// dst[d] = beta*dst[d] + alpha*src[s], plain row-major transpose.
+template<typename T>
+void reference_transpose_beta(const std::vector<T>& src, std::vector<T>& dst,
+                              const std::vector<size_t>& sdims, const std::vector<int>& slabels,
+                              const std::vector<size_t>& ddims, const std::vector<int>& dlabels,
+                              T alpha, T beta) {
+  const size_t ndim = sdims.size();
+  const auto sst = row_strides(sdims);
+  const auto dst_ = row_strides(ddims);
+  std::vector<int> perm(ndim);
+  for(size_t i = 0; i < ndim; ++i) {
+    perm[i] = static_cast<int>(std::find(slabels.begin(), slabels.end(), dlabels[i]) -
+                               slabels.begin());
+  }
+  size_t total = 1;
+  for(auto d: ddims) total *= d;
+  REQUIRE(dst.size() == total);
+  std::vector<size_t> coord(ndim);
+  for(size_t lin = 0; lin < total; ++lin) {
+    size_t rem = lin;
+    for(size_t k = ndim; k-- > 0;) {
+      coord[k] = (ndim == 0) ? 0 : rem % ddims[k];
+      if(ndim > 0) rem /= ddims[k];
+    }
+    size_t s = 0;
+    for(size_t k = 0; k < ndim; ++k) s += coord[k] * sst[static_cast<size_t>(perm[k])];
+    dst[lin] = beta * dst[lin] + alpha * src[s];
+  }
+}
+
+template<typename T>
+void check_cpu_case(const std::vector<size_t>& sdims, const std::vector<int>& slabels,
+                    const std::vector<int>& dlabels, T alpha, T beta) {
+  const size_t ndim = sdims.size();
+  std::vector<size_t> ddims(ndim);
+  for(size_t i = 0; i < ndim; ++i) {
+    const int j =
+      static_cast<int>(std::find(slabels.begin(), slabels.end(), dlabels[i]) - slabels.begin());
+    ddims[i] = sdims[static_cast<size_t>(j)];
+  }
+  size_t total = 1;
+  for(auto d: ddims) total *= d;
+
+  std::vector<T> src(total), ref(total), got(total), init(total);
+  for(size_t i = 0; i < total; ++i) {
+    src[i]  = make_val<T>(i + 1);
+    init[i] = make_val<T>(1000 + i);
+    ref[i]  = init[i];
+    got[i]  = init[i];
+  }
+  reference_transpose_beta(src, ref, sdims, slabels, ddims, dlabels, alpha, beta);
+
+  // 1. Raw kernel entry point (natural-order outDims + dst->src perm).
+  {
+    std::vector<int> perm(ndim);
+    for(size_t i = 0; i < ndim; ++i) {
+      perm[i] = static_cast<int>(std::find(slabels.begin(), slabels.end(), dlabels[i]) -
+                                 slabels.begin());
+    }
+    std::copy(init.begin(), init.end(), got.begin());
+    transpose_reorder_cpu(got.data(), src.data(), static_cast<int>(ndim), ddims.data(),
+                          perm.data(), alpha, beta);
+    for(size_t i = 0; i < total; ++i) CHECK(got[i] == ref[i]);
+  }
+
+  // 2. assign.hpp path (SizeVec/IntLabelVec, is_assign <-> beta 0/1 only).
+  if(beta == T{0} || beta == T{1}) {
+    SizeVec sv;
+    for(auto d: sdims) sv.emplace_back(d);
+    IntLabelVec sl(slabels.begin(), slabels.end()), dl(dlabels.begin(), dlabels.end());
+    SizeVec dv;
+    for(auto d: ddims) dv.emplace_back(d);
+    std::copy(init.begin(), init.end(), got.begin());
+    tamm::internal::ip_reorder(got.data(), dv, dl, alpha, src.data(), sv, sl,
+                               beta == T{0});
+    for(size_t i = 0; i < total; ++i) CHECK(got[i] == ref[i]);
+  }
+
+  // 3. block_assign path (PermVector + source block_dims).
+  {
+    PermVector perm;
+    for(size_t i = 0; i < ndim; ++i) {
+      const int j = static_cast<int>(std::find(slabels.begin(), slabels.end(), dlabels[i]) -
+                                     slabels.begin());
+      perm.push_back(static_cast<Perm>(j));
+    }
+    std::copy(init.begin(), init.end(), got.begin());
+    tamm::blockops::reorder::index_permute_reorder(beta, got.data(), alpha, src.data(), perm,
+                                                   sdims);
+    for(size_t i = 0; i < total; ++i) CHECK(got[i] == ref[i]);
+  }
+}
+
+template<typename T>
+void check_cpu_all_perms(const std::vector<size_t>& sdims, T alpha, T beta) {
+  const size_t ndim = sdims.size();
+  std::vector<int> labels(ndim);
+  std::iota(labels.begin(), labels.end(), 0);
+  if(ndim == 0) {
+    check_cpu_case<T>({}, {}, {}, alpha, beta);
+    return;
+  }
+  std::vector<int> perm = labels;
+  do { check_cpu_case<T>(sdims, labels, perm, alpha, beta); } while(
+    std::next_permutation(perm.begin(), perm.end()));
+}
+
+TEST_CASE("cpu reorder rank 0..2, all perms, general alpha/beta") {
+  using C = std::complex<double>;
+  for(auto beta_d: {0.0, 1.0, 2.5, -0.5}) {
+    for(auto alpha_d: {1.0, 2.5, 0.0, -1.0}) {
+      check_cpu_all_perms<double>({}, alpha_d, beta_d);
+      check_cpu_all_perms<double>({1}, alpha_d, beta_d);
+      check_cpu_all_perms<double>({5}, alpha_d, beta_d);
+      check_cpu_all_perms<double>({1, 1}, alpha_d, beta_d);
+      check_cpu_all_perms<double>({2, 3}, alpha_d, beta_d);
+      check_cpu_all_perms<double>({4, 1}, alpha_d, beta_d);
+      check_cpu_all_perms<C>({2, 3}, C(alpha_d, 0.5), C(beta_d, -0.25));
+    }
+  }
+}
+
+TEST_CASE("cpu reorder rank 3..5, all perms") {
+  using C = std::complex<double>;
+  for(auto beta_d: {0.0, 1.0, 3.0}) {
+    check_cpu_all_perms<double>({2, 3, 4}, 1.0, beta_d);
+    check_cpu_all_perms<double>({1, 5, 2}, 2.0, beta_d);
+    check_cpu_all_perms<double>({3, 1, 1}, -1.5, beta_d);
+    check_cpu_all_perms<C>({2, 3, 4}, C(1.0, -1.0), C(beta_d, 0.5));
+    check_cpu_all_perms<double>({2, 3, 2, 4}, 0.5, beta_d);
+    check_cpu_all_perms<C>({2, 2, 3, 2}, C(2.0, 1.0), C(beta_d, 0.0));
+    check_cpu_all_perms<double>({2, 1, 3, 2, 2}, 1.0, beta_d);
+    check_cpu_all_perms<C>({2, 1, 2, 2, 3}, C(1.0, 1.0), C(beta_d, 1.0));
+  }
+}
+
+TEST_CASE("cpu reorder rank 6 spot checks + metadata invariants") {
+  const std::vector<size_t> d6{2, 3, 1, 4, 2, 2};
+  const std::vector<int>    id6{0, 1, 2, 3, 4, 5};
+  check_cpu_case<double>(d6, id6, {5, 4, 3, 2, 1, 0}, 1.0, 0.0);
+  check_cpu_case<double>(d6, id6, {5, 4, 3, 2, 1, 0}, 3.0, 1.0);
+  check_cpu_case<double>(d6, id6, id6, 1.0, 0.0);
+  check_cpu_case<double>(d6, id6, {1, 2, 3, 4, 5, 0}, -2.0, 2.0);
+  check_cpu_case<std::complex<double>>(d6, id6, {5, 4, 3, 2, 1, 0},
+                                       std::complex<double>(0.5, -0.5),
+                                       std::complex<double>(1.0, 0.0));
+  // Row-major strides on a known case: outDims {4,2,3} -> {1,3,12}... strides
+  // count from the last axis: {2*3, 3, 1} = {6, 3, 1}.
+  const size_t outDims[3] = {4, 2, 3};
+  const int    perm[3]    = {2, 0, 1};
+  const ReorderMeta meta = reorder_build_meta_rowmajor(3, outDims, perm);
+  CHECK(meta.outStrides[0] == 6);
+  CHECK(meta.outStrides[1] == 3);
+  CHECK(meta.outStrides[2] == 1);
+  // inDims = {2, 3, 4} -> inStrides {12, 4, 1}.
+  CHECK(meta.inStrides[0] == 12);
+  CHECK(meta.inStrides[1] == 4);
+  CHECK(meta.inStrides[2] == 1);
+  CHECK_FALSE(reorder_is_identity(meta));
 }

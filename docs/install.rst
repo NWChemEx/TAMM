@@ -17,7 +17,6 @@ Dependencies
 **The remaining dependencies are automatically built and do not need to be installed explicitly:**
 
 * GlobalArrays
-* HPTT
 * HDF5
 * BLAS/LAPACK (BLIS and netlib-lapack are automatically built if no vendor BLAS libraries are provided)
 * BLAS++ and LAPACK++

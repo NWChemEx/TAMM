@@ -85,6 +85,7 @@ set(TAMM_INCLUDES
     kernels/multiply.hpp
     kernels/tamm_blas.hpp
     kernels/gpu_reorder.hpp
+    kernels/cpu_reorder.hpp
     op_dag.hpp
     interfaces.hpp
     op_profiler.hpp
@@ -101,7 +102,7 @@ set(TAMM_INCLUDES
     blockops_cpu.hpp
     perm.hpp
     iteration.hpp
-    ip_hptt.hpp
+    ip_reorder.hpp
     blockops_blas.hpp
     tensor_variant.hpp
     op_executor.hpp

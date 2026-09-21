@@ -56,30 +56,24 @@ void transpose_reorder(T* out, const T* in, int ndim, const size_t* outDims, con
   EXPECTS(out != in); // out-of-place only; in-place permutes need a temp buffer
   if(ndim == 0) {
     // Rank-0: single element, still honors scale/accumulate.
+    if(reorder_scale_is_one(scale) && !accumulate) {
+      gpuMemcpyAsync<T>(out, in, 1, gpuMemcpyDeviceToDevice, handle);
+      return;
+    }
     double scale_re, scale_im;
     reorder_split_scale(scale, scale_re, scale_im);
 #if defined(USE_CUDA) || defined(USE_HIP)
     // Route through the kernel for stream ordering (async, like every
     // other path through this function).
-    if(reorder_scale_is_one(scale) && !accumulate) {
-      gpuMemcpyAsync<T>(out, in, 1, gpuMemcpyDeviceToDevice, handle);
-    }
-    else {
-      ReorderMeta meta{};
-      meta.ndim = 0;
-      reorder_kernel<T, uint32_t>
-        <<<1, 1, 0, handle.first>>>(out, in, meta, 1, scale_re, scale_im, accumulate);
-    }
+    ReorderMeta meta{};
+    meta.ndim = 0;
+    reorder_kernel<T, uint32_t>
+      <<<1, 1, 0, handle.first>>>(out, in, meta, 1, scale_re, scale_im, accumulate);
 #elif defined(USE_DPCPP)
-    if(reorder_scale_is_one(scale) && !accumulate) {
-      gpuMemcpyAsync<T>(out, in, 1, gpuMemcpyDeviceToDevice, handle);
-    }
-    else {
-      handle.first.parallel_for(sycl::range<1>(1), [=](sycl::id<1>) {
-        const T y = reorder_scaled<T>(in[0], scale_re, scale_im);
-        out[0]    = accumulate ? reorder_add<T>(out[0], y) : y;
-      });
-    }
+    handle.first.parallel_for(sycl::range<1>(1), [=](sycl::id<1>) {
+      const T y = reorder_scaled<T>(in[0], scale_re, scale_im);
+      out[0]    = accumulate ? reorder_add<T>(out[0], y) : y;
+    });
 #endif
     return;
   }
@@ -116,9 +110,6 @@ void transpose_reorder(T* out, const T* in, int ndim, const size_t* outDims, con
                                                           accumulate);
   }
 #elif defined(USE_DPCPP)
-  // Flat one-item-per-element range: no grid sizing, no stride loop. (A
-  // literal single_task would serialize the whole transpose onto one
-  // work-item.)
   if(reorder_meta_fits32(meta, total)) {
     handle.first.parallel_for(sycl::range<1>(total), [=](sycl::id<1> idx) {
       const uint32_t tid = static_cast<uint32_t>(idx[0]);

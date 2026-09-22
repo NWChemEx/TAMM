@@ -13,12 +13,12 @@ if(${PROJECT_NAME}_HAS_CUDA OR ${PROJECT_NAME}_HAS_HIP OR ${PROJECT_NAME}_HAS_DP
   set(tamm_gpu_SRCS
     kernels/gpu_blas.cpp
     kernels/gpu_lapack.cpp
-    kernels/gpu_reorder.cpp
+    kernels/gpu_permute.cpp
   )
   if(${PROJECT_NAME}_HAS_CUDA)
-    # gpu_reorder.cpp holds __global__ kernels + <<<>>> launches, so nvcc
+    # gpu_permute.cpp holds __global__ kernels + <<<>>> launches, so nvcc
     # (not the C++ compiler) must compile it even though it is a .cpp file.
-    set_source_files_properties(kernels/gpu_reorder.cpp PROPERTIES LANGUAGE CUDA)
+    set_source_files_properties(kernels/gpu_permute.cpp PROPERTIES LANGUAGE CUDA)
   endif()
   # NOTE: hipcc compiles .cpp HIP code directly, and icpx compiles the SYCL
   # branch, so no LANGUAGE override is needed for HIP/DPCPP builds.
@@ -84,8 +84,8 @@ set(TAMM_INCLUDES
     kernels/assign.hpp
     kernels/multiply.hpp
     kernels/tamm_blas.hpp
-    kernels/gpu_reorder.hpp
-    kernels/cpu_reorder.hpp
+    kernels/gpu_permute.hpp
+    kernels/cpu_permute.hpp
     op_dag.hpp
     interfaces.hpp
     op_profiler.hpp
@@ -102,7 +102,7 @@ set(TAMM_INCLUDES
     blockops_cpu.hpp
     perm.hpp
     iteration.hpp
-    ip_reorder.hpp
+    ip_permute.hpp
     blockops_blas.hpp
     tensor_variant.hpp
     op_executor.hpp

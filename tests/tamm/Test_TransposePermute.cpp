@@ -1,6 +1,6 @@
-// Unit tests for the in-house GPU tensor transpose (reorder).
+// Unit tests for the in-house GPU tensor permute.
 //
-// Exercises the backend-agnostic logic in tamm/kernels/gpu_reorder.hpp
+// Exercises the backend-agnostic logic in tamm/kernels/gpu_permute.hpp
 // (spec building, metadata, index decode, scale/accumulate apply) directly on
 // the host, so no GPU is needed. Every test compares the exact helpers the
 // CUDA/HIP/SYCL kernels call against an independent row-major reference for
@@ -11,10 +11,10 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
 
-#include <tamm/ip_reorder.hpp>
+#include <tamm/ip_permute.hpp>
 #include <tamm/kernels/assign.hpp>
-#include <tamm/kernels/cpu_reorder.hpp>
-#include <tamm/kernels/gpu_reorder.hpp>
+#include <tamm/kernels/cpu_permute.hpp>
+#include <tamm/kernels/gpu_permute.hpp>
 
 #include <algorithm>
 #include <complex>
@@ -66,22 +66,22 @@ void reference_transpose(const std::vector<T>& src, std::vector<T>& dst,
   }
 }
 
-// Replica of the device loop in gpu_reorder.cpp, but on the host, using the
-// shipped helpers (build_reorder_spec / reorder_build_meta /
-// reorder_src_index / reorder_scaled / reorder_add). This is the exact math
+// Replica of the device loop in gpu_permute.cpp, but on the host, using the
+// shipped helpers (build_permute_spec / permute_build_meta /
+// permute_src_index / permute_scaled / permute_add). This is the exact math
 // each backend kernel executes; only the thread loop itself is replicated.
 template<typename T, typename Idx>
 void device_math_replica(const std::vector<T>& src, std::vector<T>& dst, const SizeVec& sdims,
                          const IntLabelVec& slabels, const IntLabelVec& dlabels, T scale,
                          bool accum) {
   const int ndim = static_cast<int>(sdims.size());
-  ReorderSpec spec{};
-  build_reorder_spec(sdims, slabels, dlabels, spec);
-  const ReorderMeta meta = reorder_build_meta(ndim, spec.outDims, spec.perm);
-  const size_t total = reorder_total(ndim, spec.outDims);
+  PermuteSpec spec{};
+  build_permute_spec(sdims, slabels, dlabels, spec);
+  const PermuteMeta meta = permute_build_meta(ndim, spec.outDims, spec.perm);
+  const size_t total = permute_total(ndim, spec.outDims);
   REQUIRE(dst.size() == total);
   double sre, sim;
-  if constexpr(reorder_is_complex_v<T>) {
+  if constexpr(permute_is_complex_v<T>) {
     sre = static_cast<double>(scale.real());
     sim = static_cast<double>(scale.imag());
   }
@@ -91,15 +91,15 @@ void device_math_replica(const std::vector<T>& src, std::vector<T>& dst, const S
   }
   for(size_t t = 0; t < total; ++t) {
     const Idx tid = static_cast<Idx>(t);
-    const size_t s = reorder_src_index<Idx>(tid, meta);
-    const T      y = reorder_scaled<T>(src[s], sre, sim);
-    dst[t]         = accum ? reorder_add<T>(dst[t], y) : y;
+    const size_t s = permute_src_index<Idx>(tid, meta);
+    const T      y = permute_scaled<T>(src[s], sre, sim);
+    dst[t]         = accum ? permute_add<T>(dst[t], y) : y;
   }
 }
 
 template<typename T>
 T make_val(size_t i) {
-  if constexpr(reorder_is_complex_v<T>) {
+  if constexpr(permute_is_complex_v<T>) {
     return T(static_cast<typename T::value_type>(0.25 * (i + 1)),
              static_cast<typename T::value_type>(-0.125 * (i + 3)));
   }
@@ -158,7 +158,7 @@ void check_all_perms(const std::vector<size_t>& sdims, T scale, bool accum) {
 
 } // namespace
 
-TEST_CASE("reorder rank 0..2, all perms, scales, assign/accumulate") {
+TEST_CASE("permute rank 0..2, all perms, scales, assign/accumulate") {
   using C = std::complex<double>;
   for(bool accum: {false, true}) {
     for(double s: {1.0, 2.5, 0.0, -1.0}) {
@@ -173,7 +173,7 @@ TEST_CASE("reorder rank 0..2, all perms, scales, assign/accumulate") {
   }
 }
 
-TEST_CASE("reorder rank 3, all perms") {
+TEST_CASE("permute rank 3, all perms") {
   using C = std::complex<double>;
   for(bool accum: {false, true}) {
     check_all_perms<double>({2, 3, 4}, 1.0, accum);
@@ -184,7 +184,7 @@ TEST_CASE("reorder rank 3, all perms") {
   }
 }
 
-TEST_CASE("reorder rank 4, all perms") {
+TEST_CASE("permute rank 4, all perms") {
   using C = std::complex<double>;
   for(bool accum: {false, true}) {
     check_all_perms<double>({2, 3, 2, 4}, 1.0, accum);
@@ -193,7 +193,7 @@ TEST_CASE("reorder rank 4, all perms") {
   }
 }
 
-TEST_CASE("reorder rank 5, all perms") {
+TEST_CASE("permute rank 5, all perms") {
   for(bool accum: {false, true}) {
     check_all_perms<double>({2, 1, 3, 2, 2}, 1.0, accum);
     check_all_perms<std::complex<double>>({2, 1, 2, 2, 3}, std::complex<double>(1.0, 1.0),
@@ -201,7 +201,7 @@ TEST_CASE("reorder rank 5, all perms") {
   }
 }
 
-TEST_CASE("reorder rank 6 and 8 spot checks") {
+TEST_CASE("permute rank 6 and 8 spot checks") {
   // 720 perms at rank 6: check identity, reversal, and a rotation plus a few
   // random perms rather than all of them.
   const std::vector<size_t> d6{2, 3, 1, 4, 2, 2};
@@ -220,11 +220,11 @@ TEST_CASE("reorder rank 6 and 8 spot checks") {
   check_case<double>(d8, id8, {3, 7, 1, 5, 0, 6, 2, 4}, 2.0, true);
 }
 
-TEST_CASE("reorder metadata invariants") {
+TEST_CASE("permute metadata invariants") {
   // Column-major strides + perm round-trip on a known case.
   const size_t outDims[3] = {4, 2, 3};
   const int    perm[3]    = {2, 0, 1};
-  const ReorderMeta meta = reorder_build_meta(3, outDims, perm);
+  const PermuteMeta meta = permute_build_meta(3, outDims, perm);
   CHECK(meta.outStrides[0] == 1);
   CHECK(meta.outStrides[1] == 4);
   CHECK(meta.outStrides[2] == 8);
@@ -232,20 +232,20 @@ TEST_CASE("reorder metadata invariants") {
   CHECK(meta.inStrides[0] == 1);
   CHECK(meta.inStrides[1] == 2);
   CHECK(meta.inStrides[2] == 6);
-  CHECK(reorder_total(3, outDims) == 24);
-  CHECK_FALSE(reorder_is_identity(meta));
+  CHECK(permute_total(3, outDims) == 24);
+  CHECK_FALSE(permute_is_identity(meta));
   const int    idp[3]    = {0, 1, 2};
-  const ReorderMeta idm = reorder_build_meta(3, outDims, idp);
-  CHECK(reorder_is_identity(idm));
-  CHECK(reorder_meta_fits32(meta, 24));
-  CHECK_FALSE(reorder_meta_fits32(meta, size_t{1} << 33));
+  const PermuteMeta idm = permute_build_meta(3, outDims, idp);
+  CHECK(permute_is_identity(idm));
+  CHECK(permute_meta_fits32(meta, 24));
+  CHECK_FALSE(permute_meta_fits32(meta, size_t{1} << 33));
 }
 
 // ---------------------------------------------------------------------------
-// CPU reorder kernel (HPTT replacement): same natural-order convention as the
+// CPU permute kernel (HPTT replacement): same natural-order convention as the
 // reference above, so no reversal is needed. Covers general alpha/beta
 // (HPTT supported arbitrary output scaling), both entry points
-// (kernels::internal::ip_reorder and blockops::reorder::index_permute_reorder).
+// (kernels::internal::ip_permute and blockops::permute::index_permute).
 // ---------------------------------------------------------------------------
 
 using namespace tamm::kernels::cpu;
@@ -311,7 +311,7 @@ void check_cpu_case(const std::vector<size_t>& sdims, const std::vector<int>& sl
                                  slabels.begin());
     }
     std::copy(init.begin(), init.end(), got.begin());
-    transpose_reorder_cpu(got.data(), src.data(), static_cast<int>(ndim), ddims.data(),
+    tamm::kernels::cpu::permute(got.data(), src.data(), static_cast<int>(ndim), ddims.data(),
                           perm.data(), alpha, beta);
     for(size_t i = 0; i < total; ++i) CHECK(got[i] == ref[i]);
   }
@@ -324,7 +324,7 @@ void check_cpu_case(const std::vector<size_t>& sdims, const std::vector<int>& sl
     SizeVec dv;
     for(auto d: ddims) dv.emplace_back(d);
     std::copy(init.begin(), init.end(), got.begin());
-    tamm::internal::ip_reorder(got.data(), dv, dl, alpha, src.data(), sv, sl,
+    tamm::internal::ip_permute(got.data(), dv, dl, alpha, src.data(), sv, sl,
                                beta == T{0});
     for(size_t i = 0; i < total; ++i) CHECK(got[i] == ref[i]);
   }
@@ -338,7 +338,7 @@ void check_cpu_case(const std::vector<size_t>& sdims, const std::vector<int>& sl
       perm.push_back(static_cast<Perm>(j));
     }
     std::copy(init.begin(), init.end(), got.begin());
-    tamm::blockops::reorder::index_permute_reorder(beta, got.data(), alpha, src.data(), perm,
+    tamm::blockops::permute::index_permute(beta, got.data(), alpha, src.data(), perm,
                                                    sdims);
     for(size_t i = 0; i < total; ++i) CHECK(got[i] == ref[i]);
   }
@@ -358,7 +358,7 @@ void check_cpu_all_perms(const std::vector<size_t>& sdims, T alpha, T beta) {
     std::next_permutation(perm.begin(), perm.end()));
 }
 
-TEST_CASE("cpu reorder rank 0..2, all perms, general alpha/beta") {
+TEST_CASE("cpu permute rank 0..2, all perms, general alpha/beta") {
   using C = std::complex<double>;
   for(auto beta_d: {0.0, 1.0, 2.5, -0.5}) {
     for(auto alpha_d: {1.0, 2.5, 0.0, -1.0}) {
@@ -373,7 +373,7 @@ TEST_CASE("cpu reorder rank 0..2, all perms, general alpha/beta") {
   }
 }
 
-TEST_CASE("cpu reorder rank 3..5, all perms") {
+TEST_CASE("cpu permute rank 3..5, all perms") {
   using C = std::complex<double>;
   for(auto beta_d: {0.0, 1.0, 3.0}) {
     check_cpu_all_perms<double>({2, 3, 4}, 1.0, beta_d);
@@ -387,7 +387,7 @@ TEST_CASE("cpu reorder rank 3..5, all perms") {
   }
 }
 
-TEST_CASE("cpu reorder rank 6 spot checks + metadata invariants") {
+TEST_CASE("cpu permute rank 6 spot checks + metadata invariants") {
   const std::vector<size_t> d6{2, 3, 1, 4, 2, 2};
   const std::vector<int>    id6{0, 1, 2, 3, 4, 5};
   check_cpu_case<double>(d6, id6, {5, 4, 3, 2, 1, 0}, 1.0, 0.0);
@@ -401,7 +401,7 @@ TEST_CASE("cpu reorder rank 6 spot checks + metadata invariants") {
   // count from the last axis: {2*3, 3, 1} = {6, 3, 1}.
   const size_t outDims[3] = {4, 2, 3};
   const int    perm[3]    = {2, 0, 1};
-  const ReorderMeta meta = reorder_build_meta_rowmajor(3, outDims, perm);
+  const PermuteMeta meta = permute_build_meta_rowmajor(3, outDims, perm);
   CHECK(meta.outStrides[0] == 6);
   CHECK(meta.outStrides[1] == 3);
   CHECK(meta.outStrides[2] == 1);
@@ -409,5 +409,5 @@ TEST_CASE("cpu reorder rank 6 spot checks + metadata invariants") {
   CHECK(meta.inStrides[0] == 12);
   CHECK(meta.inStrides[1] == 4);
   CHECK(meta.inStrides[2] == 1);
-  CHECK_FALSE(reorder_is_identity(meta));
+  CHECK_FALSE(permute_is_identity(meta));
 }

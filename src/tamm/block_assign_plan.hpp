@@ -6,7 +6,7 @@
 #include "tamm/blockops_blas.hpp"
 #include "tamm/blockops_cpu.hpp"
 #include "tamm/errors.hpp"
-#include "tamm/ip_reorder.hpp"
+#include "tamm/ip_permute.hpp"
 #include "tamm/types.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -34,7 +34,7 @@ public:
     // rhs_labels{rhs_labels},
     plan_{Plan::invalid} {
     prep_flat_plan(lhs_labels, rhs_labels);
-    if(plan_ == Plan::invalid) { prep_reorder(lhs_labels, rhs_labels); }
+    if(plan_ == Plan::invalid) { prep_permute(lhs_labels, rhs_labels); }
     if(plan_ == Plan::invalid) { prep_index_permute_plan(lhs_labels, rhs_labels); }
     if(plan_ == Plan::invalid) { prep_general_loop_plan(lhs_labels, rhs_labels); }
     if(plan_ == Plan::invalid) { prep_general_plan(lhs_labels, rhs_labels); }
@@ -53,8 +53,8 @@ public:
     switch(plan_) {
       case Plan::flat_assign: blockops::cpu::flat_assign(lhs, rhs); break;
       case Plan::flat_update: blockops::cpu::flat_update(lhs, rhs); break;
-      case Plan::reorder:
-        blockops::reorder::index_permute_reorder(lscale, lhs.buf(), 1, rhs.buf(), ip_plan_.perm_,
+      case Plan::permute:
+        blockops::permute::index_permute(lscale, lhs.buf(), 1, rhs.buf(), ip_plan_.perm_,
                                                  rhs.block_dims());
         break;
       case Plan::index_permute_assign:
@@ -115,8 +115,8 @@ public:
     switch(plan_) {
       case Plan::flat_assign: blockops::cpu::flat_assign(lhs, rscale, rhs); break;
       case Plan::flat_update: blockops::cpu::flat_update(lhs, rscale, rhs); break;
-      case Plan::reorder:
-        blockops::reorder::index_permute_reorder(lscale, lhs.buf(), rscale, rhs.buf(),
+      case Plan::permute:
+        blockops::permute::index_permute(lscale, lhs.buf(), rscale, rhs.buf(),
                                                  ip_plan_.perm_, rhs.block_dims());
         break;
       case Plan::index_permute_assign:
@@ -197,8 +197,8 @@ public:
     switch(plan_) {
       case Plan::flat_assign: NOT_ALLOWED(); break;
       case Plan::flat_update: blockops::cpu::flat_update(lscale, lhs, rscale, rhs); break;
-      case Plan::reorder:
-        blockops::reorder::index_permute_reorder(lscale, lhs.buf(), rscale, rhs.buf(),
+      case Plan::permute:
+        blockops::permute::index_permute(lscale, lhs.buf(), rscale, rhs.buf(),
                                                  ip_plan_.perm_, rhs.block_dims());
         break;
       case Plan::index_permute_assign: NOT_ALLOWED(); break;
@@ -265,12 +265,12 @@ private:
   }
 
   template<typename T>
-  void prep_reorder(const std::vector<T>& lhs_labels, const std::vector<T>& rhs_labels) {
+  void prep_permute(const std::vector<T>& lhs_labels, const std::vector<T>& rhs_labels) {
     prep_index_permute_plan(lhs_labels, rhs_labels);
     if(plan_ == Plan::invalid) {
-      return; // no index permute plan, no reorder plan
+      return; // no index permute plan, no permute plan
     }
-    plan_ = Plan::reorder;
+    plan_ = Plan::permute;
   }
 
   template<typename T>
@@ -315,7 +315,7 @@ private:
   enum class Plan {
     flat_assign,
     flat_update,
-    reorder,
+    permute,
     index_permute_assign,
     index_permute_update,
     ipgen_loop_assign,
@@ -343,7 +343,7 @@ private:
     switch(plan) {
       case Plan::flat_assign: return "flat_assign";
       case Plan::flat_update: return "flat_update";
-      case Plan::reorder: return "reorder";
+      case Plan::permute: return "permute";
       case Plan::index_permute_assign: return "index_permute_assign";
       case Plan::index_permute_update: return "index_permute_update";
       case Plan::ipgen_loop_assign: return "ipgen_loop_assign";

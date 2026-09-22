@@ -1,7 +1,7 @@
 #pragma once
 
 #include "tamm/errors.hpp"
-#include "tamm/kernels/cpu_reorder.hpp"
+#include "tamm/kernels/cpu_permute.hpp"
 #include "tamm/types.hpp"
 #include "tamm/utils.hpp"
 
@@ -373,16 +373,16 @@ void ip_gen_loop(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T sca
 }
 
 template<typename T>
-void ip_reorder(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale, const T* src,
+void ip_permute(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale, const T* src,
                 const SizeVec& sdims, const IntLabelVec& slabels, bool is_assign = true) {
   const size_t ndim = ddims.size();
   EXPECTS(sdims.size() == ndim && dlabels.size() == ndim && slabels.size() == ndim);
-  EXPECTS(ndim <= static_cast<size_t>(kernels::gpu::reorder_maxrank));
+  EXPECTS(ndim <= static_cast<size_t>(kernels::gpu::permute_maxrank));
 
   // Natural-order output extents + output-axis -> source-axis map, exactly
   // the (size, perm) pair the old HPTT plan consumed.
-  size_t outDims[kernels::gpu::reorder_maxrank] = {};
-  int    perm[kernels::gpu::reorder_maxrank]    = {};
+  size_t outDims[kernels::gpu::permute_maxrank] = {};
+  int    perm[kernels::gpu::permute_maxrank]    = {};
   for(size_t i = 0; i < ndim; i++) {
     auto it = std::find(slabels.begin(), slabels.end(), dlabels[i]);
     EXPECTS(it != slabels.end());
@@ -390,7 +390,7 @@ void ip_reorder(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scal
     perm[i]        = static_cast<int>(j);
     outDims[i]     = sdims[j].value();
   }
-  kernels::cpu::transpose_reorder_cpu(dst, src, static_cast<int>(ndim), outDims, perm, scale,
+  kernels::cpu::permute(dst, src, static_cast<int>(ndim), outDims, perm, scale,
                                       is_assign ? T{0} : T{1});
 }
 
@@ -473,7 +473,7 @@ void assign(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale, c
       if(is_assign) { internal::index_permute(dst, src, perm_to_dest, ddims, scale); }
       else { internal::index_permute_acc(dst, src, perm_to_dest, ddims, scale); }
     }
-    else internal::ip_reorder(dst, ddims, dlabels, scale, src, sdims, slabels, is_assign);
+    else internal::ip_permute(dst, ddims, dlabels, scale, src, sdims, slabels, is_assign);
   }
   else { internal::ip_gen_loop(dst, ddims, dlabels, scale, src, sdims, slabels, is_assign); }
 }

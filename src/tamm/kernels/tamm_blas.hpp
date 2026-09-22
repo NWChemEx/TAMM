@@ -28,7 +28,7 @@ template<typename T, typename T1, typename T2, typename T3>
 void gemm(int n, int m, int k, const T alpha, const T3* B, int ldb, const T2* A, int lda,
           const T beta, T1* C, int ldc, gpuStream_t& gpuhandle);
 
-// Out-of-place N-dimensional axis-permuting transpose (in-house reorder
+// Out-of-place N-dimensional axis-permuting transpose (in-house permute
 // kernel; fully replaces the old librett dependency).
 //   out        : destination buffer (device), sized as the permuted tensor
 //   in         : source buffer (device); must not alias out
@@ -40,8 +40,8 @@ void gemm(int n, int m, int k, const T alpha, const T3* B, int ldb, const T2* A,
 // Enqueued on handle.first (cuda/hip stream, in-order SYCL queue); async,
 // no internal synchronization.
 template<typename T>
-void transpose_reorder(T* out, const T* in, int ndim, const size_t* outDims, const int* perm,
-                       T scale, bool accumulate, gpuStream_t& handle);
+void permute(T* out, const T* in, int ndim, const size_t* outDims, const int* perm, T scale,
+             bool accumulate, gpuStream_t& handle);
 
 } // namespace gpu
 #endif

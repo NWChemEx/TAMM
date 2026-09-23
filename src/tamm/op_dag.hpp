@@ -493,7 +493,7 @@ AddOp operator+(LimitTo<Op, Op1>&& lhs, LimitTo<Op, Op2>&& rhs) {
 
 template<typename Op1, typename Op2>
 AddOp operator-(LimitTo<Op, Op1>&& lhs, LimitTo<Op, Op2>&& rhs) {
-  return {std::forward<Op1>(lhs), std::forward<Op2>(rhs)};
+  return {std::forward<Op1>(lhs), -1.0 * rhs};
 }
 
 template<typename T, typename Op1, std::enable_if_t<std::is_arithmetic<T>::value, int> = 0>
@@ -508,12 +508,12 @@ AddOp operator+(T value, LimitTo<Op, Op1>&& rhs) {
 
 template<typename T, typename Op1, std::enable_if_t<std::is_arithmetic<T>::value, int> = 0>
 AddOp operator-(LimitTo<Op, Op1>&& lhs, T value) {
-  return {std::forward<Op1>(lhs), Scalar{value}};
+  return {std::forward<Op1>(lhs), Scalar{-value}};
 }
 
 template<typename T, typename Op1, std::enable_if_t<std::is_arithmetic<T>::value, int> = 0>
 AddOp operator-(T value, LimitTo<Op, Op1>&& rhs) {
-  return {Scalar{value}, std::forward<Op1>(rhs)};
+  return {Scalar{value}, -1.0 * rhs};
 }
 
 template<typename T, typename Op1, std::enable_if_t<std::is_arithmetic<T>::value, int> = 0>

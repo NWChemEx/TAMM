@@ -5,6 +5,7 @@
 #include "tamm/types.hpp"
 
 #include <complex>
+#include <cstddef>
 #include <cstdint>
 #include <cstring> // for std::memset
 #include <numeric>
@@ -15,10 +16,9 @@
 #include "tamm/rmm_memory_pool.hpp"
 #include "tamm/utils.hpp"
 #include "tamm_blas.hpp"
+#include "gpu_permute.hpp"
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-#include "librett/librett.h"
-#else
+#if !defined(USE_CUDA) && !defined(USE_HIP) && !defined(USE_DPCPP)
 namespace tamm {
 using gpuStream_t = int; // not used
 }
@@ -27,6 +27,15 @@ using gpuStream_t = int; // not used
 namespace tamm {
 
 namespace kernels {
+
+// Device staging owned by one permute_inputs() call. Type-erased to bytes
+// (the pool frees exactly size_bytes()) so block_multiply() can hold it in a
+// single function-scope variable across its differently-typed branches and
+// return it to the pool under the end-of-call drain.
+struct GpuPermuteStaging {
+  std::span<std::byte> a{};
+  std::span<std::byte> b{};
+};
 
 template<typename T2, typename T3>
 void copy_data_to_gpu(ExecutionHW hw, gpuStream_t& thandle, const T2* ainter_buf, size_t asize,
@@ -140,59 +149,33 @@ template<typename T>
 void assign_gpu(gpuStream_t& thandle, T*& dst, const SizeVec& ddims, const IntLabelVec& dlabels,
                 T scale, const T* src, const SizeVec& sdims, const IntLabelVec& slabels,
                 bool is_assign) {
-  const int ndim = sdims.size();
+  const size_t ndim = sdims.size();
+  EXPECTS(ddims.size() == ndim && dlabels.size() == ndim && slabels.size() == ndim);
+  EXPECTS(dst != nullptr && (ndim == 0 || src != nullptr));
+  EXPECTS(dst != src); // out-of-place only; in-place permutes need a temp buffer
 
   const Size ssize = std::accumulate(sdims.begin(), sdims.end(), Size{1}, std::multiplies<Size>());
-  if(ndim <= 1 || ssize.value() == 1) {
-    // device-->device copy
-    gpuMemcpyAsync<T>(dst, src, ssize.value(), gpuMemcpyDeviceToDevice, thandle);
-  }
+  if(ssize.value() == 0) return;
+  EXPECTS(ndim <= static_cast<size_t>(gpu::permute_maxrank));
 
-  std::vector<int> r_sdims;
-  std::transform(std::begin(sdims), std::end(sdims), std::back_inserter(r_sdims),
-                 [](tamm::Size i) -> int { return i.value(); });
-
-  tamm::IntLabelVec r_dlabels = dlabels;
-  tamm::IntLabelVec r_slabels = slabels;
-
-  // if(is_assign)
-  std::reverse(r_sdims.begin(), r_sdims.end());
-  std::reverse(r_slabels.begin(), r_slabels.end());
-  std::reverse(r_dlabels.begin(), r_dlabels.end());
-
-  int perm[ndim];
-  int size[ndim];
-  // T beta         = is_assign ? 0 : 1;
-
-  for(size_t i = 0; i < r_sdims.size(); i++) { size[i] = r_sdims[i]; }
-  for(size_t i = 0; i < r_dlabels.size(); i++) {
-    auto it = std::find(r_slabels.begin(), r_slabels.end(), r_dlabels[i]);
-    EXPECTS(it != r_slabels.end());
-    perm[i] = it - r_slabels.begin();
-  }
-
-  // create plan
-  librettHandle plan;
-#if defined(USE_DPCPP)
-  sycl::queue* ptrQueue = &(thandle.first);
-  librettPlan(&plan, ndim, size, perm, sizeof(T), ptrQueue);
-#else
-  librettPlan(&plan, ndim, size, perm, sizeof(T), thandle.first);
-#endif
-
-  // ABB: following casts were required since librett API only accepts void* as args
-  librettExecute(plan, reinterpret_cast<void*>(const_cast<T*>(src)), reinterpret_cast<void*>(dst));
-  librettDestroy(plan);
+  // Fortran-order (reversed) spec for the column-major permute kernel; this
+  // is exactly the row-major permute the CPU assign() computes.
+  // Allocation-free (stack spec): no heap traffic in this hot path.
+  gpu::PermuteSpec spec{};
+  gpu::build_permute_spec(sdims, slabels, dlabels, spec);
+  gpu::permute<T>(dst, src, static_cast<int>(ndim), spec.outDims, spec.perm, scale,
+                            !is_assign, thandle);
 }
 #endif
 
 template<typename T2, typename T3>
-bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, T2* ainter_buf,
+bool permute_inputs(ExecutionHW hw, gpuStream_t& thandle, T2* ainter_buf,
                       const SizeVec& ainter_dims, const IntLabelVec& ainter_labels, const T2* abuf,
                       size_t asize, const SizeVec& adims, const IntLabelVec& alabels,
                       T3* binter_buf, const SizeVec& binter_dims, const IntLabelVec& binter_labels,
                       const T3* bbuf, size_t bsize, const SizeVec& bdims,
-                      const IntLabelVec& blabels, T2*& ainter_buf_dev, T3*& binter_buf_dev) {
+                      const IntLabelVec& blabels, T2*& ainter_buf_dev, T3*& binter_buf_dev,
+                      GpuPermuteStaging& staging) {
   bool gpu_trans = false;
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
@@ -210,15 +193,12 @@ bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, T2* ainter_buf,
     assign_gpu<T3>(thandle, binter_buf_dev, binter_dims, binter_labels, T3{1}, binter_dev_in.data(),
                    bdims, blabels, true);
 
-    // The H2D copies above and librettExecute() inside assign_gpu() are enqueued on
-    // `thandle` and return immediately on CUDA/HIP, but returning these staging buffers to
-    // the pool makes their addresses instantly re-allocatable (the pool's deallocate is
-    // host-side bookkeeping, not a stream-ordered free). Without this sync the next
-    // allocation can alias memory that librett is still reading.
-    gpuStreamSynchronize(thandle);
-
-    free_device_buffer(hw, ainter_dev_in);
-    free_device_buffer(hw, binter_dev_in);
+    // Staging is NOT freed here: it stays alive across GEMM/output-permute
+    // and is returned to the pool just before block_multiply()'s single end
+    // drain, saving one device-wide sync per call. (On the in-order queue all
+    // of the above is ordered behind prior work by construction.)
+    staging.a = std::as_writable_bytes(ainter_dev_in);
+    staging.b = std::as_writable_bytes(binter_dev_in);
 
     return gpu_trans;
   }
@@ -230,14 +210,23 @@ bool transpose_inputs(ExecutionHW hw, gpuStream_t& thandle, T2* ainter_buf,
 }
 
 template<typename T1>
-void transpose_output(ExecutionHW hw, gpuStream_t& thandle, bool gpu_trans, T1* cinter_buf,
+void permute_output(ExecutionHW hw, gpuStream_t& thandle, bool gpu_trans, T1* cinter_buf,
                       const SizeVec& cinter_dims, const IntLabelVec& cinter_labels, T1* cbuf,
                       const SizeVec& cdims, const IntLabelVec& clabels, T1*& cinter_buf_dev,
                       T1*& cinter_tmp_buf_dev, bool is_assign) {
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   if(hw == ExecutionHW::GPU) {
+    // NOTE: always overwrite (is_assign=true) on the GPU path, matching the
+    // old librett assign_gpu semantics (which ignored is_assign/scale).
+    // Accumulation across reduction iterations here is performed by GEMM
+    // itself (beta=cscale=1 accumulates in cinter_tmp_buf_dev in inter
+    // ordering), so the output permute must overwrite cinter_buf_dev with
+    // the running total each iteration. Honoring is_assign=false here (D+=T)
+    // double-counts: iter2 adds T1+S2 on top of D=T1, giving 2*S1+S2.
+    // (CPU path differs: its per-call cinter_buf is freshly zeroed, so the
+    // permute is the accumulator there and must honor is_assign.)
     assign_gpu<T1>(thandle, cinter_buf_dev, cdims, clabels, T1{1}, cinter_tmp_buf_dev, cinter_dims,
-                   cinter_labels, is_assign);
+                   cinter_labels, true);
     return;
   }
 #endif
@@ -375,6 +364,9 @@ void block_multiply(
   // int breduce_ld = B * bbatch_ld;
 
   bool gpu_trans = false;
+  // Input staging for the GPU path; returned to the pool under the
+  // end-of-call drain (see permute_inputs).
+  GpuPermuteStaging permute_staging{};
 
   std::span<T1> cinter_span = allocate_host_buffer<T1>(hw, static_cast<size_t>(csize.value()));
   T1*           cinter_buf  = cinter_span.data();
@@ -397,10 +389,10 @@ void block_multiply(
     T2*           ainter_buf  = ainter_span.data();
     T3*           binter_buf  = binter_span.data();
 
-    gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
+    gpu_trans = permute_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                  asize.value(), adims, alabels, binter_buf, binter_dims,
                                  binter_labels, bbuf, bsize.value(), bdims, blabels, ainter_buf_dev,
-                                 binter_buf_dev);
+                                 binter_buf_dev, permute_staging);
 
     if(!gpu_trans)
       copy_data_to_gpu(hw, thandle, ainter_buf, asize.value(), ainter_buf_dev, binter_buf,
@@ -409,7 +401,7 @@ void block_multiply(
     gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
                  binter_buf, binter_buf_dev, cinter_buf, cinter_tmp_buf_dev);
 
-    transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
+    permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
                      clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
     free_host_buffer(hw, ainter_span);
@@ -438,10 +430,10 @@ void block_multiply(
         std::span<T1> bbuf_complex_dev_span = allocate_device_buffer<T1>(hw, bsize.value());
         T1*           bbuf_complex_dev      = bbuf_complex_dev_span.data();
 
-        gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
+        gpu_trans = permute_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                      asize.value(), adims, alabels, binter_buf, binter_dims,
                                      binter_labels, bbuf_complex, bsize.value(), bdims, blabels,
-                                     ainter_buf_dev, bbuf_complex_dev);
+                                     ainter_buf_dev, bbuf_complex_dev, permute_staging);
 
         if(!gpu_trans) {
           bbuf_complex = binter_buf;
@@ -451,11 +443,11 @@ void block_multiply(
 
         gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
                      bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_tmp_buf_dev);
-        transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+        permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-        // gemm_wrapper() and transpose_output() enqueue stream-async work on CUDA/HIP;
+        // gemm_wrapper() and permute_output() enqueue stream-async work on CUDA/HIP;
         // sync before returning this device block to the pool, which makes the address
         // immediately re-allocatable.
         if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
@@ -474,10 +466,10 @@ void block_multiply(
         std::span<T1> bbuf_real_dev_span = allocate_device_buffer<T1>(hw, bsize.value());
         T1*           bbuf_real_dev      = bbuf_real_dev_span.data();
 
-        gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
+        gpu_trans = permute_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                      asize.value(), adims, alabels, binter_buf, binter_dims,
                                      binter_labels, bbuf_real, bsize.value(), bdims, blabels,
-                                     ainter_buf_dev, bbuf_real_dev);
+                                     ainter_buf_dev, bbuf_real_dev, permute_staging);
 
         if(!gpu_trans) {
           bbuf_real = binter_buf;
@@ -487,11 +479,11 @@ void block_multiply(
 
         gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
                      bbuf_real, bbuf_real_dev, cinter_buf, cinter_tmp_buf_dev);
-        transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+        permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-        // gemm_wrapper() and transpose_output() enqueue stream-async work on CUDA/HIP;
+        // gemm_wrapper() and permute_output() enqueue stream-async work on CUDA/HIP;
         // sync before returning this device block to the pool, which makes the address
         // immediately re-allocatable.
         if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
@@ -521,10 +513,10 @@ void block_multiply(
         std::span<T1> abuf_complex_dev_span = allocate_device_buffer<T1>(hw, asize.value());
         T1*           abuf_complex_dev      = abuf_complex_dev_span.data();
 
-        gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels,
+        gpu_trans = permute_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels,
                                      abuf_complex, asize.value(), adims, alabels, binter_buf,
                                      binter_dims, binter_labels, bbuf, bsize.value(), bdims,
-                                     blabels, abuf_complex_dev, binter_buf_dev);
+                                     blabels, abuf_complex_dev, binter_buf_dev, permute_staging);
 
         if(!gpu_trans) {
           abuf_complex = ainter_buf;
@@ -535,11 +527,11 @@ void block_multiply(
         gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex, abuf_complex_dev,
                      binter_buf, binter_buf_dev, cinter_buf, cinter_tmp_buf_dev);
 
-        transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+        permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-        // gemm_wrapper() and transpose_output() enqueue stream-async work on CUDA/HIP;
+        // gemm_wrapper() and permute_output() enqueue stream-async work on CUDA/HIP;
         // sync before returning this device block to the pool, which makes the address
         // immediately re-allocatable.
         if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
@@ -558,10 +550,10 @@ void block_multiply(
         std::span<T1> abuf_real_dev_span = allocate_device_buffer<T1>(hw, asize.value());
         T1*           abuf_real_dev      = abuf_real_dev_span.data();
 
-        gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf_real,
+        gpu_trans = permute_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf_real,
                                      asize.value(), adims, alabels, binter_buf, binter_dims,
                                      binter_labels, bbuf, bsize.value(), bdims, blabels,
-                                     abuf_real_dev, binter_buf_dev);
+                                     abuf_real_dev, binter_buf_dev, permute_staging);
 
         if(!gpu_trans) {
           abuf_real = ainter_buf;
@@ -571,11 +563,11 @@ void block_multiply(
 
         gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_real, abuf_real_dev,
                      binter_buf, binter_buf_dev, cinter_buf, cinter_tmp_buf_dev);
-        transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
+        permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
                          cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-        // gemm_wrapper() and transpose_output() enqueue stream-async work on CUDA/HIP;
+        // gemm_wrapper() and permute_output() enqueue stream-async work on CUDA/HIP;
         // sync before returning this device block to the pool, which makes the address
         // immediately re-allocatable.
         if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
@@ -606,10 +598,10 @@ void block_multiply(
       gpuMemsetAsync(cbuf_tmp_real_dev, csize.value() * sizeof(T2), thandle);
 #endif
 
-      gpu_trans = transpose_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
+      gpu_trans = permute_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
                                    asize.value(), adims, alabels, binter_buf, binter_dims,
                                    binter_labels, bbuf, bsize.value(), bdims, blabels,
-                                   ainter_buf_dev, binter_buf_dev);
+                                   ainter_buf_dev, binter_buf_dev, permute_staging);
 
       if(!gpu_trans) {
         copy_data_to_gpu(hw, thandle, ainter_buf, asize.value(), ainter_buf_dev, binter_buf,
@@ -627,12 +619,12 @@ void block_multiply(
       }
       else { std::copy(cinter_buf_real, cinter_buf_real + csize.value(), cinter_buf); }
 
-      transpose_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
+      permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
                        clabels, cinter_buf_dev, reinterpret_cast<T1*&>(cinter_tmp_buf_dev),
                        is_assign);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-      // gpu::axpy and the librett transpose in transpose_output are stream-async on
+      // gpu::axpy and the permute in permute_output are stream-async on
       // CUDA/HIP; sync before returning this device block to the pool, which would
       // otherwise make it immediately re-allocatable while that work is still reading it.
       if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
@@ -655,16 +647,24 @@ void block_multiply(
   // cinter_*_dev buffers) and every device buffer allocated internally is free of
   // in-flight work by the time this function returns.
   //
-  // On CUDA/HIP the cuBLAS/rocBLAS gemm above is enqueued on `thandle` and returns
-  // immediately, whereas the memory pool's deallocate() is pure host-side bookkeeping that
-  // makes a block instantly re-allocatable -- it does not defer the reuse behind a stream
-  // event the way upstream RMM's stream-ordered free lists do. Callers that free a device
-  // buffer right after this call (e.g. the reduction loop in MultOp::execute_bufacc, and
-  // the equivalent loops in exachem's cd_ccsd_{cs,os}_ann.cpp) would otherwise hand the
-  // same address to the next iteration's allocation while the gemm is still reading it.
-  //
-  // DPC++ already synchronises inside gpu::gemm (gemm_event.wait()), so this is a no-op
-  // there; the cost on CUDA/HIP is the sync the callers' correctness already assumed.
+  // On all backends the gemm/permute work above is enqueued on `thandle` and
+  // returns immediately (CUDA/HIP: async BLAS; DPC++: in-order queue, no waits
+  // inside gpu::gemm by design), whereas the memory pool's deallocate() is pure
+  // host-side bookkeeping that makes a block instantly re-allocatable -- it does
+  // not defer the reuse behind a stream event the way upstream RMM's
+  // stream-ordered free lists do. Callers that free a device buffer right after
+  // this call (e.g. the reduction loop in MultOp::execute_bufacc, and the
+  // equivalent loops in exachem's cd_ccsd_{cs,os}_ann.cpp) would otherwise hand
+  // the same address to the next iteration's allocation while the gemm is still
+  // reading it. This device-wide drain per block op is the price of the
+  // immediate-free pool; removing it requires moving the device pool to a
+  // stream-ordered resource (see mr/stream_ordered_memory_resource.hpp).
+  // The permute-input staging is returned here, covered by the same drain
+  // (on the in-order queue the GEMM/output-permute above are ordered
+  // behind the input permutes by construction), so each call now pays a
+  // single device-wide sync instead of two.
+  free_device_buffer(hw, permute_staging.a);
+  free_device_buffer(hw, permute_staging.b);
   if(hw == ExecutionHW::GPU) { gpuStreamSynchronize(thandle); }
 #endif
 

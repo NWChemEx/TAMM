@@ -1,10 +1,9 @@
 #pragma once
 
 #include "tamm/errors.hpp"
+#include "tamm/kernels/cpu_permute.hpp"
 #include "tamm/types.hpp"
 #include "tamm/utils.hpp"
-
-#include "hptt/hptt.h"
 
 #include <algorithm>
 #include <array>
@@ -374,31 +373,25 @@ void ip_gen_loop(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T sca
 }
 
 template<typename T>
-void ip_hptt(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale, const T* src,
-             const SizeVec& sdims, const IntLabelVec& slabels, bool is_assign = true) {
-  // EXPECTS(ddims.size() == dlabels.size());
-  // EXPECTS(sdims.size() == slabels.size());
-  // EXPECTS(ddims.size() == sdims.size());
-  // EXPECTS(src != nullptr);
-  // EXPECTS(dst != nullptr);
+void index_permute(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale, const T* src,
+                   const SizeVec& sdims, const IntLabelVec& slabels, bool is_assign = true) {
+  const size_t ndim = ddims.size();
+  EXPECTS(sdims.size() == ndim && dlabels.size() == ndim && slabels.size() == ndim);
+  EXPECTS(ndim <= static_cast<size_t>(kernels::gpu::permute_maxrank));
 
-  const int ndim = ddims.size();
-  int       perm[ndim];
-  int       size[ndim];
-  T         beta       = is_assign ? 0 : 1;
-  int       numThreads = 1;
-  for(size_t i = 0; i < sdims.size(); i++) { size[i] = sdims[i].value(); }
-  for(size_t i = 0; i < dlabels.size(); i++) {
+  // Natural-order output extents + output-axis -> source-axis map, exactly
+  // the (size, perm) pair the old HPTT plan consumed.
+  size_t outDims[kernels::gpu::permute_maxrank] = {};
+  int    perm[kernels::gpu::permute_maxrank]    = {};
+  for(size_t i = 0; i < ndim; i++) {
     auto it = std::find(slabels.begin(), slabels.end(), dlabels[i]);
     EXPECTS(it != slabels.end());
-    perm[i] = it - slabels.begin();
+    const size_t j = static_cast<size_t>(it - slabels.begin());
+    perm[i]        = static_cast<int>(j);
+    outDims[i]     = sdims[j].value();
   }
-  // create a plan (shared_ptr)
-  auto plan = hptt::create_plan(perm, ndim, scale, src, size, NULL, beta, dst, NULL, hptt::ESTIMATE,
-                                numThreads, NULL, true);
-
-  // execute the transposition
-  plan->execute();
+  kernels::cpu::permute(dst, src, static_cast<int>(ndim), outDims, perm, scale,
+                                      is_assign ? T{0} : T{1});
 }
 
 /**
@@ -480,7 +473,7 @@ void assign(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale, c
       if(is_assign) { internal::index_permute(dst, src, perm_to_dest, ddims, scale); }
       else { internal::index_permute_acc(dst, src, perm_to_dest, ddims, scale); }
     }
-    else internal::ip_hptt(dst, ddims, dlabels, scale, src, sdims, slabels, is_assign);
+    else internal::index_permute(dst, ddims, dlabels, scale, src, sdims, slabels, is_assign);
   }
   else { internal::ip_gen_loop(dst, ddims, dlabels, scale, src, sdims, slabels, is_assign); }
 }

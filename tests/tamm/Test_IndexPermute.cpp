@@ -245,7 +245,7 @@ TEST_CASE("permute metadata invariants") {
 // CPU permute kernel (HPTT replacement): same natural-order convention as the
 // reference above, so no reversal is needed. Covers general alpha/beta
 // (HPTT supported arbitrary output scaling), both entry points
-// (kernels::internal::ip_permute and blockops::permute::index_permute).
+// (internal::index_permute and blockops::permute::index_permute).
 // ---------------------------------------------------------------------------
 
 using namespace tamm::kernels::cpu;
@@ -324,7 +324,7 @@ void check_cpu_case(const std::vector<size_t>& sdims, const std::vector<int>& sl
     SizeVec dv;
     for(auto d: ddims) dv.emplace_back(d);
     std::copy(init.begin(), init.end(), got.begin());
-    tamm::internal::ip_permute(got.data(), dv, dl, alpha, src.data(), sv, sl,
+    tamm::internal::index_permute(got.data(), dv, dl, alpha, src.data(), sv, sl,
                                beta == T{0});
     for(size_t i = 0; i < total; ++i) CHECK(got[i] == ref[i]);
   }

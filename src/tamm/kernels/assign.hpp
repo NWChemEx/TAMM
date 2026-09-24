@@ -373,8 +373,8 @@ void ip_gen_loop(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T sca
 }
 
 template<typename T>
-void ip_permute(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale, const T* src,
-                const SizeVec& sdims, const IntLabelVec& slabels, bool is_assign = true) {
+void index_permute(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale, const T* src,
+                   const SizeVec& sdims, const IntLabelVec& slabels, bool is_assign = true) {
   const size_t ndim = ddims.size();
   EXPECTS(sdims.size() == ndim && dlabels.size() == ndim && slabels.size() == ndim);
   EXPECTS(ndim <= static_cast<size_t>(kernels::gpu::permute_maxrank));
@@ -473,7 +473,7 @@ void assign(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T scale, c
       if(is_assign) { internal::index_permute(dst, src, perm_to_dest, ddims, scale); }
       else { internal::index_permute_acc(dst, src, perm_to_dest, ddims, scale); }
     }
-    else internal::ip_permute(dst, ddims, dlabels, scale, src, sdims, slabels, is_assign);
+    else internal::index_permute(dst, ddims, dlabels, scale, src, sdims, slabels, is_assign);
   }
   else { internal::ip_gen_loop(dst, ddims, dlabels, scale, src, sdims, slabels, is_assign); }
 }

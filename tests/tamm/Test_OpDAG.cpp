@@ -955,6 +955,47 @@ void cs_ccsd_t1() {
   }
 }
 
+void test_sub_operator() {
+  using T = double;
+
+  ProcGroup        pg = ProcGroup::create_world_coll();
+  ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
+
+  TiledIndexSpace MO{IndexSpace{range(6)}, 2};
+  auto [i, j] = MO.labels<2>("all");
+  Tensor<T> A{i, j}, B{i, j}, R{i, j};
+
+  // Coefficient of the subtracted operand for each kind of rhs op
+  auto sub_rhs_coeff = [](auto&& op) { return op.rhs().coeff().template get<T>(); };
+  LTOp lt_b{B(i, j)};
+  EXPECTS(sub_rhs_coeff(LTOp{A(i, j)} - LTOp{B(i, j)}) == -1.0);
+  EXPECTS(sub_rhs_coeff(LTOp{A(i, j)} - lt_b) == -1.0);
+  EXPECTS(sub_rhs_coeff(LTOp{A(i, j)} - (2.0 * LTOp{B(i, j)})) == -2.0);
+  EXPECTS(sub_rhs_coeff(LTOp{A(i, j)} - (LTOp{A(i, j)} * LTOp{B(i, j)})) == -1.0);
+  EXPECTS(sub_rhs_coeff(LTOp{A(i, j)} + LTOp{B(i, j)}) == 1.0);
+
+  // End-to-end: R = A - B must evaluate to 3 - 1, not 3 + 1
+  Scheduler{ec}.allocate(A, B, R)(A(i, j) = 3.0)(B(i, j) = 1.0)(R(i, j) = 0.0).execute();
+
+  R(i, j).update(LTOp{A(i, j)} - LTOp{B(i, j)});
+
+  SymbolTable symbol_table;
+  TAMM_REGISTER_SYMBOLS(symbol_table, A, B, R);
+  TAMM_REGISTER_SYMBOLS(symbol_table, i, j);
+
+  Scheduler  sch{ec};
+  OpExecutor op_exec{sch, symbol_table};
+  op_exec.opmin_execute(R);
+
+  for(const auto& blockid: R.loop_nest()) {
+    std::vector<T> buf(R.block_size(blockid));
+    R.get(blockid, buf);
+    for(const auto& v: buf) EXPECTS(std::abs(v - 2.0) < 1e-10);
+  }
+
+  Tensor<T>::deallocate(A, B, R);
+}
+
 int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);
 
@@ -973,6 +1014,7 @@ int main(int argc, char* argv[]) {
   // test_new_ops();
   // test_utility_methods();
   // test_gfcc_failed_case();
+  test_sub_operator();
   cs_ccsd_t1<double>();
 
   tamm::finalize();

@@ -102,7 +102,7 @@ set(TAMM_INCLUDES
     blockops_cpu.hpp
     perm.hpp
     iteration.hpp
-    ip_permute.hpp
+    index_permute.hpp
     blockops_blas.hpp
     tensor_variant.hpp
     op_executor.hpp

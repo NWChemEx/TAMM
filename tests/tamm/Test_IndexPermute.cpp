@@ -11,7 +11,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest/doctest.h"
 
-#include <tamm/ip_permute.hpp>
+#include <tamm/index_permute.hpp>
 #include <tamm/kernels/assign.hpp>
 #include <tamm/kernels/cpu_permute.hpp>
 #include <tamm/kernels/gpu_permute.hpp>

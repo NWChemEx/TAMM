@@ -6,7 +6,7 @@
 #include "ga/ga-mpi.h"
 #include "tamm/dag_impl.hpp"
 #include "tamm/execution_context.hpp"
-#include "tamm/ip_permute.hpp"
+#include "tamm/index_permute.hpp"
 #include "tamm/ops.hpp"
 #include "tamm/tensor.hpp"
 

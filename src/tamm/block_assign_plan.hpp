@@ -6,7 +6,7 @@
 #include "tamm/blockops_blas.hpp"
 #include "tamm/blockops_cpu.hpp"
 #include "tamm/errors.hpp"
-#include "tamm/ip_permute.hpp"
+#include "tamm/index_permute.hpp"
 #include "tamm/types.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////

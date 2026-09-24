@@ -11,7 +11,7 @@
 //
 // The per-backend kernels in gpu_permute.cpp are thin launch wrappers around
 // these helpers, so all three backends (CUDA/HIP/SYCL) provably implement the
-// same math. The CPU unit test (tests/tamm/Test_TransposePermute.cpp)
+// same math. The CPU unit test (tests/tamm/Test_IndexPermute.cpp)
 // exercises these helpers directly, without needing a GPU.
 //
 // Layout note: TAMM callers pass dims/labels in reverse (Fortran) order

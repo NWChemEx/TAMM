@@ -67,7 +67,7 @@ private:
       auto status = cudaMallocHost(&ptr, size);
       if(cudaSuccess != status) { throw std::bad_alloc{}; }
 #elif defined(USE_HIP)
-      auto status = hipMallocHost(&ptr, size);
+      auto status = hipHostMalloc(&ptr, size);
       if (hipSuccess != status) { throw std::bad_alloc{}; }
 #elif defined(USE_DPCPP)
       // aligned_alloc_host, not malloc_host -- see the note in gpu_memory_resource.hpp.

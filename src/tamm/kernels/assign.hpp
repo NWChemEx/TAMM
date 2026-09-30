@@ -379,8 +379,8 @@ void index_permute(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T s
   EXPECTS(sdims.size() == ndim && dlabels.size() == ndim && slabels.size() == ndim);
   EXPECTS(ndim <= static_cast<size_t>(kernels::gpu::permute_maxrank));
 
-  // Natural-order output extents + output-axis -> source-axis map, exactly
-  // the (size, perm) pair the old HPTT plan consumed.
+  // Natural-order output extents + output-axis -> source-axis map, the same
+  // (size, perm) convention the CPU and GPU permute kernels consume.
   size_t outDims[kernels::gpu::permute_maxrank] = {};
   int    perm[kernels::gpu::permute_maxrank]    = {};
   for(size_t i = 0; i < ndim; i++) {

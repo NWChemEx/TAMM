@@ -1,6 +1,6 @@
 #pragma once
 
-// Host-only CPU tensor permute, the HPTT replacement.
+// Host-only CPU tensor permute.
 //
 // Row-major (TAMM-native) counterpart of the GPU kernel in gpu_permute.hpp.
 // Reuses its PermuteMeta storage, elementwise scale/add helpers and identity

@@ -216,8 +216,7 @@ void permute_output(ExecutionHW hw, gpuStream_t& thandle, bool gpu_trans, T1* ci
                       T1*& cinter_tmp_buf_dev, bool is_assign) {
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   if(hw == ExecutionHW::GPU) {
-    // NOTE: always overwrite (is_assign=true) on the GPU path, matching the
-    // old librett assign_gpu semantics (which ignored is_assign/scale).
+    // NOTE: always overwrite (is_assign=true) on the GPU path.
     // Accumulation across reduction iterations here is performed by GEMM
     // itself (beta=cscale=1 accumulates in cinter_tmp_buf_dev in inter
     // ordering), so the output permute must overwrite cinter_buf_dev with

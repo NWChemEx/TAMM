@@ -12,17 +12,16 @@ namespace tamm::blockops::permute {
 ///////////////////////////////////////////////////////////////////////////////
 //
 //           Index permute using the in-house CPU permute kernel
-//           (replaces the old HPTT-based index_permute_hptt)
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-// Out-of-place permute with HPTT-identical semantics:
+// Out-of-place permute with assign/accumulate semantics:
 //   lbuf = lscale * lbuf + rscale * permute(rbuf)
 // perm_to_dest maps each destination axis to its source axis and sdims holds
 // the source extents, both in natural order; the output extents follow as
 // outDims[k] == sdims[perm_to_dest[k]]. Scale types are independent template
 // parameters so call sites may mix e.g. an int literal rscale with a
-// complex buffer (as the old single-T HPTT wrapper allowed via conversion).
+// complex buffer.
 template<typename BL, typename T1, typename BA, typename T2>
 void index_permute(BL lscale, T1* lbuf, BA rscale, const T2* rbuf,
                    const PermVector& perm_to_dest, const std::vector<size_t>& sdims) {

@@ -242,9 +242,9 @@ TEST_CASE("permute metadata invariants") {
 }
 
 // ---------------------------------------------------------------------------
-// CPU permute kernel (HPTT replacement): same natural-order convention as the
+// CPU permute kernel: same natural-order convention as the
 // reference above, so no reversal is needed. Covers general alpha/beta
-// (HPTT supported arbitrary output scaling), both entry points
+// output scaling, both entry points
 // (internal::index_permute and blockops::permute::index_permute).
 // ---------------------------------------------------------------------------
 

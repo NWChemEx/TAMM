@@ -5,7 +5,8 @@
 // This header holds everything about the permute that is backend-agnostic:
 //   - the permutation metadata layout,
 //   - the output-linear-index -> input-linear-index decode (column-major,
-//     first-axis-fastest, matching the convention the old librett path used),
+//     first-axis-fastest; callers pass dims/labels in reversed Fortran order,
+//     so this implements the natural row-major transpose),
 //   - the scale/accumulate elementwise apply,
 //   - host-side helpers that build the metadata from TAMM's (dims, labels).
 //
@@ -200,7 +201,9 @@ inline void build_permute_spec(const SizeVec& sdims, const IntLabelVec& slabels,
   EXPECTS(dlabels.size() == ndim && slabels.size() == ndim);
   EXPECTS(ndim <= static_cast<size_t>(permute_maxrank));
 
-  // Reverse into Fortran order (librett used the same convention).
+  // Reverse into Fortran order for the column-major kernel: a row-major
+  // transpose with perm P equals a column-major transpose with the reversed
+  // perm, so reversing both dim orders converts between the two layouts.
   size_t   r_size[permute_maxrank];
   IntLabel r_slabels[permute_maxrank];
   IntLabel r_dlabels[permute_maxrank];

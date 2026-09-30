@@ -30,7 +30,7 @@ void gemm(int n, int m, int k, const T alpha, const T3* B, int ldb, const T2* A,
           const T beta, T1* C, int ldc, gpuStream_t& gpuhandle);
 
 // Out-of-place N-dimensional axis-permuting transpose (in-house permute
-// kernel; fully replaces the old librett dependency).
+// kernel).
 //   out        : destination buffer (device), sized as the permuted tensor
 //   in         : source buffer (device); must not alias out
 //   ndim       : tensor rank (0 .. 8)

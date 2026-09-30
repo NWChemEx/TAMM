@@ -202,7 +202,7 @@ Polaris modules and env
 
    module use /soft/modulefiles/
    module load PrgEnv-gnu
-   module load cudatoolkit-standalone/12.6.1 spack-pe-base cmake
+   module load cudatoolkit-standalone spack-pe-base cmake
    module unload craype-accel-nvidia80
 
    export CRAYPE_LINK_TYPE=dynamic

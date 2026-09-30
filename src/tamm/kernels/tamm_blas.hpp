@@ -25,6 +25,10 @@ template<typename T>
 void axpy(const int64_t n, const T* src, const int incx, T*& dst, const int incy,
           gpuStream_t& gpuhandle);
 
+template<typename T, typename T1, typename T2, typename T3>
+void gemm(int n, int m, int k, const T alpha, const T3* B, int ldb, const T2* A, int lda,
+          const T beta, T1* C, int ldc, gpuStream_t& gpuhandle);
+
 // Out-of-place N-dimensional axis-permuting transpose (in-house permute
 // kernel; fully replaces the old librett dependency).
 //   out        : destination buffer (device), sized as the permuted tensor
@@ -53,7 +57,7 @@ void gemm(blas::Op transa, blas::Op transb, int m, int n, int k, const T alpha, 
 template<typename T>
 void gesvd(lapack::Job jobu, lapack::Job jobvt, int64_t m, int64_t n, T* A, int64_t lda,
            blas::real_type<T>* S, T* U, int64_t ldu, T* VT, int64_t ldvt);
-  
+
 } // namespace gpu
 #endif
 

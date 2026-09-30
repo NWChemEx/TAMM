@@ -1,5 +1,3 @@
-The prerequisites needed to build this repository can be found :doc:`here <prerequisites>`.
-
 Build Instructions
 ==================
 
@@ -10,7 +8,7 @@ Dependencies
 
 * cmake >= 3.26
 * MPI 
-* C++17 compiler (information on supported compilers here :doc:`here <prerequisites>`.)
+* C++20 Compilers (GNU >= 14.1, LLVM Clang >= 18, AppleClang >= 19)
 * CUDA >= 12.8 (Required only for CUDA builds)
 * ROCM >= 6.2  (Required only for ROCM builds)
 
@@ -123,7 +121,8 @@ Default build on MACOS
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. note::
-   The prerequisites for ``MACOS`` can be installed using ``brew`` as detailed :doc:`here <prerequisites>`.
+   The required external dependencies for ``MACOS`` can be installed using ``brew``:
+   ``brew install gcc mpich cmake autoconf automake libtool``
 
 ::
 

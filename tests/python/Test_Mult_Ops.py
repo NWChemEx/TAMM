@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # test_mult_ops_reference.py
 
-import datetime
 import re
 import sys
 import time
@@ -391,26 +390,10 @@ def print_header(ec, is_size, tile_size):
 
     print(tamm.tamm_git_info())
 
-    current_time = datetime.datetime.now()
-
     print()
-    print("date:", current_time.strftime("%c"))
-
-    print(f"nnodes: {ec.nnodes()}, ", end="")
-    print(f"nproc_per_node: {ec.ppn()}, ", end="")
-    print(f"nproc_total: {ec.nnodes() * ec.ppn()}, ", end="")
-
-    if ec.has_gpu():
-        if not hasattr(ec, "gpn"):
-            raise RuntimeError(
-                "ExecutionContext.gpn() must be bound for exact GPU header output"
-            )
-        print(f"ngpus_per_node: {ec.gpn()}, ", end="")
-        print(f"ngpus_total: {ec.nnodes() * ec.gpn()}")
-
+    ec.print_execution_environment()
     print()
-
-    ec.print_mem_info()
+    print(tamm.tamm_build_config(), end="")
 
     print()
     print(f"dim, tile sizes = {is_size}, {tile_size}")

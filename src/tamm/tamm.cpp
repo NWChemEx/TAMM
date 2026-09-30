@@ -61,6 +61,10 @@ void finalize(bool tamm_mpi_finalize) {
   // runtime is still up and ranks can still identify themselves.
   RMMMemoryManager::getInstance().report("finalize");
 
+  // ScaLAPACK grids still attached to live process groups (sub-groups with GA contexts)
+  // must be freed while GA/MPI are still up.
+  detail::release_all_scalapack_grids();
+
 #if defined(USE_UPCXX)
   upcxx::finalize();
 #else

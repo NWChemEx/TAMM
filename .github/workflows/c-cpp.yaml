@@ -60,6 +60,7 @@ jobs:
       CXX: ${{ matrix.cxx }}
       CC: ${{ matrix.cc }}
       FC: ${{ matrix.fc }}
+      OMPI_MCA_rmaps_base_oversubscribe: 1
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v4

@@ -1,5 +1,6 @@
 #include <chrono>
 #include <tamm/tamm.hpp>
+#include <tamm/tamm_config.hpp>
 #include <tamm/tamm_git.hpp>
 
 using namespace tamm;
@@ -305,15 +306,10 @@ int main(int argc, char* argv[]) {
 
   if(ec.print()) {
     std::cout << tamm_git_info() << std::endl;
-    auto current_time   = std::chrono::system_clock::now();
-    auto current_time_t = std::chrono::system_clock::to_time_t(current_time);
-    auto cur_local_time = localtime(&current_time_t);
-    std::cout << std::endl << "date: " << std::put_time(cur_local_time, "%c") << std::endl;
 
-    std::cout << "nnodes: " << ec.nnodes() << ", ";
-    std::cout << "nproc: " << ec.nnodes() * ec.ppn() << std::endl;
-    std::cout << "dim, tile sizes = " << is_size << ", " << tile_size << std::endl;
-    ec.print_mem_info();
+    std::cout << "dim, tile sizes = " << is_size << ", " << tile_size << std::endl << std::endl;
+    ec.print_execution_environment();
+    std::cout << std::endl << tamm_build_config();
     std::cout << std::endl << std::endl;
   }
 

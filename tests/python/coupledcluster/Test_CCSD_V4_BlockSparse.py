@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import datetime
 import math
 import re
 import sys
@@ -162,23 +161,10 @@ def print_header(ec, nbf, n_occ_alpha, n_vir_alpha, chol_count, tile_size):
 
     print(tamm.tamm_git_info())
 
-    now = datetime.datetime.now()
     print()
-    print("date:", now.strftime("%c"))
-
-    print(f"nnodes: {ec.nnodes()}, ", end="")
-    print(f"nproc_per_node: {ec.ppn()}, ", end="")
-    print(f"nproc_total: {ec.nnodes() * ec.ppn()}, ", end="")
-
-    if ec.has_gpu():
-        if hasattr(ec, "gpn"):
-            print(f"ngpus_per_node: {ec.gpn()}, ", end="")
-            print(f"ngpus_total: {ec.nnodes() * ec.gpn()}")
-        else:
-            print("gpu info unavailable")
-
+    ec.print_execution_environment()
     print()
-    ec.print_mem_info()
+    print(tamm.tamm_build_config(), end="")
     print()
 
     print(

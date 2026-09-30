@@ -328,7 +328,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
     hid_t xfer_plist;
     /* set up the collective transfer properties list */
     xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-    auto ret   = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
+    /*auto ret = */ H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
 
     if(/*is_irreg &&*/ tammio) {
       auto lambda = [&](const IndexVector& bid) {
@@ -591,7 +591,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
         hid_t xfer_plist;
         /* set up the collective transfer properties list */
         xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-        auto ret   = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
+        /*auto ret = */ H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
 
         auto lambda = [&](const IndexVector& bid) {
           const IndexVector blockid = internal::translate_blockid(bid, ltensor);
@@ -829,7 +829,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
     hid_t xfer_plist;
     /* set up the collective transfer properties list */
     xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-    auto ret   = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
+    /*auto ret = */ H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
 
     if(/*is_irreg &&*/ tammio) {
       auto lambda = [&](const IndexVector& bid) {
@@ -1092,7 +1092,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
         hid_t xfer_plist;
         /* set up the collective transfer properties list */
         xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-        auto ret   = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
+        /*auto ret = */ H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
 
         auto lambda = [&](const IndexVector& bid) {
           const IndexVector blockid = internal::translate_blockid(bid, ltensor);

@@ -1,4 +1,4 @@
-// Copyright 2016 Pacific Northwest National Laboratory
+// Copyright Pacific Northwest National Laboratory
 // C++20 modernization: concepts, operator<=>, [[nodiscard]], requires-clauses.
 
 #pragma once

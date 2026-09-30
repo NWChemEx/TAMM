@@ -651,66 +651,6 @@ void test_binarized_execution(){
   sch.deallocate(A, B, C, D);
 
 }
-
-void new_ops_ccsd_e() {
-  using T = double;
-
-  IndexSpace MO_IS{range(0, 20),
-                   {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
-  TiledIndexSpace MO{MO_IS, 1};
-
-  const TiledIndexSpace& O = MO("occ");
-  const TiledIndexSpace& V = MO("virt");
-
-  Tensor<T> de{};
-  Tensor<T> t1{V,O};
-  Tensor<T> f1{O, V};
-  Tensor<T> v2{O, O, V, V};
-  Tensor<T> t2{V, V, O, O};
-
-  TiledIndexLabel p1, p2, p3, p4, p5;
-  TiledIndexLabel h3, h4, h5, h6;
-
-  std::tie(p1, p2, p3, p4, p5) = V.labels<5>("all");
-  std::tie(h3, h4, h5, h6)     = O.labels<4>("all");
-
-  SymbolTable symbol_table;
-  TAMM_REGISTER_SYMBOLS(symbol_table, de, t1, f1, v2, t2, p1, p2, p3, p4, p5, h3, h4, h5, h6);
-
-  LTOp t1_p5_h6       = t1(p5, h6);
-  LTOp f1_h6_p5       = f1(h6, p5);
-  LTOp t1_p3_h4       = t1(p3, h4);
-  LTOp v2_h4_h6_p3_p5 = v2(h4, h6, p3, p5);
-  LTOp t2_p1_p2_h3_h4 = t2(p1, p2, h3, h4);
-  LTOp v2_h3_h4_p1_p2 = v2(h3, h4, p1, p2);
-
-  ProcGroup pg = ProcGroup::create_world_coll();
-  auto mgr     = MemoryManagerGA::create_coll(pg);
-  Distribution_NW distribution;
-  ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-  Scheduler sch{*ec};
-  
-  BlockSetPlan plan{IndexLabelVec{p1, p2}, BlockSetPlan::OpType::set};
-
-  sch.allocate(de, t1, f1, v2, t2)
-  (t1() = 1.0)
-  (f1() = 2.0)
-  (v2() = 3.0)
-  (t2() = 4.0)
-  .execute();
-
-  de().set((t1_p5_h6 * (f1_h6_p5 + (0.5 * t1_p3_h4 * v2_h4_h6_p3_p5))) +
-           (0.25 * t2_p1_p2_h3_h4 * v2_h3_h4_p1_p2));
-
-  OpExecutor op_executor{sch, symbol_table};
-  op_executor.execute(de);
-
-  std::cout << "Printing Tensor de after new op execute" << "\n";
-  std::cout << get_scalar(de) << "\n";
-
-  sch.deallocate(de, t1, f1, v2, t2);
-
-}
 #endif
 
 template<typename T>
@@ -808,82 +748,6 @@ void test_utility_methods() {
   EXPECTS(vec1 == new_vec1);
   EXPECTS(vec2 == new_vec2);
   EXPECTS(vec3 == new_vec3);
-}
-
-void test_gfcc_failed_case() {
-  using T                  = double;
-  size_t          aux_size = 5;
-  IndexSpace      MO_IS{range(0, 20), {{"occ", {range(0, 10)}}, {"virt", {range(10, 20)}}}};
-  TiledIndexSpace MO{MO_IS, {2, 3, 2, 3, 2, 3, 2, 3}};
-  TiledIndexSpace AUX{IndexSpace{range(aux_size)}};
-
-  ProcGroup         pg  = ProcGroup::create_world_coll();
-  auto              mgr = MemoryManagerGA::create_coll(pg);
-  Distribution_NW   distribution;
-  ExecutionContext* ec = new ExecutionContext{pg, &distribution, mgr};
-  Scheduler         sch{*ec};
-
-  int nsranks = /* sys_data.nbf */ 45 / 15;
-  int ga_cnn  = ec->nnodes();
-  if(nsranks > ga_cnn) nsranks = ga_cnn;
-  nsranks = nsranks * ec->ppn();
-  int subranks[nsranks];
-  for(int i = 0; i < nsranks; i++) subranks[i] = i;
-  auto      world_comm = ec->pg().comm();
-  MPI_Group world_group;
-  MPI_Comm_group(world_comm, &world_group);
-  MPI_Group subgroup;
-  MPI_Group_incl(world_group, nsranks, subranks, &subgroup);
-  MPI_Comm subcomm;
-  MPI_Comm_create(world_comm, subgroup, &subcomm);
-
-  MPI_Group_free(&world_group);
-  MPI_Group_free(&subgroup);
-
-  ProcGroup         sub_pg           = ProcGroup::create_coll(subcomm);
-  MemoryManagerGA*  sub_mgr          = MemoryManagerGA::create_coll(sub_pg);
-  Distribution_NW*  sub_distribution = new Distribution_NW();
-  RuntimeEngine*    sub_re           = new RuntimeEngine();
-  ExecutionContext* sub_ec = new ExecutionContext(sub_pg, sub_distribution, sub_mgr, sub_re);
-
-  Scheduler sub_sch{*sub_ec};
-
-  auto [x, y] = MO.labels<2>("all");
-  auto [i, j] = MO.labels<2>("occ");
-  auto [a, b] = MO.labels<2>("virt");
-  auto [K, L] = AUX.labels<2>("all");
-  Tensor<T> lambdaT{{MO, MO}, lambda_function<T>};
-
-  Tensor<T>               A{x, y};
-  Tensor<std::complex<T>> B{x, y};
-  Tensor<std::complex<T>> C{x, y};
-  Tensor<std::complex<T>> D{x, y, K};
-
-  std::complex<T> cnst{-10.1, 4.0};
-  std::complex<T> cnst2{1.1, 3.0};
-
-  sch.allocate(A, B, C, D)(A() = 1.0)(B() = cnst)(C() = cnst2)(D() = 0.0).execute();
-  std::cout << "Execute on sub_sch"
-            << "\n";
-  for(size_t i = 0; i < aux_size; i++) {
-    TiledIndexSpace tsc{AUX, range(i, i + 1)};
-    auto [sc] = tsc.labels<1>("all");
-    sub_sch(D(x, y, sc) = C(x, y)).execute();
-  }
-  std::cout << "Printing Tensor D"
-            << "\n";
-  print_tensor_all(D);
-
-  std::cout << "Execute on sch"
-            << "\n";
-  for(size_t i = 0; i < aux_size; i++) {
-    TiledIndexSpace tsc{AUX, range(i, i + 1)};
-    auto [sc] = tsc.labels<1>("all");
-    sch(D(x, y, sc) = C(x, y)).execute();
-  }
-  std::cout << "Printing Tensor D"
-            << "\n";
-  print_tensor_all(D);
 }
 
 template<typename T>
@@ -1010,10 +874,8 @@ int main(int argc, char* argv[]) {
   // test_block_set();
 
   // test_binarized_execution();
-  // new_ops_ccsd_e();
   // test_new_ops();
   // test_utility_methods();
-  // test_gfcc_failed_case();
   test_sub_operator();
   cs_ccsd_t1<double>();
 

@@ -10,9 +10,8 @@ set -x
 date
 
 module load cpe
-module load cray-python cmake cray-hdf5-parallel
+module load cray-python cmake
 module load cce
-module load cray-mpich
 module load rocm
 module list
 

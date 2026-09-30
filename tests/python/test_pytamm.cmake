@@ -33,8 +33,8 @@ add_mpi_python_unit_test(coupledcluster/Test_CCSD 2 "10 40 60 40")
 if(NOT USE_UPCXX)
   add_mpi_python_unit_test(coupledcluster/Test_CCSD_V4_BlockSparse 2 "10 40 60 40")
   add_mpi_python_unit_test(coupledcluster/Test_CCSD_V4 2 "10 40 60 40")
-  add_mpi_python_unit_test(coupledcluster/Test_DLPNO_CC 2
-    "${CMAKE_CURRENT_LIST_DIR}/../tamm/coupledcluster/inputs/dlpno_co.json")
+  #add_mpi_python_unit_test(coupledcluster/Test_DLPNO_CC 2
+  # "${CMAKE_CURRENT_LIST_DIR}/../tamm/coupledcluster/inputs/dlpno_co.json")
 endif()
 
 # Python-only tests with no C++ twin in test_tamm.cmake

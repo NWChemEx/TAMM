@@ -29,6 +29,7 @@
 #include "tamm/local_tensor.hpp"
 #include "tamm/lru_cache.hpp"
 #include "tamm/op_dag.hpp"
+#include "tamm/scalapack_grid.hpp"
 #include "tamm/tamm_utils.hpp"
 #include <nlohmann/json.hpp>
 

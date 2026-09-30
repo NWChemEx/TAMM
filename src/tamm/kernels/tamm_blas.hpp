@@ -20,13 +20,10 @@ void gemm(int m, int n, int k, const T alpha, const T2* A, int lda, const T3* B,
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
 namespace gpu {
+
 template<typename T>
 void axpy(const int64_t n, const T* src, const int incx, T*& dst, const int incy,
           gpuStream_t& gpuhandle);
-
-template<typename T, typename T1, typename T2, typename T3>
-void gemm(int n, int m, int k, const T alpha, const T3* B, int ldb, const T2* A, int lda,
-          const T beta, T1* C, int ldc, gpuStream_t& gpuhandle);
 
 // Out-of-place N-dimensional axis-permuting transpose (in-house permute
 // kernel; fully replaces the old librett dependency).
@@ -43,11 +40,12 @@ template<typename T>
 void permute(T* out, const T* in, int ndim, const size_t* outDims, const int* perm, T scale,
              bool accumulate, gpuStream_t& handle);
 
-} // namespace gpu
-#endif
+// Column-major C = alpha op(A) op(B) + beta C on device pointers, with the same argument order
+// and meaning as blas::gemm(blas::Layout::ColMajor, ...). Runs on gpuhandle's stream.
+template<typename T>
+void gemm(blas::Op transa, blas::Op transb, int m, int n, int k, const T alpha, const T* A, int lda,
+          const T* B, int ldb, const T beta, T* C, int ldc, gpuStream_t& gpuhandle);
 
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-namespace gpu {
 // GPU (cuSolver/rocSolver/oneMKL) counterpart of lapack::gesvd, used by tamm::svd. A/U/VT are
 // host pointers (column-major, same layout lapack::gesvd expects); device staging is handled
 // internally. On CUDA/HIP this requires m >= n (cusolverDn/rocsolver <t>gesvd's native
@@ -55,6 +53,7 @@ namespace gpu {
 template<typename T>
 void gesvd(lapack::Job jobu, lapack::Job jobvt, int64_t m, int64_t n, T* A, int64_t lda,
            blas::real_type<T>* S, T* U, int64_t ldu, T* VT, int64_t ldvt);
+  
 } // namespace gpu
 #endif
 

@@ -2,6 +2,7 @@
 #include <tamm/op_executor.hpp>
 #include <tamm/opmin.hpp>
 #include <tamm/tamm.hpp>
+#include <tamm/tamm_config.hpp>
 #include <tamm/tamm_git.hpp>
 
 #include <pybind11/complex.h>
@@ -992,8 +993,9 @@ static OpList py_specs_to_oplist(py::iterable specs) {
 
     py::object lhs_obj = spec[0];
 
-    py::tuple tail(py::len(spec) - 1);
-    for(py::ssize_t i = 1; i < py::len(spec); ++i) tail[i - 1] = spec[i];
+    const py::ssize_t n = py::len(spec);
+    py::tuple         tail(n - 1);
+    for(py::ssize_t i = 1; i < n; ++i) tail[i - 1] = spec[i];
 
     py::args rhs_args = py::reinterpret_borrow<py::args>(tail);
 
@@ -3355,7 +3357,8 @@ static void bind_execution_contexts(py::module_& m) {
     .def("has_gpu", &ExecutionContext::has_gpu)
     .def("get_profile_header", &ExecutionContext::get_profile_header)
     .def("get_profile_data", [](ExecutionContext& ec) { return ec.get_profile_data().str(); })
-    .def("print_mem_info", &ExecutionContext::print_mem_info)
+    .def("print_execution_environment", &ExecutionContext::print_execution_environment)
+    .def("execution_environment_json", &ExecutionContext::execution_environment_json)
     .def("flush_and_sync", &ExecutionContext::flush_and_sync);
 }
 
@@ -3695,6 +3698,7 @@ PYBIND11_MODULE(pytamm, m) {
     py::arg("tensor"));
 
   m.def("tamm_git_info", &tamm_git_info);
+  m.def("tamm_build_config", &tamm_build_config);
 
   m.def(
     "initialize",
@@ -3702,11 +3706,12 @@ PYBIND11_MODULE(pytamm, m) {
       if(args.empty()) args.push_back("python");
 
       std::vector<char*> argv;
-      argv.reserve(args.size());
+      argv.reserve(args.size() + 1);
 
       for(auto& s: args) argv.push_back(s.data());
 
       int argc = static_cast<int>(argv.size());
+      argv.push_back(nullptr); // argv[argc] must be NULL; MPI_Init walks argv to it
       initialize(argc, argv.data(), is_mpi_tm);
     },
     py::arg("args") = std::vector<std::string>{}, py::arg("is_mpi_tm") = false);

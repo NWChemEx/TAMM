@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import datetime
 import re
 import sys
 
@@ -404,17 +403,12 @@ def print_header(ec, is_size, tile_size):
 
     print(tamm.tamm_git_info())
 
-    now = datetime.datetime.now()
-
-    print()
-    print("date:", now.strftime("%c"))
-
-    print(f"nnodes: {ec.nnodes()}, ", end="")
-    print(f"nproc: {ec.nnodes() * ec.ppn()}")
-
     print(f"dim, tile sizes = {is_size}, {tile_size}")
 
-    ec.print_mem_info()
+    print()
+    ec.print_execution_environment()
+    print()
+    print(tamm.tamm_build_config(), end="")
 
     print()
     print()

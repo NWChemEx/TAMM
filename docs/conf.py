@@ -18,8 +18,8 @@ import os
 # -- Project information -----------------------------------------------------
 
 project = u'TAMM'
-copyright = u'2022, TAMM Team'
-author = u'TAMM Team'
+copyright = u'Pacific Northwest National Laboratory'
+author = u'TAMM Developers'
 
 # Get the version from version.txt
 # with open('../../version.txt', 'r') as file:

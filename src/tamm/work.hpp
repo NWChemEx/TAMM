@@ -1,4 +1,4 @@
-// Copyright 2018 Pacific Northwest National Laboratory
+// Copyright Pacific Northwest National Laboratory
 
 #pragma once
 

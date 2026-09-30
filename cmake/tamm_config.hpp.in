@@ -1,0 +1,16 @@
+#pragma once
+
+// Generated from cmake/tamm_config.hpp.in by cmake/tamm_config.cmake when TAMM is configured.
+// Holds the build configuration libtamm was compiled with, as literals, so it reads the same
+// from any includer.
+
+#include <string>
+
+inline std::string tamm_build_config() {
+  return "Build configuration\n"
+         "-------------------\n"
+         "@TAMM_CONFIG_TEXT@";
+}
+
+// The same configuration as a JSON object (text; parse it with the JSON library of your choice).
+inline std::string tamm_build_config_json() { return R"tamm_json(@TAMM_CONFIG_JSON@)tamm_json"; }

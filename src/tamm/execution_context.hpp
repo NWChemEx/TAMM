@@ -99,14 +99,6 @@ struct meminfo {
   size_t      total_cpu_mem;      // total cpu mem across all nodes (GiB)
   std::string cpu_name;           // cpu name
   std::string gpu_name;           // gpu name
-  // whether this build binds/allocates host memory through libnuma.  macOS
-  // never does, regardless of USE_LIBNUMA; see mr/new_delete_resource.hpp.
-  bool use_libnuma =
-#if defined(__APPLE__) || defined(TAMM_DISABLE_LIBNUMA)
-    false;
-#else
-    true;
-#endif
 };
 
 class ExecutionContext {
@@ -343,23 +335,10 @@ public:
 
   meminfo mem_info() const { return minfo_; }
 
-  void print_mem_info() {
-    if(pg_.rank() != 0) return;
-    std::cout << "Memory information" << std::endl;
-    std::cout << "{" << std::endl;
-    std::cout << "[" << minfo_.cpu_name << "]" << std::endl;
-    std::cout << "  libnuma support: " << (minfo_.use_libnuma ? "enabled" : "disabled")
-              << std::endl;
-    std::cout << "  CPU memory per node (GiB): " << minfo_.cpu_mem_per_node << std::endl;
-    std::cout << "  Total CPU memory (GiB): " << minfo_.total_cpu_mem << std::endl;
-    if(has_gpu_) {
-      std::cout << "[" << minfo_.gpu_name << "]" << std::endl;
-      std::cout << "  GPU memory per device (GiB): " << minfo_.gpu_mem_per_device << std::endl;
-      std::cout << "  GPU memory per node (GiB): " << minfo_.gpu_mem_per_node << std::endl;
-      std::cout << "  Total GPU memory (GiB): " << minfo_.total_gpu_mem << std::endl;
-    }
-    std::cout << "}" << std::endl;
-  }
+  // Prints the nodes, MPI ranks, CPU and GPU this context runs on (rank 0 only).
+  void print_execution_environment() const;
+  // The same information as a JSON object (text).
+  std::string execution_environment_json() const;
 
   bool print() const { return (pg_.rank() == 0); }
 

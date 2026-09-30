@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import datetime
 import math
 import sys
 import time
@@ -795,13 +794,9 @@ def main(argv):
         print(tamm.tamm_git_info())
 
         print()
-        print("date:", datetime.datetime.now().strftime("%c"))
-        print(f"nnodes: {ec.nnodes()}, ", end="")
-        print(f"nproc_per_node: {ec.ppn()}, ", end="")
-        print(f"nproc_total: {ec.nnodes() * ec.ppn()}, ")
-
+        ec.print_execution_environment()
         print()
-        ec.print_mem_info()
+        print(tamm.tamm_build_config(), end="")
         print()
 
         print(

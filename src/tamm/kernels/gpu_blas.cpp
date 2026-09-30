@@ -1,6 +1,8 @@
 #include "tamm/utils.hpp"
 #include "tamm_blas.hpp"
 
+#include <type_traits>
+
 #if defined(USE_CUDA)
 #include <cublas_v2.h>
 #elif defined(USE_HIP)
@@ -80,6 +82,54 @@ void tamm::kernels::gpu::gemm(int n, int m, int k, const T alpha, const T3* B, i
   }
 #endif
 }
+
+template<typename T>
+void tamm::kernels::gpu::gemm(blas::Op transa, blas::Op transb, int m, int n, int k, const T alpha,
+                              const T* A, int lda, const T* B, int ldb, const T beta, T* C, int ldc,
+                              gpuStream_t& handle) {
+  static_assert(std::is_same_v<T, double>, "tamm::kernels::gpu::gemm (op): only double");
+#if defined(USE_DPCPP)
+#ifdef USE_PORT_BLAS
+  auto to_char = [](blas::Op op) {
+    return op == blas::Op::NoTrans ? 'n' : (op == blas::Op::Trans ? 't' : 'c');
+  };
+  blas::SB_Handle sb_handle(handle.first);
+  blas::internal::_gemm(sb_handle, to_char(transa), to_char(transb), m, n, k, alpha,
+                        const_cast<T*>(A), lda, const_cast<T*>(B), ldb, beta, C, ldc, {});
+  handle.first.wait();
+#else
+  auto to_mkl = [](blas::Op op) {
+    return op == blas::Op::NoTrans
+             ? oneapi::mkl::transpose::N
+             : (op == blas::Op::Trans ? oneapi::mkl::transpose::T : oneapi::mkl::transpose::C);
+  };
+  auto gemm_event = oneapi::mkl::blas::column_major::gemm(
+    handle.first, to_mkl(transa), to_mkl(transb), m, n, k, alpha, A, lda, B, ldb, beta, C, ldc);
+  gemm_event.wait();
+#endif // USE_PORT_BLAS
+#elif defined(USE_CUDA)
+  auto to_cublas = [](blas::Op op) {
+    return op == blas::Op::NoTrans ? CUBLAS_OP_N
+                                   : (op == blas::Op::Trans ? CUBLAS_OP_T : CUBLAS_OP_C);
+  };
+  CUBLAS_CHECK(cublasDgemm(handle.second, to_cublas(transa), to_cublas(transb), m, n, k, &alpha, A,
+                           lda, B, ldb, &beta, C, ldc));
+#elif defined(USE_HIP)
+  auto to_rocblas = [](blas::Op op) {
+    return op == blas::Op::NoTrans
+             ? rocblas_operation_none
+             : (op == blas::Op::Trans ? rocblas_operation_transpose
+                                      : rocblas_operation_conjugate_transpose);
+  };
+  ROCBLAS_CHECK(rocblas_dgemm(handle.second, to_rocblas(transa), to_rocblas(transb), m, n, k,
+                              &alpha, A, lda, B, ldb, &beta, C, ldc));
+#endif
+}
+
+template void tamm::kernels::gpu::gemm(blas::Op transa, blas::Op transb, int m, int n, int k,
+                                       const double alpha, const double* A, int lda,
+                                       const double* B, int ldb, const double beta, double* C,
+                                       int ldc, gpuStream_t& handle);
 
 template void tamm::kernels::gpu::axpy(const int64_t n, const double* src, const int incx,
                                        double*& dst, const int incy, gpuStream_t& thandle);

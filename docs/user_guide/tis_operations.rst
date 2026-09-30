@@ -21,7 +21,7 @@ Generic Operations
 
    :math:`ret_{tis} = lhs_{tis} \cup rhs_{tis}`
 
-   .. code:: cpp
+   .. code:: text
 
       TiledIndexSpace union_tis(const TiledIndexSpace& lhs, 
                                 const TiledIndexSpace& rhs) 
@@ -37,7 +37,7 @@ Generic Operations
    one that only includes tiles that are in both ``lhs`` and ``rhs``.
    :math:`ret_{tis} = lhs_{tis} \cap rhs_{tis}`
 
-   .. code:: cpp
+   .. code:: text
 
       TiledIndexSpace intersect_tis(const TiledIndexSpace& lhs, 
                                     const TiledIndexSpace& rhs)
@@ -60,7 +60,7 @@ Dependent Space Operations
 
    :math:`ret_{tis_{\gamma}} = tis_{\alpha} \mapsto tis_{\beta} \mapsto tis_{\gamma} = tis_{\alpha} \mapsto tis_{\gamma}`
 
-   .. code:: cpp
+   .. code:: text
 
       TiledIndexSpace compose_tis(const TiledIndexSpace& lhs,
                                   const TiledIndexSpace* rhs)
@@ -79,7 +79,7 @@ Dependent Space Operations
    :math:`tis_{\beta} = tis_{\alpha} \mapsto tis_{\beta}`
    :math:`ret_{tis_{\alpha}} = tis_{\beta} \mapsto tis_{\alpha}`
 
-   .. code:: cpp
+   .. code:: text
 
       TiledIndexSpace inverse_tis(const TiledIndexSpace& tis)
       [[expects: tis.is_dependent()]]
@@ -92,7 +92,7 @@ Dependent Space Operations
 -  **Projection:** constructs a new ``TiledIndexSpace`` by projecting
    the dependent space into one or more of the dependent spaces
 
-   .. code:: cpp
+   .. code:: text
 
       TiledIndexSpace project_tis(const TiledIndexSpace& lhs,
                                   const TiledIndexSpace& rhs)
@@ -106,15 +106,13 @@ Dependent Space Operations
       [[expects: !rhs.tiled_index_space().is_dependent()]]
       [[expects: lhs.tiled_index_space().dep_vec.includes(rhs)]];
 
-   --------------
-
    .. rubric:: Helper Methods
       :name: helper-methods
 
 -  **Domain:** returns the key values (IndexVector) for the dependent
    ``TiledIndexSpace`` dependencies
 
-   .. code:: cpp
+   .. code:: text
 
       std::vector<IndexVector> domain_tis(const TiledIndexSpace& tis)
       [[expects: tis.is_dependent()]];
@@ -122,7 +120,7 @@ Dependent Space Operations
 -  **Range:** returns set of indices or a new ``TiledIndexSpace`` from
    the values for the dependent ``TiledIndexSpace`` dependencies.
 
-   .. code:: cpp
+   .. code:: text
 
       std::vector<Index> range_tis(const TiledIndexSpace& tis)
       [[expects: tis.is_dependent()]];

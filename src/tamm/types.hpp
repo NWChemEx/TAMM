@@ -1,4 +1,4 @@
-// Copyright 2016 Pacific Northwest National Laboratory
+// Copyright Pacific Northwest National Laboratory
 // C++20 modernization: removed pre-C++17 apply shim (C++20 guarantees
 // std::apply), inline constexpr maxrank, [[nodiscard]] on queries.
 // IndexVector remains std::vector<Index> (see note below) because it doubles

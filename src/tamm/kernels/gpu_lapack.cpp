@@ -1,5 +1,7 @@
 #include "tamm/utils.hpp"
 
+#include "gpu_lapack_internal.hpp"
+#include "tamm/errors.hpp"
 #include "tamm/rmm_memory_pool.hpp"
 #include "tamm_blas.hpp"
 
@@ -276,5 +278,177 @@ template void tamm::kernels::gpu::gesvd(lapack::Job jobu, lapack::Job jobvt, int
                                         std::complex<double>* A, int64_t lda, double* S,
                                         std::complex<double>* U, int64_t ldu,
                                         std::complex<double>* VT, int64_t ldvt);
+
+namespace tamm::kernels::gpu {
+namespace {
+// Eigendecomposition of the column-major n x n device matrix d_A (lower triangle used) in place on
+// gpustream: d_A receives the eigenvectors (columns) and d_W the eigenvalues in ascending order.
+// Synchronizes the stream; terminates on a backend error.
+template<typename T>
+void syevd_device(int64_t n, T* d_A, int64_t lda, T* d_W, tamm::gpuStream_t& gpustream) {
+  static_assert(std::is_same_v<T, double>, "tamm::kernels::gpu::syevd: only double is supported");
+
+  auto& devpool = tamm::RMMMemoryManager::getInstance().getDeviceMemoryPool();
+
+#if defined(USE_CUDA)
+  cudaStream_t stream = gpustream.first;
+
+  cusolverDnHandle_t handle;
+  cusolverDnParams_t params;
+  CUSOLVER_CHECK(cusolverDnCreate(&handle));
+  CUSOLVER_CHECK(cusolverDnSetStream(handle, stream));
+  CUSOLVER_CHECK(cusolverDnCreateParams(&params));
+
+  std::span<int> sp_info = devpool.allocate_span<int>(1);
+
+  // The 64-bit API: the legacy cusolverDnDsyevd sizes its workspace with an int, which
+  // overflows for n in the tens of thousands.
+  size_t dev_bytes = 0, host_bytes = 0;
+  CUSOLVER_CHECK(cusolverDnXsyevd_bufferSize(handle, params, CUSOLVER_EIG_MODE_VECTOR,
+                                             CUBLAS_FILL_MODE_LOWER, n, CUDA_R_64F, d_A, lda,
+                                             CUDA_R_64F, d_W, CUDA_R_64F, &dev_bytes, &host_bytes));
+
+  // Sized in bytes; allocated in units of T so the pool block keeps T's alignment.
+  std::span<T>      sp_work = devpool.allocate_span<T>((dev_bytes + sizeof(T) - 1) / sizeof(T));
+  std::vector<char> host_work(host_bytes);
+
+  CUSOLVER_CHECK(cusolverDnXsyevd(handle, params, CUSOLVER_EIG_MODE_VECTOR, CUBLAS_FILL_MODE_LOWER,
+                                  n, CUDA_R_64F, d_A, lda, CUDA_R_64F, d_W, CUDA_R_64F,
+                                  sp_work.data(), dev_bytes, host_work.data(), host_bytes,
+                                  sp_info.data()));
+
+  gpuStreamSynchronize(gpustream);
+
+  int info = 0;
+  CUDA_CHECK(cudaMemcpy(&info, sp_info.data(), sizeof(int), cudaMemcpyDeviceToHost));
+  if(info != 0)
+    tamm_terminate("[TAMM ERROR] cusolverDn syevd failed with info = " + std::to_string(info));
+
+  devpool.deallocate(sp_work);
+  devpool.deallocate(sp_info);
+
+  CUSOLVER_CHECK(cusolverDnDestroyParams(params));
+  CUSOLVER_CHECK(cusolverDnDestroy(handle));
+
+#elif defined(USE_HIP)
+  // rocSOLVER shares rocBLAS's handle (already bound to this stream by GPUStreamPool) and
+  // manages its own device workspace internally.
+  rocblas_handle    handle = gpustream.second;
+  const rocblas_int in = static_cast<rocblas_int>(n), ilda = static_cast<rocblas_int>(lda);
+
+  std::span<T>           sp_E    = devpool.allocate_span<T>(static_cast<size_t>(n));
+  std::span<rocblas_int> sp_info = devpool.allocate_span<rocblas_int>(1);
+
+  ROCBLAS_CHECK(rocsolver_dsyevd(handle, rocblas_evect_original, rocblas_fill_lower, in, d_A, ilda,
+                                 d_W, sp_E.data(), sp_info.data()));
+
+  gpuStreamSynchronize(gpustream);
+
+  rocblas_int info = 0;
+  HIP_CHECK(hipMemcpy(&info, sp_info.data(), sizeof(rocblas_int), hipMemcpyDeviceToHost));
+  if(info != 0)
+    tamm_terminate("[TAMM ERROR] rocsolver syevd failed with info = " + std::to_string(info));
+
+  devpool.deallocate(sp_E);
+  devpool.deallocate(sp_info);
+
+#elif defined(USE_DPCPP)
+  sycl::queue& q = gpustream.first;
+
+  // Declared outside the try so the deallocate below is in scope on the success path.
+  std::span<T> sp_scratch;
+  try {
+    std::int64_t const scratchpad_size = oneapi::mkl::lapack::syevd_scratchpad_size<T>(
+      q, oneapi::mkl::job::vec, oneapi::mkl::uplo::lower, n, lda);
+    sp_scratch =
+      devpool.allocate_span<T>(static_cast<size_t>(std::max<std::int64_t>(scratchpad_size, 0)));
+
+    auto ev = oneapi::mkl::lapack::syevd(q, oneapi::mkl::job::vec, oneapi::mkl::uplo::lower, n, d_A,
+                                         lda, d_W, sp_scratch.data(), scratchpad_size);
+    ev.wait();
+  } catch(oneapi::mkl::exception const& ex) {
+    tamm_terminate(std::string("[TAMM ERROR] oneMKL LAPACK syevd failed: ") + ex.what());
+  }
+
+  devpool.deallocate(sp_scratch);
+#endif
+}
+} // namespace
+} // namespace tamm::kernels::gpu
+
+template<typename T>
+void tamm::kernels::gpu::syevd(int64_t n, T* A, int64_t lda, T* W) {
+  auto& gpustream = tamm::GPUStreamPool::getInstance().getStream();
+  auto& devpool   = tamm::RMMMemoryManager::getInstance().getDeviceMemoryPool();
+
+  const size_t a_size = static_cast<size_t>(lda) * static_cast<size_t>(n);
+
+  // The spans own the pool blocks; each deallocate() derives its byte count from the span, so
+  // it cannot disagree with the allocation.
+  std::span<T> sp_A = devpool.allocate_span<T>(a_size);
+  std::span<T> sp_W = devpool.allocate_span<T>(static_cast<size_t>(n));
+
+  gpuMemcpyAsync<T>(sp_A.data(), A, a_size, gpuMemcpyHostToDevice, gpustream);
+  syevd_device(n, sp_A.data(), lda, sp_W.data(), gpustream);
+
+  gpuMemcpyAsync<T>(A, sp_A.data(), a_size, gpuMemcpyDeviceToHost, gpustream);
+  gpuMemcpyAsync<T>(W, sp_W.data(), static_cast<size_t>(n), gpuMemcpyDeviceToHost, gpustream);
+  gpuStreamSynchronize(gpustream);
+
+  devpool.deallocate(sp_A);
+  devpool.deallocate(sp_W);
+}
+
+template void tamm::kernels::gpu::syevd(int64_t n, double* A, int64_t lda, double* W);
+
+template<typename T>
+void tamm::kernels::gpu::generalized_eigensolve(int64_t N, int64_t M, T* F, const T* X, T* C,
+                                                T* W) {
+  static_assert(std::is_same_v<T, double>,
+                "tamm::kernels::gpu::generalized_eigensolve: only double is supported");
+
+  auto& gpustream = tamm::GPUStreamPool::getInstance().getStream();
+  auto& devpool   = tamm::RMMMemoryManager::getInstance().getDeviceMemoryPool();
+
+  const size_t nn = static_cast<size_t>(N) * static_cast<size_t>(N);
+  const size_t nm = static_cast<size_t>(N) * static_cast<size_t>(M);
+  const size_t mm = static_cast<size_t>(M) * static_cast<size_t>(M);
+  const int    in = static_cast<int>(N), im = static_cast<int>(M);
+
+  std::span<T> sp_F = devpool.allocate_span<T>(nn); // F, then F' = X^T F X in its first M*M
+  std::span<T> sp_X = devpool.allocate_span<T>(nm);
+  std::span<T> sp_C = devpool.allocate_span<T>(nm); // F X, then C = X C'
+  std::span<T> sp_W = devpool.allocate_span<T>(static_cast<size_t>(M));
+
+  gpuMemcpyAsync<T>(sp_F.data(), F, nn, gpuMemcpyHostToDevice, gpustream);
+  gpuMemcpyAsync<T>(sp_X.data(), X, nm, gpuMemcpyHostToDevice, gpustream);
+
+  // The same column-major gemms as the host path in tamm_linalg.cpp: the row-major N x N F,
+  // N x M X and N x M C are seen as F, X^T (M x N) and C^T (M x N).
+  // C (as N x M column-major scratch) = F * X
+  gpu::gemm<T>(blas::Op::NoTrans, blas::Op::Trans, in, im, in, 1., sp_F.data(), in, sp_X.data(), im,
+               0., sp_C.data(), in, gpustream);
+  // F (as M x M) = X^T * F * X
+  gpu::gemm<T>(blas::Op::NoTrans, blas::Op::NoTrans, im, im, in, 1., sp_X.data(), im, sp_C.data(),
+               in, 0., sp_F.data(), im, gpustream);
+  syevd_device(M, sp_F.data(), M, sp_W.data(), gpustream);
+  // C (row-major N x M) = X * C'
+  gpu::gemm<T>(blas::Op::Trans, blas::Op::NoTrans, im, in, im, 1., sp_F.data(), im, sp_X.data(), im,
+               0., sp_C.data(), im, gpustream);
+
+  // F gets what the host path leaves there: C' in its first M*M entries, the rest unchanged.
+  gpuMemcpyAsync<T>(F, sp_F.data(), mm, gpuMemcpyDeviceToHost, gpustream);
+  gpuMemcpyAsync<T>(C, sp_C.data(), nm, gpuMemcpyDeviceToHost, gpustream);
+  gpuMemcpyAsync<T>(W, sp_W.data(), static_cast<size_t>(M), gpuMemcpyDeviceToHost, gpustream);
+  gpuStreamSynchronize(gpustream);
+
+  devpool.deallocate(sp_F);
+  devpool.deallocate(sp_X);
+  devpool.deallocate(sp_C);
+  devpool.deallocate(sp_W);
+}
+
+template void tamm::kernels::gpu::generalized_eigensolve(int64_t N, int64_t M, double* F,
+                                                         const double* X, double* C, double* W);
 
 #endif // USE_CUDA || USE_HIP || USE_DPCPP

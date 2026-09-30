@@ -11,6 +11,17 @@
 
 namespace tamm {
 
+/**
+ * @brief State owned by a process group and torn down before it (e.g. its ScaLAPACK grid).
+ *
+ * A ProcGroup holds at most one attachment. ProcGroup::destroy_coll() calls release() before it
+ * frees the group's communicator; release() must be collective-safe on every rank of the group.
+ */
+struct ProcGroupAttachment {
+  virtual ~ProcGroupAttachment() = default;
+  virtual void release()         = 0;
+};
+
 class ProcGroup {
 public:
   /**
@@ -294,6 +305,26 @@ public:
 #endif
 
   /**
+   * @brief The attachment of this group (shared by all copies of the group), or nullptr.
+   */
+  std::shared_ptr<ProcGroupAttachment> attachment() const { return pginfo_->attachment_; }
+
+  /**
+   * @brief Attach state owned by this group, or detach it with nullptr.
+   *
+   * Attaching requires an empty slot: replacing an existing attachment is an error, since the old
+   * one would never be released. Detach (nullptr) only after the attachment has been released
+   * (e.g. tamm::release_scalapack_grid() releases, then detaches); destroy_coll() releases and
+   * detaches by itself.
+   */
+  void set_attachment(std::shared_ptr<ProcGroupAttachment> attachment) {
+    EXPECTS_STR(!attachment || !pginfo_->attachment_,
+                "ProcGroup::set_attachment: the process group already has an attachment; release "
+                "it before attaching another");
+    pginfo_->attachment_ = std::move(attachment);
+  }
+
+  /**
    * @brief Collectively destroy this communicator.
    *
    * @post !is_valid()
@@ -303,6 +334,12 @@ public:
    */
   void destroy_coll() {
     EXPECTS(is_valid());
+    // Release what is attached to this group (e.g. its ScaLAPACK grid, a sub-group of this group)
+    // while the group's communicator is still alive.
+    if(pginfo_->attachment_) {
+      auto attachment = std::move(pginfo_->attachment_);
+      attachment->release();
+    }
 #if defined(USE_UPCXX)
     if(pginfo_->created_team_) {
       pginfo_->team_->destroy();
@@ -831,6 +868,7 @@ private:
     bool     created_ga_pg_    = false;         /**< Was this GA pgroup created */
 #endif
     bool is_valid_ = false; /**< Is this object valid, i.e., mpi_comm_ != MPI_COMM_NULL */
+    std::shared_ptr<ProcGroupAttachment> attachment_; /**< Released by destroy_coll() */
 #if defined(USE_UPCXX)
     int64_t                      sent_ops  = 0;
     upcxx::dist_object<int64_t>* recvd_ops = NULL;

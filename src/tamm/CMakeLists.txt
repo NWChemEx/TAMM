@@ -17,7 +17,7 @@ if(${PROJECT_NAME}_HAS_DPCPP)
 endif()
 
 #Add the current directory's sources to the list
-set(TAMM_SRCS tamm.cpp errors.cpp index_space.cpp execution_context.cpp tensor_base.cpp kernels/cpu_blas.cpp "${tamm_gpu_SRCS}")
+set(TAMM_SRCS tamm.cpp errors.cpp index_space.cpp execution_context.cpp tensor_base.cpp tamm_linalg.cpp scalapack_grid.cpp kernels/cpu_blas.cpp "${tamm_gpu_SRCS}")
 
 #Add the current directory's header files to the list
 set(TAMM_INCLUDES
@@ -62,7 +62,8 @@ set(TAMM_INCLUDES
     utils.hpp
     tamm_io.hpp
     tamm_utils.hpp
-    tamm_solvers.hpp
+    tamm_linalg.hpp
+    scalapack_grid.hpp
     ga_over_upcxx.hpp
     eigen_utils.hpp
     eigen_includes.hpp
@@ -113,3 +114,5 @@ set(TAMM_CFLAGS )
 set(TAMM_LFLAGS )
 
 cmsb_add_library(tamm TAMM_SRCS TAMM_INCLUDES TAMM_CFLAGS TAMM_LFLAGS)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/tamm_config.cmake)

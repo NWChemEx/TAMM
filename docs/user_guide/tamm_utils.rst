@@ -31,14 +31,16 @@ ScaLAPACK related routines
 ``NOTE:`` In the following text, a regular TAMM tensor refers to a
 tensor allocated using the default TAMM distribution (NW) scheme.
 
-The following routine takes a regular TAMM tensor handle, a processor
-grid and block sizes for each dimension as arguments and returns a TAMM
-tensor with block cyclic distribution. Caller is responsible for
-deallocating the new tensor.
+For most uses, prefer the ScaLAPACK grid API (``ScalapackGrid::allocate``, ``to_block_cyclic``,
+``from_block_cyclic``), which creates block-cyclic tensors with the right grid and block size; see
+:doc:`linalg`. The routines below are the lower-level building blocks.
+
+The following routine copies a regular TAMM tensor into an allocated TAMM tensor with a block
+cyclic distribution (created with ``set_block_cyclic`` and allocated by the caller).
 
 .. code:: cpp
 
-   auto block_cyclic_tamm_tensor = to_block_cyclic_tensor(regular_tensor,{3,2},{8,8}); 
+   to_block_cyclic_tensor(regular_tensor, block_cyclic_tensor);
 
 The following routine takes a TAMM tensor with block cyclic distribution
 and copies the data into a regular TAMM tensor. ``regular_tensor``

@@ -11,6 +11,7 @@ TAMM User Guide
     index_spaces
     tensor_construction
     tensor_operations
+    linalg
     code_recipes
     runtime_parameters
 

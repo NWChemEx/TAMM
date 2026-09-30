@@ -1,7 +1,7 @@
 #pragma once
 
 #include "tamm_io.hpp"
-#include "tamm_solvers.hpp"
+#include "tamm_linalg.hpp"
 
 namespace tamm {
 
@@ -1590,7 +1590,7 @@ min_element(LabeledTensor<TensorType> ltensor) {
 // regular 2D tamm tensor to block-cyclic tamm tensor
 template<typename TensorType>
 void to_block_cyclic_tensor(Tensor<TensorType> tensor, Tensor<TensorType> bc_tensor) {
-  int ndims = tensor.num_modes();
+  const auto ndims = tensor.num_modes();
   EXPECTS(ndims == 2);
   EXPECTS(bc_tensor.is_block_cyclic());
 #if !defined(USE_UPCXX)

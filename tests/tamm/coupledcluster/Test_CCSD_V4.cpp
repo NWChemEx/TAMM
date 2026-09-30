@@ -1,4 +1,5 @@
 #include "ccse_tensors.hpp"
+#include <tamm/tamm_config.hpp>
 #include <tamm/tamm_git.hpp>
 
 using CCEType = double;
@@ -13,8 +14,6 @@ Tensor<CCEType> i0_temp, t2_aaaa_temp; // CS only
 template<typename T>
 std::tuple<std::vector<T>, Tensor<T>, Tensor<T>, Tensor<T>, Tensor<T>>
 setupTensors_cs(ExecutionContext& ec, TiledIndexSpace& MO, Tensor<T> d_f1) {
-  auto rank = ec.pg().rank();
-
   const TiledIndexSpace& O = MO("occ");
   const TiledIndexSpace& V = MO("virt");
 
@@ -301,19 +300,9 @@ int main(int argc, char* argv[]) {
 
   if(ec.print()) {
     std::cout << tamm_git_info() << std::endl;
-    auto current_time   = std::chrono::system_clock::now();
-    auto current_time_t = std::chrono::system_clock::to_time_t(current_time);
-    auto cur_local_time = localtime(&current_time_t);
-    std::cout << std::endl << "date: " << std::put_time(cur_local_time, "%c") << std::endl;
-    std::cout << "nnodes: " << ec.nnodes() << ", ";
-    std::cout << "nproc_per_node: " << ec.ppn() << ", ";
-    std::cout << "nproc_total: " << ec.nnodes() * ec.ppn() << ", ";
-    if(ec.has_gpu()) {
-      std::cout << "ngpus_per_node: " << ec.gpn() << ", ";
-      std::cout << "ngpus_total: " << ec.nnodes() * ec.gpn() << std::endl;
-    }
     std::cout << std::endl;
-    ec.print_mem_info();
+    ec.print_execution_environment();
+    std::cout << std::endl << tamm_build_config();
     std::cout << std::endl;
     std::cout << "basis functions: " << nbf << ", occ_alpha: " << n_occ_alpha
               << ", virt_alpha: " << n_vir_alpha << ", chol-count: " << chol_count

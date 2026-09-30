@@ -25,6 +25,12 @@ void axpy(const int64_t n, const T* src, const int incx, T*& dst, const int incy
 template<typename T, typename T1, typename T2, typename T3>
 void gemm(int n, int m, int k, const T alpha, const T3* B, int ldb, const T2* A, int lda,
           const T beta, T1* C, int ldc, gpuStream_t& gpuhandle);
+
+// Column-major C = alpha op(A) op(B) + beta C on device pointers, with the same argument order
+// and meaning as blas::gemm(blas::Layout::ColMajor, ...). Runs on gpuhandle's stream.
+template<typename T>
+void gemm(blas::Op transa, blas::Op transb, int m, int n, int k, const T alpha, const T* A, int lda,
+          const T* B, int ldb, const T beta, T* C, int ldc, gpuStream_t& gpuhandle);
 } // namespace gpu
 #endif
 

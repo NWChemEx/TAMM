@@ -11,8 +11,8 @@ Dependencies
 * cmake >= 3.26
 * MPI 
 * C++17 compiler (information on supported compilers here :doc:`here <prerequisites>`.)
-* CUDA >= 11.7 (Required only for CUDA builds)
-* ROCM >= 5.5  (Required only for ROCM builds)
+* CUDA >= 12.8 (Required only for CUDA builds)
+* ROCM >= 6.2  (Required only for ROCM builds)
 
 **The remaining dependencies are automatically built and do not need to be installed explicitly:**
 
@@ -160,9 +160,8 @@ Build instructions for Frontier
 ::
 
    module load cpe
-   module load cray-python cmake cray-hdf5-parallel
    module load cce
-   module load cray-mpich
+   module load cray-python cmake
    module load rocm
    export CRAYPE_LINK_TYPE=dynamic
 
@@ -174,7 +173,7 @@ Build instructions for Frontier
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DGPU_ARCH=gfx90a \
    -DTAMM_ENABLE_HIP=ON -DROCM_ROOT=$ROCM_PATH \
-   -DHDF5_ROOT=$HDF5_ROOT ..
+   -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
 
    make -j3
    make install
@@ -216,7 +215,7 @@ Common build steps
 
    cd $REPO_ROOT_PATH/build
 
-   cmake -DTAMM_ENABLE_CUDA=ON -DGPU_ARCH=80 -DBLIS_CONFIG=generic \
+   cmake -DTAMM_ENABLE_CUDA=ON -DGPU_ARCH=80 \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH ..
 
    make -j3
@@ -239,8 +238,8 @@ Build instructions for Aurora
    CC=icx CXX=icpx FC=ifx cmake \
    -DCMAKE_INSTALL_PREFIX=$REPO_INSTALL_PATH \
    -DLINALG_VENDOR=IntelMKL -DLINALG_PREFIX=$MKLROOT \
-   -DTAMM_ENABLE_DPCPP=ON \
-   -DTAMM_CXX_FLAGS="-march=sapphirerapids -mtune=sapphirerapids -ffast-math -fsycl -fsycl-device-code-split=per_kernel -fsycl-targets=intel_gpu_pvc -sycl-std=2020"
+   -DTAMM_ENABLE_DPCPP=ON -DUSE_LIBNUMA=OFF \
+   -DTAMM_CXX_FLAGS="-march=sapphirerapids -mtune=sapphirerapids  -ffp-contract=fast"
 
    make -j12
    make install

@@ -27,6 +27,7 @@ add_cxx_unit_test(Test_StrongNum)
 add_cxx_unit_test(Test_BoundVec)
 add_cxx_unit_test(Test_BlockSpan)
 add_cxx_unit_test(Test_MemoryPool)
+add_cxx_unit_test(Test_IndexPermute)
 
 # add_mpi_unit_test(Test_ViewTensor 2 "")
 # add_mpi_unit_test(Test_QR 2 "")

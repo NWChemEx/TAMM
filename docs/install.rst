@@ -1,5 +1,3 @@
-The prerequisites needed to build this repository can be found :doc:`here <prerequisites>`.
-
 Build Instructions
 ==================
 
@@ -10,14 +8,13 @@ Dependencies
 
 * cmake >= 3.26
 * MPI 
-* C++17 compiler (information on supported compilers here :doc:`here <prerequisites>`.)
+* C++20 Compilers (GNU >= 14.1, LLVM Clang >= 18, AppleClang >= 19)
 * CUDA >= 12.8 (Required only for CUDA builds)
 * ROCM >= 6.2  (Required only for ROCM builds)
 
 **The remaining dependencies are automatically built and do not need to be installed explicitly:**
 
 * GlobalArrays
-* HPTT, Librett
 * HDF5
 * BLAS/LAPACK (BLIS and netlib-lapack are automatically built if no vendor BLAS libraries are provided)
 * BLAS++ and LAPACK++
@@ -124,7 +121,8 @@ Default build on MACOS
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. note::
-   The prerequisites for ``MACOS`` can be installed using ``brew`` as detailed :doc:`here <prerequisites>`.
+   The required external dependencies for ``MACOS`` can be installed using ``brew``:
+   ``brew install gcc mpich cmake autoconf automake libtool``
 
 ::
 
@@ -203,7 +201,7 @@ Polaris modules and env
 
    module use /soft/modulefiles/
    module load PrgEnv-gnu
-   module load cudatoolkit-standalone/12.6.1 spack-pe-base cmake
+   module load cudatoolkit-standalone spack-pe-base cmake
    module unload craype-accel-nvidia80
 
    export CRAYPE_LINK_TYPE=dynamic

@@ -23,8 +23,8 @@ namespace tamm::blockops::permute {
 // parameters so call sites may mix e.g. an int literal rscale with a
 // complex buffer.
 template<typename BL, typename T1, typename BA, typename T2>
-void index_permute(BL lscale, T1* lbuf, BA rscale, const T2* rbuf,
-                   const PermVector& perm_to_dest, const std::vector<size_t>& sdims) {
+void index_permute(BL lscale, T1* lbuf, BA rscale, const T2* rbuf, const PermVector& perm_to_dest,
+                   const std::vector<size_t>& sdims) {
   const size_t ndim = sdims.size();
   EXPECTS(perm_to_dest.size() == ndim);
   EXPECTS(ndim <= static_cast<size_t>(kernels::gpu::permute_maxrank));

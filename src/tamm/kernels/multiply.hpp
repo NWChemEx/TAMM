@@ -12,11 +12,11 @@
 #include <span>
 #include <vector>
 
+#include "gpu_permute.hpp"
 #include "tamm/op_profiler.hpp"
 #include "tamm/rmm_memory_pool.hpp"
 #include "tamm/utils.hpp"
 #include "tamm_blas.hpp"
-#include "gpu_permute.hpp"
 
 #if !defined(USE_CUDA) && !defined(USE_HIP) && !defined(USE_DPCPP)
 namespace tamm {
@@ -163,19 +163,18 @@ void assign_gpu(gpuStream_t& thandle, T*& dst, const SizeVec& ddims, const IntLa
   // Allocation-free (stack spec): no heap traffic in this hot path.
   gpu::PermuteSpec spec{};
   gpu::build_permute_spec(sdims, slabels, dlabels, spec);
-  gpu::permute<T>(dst, src, static_cast<int>(ndim), spec.outDims, spec.perm, scale,
-                            !is_assign, thandle);
+  gpu::permute<T>(dst, src, static_cast<int>(ndim), spec.outDims, spec.perm, scale, !is_assign,
+                  thandle);
 }
 #endif
 
 template<typename T2, typename T3>
 bool permute_inputs(ExecutionHW hw, gpuStream_t& thandle, T2* ainter_buf,
-                      const SizeVec& ainter_dims, const IntLabelVec& ainter_labels, const T2* abuf,
-                      size_t asize, const SizeVec& adims, const IntLabelVec& alabels,
-                      T3* binter_buf, const SizeVec& binter_dims, const IntLabelVec& binter_labels,
-                      const T3* bbuf, size_t bsize, const SizeVec& bdims,
-                      const IntLabelVec& blabels, T2*& ainter_buf_dev, T3*& binter_buf_dev,
-                      GpuPermuteStaging& staging) {
+                    const SizeVec& ainter_dims, const IntLabelVec& ainter_labels, const T2* abuf,
+                    size_t asize, const SizeVec& adims, const IntLabelVec& alabels, T3* binter_buf,
+                    const SizeVec& binter_dims, const IntLabelVec& binter_labels, const T3* bbuf,
+                    size_t bsize, const SizeVec& bdims, const IntLabelVec& blabels,
+                    T2*& ainter_buf_dev, T3*& binter_buf_dev, GpuPermuteStaging& staging) {
   bool gpu_trans = false;
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
@@ -211,9 +210,9 @@ bool permute_inputs(ExecutionHW hw, gpuStream_t& thandle, T2* ainter_buf,
 
 template<typename T1>
 void permute_output(ExecutionHW hw, gpuStream_t& thandle, bool gpu_trans, T1* cinter_buf,
-                      const SizeVec& cinter_dims, const IntLabelVec& cinter_labels, T1* cbuf,
-                      const SizeVec& cdims, const IntLabelVec& clabels, T1*& cinter_buf_dev,
-                      T1*& cinter_tmp_buf_dev, bool is_assign) {
+                    const SizeVec& cinter_dims, const IntLabelVec& cinter_labels, T1* cbuf,
+                    const SizeVec& cdims, const IntLabelVec& clabels, T1*& cinter_buf_dev,
+                    T1*& cinter_tmp_buf_dev, bool is_assign) {
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
   if(hw == ExecutionHW::GPU) {
     // NOTE: always overwrite (is_assign=true) on the GPU path.
@@ -389,9 +388,9 @@ void block_multiply(
     T3*           binter_buf  = binter_span.data();
 
     gpu_trans = permute_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
-                                 asize.value(), adims, alabels, binter_buf, binter_dims,
-                                 binter_labels, bbuf, bsize.value(), bdims, blabels, ainter_buf_dev,
-                                 binter_buf_dev, permute_staging);
+                               asize.value(), adims, alabels, binter_buf, binter_dims,
+                               binter_labels, bbuf, bsize.value(), bdims, blabels, ainter_buf_dev,
+                               binter_buf_dev, permute_staging);
 
     if(!gpu_trans)
       copy_data_to_gpu(hw, thandle, ainter_buf, asize.value(), ainter_buf_dev, binter_buf,
@@ -401,7 +400,7 @@ void block_multiply(
                  binter_buf, binter_buf_dev, cinter_buf, cinter_tmp_buf_dev);
 
     permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
-                     clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+                   clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
     free_host_buffer(hw, ainter_span);
     free_host_buffer(hw, binter_span);
@@ -430,9 +429,9 @@ void block_multiply(
         T1*           bbuf_complex_dev      = bbuf_complex_dev_span.data();
 
         gpu_trans = permute_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
-                                     asize.value(), adims, alabels, binter_buf, binter_dims,
-                                     binter_labels, bbuf_complex, bsize.value(), bdims, blabels,
-                                     ainter_buf_dev, bbuf_complex_dev, permute_staging);
+                                   asize.value(), adims, alabels, binter_buf, binter_dims,
+                                   binter_labels, bbuf_complex, bsize.value(), bdims, blabels,
+                                   ainter_buf_dev, bbuf_complex_dev, permute_staging);
 
         if(!gpu_trans) {
           bbuf_complex = binter_buf;
@@ -442,8 +441,8 @@ void block_multiply(
 
         gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
                      bbuf_complex, bbuf_complex_dev, cinter_buf, cinter_tmp_buf_dev);
-        permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
-                         cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+        permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
+                       clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         // gemm_wrapper() and permute_output() enqueue stream-async work on CUDA/HIP;
@@ -466,9 +465,9 @@ void block_multiply(
         T1*           bbuf_real_dev      = bbuf_real_dev_span.data();
 
         gpu_trans = permute_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
-                                     asize.value(), adims, alabels, binter_buf, binter_dims,
-                                     binter_labels, bbuf_real, bsize.value(), bdims, blabels,
-                                     ainter_buf_dev, bbuf_real_dev, permute_staging);
+                                   asize.value(), adims, alabels, binter_buf, binter_dims,
+                                   binter_labels, bbuf_real, bsize.value(), bdims, blabels,
+                                   ainter_buf_dev, bbuf_real_dev, permute_staging);
 
         if(!gpu_trans) {
           bbuf_real = binter_buf;
@@ -478,8 +477,8 @@ void block_multiply(
 
         gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, ainter_buf, ainter_buf_dev,
                      bbuf_real, bbuf_real_dev, cinter_buf, cinter_tmp_buf_dev);
-        permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
-                         cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+        permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
+                       clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         // gemm_wrapper() and permute_output() enqueue stream-async work on CUDA/HIP;
@@ -513,9 +512,9 @@ void block_multiply(
         T1*           abuf_complex_dev      = abuf_complex_dev_span.data();
 
         gpu_trans = permute_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels,
-                                     abuf_complex, asize.value(), adims, alabels, binter_buf,
-                                     binter_dims, binter_labels, bbuf, bsize.value(), bdims,
-                                     blabels, abuf_complex_dev, binter_buf_dev, permute_staging);
+                                   abuf_complex, asize.value(), adims, alabels, binter_buf,
+                                   binter_dims, binter_labels, bbuf, bsize.value(), bdims, blabels,
+                                   abuf_complex_dev, binter_buf_dev, permute_staging);
 
         if(!gpu_trans) {
           abuf_complex = ainter_buf;
@@ -526,8 +525,8 @@ void block_multiply(
         gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_complex, abuf_complex_dev,
                      binter_buf, binter_buf_dev, cinter_buf, cinter_tmp_buf_dev);
 
-        permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
-                         cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+        permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
+                       clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         // gemm_wrapper() and permute_output() enqueue stream-async work on CUDA/HIP;
@@ -550,9 +549,9 @@ void block_multiply(
         T1*           abuf_real_dev      = abuf_real_dev_span.data();
 
         gpu_trans = permute_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf_real,
-                                     asize.value(), adims, alabels, binter_buf, binter_dims,
-                                     binter_labels, bbuf, bsize.value(), bdims, blabels,
-                                     abuf_real_dev, binter_buf_dev, permute_staging);
+                                   asize.value(), adims, alabels, binter_buf, binter_dims,
+                                   binter_labels, bbuf, bsize.value(), bdims, blabels,
+                                   abuf_real_dev, binter_buf_dev, permute_staging);
 
         if(!gpu_trans) {
           abuf_real = ainter_buf;
@@ -562,8 +561,8 @@ void block_multiply(
 
         gemm_wrapper(hw, thandle, AR, BR, B, M, N, K, alpha, beta, abuf_real, abuf_real_dev,
                      binter_buf, binter_buf_dev, cinter_buf, cinter_tmp_buf_dev);
-        permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf,
-                         cdims, clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
+        permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
+                       clabels, cinter_buf_dev, cinter_tmp_buf_dev, is_assign);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
         // gemm_wrapper() and permute_output() enqueue stream-async work on CUDA/HIP;
@@ -598,9 +597,9 @@ void block_multiply(
 #endif
 
       gpu_trans = permute_inputs(hw, thandle, ainter_buf, ainter_dims, ainter_labels, abuf,
-                                   asize.value(), adims, alabels, binter_buf, binter_dims,
-                                   binter_labels, bbuf, bsize.value(), bdims, blabels,
-                                   ainter_buf_dev, binter_buf_dev, permute_staging);
+                                 asize.value(), adims, alabels, binter_buf, binter_dims,
+                                 binter_labels, bbuf, bsize.value(), bdims, blabels, ainter_buf_dev,
+                                 binter_buf_dev, permute_staging);
 
       if(!gpu_trans) {
         copy_data_to_gpu(hw, thandle, ainter_buf, asize.value(), ainter_buf_dev, binter_buf,
@@ -619,8 +618,8 @@ void block_multiply(
       else { std::copy(cinter_buf_real, cinter_buf_real + csize.value(), cinter_buf); }
 
       permute_output(hw, thandle, gpu_trans, cinter_buf, cinter_dims, cinter_labels, cbuf, cdims,
-                       clabels, cinter_buf_dev, reinterpret_cast<T1*&>(cinter_tmp_buf_dev),
-                       is_assign);
+                     clabels, cinter_buf_dev, reinterpret_cast<T1*&>(cinter_tmp_buf_dev),
+                     is_assign);
 
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
       // gpu::axpy and the permute in permute_output are stream-async on

@@ -28,7 +28,7 @@ namespace {
 
 // Row-major (last-axis-fastest) strides.
 std::vector<size_t> row_strides(const std::vector<size_t>& dims) {
-  const size_t n = dims.size();
+  const size_t        n = dims.size();
   std::vector<size_t> st(n, 1);
   for(size_t k = n; k-- > 1;) st[k - 1] = st[k] * dims[k];
   return st;
@@ -42,13 +42,13 @@ void reference_transpose(const std::vector<T>& src, std::vector<T>& dst,
                          const std::vector<size_t>& ddims, const std::vector<int>& dlabels, T scale,
                          bool accum) {
   const size_t ndim = sdims.size();
-  const auto sst = row_strides(sdims);
-  const auto dst_ = row_strides(ddims);
+  const auto   sst  = row_strides(sdims);
+  const auto   dst_ = row_strides(ddims);
   // dest-axis -> src-axis in natural order
   std::vector<int> perm(ndim);
   for(size_t i = 0; i < ndim; ++i) {
-    perm[i] = static_cast<int>(std::find(slabels.begin(), slabels.end(), dlabels[i]) -
-                               slabels.begin());
+    perm[i] =
+      static_cast<int>(std::find(slabels.begin(), slabels.end(), dlabels[i]) - slabels.begin());
   }
   size_t total = 1;
   for(auto d: ddims) total *= d;
@@ -74,11 +74,11 @@ template<typename T, typename Idx>
 void device_math_replica(const std::vector<T>& src, std::vector<T>& dst, const SizeVec& sdims,
                          const IntLabelVec& slabels, const IntLabelVec& dlabels, T scale,
                          bool accum) {
-  const int ndim = static_cast<int>(sdims.size());
+  const int   ndim = static_cast<int>(sdims.size());
   PermuteSpec spec{};
   build_permute_spec(sdims, slabels, dlabels, spec);
-  const PermuteMeta meta = permute_build_meta(ndim, spec.outDims, spec.perm);
-  const size_t total = permute_total(ndim, spec.outDims);
+  const PermuteMeta meta  = permute_build_meta(ndim, spec.outDims, spec.perm);
+  const size_t      total = permute_total(ndim, spec.outDims);
   REQUIRE(dst.size() == total);
   double sre, sim;
   if constexpr(permute_is_complex_v<T>) {
@@ -90,10 +90,10 @@ void device_math_replica(const std::vector<T>& src, std::vector<T>& dst, const S
     sim = 0.0;
   }
   for(size_t t = 0; t < total; ++t) {
-    const Idx tid = static_cast<Idx>(t);
-    const size_t s = permute_src_index<Idx>(tid, meta);
-    const T      y = permute_scaled<T>(src[s], sre, sim);
-    dst[t]         = accum ? permute_add<T>(dst[t], y) : y;
+    const Idx    tid = static_cast<Idx>(t);
+    const size_t s   = permute_src_index<Idx>(tid, meta);
+    const T      y   = permute_scaled<T>(src[s], sre, sim);
+    dst[t]           = accum ? permute_add<T>(dst[t], y) : y;
   }
 }
 
@@ -110,7 +110,7 @@ template<typename T>
 void check_case(const std::vector<size_t>& sdims, const std::vector<int>& slabels,
                 const std::vector<int>& dlabels, T scale, bool accum) {
   const size_t ndim = sdims.size();
-  SizeVec sv;
+  SizeVec      sv;
   for(auto d: sdims) sv.emplace_back(d);
   IntLabelVec sl(slabels.begin(), slabels.end()), dl(dlabels.begin(), dlabels.end());
 
@@ -144,7 +144,7 @@ void check_case(const std::vector<size_t>& sdims, const std::vector<int>& slabel
 
 template<typename T>
 void check_all_perms(const std::vector<size_t>& sdims, T scale, bool accum) {
-  const size_t ndim = sdims.size();
+  const size_t     ndim = sdims.size();
   std::vector<int> labels(ndim);
   std::iota(labels.begin(), labels.end(), 0);
   if(ndim == 0) {
@@ -152,8 +152,9 @@ void check_all_perms(const std::vector<size_t>& sdims, T scale, bool accum) {
     return;
   }
   std::vector<int> perm = labels;
-  do { check_case<T>(sdims, labels, perm, scale, accum); } while(
-    std::next_permutation(perm.begin(), perm.end()));
+  do {
+    check_case<T>(sdims, labels, perm, scale, accum);
+  } while(std::next_permutation(perm.begin(), perm.end()));
 }
 
 } // namespace
@@ -196,8 +197,7 @@ TEST_CASE("permute rank 4, all perms") {
 TEST_CASE("permute rank 5, all perms") {
   for(bool accum: {false, true}) {
     check_all_perms<double>({2, 1, 3, 2, 2}, 1.0, accum);
-    check_all_perms<std::complex<double>>({2, 1, 2, 2, 3}, std::complex<double>(1.0, 1.0),
-                                           accum);
+    check_all_perms<std::complex<double>>({2, 1, 2, 2, 3}, std::complex<double>(1.0, 1.0), accum);
   }
 }
 
@@ -222,9 +222,9 @@ TEST_CASE("permute rank 6 and 8 spot checks") {
 
 TEST_CASE("permute metadata invariants") {
   // Column-major strides + perm round-trip on a known case.
-  const size_t outDims[3] = {4, 2, 3};
-  const int    perm[3]    = {2, 0, 1};
-  const PermuteMeta meta = permute_build_meta(3, outDims, perm);
+  const size_t      outDims[3] = {4, 2, 3};
+  const int         perm[3]    = {2, 0, 1};
+  const PermuteMeta meta       = permute_build_meta(3, outDims, perm);
   CHECK(meta.outStrides[0] == 1);
   CHECK(meta.outStrides[1] == 4);
   CHECK(meta.outStrides[2] == 8);
@@ -234,8 +234,8 @@ TEST_CASE("permute metadata invariants") {
   CHECK(meta.inStrides[2] == 6);
   CHECK(permute_total(3, outDims) == 24);
   CHECK_FALSE(permute_is_identity(meta));
-  const int    idp[3]    = {0, 1, 2};
-  const PermuteMeta idm = permute_build_meta(3, outDims, idp);
+  const int         idp[3] = {0, 1, 2};
+  const PermuteMeta idm    = permute_build_meta(3, outDims, idp);
   CHECK(permute_is_identity(idm));
   CHECK(permute_meta_fits32(meta, 24));
   CHECK_FALSE(permute_meta_fits32(meta, size_t{1} << 33));
@@ -257,13 +257,13 @@ void reference_transpose_beta(const std::vector<T>& src, std::vector<T>& dst,
                               const std::vector<size_t>& sdims, const std::vector<int>& slabels,
                               const std::vector<size_t>& ddims, const std::vector<int>& dlabels,
                               T alpha, T beta) {
-  const size_t ndim = sdims.size();
-  const auto sst = row_strides(sdims);
-  const auto dst_ = row_strides(ddims);
+  const size_t     ndim = sdims.size();
+  const auto       sst  = row_strides(sdims);
+  const auto       dst_ = row_strides(ddims);
   std::vector<int> perm(ndim);
   for(size_t i = 0; i < ndim; ++i) {
-    perm[i] = static_cast<int>(std::find(slabels.begin(), slabels.end(), dlabels[i]) -
-                               slabels.begin());
+    perm[i] =
+      static_cast<int>(std::find(slabels.begin(), slabels.end(), dlabels[i]) - slabels.begin());
   }
   size_t total = 1;
   for(auto d: ddims) total *= d;
@@ -284,7 +284,7 @@ void reference_transpose_beta(const std::vector<T>& src, std::vector<T>& dst,
 template<typename T>
 void check_cpu_case(const std::vector<size_t>& sdims, const std::vector<int>& slabels,
                     const std::vector<int>& dlabels, T alpha, T beta) {
-  const size_t ndim = sdims.size();
+  const size_t        ndim = sdims.size();
   std::vector<size_t> ddims(ndim);
   for(size_t i = 0; i < ndim; ++i) {
     const int j =
@@ -307,12 +307,12 @@ void check_cpu_case(const std::vector<size_t>& sdims, const std::vector<int>& sl
   {
     std::vector<int> perm(ndim);
     for(size_t i = 0; i < ndim; ++i) {
-      perm[i] = static_cast<int>(std::find(slabels.begin(), slabels.end(), dlabels[i]) -
-                                 slabels.begin());
+      perm[i] =
+        static_cast<int>(std::find(slabels.begin(), slabels.end(), dlabels[i]) - slabels.begin());
     }
     std::copy(init.begin(), init.end(), got.begin());
     tamm::kernels::cpu::permute(got.data(), src.data(), static_cast<int>(ndim), ddims.data(),
-                          perm.data(), alpha, beta);
+                                perm.data(), alpha, beta);
     for(size_t i = 0; i < total; ++i) CHECK(got[i] == ref[i]);
   }
 
@@ -321,11 +321,10 @@ void check_cpu_case(const std::vector<size_t>& sdims, const std::vector<int>& sl
     SizeVec sv;
     for(auto d: sdims) sv.emplace_back(d);
     IntLabelVec sl(slabels.begin(), slabels.end()), dl(dlabels.begin(), dlabels.end());
-    SizeVec dv;
+    SizeVec     dv;
     for(auto d: ddims) dv.emplace_back(d);
     std::copy(init.begin(), init.end(), got.begin());
-    tamm::internal::index_permute(got.data(), dv, dl, alpha, src.data(), sv, sl,
-                               beta == T{0});
+    tamm::internal::index_permute(got.data(), dv, dl, alpha, src.data(), sv, sl, beta == T{0});
     for(size_t i = 0; i < total; ++i) CHECK(got[i] == ref[i]);
   }
 
@@ -333,20 +332,19 @@ void check_cpu_case(const std::vector<size_t>& sdims, const std::vector<int>& sl
   {
     PermVector perm;
     for(size_t i = 0; i < ndim; ++i) {
-      const int j = static_cast<int>(std::find(slabels.begin(), slabels.end(), dlabels[i]) -
-                                     slabels.begin());
+      const int j =
+        static_cast<int>(std::find(slabels.begin(), slabels.end(), dlabels[i]) - slabels.begin());
       perm.push_back(static_cast<Perm>(j));
     }
     std::copy(init.begin(), init.end(), got.begin());
-    tamm::blockops::permute::index_permute(beta, got.data(), alpha, src.data(), perm,
-                                                   sdims);
+    tamm::blockops::permute::index_permute(beta, got.data(), alpha, src.data(), perm, sdims);
     for(size_t i = 0; i < total; ++i) CHECK(got[i] == ref[i]);
   }
 }
 
 template<typename T>
 void check_cpu_all_perms(const std::vector<size_t>& sdims, T alpha, T beta) {
-  const size_t ndim = sdims.size();
+  const size_t     ndim = sdims.size();
   std::vector<int> labels(ndim);
   std::iota(labels.begin(), labels.end(), 0);
   if(ndim == 0) {
@@ -354,8 +352,9 @@ void check_cpu_all_perms(const std::vector<size_t>& sdims, T alpha, T beta) {
     return;
   }
   std::vector<int> perm = labels;
-  do { check_cpu_case<T>(sdims, labels, perm, alpha, beta); } while(
-    std::next_permutation(perm.begin(), perm.end()));
+  do {
+    check_cpu_case<T>(sdims, labels, perm, alpha, beta);
+  } while(std::next_permutation(perm.begin(), perm.end()));
 }
 
 TEST_CASE("cpu permute rank 0..2, all perms, general alpha/beta") {
@@ -394,14 +393,13 @@ TEST_CASE("cpu permute rank 6 spot checks + metadata invariants") {
   check_cpu_case<double>(d6, id6, {5, 4, 3, 2, 1, 0}, 3.0, 1.0);
   check_cpu_case<double>(d6, id6, id6, 1.0, 0.0);
   check_cpu_case<double>(d6, id6, {1, 2, 3, 4, 5, 0}, -2.0, 2.0);
-  check_cpu_case<std::complex<double>>(d6, id6, {5, 4, 3, 2, 1, 0},
-                                       std::complex<double>(0.5, -0.5),
+  check_cpu_case<std::complex<double>>(d6, id6, {5, 4, 3, 2, 1, 0}, std::complex<double>(0.5, -0.5),
                                        std::complex<double>(1.0, 0.0));
   // Row-major strides on a known case: outDims {4,2,3} -> {1,3,12}... strides
   // count from the last axis: {2*3, 3, 1} = {6, 3, 1}.
-  const size_t outDims[3] = {4, 2, 3};
-  const int    perm[3]    = {2, 0, 1};
-  const PermuteMeta meta = permute_build_meta_rowmajor(3, outDims, perm);
+  const size_t      outDims[3] = {4, 2, 3};
+  const int         perm[3]    = {2, 0, 1};
+  const PermuteMeta meta       = permute_build_meta_rowmajor(3, outDims, perm);
   CHECK(meta.outStrides[0] == 6);
   CHECK(meta.outStrides[1] == 3);
   CHECK(meta.outStrides[2] == 1);

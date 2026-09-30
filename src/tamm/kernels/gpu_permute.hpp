@@ -57,7 +57,7 @@ inline constexpr bool permute_is_complex_v = permute_is_complex<T>::value;
 // permutation. All extents/strides are 64-bit: TAMM blocks can exceed 2^31
 // elements (cf. the B*K*N = 2^32 overflow previously fixed in gemm_wrapper).
 struct PermuteMeta {
-  int    ndim = 0;
+  int    ndim                        = 0;
   size_t outDims[permute_maxrank]    = {};
   size_t outStrides[permute_maxrank] = {};
   size_t inStrides[permute_maxrank]  = {};
@@ -77,9 +77,8 @@ template<typename Idx>
 TAMM_PERMUTE_HD inline size_t permute_src_index(Idx tid, const PermuteMeta& meta) {
   size_t src = 0;
   for(int k = 0; k < meta.ndim; ++k) {
-    const Idx oidx =
-      static_cast<Idx>((tid / static_cast<Idx>(meta.outStrides[k])) %
-                       static_cast<Idx>(meta.outDims[k]));
+    const Idx oidx = static_cast<Idx>((tid / static_cast<Idx>(meta.outStrides[k])) %
+                                      static_cast<Idx>(meta.outDims[k]));
     src += static_cast<size_t>(oidx) * meta.inStrides[meta.perm[k]];
   }
   return src;
@@ -98,19 +97,17 @@ TAMM_PERMUTE_HD inline T permute_scaled(T v, double scale_re, double scale_im) {
     const R* w = reinterpret_cast<const R*>(&v);
     T        out;
     R*       o = reinterpret_cast<R*>(&out);
-    o[0] = static_cast<R>(scale_re * w[0] - scale_im * w[1]);
-    o[1] = static_cast<R>(scale_re * w[1] + scale_im * w[0]);
+    o[0]       = static_cast<R>(scale_re * w[0] - scale_im * w[1]);
+    o[1]       = static_cast<R>(scale_re * w[1] + scale_im * w[0]);
     return out;
   }
-  else {
-    return static_cast<T>(scale_re * static_cast<double>(v));
-  }
+  else { return static_cast<T>(scale_re * static_cast<double>(v)); }
 }
 
 template<typename T>
 TAMM_PERMUTE_HD inline T permute_add(T a, T b) {
   if constexpr(permute_is_complex_v<T>) {
-    using R    = typename T::value_type;
+    using R     = typename T::value_type;
     const R* wa = reinterpret_cast<const R*>(&a);
     const R* wb = reinterpret_cast<const R*>(&b);
     T        out;
@@ -119,9 +116,7 @@ TAMM_PERMUTE_HD inline T permute_add(T a, T b) {
     o[1]       = wa[1] + wb[1];
     return out;
   }
-  else {
-    return a + b;
-  }
+  else { return a + b; }
 }
 
 // Per-element store idiom (use at every call site):
@@ -190,7 +185,7 @@ inline size_t permute_total(int ndim, const size_t* outDims) {
 // touching the heap. (An earlier version used std::vectors here: 4 heap
 // allocations per permute call.)
 struct PermuteSpec {
-  int    ndim = 0;
+  int    ndim                     = 0;
   size_t outDims[permute_maxrank] = {};
   int    perm[permute_maxrank]    = {}; // reversed output-axis -> source-axis map
 };
@@ -220,9 +215,7 @@ inline void build_permute_spec(const SizeVec& sdims, const IntLabelVec& slabels,
     EXPECTS(j < static_cast<int>(ndim));
     spec.perm[i] = j;
   }
-  for(size_t i = 0; i < ndim; ++i) {
-    spec.outDims[i] = r_size[static_cast<size_t>(spec.perm[i])];
-  }
+  for(size_t i = 0; i < ndim; ++i) { spec.outDims[i] = r_size[static_cast<size_t>(spec.perm[i])]; }
 }
 
 } // namespace tamm::kernels::gpu

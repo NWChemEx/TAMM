@@ -55,7 +55,7 @@ public:
       case Plan::flat_update: blockops::cpu::flat_update(lhs, rhs); break;
       case Plan::permute:
         blockops::permute::index_permute(lscale, lhs.buf(), 1, rhs.buf(), ip_plan_.perm_,
-                                                 rhs.block_dims());
+                                         rhs.block_dims());
         break;
       case Plan::index_permute_assign:
         blockops::cpu::index_permute_assign(lhs.buf(), rhs.buf(), ip_plan_.perm_, lhs.block_dims());
@@ -116,8 +116,8 @@ public:
       case Plan::flat_assign: blockops::cpu::flat_assign(lhs, rscale, rhs); break;
       case Plan::flat_update: blockops::cpu::flat_update(lhs, rscale, rhs); break;
       case Plan::permute:
-        blockops::permute::index_permute(lscale, lhs.buf(), rscale, rhs.buf(),
-                                                 ip_plan_.perm_, rhs.block_dims());
+        blockops::permute::index_permute(lscale, lhs.buf(), rscale, rhs.buf(), ip_plan_.perm_,
+                                         rhs.block_dims());
         break;
       case Plan::index_permute_assign:
         blockops::cpu::index_permute_assign(lhs.buf(), rscale, rhs.buf(), ip_plan_.perm_,
@@ -198,8 +198,8 @@ public:
       case Plan::flat_assign: NOT_ALLOWED(); break;
       case Plan::flat_update: blockops::cpu::flat_update(lscale, lhs, rscale, rhs); break;
       case Plan::permute:
-        blockops::permute::index_permute(lscale, lhs.buf(), rscale, rhs.buf(),
-                                                 ip_plan_.perm_, rhs.block_dims());
+        blockops::permute::index_permute(lscale, lhs.buf(), rscale, rhs.buf(), ip_plan_.perm_,
+                                         rhs.block_dims());
         break;
       case Plan::index_permute_assign: NOT_ALLOWED(); break;
       case Plan::index_permute_update:

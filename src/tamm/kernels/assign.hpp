@@ -391,7 +391,7 @@ void index_permute(T* dst, const SizeVec& ddims, const IntLabelVec& dlabels, T s
     outDims[i]     = sdims[j].value();
   }
   kernels::cpu::permute(dst, src, static_cast<int>(ndim), outDims, perm, scale,
-                                      is_assign ? T{0} : T{1});
+                        is_assign ? T{0} : T{1});
 }
 
 /**

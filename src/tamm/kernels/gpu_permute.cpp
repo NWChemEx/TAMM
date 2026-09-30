@@ -35,13 +35,12 @@ __global__ void
 #if defined(USE_CUDA) || defined(USE_HIP)
 __launch_bounds__(256)
 #endif
-permute_kernel(T* out, const T* in, PermuteMeta meta, size_t total, double scale_re, double scale_im,
-               bool accumulate)
-{
+  permute_kernel(T* out, const T* in, PermuteMeta meta, size_t total, double scale_re,
+                 double scale_im, bool accumulate) {
   const size_t tid0   = static_cast<size_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   const size_t stride = static_cast<size_t>(gridDim.x) * blockDim.x;
   for(size_t t = tid0; t < total; t += stride) {
-    const Idx tid = static_cast<Idx>(t);
+    const Idx    tid = static_cast<Idx>(t);
     const size_t src = permute_src_index<Idx>(tid, meta);
     const T      y   = permute_scaled<T>(in[src], scale_re, scale_im);
     out[tid]         = accumulate ? permute_add<T>(out[tid], y) : y;
@@ -50,8 +49,8 @@ permute_kernel(T* out, const T* in, PermuteMeta meta, size_t total, double scale
 #endif // USE_CUDA || USE_HIP
 
 template<typename T>
-void permute(T* out, const T* in, int ndim, const size_t* outDims, const int* perm,
-                       T scale, bool accumulate, gpuStream_t& handle) {
+void permute(T* out, const T* in, int ndim, const size_t* outDims, const int* perm, T scale,
+             bool accumulate, gpuStream_t& handle) {
   EXPECTS(ndim >= 0 && ndim <= permute_maxrank);
   EXPECTS(out != in); // out-of-place only; in-place permutes need a temp buffer
   if(ndim == 0) {
@@ -80,7 +79,7 @@ void permute(T* out, const T* in, int ndim, const size_t* outDims, const int* pe
   EXPECTS(outDims != nullptr && perm != nullptr);
 
   const PermuteMeta meta  = permute_build_meta(ndim, outDims, perm);
-  const size_t    total = permute_total(ndim, outDims);
+  const size_t      total = permute_total(ndim, outDims);
   if(total == 0) return;
 
   double scale_re, scale_im;
@@ -98,16 +97,16 @@ void permute(T* out, const T* in, int ndim, const size_t* outDims, const int* pe
   // mapping is impossible for huge totals).
   constexpr size_t block     = 256;
   constexpr size_t maxBlocks = 1 << 20; // stride loop covers the rest
-  const size_t nblocks = std::min<size_t>((total + block - 1) / block, maxBlocks);
+  const size_t     nblocks   = std::min<size_t>((total + block - 1) / block, maxBlocks);
   if(permute_meta_fits32(meta, total)) {
-    permute_kernel<T, uint32_t><<<static_cast<unsigned>(nblocks), static_cast<unsigned>(block), 0,
-                                          handle.first>>>(out, in, meta, total, scale_re, scale_im,
-                                                          accumulate);
+    permute_kernel<T, uint32_t>
+      <<<static_cast<unsigned>(nblocks), static_cast<unsigned>(block), 0, handle.first>>>(
+        out, in, meta, total, scale_re, scale_im, accumulate);
   }
   else {
-    permute_kernel<T, uint64_t><<<static_cast<unsigned>(nblocks), static_cast<unsigned>(block), 0,
-                                          handle.first>>>(out, in, meta, total, scale_re, scale_im,
-                                                          accumulate);
+    permute_kernel<T, uint64_t>
+      <<<static_cast<unsigned>(nblocks), static_cast<unsigned>(block), 0, handle.first>>>(
+        out, in, meta, total, scale_re, scale_im, accumulate);
   }
 #elif defined(USE_DPCPP)
   if(permute_meta_fits32(meta, total)) {
@@ -132,16 +131,14 @@ void permute(T* out, const T* in, int ndim, const size_t* outDims, const int* pe
 }
 
 template void permute(double* out, const double* in, int ndim, const size_t* outDims,
-                                const int* perm, double scale, bool accumulate,
-                                gpuStream_t& handle);
-template void permute(float* out, const float* in, int ndim, const size_t* outDims,
-                                const int* perm, float scale, bool accumulate,
-                                gpuStream_t& handle);
+                      const int* perm, double scale, bool accumulate, gpuStream_t& handle);
+template void permute(float* out, const float* in, int ndim, const size_t* outDims, const int* perm,
+                      float scale, bool accumulate, gpuStream_t& handle);
 template void permute(std::complex<double>* out, const std::complex<double>* in, int ndim,
-                                const size_t* outDims, const int* perm, std::complex<double> scale,
-                                bool accumulate, gpuStream_t& handle);
+                      const size_t* outDims, const int* perm, std::complex<double> scale,
+                      bool accumulate, gpuStream_t& handle);
 template void permute(std::complex<float>* out, const std::complex<float>* in, int ndim,
-                                const size_t* outDims, const int* perm, std::complex<float> scale,
-                                bool accumulate, gpuStream_t& handle);
+                      const size_t* outDims, const int* perm, std::complex<float> scale,
+                      bool accumulate, gpuStream_t& handle);
 
 } // namespace tamm::kernels::gpu

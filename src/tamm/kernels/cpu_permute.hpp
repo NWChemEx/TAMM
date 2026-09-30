@@ -72,8 +72,8 @@ inline gpu::PermuteMeta permute_build_meta_rowmajor(int ndim, const size_t* outD
 }
 
 template<typename T, typename B>
-inline void permute_impl(T* out, const T* in, const gpu::PermuteMeta& meta,
-                                       size_t total, double alpha_re, double alpha_im, B beta) {
+inline void permute_impl(T* out, const T* in, const gpu::PermuteMeta& meta, size_t total,
+                         double alpha_re, double alpha_im, B beta) {
   const bool beta_is_zero = permute_scale_is_zero_host(beta);
   const bool beta_is_one  = permute_scale_is_one_host(beta);
   double     beta_re = 0.0, beta_im = 0.0;
@@ -81,7 +81,7 @@ inline void permute_impl(T* out, const T* in, const gpu::PermuteMeta& meta,
 
   // Odometer over the output coordinates: no division/modulo per element,
   // just ndim multiply-adds plus an amortized single increment.
-  const int ndim = meta.ndim;
+  const int ndim                        = meta.ndim;
   size_t    coord[gpu::permute_maxrank] = {};
   for(size_t t = 0; t < total; ++t) {
     size_t src = 0;
@@ -99,8 +99,8 @@ inline void permute_impl(T* out, const T* in, const gpu::PermuteMeta& meta,
 
 // out = beta * out + alpha * permute(in); outDims/perm in natural order.
 template<typename T, typename A, typename B>
-inline void permute(T* out, const T* in, int ndim, const size_t* outDims,
-                                  const int* perm, A alpha, B beta) {
+inline void permute(T* out, const T* in, int ndim, const size_t* outDims, const int* perm, A alpha,
+                    B beta) {
   EXPECTS(ndim >= 0 && ndim <= gpu::permute_maxrank);
   if(ndim == 0) {
     double alpha_re, alpha_im, beta_re, beta_im;

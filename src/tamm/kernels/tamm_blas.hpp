@@ -46,7 +46,8 @@ void permute(T* out, const T* in, int ndim, const size_t* outDims, const int* pe
 
 // Column-major C = alpha op(A) op(B) + beta C on device pointers, with the same argument order
 // and meaning as blas::gemm(blas::Layout::ColMajor, ...). Runs on gpuhandle's stream.
-// Note: Added for the generalized eigensolver API that needs to call gemms on 2D mats with transpose. 
+// Note: Added for the generalized eigensolver API that needs to call gemms on 2D mats with
+// transpose.
 // TODO: Address uniform gemm() API usage
 template<typename T>
 void gemm(blas::Op transa, blas::Op transb, int m, int n, int k, const T alpha, const T* A, int lda,

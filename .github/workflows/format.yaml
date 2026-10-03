@@ -1,5 +1,5 @@
 
-name: Run clang-format Linter
+name: TAMM_Linter
 
 on: 
   push:
@@ -8,6 +8,9 @@ on:
   pull_request:
     branches:
       - main
+  repository_dispatch:
+    types: [backend_automation]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -23,8 +26,6 @@ jobs:
         inplace: True
     - uses: EndBug/add-and-commit@v4
       with:
-        author_name: TAMM developers
-        author_email: exachem23@gmail.com
         message: 'Committing clang-format changes'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

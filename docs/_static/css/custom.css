@@ -1,0 +1,15 @@
+/* sphinx_rtd_theme forces nowrap in table cells, which makes wide tables scroll
+   horizontally. Let cells (including inline literals) wrap instead. */
+.wy-table-responsive table td,
+.wy-table-responsive table th {
+    white-space: normal;
+}
+
+.wy-table-responsive {
+    overflow: visible;
+}
+
+.wy-table-responsive table td code.literal {
+    white-space: normal;
+    word-break: break-word;
+}

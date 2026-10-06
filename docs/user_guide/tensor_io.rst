@@ -50,8 +50,9 @@ modify files on disk.
 A read never silently loads bad data. Every process checks each step of the read (opening the
 file and reading its data). If any process fails, for example because the file is missing, is not
 an HDF5 file, is truncated, or the filesystem returns an error, all processes agree on the failure
-and the program terminates with a message naming the tensor file. ``read_from_disk_group`` lists
-every tensor file that could not be read in a single message.
+and the program terminates. The cause of the failure is reported for each tensor file, followed by
+a final message naming the tensor file; ``read_from_disk_group`` lists every tensor file that
+could not be read in that final message.
 
 A tensor file stores the tensor's data block by block in the order given by its tiling, without a
 description of the tensor. It must therefore be read into a tensor with the same index spaces and
@@ -88,12 +89,13 @@ Behavior
      - Tensor filled
      - Files untouched; tensor contents undefined
      - **Yes**
-     - ``read_from_disk: failed to read tensor file: <f>``
+     - ``<call> failed for <f>: <cause>``, then ``read_from_disk: failed to read tensor file: <f>``
    * - ``read_from_disk_group``
      - All tensors filled
      - Files untouched; tensor contents undefined
      - **Yes**
-     - One message listing every tensor file that could not be read, one file per line
+     - ``<call> failed for <fi>: <cause>`` for each failed file, then one final message listing
+       every tensor file that could not be read, one file per line
 
 A write fails if any process fails to create, write or close the staging file, or if the final
 rename fails. A read fails if any process fails to open or read the tensor file. A failed read
@@ -103,8 +105,11 @@ Messages
 --------
 
 All messages are printed once, not by every process, and HDF5's own error stack is not printed.
-For a failed write, ``<cause>`` is the HDF5 error at its origin, for example
-``MPI_File_open failed: MPI error string is 'MPI_ERR_BAD_FILE: bad file'``.
+``<cause>`` is the HDF5 error at its origin, for example
+``MPI_File_open failed: MPI error string is 'MPI_ERR_BAD_FILE: bad file'`` for a write, or
+``file signature not found`` or ``truncated file: ...`` for a read. Write failures are reported
+as warnings, since the calculation continues; read failures are reported as errors, since the
+program terminates.
 
 .. list-table::
    :header-rows: 1
@@ -115,16 +120,22 @@ For a failed write, ``<cause>`` is the HDF5 error at its origin, for example
      - Message
    * - A collective HDF5 call fails while writing (creating, closing)
      - Root of the writing process group, once
-     - ``TAMM WARNING: <call> failed for <f>: <cause>``
+     - ``[TAMM WARNING] <call> failed for <f>: <cause>``
    * - Writing data fails on one process
      - The process that failed
-     - ``TAMM WARNING: H5Dwrite failed for <f>: <cause>``
+     - ``[TAMM WARNING] H5Dwrite failed for <f>: <cause>``
    * - The rename fails
      - The process that attempted it
-     - ``TAMM WARNING: rename <f>.tmp -> <f> failed: <reason>``
+     - ``[TAMM WARNING] rename <f>.tmp -> <f> failed: <reason>``
+   * - A collective HDF5 call fails while reading (opening, closing)
+     - Root of the reading process group, once
+     - ``[TAMM ERROR] <call> failed for <f>: <cause>``
+   * - Reading data fails on one process
+     - The process that failed
+     - ``[TAMM ERROR] H5Dread failed for <f>: <cause>``
    * - Any read fails
-     - Rank 0, once
-     - The final message only, before the program terminates
+     - Rank 0, once, after the messages above
+     - The final message naming the tensor file(s), before the program terminates
 
 Interrupted operations
 ----------------------

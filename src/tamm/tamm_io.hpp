@@ -255,21 +255,21 @@ inline std::string h5_error_cause() {
 }
 
 /// Records whether any HDF5 call on this rank failed while accessing one tensor file. The first
-/// failure is reported (when verbose) with the file, the failing call and its cause.
-/// A collective call fails on every rank of the group accessing the file, so its failure is
-/// reported only by that group's root.
+/// failure is reported with the file, the failing call and its cause, as a WARNING for writes
+/// (not fatal) or an ERROR for reads (fatal). A collective call fails on every rank of the group
+/// accessing the file, so its failure is reported only by that group's root.
 struct H5Check {
   std::string filename;
-  bool        verbose;
-  bool        is_root; // root of the group accessing the file
+  const char* severity; // "WARNING" or "ERROR"
+  bool        is_root;  // root of the group accessing the file
   bool        failed = false;
 
   template<typename R>
   R operator()(R ret, const char* call, bool collective = true) {
     if(ret < 0 && !failed) {
       failed = true;
-      if(verbose && (is_root || !collective)) {
-        std::cerr << "[TAMM WARNING] " << call << " failed for " << filename << ": "
+      if(is_root || !collective) {
+        std::cerr << "[TAMM " << severity << "] " << call << " failed for " << filename << ": "
                   << h5_error_cause() << std::endl;
       }
     }
@@ -392,7 +392,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
     LabelLoopNest loop_nest{ltensor.labels()};
 
     internal::H5ErrorSilencer h5_silencer;
-    internal::H5Check         h5{filename, true, ec.pg().rank() == 0};
+    internal::H5Check         h5{filename, "WARNING", ec.pg().rank() == 0};
     const std::string         staging = internal::staging_filename(filename);
 
     int ierr;
@@ -670,7 +670,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
         LabelLoopNest loop_nest{ltensor.labels()};
 
         internal::H5ErrorSilencer h5_silencer;
-        internal::H5Check         h5{filename, true, root_ppi == 0};
+        internal::H5Check         h5{filename, "WARNING", root_ppi == 0};
         const std::string         staging = internal::staging_filename(filename);
 
         int ierr;
@@ -947,7 +947,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
     LabelLoopNest loop_nest{ltensor.labels()};
 
     internal::H5ErrorSilencer h5_silencer;
-    internal::H5Check         h5{filename, false, ec.pg().rank() == 0};
+    internal::H5Check         h5{filename, "ERROR", ec.pg().rank() == 0};
 
     int ierr;
     // MPI_File fh;
@@ -1222,7 +1222,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
         LabelLoopNest loop_nest{ltensor.labels()};
 
         internal::H5ErrorSilencer h5_silencer;
-        internal::H5Check         h5{filename, false, root_ppi == 0};
+        internal::H5Check         h5{filename, "ERROR", root_ppi == 0};
 
         int ierr;
         // MPI_File fh;

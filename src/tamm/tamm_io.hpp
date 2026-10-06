@@ -3,6 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <numeric>
 #include <random>
 #include <type_traits>
 #include <vector>
@@ -275,7 +276,154 @@ struct H5Check {
     }
     return ret;
   }
+
+  /// Records a failure that is not an HDF5 error and that every rank detects alike (e.g. a
+  /// mismatched tensor description); reported once, by the root.
+  void fail(const std::string& reason) {
+    if(failed) return;
+    failed = true;
+    if(is_root)
+      std::cerr << "[TAMM " << severity << "] " << filename << ": " << reason << std::endl;
+  }
 };
+
+/// Version of the tensor description stored with each tensor file.
+constexpr int64_t tensor_file_format = 1;
+
+/// The tensor description stored with a tensor file: everything that determines where each block
+/// of the tensor is in the file.
+struct TensorDescription {
+  std::vector<std::vector<int64_t>> tile_sizes;       // per mode, the size of each tile
+  int64_t                           nonzero_blocks{}; // number of non-zero blocks
+  uint64_t                          nonzero_hash{};   // FNV-1a of the non-zero block ids
+};
+
+/// Describes how tensor is laid out in a tensor file. The non-zero blocks are hashed in file
+/// order with a fixed hash function, so the description is the same on every machine.
+template<typename TensorType>
+TensorDescription describe_tensor(Tensor<TensorType> tensor) {
+  TensorDescription desc;
+  for(const auto& tis: tensor.tiled_index_spaces()) {
+    std::vector<int64_t> sizes;
+    for(size_t t = 0; t < tis.num_tiles(); t++) sizes.push_back(tis.tile_size(t));
+    desc.tile_sizes.push_back(sizes);
+  }
+
+  uint64_t      hash = 14695981039346656037ull; // FNV-1a 64-bit offset basis
+  LabelLoopNest loop_nest{tensor().labels()};
+  for(const IndexVector& blockid: loop_nest) {
+    if(!tensor.is_non_zero(blockid)) continue;
+    desc.nonzero_blocks++;
+    for(auto id: blockid) {
+      const uint64_t v = static_cast<uint64_t>(id);
+      for(int byte = 0; byte < 8; byte++) {
+        hash ^= (v >> (8 * byte)) & 0xff;
+        hash *= 1099511628211ull; // FNV-1a 64-bit prime
+      }
+    }
+  }
+  desc.nonzero_hash = hash;
+  return desc;
+}
+
+inline void write_attribute(hid_t dataset, const std::string& name, hid_t type, const void* data,
+                            hsize_t count, H5Check& h5) {
+  if(h5.failed) return;
+  const hid_t space = count == 0 ? H5Screate(H5S_NULL) : H5Screate_simple(1, &count, nullptr);
+  const hid_t attr =
+    h5(H5Acreate2(dataset, name.c_str(), type, space, H5P_DEFAULT, H5P_DEFAULT), "H5Acreate");
+  if(attr >= 0 && count > 0) h5(H5Awrite(attr, type, data), "H5Awrite");
+  if(attr >= 0) H5Aclose(attr);
+  H5Sclose(space);
+}
+
+/// Stores the tensor description as attributes of the tensor file's dataset.
+inline void write_description(hid_t dataset, const TensorDescription& desc, H5Check& h5) {
+  write_attribute(dataset, "tamm_format", H5T_NATIVE_INT64, &tensor_file_format, 1, h5);
+  for(size_t m = 0; m < desc.tile_sizes.size(); m++)
+    write_attribute(dataset, "tile_sizes_" + std::to_string(m), H5T_NATIVE_INT64,
+                    desc.tile_sizes[m].data(), desc.tile_sizes[m].size(), h5);
+  write_attribute(dataset, "nonzero_blocks", H5T_NATIVE_INT64, &desc.nonzero_blocks, 1, h5);
+  write_attribute(dataset, "nonzero_hash", H5T_NATIVE_UINT64, &desc.nonzero_hash, 1, h5);
+}
+
+/// Reads an integer attribute (a scalar or a 1-D array) of the tensor file's dataset.
+template<typename T>
+std::vector<T> read_attribute(hid_t dataset, const std::string& name, hid_t type, H5Check& h5) {
+  if(h5.failed) return {};
+  const hid_t attr = h5(H5Aopen(dataset, name.c_str(), H5P_DEFAULT), "H5Aopen");
+  if(attr < 0) return {};
+  const hid_t    space = H5Aget_space(attr);
+  const hssize_t count = H5Sget_simple_extent_npoints(space);
+  std::vector<T> values(count > 0 ? count : 0);
+  if(!values.empty()) h5(H5Aread(attr, type, values.data()), "H5Aread");
+  H5Sclose(space);
+  H5Aclose(attr);
+  return values;
+}
+
+inline std::string join(const std::vector<int64_t>& values) {
+  std::string out;
+  for(auto v: values) out += (out.empty() ? "" : ",") + std::to_string(v);
+  return out;
+}
+
+/// Checks that the tensor file's dataset holds elements of type hdf5_dt laid out as described by
+/// desc; a missing or different description is a failure.
+inline void check_description(hid_t dataset, hid_t hdf5_dt, const TensorDescription& desc,
+                              H5Check& h5) {
+  if(h5.failed) return;
+  const hid_t file_dt = h5(H5Dget_type(dataset), "H5Dget_type");
+  if(file_dt < 0) return;
+  const bool same_type = H5Tequal(file_dt, hdf5_dt) > 0;
+  H5Tclose(file_dt);
+  if(!same_type) return h5.fail("Element type differs from the tensor's");
+
+  const auto format = read_attribute<int64_t>(dataset, "tamm_format", H5T_NATIVE_INT64, h5);
+  if(h5.failed) return;
+  if(format.size() != 1 || format[0] != tensor_file_format)
+    return h5.fail("Unsupported tensor file format");
+
+  for(size_t m = 0; m < desc.tile_sizes.size(); m++) {
+    const auto file_tile_sizes =
+      read_attribute<int64_t>(dataset, "tile_sizes_" + std::to_string(m), H5T_NATIVE_INT64, h5);
+    if(h5.failed) return;
+    const auto& tensor_tile_sizes = desc.tile_sizes[m];
+    if(file_tile_sizes != tensor_tile_sizes) {
+      const int64_t file_dim_length =
+        std::accumulate(file_tile_sizes.begin(), file_tile_sizes.end(), int64_t{0});
+      const int64_t tensor_dim_length =
+        std::accumulate(tensor_tile_sizes.begin(), tensor_tile_sizes.end(), int64_t{0});
+      const std::string dim_label = "dimension " + std::to_string(m);
+      if(file_dim_length != tensor_dim_length)
+        return h5.fail("Dimension " + std::to_string(m) + " has length " +
+                       std::to_string(file_dim_length) + " in the file but " +
+                       std::to_string(tensor_dim_length) + " in the tensor");
+      auto tiles = [](size_t count) {
+        return std::to_string(count) + (count == 1 ? " tile" : " tiles");
+      };
+      if(file_tile_sizes.size() != tensor_tile_sizes.size())
+        return h5.fail("Tiling differs in " + dim_label + ": file has " +
+                       tiles(file_tile_sizes.size()) + ", tensor has " +
+                       tiles(tensor_tile_sizes.size()));
+      return h5.fail("Tiling differs in " + dim_label + ": same number of tiles (" +
+                     std::to_string(tensor_tile_sizes.size()) + ") but different tile sizes");
+    }
+  }
+  // A file with more modes than the tensor has a tile_sizes attribute past the tensor's last mode.
+  if(H5Aexists(dataset, ("tile_sizes_" + std::to_string(desc.tile_sizes.size())).c_str()) > 0)
+    return h5.fail("File has more dimensions than the tensor's " +
+                   std::to_string(desc.tile_sizes.size()));
+
+  const auto blocks = read_attribute<int64_t>(dataset, "nonzero_blocks", H5T_NATIVE_INT64, h5);
+  const auto hash   = read_attribute<uint64_t>(dataset, "nonzero_hash", H5T_NATIVE_UINT64, h5);
+  if(h5.failed) return;
+  if(blocks.size() != 1 || hash.size() != 1 || blocks[0] != desc.nonzero_blocks ||
+     hash[0] != desc.nonzero_hash)
+    return h5.fail("Non-zero block structure differs (file: " +
+                   (blocks.empty() ? std::string("?") : std::to_string(blocks[0])) +
+                   " blocks, tensor: " + std::to_string(desc.nonzero_blocks) + " blocks)");
+}
 
 /// Commits a fully written staging file by renaming it over its tensor file, or (when commit is
 /// false) discards it so the previous tensor file is kept. Returns whether the tensor file was
@@ -430,6 +578,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
     auto dataset = h5(H5Dcreate(file_identifier, "tensor", hdf5_dt, dataspace, H5P_DEFAULT,
                                 H5P_DEFAULT, H5P_DEFAULT),
                       "H5Dcreate");
+    internal::write_description(dataset, internal::describe_tensor(tensor), h5);
     /* create a file dataspace independently */
     auto file_dataspace = H5Dget_space(dataset);
 
@@ -708,6 +857,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
         auto dataset = h5(H5Dcreate(file_identifier, "tensor", hdf5_dt, dataspace, H5P_DEFAULT,
                                     H5P_DEFAULT, H5P_DEFAULT),
                           "H5Dcreate");
+        internal::write_description(dataset, internal::describe_tensor(tensor), h5);
         /* create a file dataspace independently */
         auto file_dataspace = H5Dget_space(dataset);
 
@@ -977,6 +1127,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
     // hsize_t dimens_1d = tensor_size;
     /* create a dataset collectively */
     auto dataset = h5(H5Dopen(file_identifier, "tensor", H5P_DEFAULT), "H5Dopen");
+    internal::check_description(dataset, hdf5_dt, internal::describe_tensor(tensor), h5);
     /* create a file dataspace independently */
     auto file_dataspace = H5Dget_space(dataset);
 
@@ -1253,6 +1404,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
         // hsize_t dimens_1d = tensor_size;
         /* create a dataset collectively */
         auto dataset = h5(H5Dopen(file_identifier, "tensor", H5P_DEFAULT), "H5Dopen");
+        internal::check_description(dataset, hdf5_dt, internal::describe_tensor(tensor), h5);
         /* create a file dataspace independently */
         auto file_dataspace = H5Dget_space(dataset);
 

@@ -54,9 +54,17 @@ and the program terminates. The cause of the failure is reported for each tensor
 a final message naming the tensor file; ``read_from_disk_group`` lists every tensor file that
 could not be read in that final message.
 
-A tensor file stores the tensor's data block by block in the order given by its tiling, without a
-description of the tensor. It must therefore be read into a tensor with the same index spaces and
-tiling as the tensor that was written; this is not checked.
+A tensor file stores the tensor's data block by block in the order given by its tiling. To make
+sure a file is read into a tensor with the same layout, each tensor file also stores a *tensor
+description*: the element type, the size of each tile along each mode, and the number of non-zero
+blocks with a hash identifying them. Before reading any data, the description is compared with
+the tensor being read into. A tensor file without a description, or with a different one, is a
+read failure, for example::
+
+    [TAMM ERROR] t.h5: Tiling differs in dimension 1: file has 8 tiles, tensor has 6 tiles
+
+To read a tensor file, use a tensor with the same index spaces and tiling as the tensor that was
+written.
 
 Behavior
 --------
@@ -98,8 +106,9 @@ Behavior
        every tensor file that could not be read, one file per line
 
 A write fails if any process fails to create, write or close the staging file, or if the final
-rename fails. A read fails if any process fails to open or read the tensor file. A failed read
-terminates the program on all processes.
+rename fails. A read fails if any process fails to open or read the tensor file, or if the
+tensor file's description is missing or does not match the tensor. A failed read terminates the
+program on all processes.
 
 Messages
 --------
@@ -130,6 +139,9 @@ program terminates.
    * - A collective HDF5 call fails while reading (opening, closing)
      - Root of the reading process group, once
      - ``[TAMM ERROR] <call> failed for <f>: <cause>``
+   * - The tensor file's description does not match the tensor
+     - Root of the reading process group, once
+     - ``[TAMM ERROR] <f>: <what differs>``
    * - Reading data fails on one process
      - The process that failed
      - ``[TAMM ERROR] H5Dread failed for <f>: <cause>``

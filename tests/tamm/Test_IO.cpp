@@ -347,6 +347,79 @@ void test_stale_staging_file(ExecutionContext& ec, TiledIndexSpace tis) {
   on_rank0(ec, [&] { fs::remove(f); });
 }
 
+// A tensor file stores the tensor description, and a read accepts the file only for a tensor with
+// the same description. The description is checked here directly with the same check
+// read_from_disk performs, so a mismatch is reported without terminating the program.
+void test_tensor_description(ExecutionContext& ec, TiledIndexSpace tis) {
+  const std::string f = io_dir + "tensor_d.h5";
+  on_rank0(ec, [&] { fs::remove(f); });
+
+  Tensor<T> t{tis, tis};
+  Scheduler{ec}.allocate(t).execute();
+  random_ip(t, 106u);
+  step(ec, "writing tensor D to " + f);
+  write_to_disk(t, f);
+
+  const Tile      n = tis.index_space().num_indices();
+  TiledIndexSpace other{tis.index_space(), std::vector<Tile>{n / 2, n - n / 2}};
+  Tensor<T>       u{other, other};
+  const auto      desc_t = internal::describe_tensor(t);
+  const auto      desc_u = internal::describe_tensor(u);
+
+  on_rank0(ec, [&] {
+    const hid_t file    = H5Fopen(f.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+    const hid_t dataset = H5Dopen(file, "tensor", H5P_DEFAULT);
+
+    internal::H5Check h5{f, "ERROR", true};
+    const auto        format =
+      internal::read_attribute<int64_t>(dataset, "tamm_format", H5T_NATIVE_INT64, h5);
+    const auto tiles0 =
+      internal::read_attribute<int64_t>(dataset, "tile_sizes_0", H5T_NATIVE_INT64, h5);
+    const auto tiles1 =
+      internal::read_attribute<int64_t>(dataset, "tile_sizes_1", H5T_NATIVE_INT64, h5);
+    const auto blocks =
+      internal::read_attribute<int64_t>(dataset, "nonzero_blocks", H5T_NATIVE_INT64, h5);
+    const auto hash =
+      internal::read_attribute<uint64_t>(dataset, "nonzero_hash", H5T_NATIVE_UINT64, h5);
+    IO_CHECK(!h5.failed);
+    if(!h5.failed) {
+      std::cout << "  - description stored in " << f << ": tamm_format = " << format[0]
+                << ", tile_sizes_0 = " << internal::join(tiles0)
+                << ", tile_sizes_1 = " << internal::join(tiles1)
+                << ", nonzero_blocks = " << blocks[0] << ", nonzero_hash = " << hash[0]
+                << std::endl;
+      IO_CHECK(tiles0 == desc_t.tile_sizes[0] && tiles1 == desc_t.tile_sizes[1]);
+      IO_CHECK(blocks[0] == desc_t.nonzero_blocks && hash[0] == desc_t.nonzero_hash);
+    }
+
+    std::cout << "  - checking the description against tensor D (same tiling): expected to match"
+              << std::endl;
+    internal::H5Check same{f, "ERROR", true};
+    internal::check_description(dataset, H5T_NATIVE_DOUBLE, desc_t, same);
+    IO_CHECK(!same.failed);
+    std::cout << "    " << (same.failed ? "mismatch" : "match") << std::endl;
+
+    std::cout << "  - checking the description against a tensor with tiles " << n / 2 << ","
+              << n - n / 2 << ": expected to report a mismatch" << std::endl;
+    internal::H5Check tiling{f, "ERROR", true};
+    internal::check_description(dataset, H5T_NATIVE_DOUBLE, desc_u, tiling);
+    IO_CHECK(tiling.failed);
+
+    std::cout << "  - checking the description against a float tensor: expected to report a "
+                 "mismatch"
+              << std::endl;
+    internal::H5Check type{f, "ERROR", true};
+    internal::check_description(dataset, H5T_NATIVE_FLOAT, desc_t, type);
+    IO_CHECK(type.failed);
+
+    H5Dclose(dataset);
+    H5Fclose(file);
+  });
+
+  Scheduler{ec}.deallocate(t).execute();
+  on_rank0(ec, [&] { fs::remove(f); });
+}
+
 // A failed write is not fatal and keeps the previous tensor file. The failure is forced by a
 // directory occupying the staging file's name, which makes H5Fcreate fail.
 void test_failed_write_keeps_previous(ExecutionContext& ec, TiledIndexSpace tis) {
@@ -446,6 +519,28 @@ void test_group_write_one_failure(ExecutionContext& ec, TiledIndexSpace tis) {
   on_rank0(ec, [&] { fs::remove_all(files[1] + ".tmp"); });
 }
 
+// Reading a tensor file into a tensor with a different tiling is fatal and reports what differs.
+// tamm_terminate ends the program, so this must be the last test.
+void test_read_mismatch_fatal(ExecutionContext& ec, TiledIndexSpace tis) {
+  const std::string f = io_dir + "tensor_d.h5";
+
+  Tensor<T> t{tis, tis};
+  Scheduler{ec}.allocate(t).execute();
+  random_ip(t, 500u);
+  step(ec, "writing tensor D to " + f);
+  write_to_disk(t, f);
+
+  const Tile      n = tis.index_space().num_indices();
+  TiledIndexSpace other{tis.index_space(), std::vector<Tile>{n / 2, n - n / 2}};
+  Tensor<T>       u{other, other};
+  Scheduler{ec}.allocate(u).execute();
+  step(ec, "reading " + f + " into a tensor with tiles " + std::to_string(n / 2) + "," +
+             std::to_string(n - n / 2) + " (expected to be fatal: tiling differs)");
+  read_from_disk(u, f);
+
+  if(ec.print()) std::cout << "FAILED: the read did not terminate" << std::endl;
+}
+
 // A group read with unreadable tensor files is fatal and reports all of them together.
 // tamm_terminate ends the program, so this must be the last test; ctest checks the message
 // (PASS_REGULAR_EXPRESSION in test_tamm.cmake).
@@ -472,8 +567,11 @@ void test_group_read_fatal(ExecutionContext& ec, TiledIndexSpace tis) {
 }
 
 int main(int argc, char* argv[]) {
+  // argv[1]: N for the 3D tensor (NxNx12N) written to disk first.
+  // argv[2]: optional dimension length for all remaining tests (default 100).
   if(argc < 2) {
-    std::cout << "Please provide a dimension size!\n";
+    std::cout << "Usage: Test_IO <N for the NxNx12N tensor> [dimension length for the tests "
+                 "(default 100)]\n";
     return 0;
   }
 
@@ -487,23 +585,28 @@ int main(int argc, char* argv[]) {
 
   if(ec.pg().rank() == 0) fs::create_directories(io_dir);
   ec.pg().barrier();
-  Tile nbf = atoi(argv[1]);
-  Tile ts_ = std::max(30, (int) (nbf * 0.05));
+  Tile io_dim1 = atoi(argv[1]); // N of the NxNx12N tensor
+  Tile io_dim2 = argc > 2 ? atoi(argv[2]) : 100;
 
-  // auto [TIS, TIS_I, total_orbitals] = setupTIS(nbf, ts_);
+  // Tiles of a dimension of length n: tiles of max(30, 5% of n) plus the remainder.
+  auto make_tiles = [](Tile n) {
+    const Tile        ts = std::max(30, (int) (n * 0.05));
+    std::vector<Tile> tiles(n / ts, ts);
+    if(n % ts > 0) tiles.push_back(n % ts);
+    return tiles;
+  };
+
+  // Tile ts_ = std::max(30, (int) (io_dim1 * 0.05));
+  //  auto [TIS, TIS_I, total_orbitals] = setupTIS(io_dim1, ts_);
 
   // test_io_2d<T>(sch, TIS, TIS_I);
   // test_io_3d<T>(sch, TIS, TIS_I);
   // test_io_4d<T>(sch, TIS, TIS_I);
 
-  std::vector<Tile> gc_tiles;
-  Tile              est_nt    = nbf / ts_;
-  Tile              last_tile = nbf % ts_;
-  for(tamm::Tile x = 0; x < est_nt; x++) gc_tiles.push_back(ts_);
-  if(last_tile > 0) gc_tiles.push_back(last_tile);
+  std::vector<Tile> gc_tiles = make_tiles(io_dim1);
 
-  TiledIndexSpace tc_ij{IndexSpace{range(nbf)}, gc_tiles};
-  TiledIndexSpace tci{IndexSpace{range(12 * nbf)}, 12 * nbf};
+  TiledIndexSpace tc_ij{IndexSpace{range(io_dim1)}, gc_tiles};
+  TiledIndexSpace tci{IndexSpace{range(12 * io_dim1)}, 12 * io_dim1};
   Tensor<double>  gc{tc_ij, tc_ij, tci};
   gc.set_dense();
   io_stats(ec_dense, gc);
@@ -514,12 +617,16 @@ int main(int argc, char* argv[]) {
 
   sch.deallocate(gc).execute();
 
-  TiledIndexSpace tis_io{IndexSpace{range(nbf)}, gc_tiles};
-  bool            all_passed = true;
+  TiledIndexSpace tis_io{IndexSpace{range(io_dim2)}, make_tiles(io_dim2)};
+  if(ec.print())
+    std::cout << "Remaining tests use tensors of dimension length " << io_dim2 << std::endl;
+  bool all_passed = true;
   all_passed &= run_test(ec, "Write and read back a tensor file; no staging (.tmp) file is left",
                          [&] { test_commit(ec, tis_io); });
   all_passed &= run_test(ec, "Write over a staging (.tmp) file left behind by a killed job",
                          [&] { test_stale_staging_file(ec, tis_io); });
+  all_passed &= run_test(ec, "A tensor file stores its tensor description and a read checks it",
+                         [&] { test_tensor_description(ec, tis_io); });
   all_passed &= run_test(ec,
                          "A failed write is not fatal and never replaces an existing tensor file",
                          [&] { test_failed_write_keeps_previous(ec, tis_io); });
@@ -529,6 +636,8 @@ int main(int argc, char* argv[]) {
   // last: terminates the program
   // run_test(ec, "A group read with unreadable tensor files is fatal and lists all of them",
   //          [&] { test_group_read_fatal(ec, tis_io); });
+  // run_test(ec, "Reading into a tensor with a different tiling is fatal and says what differs",
+  //          [&] { test_read_mismatch_fatal(ec, tis_io); });
 
   tamm::finalize();
 

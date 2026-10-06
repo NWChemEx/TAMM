@@ -1,4 +1,6 @@
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <tamm/tamm.hpp>
 
 using namespace tamm;
@@ -226,6 +228,249 @@ void test_io_4d(Scheduler& sch, TiledIndexSpace tis, TiledIndexSpace tis_i) {
   sch.deallocate(t_ovvv).execute();
 }
 
+namespace fs = std::filesystem;
+
+// All files written by this test go into this directory.
+const std::string io_dir = "test_io/";
+
+// Rank 0 performs a filesystem action; all ranks wait for it.
+template<typename Func>
+void on_rank0(ExecutionContext& ec, Func&& func) {
+  if(ec.pg().rank() == 0) func();
+  ec.pg().barrier();
+}
+
+// Prints what the test is about to do, so its output (including expected warnings) can be
+// followed.
+void step(ExecutionContext& ec, const std::string& what) {
+  ec.pg().barrier();
+  if(ec.print()) std::cout << "  - " << what << std::endl;
+}
+
+// A failed check is recorded rather than thrown, so all ranks stay in step through the test's
+// collective calls and the test reports [FAILED] instead of aborting the program.
+bool test_failed = false;
+
+#define IO_CHECK(cond)                                                                   \
+  do {                                                                                   \
+    if(!(cond)) {                                                                        \
+      test_failed = true;                                                                \
+      std::cerr << __FILE__ << ":" << __LINE__ << ": check failed: " #cond << std::endl; \
+    }                                                                                    \
+  } while(0)
+
+// Runs one test: a dashed line, the test's own output (including expected warnings), then
+// [PASSED] or [FAILED] with its description. Returns whether it passed on all ranks.
+template<typename Func>
+bool run_test(ExecutionContext& ec, const std::string& description, Func&& test) {
+  if(ec.print()) std::cout << std::string(80, '-') << std::endl;
+  ec.pg().barrier();
+
+  test_failed = false;
+  test();
+
+  const int failed     = test_failed ? 1 : 0;
+  const int any_failed = ec.pg().allreduce(&failed, ReduceOp::max);
+  if(ec.print()) std::cout << (any_failed ? "[FAILED] " : "[PASSED] ") << description << std::endl;
+  return !any_failed;
+}
+
+// A copy of t to compare against later. (hash_tensor only covers the blocks a rank picks up
+// through dynamic load balancing, so its value is not comparable across calls.)
+Tensor<T> snapshot(ExecutionContext& ec, Tensor<T> t) {
+  Tensor<T> ref{t.tiled_index_spaces()};
+  Scheduler{ec}.allocate(ref)(ref() = t()).execute();
+  return ref;
+}
+
+bool same_values(ExecutionContext& ec, Tensor<T> t, Tensor<T> ref) {
+  Tensor<T> diff{t.tiled_index_spaces()};
+  Scheduler{ec}.allocate(diff)(diff() = t())(diff() -= ref()).execute();
+  const T diff_norm = norm(diff);
+  Scheduler{ec}.deallocate(diff).execute();
+  return diff_norm == T{0};
+}
+
+// A completed write is committed: the tensor file exists, its staging file does not, and it
+// reads back what was written.
+void test_commit(ExecutionContext& ec, TiledIndexSpace tis) {
+  const std::string f = io_dir + "tensor_a.h5";
+  on_rank0(ec, [&] { fs::remove(f); });
+
+  Tensor<T> t{tis, tis};
+  Scheduler{ec}.allocate(t).execute();
+  random_ip(t, 101u);
+  Tensor<T> written = snapshot(ec, t);
+
+  step(ec, "writing tensor A to " + f);
+  write_to_disk(t, f);
+  step(ec, "checking " + f + " exists and " + f + ".tmp does not");
+  on_rank0(ec, [&] {
+    IO_CHECK(fs::exists(f));
+    IO_CHECK(!fs::exists(f + ".tmp"));
+  });
+
+  step(ec, "zeroing tensor A, reading it back from " + f + " and comparing with what was written");
+  Scheduler{ec}(t() = T{0}).execute();
+  read_from_disk(t, f);
+  IO_CHECK(same_values(ec, t, written));
+
+  Scheduler{ec}.deallocate(t, written).execute();
+  on_rank0(ec, [&] { fs::remove(f); });
+}
+
+// A staging file left behind by a killed job is overwritten by the next write.
+void test_stale_staging_file(ExecutionContext& ec, TiledIndexSpace tis) {
+  const std::string f = io_dir + "tensor_b.h5";
+  step(ec, "creating a stale " + f + ".tmp, as a job killed while writing would leave");
+  on_rank0(ec, [&] {
+    fs::remove(f);
+    std::ofstream(f + ".tmp") << "partial file left by a killed job";
+  });
+
+  Tensor<T> t{tis, tis};
+  Scheduler{ec}.allocate(t).execute();
+  random_ip(t, 102u);
+  Tensor<T> written = snapshot(ec, t);
+
+  step(ec, "writing tensor B to " + f);
+  write_to_disk(t, f);
+  step(ec, "checking " + f + ".tmp is gone");
+  on_rank0(ec, [&] { IO_CHECK(!fs::exists(f + ".tmp")); });
+
+  step(ec, "zeroing tensor B, reading it back from " + f + " and comparing with what was written");
+  Scheduler{ec}(t() = T{0}).execute();
+  read_from_disk(t, f);
+  IO_CHECK(same_values(ec, t, written));
+
+  Scheduler{ec}.deallocate(t, written).execute();
+  on_rank0(ec, [&] { fs::remove(f); });
+}
+
+// A failed write is not fatal and keeps the previous tensor file. The failure is forced by a
+// directory occupying the staging file's name, which makes H5Fcreate fail.
+void test_failed_write_keeps_previous(ExecutionContext& ec, TiledIndexSpace tis) {
+  const std::string f = io_dir + "tensor_c.h5";
+  on_rank0(ec, [&] {
+    fs::remove(f);
+    fs::remove_all(f + ".tmp");
+  });
+
+  Tensor<T> t{tis, tis};
+  Scheduler{ec}.allocate(t).execute();
+
+  step(ec, "[1] no " + f + " yet; creating directory " + f + ".tmp so the next write fails");
+  on_rank0(ec, [&] { fs::create_directory(f + ".tmp"); });
+  random_ip(t, 105u);
+  step(ec, "[1] writing tensor C to " + f + " (expected to fail with a warning)");
+  write_to_disk(t, f);
+  step(ec, "[1] checking no " + f + " was created; removing directory " + f + ".tmp");
+  on_rank0(ec, [&] {
+    IO_CHECK(!fs::exists(f));
+    fs::remove_all(f + ".tmp");
+  });
+
+  random_ip(t, 103u);
+  Tensor<T> previous = snapshot(ec, t);
+  step(ec, "[2] writing tensor C (version 1) to " + f + " (expected to succeed)");
+  write_to_disk(t, f);
+
+  step(ec, "[2] creating directory " + f + ".tmp so the next write fails");
+  on_rank0(ec, [&] { fs::create_directory(f + ".tmp"); });
+  random_ip(t, 104u);
+  step(ec, "[2] writing tensor C (version 2) to " + f + " (expected to fail with a warning)");
+  write_to_disk(t, f);
+
+  step(ec, "[2] reading " + f + " back and checking it still holds version 1");
+  Scheduler{ec}(t() = T{0}).execute();
+  read_from_disk(t, f);
+  IO_CHECK(same_values(ec, t, previous));
+
+  Scheduler{ec}.deallocate(t, previous).execute();
+  on_rank0(ec, [&] {
+    fs::remove(f);
+    fs::remove_all(f + ".tmp");
+  });
+}
+
+// A group write is committed all-or-nothing: if one tensor file fails, none is committed and
+// every tensor file keeps its previous version. The tensor files are left on disk afterwards.
+void test_group_write_one_failure(ExecutionContext& ec, TiledIndexSpace tis) {
+  const std::vector<std::string> files{io_dir + "group_tensor_0.h5", io_dir + "group_tensor_1.h5",
+                                       io_dir + "group_tensor_2.h5"};
+  const size_t                   nt = files.size();
+  on_rank0(ec, [&] {
+    for(const auto& f: files) {
+      fs::remove(f);
+      fs::remove_all(f + ".tmp");
+    }
+  });
+
+  std::vector<Tensor<T>> ts(nt);
+  for(auto& t: ts) {
+    t = Tensor<T>{tis, tis};
+    Scheduler{ec}.allocate(t).execute();
+  }
+
+  std::vector<Tensor<T>> previous(nt);
+  for(size_t i = 0; i < nt; i++) {
+    random_ip(ts[i], 200u + i);
+    previous[i] = snapshot(ec, ts[i]);
+  }
+  step(ec, "writing tensors G0, G1, G2 (version 1) as a group to " + io_dir +
+             "group_tensor_{0,1,2}.h5 "
+             "(expected to succeed)");
+  write_to_disk_group(ec, ts, files);
+
+  step(ec, "creating directory " + files[1] + ".tmp so writing G1 fails");
+  on_rank0(ec, [&] { fs::create_directory(files[1] + ".tmp"); });
+  for(size_t i = 0; i < nt; i++) random_ip(ts[i], 300u + i);
+  step(ec, "writing tensors G0, G1, G2 (version 2) as a group (expected to fail with a warning; "
+           "G0 and G2 write fine but must not be committed)");
+  write_to_disk_group(ec, ts, files);
+
+  step(ec, "checking the staging files of G0 and G2 were removed");
+  on_rank0(ec, [&] {
+    IO_CHECK(!fs::exists(files[0] + ".tmp"));
+    IO_CHECK(!fs::exists(files[2] + ".tmp"));
+  });
+
+  step(ec, "reading the group back and checking all three tensors still hold version 1");
+  for(auto& t: ts) Scheduler{ec}(t() = T{0}).execute();
+  read_from_disk_group(ec, ts, files);
+  for(size_t i = 0; i < nt; i++) IO_CHECK(same_values(ec, ts[i], previous[i]));
+
+  for(size_t i = 0; i < nt; i++) Scheduler{ec}.deallocate(ts[i], previous[i]).execute();
+  step(ec, "removing directory " + files[1] + ".tmp; " + io_dir +
+             "group_tensor_{0,1,2}.h5 are left on disk");
+  on_rank0(ec, [&] { fs::remove_all(files[1] + ".tmp"); });
+}
+
+// A group read with unreadable tensor files is fatal and reports all of them together.
+// tamm_terminate ends the program, so this must be the last test; ctest checks the message
+// (PASS_REGULAR_EXPRESSION in test_tamm.cmake).
+void test_group_read_fatal(ExecutionContext& ec, TiledIndexSpace tis) {
+  const std::vector<std::string> files{io_dir + "read_tensor_0.h5", io_dir + "read_tensor_1.h5",
+                                       io_dir + "read_tensor_2.h5", io_dir + "read_tensor_3.h5"};
+  std::vector<Tensor<T>>         ts(files.size());
+  for(auto& t: ts) {
+    t = Tensor<T>{tis, tis};
+    Scheduler{ec}.allocate(t).execute();
+    random_ip(t, 400u);
+  }
+  write_to_disk_group(ec, ts, files);
+
+  on_rank0(ec, [&] {
+    std::ofstream(files[1], std::ios::trunc) << "not an HDF5 file"; // garbage
+    fs::resize_file(files[3], fs::file_size(files[3]) / 2);         // truncated
+  });
+
+  if(ec.print()) std::cout << "expecting a fatal read error" << std::endl;
+  read_from_disk_group(ec, ts, files);
+
+  if(ec.print()) std::cout << "FAILED: the read did not terminate" << std::endl;
+}
+
 int main(int argc, char* argv[]) {
   if(argc < 2) {
     std::cout << "Please provide a dimension size!\n";
@@ -239,8 +484,11 @@ int main(int argc, char* argv[]) {
   ExecutionContext ec_dense{ec.pg(), DistributionKind::dense, MemoryManagerKind::ga};
 
   Scheduler sch{ec_dense};
-  Tile      nbf = atoi(argv[1]);
-  Tile      ts_ = std::max(30, (int) (nbf * 0.05));
+
+  if(ec.pg().rank() == 0) fs::create_directories(io_dir);
+  ec.pg().barrier();
+  Tile nbf = atoi(argv[1]);
+  Tile ts_ = std::max(30, (int) (nbf * 0.05));
 
   // auto [TIS, TIS_I, total_orbitals] = setupTIS(nbf, ts_);
 
@@ -262,11 +510,27 @@ int main(int argc, char* argv[]) {
 
   sch.allocate(gc).execute();
   if(ec.print()) std::cout << "Writing a 3D tensor of size (NxNx12N) to disk ... " << std::endl;
-  write_to_disk(gc, "tensor3d", true, true);
+  write_to_disk(gc, io_dir + "tensor3d.h5", true, true);
 
   sch.deallocate(gc).execute();
 
+  TiledIndexSpace tis_io{IndexSpace{range(nbf)}, gc_tiles};
+  bool            all_passed = true;
+  all_passed &= run_test(ec, "Write and read back a tensor file; no staging (.tmp) file is left",
+                         [&] { test_commit(ec, tis_io); });
+  all_passed &= run_test(ec, "Write over a staging (.tmp) file left behind by a killed job",
+                         [&] { test_stale_staging_file(ec, tis_io); });
+  all_passed &= run_test(ec,
+                         "A failed write is not fatal and never replaces an existing tensor file",
+                         [&] { test_failed_write_keeps_previous(ec, tis_io); });
+  all_passed &= run_test(ec,
+                         "A group write where one tensor fails commits none of the tensor files",
+                         [&] { test_group_write_one_failure(ec, tis_io); });
+  // last: terminates the program
+  // run_test(ec, "A group read with unreadable tensor files is fatal and lists all of them",
+  //          [&] { test_group_read_fatal(ec, tis_io); });
+
   tamm::finalize();
 
-  return 0;
+  return all_passed ? 0 : 1;
 }

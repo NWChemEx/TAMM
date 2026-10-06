@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <random>
 #include <type_traits>
@@ -217,6 +218,115 @@ hid_t get_hdf5_dt() {
     return complex_id;
   }
 }
+
+namespace internal {
+
+/// A tensor file is written into this staging file and then committed (renamed) to its final
+/// name, so a tensor file at its final name is always complete.
+inline std::string staging_filename(const std::string& filename) { return filename + ".tmp"; }
+
+/// Turns off HDF5's automatic error-stack printing for its lifetime; failures are detected and
+/// reported through H5Check instead.
+class H5ErrorSilencer {
+public:
+  H5ErrorSilencer() {
+    H5Eget_auto2(H5E_DEFAULT, &func_, &data_);
+    H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+  }
+  ~H5ErrorSilencer() { H5Eset_auto2(H5E_DEFAULT, func_, data_); }
+
+private:
+  H5E_auto2_t func_ = nullptr;
+  void*       data_ = nullptr;
+};
+
+/// The description of the innermost entry of the current HDF5 error stack, i.e. where the error
+/// originated, e.g. "MPI_File_open failed: MPI error string is 'MPI_ERR_BAD_FILE: bad file'".
+inline std::string h5_error_cause() {
+  std::string cause;
+  H5Ewalk2(
+    H5E_DEFAULT, H5E_WALK_UPWARD,
+    [](unsigned n, const H5E_error2_t* err, void* data) -> herr_t {
+      if(n == 0 && err->desc) *static_cast<std::string*>(data) = err->desc;
+      return 1; // innermost entry only
+    },
+    &cause);
+  return cause;
+}
+
+/// Records whether any HDF5 call on this rank failed while accessing one tensor file. The first
+/// failure is reported (when verbose) with the file, the failing call and its cause.
+/// A collective call fails on every rank of the group accessing the file, so its failure is
+/// reported only by that group's root.
+struct H5Check {
+  std::string filename;
+  bool        verbose;
+  bool        is_root; // root of the group accessing the file
+  bool        failed = false;
+
+  template<typename R>
+  R operator()(R ret, const char* call, bool collective = true) {
+    if(ret < 0 && !failed) {
+      failed = true;
+      if(verbose && (is_root || !collective)) {
+        std::cerr << "[TAMM WARNING] " << call << " failed for " << filename << ": "
+                  << h5_error_cause() << std::endl;
+      }
+    }
+    return ret;
+  }
+};
+
+/// Commits a fully written staging file by renaming it over its tensor file, or (when commit is
+/// false) discards it so the previous tensor file is kept. Returns whether the tensor file was
+/// replaced. A failed rename is reported but never fatal.
+inline bool finish_staging_file(const std::string& filename, bool commit) {
+  namespace fs              = std::filesystem;
+  const std::string staging = staging_filename(filename);
+  std::error_code   ec;
+  if(commit) {
+    fs::rename(staging, filename, ec);
+    if(!ec) return true;
+    std::cerr << "[TAMM WARNING] rename " << staging << " -> " << filename
+              << " failed: " << ec.message() << std::endl;
+  }
+  if(fs::is_regular_file(staging, ec)) fs::remove(staging, ec);
+  return false;
+}
+
+/// Formats a titled list of files, one file per line; empty if there are no files.
+inline std::string file_list(const std::string& title, const std::vector<std::string>& files) {
+  if(files.empty()) return "";
+  std::string list = "\n  " + title + ":";
+  for(const auto& f: files) list += "\n    " + f;
+  return list;
+}
+
+/// Describes what an uncommitted group write left in place: which tensor files still hold their
+/// previous version, and which never had one.
+inline std::string kept_versions(const std::vector<std::string>& filenames) {
+  std::vector<std::string> kept, none;
+  for(const auto& f: filenames) (std::filesystem::exists(f) ? kept : none).push_back(f);
+  return file_list("previous version kept", kept) + file_list("no previous version", none);
+}
+
+/// Commits the staging file of a tensor file written collectively on pg. The ranks agree on
+/// whether all of them wrote their part; if so, the pg root renames the staging file over the
+/// tensor file, otherwise it removes the staging file and the previous tensor file is kept.
+/// A failed commit is reported but never fatal.
+inline void commit_staging_file(ProcGroup pg, bool local_failed, const std::string& filename) {
+  const int failed     = local_failed ? 1 : 0;
+  const int any_failed = pg.allreduce(&failed, ReduceOp::max);
+  if(pg.rank() != 0) return;
+
+  if(!finish_staging_file(filename, !any_failed))
+    std::cerr << "[TAMM WARNING] write_to_disk: " << filename << " not committed; "
+              << (std::filesystem::exists(filename) ? "previous version kept"
+                                                    : "no previous version exists")
+              << std::endl;
+}
+
+} // namespace internal
 #endif
 
 /**
@@ -281,6 +391,10 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
     auto          ltensor = tensor();
     LabelLoopNest loop_nest{ltensor.labels()};
 
+    internal::H5ErrorSilencer h5_silencer;
+    internal::H5Check         h5{filename, true, ec.pg().rank() == 0};
+    const std::string         staging = internal::staging_filename(filename);
+
     int ierr;
     // MPI_File fh;
     MPI_Info info;
@@ -301,8 +415,9 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
     // ierr = MPI_Info_set(info, "cb_buffer_size", "4194304");
 
     /* tell the HDF5 library that we want to use MPI-IO to do the writing */
-    ierr                 = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
-    auto file_identifier = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, acc_template);
+    ierr = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
+    auto file_identifier =
+      h5(H5Fcreate(staging.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, acc_template), "H5Fcreate");
 
     /* release the file access template */
     ierr = H5Pclose(acc_template);
@@ -312,8 +427,9 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
     hsize_t dimens_1d   = tensor_size;
     auto    dataspace   = H5Screate_simple(tensor_rank, &dimens_1d, NULL);
     /* create a dataset collectively */
-    auto dataset = H5Dcreate(file_identifier, "tensor", hdf5_dt, dataspace, H5P_DEFAULT,
-                             H5P_DEFAULT, H5P_DEFAULT);
+    auto dataset = h5(H5Dcreate(file_identifier, "tensor", hdf5_dt, dataspace, H5P_DEFAULT,
+                                H5P_DEFAULT, H5P_DEFAULT),
+                      "H5Dcreate");
     /* create a file dataspace independently */
     auto file_dataspace = H5Dget_space(dataset);
 
@@ -334,6 +450,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
       auto lambda = [&](const IndexVector& bid) {
         const IndexVector blockid = internal::translate_blockid(bid, ltensor);
 
+        if(h5.failed) return;
         file_offset = 0;
         for(const IndexVector& pbid: loop_nest) {
           bool is_zero = !tensor.is_non_zero(pbid);
@@ -361,7 +478,8 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
         auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
 
         // /* write data independently */
-        ret = H5Dwrite(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, dbuf.data());
+        ret = h5(H5Dwrite(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, dbuf.data()),
+                 "H5Dwrite", false);
 
         H5Sclose(mem_dataspace);
       };
@@ -373,6 +491,7 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
       auto ga_write_lambda = [&](const IndexVector& bid) {
         const IndexVector blockid = internal::translate_blockid(bid, ltensor);
 
+        if(h5.failed) return;
         file_offset = 0;
         for(const IndexVector& pbid: loop_nest) {
           bool is_zero = !tensor.is_non_zero(pbid);
@@ -411,7 +530,8 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
         auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
 
         // /* write data independently */
-        ret = H5Dwrite(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, sbuf.data());
+        ret = h5(H5Dwrite(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, sbuf.data()),
+                 "H5Dwrite", false);
 
         H5Sclose(mem_dataspace);
       };
@@ -425,7 +545,9 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
 
     H5Dclose(dataset);
     H5Sclose(dataspace);
-    H5Fclose(file_identifier);
+    h5(H5Fclose(file_identifier), "H5Fclose");
+
+    internal::commit_staging_file(ec.pg(), h5.failed, filename);
 
 #ifdef TU_SG_IO
     ec.flush_and_sync();
@@ -509,6 +631,11 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
   int64_t next      = -1;
   // int total_pi_pg = 0;
 
+  // The group is committed all-or-nothing: per tensor file, whether any rank failed writing it,
+  // and whether this rank is the root of the subgroup that wrote it (and so commits it).
+  std::vector<int>  write_failed(tensors.size(), 0);
+  std::vector<bool> commits_here(tensors.size(), false);
+
   if(io_comm != MPI_COMM_NULL) {
     ProcGroup        pg = ProcGroup::create_coll(io_comm);
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
@@ -542,6 +669,10 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
         auto    ltensor     = tensor();
         LabelLoopNest loop_nest{ltensor.labels()};
 
+        internal::H5ErrorSilencer h5_silencer;
+        internal::H5Check         h5{filename, true, root_ppi == 0};
+        const std::string         staging = internal::staging_filename(filename);
+
         int ierr;
         // MPI_File fh;
         MPI_Info info;
@@ -564,7 +695,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
         /* tell the HDF5 library that we want to use MPI-IO to do the writing */
         ierr = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
         auto file_identifier =
-          H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, acc_template);
+          h5(H5Fcreate(staging.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, acc_template), "H5Fcreate");
 
         /* release the file access template */
         ierr = H5Pclose(acc_template);
@@ -574,8 +705,9 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
         hsize_t dimens_1d   = tensor_size;
         auto    dataspace   = H5Screate_simple(tensor_rank, &dimens_1d, NULL);
         /* create a dataset collectively */
-        auto dataset = H5Dcreate(file_identifier, "tensor", hdf5_dt, dataspace, H5P_DEFAULT,
-                                 H5P_DEFAULT, H5P_DEFAULT);
+        auto dataset = h5(H5Dcreate(file_identifier, "tensor", hdf5_dt, dataspace, H5P_DEFAULT,
+                                    H5P_DEFAULT, H5P_DEFAULT),
+                          "H5Dcreate");
         /* create a file dataspace independently */
         auto file_dataspace = H5Dget_space(dataset);
 
@@ -596,6 +728,7 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
         auto lambda = [&](const IndexVector& bid) {
           const IndexVector blockid = internal::translate_blockid(bid, ltensor);
 
+          if(h5.failed) return;
           file_offset = 0;
           for(const IndexVector& pbid: loop_nest) {
             bool is_zero = !tensor.is_non_zero(pbid);
@@ -619,7 +752,9 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
           auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
 
           // /* write data independently */
-          ret = H5Dwrite(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, dbuf.data());
+          ret =
+            h5(H5Dwrite(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, dbuf.data()),
+               "H5Dwrite", false);
 
           H5Sclose(mem_dataspace);
         };
@@ -632,7 +767,10 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
 
         H5Dclose(dataset);
         H5Sclose(dataspace);
-        H5Fclose(file_identifier);
+        h5(H5Fclose(file_identifier), "H5Fclose");
+
+        if(h5.failed) write_failed[i] = 1;
+        if(root_ppi == 0) commits_here[i] = true;
 
         auto io_t2 = std::chrono::high_resolution_clock::now();
 
@@ -660,6 +798,24 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
 
   ac->deallocate();
   delete ac;
+
+  // All ranks agree on which tensor files failed. Only if none did is the group committed, so
+  // the tensor files of a group always come from the same write_to_disk_group call.
+  std::vector<int> any_write_failed(tensors.size(), 0);
+  gec.pg().allreduce(write_failed.data(), any_write_failed.data(),
+                     static_cast<int>(write_failed.size()), ReduceOp::max);
+  std::vector<std::string> failed_files;
+  for(size_t i = 0; i < tensors.size(); i++) {
+    if(any_write_failed[i]) failed_files.push_back(filenames[i]);
+  }
+  const bool commit = failed_files.empty();
+  for(size_t i = 0; i < tensors.size(); i++) {
+    if(commits_here[i]) internal::finish_staging_file(filenames[i], commit);
+  }
+  if(!commit && world_rank == 0)
+    std::cerr << "[TAMM WARNING] write_to_disk_group: no tensor file in the group was committed"
+              << internal::file_list("failed to write", failed_files)
+              << internal::kept_versions(filenames) << std::endl;
   gec.pg().barrier();
 
   auto io_t2 = std::chrono::high_resolution_clock::now();
@@ -775,6 +931,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
   hid_t hdf5_dt = get_hdf5_dt<TensorType>();
 
   auto tensor_back = tensor;
+  int  read_failed = 0;
 
 #ifdef TU_SG_IO
   if(io_comm != MPI_COMM_NULL) {
@@ -788,6 +945,9 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
 
     auto          ltensor = tensor();
     LabelLoopNest loop_nest{ltensor.labels()};
+
+    internal::H5ErrorSilencer h5_silencer;
+    internal::H5Check         h5{filename, false, ec.pg().rank() == 0};
 
     int ierr;
     // MPI_File fh;
@@ -807,7 +967,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
 
     /* tell the HDF5 library that we want to use MPI-IO to do the reading */
     ierr                 = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
-    auto file_identifier = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, acc_template);
+    auto file_identifier = h5(H5Fopen(filename.c_str(), H5F_ACC_RDONLY, acc_template), "H5Fopen");
 
     /* release the file access template */
     ierr = H5Pclose(acc_template);
@@ -816,7 +976,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
     int tensor_rank = 1;
     // hsize_t dimens_1d = tensor_size;
     /* create a dataset collectively */
-    auto dataset = H5Dopen(file_identifier, "tensor", H5P_DEFAULT);
+    auto dataset = h5(H5Dopen(file_identifier, "tensor", H5P_DEFAULT), "H5Dopen");
     /* create a file dataspace independently */
     auto file_dataspace = H5Dget_space(dataset);
 
@@ -835,6 +995,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
       auto lambda = [&](const IndexVector& bid) {
         const IndexVector blockid = internal::translate_blockid(bid, ltensor);
 
+        if(h5.failed) return;
         file_offset = 0;
         for(const IndexVector& pbid: loop_nest) {
           bool is_zero = !tensor.is_non_zero(pbid);
@@ -865,9 +1026,10 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
         //                 static_cast<int>(dsize),mpi_type<TensorType>(),&status);
 
         // /* read data independently */
-        ret = H5Dread(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, dbuf.data());
+        ret = h5(H5Dread(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, dbuf.data()),
+                 "H5Dread", false);
 
-        tensor.put(blockid, dbuf);
+        if(ret >= 0) tensor.put(blockid, dbuf);
 
         H5Sclose(mem_dataspace);
       };
@@ -878,6 +1040,7 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
       auto ga_read_lambda = [&](const IndexVector& bid) {
         const IndexVector blockid = internal::translate_blockid(bid, tensor());
 
+        if(h5.failed) return;
         file_offset = 0;
         for(const IndexVector& pbid: loop_nest) {
           bool is_zero = !tensor.is_non_zero(pbid);
@@ -919,9 +1082,10 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
         //                 static_cast<int>(dsize),mpi_type<TensorType>(),&status);
 
         // /* read data independently */
-        ret = H5Dread(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, sbuf.data());
+        ret = h5(H5Dread(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, sbuf.data()),
+                 "H5Dread", false);
 
-        NGA_Put64(ga_tens, &lo[0], &hi[0], &sbuf[0], &ld[0]);
+        if(ret >= 0) NGA_Put64(ga_tens, &lo[0], &hi[0], &sbuf[0], &ld[0]);
       };
 
       block_for(ec, tensor(), ga_read_lambda);
@@ -932,7 +1096,8 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
     H5Pclose(xfer_plist);
 
     H5Dclose(dataset);
-    H5Fclose(file_identifier);
+    h5(H5Fclose(file_identifier), "H5Fclose");
+    read_failed = h5.failed ? 1 : 0;
 
 #ifdef TU_SG_IO
     ec.flush_and_sync();
@@ -945,7 +1110,9 @@ void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool
 
   tensor = tensor_back;
 
-  gec.pg().barrier();
+  // All ranks agree on the outcome (this also replaces the barrier); a failed read is fatal.
+  const int any_read_failed = gec.pg().allreduce(&read_failed, ReduceOp::max);
+  if(any_read_failed) tamm_terminate("read_from_disk: failed to read tensor file: " + filename);
 
   if(!tammio) {
     ga_to_tamm(gec, tensor, ga_tens);
@@ -1024,6 +1191,8 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
   int64_t next      = -1;
   // int total_pi_pg = 0;
 
+  std::vector<int> read_failed(tensors.size(), 0);
+
   if(io_comm != MPI_COMM_NULL) {
     ProcGroup        pg = ProcGroup::create_coll(io_comm);
     ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
@@ -1052,6 +1221,9 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
         auto          ltensor = tensor();
         LabelLoopNest loop_nest{ltensor.labels()};
 
+        internal::H5ErrorSilencer h5_silencer;
+        internal::H5Check         h5{filename, false, root_ppi == 0};
+
         int ierr;
         // MPI_File fh;
         MPI_Info info;
@@ -1069,8 +1241,9 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
         auto acc_template = H5Pcreate(H5P_FILE_ACCESS);
 
         /* tell the HDF5 library that we want to use MPI-IO to do the reading */
-        ierr                 = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
-        auto file_identifier = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, acc_template);
+        ierr = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
+        auto file_identifier =
+          h5(H5Fopen(filename.c_str(), H5F_ACC_RDONLY, acc_template), "H5Fopen");
 
         /* release the file access template */
         ierr = H5Pclose(acc_template);
@@ -1079,7 +1252,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
         int tensor_rank = 1;
         // hsize_t dimens_1d = tensor_size;
         /* create a dataset collectively */
-        auto dataset = H5Dopen(file_identifier, "tensor", H5P_DEFAULT);
+        auto dataset = h5(H5Dopen(file_identifier, "tensor", H5P_DEFAULT), "H5Dopen");
         /* create a file dataspace independently */
         auto file_dataspace = H5Dget_space(dataset);
 
@@ -1097,6 +1270,7 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
         auto lambda = [&](const IndexVector& bid) {
           const IndexVector blockid = internal::translate_blockid(bid, ltensor);
 
+          if(h5.failed) return;
           file_offset = 0;
           for(const IndexVector& pbid: loop_nest) {
             bool is_zero = !tensor.is_non_zero(pbid);
@@ -1127,9 +1301,11 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
           //                 static_cast<int>(dsize),mpi_type<TensorType>(),&status);
 
           // /* read data independently */
-          ret = H5Dread(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, dbuf.data());
+          ret =
+            h5(H5Dread(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, dbuf.data()),
+               "H5Dread", false);
 
-          tensor.put(blockid, dbuf);
+          if(ret >= 0) tensor.put(blockid, dbuf);
 
           H5Sclose(mem_dataspace);
         };
@@ -1141,7 +1317,8 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
         H5Pclose(xfer_plist);
 
         H5Dclose(dataset);
-        H5Fclose(file_identifier);
+        h5(H5Fclose(file_identifier), "H5Fclose");
+        if(h5.failed) read_failed[i] = 1;
 
         // tensor = tensor_back;
 
@@ -1171,7 +1348,19 @@ void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>>
 
   ac->deallocate();
   delete ac;
-  gec.pg().barrier();
+
+  // All ranks agree on which tensor files failed (this also replaces the barrier); any failed
+  // read is fatal and every failed file is reported together.
+  std::vector<int> any_read_failed(tensors.size(), 0);
+  gec.pg().allreduce(read_failed.data(), any_read_failed.data(),
+                     static_cast<int>(read_failed.size()), ReduceOp::max);
+  std::vector<std::string> failed_files;
+  for(size_t i = 0; i < tensors.size(); i++) {
+    if(any_read_failed[i]) failed_files.push_back(filenames[i]);
+  }
+  if(!failed_files.empty())
+    tamm_terminate("read_from_disk_group: one or more tensor files could not be read" +
+                   internal::file_list("failed to read", failed_files) + "\n");
 
   auto io_t2 = std::chrono::high_resolution_clock::now();
 

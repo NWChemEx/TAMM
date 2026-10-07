@@ -561,13 +561,15 @@ void test_group_read_fatal(ExecutionContext& ec, TiledIndexSpace tis) {
 }
 
 int main(int argc, char* argv[]) {
-  // argv[1]: N for the 4D tensor (NxNxNxN) written to disk first.
+  // argv[1]: N for the 2D tensor (100N x 100N) and the 4D tensor (NxNxNxN) written to disk first.
   // argv[2]: optional tile size as a percentage of a dimension's length (default 5).
-  // argv[3]: optional; 0 runs only the 4D tensor write, any other value (default 1) also runs
+  // argv[3]: optional; 0 runs only the 2D and 4D tensor writes, any other value (default 1) also
+  // runs
   //          the remaining tests.
   if(argc < 2) {
-    std::cout << "Usage: Test_IO <N for the NxNxNxN tensor> [tile size as % of a dimension's "
-                 "length (default 5)] [0: only the 4D tensor write; 1: all tests (default 1)]\n";
+    std::cout << "Usage: Test_IO <N for the 100N x 100N and NxNxNxN tensors> [tile size as % of a "
+                 "dimension's length (default 5)] [0: only the 2D and 4D tensor writes; 1: all "
+                 "tests (default 1)]\n";
     return 0;
   }
 
@@ -593,6 +595,22 @@ int main(int argc, char* argv[]) {
     if(n % ts > 0) tiles.push_back(n % ts);
     return tiles;
   };
+
+  const Tile      dim_2d = 100 * io_dim1;
+  TiledIndexSpace tis_2d{IndexSpace{range(dim_2d)}, make_tiles(dim_2d)};
+  Tensor<double>  t2d{tis_2d, tis_2d};
+
+  sch.allocate(t2d).execute();
+  if(ec.print()) {
+    const size_t ntiles = tis_2d.num_tiles();
+    std::cout << std::string(80, '-') << std::endl;
+    std::cout << "Writing a 2D tensor of size (100N x 100N), N = " << io_dim1 << ", tile size "
+              << tis_2d.tile_size(0) << ", " << ntiles << " tiles per dimension, "
+              << ntiles * ntiles << " tiles in total, to disk ... " << std::endl;
+  }
+  write_to_disk(ec, t2d, io_dir + "tensor2d.h5", true);
+
+  sch.deallocate(t2d).execute();
 
   TiledIndexSpace tis_n{IndexSpace{range(io_dim1)}, make_tiles(io_dim1)};
   Tensor<double>  t4d{tis_n, tis_n, tis_n, tis_n};

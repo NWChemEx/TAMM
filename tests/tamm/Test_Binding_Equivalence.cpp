@@ -198,9 +198,9 @@ int main(int argc, char** argv) {
 
     ec.flush_and_sync();
 
-    write_to_disk<double>(C, prefix + "_sched_d", true, false, 0);
-    write_to_disk<double>(R, prefix + "_opmin_d", true, false, 0);
-    write_to_disk<std::complex<double>>(ZC, prefix + "_sched_z", true, false, 0);
+    write_to_disk<double>(ec, C, prefix + "_sched_d");
+    write_to_disk<double>(ec, R, prefix + "_opmin_d");
+    write_to_disk<std::complex<double>>(ec, ZC, prefix + "_sched_z");
 
     ec.flush_and_sync();
     pg.barrier();

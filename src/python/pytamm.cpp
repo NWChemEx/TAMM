@@ -1783,38 +1783,61 @@ void bind_tamm_utils_for_type(py::module_& m) {
   using PyTensorT  = PyTensor<T>;
   using PyLabeledT = PyLabeledTensor<T>;
 
+  // Tensor I/O: collective over ec, the process group doing the I/O. Each routine takes one
+  // tensor and file, or a list of tensors and a list of files (written or read all-or-nothing).
   m.def(
     "write_to_disk",
-    [](std::shared_ptr<PyTensorT> tensor, const std::string& filename, bool tammio, bool profile,
-       int nagg_hint) {
+    [](ExecutionContext& ec, std::shared_ptr<PyTensorT> tensor, const std::string& filename,
+       bool profile) {
       if(!tensor) throw py::value_error("write_to_disk: tensor must not be None");
       Tensor<T>              raw = raw_tensor(tensor);
       py::gil_scoped_release release;
-      tamm::write_to_disk<T>(raw, filename, tammio, profile, nagg_hint);
+      tamm::write_to_disk<T>(ec, raw, filename, profile);
     },
-    py::arg("tensor"), py::arg("filename"), py::arg("tammio") = true, py::arg("profile") = false,
-    py::arg("nagg_hint") = 0);
+    py::arg("ec"), py::arg("tensor"), py::arg("filename"), py::arg("profile") = false);
+
+  m.def(
+    "write_to_disk",
+    [](ExecutionContext& ec, const std::vector<std::shared_ptr<PyTensorT>>& tensors,
+       const std::vector<std::string>& filenames, bool profile) {
+      std::vector<Tensor<T>> raw;
+      for(const auto& t: tensors) {
+        if(!t) throw py::value_error("write_to_disk: tensors must not contain None");
+        raw.push_back(raw_tensor(t));
+      }
+      if(raw.size() != filenames.size())
+        throw py::value_error("write_to_disk: tensors and filenames differ in length");
+      py::gil_scoped_release release;
+      tamm::write_to_disk<T>(ec, raw, filenames, profile);
+    },
+    py::arg("ec"), py::arg("tensors"), py::arg("filenames"), py::arg("profile") = false);
 
   m.def(
     "read_from_disk",
-    [](std::shared_ptr<PyTensorT> tensor, const std::string& filename, bool tammio,
-       py::object wtensor_obj, bool profile, int nagg_hint) {
+    [](ExecutionContext& ec, std::shared_ptr<PyTensorT> tensor, const std::string& filename,
+       bool profile) {
       if(!tensor) throw py::value_error("read_from_disk: tensor must not be None");
-
-      Tensor<T> raw     = raw_tensor(tensor);
-      Tensor<T> wtensor = {};
-
-      if(!wtensor_obj.is_none()) {
-        auto wtensor_py = wtensor_obj.cast<std::shared_ptr<PyTensorT>>();
-        if(!wtensor_py) throw py::value_error("read_from_disk: wtensor must not be None");
-        wtensor = wtensor_py->raw();
-      }
-
+      Tensor<T>              raw = raw_tensor(tensor);
       py::gil_scoped_release release;
-      tamm::read_from_disk<T>(raw, filename, tammio, wtensor, profile, nagg_hint);
+      tamm::read_from_disk<T>(ec, raw, filename, profile);
     },
-    py::arg("tensor"), py::arg("filename"), py::arg("tammio") = true,
-    py::arg("wtensor") = py::none(), py::arg("profile") = false, py::arg("nagg_hint") = 0);
+    py::arg("ec"), py::arg("tensor"), py::arg("filename"), py::arg("profile") = false);
+
+  m.def(
+    "read_from_disk",
+    [](ExecutionContext& ec, const std::vector<std::shared_ptr<PyTensorT>>& tensors,
+       const std::vector<std::string>& filenames, bool profile) {
+      std::vector<Tensor<T>> raw;
+      for(const auto& t: tensors) {
+        if(!t) throw py::value_error("read_from_disk: tensors must not contain None");
+        raw.push_back(raw_tensor(t));
+      }
+      if(raw.size() != filenames.size())
+        throw py::value_error("read_from_disk: tensors and filenames differ in length");
+      py::gil_scoped_release release;
+      tamm::read_from_disk<T>(ec, raw, filenames, profile);
+    },
+    py::arg("ec"), py::arg("tensors"), py::arg("filenames"), py::arg("profile") = false);
 
   m.def(
     "get_scalar",

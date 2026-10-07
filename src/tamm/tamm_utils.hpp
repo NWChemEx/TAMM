@@ -3,7 +3,64 @@
 #include "tamm_io.hpp"
 #include "tamm_linalg.hpp"
 
+// linf_norm, apply_ewise_ip, sum and norm run on a subgroup of ranks sized by get_subgroup_info.
+#define TU_SG true
+
 namespace tamm {
+
+template<typename TensorType>
+std::tuple<int, int, int> get_agg_info(ExecutionContext& gec, const int nranks,
+                                       Tensor<TensorType> tensor, const int nagg_hint) {
+  long double nelements = 1;
+  // Heuristic: Use 1 agg for every 14 GiB
+  const long double ne_mb = 131072 * 14.0;
+  const int         ndims = tensor.num_modes();
+  for(auto i = 0; i < ndims; i++)
+    nelements *= tensor.tiled_index_spaces()[i].index_space().num_indices();
+  // nelements = tensor.size();
+  int nagg = (nelements / (ne_mb * 1024)) + 1;
+#if defined(USE_UPCXX)
+  const int nnodes = upcxx::local_team().rank_n();
+#else
+  // TODO: gec.nnodes() fails with sub-groups ?
+  const int nnodes = GA_Cluster_nnodes();
+#endif
+  const int ppn         = gec.ppn();
+  const int avail_nodes = std::min(nranks / ppn + 1, nnodes);
+
+  if(nagg > avail_nodes) nagg = avail_nodes;
+  if(nagg_hint > 0) nagg = nagg_hint;
+
+  int subranks = nagg * ppn;
+  if(subranks > nranks) subranks = nranks;
+
+  return std::make_tuple(nagg, ppn, subranks);
+}
+
+template<typename TensorType>
+std::tuple<int, int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType> tensor,
+                                            int nagg_hint = 0) {
+  int nranks = gec.pg().size().value();
+
+  auto [nagg, ppn, subranks] = get_agg_info(gec, nranks, tensor, nagg_hint);
+
+  return std::make_tuple(nagg, ppn, subranks);
+}
+
+#if !defined(USE_UPCXX)
+static inline void subcomm_from_subranks(ExecutionContext& gec, int subranks, MPI_Comm& subcomm) {
+  MPI_Group group; //, world_group;
+  auto      comm = gec.pg().comm();
+  MPI_Comm_group(comm, &group);
+  int ranks[subranks]; //,ranks_world[subranks];
+  for(int i = 0; i < subranks; i++) ranks[i] = i;
+  MPI_Group tamm_subgroup;
+  MPI_Group_incl(group, subranks, ranks, &tamm_subgroup);
+  MPI_Comm_create(comm, tamm_subgroup, &subcomm);
+  MPI_Group_free(&group);
+  MPI_Group_free(&tamm_subgroup);
+}
+#endif
 
 template<typename Arg, typename... Args>
 void print_varlist(Arg&& arg, Args&&... args) {

@@ -5,7 +5,6 @@ import sys
 import pytamm as tamm
 
 T = float
-tammio = True
 profileio = True
 init_value = 21.0
 
@@ -159,8 +158,9 @@ def read_write(tensor, tstring):
     mpiio_str = tstring + "_mpiio"
     _ = mpiio_str
 
-    tamm.write_to_disk(tensor, hdf5_str, tammio, profileio)
-    tamm.read_from_disk(tensor, hdf5_str, tammio, None, profileio)
+    ec = tensor.execution_context()
+    tamm.write_to_disk(ec, tensor, hdf5_str, profileio)
+    tamm.read_from_disk(ec, tensor, hdf5_str, profileio)
 
 
 def test_io_2d(sch, tis, tis_i, tensor_cls=tamm.TensorDouble):
@@ -336,7 +336,7 @@ def main(argv=None):
         if ec.print():
             print("Writing a 3D tensor of size (NxNx12N) to disk ... ")
 
-        tamm.write_to_disk(gc_tensor, "tensor3d", True, True)
+        tamm.write_to_disk(ec, gc_tensor, "tensor3d", True)
 
         sch.deallocate(gc_tensor).execute()
 

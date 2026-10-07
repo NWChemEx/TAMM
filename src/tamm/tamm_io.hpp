@@ -1,8 +1,11 @@
 #pragma once
 
+#include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <numeric>
 #include <random>
 #include <type_traits>
@@ -22,8 +25,6 @@
 #include "ga_over_upcxx.hpp"
 
 // #define IO_ISIRREG 1
-#define TU_SG true
-#define TU_SG_IO true
 
 namespace tamm {
 
@@ -53,60 +54,6 @@ constexpr typename std::enable_if<std::is_integral<from>::value && std::is_integ
 cd_ncast(const from& value) {
   return static_cast<int64_t>(value & (static_cast<typename std::make_unsigned<from>::type>(-1)));
 }
-
-template<typename TensorType>
-std::tuple<int, int, int> get_agg_info(ExecutionContext& gec, const int nranks,
-                                       Tensor<TensorType> tensor, const int nagg_hint) {
-  long double nelements = 1;
-  // Heuristic: Use 1 agg for every 14 GiB
-  const long double ne_mb = 131072 * 14.0;
-  const int         ndims = tensor.num_modes();
-  for(auto i = 0; i < ndims; i++)
-    nelements *= tensor.tiled_index_spaces()[i].index_space().num_indices();
-  // nelements = tensor.size();
-  int nagg = (nelements / (ne_mb * 1024)) + 1;
-#if defined(USE_UPCXX)
-  const int nnodes = upcxx::local_team().rank_n();
-#else
-  // TODO: gec.nnodes() fails with sub-groups ?
-  const int nnodes = GA_Cluster_nnodes();
-#endif
-  const int ppn         = gec.ppn();
-  const int avail_nodes = std::min(nranks / ppn + 1, nnodes);
-
-  if(nagg > avail_nodes) nagg = avail_nodes;
-  if(nagg_hint > 0) nagg = nagg_hint;
-
-  int subranks = nagg * ppn;
-  if(subranks > nranks) subranks = nranks;
-
-  return std::make_tuple(nagg, ppn, subranks);
-}
-
-template<typename TensorType>
-std::tuple<int, int, int> get_subgroup_info(ExecutionContext& gec, Tensor<TensorType> tensor,
-                                            int nagg_hint = 0) {
-  int nranks = gec.pg().size().value();
-
-  auto [nagg, ppn, subranks] = get_agg_info(gec, nranks, tensor, nagg_hint);
-
-  return std::make_tuple(nagg, ppn, subranks);
-}
-
-#if !defined(USE_UPCXX)
-static inline void subcomm_from_subranks(ExecutionContext& gec, int subranks, MPI_Comm& subcomm) {
-  MPI_Group group; //, world_group;
-  auto      comm = gec.pg().comm();
-  MPI_Comm_group(comm, &group);
-  int ranks[subranks]; //,ranks_world[subranks];
-  for(int i = 0; i < subranks; i++) ranks[i] = i;
-  MPI_Group tamm_subgroup;
-  MPI_Group_incl(group, subranks, ranks, &tamm_subgroup);
-  MPI_Comm_create(comm, tamm_subgroup, &subcomm);
-  MPI_Group_free(&group);
-  MPI_Group_free(&tamm_subgroup);
-}
-#endif
 
 /**
  * @brief convert tamm tensor to N-D GA
@@ -287,6 +234,110 @@ struct H5Check {
   }
 };
 
+/// Time each rank spends in the phases of writing or reading one tensor file. When profiling, the
+/// maximum and average over the ranks doing the I/O are printed, with the number of blocks each
+/// rank handled; a large gap between maximum and average points to load imbalance.
+class IOPhases {
+public:
+  using clock = std::chrono::steady_clock;
+
+  /// Adds the time since start to phase name (phases are reported in the order first added).
+  void add(const std::string& name, clock::time_point start) {
+    const double secs = std::chrono::duration<double>(clock::now() - start).count();
+    for(auto& [phase, total]: phases_)
+      if(phase == name) {
+        total += secs;
+        return;
+      }
+    phases_.emplace_back(name, secs);
+  }
+
+  /// Adds n to the per-rank count name (e.g. blocks handled), reported as its min - max over ranks.
+  void count(const std::string& name, int64_t n = 1) {
+    for(auto& [counter, total]: counts_)
+      if(counter == name) {
+        total += n;
+        return;
+      }
+    counts_.emplace_back(name, n);
+  }
+
+  /// Collective over pg: prints the breakdown on pg's rank 0.
+  void report(ProcGroup pg, const std::string& title) const {
+    const int           n = static_cast<int>(phases_.size());
+    std::vector<double> secs(n), max_secs(n), sum_secs(n);
+    for(int i = 0; i < n; i++) secs[i] = phases_[i].second;
+    pg.allreduce(secs.data(), max_secs.data(), n, ReduceOp::max);
+    pg.allreduce(secs.data(), sum_secs.data(), n, ReduceOp::sum);
+    const int            nc = static_cast<int>(counts_.size());
+    std::vector<int64_t> counts(nc), min_counts(nc), max_counts(nc);
+    for(int i = 0; i < nc; i++) counts[i] = counts_[i].second;
+    pg.allreduce(counts.data(), min_counts.data(), nc, ReduceOp::min);
+    pg.allreduce(counts.data(), max_counts.data(), nc, ReduceOp::max);
+    if(pg.rank() != 0) return;
+
+    const int ranks = pg.size().value();
+    std::cout << title << " breakdown over " << ranks << " ranks (max / avg seconds):" << std::endl;
+    for(int i = 0; i < n; i++)
+      std::cout << "  " << std::left << std::setw(24) << phases_[i].first << std::right
+                << std::fixed << std::setprecision(2) << std::setw(10) << max_secs[i] << " / "
+                << sum_secs[i] / ranks << std::endl;
+    for(int i = 0; i < nc; i++)
+      std::cout << "  " << std::left << std::setw(24) << counts_[i].first + " per rank"
+                << std::right << std::setw(10) << min_counts[i] << " - " << max_counts[i]
+                << std::endl;
+  }
+
+private:
+  std::vector<std::pair<std::string, double>>  phases_;
+  std::vector<std::pair<std::string, int64_t>> counts_;
+};
+
+/// Reads a positive integer from environment variable name; 0 if it is not set. Reported once, on
+/// world rank 0, so a run's output shows that the default was overridden.
+inline int64_t io_env_override(const char* name) {
+  const char* raw = std::getenv(name);
+  if(raw == nullptr) return 0;
+  char*           end = nullptr;
+  const long long val = std::strtoll(raw, &end, 10);
+  if(end == raw || *end != '\0' || val <= 0)
+    tamm_terminate(std::string("[TAMM ERROR] ") + name + " must be a positive integer; got \"" +
+                   raw + "\"");
+  // if(ProcGroup::world_rank().value() == 0)
+  //   std::cout << "[TAMM] " << name << " = " << val << std::endl;
+  return val;
+}
+
+/// Lustre striping of a new tensor file.
+struct Striping {
+  int64_t count;      // number of OSTs
+  int64_t size_bytes; // stripe size
+};
+
+/// Striping for a tensor file of tensor_bytes: 4 MiB stripes and one OST per 4 GiB of data, at
+/// least 1 and at most 64. TAMM_IO_STRIPE_COUNT and TAMM_IO_STRIPE_SIZE (in MiB) override them.
+inline Striping tensor_file_striping(int64_t tensor_bytes) {
+  static const int64_t count_override = io_env_override("TAMM_IO_STRIPE_COUNT");
+  static const int64_t size_override  = io_env_override("TAMM_IO_STRIPE_SIZE");
+  constexpr int64_t    MiB            = int64_t{1} << 20;
+  constexpr int64_t    GiB            = int64_t{1} << 30;
+
+  Striping striping;
+  striping.count      = count_override > 0
+                          ? count_override
+                          : std::clamp<int64_t>((tensor_bytes + 4 * GiB - 1) / (4 * GiB), 1, 64);
+  striping.size_bytes = (size_override > 0 ? size_override : 4) * MiB;
+  return striping;
+}
+
+/// Sets striping hints for creating a tensor file through MPI-IO (honored on Lustre, ignored by
+/// other filesystems), and aligns HDF5 objects of at least one stripe to stripe boundaries.
+inline void set_striping(MPI_Info info, hid_t fapl, const Striping& striping) {
+  MPI_Info_set(info, "striping_factor", std::to_string(striping.count).c_str());
+  MPI_Info_set(info, "striping_unit", std::to_string(striping.size_bytes).c_str());
+  H5Pset_alignment(fapl, striping.size_bytes, striping.size_bytes);
+}
+
 /// Version of the tensor description stored with each tensor file.
 constexpr int64_t tensor_file_format = 1;
 
@@ -458,525 +509,538 @@ inline std::string kept_versions(const std::vector<std::string>& filenames) {
   return file_list("previous version kept", kept) + file_list("no previous version", none);
 }
 
-/// Commits the staging file of a tensor file written collectively on pg. The ranks agree on
-/// whether all of them wrote their part; if so, the pg root renames the staging file over the
-/// tensor file, otherwise it removes the staging file and the previous tensor file is kept.
-/// A failed commit is reported but never fatal.
-inline void commit_staging_file(ProcGroup pg, bool local_failed, const std::string& filename) {
-  const int failed     = local_failed ? 1 : 0;
-  const int any_failed = pg.allreduce(&failed, ReduceOp::max);
-  if(pg.rank() != 0) return;
+/// Whether each block of tensor is stored contiguously on one rank, so that the rank owning a
+/// block can write and read it straight from its local memory. Dense (N-D Global Array), view and
+/// lambda tensors are not.
+template<typename TensorType>
+bool is_block_distributed(const Tensor<TensorType>& tensor) {
+  using Kind      = TensorBase::TensorKind;
+  const auto kind = tensor.kind();
+  return kind == Kind::normal || kind == Kind::spin || kind == Kind::block_sparse;
+}
 
-  if(!finish_staging_file(filename, !any_failed))
-    std::cerr << "[TAMM WARNING] write_to_disk: " << filename << " not committed; "
-              << (std::filesystem::exists(filename) ? "previous version kept"
-                                                    : "no previous version exists")
-              << std::endl;
+/// A non-zero block of a tensor and where it is in the tensor file.
+struct FileBlock {
+  IndexVector id;
+  hsize_t     file_offset;  // in elements
+  hsize_t     size;         // in elements
+  size_t      local_offset; // in elements, into this rank's local buffer (local blocks only)
+};
+
+/// How the ranks writing or reading a tensor file split its blocks. A block owned by one of these
+/// ranks is local: its owner writes or reads it straight from or into its local memory. All other
+/// blocks (owned by ranks not doing the I/O, or of a tensor whose blocks are not each stored on one
+/// rank) are shared: handed out among the I/O ranks and moved with get/put.
+struct BlockPlan {
+  std::vector<FileBlock> local;
+  std::vector<FileBlock> shared; // the same list on every I/O rank
+};
+
+/// Plans the blocks of tensor for the ranks of io_pg. Blocks are laid out in the file one after
+/// another in loop-nest order, skipping zero blocks. Collective over io_pg.
+template<typename TensorType>
+BlockPlan plan_blocks(Tensor<TensorType> tensor, ProcGroup io_pg, bool use_local) {
+  // Which ranks of the tensor's process group are doing the I/O.
+  std::vector<char> is_io_rank;
+  int               my_rank = -1;
+  if(use_local) {
+    ProcGroup tensor_pg = tensor.execution_context()->pg();
+    my_rank             = tensor_pg.rank().value();
+    std::vector<int> io_ranks(io_pg.size().value());
+    io_pg.allgather(&my_rank, io_ranks.data());
+    is_io_rank.assign(tensor_pg.size().value(), 0);
+    for(int r: io_ranks) is_io_rank[r] = 1;
+  }
+
+  BlockPlan     plan;
+  hsize_t       file_offset = 0;
+  auto          ltensor     = tensor();
+  LabelLoopNest loop_nest{ltensor.labels()};
+  for(const IndexVector& bid: loop_nest) {
+    const IndexVector blockid = translate_blockid(bid, ltensor);
+    if(!tensor.is_non_zero(blockid)) continue;
+    const hsize_t size = tensor.block_size(blockid);
+    if(use_local) {
+      auto [proc, local_offset] = tensor.distribution().locate(blockid);
+      if(!is_io_rank[proc.value()]) plan.shared.push_back({blockid, file_offset, size, 0});
+      else if(proc.value() == my_rank)
+        plan.local.push_back(
+          {blockid, file_offset, size, static_cast<size_t>(local_offset.value())});
+    }
+    else plan.shared.push_back({blockid, file_offset, size, 0});
+    file_offset += size;
+  }
+  return plan;
+}
+
+/// Calls func for each block in blocks (the same list on every rank of pg), handing the blocks out
+/// dynamically among the ranks of pg. Collective over pg.
+template<typename Func>
+void for_each_shared(ProcGroup pg, const std::vector<FileBlock>& blocks, Func&& func) {
+  if(blocks.empty()) return;
+  AtomicCounterGA counter(pg, 1);
+  counter.allocate(0);
+  for(int64_t next = counter.fetch_add(0, 1); next < static_cast<int64_t>(blocks.size());
+      next         = counter.fetch_add(0, 1))
+    func(blocks[next]);
+  counter.deallocate();
+  pg.barrier();
+}
+
+/// Selects block in the tensor file's dataspace and returns a matching memory dataspace.
+inline hid_t select_block(hid_t file_space, const FileBlock& block) {
+  H5Sselect_hyperslab(file_space, H5S_SELECT_SET, &block.file_offset, nullptr, &block.size,
+                      nullptr);
+  return H5Screate_simple(1, &block.size, nullptr);
+}
+
+/// Writes the blocks of tensor planned for this rank: local blocks from local memory, then its
+/// share of the shared blocks, fetched with fetch(block, buffer). Collective over io_pg.
+template<typename TensorType, typename Fetch>
+void write_blocks(ProcGroup io_pg, Tensor<TensorType> tensor, const BlockPlan& plan, hid_t dataset,
+                  hid_t file_space, hid_t xfer, hid_t dt, H5Check& h5, IOPhases& phases,
+                  Fetch&& fetch) {
+  using io_clock = IOPhases::clock;
+  auto write     = [&](const FileBlock& block, const TensorType* data) {
+    if(h5.failed) return;
+    const hid_t mem_space = select_block(file_space, block);
+    h5(H5Dwrite(dataset, dt, mem_space, file_space, xfer, data), "H5Dwrite", false);
+    H5Sclose(mem_space);
+  };
+
+  auto phase_t = io_clock::now();
+  if(!plan.local.empty()) {
+    const TensorType* local = tensor.access_local_buf();
+    for(const auto& block: plan.local) write(block, local + block.local_offset);
+  }
+  phases.add("local block writes", phase_t);
+  phases.count("local blocks", plan.local.size());
+
+  phase_t = io_clock::now();
+  std::vector<TensorType> buffer;
+  for_each_shared(io_pg, plan.shared, [&](const FileBlock& block) {
+    buffer.resize(block.size);
+    auto block_t = io_clock::now();
+    fetch(block, buffer.data());
+    phases.add("gather shared (get)", block_t);
+    block_t = io_clock::now();
+    write(block, buffer.data());
+    phases.add("shared block writes", block_t);
+    phases.count("shared blocks");
+  });
+  if(!plan.shared.empty()) phases.add("shared blocks (total)", phase_t);
+}
+
+/// Reads the blocks of tensor planned for this rank: local blocks straight into local memory, then
+/// its share of the shared blocks, stored with store(block, buffer). Collective over io_pg.
+template<typename TensorType, typename Store>
+void read_blocks(ProcGroup io_pg, Tensor<TensorType> tensor, const BlockPlan& plan, hid_t dataset,
+                 hid_t file_space, hid_t xfer, hid_t dt, H5Check& h5, IOPhases& phases,
+                 Store&& store) {
+  using io_clock = IOPhases::clock;
+  auto read      = [&](const FileBlock& block, TensorType* data) {
+    if(h5.failed) return false;
+    const hid_t mem_space = select_block(file_space, block);
+    const bool ok = h5(H5Dread(dataset, dt, mem_space, file_space, xfer, data), "H5Dread", false) >=
+                    0;
+    H5Sclose(mem_space);
+    return ok;
+  };
+
+  auto phase_t = io_clock::now();
+  if(!plan.local.empty()) {
+    TensorType* local = tensor.access_local_buf();
+    for(const auto& block: plan.local) read(block, local + block.local_offset);
+  }
+  phases.add("local block reads", phase_t);
+  phases.count("local blocks", plan.local.size());
+
+  phase_t = io_clock::now();
+  std::vector<TensorType> buffer;
+  for_each_shared(io_pg, plan.shared, [&](const FileBlock& block) {
+    buffer.resize(block.size);
+    auto       block_t = io_clock::now();
+    const bool ok      = read(block, buffer.data());
+    phases.add("shared block reads", block_t);
+    block_t = io_clock::now();
+    if(ok) store(block, buffer.data());
+    phases.add("scatter shared (put)", block_t);
+    phases.count("shared blocks");
+  });
+  if(!plan.shared.empty()) phases.add("shared blocks (total)", phase_t);
+}
+
+/// The lo/hi/ld arguments of a Global Array patch access for block of tensor, in the N-D Global
+/// Array that holds the whole tensor.
+template<typename TensorType>
+void ga_block_patch(Tensor<TensorType> tensor, const IndexVector& blockid, std::vector<int64_t>& lo,
+                    std::vector<int64_t>& hi, std::vector<int64_t>& ld) {
+  const auto   block_dims   = tensor.block_dims(blockid);
+  const auto   block_offset = tensor.block_offsets(blockid);
+  const size_t ndims        = block_dims.size();
+  lo.resize(ndims);
+  hi.resize(ndims);
+  ld.resize(ndims - 1);
+  for(size_t i = 0; i < ndims; i++) lo[i] = cd_ncast<size_t>(block_offset[i]);
+  for(size_t i = 0; i < ndims; i++) hi[i] = cd_ncast<size_t>(block_offset[i] + block_dims[i] - 1);
+  for(size_t i = 1; i < ndims; i++) ld[i - 1] = cd_ncast<size_t>(block_dims[i]);
+}
+
+/// Number of elements of the tensor file's dataset: the product of the tensor's dimensions.
+template<typename TensorType>
+hsize_t tensor_file_elements(const Tensor<TensorType>& tensor) {
+  hsize_t elements = 1;
+  for(const auto& tis: tensor.tiled_index_spaces()) elements *= tis.index_space().num_indices();
+  return elements;
+}
+
+/// GiB of tensor data per node used to size the process group writing or reading a tensor file:
+/// TAMM_IO_GIB_PER_NODE, default 14.
+inline int64_t io_gib_per_node() {
+  static const int64_t gib = io_env_override("TAMM_IO_GIB_PER_NODE");
+  return gib > 0 ? gib : 14;
+}
+
+/// Whether each tensor file is handled by all of the calling process group, one file after another:
+/// TAMM_IO_GROUPS=all. The default, TAMM_IO_GROUPS=size, sizes the I/O groups from the data.
+inline bool io_groups_all() {
+  static const bool all = [] {
+    const char* raw = std::getenv("TAMM_IO_GROUPS");
+    if(raw == nullptr || *raw == '\0' || std::string(raw) == "size") return false;
+    if(std::string(raw) == "all") return true;
+    tamm_terminate(std::string("[TAMM ERROR] TAMM_IO_GROUPS must be \"size\" or \"all\"; got \"") +
+                   raw + "\"");
+    return false;
+  }();
+  return all;
+}
+
+/// How the nodes of the calling process group are split into I/O groups, each writing or reading
+/// tensor files. Groups are made of whole nodes, taken consecutively from the first node.
+struct IOAllocation {
+  std::vector<int>    group_nodes; // number of nodes of each I/O group
+  std::vector<size_t> order;       // tensor indices, largest first
+  bool
+    dynamic; // tensors are handed out to free groups in order; otherwise group j handles order[j]
+};
+
+/// Splits nnodes among tensor files of the given sizes. Each tensor ideally gets one node per
+/// io_gib_per_node() GiB. If all ideal groups fit, every tensor gets its ideal group and all are
+/// handled at once; if not, and there are no more tensors than nodes, the groups are scaled down in
+/// proportion to the tensor sizes (at least one node each); with more tensors than nodes, every
+/// node is a group and tensors are handed out largest first. With TAMM_IO_GROUPS=all, all nodes
+/// form one group that handles the tensors one after another, largest first.
+inline IOAllocation allocate_io_groups(const std::vector<int64_t>& bytes, int nnodes) {
+  const int    ntensors = static_cast<int>(bytes.size());
+  IOAllocation alloc;
+  alloc.order.resize(ntensors);
+  std::iota(alloc.order.begin(), alloc.order.end(), size_t{0});
+  std::stable_sort(alloc.order.begin(), alloc.order.end(),
+                   [&](size_t a, size_t b) { return bytes[a] > bytes[b]; });
+
+  if(io_groups_all()) {
+    alloc.group_nodes = {nnodes};
+    alloc.dynamic     = true;
+    return alloc;
+  }
+
+  if(ntensors > nnodes) {
+    alloc.group_nodes.assign(nnodes, 1);
+    alloc.dynamic = true;
+    return alloc;
+  }
+
+  const int64_t    gib = int64_t{1} << 30;
+  std::vector<int> ideal(ntensors);
+  int64_t          total = 0;
+  for(int j = 0; j < ntensors; j++) {
+    const int64_t b = bytes[alloc.order[j]];
+    ideal[j]        = static_cast<int>(std::clamp<int64_t>(
+      (b + io_gib_per_node() * gib - 1) / (io_gib_per_node() * gib), 1, nnodes));
+    total += ideal[j];
+  }
+  alloc.dynamic = false;
+  if(total <= nnodes) {
+    alloc.group_nodes = ideal;
+    return alloc;
+  }
+
+  // Scale down in proportion to size, at least one node each, then use any nodes left over.
+  std::vector<int> nodes(ntensors);
+  int              used = 0;
+  for(int j = 0; j < ntensors; j++) {
+    nodes[j] = std::max(1, static_cast<int>(static_cast<int64_t>(ideal[j]) * nnodes / total));
+    used += nodes[j];
+  }
+  for(int j = 0; used > nnodes; j = (j + 1) % ntensors) // too many after the one-node minimum
+    if(nodes[j] > 1) {
+      nodes[j]--;
+      used--;
+    }
+  for(int j = 0; used < nnodes; j = (j + 1) % ntensors) // nodes left over go to the largest first
+    if(nodes[j] < ideal[j]) {
+      nodes[j]++;
+      used++;
+    }
+    else if(std::equal(nodes.begin(), nodes.end(), ideal.begin())) break;
+  alloc.group_nodes = nodes;
+  return alloc;
+}
+
+/// Writes tensor to the staging file of filename. Collective over io_pg, the ranks writing this
+/// file. Returns whether any of them failed (the same on every rank of io_pg).
+template<typename TensorType>
+bool write_file(ProcGroup io_pg, Tensor<TensorType> tensor, const std::string& filename,
+                bool profile) {
+  using io_clock = IOPhases::clock;
+  IOPhases phases;
+
+  H5ErrorSilencer   h5_silencer;
+  H5Check           h5{filename, "WARNING", io_pg.rank() == 0};
+  const std::string staging       = staging_filename(filename);
+  const hid_t       hdf5_dt       = get_hdf5_dt<TensorType>();
+  const hsize_t     file_elements = tensor_file_elements(tensor);
+
+  auto     phase_t = io_clock::now();
+  MPI_Info info;
+  MPI_Info_create(&info);
+  const hid_t fapl     = H5Pcreate(H5P_FILE_ACCESS);
+  const auto  striping = tensor_file_striping(file_elements * sizeof(TensorType));
+  set_striping(info, fapl, striping);
+  H5Pset_fapl_mpio(fapl, io_pg.comm(), info);
+  const hid_t file = h5(H5Fcreate(staging.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, fapl), "H5Fcreate");
+  H5Pclose(fapl);
+  MPI_Info_free(&info);
+
+  const hid_t file_space = H5Screate_simple(1, &file_elements, nullptr);
+  const hid_t dataset =
+    h5(H5Dcreate(file, "tensor", hdf5_dt, file_space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT),
+       "H5Dcreate");
+  write_description(dataset, describe_tensor(tensor), h5);
+  const hid_t xfer = H5Pcreate(H5P_DATASET_XFER);
+  H5Pset_dxpl_mpio(xfer, H5FD_MPIO_INDEPENDENT);
+  phases.add("create file", phase_t);
+
+  phase_t         = io_clock::now();
+  const auto plan = plan_blocks(tensor, io_pg, is_block_distributed(tensor));
+  phases.add("block plan", phase_t);
+  write_blocks(io_pg, tensor, plan, dataset, file_space, xfer, hdf5_dt, h5, phases,
+               [&](const FileBlock& block, TensorType* buffer) {
+                 tensor.get(block.id, span<TensorType>{buffer, block.size});
+               });
+
+  phase_t = io_clock::now();
+  H5Pclose(xfer);
+  H5Dclose(dataset);
+  H5Sclose(file_space);
+  h5(H5Fclose(file), "H5Fclose");
+  phases.add("close file", phase_t);
+
+  if(profile) {
+    if(io_pg.rank() == 0)
+      std::cout << std::endl
+                << filename << ": " << std::fixed << std::setprecision(2)
+                << file_elements * sizeof(TensorType) / (1024 * 1024 * 1024.0) << " GiB, "
+                << io_pg.size().value() << " ranks, striping " << striping.count << " OSTs x "
+                << (striping.size_bytes >> 20) << " MiB" << std::endl;
+    phases.report(io_pg, "write_to_disk " + filename);
+  }
+  const int failed = h5.failed ? 1 : 0;
+  return io_pg.allreduce(&failed, ReduceOp::max) != 0;
+}
+
+/// Reads filename into tensor. Collective over io_pg, the ranks reading this file. Returns
+/// whether any of them failed (the same on every rank of io_pg).
+template<typename TensorType>
+bool read_file(ProcGroup io_pg, Tensor<TensorType> tensor, const std::string& filename,
+               bool profile) {
+  using io_clock = IOPhases::clock;
+  IOPhases phases;
+
+  H5ErrorSilencer h5_silencer;
+  H5Check         h5{filename, "ERROR", io_pg.rank() == 0};
+  const hid_t     hdf5_dt = get_hdf5_dt<TensorType>();
+
+  auto     phase_t = io_clock::now();
+  MPI_Info info;
+  MPI_Info_create(&info);
+  const hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
+  H5Pset_fapl_mpio(fapl, io_pg.comm(), info);
+  const hid_t file = h5(H5Fopen(filename.c_str(), H5F_ACC_RDONLY, fapl), "H5Fopen");
+  H5Pclose(fapl);
+  MPI_Info_free(&info);
+
+  const hid_t dataset = h5(H5Dopen(file, "tensor", H5P_DEFAULT), "H5Dopen");
+  check_description(dataset, hdf5_dt, describe_tensor(tensor), h5);
+  const hid_t file_space = H5Dget_space(dataset);
+  const hid_t xfer       = H5Pcreate(H5P_DATASET_XFER);
+  H5Pset_dxpl_mpio(xfer, H5FD_MPIO_INDEPENDENT);
+  phases.add("open file + check", phase_t);
+
+  phase_t         = io_clock::now();
+  const auto plan = plan_blocks(tensor, io_pg, is_block_distributed(tensor));
+  phases.add("block plan", phase_t);
+  read_blocks(io_pg, tensor, plan, dataset, file_space, xfer, hdf5_dt, h5, phases,
+              [&](const FileBlock& block, TensorType* buffer) {
+                tensor.put(block.id, span<TensorType>{buffer, block.size});
+              });
+
+  phase_t = io_clock::now();
+  H5Pclose(xfer);
+  H5Sclose(file_space);
+  H5Dclose(dataset);
+  h5(H5Fclose(file), "H5Fclose");
+  phases.add("close file", phase_t);
+
+  if(profile) {
+    if(io_pg.rank() == 0)
+      std::cout << std::endl << filename << ": " << io_pg.size().value() << " ranks" << std::endl;
+    phases.report(io_pg, "read_from_disk " + filename);
+  }
+  const int failed = h5.failed ? 1 : 0;
+  return io_pg.allreduce(&failed, ReduceOp::max) != 0;
+}
+
+/// Runs io(io_pg, i) for every tensor file i, on I/O groups of whole nodes of pg allocated by
+/// allocate_io_groups. Collective over pg. Returns, for every file, whether its I/O failed (the
+/// same on every rank of pg), and marks the files whose I/O group root this rank is.
+template<typename IO>
+std::vector<int> run_io_groups(ExecutionContext& ec, const std::vector<int64_t>& bytes,
+                               bool profile, const std::string& what, std::vector<char>& root_of,
+                               IO&& io) {
+  ProcGroup    pg       = ec.pg();
+  const int    rank     = pg.rank().value();
+  const int    nranks   = pg.size().value();
+  const int    ppn      = std::max(1, ec.ppn());
+  const int    nnodes   = (nranks + ppn - 1) / ppn;
+  const size_t nfiles   = bytes.size();
+  const auto   alloc    = allocate_io_groups(bytes, nnodes);
+  const int    my_node  = rank / ppn;
+  int          my_group = -1;
+  for(int j = 0, first = 0; j < static_cast<int>(alloc.group_nodes.size()); j++) {
+    if(my_node >= first && my_node < first + alloc.group_nodes[j]) my_group = j;
+    first += alloc.group_nodes[j];
+  }
+
+  if(profile && rank == 0) {
+    std::cout << what << ": " << nfiles << " tensor file(s), " << alloc.group_nodes.size()
+              << " I/O group(s) of nodes";
+    for(auto n: alloc.group_nodes) std::cout << " " << n;
+    std::cout << " (" << ppn << " ranks per node), "
+              << (alloc.dynamic ? "files handed out largest first" : "one file per group")
+              << (io_groups_all() ? " (TAMM_IO_GROUPS=all)" : "") << std::endl;
+  }
+
+  std::vector<int> failed(nfiles, 0);
+  root_of.assign(nfiles, 0);
+  AtomicCounterGA* counter = nullptr;
+  if(alloc.dynamic) {
+    counter = new AtomicCounterGA(pg, 1);
+    counter->allocate(0);
+  }
+
+  MPI_Comm io_comm;
+  MPI_Comm_split(pg.comm(), my_group >= 0 ? my_group : MPI_UNDEFINED, rank, &io_comm);
+  if(io_comm != MPI_COMM_NULL) {
+    ProcGroup io_pg  = ProcGroup::create_coll(io_comm);
+    auto      handle = [&](size_t i) {
+      if(io(io_pg, i)) failed[i] = 1;
+      if(io_pg.rank() == 0) root_of[i] = 1;
+    };
+    if(!alloc.dynamic) handle(alloc.order[my_group]);
+    else
+      while(true) {
+        int64_t next = 0;
+        if(io_pg.rank() == 0) next = counter->fetch_add(0, 1);
+        io_pg.broadcast(&next, 0);
+        if(next >= static_cast<int64_t>(nfiles)) break;
+        handle(alloc.order[next]);
+      }
+    io_pg.destroy_coll();
+    MPI_Comm_free(&io_comm);
+  }
+  if(counter) {
+    counter->deallocate();
+    delete counter;
+  }
+
+  std::vector<int> any_failed(nfiles, 0);
+  pg.allreduce(failed.data(), any_failed.data(), static_cast<int>(nfiles), ReduceOp::max);
+  return any_failed;
 }
 
 } // namespace internal
 #endif
 
 /**
- * @brief write tensor to disk using HDF5
+ * @brief Writes tensors to tensor files using HDF5, in parallel.
  *
- * @tparam TensorType the type of the elements in the tensor
- * @param tensor to write to disk
- * @param filename to write to disk
+ * Collective over ec, the process group doing the I/O; the tensors may be allocated on ec or on a
+ * larger group. ec's nodes are split into I/O groups (see internal::allocate_io_groups), each
+ * writing one or more files; within a group, every rank writes the blocks it owns from its local
+ * memory, and blocks owned by other ranks are fetched. The files are committed all-or-nothing: if
+ * any file fails to write, none is replaced. A failed write is reported but not fatal.
+ *
+ * @param ec        process group doing the I/O
+ * @param tensors   tensors to write
+ * @param filenames tensor file of each tensor
+ * @param profile   print the I/O groups and a per-file timing breakdown
  */
 template<typename TensorType>
-void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool tammio = true,
-                   bool profile = false, int nagg_hint = 0) {
+void write_to_disk(ExecutionContext& ec, std::vector<Tensor<TensorType>> tensors,
+                   std::vector<std::string> filenames, bool profile = false) {
+  EXPECTS(tensors.size() == filenames.size());
 #if !defined(USE_HDF5)
   tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
 #else
+  if(tensors.empty()) return;
+  const auto io_t1 = std::chrono::steady_clock::now();
+  ProcGroup  pg    = ec.pg();
+  const int  rank  = pg.rank().value();
 
-  ExecutionContext& gec   = get_ec(tensor());
-  auto              io_t1 = std::chrono::high_resolution_clock::now();
-  int               rank  = gec.pg().rank().value();
+  std::vector<int64_t> bytes(tensors.size());
+  for(size_t i = 0; i < tensors.size(); i++)
+    bytes[i] = internal::tensor_file_elements(tensors[i]) * sizeof(TensorType);
 
-#ifdef TU_SG_IO
-  auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor, nagg_hint);
-#if defined(USE_UPCXX)
-  upcxx::team* io_comm = new upcxx::team(
-    gec.pg().comm()->split(gec.pg().rank() < subranks ? 0 : upcxx::team::color_none, 0));
-#else
-  MPI_Comm io_comm;
-  subcomm_from_subranks(gec, subranks, io_comm);
-#endif
-#else
-  auto [nagg, ppn, subranks] = get_agg_info(gec, gec.pg().size().value(), tensor, nagg_hint);
-#endif
+  std::vector<char> root_of;
+  const auto        failed = internal::run_io_groups(
+    ec, bytes, profile, "write_to_disk", root_of, [&](ProcGroup io_pg, size_t i) {
+      return internal::write_file(io_pg, tensors[i], filenames[i], profile);
+    });
 
-#if !defined(USE_UPCXX)
-  size_t            ndims = tensor.num_modes();
-  const std::string nppn  = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
-
-  int ga_tens = tensor.ga_handle();
-  if(!tammio) ga_tens = tamm_to_ga(gec, tensor);
-
-  std::vector<int64_t> tensor_dims(ndims, 1);
-  const auto           tis = tensor.tiled_index_spaces();
-  for(size_t i = 0; i < ndims; i++) { tensor_dims[i] = tis[i].index_space().num_indices(); }
-  // NGA_Inquire64(ga_tens, &itype, &ndim, tensor_dims);
-  int64_t tensor_size = std::accumulate(tensor_dims.begin(), tensor_dims.end(), (int64_t) 1,
-                                        std::multiplies<int64_t>());
-
-  if(rank == 0 && profile)
-    std::cout << "tensor size: " << std::fixed << std::setprecision(2)
-              << (tensor_size * 8.0) / (1024 * 1024 * 1024.0)
-              << "GiB, write to disk using: " << nppn << std::endl;
-
-  hid_t hdf5_dt = get_hdf5_dt<TensorType>();
-
-#ifdef TU_SG_IO
-  if(rank < subranks) {
-    ProcGroup        pg = ProcGroup::create_coll(io_comm);
-    ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
-#else
-  ExecutionContext& ec = gec;
-#endif
-    auto          ltensor = tensor();
-    LabelLoopNest loop_nest{ltensor.labels()};
-
-    internal::H5ErrorSilencer h5_silencer;
-    internal::H5Check         h5{filename, "WARNING", ec.pg().rank() == 0};
-    const std::string         staging = internal::staging_filename(filename);
-
-    int ierr;
-    // MPI_File fh;
-    MPI_Info info;
-    // MPI_Status status;
-    hsize_t file_offset;
-    MPI_Info_create(&info);
-    MPI_Info_set(info, "cb_nodes", std::to_string(nagg).c_str());
-    // MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY,
-    //             info, &fh);
-
-    /* set the file access template for parallel IO access */
-    auto acc_template = H5Pcreate(H5P_FILE_ACCESS);
-    // ierr = H5Pset_sieve_buf_size(acc_template, 262144);
-    // ierr = H5Pset_alignment(acc_template, 524288, 262144);
-    // ierr = MPI_Info_set(info, "access_style", "write_once");
-    // ierr = MPI_Info_set(info, "collective_buffering", "true");
-    // ierr = MPI_Info_set(info, "cb_block_size", "1048576");
-    // ierr = MPI_Info_set(info, "cb_buffer_size", "4194304");
-
-    /* tell the HDF5 library that we want to use MPI-IO to do the writing */
-    ierr = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
-    auto file_identifier =
-      h5(H5Fcreate(staging.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, acc_template), "H5Fcreate");
-
-    /* release the file access template */
-    ierr = H5Pclose(acc_template);
-    ierr = MPI_Info_free(&info);
-
-    int     tensor_rank = 1;
-    hsize_t dimens_1d   = tensor_size;
-    auto    dataspace   = H5Screate_simple(tensor_rank, &dimens_1d, NULL);
-    /* create a dataset collectively */
-    auto dataset = h5(H5Dcreate(file_identifier, "tensor", hdf5_dt, dataspace, H5P_DEFAULT,
-                                H5P_DEFAULT, H5P_DEFAULT),
-                      "H5Dcreate");
-    internal::write_description(dataset, internal::describe_tensor(tensor), h5);
-    /* create a file dataspace independently */
-    auto file_dataspace = H5Dget_space(dataset);
-
-    /* Create and write additional metadata */
-    // std::vector<int> attr_dims{11,29,42};
-    // hsize_t attr_size = attr_dims.size();
-    // auto attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
-    // auto attr_dataset = H5Dcreate(file_identifier, "attr", H5T_NATIVE_INT, attr_dataspace,
-    // H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT); H5Dwrite(attr_dataset, H5T_NATIVE_INT, H5S_ALL,
-    // H5S_ALL, H5P_DEFAULT, attr_dims.data()); H5Dclose(attr_dataset); H5Sclose(attr_dataspace);
-
-    hid_t xfer_plist;
-    /* set up the collective transfer properties list */
-    xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-    /*auto ret = */ H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
-
-    if(/*is_irreg &&*/ tammio) {
-      auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid = internal::translate_blockid(bid, ltensor);
-
-        if(h5.failed) return;
-        file_offset = 0;
-        for(const IndexVector& pbid: loop_nest) {
-          bool is_zero = !tensor.is_non_zero(pbid);
-          if(pbid == blockid) {
-            if(is_zero) return;
-            break;
-          }
-          if(is_zero) continue;
-          file_offset += tensor.block_size(pbid);
-        }
-
-        // const tamm::TAMM_SIZE
-        hsize_t                 dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-        tensor.get(blockid, dbuf);
-
-        // std::cout << "WRITE: rank, file_offset, size = " << rank << "," << file_offset << ", " <<
-        // dsize << std::endl;
-
-        hsize_t stride = 1;
-        herr_t  ret    = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
-                                             &dsize, NULL); // stride=NULL?
-
-        // /* create a memory dataspace independently */
-        auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
-
-        // /* write data independently */
-        ret = h5(H5Dwrite(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, dbuf.data()),
-                 "H5Dwrite", false);
-
-        H5Sclose(mem_dataspace);
-      };
-
-      block_for(ec, ltensor, lambda);
-    }
-    else {
-      // N-D GA
-      auto ga_write_lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid = internal::translate_blockid(bid, ltensor);
-
-        if(h5.failed) return;
-        file_offset = 0;
-        for(const IndexVector& pbid: loop_nest) {
-          bool is_zero = !tensor.is_non_zero(pbid);
-          if(pbid == blockid) {
-            if(is_zero) return;
-            break;
-          }
-          if(is_zero) continue;
-          file_offset += tensor.block_size(pbid);
-        }
-
-        // file_offset = file_offset*sizeof(TensorType);
-
-        auto block_dims   = tensor.block_dims(blockid);
-        auto block_offset = tensor.block_offsets(blockid);
-
-        hsize_t dsize = tensor.block_size(blockid);
-
-        std::vector<int64_t> lo(ndims), hi(ndims), ld(ndims - 1);
-
-        for(size_t i = 0; i < ndims; i++) lo[i] = cd_ncast<size_t>(block_offset[i]);
-        for(size_t i = 0; i < ndims; i++)
-          hi[i] = cd_ncast<size_t>(block_offset[i] + block_dims[i] - 1);
-        for(size_t i = 1; i < ndims; i++) ld[i - 1] = cd_ncast<size_t>(block_dims[i]);
-
-        std::vector<TensorType> sbuf(dsize);
-        NGA_Get64(ga_tens, &lo[0], &hi[0], &sbuf[0], &ld[0]);
-        // MPI_File_write_at(fh,file_offset,reinterpret_cast<void*>(&sbuf[0]),
-        //     static_cast<int>(dsize),mpi_type<TensorType>(),&status);
-
-        hsize_t stride = 1;
-        herr_t  ret    = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
-                                             &dsize, NULL); // stride=NULL?
-
-        // /* create a memory dataspace independently */
-        auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
-
-        // /* write data independently */
-        ret = h5(H5Dwrite(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, sbuf.data()),
-                 "H5Dwrite", false);
-
-        H5Sclose(mem_dataspace);
-      };
-
-      block_for(ec, ltensor, ga_write_lambda);
-    }
-
-    H5Sclose(file_dataspace);
-    // H5Sclose(mem_dataspace);
-    H5Pclose(xfer_plist);
-
-    H5Dclose(dataset);
-    H5Sclose(dataspace);
-    h5(H5Fclose(file_identifier), "H5Fclose");
-
-    internal::commit_staging_file(ec.pg(), h5.failed, filename);
-
-#ifdef TU_SG_IO
-    ec.flush_and_sync();
-    // MemoryManagerGA::destroy_coll(mgr);
-    MPI_Comm_free(&io_comm);
-    pg.destroy_coll();
+  // Commit all files only if none failed, so the files always come from the same call.
+  std::vector<std::string> failed_files;
+  for(size_t i = 0; i < tensors.size(); i++)
+    if(failed[i]) failed_files.push_back(filenames[i]);
+  const bool commit = failed_files.empty();
+  for(size_t i = 0; i < tensors.size(); i++)
+    if(root_of[i]) internal::finish_staging_file(filenames[i], commit);
+  if(!commit && rank == 0) {
+    if(tensors.size() == 1)
+      std::cerr << "[TAMM WARNING] write_to_disk: " << filenames[0] << " not committed; "
+                << (std::filesystem::exists(filenames[0]) ? "previous version kept"
+                                                          : "no previous version exists")
+                << std::endl;
+    else
+      std::cerr << "[TAMM WARNING] write_to_disk: no tensor file in the group was committed"
+                << internal::file_list("failed to write", failed_files)
+                << internal::kept_versions(filenames) << std::endl;
   }
-#endif
+  pg.barrier();
 
-  gec.pg().barrier();
-  if(!tammio) NGA_Destroy(ga_tens);
-  auto io_t2 = std::chrono::high_resolution_clock::now();
-
-  double io_time =
-    std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-  if(rank == 0 && profile)
-    std::cout << "Time for writing " << filename << " to disk (" << nppn << "): " << io_time
+  if(profile && rank == 0)
+    std::cout << "Time for writing " << tensors.size() << " tensor file(s) to disk: "
+              << std::chrono::duration<double>(std::chrono::steady_clock::now() - io_t1).count()
               << " secs" << std::endl;
 #endif
-#endif
 }
 
+/// Writes one tensor to a tensor file; see the overload for a list of tensors.
 template<typename TensorType>
-void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool profile,
-                   int nagg_hint = 0) {
-  write_to_disk(tensor, filename, true, profile, nagg_hint);
-}
-
-/**
- * @brief Write batch of tensors to disk using HDF5.
- *        Uses process groups for concurrent writes.
- * @tparam TensorType the type of the elements in the tensor
- * @param tensor to write to disk
- * @param filename to write to disk
- */
-template<typename TensorType>
-void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> tensors,
-                         std::vector<std::string> filenames, bool profile = false,
-                         int nagg_hint = 0) {
-  EXPECTS(tensors.size() == filenames.size());
-
-#if !defined(USE_HDF5)
-  tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
-#else
-#if !defined(USE_UPCXX)
-  auto io_t1 = std::chrono::high_resolution_clock::now();
-
-  hid_t hdf5_dt = get_hdf5_dt<TensorType>();
-
-  const int  world_rank = gec.pg().rank().value();
-  const auto world_size = gec.pg().size().value();
-  auto       world_comm = gec.pg().comm();
-
-  int nranks        = world_size;
-  int color         = -1;
-  int prev_subranks = 0;
-
-  std::vector<int> rankspertensor;
-  if(nagg_hint > 0) nagg_hint = nagg_hint / tensors.size();
-  for(size_t i = 0; i < tensors.size(); i++) {
-    auto [nagg, ppn, subranks] = get_agg_info(gec, gec.pg().size().value(), tensors[i], nagg_hint);
-    rankspertensor.push_back(subranks);
-    if(world_rank >= prev_subranks && world_rank < (subranks + prev_subranks)) color = i;
-    nranks -= subranks;
-    if(nranks <= 0) break;
-    prev_subranks += subranks;
-  }
-  if(color == -1) color = MPI_UNDEFINED;
-
-  if(world_rank == 0 && profile) {
-    std::cout << "Number of tensors to be written, process groups, sizes: " << tensors.size() << ","
-              << rankspertensor.size() << ", " << rankspertensor << std::endl;
-  }
-
-  MPI_Comm io_comm;
-  MPI_Comm_split(world_comm, color, world_rank, &io_comm);
-
-  AtomicCounter* ac = new AtomicCounterGA(gec.pg(), 1);
-  ac->allocate(0);
-  int64_t taskcount = 0;
-  int64_t next      = -1;
-  // int total_pi_pg = 0;
-
-  // The group is committed all-or-nothing: per tensor file, whether any rank failed writing it,
-  // and whether this rank is the root of the subgroup that wrote it (and so commits it).
-  std::vector<int>  write_failed(tensors.size(), 0);
-  std::vector<bool> commits_here(tensors.size(), false);
-
-  if(io_comm != MPI_COMM_NULL) {
-    ProcGroup        pg = ProcGroup::create_coll(io_comm);
-    ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
-
-    int root_ppi = -1;
-    MPI_Comm_rank(ec.pg().comm(), &root_ppi);
-
-    // int pg_id = rank/subranks;
-    if(root_ppi == 0) next = ac->fetch_add(0, 1);
-    ec.pg().broadcast(&next, 0);
-
-    for(size_t i = 0; i < tensors.size(); i++) {
-      if(next == taskcount) {
-        Tensor<TensorType> tensor   = tensors[i];
-        auto               filename = filenames[i];
-
-        auto io_t1 = std::chrono::high_resolution_clock::now();
-
-        size_t ndims = tensor.num_modes();
-        // const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
-        // if(root_ppi == 0 && profile)
-        //   std::cout << "write " << filename << " to disk using: " << ec.pg().size().value() <<
-        //   " ranks" << std::endl;
-
-        std::vector<int64_t> tensor_dims(ndims, 1);
-        const auto           tis = tensor.tiled_index_spaces();
-        for(size_t i = 0; i < ndims; i++) { tensor_dims[i] = tis[i].index_space().num_indices(); }
-
-        int64_t tensor_size = std::accumulate(tensor_dims.begin(), tensor_dims.end(), (int64_t) 1,
-                                              std::multiplies<int64_t>());
-        auto    ltensor     = tensor();
-        LabelLoopNest loop_nest{ltensor.labels()};
-
-        internal::H5ErrorSilencer h5_silencer;
-        internal::H5Check         h5{filename, "WARNING", root_ppi == 0};
-        const std::string         staging = internal::staging_filename(filename);
-
-        int ierr;
-        // MPI_File fh;
-        MPI_Info info;
-        // MPI_Status status;
-        hsize_t file_offset;
-        MPI_Info_create(&info);
-        // MPI_Info_set(info,"cb_nodes",std::to_string(nagg).c_str());
-        // MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_CREATE|MPI_MODE_WRONLY,
-        //             info, &fh);
-
-        /* set the file access template for parallel IO access */
-        auto acc_template = H5Pcreate(H5P_FILE_ACCESS);
-        // ierr = H5Pset_sieve_buf_size(acc_template, 262144);
-        // ierr = H5Pset_alignment(acc_template, 524288, 262144);
-        // ierr = MPI_Info_set(info, "access_style", "write_once");
-        // ierr = MPI_Info_set(info, "collective_buffering", "true");
-        // ierr = MPI_Info_set(info, "cb_block_size", "1048576");
-        // ierr = MPI_Info_set(info, "cb_buffer_size", "4194304");
-
-        /* tell the HDF5 library that we want to use MPI-IO to do the writing */
-        ierr = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
-        auto file_identifier =
-          h5(H5Fcreate(staging.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, acc_template), "H5Fcreate");
-
-        /* release the file access template */
-        ierr = H5Pclose(acc_template);
-        ierr = MPI_Info_free(&info);
-
-        int     tensor_rank = 1;
-        hsize_t dimens_1d   = tensor_size;
-        auto    dataspace   = H5Screate_simple(tensor_rank, &dimens_1d, NULL);
-        /* create a dataset collectively */
-        auto dataset = h5(H5Dcreate(file_identifier, "tensor", hdf5_dt, dataspace, H5P_DEFAULT,
-                                    H5P_DEFAULT, H5P_DEFAULT),
-                          "H5Dcreate");
-        internal::write_description(dataset, internal::describe_tensor(tensor), h5);
-        /* create a file dataspace independently */
-        auto file_dataspace = H5Dget_space(dataset);
-
-        /* Create and write additional metadata */
-        // std::vector<int> attr_dims{11,29,42};
-        // hsize_t attr_size = attr_dims.size();
-        // auto attr_dataspace = H5Screate_simple(1, &attr_size, NULL);
-        // auto attr_dataset = H5Dcreate(file_identifier, "attr", H5T_NATIVE_INT, attr_dataspace,
-        // H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT); H5Dwrite(attr_dataset, H5T_NATIVE_INT, H5S_ALL,
-        // H5S_ALL, H5P_DEFAULT, attr_dims.data()); H5Dclose(attr_dataset);
-        // H5Sclose(attr_dataspace);
-
-        hid_t xfer_plist;
-        /* set up the collective transfer properties list */
-        xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-        /*auto ret = */ H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
-
-        auto lambda = [&](const IndexVector& bid) {
-          const IndexVector blockid = internal::translate_blockid(bid, ltensor);
-
-          if(h5.failed) return;
-          file_offset = 0;
-          for(const IndexVector& pbid: loop_nest) {
-            bool is_zero = !tensor.is_non_zero(pbid);
-            if(pbid == blockid) {
-              if(is_zero) return;
-              break;
-            }
-            if(is_zero) continue;
-            file_offset += tensor.block_size(pbid);
-          }
-
-          hsize_t                 dsize = tensor.block_size(blockid);
-          std::vector<TensorType> dbuf(dsize);
-          tensor.get(blockid, dbuf);
-
-          hsize_t stride = 1;
-          herr_t  ret = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
-                                            &dsize, NULL); // stride=NULL?
-
-          // /* create a memory dataspace independently */
-          auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
-
-          // /* write data independently */
-          ret =
-            h5(H5Dwrite(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, dbuf.data()),
-               "H5Dwrite", false);
-
-          H5Sclose(mem_dataspace);
-        };
-
-        block_for(ec, ltensor, lambda);
-
-        H5Sclose(file_dataspace);
-        // H5Sclose(mem_dataspace);
-        H5Pclose(xfer_plist);
-
-        H5Dclose(dataset);
-        H5Sclose(dataspace);
-        h5(H5Fclose(file_identifier), "H5Fclose");
-
-        if(h5.failed) write_failed[i] = 1;
-        if(root_ppi == 0) commits_here[i] = true;
-
-        auto io_t2 = std::chrono::high_resolution_clock::now();
-
-        double io_time =
-          std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-        if(root_ppi == 0 && profile)
-          std::cout << "Time for writing " << filename << " to disk (" << ec.pg().size().value()
-                    << "): " << io_time << " secs" << std::endl;
-
-        if(root_ppi == 0) next = ac->fetch_add(0, 1);
-        ec.pg().broadcast(&next, 0);
-
-      } // next==taskcount
-
-      if(root_ppi == 0) taskcount++;
-      ec.pg().broadcast(&taskcount, 0);
-
-    } // loop over tensors
-
-    ec.flush_and_sync();
-    MPI_Comm_free(&io_comm);
-    // MemoryManagerGA::destroy_coll(mgr);
-    pg.destroy_coll();
-  } // io_comm != MPI_COMM_NULL
-
-  ac->deallocate();
-  delete ac;
-
-  // All ranks agree on which tensor files failed. Only if none did is the group committed, so
-  // the tensor files of a group always come from the same write_to_disk_group call.
-  std::vector<int> any_write_failed(tensors.size(), 0);
-  gec.pg().allreduce(write_failed.data(), any_write_failed.data(),
-                     static_cast<int>(write_failed.size()), ReduceOp::max);
-  std::vector<std::string> failed_files;
-  for(size_t i = 0; i < tensors.size(); i++) {
-    if(any_write_failed[i]) failed_files.push_back(filenames[i]);
-  }
-  const bool commit = failed_files.empty();
-  for(size_t i = 0; i < tensors.size(); i++) {
-    if(commits_here[i]) internal::finish_staging_file(filenames[i], commit);
-  }
-  if(!commit && world_rank == 0)
-    std::cerr << "[TAMM WARNING] write_to_disk_group: no tensor file in the group was committed"
-              << internal::file_list("failed to write", failed_files)
-              << internal::kept_versions(filenames) << std::endl;
-  gec.pg().barrier();
-
-  auto io_t2 = std::chrono::high_resolution_clock::now();
-
-  double io_time =
-    std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-  if(world_rank == 0 && profile)
-    std::cout << "Total Time for writing tensors" << " to disk: " << io_time << " secs"
-              << std::endl;
-#endif
-#endif
+void write_to_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::string& filename,
+                   bool profile = false) {
+  write_to_disk(ec, std::vector<Tensor<TensorType>>{tensor}, std::vector<std::string>{filename},
+                profile);
 }
 
 /**
@@ -1038,497 +1102,62 @@ void ga_to_tamm(ExecutionContext& ec, Tensor<TensorType>& tensor,
 }
 
 /**
- * @brief read tensor from disk using HDF5
+ * @brief Reads tensors from tensor files using HDF5, in parallel.
  *
- * @tparam TensorType the type of the elements in the tensor
- * @param tensor to read into
- * @param filename to read from disk
+ * Collective over ec, the process group doing the I/O; the tensors may be allocated on ec or on a
+ * larger group, and on a different number of ranks than when they were written. Each tensor
+ * file's tensor description must match the tensor read into. A failed read terminates the
+ * program, reporting every tensor file that could not be read.
+ *
+ * @param ec        process group doing the I/O
+ * @param tensors   tensors to read into
+ * @param filenames tensor file of each tensor
+ * @param profile   print the I/O groups and a per-file timing breakdown
  */
 template<typename TensorType>
-void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool tammio = true,
-                    Tensor<TensorType> wtensor = {}, bool profile = false, int nagg_hint = 0) {
-#if !defined(USE_HDF5)
-  tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
-#else
-#if !defined(USE_UPCXX)
-  ExecutionContext& gec   = get_ec(tensor());
-  auto              io_t1 = std::chrono::high_resolution_clock::now();
-  int               rank  = gec.pg().rank().value();
-#ifdef TU_SG_IO
-  auto [nagg, ppn, subranks] = get_subgroup_info(gec, tensor, nagg_hint);
-  MPI_Comm io_comm;
-  subcomm_from_subranks(gec, subranks, io_comm);
-#else
-  auto [nagg, ppn, subranks] = get_agg_info(gec, gec.pg().size().value(), tensor, nagg_hint);
-#endif
-
-  const std::string nppn = std::to_string(nagg) + "n," + std::to_string(ppn) + "ppn";
-  if(rank == 0 && profile) std::cout << "read from disk using: " << nppn << std::endl;
-
-  int ga_tens = tensor.ga_handle();
-  if(!tammio) {
-    auto tis_dims = tensor.tiled_index_spaces();
-
-    int                  ndims = tensor.num_modes();
-    std::vector<int64_t> dims;
-    std::vector<int64_t> chnks(ndims, -1);
-    for(auto tis: tis_dims) dims.push_back(tis.index_space().num_indices());
-
-    ga_tens = NGA_Create64(to_ga_eltype(tensor_element_type<TensorType>()), ndims, &dims[0],
-                           const_cast<char*>("iotemp"), &chnks[0]);
-  }
-
-  hid_t hdf5_dt = get_hdf5_dt<TensorType>();
-
-  auto tensor_back = tensor;
-  int  read_failed = 0;
-
-#ifdef TU_SG_IO
-  if(io_comm != MPI_COMM_NULL) {
-    ProcGroup        pg = ProcGroup::create_coll(io_comm);
-    ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
-#else
-  ExecutionContext& ec = gec;
-#endif
-
-    if(wtensor.num_modes() > 0) tensor = wtensor;
-
-    auto          ltensor = tensor();
-    LabelLoopNest loop_nest{ltensor.labels()};
-
-    internal::H5ErrorSilencer h5_silencer;
-    internal::H5Check         h5{filename, "ERROR", ec.pg().rank() == 0};
-
-    int ierr;
-    // MPI_File fh;
-    MPI_Info info;
-    // MPI_Status status;
-    hsize_t file_offset;
-    MPI_Info_create(&info);
-    // MPI_Info_set(info,"romio_cb_read", "enable");
-    // MPI_Info_set(info,"striping_unit","4194304");
-    MPI_Info_set(info, "cb_nodes", std::to_string(nagg).c_str());
-
-    // MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_RDONLY,
-    //                 info, &fh);
-
-    /* set the file access template for parallel IO access */
-    auto acc_template = H5Pcreate(H5P_FILE_ACCESS);
-
-    /* tell the HDF5 library that we want to use MPI-IO to do the reading */
-    ierr                 = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
-    auto file_identifier = h5(H5Fopen(filename.c_str(), H5F_ACC_RDONLY, acc_template), "H5Fopen");
-
-    /* release the file access template */
-    ierr = H5Pclose(acc_template);
-    ierr = MPI_Info_free(&info);
-
-    int tensor_rank = 1;
-    // hsize_t dimens_1d = tensor_size;
-    /* create a dataset collectively */
-    auto dataset = h5(H5Dopen(file_identifier, "tensor", H5P_DEFAULT), "H5Dopen");
-    internal::check_description(dataset, hdf5_dt, internal::describe_tensor(tensor), h5);
-    /* create a file dataspace independently */
-    auto file_dataspace = H5Dget_space(dataset);
-
-    /* Read additional metadata */
-    // std::vector<int> attr_dims(3);
-    // auto attr_dataset = H5Dopen(file_identifier, "attr",  H5P_DEFAULT);
-    // H5Dread(attr_dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, attr_dims.data());
-    // H5Dclose(attr_dataset);
-
-    hid_t xfer_plist;
-    /* set up the collective transfer properties list */
-    xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-    /*auto ret = */ H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
-
-    if(/*is_irreg &&*/ tammio) {
-      auto lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid = internal::translate_blockid(bid, ltensor);
-
-        if(h5.failed) return;
-        file_offset = 0;
-        for(const IndexVector& pbid: loop_nest) {
-          bool is_zero = !tensor.is_non_zero(pbid);
-          if(pbid == blockid) {
-            if(is_zero) return;
-            break;
-          }
-          if(is_zero) continue;
-          file_offset += tensor.block_size(pbid);
-        }
-
-        // file_offset = file_offset*sizeof(TensorType);
-
-        hsize_t                 dsize = tensor.block_size(blockid);
-        std::vector<TensorType> dbuf(dsize);
-
-        // std::cout << "READ: rank, file_offset, size = " << rank << "," << file_offset << ", " <<
-        // dsize << std::endl;
-
-        hsize_t stride = 1;
-        herr_t  ret    = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
-                                             &dsize, NULL); // stride=NULL?
-
-        // /* create a memory dataspace independently */
-        auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
-
-        // MPI_File_read_at(fh,file_offset,reinterpret_cast<void*>(&dbuf[0]),
-        //                 static_cast<int>(dsize),mpi_type<TensorType>(),&status);
-
-        // /* read data independently */
-        ret = h5(H5Dread(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, dbuf.data()),
-                 "H5Dread", false);
-
-        if(ret >= 0) tensor.put(blockid, dbuf);
-
-        H5Sclose(mem_dataspace);
-      };
-
-      block_for(ec, ltensor, lambda);
-    }
-    else {
-      auto ga_read_lambda = [&](const IndexVector& bid) {
-        const IndexVector blockid = internal::translate_blockid(bid, tensor());
-
-        if(h5.failed) return;
-        file_offset = 0;
-        for(const IndexVector& pbid: loop_nest) {
-          bool is_zero = !tensor.is_non_zero(pbid);
-          if(pbid == blockid) {
-            if(is_zero) return;
-            break;
-          }
-          if(is_zero) continue;
-          file_offset += tensor.block_size(pbid);
-        }
-
-        // file_offset = file_offset*sizeof(TensorType);
-
-        auto block_dims   = tensor.block_dims(blockid);
-        auto block_offset = tensor.block_offsets(blockid);
-
-        hsize_t dsize = tensor.block_size(blockid);
-
-        size_t               ndims = block_dims.size();
-        std::vector<int64_t> lo(ndims), hi(ndims), ld(ndims - 1);
-
-        for(size_t i = 0; i < ndims; i++) lo[i] = cd_ncast<size_t>(block_offset[i]);
-        for(size_t i = 0; i < ndims; i++)
-          hi[i] = cd_ncast<size_t>(block_offset[i] + block_dims[i] - 1);
-        for(size_t i = 1; i < ndims; i++) ld[i - 1] = cd_ncast<size_t>(block_dims[i]);
-
-        std::vector<TensorType> sbuf(dsize);
-
-        // MPI_File_read_at(fh,file_offset,reinterpret_cast<void*>(&sbuf[0]),
-        //             static_cast<int>(dsize),mpi_type<TensorType>(),&status);
-        hsize_t stride = 1;
-        herr_t  ret    = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
-                                             &dsize, NULL); // stride=NULL?
-
-        // /* create a memory dataspace independently */
-        auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
-
-        // MPI_File_read_at(fh,file_offset,reinterpret_cast<void*>(&dbuf[0]),
-        //                 static_cast<int>(dsize),mpi_type<TensorType>(),&status);
-
-        // /* read data independently */
-        ret = h5(H5Dread(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, sbuf.data()),
-                 "H5Dread", false);
-
-        if(ret >= 0) NGA_Put64(ga_tens, &lo[0], &hi[0], &sbuf[0], &ld[0]);
-      };
-
-      block_for(ec, tensor(), ga_read_lambda);
-    }
-
-    H5Sclose(file_dataspace);
-    // H5Sclose(mem_dataspace);
-    H5Pclose(xfer_plist);
-
-    H5Dclose(dataset);
-    h5(H5Fclose(file_identifier), "H5Fclose");
-    read_failed = h5.failed ? 1 : 0;
-
-#ifdef TU_SG_IO
-    ec.flush_and_sync();
-    // MemoryManagerGA::destroy_coll(mgr);
-    MPI_Comm_free(&io_comm);
-    pg.destroy_coll();
-    // MPI_File_close(&fh);
-  }
-#endif
-
-  tensor = tensor_back;
-
-  // All ranks agree on the outcome (this also replaces the barrier); a failed read is fatal.
-  const int any_read_failed = gec.pg().allreduce(&read_failed, ReduceOp::max);
-  if(any_read_failed) tamm_terminate("read_from_disk: failed to read tensor file: " + filename);
-
-  if(!tammio) {
-    ga_to_tamm(gec, tensor, ga_tens);
-    NGA_Destroy(ga_tens);
-  }
-
-  auto io_t2 = std::chrono::high_resolution_clock::now();
-
-  double io_time =
-    std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-  if(rank == 0 && profile)
-    std::cout << "Time for reading " << filename << " from disk (" << nppn << "): " << io_time
-              << " secs" << std::endl;
-#endif
-#endif
-}
-
-template<typename TensorType>
-void read_from_disk(Tensor<TensorType> tensor, const std::string& filename, bool profile,
-                    int nagg_hint = 0) {
-  read_from_disk(tensor, filename, true, {}, profile, nagg_hint);
-}
-
-/**
- * @brief Read batch of tensors from disk using HDF5.
- *        Uses process groups for concurrent reads.
- * @tparam TensorType the type of the elements in the tensor
- * @param tensor to read into
- * @param filename to read from disk
- */
-template<typename TensorType>
-void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> tensors,
-                          std::vector<std::string>        filenames,
-                          std::vector<Tensor<TensorType>> wtensors = {}, bool profile = false,
-                          int nagg_hint = 0) {
-#if !defined(USE_HDF5)
-  tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
-#else
+void read_from_disk(ExecutionContext& ec, std::vector<Tensor<TensorType>> tensors,
+                    std::vector<std::string> filenames, bool profile = false) {
   EXPECTS(tensors.size() == filenames.size());
-#if !defined(USE_UPCXX)
-  auto io_t1 = std::chrono::high_resolution_clock::now();
+#if !defined(USE_HDF5)
+  tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
+#else
+  if(tensors.empty()) return;
+  const auto io_t1 = std::chrono::steady_clock::now();
+  ProcGroup  pg    = ec.pg();
+  const int  rank  = pg.rank().value();
 
-  hid_t hdf5_dt = get_hdf5_dt<TensorType>();
+  std::vector<int64_t> bytes(tensors.size());
+  for(size_t i = 0; i < tensors.size(); i++)
+    bytes[i] = internal::tensor_file_elements(tensors[i]) * sizeof(TensorType);
 
-  const int  world_rank = gec.pg().rank().value();
-  const auto world_size = gec.pg().size().value();
-  auto       world_comm = gec.pg().comm();
+  std::vector<char> root_of;
+  const auto        failed = internal::run_io_groups(
+    ec, bytes, profile, "read_from_disk", root_of, [&](ProcGroup io_pg, size_t i) {
+      return internal::read_file(io_pg, tensors[i], filenames[i], profile);
+    });
 
-  int nranks        = world_size;
-  int color         = -1;
-  int prev_subranks = 0;
-
-  std::vector<int> rankspertensor;
-  if(nagg_hint > 0) nagg_hint = nagg_hint / tensors.size();
-  for(size_t i = 0; i < tensors.size(); i++) {
-    auto [nagg, ppn, subranks] = get_agg_info(gec, gec.pg().size().value(), tensors[i], nagg_hint);
-    rankspertensor.push_back(subranks);
-    if(world_rank >= prev_subranks && world_rank < (subranks + prev_subranks)) color = i;
-    nranks -= subranks;
-    if(nranks <= 0) break;
-    prev_subranks += subranks;
-  }
-  if(color == -1) color = MPI_UNDEFINED;
-
-  if(world_rank == 0 && profile) {
-    std::cout << "Number of tensors to be read, process groups, sizes: " << tensors.size() << ","
-              << rankspertensor.size() << ", " << rankspertensor << std::endl;
-  }
-
-  MPI_Comm io_comm;
-  MPI_Comm_split(world_comm, color, world_rank, &io_comm);
-
-  AtomicCounter* ac = new AtomicCounterGA(gec.pg(), 1);
-  ac->allocate(0);
-  int64_t taskcount = 0;
-  int64_t next      = -1;
-  // int total_pi_pg = 0;
-
-  std::vector<int> read_failed(tensors.size(), 0);
-
-  if(io_comm != MPI_COMM_NULL) {
-    ProcGroup        pg = ProcGroup::create_coll(io_comm);
-    ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
-
-    int root_ppi = -1;
-    MPI_Comm_rank(ec.pg().comm(), &root_ppi);
-
-    // int pg_id = rank/subranks;
-    if(root_ppi == 0) next = ac->fetch_add(0, 1);
-    ec.pg().broadcast(&next, 0);
-
-    bool is_wt = wtensors.empty();
-    for(size_t i = 0; i < tensors.size(); i++) {
-      if(next == taskcount) {
-        auto io_t1 = std::chrono::high_resolution_clock::now();
-
-        Tensor<TensorType> tensor   = tensors[i];
-        auto               filename = filenames[i];
-
-        // auto tensor_back = tensor;
-
-        if(!is_wt) {
-          if(wtensors[i].num_modes() > 0) tensor = wtensors[i];
-        }
-
-        auto          ltensor = tensor();
-        LabelLoopNest loop_nest{ltensor.labels()};
-
-        internal::H5ErrorSilencer h5_silencer;
-        internal::H5Check         h5{filename, "ERROR", root_ppi == 0};
-
-        int ierr;
-        // MPI_File fh;
-        MPI_Info info;
-        // MPI_Status status;
-        hsize_t file_offset;
-        MPI_Info_create(&info);
-        // MPI_Info_set(info,"romio_cb_read", "enable");
-        // MPI_Info_set(info,"striping_unit","4194304");
-        // MPI_Info_set(info,"cb_nodes",std::to_string(nagg).c_str());
-
-        // MPI_File_open(ec.pg().comm(), filename.c_str(), MPI_MODE_RDONLY,
-        //                 info, &fh);
-
-        /* set the file access template for parallel IO access */
-        auto acc_template = H5Pcreate(H5P_FILE_ACCESS);
-
-        /* tell the HDF5 library that we want to use MPI-IO to do the reading */
-        ierr = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
-        auto file_identifier =
-          h5(H5Fopen(filename.c_str(), H5F_ACC_RDONLY, acc_template), "H5Fopen");
-
-        /* release the file access template */
-        ierr = H5Pclose(acc_template);
-        ierr = MPI_Info_free(&info);
-
-        int tensor_rank = 1;
-        // hsize_t dimens_1d = tensor_size;
-        /* create a dataset collectively */
-        auto dataset = h5(H5Dopen(file_identifier, "tensor", H5P_DEFAULT), "H5Dopen");
-        internal::check_description(dataset, hdf5_dt, internal::describe_tensor(tensor), h5);
-        /* create a file dataspace independently */
-        auto file_dataspace = H5Dget_space(dataset);
-
-        /* Read additional metadata */
-        // std::vector<int> attr_dims(3);
-        // auto attr_dataset = H5Dopen(file_identifier, "attr",  H5P_DEFAULT);
-        // H5Dread(attr_dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, attr_dims.data());
-        // H5Dclose(attr_dataset);
-
-        hid_t xfer_plist;
-        /* set up the collective transfer properties list */
-        xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-        /*auto ret = */ H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
-
-        auto lambda = [&](const IndexVector& bid) {
-          const IndexVector blockid = internal::translate_blockid(bid, ltensor);
-
-          if(h5.failed) return;
-          file_offset = 0;
-          for(const IndexVector& pbid: loop_nest) {
-            bool is_zero = !tensor.is_non_zero(pbid);
-            if(pbid == blockid) {
-              if(is_zero) return;
-              break;
-            }
-            if(is_zero) continue;
-            file_offset += tensor.block_size(pbid);
-          }
-
-          // file_offset = file_offset*sizeof(TensorType);
-
-          hsize_t                 dsize = tensor.block_size(blockid);
-          std::vector<TensorType> dbuf(dsize);
-
-          // std::cout << "READ: rank, file_offset, size = " << rank << "," << file_offset << ", "
-          // << dsize << std::endl;
-
-          hsize_t stride = 1;
-          herr_t  ret = H5Sselect_hyperslab(file_dataspace, H5S_SELECT_SET, &file_offset, &stride,
-                                            &dsize, NULL); // stride=NULL?
-
-          // /* create a memory dataspace independently */
-          auto mem_dataspace = H5Screate_simple(tensor_rank, &dsize, NULL);
-
-          // MPI_File_read_at(fh,file_offset,reinterpret_cast<void*>(&dbuf[0]),
-          //                 static_cast<int>(dsize),mpi_type<TensorType>(),&status);
-
-          // /* read data independently */
-          ret =
-            h5(H5Dread(dataset, hdf5_dt, mem_dataspace, file_dataspace, xfer_plist, dbuf.data()),
-               "H5Dread", false);
-
-          if(ret >= 0) tensor.put(blockid, dbuf);
-
-          H5Sclose(mem_dataspace);
-        };
-
-        block_for(ec, ltensor, lambda);
-
-        H5Sclose(file_dataspace);
-        // H5Sclose(mem_dataspace);
-        H5Pclose(xfer_plist);
-
-        H5Dclose(dataset);
-        h5(H5Fclose(file_identifier), "H5Fclose");
-        if(h5.failed) read_failed[i] = 1;
-
-        // tensor = tensor_back;
-
-        auto io_t2 = std::chrono::high_resolution_clock::now();
-
-        double io_time =
-          std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-        if(root_ppi == 0 && profile)
-          std::cout << "Time for reading " << filename << " from disk (" << ec.pg().size().value()
-                    << "): " << io_time << " secs" << std::endl;
-
-        if(root_ppi == 0) next = ac->fetch_add(0, 1);
-        ec.pg().broadcast(&next, 0);
-
-      } // next==taskcount
-
-      if(root_ppi == 0) taskcount++;
-      ec.pg().broadcast(&taskcount, 0);
-
-    } // loop over tensors
-
-    ec.flush_and_sync();
-    MPI_Comm_free(&io_comm);
-    // MemoryManagerGA::destroy_coll(mgr);
-    pg.destroy_coll();
-  } // iocomm!=MPI_COMM_NULL
-
-  ac->deallocate();
-  delete ac;
-
-  // All ranks agree on which tensor files failed (this also replaces the barrier); any failed
-  // read is fatal and every failed file is reported together.
-  std::vector<int> any_read_failed(tensors.size(), 0);
-  gec.pg().allreduce(read_failed.data(), any_read_failed.data(),
-                     static_cast<int>(read_failed.size()), ReduceOp::max);
   std::vector<std::string> failed_files;
-  for(size_t i = 0; i < tensors.size(); i++) {
-    if(any_read_failed[i]) failed_files.push_back(filenames[i]);
-  }
+  for(size_t i = 0; i < tensors.size(); i++)
+    if(failed[i]) failed_files.push_back(filenames[i]);
+  if(failed_files.size() == 1 && tensors.size() == 1)
+    tamm_terminate("read_from_disk: failed to read tensor file: " + failed_files[0]);
   if(!failed_files.empty())
-    tamm_terminate("read_from_disk_group: one or more tensor files could not be read" +
+    tamm_terminate("read_from_disk: one or more tensor files could not be read" +
                    internal::file_list("failed to read", failed_files) + "\n");
 
-  auto io_t2 = std::chrono::high_resolution_clock::now();
-
-  double io_time =
-    std::chrono::duration_cast<std::chrono::duration<double>>((io_t2 - io_t1)).count();
-  if(world_rank == 0 && profile)
-    std::cout << "Total Time for reading tensors" << " from disk: " << io_time << " secs"
-              << std::endl;
-#endif
+  if(profile && rank == 0)
+    std::cout << "Time for reading " << tensors.size() << " tensor file(s) from disk: "
+              << std::chrono::duration<double>(std::chrono::steady_clock::now() - io_t1).count()
+              << " secs" << std::endl;
 #endif
 }
 
+/// Reads one tensor from a tensor file; see the overload for a list of tensors.
 template<typename TensorType>
-void read_from_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> tensors,
-                          std::vector<std::string> filenames, bool profile, int nagg_hint = 0) {
-  read_from_disk_group(gec, tensors, filenames, {}, profile, nagg_hint);
+void read_from_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::string& filename,
+                    bool profile = false) {
+  read_from_disk(ec, std::vector<Tensor<TensorType>>{tensor}, std::vector<std::string>{filename},
+                 profile);
 }
 
 template<typename T>

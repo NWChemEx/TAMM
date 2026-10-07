@@ -5,32 +5,7 @@
 
 using namespace tamm;
 
-using T             = double;
-using ComplexTensor = Tensor<std::complex<T>>;
-bool   tammio       = true;
-bool   profileio    = true;
-double init_value   = 21.0;
-
-template<typename TensorType>
-void io_stats(ExecutionContext& gec, Tensor<TensorType>& tensor) {
-  int rank = gec.pg().rank().value();
-
-  long double nelements = 1;
-  // Heuristic: Use 1 agg for every 14 GiB
-  const long double ne_mb = 131072 * 14.0;
-  const int         ndims = tensor.num_modes();
-  for(auto i = 0; i < ndims; i++)
-    nelements *= tensor.tiled_index_spaces()[i].index_space().num_indices();
-  // nelements = tensor.size();
-  int nagg = (nelements / (ne_mb * 1024)) + 1;
-
-  const std::string nppn = std::to_string(nagg) + " nodes";
-
-  if(rank == 0 && profileio)
-    std::cout << "tensor size: " << std::fixed << std::setprecision(2)
-              << (nelements * 8.0) / (1024 * 1024 * 1024.0)
-              << "GiB, can write to disk using upto: " << nppn << std::endl;
-}
+using T = double;
 
 std::tuple<TiledIndexSpace, TiledIndexSpace, TAMM_SIZE> setupTIS(TAMM_SIZE noa, TAMM_SIZE nva) {
   TAMM_SIZE n_occ_alpha    = noa;
@@ -110,128 +85,10 @@ std::tuple<TiledIndexSpace, TiledIndexSpace, TAMM_SIZE> setupTIS(TAMM_SIZE noa, 
   return std::make_tuple(MO, tis_i, total_orbitals);
 }
 
-template<typename T>
-void read_write(Tensor<T> tensor, std::string tstring) {
-  std::string hdf5_str  = tstring + "_hdf5";
-  std::string mpiio_str = tstring + "_mpiio";
-
-  auto* ec = tensor.execution_context();
-
-  // Roundtrip verification: fill with non-uniform data, hash it, write, zero the
-  // in-memory tensor, read back, and require the hash to match.  Previously this
-  // helper wrote+read without verifying the read-back values at all.
-  random_ip(tensor, /*seed=*/12345u);
-  ec->pg().barrier();
-  const size_t hash_before = hash_tensor(tensor);
-
-  write_to_disk(tensor, hdf5_str, tammio, profileio);
-
-  // Clobber the in-memory data so a no-op read would be detected.
-  Scheduler{*ec}(tensor() = T{0}).execute();
-  ec->pg().barrier();
-
-  read_from_disk(tensor, hdf5_str, tammio, {}, profileio);
-  ec->pg().barrier();
-
-  const size_t hash_after = hash_tensor(tensor);
-  EXPECTS(hash_before == hash_after);
-  // write_to_disk_mpiio(tensor,mpiio_str,tammio,profileio);
-  // read_from_disk_mpiio(tensor,mpiio_str,tammio,{},profileio);
-}
-
-template<typename T>
-void test_io_2d(Scheduler& sch, TiledIndexSpace tis, TiledIndexSpace tis_i) {
-  TiledIndexSpace N = tis("all");
-  TiledIndexSpace O = tis("occ");
-  TiledIndexSpace V = tis("virt");
-
-  TiledIndexSpace K = tis_i("all");
-
-  Tensor<T> t2_oo{O, O};
-  Tensor<T> t2_ov{O, V};
-  Tensor<T> t2_vv{V, V};
-
-  sch
-    .allocate(t2_oo, t2_ov, t2_vv)(t2_oo() = init_value)(t2_ov() = init_value)(t2_vv() = init_value)
-    .execute();
-
-  read_write(t2_oo, "t2_oo");
-  read_write(t2_ov, "t2_ov");
-  read_write(t2_vv, "t2_vv");
-
-  sch.deallocate(t2_oo, t2_ov, t2_vv).execute();
-}
-
-template<typename T>
-void test_io_3d(Scheduler& sch, TiledIndexSpace tis, TiledIndexSpace tis_i) {
-  TiledIndexSpace N = tis("all");
-  TiledIndexSpace O = tis("occ");
-  TiledIndexSpace V = tis("virt");
-
-  TiledIndexSpace K = tis_i("all");
-
-  Tensor<T> t3_ook{O, O, K};
-  Tensor<T> t3_ovk{O, V, K};
-  Tensor<T> t3_vvk{V, V, K};
-
-  Tensor<T> t3_ooo{O, O, O};
-  Tensor<T> t3_oov{O, O, V};
-  Tensor<T> t3_ovv{O, V, V};
-  Tensor<T> t3_vvv{V, V, V};
-
-  sch.allocate(t3_ook, t3_ovk, t3_vvk)
-    .allocate(t3_ooo, t3_oov, t3_ovv,
-              t3_vvv)(t3_ook() = init_value)(t3_ovk() = init_value)(t3_vvk() = init_value)
-
-      (t3_ooo() = init_value)(t3_oov() = init_value)(t3_ovv() = init_value)(t3_vvv() = init_value)
-    .execute();
-
-  read_write(t3_ook, "t3_ook");
-  read_write(t3_ovk, "t3_ovk");
-  read_write(t3_vvk, "t3_vvk");
-
-  read_write(t3_ooo, "t3_ooo");
-  read_write(t3_oov, "t3_oov");
-  read_write(t3_ovv, "t3_ovv");
-  read_write(t3_vvv, "t3_vvv");
-
-  sch.deallocate(t3_ook, t3_ovk, t3_vvk).execute();
-  sch.deallocate(t3_ooo, t3_oov, t3_ovv, t3_vvv).execute();
-}
-
-template<typename T>
-void test_io_4d(Scheduler& sch, TiledIndexSpace tis, TiledIndexSpace tis_i) {
-  TiledIndexSpace N = tis("all");
-  TiledIndexSpace O = tis("occ");
-  TiledIndexSpace V = tis("virt");
-
-  TiledIndexSpace K = tis_i("all");
-
-  Tensor<T> t_oooo{{O, O, O, O}, {2, 2}}; // OOOO
-  Tensor<T> t_ooov{{O, O, O, V}, {2, 2}}; // OOOV
-  Tensor<T> t_oovv{{O, O, V, V}, {2, 2}}; // OOVV
-  Tensor<T> t_ovvv{{O, V, V, V}, {2, 2}}; // OVVV
-
-  sch.allocate(t_oooo)(t_oooo() = init_value).execute();
-  sch.allocate(t_ooov)(t_ooov() = init_value).execute();
-  sch.allocate(t_oovv)(t_oovv() = init_value).execute();
-  sch.allocate(t_ovvv)(t_ovvv() = init_value).execute();
-
-  read_write(t_oooo, "t_oooo");
-  read_write(t_ooov, "t_ooov");
-  read_write(t_oovv, "t_oovv");
-  read_write(t_ovvv, "t_ovvv");
-
-  sch.deallocate(t_oooo).execute();
-  sch.deallocate(t_ooov).execute();
-  sch.deallocate(t_oovv).execute();
-  sch.deallocate(t_ovvv).execute();
-}
-
 namespace fs = std::filesystem;
 
 // All files written by this test go into this directory.
-const std::string io_dir = "test_io/";
+const std::string io_dir = "io_test/";
 
 // Rank 0 performs a filesystem action; all ranks wait for it.
 template<typename Func>
@@ -303,7 +160,7 @@ void test_commit(ExecutionContext& ec, TiledIndexSpace tis) {
   Tensor<T> written = snapshot(ec, t);
 
   step(ec, "writing tensor A to " + f);
-  write_to_disk(t, f);
+  write_to_disk(ec, t, f);
   step(ec, "checking " + f + " exists and " + f + ".tmp does not");
   on_rank0(ec, [&] {
     IO_CHECK(fs::exists(f));
@@ -312,7 +169,7 @@ void test_commit(ExecutionContext& ec, TiledIndexSpace tis) {
 
   step(ec, "zeroing tensor A, reading it back from " + f + " and comparing with what was written");
   Scheduler{ec}(t() = T{0}).execute();
-  read_from_disk(t, f);
+  read_from_disk(ec, t, f);
   IO_CHECK(same_values(ec, t, written));
 
   Scheduler{ec}.deallocate(t, written).execute();
@@ -334,13 +191,13 @@ void test_stale_staging_file(ExecutionContext& ec, TiledIndexSpace tis) {
   Tensor<T> written = snapshot(ec, t);
 
   step(ec, "writing tensor B to " + f);
-  write_to_disk(t, f);
+  write_to_disk(ec, t, f);
   step(ec, "checking " + f + ".tmp is gone");
   on_rank0(ec, [&] { IO_CHECK(!fs::exists(f + ".tmp")); });
 
   step(ec, "zeroing tensor B, reading it back from " + f + " and comparing with what was written");
   Scheduler{ec}(t() = T{0}).execute();
-  read_from_disk(t, f);
+  read_from_disk(ec, t, f);
   IO_CHECK(same_values(ec, t, written));
 
   Scheduler{ec}.deallocate(t, written).execute();
@@ -358,7 +215,7 @@ void test_tensor_description(ExecutionContext& ec, TiledIndexSpace tis) {
   Scheduler{ec}.allocate(t).execute();
   random_ip(t, 106u);
   step(ec, "writing tensor D to " + f);
-  write_to_disk(t, f);
+  write_to_disk(ec, t, f);
 
   const Tile      n = tis.index_space().num_indices();
   TiledIndexSpace other{tis.index_space(), std::vector<Tile>{n / 2, n - n / 2}};
@@ -420,6 +277,143 @@ void test_tensor_description(ExecutionContext& ec, TiledIndexSpace tis) {
   on_rank0(ec, [&] { fs::remove(f); });
 }
 
+// A subgroup of the ranks writes a tensor allocated on all ranks (blocks owned outside the
+// subgroup are fetched), and all ranks read it back, i.e. a different number of ranks than wrote
+// it; then the reverse. Covers a plain tensor and a spin tensor whose zero blocks are skipped.
+void test_subgroup_io(ExecutionContext& ec, TiledIndexSpace tis) {
+  // A spin-blocked space: occupied and virtual parts, each with alpha and beta halves.
+  const Tile      n  = tis.index_space().num_indices();
+  const Tile      no = n / 4, nv = n / 2 - no; // per spin
+  IndexSpace      mo_is{range(0, 2 * (no + nv)),
+                        {{"occ", {range(0, 2 * no)}}, {"virt", {range(2 * no, 2 * (no + nv))}}},
+                        {{Spin{1}, {range(0, no), range(2 * no, 2 * no + nv)}},
+                         {Spin{2}, {range(no, 2 * no), range(2 * no + nv, 2 * (no + nv))}}}};
+  const Tile      ts = std::max<Tile>(1, std::min(no, nv) / 2);
+  TiledIndexSpace mo{mo_is, ts};
+  TiledIndexSpace O = mo("occ"), V = mo("virt");
+
+  const int         nsub   = std::max(1, static_cast<int>(ec.pg().size().value() / 2));
+  ProcGroup         sub_pg = ProcGroup::create_subgroup(ec.pg(), nsub);
+  ExecutionContext* sub_ec =
+    sub_pg.is_valid() ? new ExecutionContext(sub_pg, DistributionKind::nw, MemoryManagerKind::ga)
+                      : nullptr;
+
+  struct Case {
+    std::string name;
+    Tensor<T>   tensor;
+  };
+  std::vector<Case> cases{{"plain tensor", Tensor<T>{tis, tis}},
+                          {"spin tensor", Tensor<T>{{O, O, V, V}, {2, 2}}}};
+
+  for(auto& c: cases) {
+    Tensor<T>& t = c.tensor;
+    Scheduler{ec}.allocate(t).execute();
+    random_ip(t, 107u);
+    Tensor<T> written = snapshot(ec, t);
+
+    const std::string f1 = io_dir + "subgroup_write.h5", f2 = io_dir + "subgroup_read.h5";
+    step(ec, c.name + " allocated on all " + std::to_string(ec.pg().size().value()) +
+               " ranks: the first " + std::to_string(nsub) +
+               " rank(s) write it, all ranks read it");
+    if(sub_ec) write_to_disk(*sub_ec, t, f1);
+    ec.pg().barrier();
+    Scheduler{ec}(t() = T{0}).execute();
+    read_from_disk(ec, t, f1);
+    IO_CHECK(same_values(ec, t, written));
+
+    step(ec,
+         c.name + ": all ranks write it, the first " + std::to_string(nsub) + " rank(s) read it");
+    write_to_disk(ec, t, f2);
+    Scheduler{ec}(t() = T{0}).execute();
+    if(sub_ec) read_from_disk(*sub_ec, t, f2);
+    ec.pg().barrier();
+    IO_CHECK(same_values(ec, t, written));
+
+    Scheduler{ec}.deallocate(t, written).execute();
+    on_rank0(ec, [&] {
+      fs::remove(f1);
+      fs::remove(f2);
+    });
+  }
+
+  if(sub_ec) {
+    sub_ec->flush_and_sync();
+    delete sub_ec;
+    sub_pg.destroy_coll();
+  }
+}
+
+// A named tensor written to its own tensor file.
+struct NamedTensor {
+  std::string name;
+  Tensor<T>   tensor;
+};
+
+// 2D tensors over the MO space: occupied-occupied, occupied-virtual and virtual-virtual blocks.
+std::vector<NamedTensor> tensors_2d(TiledIndexSpace mo) {
+  TiledIndexSpace O = mo("occ"), V = mo("virt");
+  return {{"t2_oo", {O, O}}, {"t2_ov", {O, V}}, {"t2_vv", {V, V}}};
+}
+
+// 3D tensors: MO pairs with an auxiliary index (Cholesky-vector-like), and MO triples.
+std::vector<NamedTensor> tensors_3d(TiledIndexSpace mo, TiledIndexSpace aux) {
+  TiledIndexSpace O = mo("occ"), V = mo("virt"), K = aux("all");
+  return {{"t3_ook", {O, O, K}}, {"t3_ovk", {O, V, K}}, {"t3_vvk", {V, V, K}},
+          {"t3_ooo", {O, O, O}}, {"t3_oov", {O, O, V}}, {"t3_ovv", {O, V, V}},
+          {"t3_vvv", {V, V, V}}};
+}
+
+// Spin-blocked 4D tensors (two-electron-integral-like), whose zero blocks are skipped.
+std::vector<NamedTensor> tensors_4d(TiledIndexSpace mo) {
+  TiledIndexSpace O = mo("occ"), V = mo("virt");
+  return {{"t_oooo", {{O, O, O, O}, {2, 2}}},
+          {"t_ooov", {{O, O, O, V}, {2, 2}}},
+          {"t_oovv", {{O, O, V, V}, {2, 2}}},
+          {"t_ovvv", {{O, V, V, V}, {2, 2}}}};
+}
+
+// 2D, 3D and 4D tensors over spin-blocked molecular-orbital spaces and an auxiliary space, as
+// used in coupled-cluster methods, filled with random values, written as one list of tensor files,
+// zeroed, read back as one list, and each checked against a copy of what was written. The n
+// molecular orbitals are split evenly between the two spins, and per spin 10% are occupied and
+// 90% virtual.
+void test_spin_blocked_tensors(ExecutionContext& ec, Tile n) {
+  const TAMM_SIZE per_spin         = std::max<TAMM_SIZE>(2, n / 2);
+  const TAMM_SIZE noa              = std::max<TAMM_SIZE>(1, per_spin / 10);
+  const TAMM_SIZE nva              = per_spin - noa;
+  auto [MO, tis_i, total_orbitals] = setupTIS(noa, nva);
+
+  std::vector<NamedTensor> named = tensors_2d(MO);
+  for(auto& t: tensors_3d(MO, tis_i)) named.push_back(t);
+  for(auto& t: tensors_4d(MO)) named.push_back(t);
+
+  std::vector<Tensor<T>>   tensors, written;
+  std::vector<std::string> files;
+  for(size_t i = 0; i < named.size(); i++) {
+    Tensor<T>& t = named[i].tensor;
+    Scheduler{ec}.allocate(t).execute();
+    random_ip(t, 600u + i);
+    tensors.push_back(t);
+    written.push_back(snapshot(ec, t));
+    files.push_back(io_dir + named[i].name + ".h5");
+  }
+
+  step(ec, "writing " + std::to_string(tensors.size()) +
+             " tensors (3 2D, 7 3D, 4 4D) as one list to " + io_dir + "t*.h5");
+  write_to_disk(ec, tensors, files, true);
+
+  step(ec, "zeroing them, reading them back as one list and checking each");
+  for(auto& t: tensors) Scheduler{ec}(t() = T{0}).execute();
+  read_from_disk(ec, tensors, files, true);
+  for(size_t i = 0; i < tensors.size(); i++) IO_CHECK(same_values(ec, tensors[i], written[i]));
+
+  for(size_t i = 0; i < tensors.size(); i++)
+    Scheduler{ec}.deallocate(tensors[i], written[i]).execute();
+  on_rank0(ec, [&] {
+    for(const auto& f: files) fs::remove(f);
+  });
+}
+
 // A failed write is not fatal and keeps the previous tensor file. The failure is forced by a
 // directory occupying the staging file's name, which makes H5Fcreate fail.
 void test_failed_write_keeps_previous(ExecutionContext& ec, TiledIndexSpace tis) {
@@ -436,7 +430,7 @@ void test_failed_write_keeps_previous(ExecutionContext& ec, TiledIndexSpace tis)
   on_rank0(ec, [&] { fs::create_directory(f + ".tmp"); });
   random_ip(t, 105u);
   step(ec, "[1] writing tensor C to " + f + " (expected to fail with a warning)");
-  write_to_disk(t, f);
+  write_to_disk(ec, t, f);
   step(ec, "[1] checking no " + f + " was created; removing directory " + f + ".tmp");
   on_rank0(ec, [&] {
     IO_CHECK(!fs::exists(f));
@@ -446,17 +440,17 @@ void test_failed_write_keeps_previous(ExecutionContext& ec, TiledIndexSpace tis)
   random_ip(t, 103u);
   Tensor<T> previous = snapshot(ec, t);
   step(ec, "[2] writing tensor C (version 1) to " + f + " (expected to succeed)");
-  write_to_disk(t, f);
+  write_to_disk(ec, t, f);
 
   step(ec, "[2] creating directory " + f + ".tmp so the next write fails");
   on_rank0(ec, [&] { fs::create_directory(f + ".tmp"); });
   random_ip(t, 104u);
   step(ec, "[2] writing tensor C (version 2) to " + f + " (expected to fail with a warning)");
-  write_to_disk(t, f);
+  write_to_disk(ec, t, f);
 
   step(ec, "[2] reading " + f + " back and checking it still holds version 1");
   Scheduler{ec}(t() = T{0}).execute();
-  read_from_disk(t, f);
+  read_from_disk(ec, t, f);
   IO_CHECK(same_values(ec, t, previous));
 
   Scheduler{ec}.deallocate(t, previous).execute();
@@ -493,14 +487,14 @@ void test_group_write_one_failure(ExecutionContext& ec, TiledIndexSpace tis) {
   step(ec, "writing tensors G0, G1, G2 (version 1) as a group to " + io_dir +
              "group_tensor_{0,1,2}.h5 "
              "(expected to succeed)");
-  write_to_disk_group(ec, ts, files);
+  write_to_disk(ec, ts, files);
 
   step(ec, "creating directory " + files[1] + ".tmp so writing G1 fails");
   on_rank0(ec, [&] { fs::create_directory(files[1] + ".tmp"); });
   for(size_t i = 0; i < nt; i++) random_ip(ts[i], 300u + i);
   step(ec, "writing tensors G0, G1, G2 (version 2) as a group (expected to fail with a warning; "
            "G0 and G2 write fine but must not be committed)");
-  write_to_disk_group(ec, ts, files);
+  write_to_disk(ec, ts, files);
 
   step(ec, "checking the staging files of G0 and G2 were removed");
   on_rank0(ec, [&] {
@@ -510,7 +504,7 @@ void test_group_write_one_failure(ExecutionContext& ec, TiledIndexSpace tis) {
 
   step(ec, "reading the group back and checking all three tensors still hold version 1");
   for(auto& t: ts) Scheduler{ec}(t() = T{0}).execute();
-  read_from_disk_group(ec, ts, files);
+  read_from_disk(ec, ts, files);
   for(size_t i = 0; i < nt; i++) IO_CHECK(same_values(ec, ts[i], previous[i]));
 
   for(size_t i = 0; i < nt; i++) Scheduler{ec}.deallocate(ts[i], previous[i]).execute();
@@ -528,7 +522,7 @@ void test_read_mismatch_fatal(ExecutionContext& ec, TiledIndexSpace tis) {
   Scheduler{ec}.allocate(t).execute();
   random_ip(t, 500u);
   step(ec, "writing tensor D to " + f);
-  write_to_disk(t, f);
+  write_to_disk(ec, t, f);
 
   const Tile      n = tis.index_space().num_indices();
   TiledIndexSpace other{tis.index_space(), std::vector<Tile>{n / 2, n - n / 2}};
@@ -536,7 +530,7 @@ void test_read_mismatch_fatal(ExecutionContext& ec, TiledIndexSpace tis) {
   Scheduler{ec}.allocate(u).execute();
   step(ec, "reading " + f + " into a tensor with tiles " + std::to_string(n / 2) + "," +
              std::to_string(n - n / 2) + " (expected to be fatal: tiling differs)");
-  read_from_disk(u, f);
+  read_from_disk(ec, u, f);
 
   if(ec.print()) std::cout << "FAILED: the read did not terminate" << std::endl;
 }
@@ -553,7 +547,7 @@ void test_group_read_fatal(ExecutionContext& ec, TiledIndexSpace tis) {
     Scheduler{ec}.allocate(t).execute();
     random_ip(t, 400u);
   }
-  write_to_disk_group(ec, ts, files);
+  write_to_disk(ec, ts, files);
 
   on_rank0(ec, [&] {
     std::ofstream(files[1], std::ios::trunc) << "not an HDF5 file"; // garbage
@@ -561,17 +555,19 @@ void test_group_read_fatal(ExecutionContext& ec, TiledIndexSpace tis) {
   });
 
   if(ec.print()) std::cout << "expecting a fatal read error" << std::endl;
-  read_from_disk_group(ec, ts, files);
+  read_from_disk(ec, ts, files);
 
   if(ec.print()) std::cout << "FAILED: the read did not terminate" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
-  // argv[1]: N for the 3D tensor (NxNx12N) written to disk first.
-  // argv[2]: optional dimension length for all remaining tests (default 100).
+  // argv[1]: N for the 4D tensor (NxNxNxN) written to disk first.
+  // argv[2]: optional tile size as a percentage of a dimension's length (default 5).
+  // argv[3]: optional; 0 runs only the 4D tensor write, any other value (default 1) also runs
+  //          the remaining tests.
   if(argc < 2) {
-    std::cout << "Usage: Test_IO <N for the NxNx12N tensor> [dimension length for the tests "
-                 "(default 100)]\n";
+    std::cout << "Usage: Test_IO <N for the NxNxNxN tensor> [tile size as % of a dimension's "
+                 "length (default 5)] [0: only the 4D tensor write; 1: all tests (default 1)]\n";
     return 0;
   }
 
@@ -579,54 +575,63 @@ int main(int argc, char* argv[]) {
 
   ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
-  ExecutionContext ec_dense{ec.pg(), DistributionKind::dense, MemoryManagerKind::ga};
+  ExecutionContext ec_dense{ec.pg(), DistributionKind::nw, MemoryManagerKind::ga};
 
   Scheduler sch{ec_dense};
 
   if(ec.pg().rank() == 0) fs::create_directories(io_dir);
   ec.pg().barrier();
-  Tile io_dim1 = atoi(argv[1]); // N of the NxNx12N tensor
-  Tile io_dim2 = argc > 2 ? atoi(argv[2]) : 100;
+  Tile       io_dim1  = atoi(argv[1]); // N of the NxNxNxN tensor
+  const int  tile_pct = argc > 2 ? atoi(argv[2]) : 5;
+  const bool run_all  = argc > 3 ? atoi(argv[3]) != 0 : true;
+  const Tile io_dim2  = 100; // dimension length of the tensors in the remaining tests
 
-  // Tiles of a dimension of length n: tiles of max(30, 5% of n) plus the remainder.
-  auto make_tiles = [](Tile n) {
-    const Tile        ts = std::max(30, (int) (n * 0.05));
+  // Tiles of a dimension of length n: tiles of max(30, tile_pct% of n) plus the remainder.
+  auto make_tiles = [tile_pct](Tile n) {
+    const Tile        ts = std::max(30, (int) (n * tile_pct / 100));
     std::vector<Tile> tiles(n / ts, ts);
     if(n % ts > 0) tiles.push_back(n % ts);
     return tiles;
   };
 
-  // Tile ts_ = std::max(30, (int) (io_dim1 * 0.05));
-  //  auto [TIS, TIS_I, total_orbitals] = setupTIS(io_dim1, ts_);
+  TiledIndexSpace tis_n{IndexSpace{range(io_dim1)}, make_tiles(io_dim1)};
+  Tensor<double>  t4d{tis_n, tis_n, tis_n, tis_n};
+  // t4d.set_dense();
 
-  // test_io_2d<T>(sch, TIS, TIS_I);
-  // test_io_3d<T>(sch, TIS, TIS_I);
-  // test_io_4d<T>(sch, TIS, TIS_I);
+  sch.allocate(t4d).execute();
+  if(ec.print()) {
+    const size_t ntiles = tis_n.num_tiles();
+    std::cout << std::string(80, '-') << std::endl;
+    std::cout << "Writing a 4D tensor of size (NxNxNxN), N = " << io_dim1 << ", tile size "
+              << tis_n.tile_size(0) << ", " << ntiles << " tiles per dimension, "
+              << ntiles * ntiles * ntiles * ntiles << " tiles in total, to disk ... " << std::endl;
+  }
+  write_to_disk(ec, t4d, io_dir + "tensor4d.h5", true);
 
-  std::vector<Tile> gc_tiles = make_tiles(io_dim1);
+  sch.deallocate(t4d).execute();
 
-  TiledIndexSpace tc_ij{IndexSpace{range(io_dim1)}, gc_tiles};
-  TiledIndexSpace tci{IndexSpace{range(12 * io_dim1)}, 12 * io_dim1};
-  Tensor<double>  gc{tc_ij, tc_ij, tci};
-  gc.set_dense();
-  io_stats(ec_dense, gc);
+  if(!run_all) {
+    if(ec.print()) std::cout << std::string(80, '-') << std::endl;
+    tamm::finalize();
+    return 0;
+  }
 
-  sch.allocate(gc).execute();
-  if(ec.print()) std::cout << "Writing a 3D tensor of size (NxNx12N) to disk ... " << std::endl;
-  write_to_disk(gc, io_dir + "tensor3d.h5", true, true);
-
-  sch.deallocate(gc).execute();
+  bool all_passed = true;
+  all_passed &= run_test(ec, "2D, 3D and 4D spin-blocked tensors written and read as one list",
+                         [&] { test_spin_blocked_tensors(ec, io_dim1); });
 
   TiledIndexSpace tis_io{IndexSpace{range(io_dim2)}, make_tiles(io_dim2)};
   if(ec.print())
     std::cout << "Remaining tests use tensors of dimension length " << io_dim2 << std::endl;
-  bool all_passed = true;
   all_passed &= run_test(ec, "Write and read back a tensor file; no staging (.tmp) file is left",
                          [&] { test_commit(ec, tis_io); });
   all_passed &= run_test(ec, "Write over a staging (.tmp) file left behind by a killed job",
                          [&] { test_stale_staging_file(ec, tis_io); });
   all_passed &= run_test(ec, "A tensor file stores its tensor description and a read checks it",
                          [&] { test_tensor_description(ec, tis_io); });
+  all_passed &= run_test(
+    ec, "A subgroup writes or reads a tensor allocated on all ranks (plain and spin tensors)",
+    [&] { test_subgroup_io(ec, tis_io); });
   all_passed &= run_test(ec,
                          "A failed write is not fatal and never replaces an existing tensor file",
                          [&] { test_failed_write_keeps_previous(ec, tis_io); });

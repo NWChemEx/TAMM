@@ -253,9 +253,9 @@ TAMM provides parallel IO routines for tensors:
 
 .. code:: cpp
 
-    tamm::write_to_disk(A,"tensor_A"); // Writes tensor A to a file called tensor_A
+    tamm::write_to_disk(ec, A, "tensor_A"); // Writes tensor A to a file called tensor_A
 
-    tamm::read_from_disk(B, "tensor_B"); // Reads tensor B from a file called tensor_B
+    tamm::read_from_disk(ec, B, "tensor_B"); // Reads tensor B from a file called tensor_B
 
 See :doc:`tensor_io` for the group routines, how writes are kept safe and how failures are
 reported.

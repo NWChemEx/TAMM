@@ -611,10 +611,14 @@ int main(int argc, char* argv[]) {
   const int  tile_pct = argc > 2 ? atoi(argv[2]) : 5;
   const bool run_all  = argc > 3 ? atoi(argv[3]) != 0 : true;
   const Tile io_dim2  = 100; // dimension length of the tensors in the remaining tests
+  if(ec.print())
+    std::cout << "Nodes: " << ec.nnodes() << ", ranks: " << ec.pg().size().value()
+              << ", ranks per node: " << ec.ppn() << ", tile size: " << tile_pct
+              << "% of each dimension" << std::endl;
 
   // Tiles of a dimension of length n: tiles of max(30, tile_pct% of n) plus the remainder.
   auto make_tiles = [tile_pct](Tile n) {
-    const Tile        ts = std::max(30, (int) (n * tile_pct / 100));
+    const Tile        ts = std::clamp((int) (n * tile_pct / 100), 30, 2000);
     std::vector<Tile> tiles(n / ts, ts);
     if(n % ts > 0) tiles.push_back(n % ts);
     return tiles;
@@ -623,6 +627,7 @@ int main(int argc, char* argv[]) {
   // Fills t with random values, writes it to file, zeroes it, reads it back and compares the norms.
   auto write_read = [&](auto t, const std::string& file, unsigned int seed) {
     using E = decltype(norm(t)); // the element type
+    if(ec.print()) std::cout << "GiB per I/O node: " << internal::io_gib_per_node() << std::endl;
     random_ip(t, seed);
     const E written = norm(t);
     write_to_disk(ec, t, file, true);

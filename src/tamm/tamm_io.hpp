@@ -695,10 +695,10 @@ hsize_t tensor_file_elements(const Tensor<TensorType>& tensor) {
 }
 
 /// GiB of tensor data per node used to size the process group writing or reading a tensor file:
-/// TAMM_IO_GIB_PER_NODE, default 14.
+/// TAMM_IO_GIB_PER_NODE, default 5.
 inline int64_t io_gib_per_node() {
   static const int64_t gib = io_env_override("TAMM_IO_GIB_PER_NODE");
-  return gib > 0 ? gib : 14;
+  return gib > 0 ? gib : 5;
 }
 
 /// Whether each tensor file is handled by all of the calling process group, one file after another:

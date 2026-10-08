@@ -20,7 +20,7 @@ Runtime parameters
 
 - ``TAMM_IO_GIB_PER_NODE (int)`` GiB of tensor data per node used to choose how many nodes write
    or read each tensor file in ``write_to_disk`` / ``read_from_disk``.
-   ``[default=14]``. When set, the value is printed once. See :doc:`tensor_io`.
+   ``[default=5]``. When set, the value is printed once. See :doc:`tensor_io`.
 
 - ``TAMM_IO_GROUPS (size|all)`` How the nodes are split into I/O groups in ``write_to_disk`` /
    ``read_from_disk``. ``size`` sizes the groups from the tensor data (see

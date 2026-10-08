@@ -89,7 +89,7 @@ How the work is split
 The nodes of ``ec`` are split into *I/O groups* of whole nodes, each writing or reading one or more
 tensor files:
 
-- Each tensor ideally gets one node per 14 GiB of data (the runtime parameter
+- Each tensor ideally gets one node per 5 GiB of data (the runtime parameter
   ``TAMM_IO_GIB_PER_NODE`` changes this). If every tensor's ideal group fits in ``ec``, every
   tensor gets it and all tensor files are written or read at once.
 - Otherwise, if there are no more tensors than nodes, the groups are scaled down in proportion to
@@ -100,7 +100,7 @@ tensor files:
 Within an I/O group, each process writes or reads the blocks it owns directly from or into its own
 memory. Blocks owned by processes outside the group are moved to or from the group, so the more
 of a tensor's owners an I/O group contains, the less data moves. Because an I/O group is sized
-from the tensor's data (one node per 14 GiB by default), a tensor holding less than that per node
+from the tensor's data (one node per 5 GiB by default), a tensor holding less than that per node
 of ``ec`` is handled by fewer nodes than hold it, and most of its blocks are moved to or from
 them.
 

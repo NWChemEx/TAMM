@@ -561,14 +561,13 @@ void test_group_read_fatal(ExecutionContext& ec, TiledIndexSpace tis) {
 }
 
 int main(int argc, char* argv[]) {
-  // argv[1]: N for the 2D tensor (100N x 100N) and the 4D tensor (NxNxNxN) written to disk first.
+  // argv[1]: N for the 2D tensor (100N x 100N) and the 4D tensor (NxNxNxN), written and read first.
   // argv[2]: optional tile size as a percentage of a dimension's length (default 5).
-  // argv[3]: optional; 0 runs only the 2D and 4D tensor writes, any other value (default 1) also
-  // runs
-  //          the remaining tests.
+  // argv[3]: optional; 0 runs only the 2D and 4D tensor tests, any other value (default 1) also
+  //          runs the remaining tests.
   if(argc < 2) {
     std::cout << "Usage: Test_IO <N for the 100N x 100N and NxNxNxN tensors> [tile size as % of a "
-                 "dimension's length (default 5)] [0: only the 2D and 4D tensor writes; 1: all "
+                 "dimension's length (default 5)] [0: only the 2D and 4D tensor tests; 1: all "
                  "tests (default 1)]\n";
     return 0;
   }
@@ -596,9 +595,25 @@ int main(int argc, char* argv[]) {
     return tiles;
   };
 
+  // Fills t with random values, writes it to file, zeroes it, reads it back and compares the norms.
+  auto write_read = [&](Tensor<T> t, const std::string& file, unsigned int seed) {
+    random_ip(t, seed);
+    const T written = norm(t);
+    write_to_disk(ec, t, file, true);
+    sch(t() = T{0}).execute();
+    read_from_disk(ec, t, file, true);
+    const T read = norm(t);
+    if(ec.print()) {
+      std::cout << "Norm written: " << written << ", norm read: " << read << std::endl;
+      // the norms may be summed in a different order
+      if(std::abs(read - written) > 1e-12 * written)
+        std::cout << "The norms of the tensor written and read back do not match" << std::endl;
+    }
+  };
+
   const Tile      dim_2d = 100 * io_dim1;
   TiledIndexSpace tis_2d{IndexSpace{range(dim_2d)}, make_tiles(dim_2d)};
-  Tensor<double>  t2d{tis_2d, tis_2d};
+  Tensor<T>       t2d{tis_2d, tis_2d};
 
   sch.allocate(t2d).execute();
   if(ec.print()) {
@@ -606,14 +621,15 @@ int main(int argc, char* argv[]) {
     std::cout << std::string(80, '-') << std::endl;
     std::cout << "Writing a 2D tensor of size (100N x 100N), N = " << io_dim1 << ", tile size "
               << tis_2d.tile_size(0) << ", " << ntiles << " tiles per dimension, "
-              << ntiles * ntiles << " tiles in total, to disk ... " << std::endl;
+              << ntiles * ntiles << " tiles in total, to disk and reading it back ... "
+              << std::endl;
   }
-  write_to_disk(ec, t2d, io_dir + "tensor2d.h5", true);
+  write_read(t2d, io_dir + "tensor2d.h5", 201u);
 
   sch.deallocate(t2d).execute();
 
   TiledIndexSpace tis_n{IndexSpace{range(io_dim1)}, make_tiles(io_dim1)};
-  Tensor<double>  t4d{tis_n, tis_n, tis_n, tis_n};
+  Tensor<T>       t4d{tis_n, tis_n, tis_n, tis_n};
   // t4d.set_dense();
 
   sch.allocate(t4d).execute();
@@ -622,10 +638,10 @@ int main(int argc, char* argv[]) {
     std::cout << std::string(80, '-') << std::endl;
     std::cout << "Writing a 4D tensor of size (NxNxNxN), N = " << io_dim1 << ", tile size "
               << tis_n.tile_size(0) << ", " << ntiles << " tiles per dimension, "
-              << ntiles * ntiles * ntiles * ntiles << " tiles in total, to disk ... " << std::endl;
+              << ntiles * ntiles * ntiles * ntiles
+              << " tiles in total, to disk and reading it back ... " << std::endl;
   }
-  write_to_disk(ec, t4d, io_dir + "tensor4d.h5", true);
-
+  write_read(t4d, io_dir + "tensor4d.h5", 202u);
   sch.deallocate(t4d).execute();
 
   if(!run_all) {

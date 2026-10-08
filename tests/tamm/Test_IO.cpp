@@ -560,6 +560,31 @@ void test_group_read_fatal(ExecutionContext& ec, TiledIndexSpace tis) {
   if(ec.print()) std::cout << "FAILED: the read did not terminate" << std::endl;
 }
 
+// A dense tensor (an N-D Global Array, whose blocks are not each stored on one rank) is written and
+// read back. Dense tensors are allocated on an execution context with a dense distribution.
+void test_dense_tensor(ExecutionContext& ec, TiledIndexSpace tis) {
+  const std::string f = io_dir + "tensor_dense.h5";
+  on_rank0(ec, [&] { fs::remove(f); });
+
+  ExecutionContext ec_dense{ec.pg(), DistributionKind::dense, MemoryManagerKind::ga};
+  Tensor<T>        t{tis, tis};
+  t.set_dense();
+  Scheduler{ec_dense}.allocate(t).execute();
+  random_ip(t, 104u);
+  Tensor<T> written = snapshot(ec, t);
+
+  step(ec, "writing dense tensor E to " + f);
+  write_to_disk(ec, t, f);
+  step(ec, "zeroing tensor E, reading it back from " + f + " and comparing with what was written");
+  Scheduler{ec}(t() = T{0}).execute();
+  read_from_disk(ec, t, f);
+  IO_CHECK(same_values(ec, t, written));
+
+  Scheduler{ec}.deallocate(written).execute();
+  Scheduler{ec_dense}.deallocate(t).execute();
+  on_rank0(ec, [&] { fs::remove(f); });
+}
+
 int main(int argc, char* argv[]) {
   // argv[1]: N for the 2D tensor (100N x 100N) and the 4D tensor (NxNxNxN), written and read first.
   // argv[2]: optional tile size as a percentage of a dimension's length (default 5).
@@ -596,31 +621,32 @@ int main(int argc, char* argv[]) {
   };
 
   // Fills t with random values, writes it to file, zeroes it, reads it back and compares the norms.
-  auto write_read = [&](Tensor<T> t, const std::string& file, unsigned int seed) {
+  auto write_read = [&](auto t, const std::string& file, unsigned int seed) {
+    using E = decltype(norm(t)); // the element type
     random_ip(t, seed);
-    const T written = norm(t);
+    const E written = norm(t);
     write_to_disk(ec, t, file, true);
-    sch(t() = T{0}).execute();
+    sch(t() = E{0}).execute();
     read_from_disk(ec, t, file, true);
-    const T read = norm(t);
+    const E read = norm(t);
     if(ec.print()) {
       std::cout << "Norm written: " << written << ", norm read: " << read << std::endl;
       // the norms may be summed in a different order
-      if(std::abs(read - written) > 1e-12 * written)
+      if(std::abs(read - written) > 1e-12 * std::abs(written))
         std::cout << "The norms of the tensor written and read back do not match" << std::endl;
     }
   };
 
-  const Tile      dim_2d = 100 * io_dim1;
-  TiledIndexSpace tis_2d{IndexSpace{range(dim_2d)}, make_tiles(dim_2d)};
-  Tensor<T>       t2d{tis_2d, tis_2d};
+  const Tile              dim_2d = 100 * io_dim1;
+  TiledIndexSpace         tis_2d{IndexSpace{range(dim_2d)}, make_tiles(dim_2d)};
+  Tensor<std::complex<T>> t2d{tis_2d, tis_2d};
 
   sch.allocate(t2d).execute();
   if(ec.print()) {
     const size_t ntiles = tis_2d.num_tiles();
     std::cout << std::string(80, '-') << std::endl;
-    std::cout << "Writing a 2D tensor of size (100N x 100N), N = " << io_dim1 << ", tile size "
-              << tis_2d.tile_size(0) << ", " << ntiles << " tiles per dimension, "
+    std::cout << "Writing a complex 2D tensor of size (100N x 100N), N = " << io_dim1
+              << ", tile size " << tis_2d.tile_size(0) << ", " << ntiles << " tiles per dimension, "
               << ntiles * ntiles << " tiles in total, to disk and reading it back ... "
               << std::endl;
   }
@@ -630,7 +656,6 @@ int main(int argc, char* argv[]) {
 
   TiledIndexSpace tis_n{IndexSpace{range(io_dim1)}, make_tiles(io_dim1)};
   Tensor<T>       t4d{tis_n, tis_n, tis_n, tis_n};
-  // t4d.set_dense();
 
   sch.allocate(t4d).execute();
   if(ec.print()) {
@@ -672,6 +697,8 @@ int main(int argc, char* argv[]) {
   all_passed &= run_test(ec,
                          "A group write where one tensor fails commits none of the tensor files",
                          [&] { test_group_write_one_failure(ec, tis_io); });
+  all_passed &=
+    run_test(ec, "A dense tensor is written and read back", [&] { test_dense_tensor(ec, tis_io); });
   // last: terminates the program
   // run_test(ec, "A group read with unreadable tensor files is fatal and lists all of them",
   //          [&] { test_group_read_fatal(ec, tis_io); });

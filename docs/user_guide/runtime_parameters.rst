@@ -10,17 +10,16 @@ Runtime parameters
 
 - ``TAMM_IO_STRIPE_COUNT (int)`` Number of Lustre OSTs each tensor file written by
    ``write_to_disk`` is striped over.
-   ``[default: one per 4 GiB of tensor data, at least 1 and at most 64]``. When set, the value is
-   printed once. Ignored on filesystems other than Lustre. See :doc:`tensor_io`.
+   ``[default: one per 4 GiB of tensor data, at least 1 and at most 64]``. Ignored on filesystems
+   other than Lustre. See :doc:`tensor_io`.
 
 - ``TAMM_IO_STRIPE_SIZE (int)`` Lustre stripe size, in MiB, of each tensor file written by
    ``write_to_disk``.
-   ``[default=4]``. When set, the value is printed once. Ignored on filesystems other than Lustre.
-   See :doc:`tensor_io`.
+   ``[default=4]``. Ignored on filesystems other than Lustre. See :doc:`tensor_io`.
 
 - ``TAMM_IO_GIB_PER_NODE (int)`` GiB of tensor data per node used to choose how many nodes write
    or read each tensor file in ``write_to_disk`` / ``read_from_disk``.
-   ``[default=5]``. When set, the value is printed once. See :doc:`tensor_io`.
+   ``[default=5]``. See :doc:`tensor_io`.
 
 - ``TAMM_IO_GROUPS (size|all)`` How the nodes are split into I/O groups in ``write_to_disk`` /
    ``read_from_disk``. ``size`` sizes the groups from the tensor data (see

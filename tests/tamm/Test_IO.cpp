@@ -343,6 +343,56 @@ void test_subgroup_io(ExecutionContext& ec, TiledIndexSpace tis) {
   }
 }
 
+// The two halves of the ranks, each on its own process group, write tensors allocated on all ranks
+// to their own tensor files at the same time, then read them back at the same time.
+void test_concurrent_subgroups(ExecutionContext& ec, TiledIndexSpace tis) {
+  const int nranks = ec.pg().size().value();
+  if(nranks < 2) {
+    step(ec, "skipped: needs at least 2 ranks");
+    return;
+  }
+  const int        nfirst = nranks / 2;
+  std::vector<int> first(nfirst), second(nranks - nfirst);
+  std::iota(first.begin(), first.end(), 0);
+  std::iota(second.begin(), second.end(), nfirst);
+  // collective over ec: every rank creates both, and gets a valid group only for its own half
+  ProcGroup first_pg  = ProcGroup::create_subgroup(ec.pg(), first);
+  ProcGroup second_pg = ProcGroup::create_subgroup(ec.pg(), second);
+  const int half      = ec.pg().rank().value() < nfirst ? 0 : 1;
+  ProcGroup half_pg   = half == 0 ? first_pg : second_pg;
+  auto*     half_ec   = new ExecutionContext(half_pg, DistributionKind::nw, MemoryManagerKind::ga);
+
+  const std::vector<std::string> files{io_dir + "half_tensor_0.h5", io_dir + "half_tensor_1.h5"};
+  std::vector<Tensor<T>>         ts(2), written(2);
+  for(int h = 0; h < 2; h++) {
+    ts[h] = Tensor<T>{tis, tis};
+    Scheduler{ec}.allocate(ts[h]).execute();
+    random_ip(ts[h], 108u + h);
+    written[h] = snapshot(ec, ts[h]);
+  }
+
+  step(ec, "ranks 0-" + std::to_string(nfirst - 1) + " write tensor H0 to " + files[0] +
+             " while ranks " + std::to_string(nfirst) + "-" + std::to_string(nranks - 1) +
+             " write tensor H1 to " + files[1]);
+  write_to_disk(*half_ec, ts[half], files[half]);
+  ec.pg().barrier();
+
+  step(ec, "zeroing tensors H0 and H1, each half reading its tensor back at the same time, and "
+           "comparing with what was written");
+  for(auto& t: ts) Scheduler{ec}(t() = T{0}).execute();
+  read_from_disk(*half_ec, ts[half], files[half]);
+  ec.pg().barrier();
+  for(int h = 0; h < 2; h++) IO_CHECK(same_values(ec, ts[h], written[h]));
+
+  for(int h = 0; h < 2; h++) Scheduler{ec}.deallocate(ts[h], written[h]).execute();
+  on_rank0(ec, [&] {
+    for(const auto& f: files) fs::remove(f);
+  });
+  half_ec->flush_and_sync();
+  delete half_ec;
+  half_pg.destroy_coll();
+}
+
 // A named tensor written to its own tensor file.
 struct NamedTensor {
   std::string name;
@@ -697,6 +747,9 @@ int main(int argc, char* argv[]) {
   all_passed &= run_test(
     ec, "A subgroup writes or reads a tensor allocated on all ranks (plain and spin tensors)",
     [&] { test_subgroup_io(ec, tis_io); });
+  all_passed &= run_test(ec,
+                         "Two halves of the ranks write and read their own tensor files at once",
+                         [&] { test_concurrent_subgroups(ec, tis_io); });
   all_passed &= run_test(ec,
                          "A failed write is not fatal and never replaces an existing tensor file",
                          [&] { test_failed_write_keeps_previous(ec, tis_io); });

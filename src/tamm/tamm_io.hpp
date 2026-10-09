@@ -243,14 +243,12 @@ public:
 
   /// Adds the time since start to phase name (phases are reported in the order first added).
   void add(const std::string& name, clock::time_point start) {
-    const double secs = std::chrono::duration<double>(clock::now() - start).count();
-    for(auto& [phase, total]: phases_)
-      if(phase == name) {
-        total += secs;
-        return;
-      }
-    phases_.emplace_back(name, secs);
+    add_secs(name, std::chrono::duration<double>(clock::now() - start).count());
   }
+
+  /// Adds phase name with no time yet. report() combines the ranks' phases in order, so every rank
+  /// must have the same phases: a phase some ranks may never enter is declared on all of them.
+  void declare(const std::string& name) { add_secs(name, 0.0); }
 
   /// Adds n to the per-rank count name (e.g. blocks handled), reported as its min - max over ranks.
   void count(const std::string& name, int64_t n = 1) {
@@ -289,6 +287,15 @@ public:
   }
 
 private:
+  void add_secs(const std::string& name, double secs) {
+    for(auto& [phase, total]: phases_)
+      if(phase == name) {
+        total += secs;
+        return;
+      }
+    phases_.emplace_back(name, secs);
+  }
+
   std::vector<std::pair<std::string, double>>  phases_;
   std::vector<std::pair<std::string, int64_t>> counts_;
 };
@@ -616,6 +623,12 @@ void write_blocks(ProcGroup io_pg, Tensor<TensorType> tensor, const BlockPlan& p
   phases.add("local block writes", phase_t);
   phases.count("local blocks", plan.local.size());
 
+  // Shared blocks are handed out dynamically, so a rank may get none.
+  if(!plan.shared.empty()) {
+    phases.declare("gather shared (get)");
+    phases.declare("shared block writes");
+    phases.count("shared blocks", 0);
+  }
   phase_t = io_clock::now();
   std::vector<TensorType> buffer;
   for_each_shared(io_pg, plan.shared, [&](const FileBlock& block) {
@@ -655,6 +668,12 @@ void read_blocks(ProcGroup io_pg, Tensor<TensorType> tensor, const BlockPlan& pl
   phases.add("local block reads", phase_t);
   phases.count("local blocks", plan.local.size());
 
+  // Shared blocks are handed out dynamically, so a rank may get none.
+  if(!plan.shared.empty()) {
+    phases.declare("shared block reads");
+    phases.declare("scatter shared (put)");
+    phases.count("shared blocks", 0);
+  }
   phase_t = io_clock::now();
   std::vector<TensorType> buffer;
   for_each_shared(io_pg, plan.shared, [&](const FileBlock& block) {

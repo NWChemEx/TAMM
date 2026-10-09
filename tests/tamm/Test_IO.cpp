@@ -616,9 +616,10 @@ int main(int argc, char* argv[]) {
               << ", ranks per node: " << ec.ppn() << ", tile size: " << tile_pct
               << "% of each dimension" << std::endl;
 
-  // Tiles of a dimension of length n: tiles of max(30, tile_pct% of n) plus the remainder.
+  // Tiles of a dimension of length n: tiles of tile_pct% of n, clamped to [30, 5000], plus the
+  // remainder.
   auto make_tiles = [tile_pct](Tile n) {
-    const Tile        ts = std::clamp((int) (n * tile_pct / 100), 30, 2000);
+    const Tile        ts = std::clamp((int) (n * tile_pct / 100), 30, 5000);
     std::vector<Tile> tiles(n / ts, ts);
     if(n % ts > 0) tiles.push_back(n % ts);
     return tiles;

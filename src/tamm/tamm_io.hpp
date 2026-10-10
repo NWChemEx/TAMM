@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <numeric>
@@ -225,6 +227,48 @@ namespace internal {
 /// A tensor file is written into this staging file and then committed (renamed) to its final
 /// name, so a tensor file at its final name is always complete.
 inline std::string staging_filename(const std::string& filename) { return filename + ".tmp"; }
+
+/// Reads a positive integer from environment variable name; 0 if it is not set.
+inline int64_t io_env_override(const char* name) {
+  const char* raw = std::getenv(name);
+  if(raw == nullptr) return 0;
+  char*           end = nullptr;
+  const long long val = std::strtoll(raw, &end, 10);
+  if(end == raw || *end != '\0' || val <= 0)
+    tamm_terminate(std::string("[TAMM ERROR] ") + name + " must be a positive integer; got \"" +
+                   raw + "\"");
+  return val;
+}
+
+/// Lustre striping of a new tensor file.
+struct Striping {
+  int64_t count;      // number of OSTs
+  int64_t size_bytes; // stripe size
+};
+
+/// Striping for a tensor file of tensor_bytes: 4 MiB stripes and one OST per 4 GiB of data, at
+/// least 1 and at most 64. TAMM_IO_STRIPE_COUNT and TAMM_IO_STRIPE_SIZE (in MiB) override them.
+inline Striping tensor_file_striping(int64_t tensor_bytes) {
+  static const int64_t count_override = io_env_override("TAMM_IO_STRIPE_COUNT");
+  static const int64_t size_override  = io_env_override("TAMM_IO_STRIPE_SIZE");
+  constexpr int64_t    MiB            = int64_t{1} << 20;
+  constexpr int64_t    GiB            = int64_t{1} << 30;
+
+  Striping striping;
+  striping.count      = count_override > 0
+                          ? count_override
+                          : std::clamp<int64_t>((tensor_bytes + 4 * GiB - 1) / (4 * GiB), 1, 64);
+  striping.size_bytes = (size_override > 0 ? size_override : 4) * MiB;
+  return striping;
+}
+
+/// Sets striping hints for creating a tensor file through MPI-IO (honored on Lustre, ignored by
+/// other filesystems), and aligns HDF5 objects of at least one stripe to stripe boundaries.
+inline void set_striping(MPI_Info info, hid_t fapl, const Striping& striping) {
+  MPI_Info_set(info, "striping_factor", std::to_string(striping.count).c_str());
+  MPI_Info_set(info, "striping_unit", std::to_string(striping.size_bytes).c_str());
+  H5Pset_alignment(fapl, striping.size_bytes, striping.size_bytes);
+}
 
 /// Turns off HDF5's automatic error-stack printing for its lifetime; failures are detected and
 /// reported through H5Check instead.
@@ -562,6 +606,12 @@ void write_to_disk(Tensor<TensorType> tensor, const std::string& filename, bool 
     // ierr = MPI_Info_set(info, "cb_block_size", "1048576");
     // ierr = MPI_Info_set(info, "cb_buffer_size", "4194304");
 
+    const auto striping = internal::tensor_file_striping(tensor_size * sizeof(TensorType));
+    internal::set_striping(info, acc_template, striping);
+    if(ec.pg().rank() == 0 && profile)
+      std::cout << "striping " << striping.count << " OSTs x " << (striping.size_bytes >> 20)
+                << " MiB" << std::endl;
+
     /* tell the HDF5 library that we want to use MPI-IO to do the writing */
     ierr = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);
     auto file_identifier =
@@ -840,6 +890,12 @@ void write_to_disk_group(ExecutionContext& gec, std::vector<Tensor<TensorType>> 
         // ierr = MPI_Info_set(info, "collective_buffering", "true");
         // ierr = MPI_Info_set(info, "cb_block_size", "1048576");
         // ierr = MPI_Info_set(info, "cb_buffer_size", "4194304");
+
+        const auto striping = internal::tensor_file_striping(tensor_size * sizeof(TensorType));
+        internal::set_striping(info, acc_template, striping);
+        if(root_ppi == 0 && profile)
+          std::cout << filename << ": striping " << striping.count << " OSTs x "
+                    << (striping.size_bytes >> 20) << " MiB" << std::endl;
 
         /* tell the HDF5 library that we want to use MPI-IO to do the writing */
         ierr = H5Pset_fapl_mpio(acc_template, ec.pg().comm(), info);

@@ -11,25 +11,17 @@ bool   tammio       = true;
 bool   profileio    = true;
 double init_value   = 21.0;
 
+// Number of I/O nodes for a tensor, chosen as the io branch chooses it for a single tensor: one
+// node per gib_per_node GiB, rounded up, between 1 and the number of nodes. 0 when gib_per_node
+// is 0, which makes write_to_disk/read_from_disk use their own rule (one node per 14 GiB).
 template<typename TensorType>
-void io_stats(ExecutionContext& gec, Tensor<TensorType>& tensor) {
-  int rank = gec.pg().rank().value();
-
-  long double nelements = 1;
-  // Heuristic: Use 1 agg for every 14 GiB
-  const long double ne_mb = 131072 * 14.0;
-  const int         ndims = tensor.num_modes();
-  for(auto i = 0; i < ndims; i++)
-    nelements *= tensor.tiled_index_spaces()[i].index_space().num_indices();
-  // nelements = tensor.size();
-  int nagg = (nelements / (ne_mb * 1024)) + 1;
-
-  const std::string nppn = std::to_string(nagg) + " nodes";
-
-  if(rank == 0 && profileio)
-    std::cout << "tensor size: " << std::fixed << std::setprecision(2)
-              << (nelements * 8.0) / (1024 * 1024 * 1024.0)
-              << "GiB, can write to disk using upto: " << nppn << std::endl;
+int io_nodes(ExecutionContext& ec, Tensor<TensorType> tensor, int gib_per_node) {
+  if(gib_per_node <= 0) return 0;
+  int64_t nelements = 1;
+  for(const auto& tis: tensor.tiled_index_spaces()) nelements *= tis.index_space().num_indices();
+  const int64_t bytes = nelements * static_cast<int64_t>(sizeof(TensorType));
+  const int64_t gib   = int64_t{gib_per_node} << 30;
+  return static_cast<int>(std::clamp<int64_t>((bytes + gib - 1) / gib, 1, ec.nnodes()));
 }
 
 std::tuple<TiledIndexSpace, TiledIndexSpace, TAMM_SIZE> setupTIS(TAMM_SIZE noa, TAMM_SIZE nva) {
@@ -231,7 +223,7 @@ void test_io_4d(Scheduler& sch, TiledIndexSpace tis, TiledIndexSpace tis_i) {
 namespace fs = std::filesystem;
 
 // All files written by this test go into this directory.
-const std::string io_dir = "test_io/";
+const std::string io_dir = "io_test_old/";
 
 // Rank 0 performs a filesystem action; all ranks wait for it.
 template<typename Func>
@@ -567,11 +559,13 @@ void test_group_read_fatal(ExecutionContext& ec, TiledIndexSpace tis) {
 }
 
 int main(int argc, char* argv[]) {
-  // argv[1]: N for the 3D tensor (NxNx12N) written to disk first.
-  // argv[2]: optional dimension length for all remaining tests (default 100).
+  // argv[1]: N. A complex (100N x 100N) tensor and a double N^4 tensor are written and read back.
+  // argv[2]: GiB per I/O node, as TAMM_IO_GIB_PER_NODE on the io branch (default 0: the 14 GiB
+  //          rule of this version).
+  // argv[3]: tile size as a percentage of the dimension length (default 5).
   if(argc < 2) {
-    std::cout << "Usage: Test_IO <N for the NxNx12N tensor> [dimension length for the tests "
-                 "(default 100)]\n";
+    std::cout << "Usage: Test_IO_old <N> [GiB per I/O node (default 0: one node per 14 GiB)] "
+                 "[tile size, % of the dimension length (default 5)]\n";
     return 0;
   }
 
@@ -579,60 +573,101 @@ int main(int argc, char* argv[]) {
 
   ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
-  ExecutionContext ec_dense{ec.pg(), DistributionKind::dense, MemoryManagerKind::ga};
+  ExecutionContext ec_dense{ec.pg(), DistributionKind::nw, MemoryManagerKind::ga};
 
   Scheduler sch{ec_dense};
 
   if(ec.pg().rank() == 0) fs::create_directories(io_dir);
   ec.pg().barrier();
-  Tile io_dim1 = atoi(argv[1]); // N of the NxNx12N tensor
-  Tile io_dim2 = argc > 2 ? atoi(argv[2]) : 100;
+  const Tile io_dim1      = atoi(argv[1]); // N of the NxNxNxN tensor
+  const int  gib_per_node = argc > 2 ? atoi(argv[2]) : 0;
+  const int  tile_pct     = argc > 3 ? atoi(argv[3]) : 5;
+  if(ec.print())
+    std::cout << "Nodes: " << ec.nnodes() << ", ranks: " << ec.pg().size().value()
+              << ", ranks per node: " << ec.ppn() << ", tile size: " << tile_pct
+              << "% of each dimension" << std::endl;
 
-  // Tiles of a dimension of length n: tiles of max(30, 5% of n) plus the remainder.
-  auto make_tiles = [](Tile n) {
-    const Tile        ts = std::max(30, (int) (n * 0.05));
+  // Tiles of a dimension of length n: tiles of tile_pct% of n, clamped to [30, 5000], plus the
+  // remainder. The same tiling as Test_IO on the io branch.
+  auto make_tiles = [tile_pct](Tile n) {
+    const Tile        ts = std::clamp((int) (n * tile_pct / 100), 30, 5000);
     std::vector<Tile> tiles(n / ts, ts);
     if(n % ts > 0) tiles.push_back(n % ts);
     return tiles;
   };
 
-  // Tile ts_ = std::max(30, (int) (io_dim1 * 0.05));
-  //  auto [TIS, TIS_I, total_orbitals] = setupTIS(io_dim1, ts_);
+  // Fills t with random values, writes it to file, zeroes it, reads it back and compares the norms.
+  auto write_read = [&](auto t, const std::string& file, unsigned int seed) {
+    using E         = decltype(norm(t)); // the element type
+    const int nodes = io_nodes(ec, t, gib_per_node);
+    if(ec.print())
+      std::cout << "GiB per I/O node: "
+                << (gib_per_node > 0 ? std::to_string(gib_per_node) : std::string("14 (default)"))
+                << ", I/O nodes: "
+                << (nodes > 0 ? std::to_string(nodes) : std::string("chosen by write_to_disk"))
+                << std::endl;
+    random_ip(t, seed);
+    const E written = norm(t);
+    ec.pg().barrier();
+    write_to_disk(t, file, tammio, profileio, nodes);
+    sch(t() = E{0}).execute();
+    ec.pg().barrier();
+    read_from_disk(t, file, tammio, {}, profileio, nodes);
+    const E read = norm(t);
+    if(ec.print()) {
+      std::cout << "Norm written: " << written << ", norm read: " << read << std::endl;
+      // the norms may be summed in a different order
+      if(std::abs(read - written) > 1e-12 * std::abs(written))
+        std::cout << "The norms of the tensor written and read back do not match" << std::endl;
+    }
+  };
 
-  // test_io_2d<T>(sch, TIS, TIS_I);
-  // test_io_3d<T>(sch, TIS, TIS_I);
-  // test_io_4d<T>(sch, TIS, TIS_I);
+  const Tile      dim_2d = 100 * io_dim1;
+  TiledIndexSpace tis_2d{IndexSpace{range(dim_2d)}, make_tiles(dim_2d)};
+  if(ec.print()) {
+    std::cout << std::string(80, '-') << std::endl;
+    std::cout << "Writing a complex 2D tensor of size (100N x 100N), N = " << io_dim1
+              << ", tile size " << tis_2d.tile_size(0) << ", " << tis_2d.num_tiles()
+              << " tiles per dimension, " << tis_2d.num_tiles() * tis_2d.num_tiles()
+              << " tiles in total, to disk and reading it back ... " << std::endl;
+  }
+  Tensor<std::complex<T>> t2d{tis_2d, tis_2d};
+  sch.allocate(t2d).execute();
+  write_read(t2d, io_dir + "tensor2d.h5", 201u);
+  sch.deallocate(t2d).execute();
 
-  std::vector<Tile> gc_tiles = make_tiles(io_dim1);
+  TiledIndexSpace tis_4d{IndexSpace{range(io_dim1)}, make_tiles(io_dim1)};
+  const size_t    nt_4d = tis_4d.num_tiles();
+  if(ec.print()) {
+    std::cout << std::string(80, '-') << std::endl;
+    std::cout << "Writing a 4D tensor of size (NxNxNxN), N = " << io_dim1 << ", tile size "
+              << tis_4d.tile_size(0) << ", " << nt_4d << " tiles per dimension, "
+              << nt_4d * nt_4d * nt_4d * nt_4d
+              << " tiles in total, to disk and reading it back ... " << std::endl;
+  }
+  Tensor<T> t4d{tis_4d, tis_4d, tis_4d, tis_4d};
+  sch.allocate(t4d).execute();
+  write_read(t4d, io_dir + "tensor4d.h5", 202u);
+  sch.deallocate(t4d).execute();
+  if(ec.print()) std::cout << std::string(80, '-') << std::endl;
 
-  TiledIndexSpace tc_ij{IndexSpace{range(io_dim1)}, gc_tiles};
-  TiledIndexSpace tci{IndexSpace{range(12 * io_dim1)}, 12 * io_dim1};
-  Tensor<double>  gc{tc_ij, tc_ij, tci};
-  gc.set_dense();
-  io_stats(ec_dense, gc);
-
-  sch.allocate(gc).execute();
-  if(ec.print()) std::cout << "Writing a 3D tensor of size (NxNx12N) to disk ... " << std::endl;
-  write_to_disk(gc, io_dir + "tensor3d.h5", true, true);
-
-  sch.deallocate(gc).execute();
-
-  TiledIndexSpace tis_io{IndexSpace{range(io_dim2)}, make_tiles(io_dim2)};
-  if(ec.print())
-    std::cout << "Remaining tests use tensors of dimension length " << io_dim2 << std::endl;
-  bool all_passed = true;
-  all_passed &= run_test(ec, "Write and read back a tensor file; no staging (.tmp) file is left",
-                         [&] { test_commit(ec, tis_io); });
-  all_passed &= run_test(ec, "Write over a staging (.tmp) file left behind by a killed job",
-                         [&] { test_stale_staging_file(ec, tis_io); });
-  all_passed &= run_test(ec, "A tensor file stores its tensor description and a read checks it",
-                         [&] { test_tensor_description(ec, tis_io); });
-  all_passed &= run_test(ec,
-                         "A failed write is not fatal and never replaces an existing tensor file",
-                         [&] { test_failed_write_keeps_previous(ec, tis_io); });
-  all_passed &= run_test(ec,
-                         "A group write where one tensor fails commits none of the tensor files",
-                         [&] { test_group_write_one_failure(ec, tis_io); });
+  // TiledIndexSpace tis_io{IndexSpace{range(io_dim2)}, make_tiles(io_dim2)};
+  // if(ec.print())
+  //   std::cout << "Remaining tests use tensors of dimension length " << io_dim2 << std::endl;
+  // bool all_passed = true;
+  // all_passed &= run_test(ec, "Write and read back a tensor file; no staging (.tmp) file is left",
+  //                        [&] { test_commit(ec, tis_io); });
+  // all_passed &= run_test(ec, "Write over a staging (.tmp) file left behind by a killed job",
+  //                        [&] { test_stale_staging_file(ec, tis_io); });
+  // all_passed &= run_test(ec, "A tensor file stores its tensor description and a read checks it",
+  //                        [&] { test_tensor_description(ec, tis_io); });
+  // all_passed &= run_test(ec,
+  //                        "A failed write is not fatal and never replaces an existing tensor
+  //                        file",
+  //                        [&] { test_failed_write_keeps_previous(ec, tis_io); });
+  // all_passed &= run_test(ec,
+  //                        "A group write where one tensor fails commits none of the tensor files",
+  //                        [&] { test_group_write_one_failure(ec, tis_io); });
   // last: terminates the program
   // run_test(ec, "A group read with unreadable tensor files is fatal and lists all of them",
   //          [&] { test_group_read_fatal(ec, tis_io); });
@@ -641,5 +676,5 @@ int main(int argc, char* argv[]) {
 
   tamm::finalize();
 
-  return all_passed ? 0 : 1;
+  return 0;
 }

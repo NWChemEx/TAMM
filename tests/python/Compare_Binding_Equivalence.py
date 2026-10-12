@@ -131,14 +131,14 @@ def run(args):
     pt.TensorDouble.allocate(ec, cpp_sched_d, py_sched_d, cpp_opmin_d, py_opmin_d)
     pt.TensorComplexDouble.allocate(ec, cpp_sched_z, py_sched_z)
 
-    pt.read_from_disk(cpp_sched_d, cpp_prefix + "_sched_d", True)
-    pt.read_from_disk(py_sched_d, py_prefix + "_sched_d", True)
+    pt.read_from_disk(ec, cpp_sched_d, cpp_prefix + "_sched_d")
+    pt.read_from_disk(ec, py_sched_d, py_prefix + "_sched_d")
 
-    pt.read_from_disk(cpp_opmin_d, cpp_prefix + "_opmin_d", True)
-    pt.read_from_disk(py_opmin_d, py_prefix + "_opmin_d", True)
+    pt.read_from_disk(ec, cpp_opmin_d, cpp_prefix + "_opmin_d")
+    pt.read_from_disk(ec, py_opmin_d, py_prefix + "_opmin_d")
 
-    pt.read_from_disk(cpp_sched_z, cpp_prefix + "_sched_z", True)
-    pt.read_from_disk(py_sched_z, py_prefix + "_sched_z", True)
+    pt.read_from_disk(ec, cpp_sched_z, cpp_prefix + "_sched_z")
+    pt.read_from_disk(ec, py_sched_z, py_prefix + "_sched_z")
 
     ec.flush_and_sync()
 

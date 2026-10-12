@@ -31,7 +31,7 @@ For a given contraction A\ :sub:`ij` = B\ :sub:`ik`\  * C\ :sub:`kj`\ , where A,
 
    .execute(); // Executing the scheduled tasks
 
-   tamm::write_to_disk(A,"tensor_A"); // Writing the resultant tensor to a file named tensor_A
+   tamm::write_to_disk(ec, A, "tensor_A.h5"); // Writing the resultant tensor to a file named tensor_A.h5
 
    sch.deallocate(A, B, C).execute(); // Deallocating the tensors after the contraction has concluded
 

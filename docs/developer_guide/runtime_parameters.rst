@@ -2,6 +2,9 @@
 Runtime parameters
 ==================
 
+- ``TAMM_ENABLE_SPRHBM (int)`` Enables the use of HBM memory on CPUs such as Intel SPR. 
+   ``[default=0]`` - Does not use HBM memory and instead uses DDR partition. Set to 1 to enable use of HBM memory.
+
 - ``TAMM_GPU_POOL`` Specifies the size of memory pool per GPU. Default is set to 80% of the free memory reported by the GPU runtime APIs. 
    Valid values range between 1-100.
 

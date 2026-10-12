@@ -577,8 +577,4 @@ are collective.
 Parallel IO operations
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-- ``tamm::write_to_disk(A,"filename")`` writes a distributed tamm tensor ``A`` to disk in parallel.
-- ``tamm::read_from_disk(A,"filename")`` reads a distributed tamm tensor ``A`` from disk in parallel.
-
-- ``read_from_disk_group(ec, tensor_list, filename_list)`` and ``write_to_disk_group(ec, tensor_list, filename_list)`` 
-  for reading and writing a batch of distributed tamm tensors concurrently over different process groups.
+Writing and reading distributed tensors to and from disk is described in :doc:`tensor_io`.

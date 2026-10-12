@@ -178,9 +178,9 @@ def run(prefix):
 
     ec.flush_and_sync()
 
-    pt.write_to_disk(C, prefix + "_sched_d", True, False, 0)
-    pt.write_to_disk(R, prefix + "_opmin_d", True, False, 0)
-    pt.write_to_disk(ZC, prefix + "_sched_z", True, False, 0)
+    pt.write_to_disk(ec, C, prefix + "_sched_d")
+    pt.write_to_disk(ec, R, prefix + "_opmin_d")
+    pt.write_to_disk(ec, ZC, prefix + "_sched_z")
 
     ec.flush_and_sync()
     pg.barrier()

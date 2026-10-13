@@ -352,7 +352,6 @@ void LHSAddPlan<T, LabeledTensorT1, LabeledTensorT2>::apply(const AddOpT&     ad
   auto        lhs_alloc_lt = lhs_lt.tensor()();
   auto        rhs_alloc_lt = rhs_lt.tensor()();
   const auto& ldist        = lhs_lt.tensor().distribution();
-  const auto& rdist        = rhs_lt.tensor().distribution();
   Proc        me           = ec.pg().rank();
 
   IndexLabelVec merged_use_labels =

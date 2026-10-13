@@ -583,9 +583,9 @@ TEST_CASE("Spin Tensor Construction") {
       TAMM_SIZE      size    = t.block_size(blockid);
       std::vector<T> buf(size);
       t.get(blockid, buf);
-      std::cout << "block" << blockid;
-      for(TAMM_SIZE i = 0; i < size; i++) std::cout << buf[i] << " ";
-      std::cout << std::endl;
+      // std::cout << "block" << blockid;
+      // for(TAMM_SIZE i = 0; i < size; i++) std::cout << buf[i] << " ";
+      // std::cout << std::endl;
     }
 
   } catch(const std::string& e) {
@@ -961,25 +961,21 @@ TEST_CASE("GitHub Issues") {
   Tensor<double> A{X, X, Y};
   Tensor<double> B{X, X};
 
-  std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
   tamm::Scheduler{ec}
     .allocate(A, B)(A() = 3.0)(B() = 0.0)
     // (B(i,j) += A(i,j,a))
     (B(i, j) += A(i, j, a))
     .execute();
 
-  std::cout << "A tensor" << std::endl;
-  print_tensor(A);
-  std::cout << "B tensor" << std::endl;
-  print_tensor(B);
-  std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-  // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+  // std::cout << "A tensor" << std::endl;
+  // print_tensor(A);
+  // std::cout << "B tensor" << std::endl;
+  // print_tensor(B);
   // print_tensor(B);
 }
 
 TEST_CASE("Slack Issues") {
-  using tensor_type = Tensor<double>;
-  std::cerr << "Slack Issue Start" << std::endl;
+  using tensor_type   = Tensor<double>;
   ProcGroup        pg = ProcGroup::create_world_coll();
   ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
   Scheduler        sch{ec};
@@ -1102,8 +1098,8 @@ TEST_CASE("Fill tensors using lambda functions") {
   auto i = tAOs.label("all");
 
   update_tensor(A(i, i), lambda_function);
-  std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
-  print_tensor(A);
+  // std::cerr << __FUNCTION__ << " " << __LINE__ << std::endl;
+  // print_tensor(A);
   Tensor<double>::deallocate(A, B);
 }
 
@@ -1576,8 +1572,8 @@ TEST_CASE("Test case for getting ExecutionContext from a Tensor") {
 
   auto t0_ec = T0.execution_context();
 
-  std::cout << "EC Ptr: " << &ec << std::endl;
-  std::cout << "T0 Ptr: " << t0_ec << std::endl;
+  // std::cout << "EC Ptr: " << &ec << std::endl;
+  // std::cout << "T0 Ptr: " << t0_ec << std::endl;
   REQUIRE(&ec == t0_ec);
 
   auto t1_ec = T1.execution_context();
@@ -1690,12 +1686,12 @@ TEST_CASE("Test for apply_ewise") {
 
   sch.allocate(T)(T() = 42.0)(T(i_virt, j_virt) = 21.0).execute();
 
-  std::cout << "Printing tensor T" << std::endl;
-  print_tensor(T);
+  // std::cout << "Printing tensor T" << std::endl;
+  // print_tensor(T);
 
   Tensor<double> Temp = tamm::scale(T(i_virt, j_virt), 0.1);
-  std::cout << "Printing tensor Temp" << std::endl;
-  print_tensor(Temp);
+  // std::cout << "Printing tensor Temp" << std::endl;
+  // print_tensor(Temp);
   check_value(Temp, 2.1);
 
   Tensor<double>::deallocate(T, Temp);
@@ -1728,19 +1724,45 @@ TEST_CASE("Testing fill_sparse_tensor") {
 
   sch.allocate(Q, P, T)(Q() = 1.0)(P() = 2.0)(T() = 3.0).execute();
 
-  std::cout << "Q Tensor" << std::endl;
-  print_tensor(Q);
-  std::cout << "P Tensor" << std::endl;
-  print_tensor(P);
-  std::cout << "T Tensor" << std::endl;
-  print_tensor(T);
+  // std::cout << "Q Tensor" << std::endl;
+  // print_tensor(Q);
+  // std::cout << "P Tensor" << std::endl;
+  // print_tensor(P);
+  // std::cout << "T Tensor" << std::endl;
+  // print_tensor(T);
 
   fill_sparse_tensor<double>(Q, lambda_function);
 
-  std::cout << "Q Tensor" << std::endl;
-  print_tensor(Q);
+  // std::cout << "Q Tensor" << std::endl;
+  // print_tensor(Q);
 }
 #endif
+
+// A TensorUnitTiled view borrows its parent tensor's memory region. Destroying the view must not
+// mark that region orphaned, otherwise flush_and_sync frees the parent's memory while it is still
+// live.
+TEST_CASE("Unit tiled view does not orphan parent memory region") {
+  TiledIndexSpace tis{IndexSpace{range(50)}, 20};
+  auto [i, j] = tis.labels<2>("all");
+
+  ProcGroup        pg = ProcGroup::create_world_coll();
+  ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
+  Scheduler        sch{ec};
+
+  Tensor<double> A{i, j};
+  sch.allocate(A)(A() = 1.0).execute();
+
+  { Tensor<double> A_ut{A, 2}; }
+
+  // AllocationStatus: 0=invalid, 1=created, 2=attached, 3=deallocated, 4=orphaned
+  REQUIRE(A.memory_region()->allocation_status() == AllocationStatus::created);
+
+  ec.flush_and_sync();
+  sch(A() = 2.0).execute();
+  check_value(A, 2.0);
+
+  sch.deallocate(A).execute();
+}
 
 int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);

@@ -190,7 +190,11 @@ public:
     if(id == "all") { return (*this); }
     // Single lookup (C++20 if-init) instead of find()+find()+at().
     const auto& named = tiled_info_->tiled_named_subspaces_;
-    if(auto it = named.find(id); it != named.end()) { return it->second; }
+    if(auto it = named.find(id); it != named.end()) {
+      auto subspace = it->second;
+      subspace.set_parent(std::make_shared<TiledIndexSpace>(*this));
+      return subspace;
+    }
     std::cerr << "Named sub-space " + id + " doesn't exist!" << std::endl;
     std::ostringstream os;
     os << "[TAMM ERROR] Named sub-space doesn't exist!\n" << __FILE__ << ":L" << __LINE__;
@@ -1481,7 +1485,6 @@ protected:
       tempTIS.set_tiled_info(std::make_shared<TiledIndexSpaceInfo>((*root_tiled_info_.lock()),
                                                                    named_is, new_offsets, indices));
       tempTIS.set_root(tiled_info_);
-      tempTIS.set_parent(std::make_shared<TiledIndexSpace>(*this));
       tempTIS.compute_hash();
 
       tiled_info_->tiled_named_subspaces_.insert({str_subis.first, tempTIS});

@@ -1764,7 +1764,9 @@ public:
   TensorUnitTiled& operator=(const TensorUnitTiled&) = delete;
 
   // Dtor
-  ~TensorUnitTiled() = default;
+  // mpb_ is borrowed from the parent tensor. Set to nullptr to avoid ~TensorImpl
+  // marking the parent's region as orphaned while the parent is still alive.
+  ~TensorUnitTiled() { mpb_ = nullptr; }
 
   /**
    * @brief Virtual method implementation for deallocating a unit tiled view tensor

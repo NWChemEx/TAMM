@@ -310,8 +310,10 @@ public:
       EXPECTS(mem_reg->allocation_status() == AllocationStatus::created ||
               mem_reg->allocation_status() == AllocationStatus::orphaned);
       if(mem_reg->allocation_status() == AllocationStatus::orphaned) {
+        MemoryManager* manager = &mem_reg->mgr();
         mem_reg->dealloc_coll();
         delete mem_reg;
+        delete manager;
       }
       else { mem_regs_to_dealloc_.push_back(mem_reg); }
     }

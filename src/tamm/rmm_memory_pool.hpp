@@ -189,6 +189,7 @@ public:
     max_host_bytes = 0.5 * cpu_mem_per_node;
     // Use only "tamm_cpu_pool" percent of the remaining memory
     max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
+    max_host_bytes /= ranks_pn_;
 #elif defined(TAMM_DISABLE_LIBNUMA)
     struct sysinfo cpumeminfo_;
     sysinfo(&cpumeminfo_);
@@ -197,6 +198,7 @@ public:
     max_host_bytes = 0.5 * cpumeminfo_.freeram * cpumeminfo_.mem_unit;
     // Use only "tamm_cpu_pool" percent of the remaining memory
     max_host_bytes *= (detail::tamm_cpu_pool / 100.0);
+    max_host_bytes /= ranks_pn_;
 #else
     // Set the CPU memory-pool
     if(numa_available() == -1) {

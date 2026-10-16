@@ -1792,7 +1792,7 @@ void bind_tamm_utils_for_type(py::module_& m) {
       if(!tensor) throw py::value_error("write_to_disk: tensor must not be None");
       Tensor<T>              raw = raw_tensor(tensor);
       py::gil_scoped_release release;
-      tamm::write_to_disk<T>(ec, raw, filename, profile);
+      return tamm::write_to_disk<T>(ec, raw, filename, profile);
     },
     py::arg("ec"), py::arg("tensor"), py::arg("filename"), py::arg("profile") = false);
 
@@ -1808,7 +1808,7 @@ void bind_tamm_utils_for_type(py::module_& m) {
       if(raw.size() != filenames.size())
         throw py::value_error("write_to_disk: tensors and filenames differ in length");
       py::gil_scoped_release release;
-      tamm::write_to_disk<T>(ec, raw, filenames, profile);
+      return tamm::write_to_disk<T>(ec, raw, filenames, profile);
     },
     py::arg("ec"), py::arg("tensors"), py::arg("filenames"), py::arg("profile") = false);
 

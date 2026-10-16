@@ -998,21 +998,24 @@ std::vector<int> run_io_groups(ExecutionContext& ec, const std::vector<int64_t>&
  * larger group. ec's nodes are split into I/O groups (see internal::allocate_io_groups), each
  * writing one or more files; within a group, every rank writes the blocks it owns from its local
  * memory, and blocks owned by other ranks are fetched. The files are committed all-or-nothing: if
- * any file fails to write, none is replaced. A failed write is reported but not fatal.
+ * any file fails to write, none is replaced. A failed write is reported but not fatal; the result
+ * says whether the files were written, and may be ignored.
  *
  * @param ec        process group doing the I/O
  * @param tensors   tensors to write
  * @param filenames tensor file of each tensor
  * @param profile   print the I/O groups and a per-file timing breakdown
+ * @return          true if every file was written and committed
  */
 template<typename TensorType>
-void write_to_disk(ExecutionContext& ec, std::vector<Tensor<TensorType>> tensors,
+bool write_to_disk(ExecutionContext& ec, std::vector<Tensor<TensorType>> tensors,
                    std::vector<std::string> filenames, bool profile = false) {
   EXPECTS(tensors.size() == filenames.size());
 #if !defined(USE_HDF5)
   tamm_terminate("HDF5 is not enabled. Please rebuild TAMM with HDF5 support");
+  return false;
 #else
-  if(tensors.empty()) return;
+  if(tensors.empty()) return true;
   const auto io_t1 = std::chrono::steady_clock::now();
   ProcGroup  pg    = ec.pg();
   const int  rank  = pg.rank().value();
@@ -1051,15 +1054,17 @@ void write_to_disk(ExecutionContext& ec, std::vector<Tensor<TensorType>> tensors
     std::cout << "Time for writing " << tensors.size() << " tensor file(s) to disk: "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - io_t1).count()
               << " secs" << std::endl;
+  return commit;
 #endif
 }
 
-/// Writes one tensor to a tensor file; see the overload for a list of tensors.
+/// Writes one tensor to a tensor file; see the overload for a list of tensors. Returns true if the
+/// file was written and committed.
 template<typename TensorType>
-void write_to_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::string& filename,
+bool write_to_disk(ExecutionContext& ec, Tensor<TensorType> tensor, const std::string& filename,
                    bool profile = false) {
-  write_to_disk(ec, std::vector<Tensor<TensorType>>{tensor}, std::vector<std::string>{filename},
-                profile);
+  return write_to_disk(ec, std::vector<Tensor<TensorType>>{tensor},
+                       std::vector<std::string>{filename}, profile);
 }
 
 /**

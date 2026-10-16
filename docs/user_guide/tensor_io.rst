@@ -14,6 +14,10 @@ Routines
 - ``tamm::write_to_disk(ec, tensor, filename, ...)`` and
   ``tamm::read_from_disk(ec, tensor, filename, ...)`` do the same for one tensor.
 
+``write_to_disk`` returns ``true`` if every tensor file was written and committed, and ``false``
+otherwise (see `Safe writes`_), with the same value on every process. The result may be ignored.
+``read_from_disk`` returns nothing, since a failed read terminates the program.
+
 ``ec`` is the process group doing the I/O, and every rank of it must call the routine. The
 tensors may be allocated on ``ec`` or on a larger process group: for example, a subgroup can write
 or read tensors allocated on all ranks. A tensor file can also be read on a different number of
@@ -26,7 +30,9 @@ ranks than wrote it.
 
     std::vector<Tensor<double>> amplitudes{T1, T2};
     std::vector<std::string>    files{"t1.h5", "t2.h5"};
-    tamm::write_to_disk(ec, amplitudes, files);
+    if(!tamm::write_to_disk(ec, amplitudes, files)) {
+      // no file was replaced; the previous versions, where they exist, are kept
+    }
     tamm::read_from_disk(ec, amplitudes, files);
 
 With ``profile = true``, the routines print how the work was split among the processes and a
@@ -122,9 +128,10 @@ Behavior
      - Fatal?
      - Reported
    * - ``write_to_disk``
-     - Writes each ``<f>.tmp``; all processes agree; the files are renamed to ``<f>``
+     - Writes each ``<f>.tmp``; all processes agree; the files are renamed to ``<f>``; returns
+       ``true``
      - All-or-nothing: if any file fails, every ``.tmp`` is deleted and every previous ``<f>`` is
-       kept, where one exists
+       kept, where one exists; returns ``false``
      - No; the calculation continues
      - ``<call> failed for <f>: <cause>`` for each failed file, then, for one file,
        ``<f> not committed; previous version kept`` (or ``no previous version exists``), or, for

@@ -480,7 +480,7 @@ void test_failed_write_keeps_previous(ExecutionContext& ec, TiledIndexSpace tis)
   on_rank0(ec, [&] { fs::create_directory(f + ".tmp"); });
   random_ip(t, 105u);
   step(ec, "[1] writing tensor C to " + f + " (expected to fail with a warning)");
-  write_to_disk(ec, t, f);
+  IO_CHECK(!write_to_disk(ec, t, f));
   step(ec, "[1] checking no " + f + " was created; removing directory " + f + ".tmp");
   on_rank0(ec, [&] {
     IO_CHECK(!fs::exists(f));
@@ -490,13 +490,13 @@ void test_failed_write_keeps_previous(ExecutionContext& ec, TiledIndexSpace tis)
   random_ip(t, 103u);
   Tensor<T> previous = snapshot(ec, t);
   step(ec, "[2] writing tensor C (version 1) to " + f + " (expected to succeed)");
-  write_to_disk(ec, t, f);
+  IO_CHECK(write_to_disk(ec, t, f));
 
   step(ec, "[2] creating directory " + f + ".tmp so the next write fails");
   on_rank0(ec, [&] { fs::create_directory(f + ".tmp"); });
   random_ip(t, 104u);
   step(ec, "[2] writing tensor C (version 2) to " + f + " (expected to fail with a warning)");
-  write_to_disk(ec, t, f);
+  IO_CHECK(!write_to_disk(ec, t, f));
 
   step(ec, "[2] reading " + f + " back and checking it still holds version 1");
   Scheduler{ec}(t() = T{0}).execute();
@@ -537,14 +537,14 @@ void test_group_write_one_failure(ExecutionContext& ec, TiledIndexSpace tis) {
   step(ec, "writing tensors G0, G1, G2 (version 1) as a group to " + io_dir +
              "group_tensor_{0,1,2}.h5 "
              "(expected to succeed)");
-  write_to_disk(ec, ts, files);
+  IO_CHECK(write_to_disk(ec, ts, files));
 
   step(ec, "creating directory " + files[1] + ".tmp so writing G1 fails");
   on_rank0(ec, [&] { fs::create_directory(files[1] + ".tmp"); });
   for(size_t i = 0; i < nt; i++) random_ip(ts[i], 300u + i);
   step(ec, "writing tensors G0, G1, G2 (version 2) as a group (expected to fail with a warning; "
            "G0 and G2 write fine but must not be committed)");
-  write_to_disk(ec, ts, files);
+  IO_CHECK(!write_to_disk(ec, ts, files));
 
   step(ec, "checking the staging files of G0 and G2 were removed");
   on_rank0(ec, [&] {

@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <map>
 #include <numeric>
 #include <random>
@@ -235,8 +236,8 @@ struct H5Check {
 };
 
 /// Time each rank spends in the phases of writing or reading one tensor file. When profiling, the
-/// maximum and average over the ranks doing the I/O are printed, with the number of blocks each
-/// rank handled; a large gap between maximum and average points to load imbalance.
+/// maximum and average over the ranks writing or reading are printed, with the number of blocks
+/// each handled; a large gap between maximum and average points to load imbalance.
 class IOPhases {
 public:
   using clock = std::chrono::steady_clock;
@@ -260,21 +261,25 @@ public:
     counts_.emplace_back(name, n);
   }
 
-  /// Collective over pg: prints the breakdown on pg's rank 0.
-  void report(ProcGroup pg, const std::string& title) const {
+  /// Collective over pg: prints the breakdown over the ranks of pg that are active (those writing
+  /// or reading) on pg's rank 0.
+  void report(ProcGroup pg, const std::string& title, bool active) const {
     const int           n = static_cast<int>(phases_.size());
     std::vector<double> secs(n), max_secs(n), sum_secs(n);
-    for(int i = 0; i < n; i++) secs[i] = phases_[i].second;
+    for(int i = 0; i < n; i++) secs[i] = active ? phases_[i].second : 0.0;
     pg.allreduce(secs.data(), max_secs.data(), n, ReduceOp::max);
     pg.allreduce(secs.data(), sum_secs.data(), n, ReduceOp::sum);
     const int            nc = static_cast<int>(counts_.size());
     std::vector<int64_t> counts(nc), min_counts(nc), max_counts(nc);
-    for(int i = 0; i < nc; i++) counts[i] = counts_[i].second;
+    constexpr int64_t    none = std::numeric_limits<int64_t>::max();
+    for(int i = 0; i < nc; i++) counts[i] = active ? counts_[i].second : none;
     pg.allreduce(counts.data(), min_counts.data(), nc, ReduceOp::min);
+    for(int i = 0; i < nc; i++) counts[i] = active ? counts_[i].second : 0;
     pg.allreduce(counts.data(), max_counts.data(), nc, ReduceOp::max);
+    const int is_active = active ? 1 : 0;
+    const int ranks     = pg.allreduce(&is_active, ReduceOp::sum);
     if(pg.rank() != 0) return;
 
-    const int ranks = pg.size().value();
     std::cout << title << " breakdown over " << ranks << " ranks (max / avg seconds):" << std::endl;
     for(int i = 0; i < n; i++)
       std::cout << "  " << std::left << std::setw(24) << phases_[i].first << std::right
@@ -315,6 +320,16 @@ inline int64_t io_env_override(const char* name) {
   return val;
 }
 
+/// Number of ranks per node writing or reading a tensor file handled by nnodes nodes: enough for
+/// about 4096 in all (more ranks writing one file slow each other down), at least 1 and at most
+/// ppn. TAMM_IO_WRITERS_PER_NODE overrides it (still at most ppn).
+inline int io_writers_per_node(int nnodes, int ppn) {
+  static const int64_t override_writers = io_env_override("TAMM_IO_WRITERS_PER_NODE");
+  constexpr int        max_writers      = 4096;
+  if(override_writers > 0) return static_cast<int>(std::min<int64_t>(override_writers, ppn));
+  return std::clamp(max_writers / std::max(1, nnodes), 1, ppn);
+}
+
 /// Lustre striping of a new tensor file.
 struct Striping {
   int64_t count;      // number of OSTs
@@ -322,17 +337,17 @@ struct Striping {
 };
 
 /// Striping for a tensor file of tensor_bytes: 4 MiB stripes and one OST per 4 GiB of data, at
-/// least 1 and at most 64. TAMM_IO_STRIPE_COUNT and TAMM_IO_STRIPE_SIZE (in MiB) override them.
+/// least 1 and at most 64. TAMM_IO_STRIPE_COUNT_MAX overrides the maximum, and
+/// TAMM_IO_STRIPE_SIZE (in MiB) the stripe size.
 inline Striping tensor_file_striping(int64_t tensor_bytes) {
-  static const int64_t count_override = io_env_override("TAMM_IO_STRIPE_COUNT");
-  static const int64_t size_override  = io_env_override("TAMM_IO_STRIPE_SIZE");
-  constexpr int64_t    MiB            = int64_t{1} << 20;
-  constexpr int64_t    GiB            = int64_t{1} << 30;
+  static const int64_t max_override  = io_env_override("TAMM_IO_STRIPE_COUNT_MAX");
+  static const int64_t size_override = io_env_override("TAMM_IO_STRIPE_SIZE");
+  constexpr int64_t    MiB           = int64_t{1} << 20;
+  constexpr int64_t    GiB           = int64_t{1} << 30;
+  const int64_t        max_count     = max_override > 0 ? max_override : 64;
 
   Striping striping;
-  striping.count      = count_override > 0
-                          ? count_override
-                          : std::clamp<int64_t>((tensor_bytes + 4 * GiB - 1) / (4 * GiB), 1, 64);
+  striping.count      = std::clamp<int64_t>((tensor_bytes + 4 * GiB - 1) / (4 * GiB), 1, max_count);
   striping.size_bytes = (size_override > 0 ? size_override : 4) * MiB;
   return striping;
 }
@@ -531,65 +546,125 @@ struct FileBlock {
   IndexVector id;
   hsize_t     file_offset;  // in elements
   hsize_t     size;         // in elements
-  size_t      local_offset; // in elements, into this rank's local buffer (local blocks only)
+  size_t      local_offset; // in elements, into this rank's local buffer (own blocks only)
 };
 
-/// How the ranks writing or reading a tensor file split its blocks. A block owned by one of these
-/// ranks is local: its owner writes or reads it straight from or into its local memory. All other
-/// blocks (owned by ranks not doing the I/O, or of a tensor whose blocks are not each stored on one
-/// rank) are shared: handed out among the I/O ranks and moved with get/put.
+/// How the ranks of an I/O group split the blocks of a tensor file. Only the first few ranks of
+/// each node (the writers, see io_writers_per_node) write or read the file; the others take part
+/// only in opening and closing it. A block owned by a rank of the group is written or read by a
+/// writer on the same node: by its owner, straight from or into its local memory (local), or by
+/// another writer, moved with get/put within the node (node). The blocks of a node are split among
+/// its writers by bytes. All other blocks (owned by ranks outside the group, or of a tensor whose
+/// blocks are not each stored on one rank) are shared: handed out among all the writers and moved
+/// with get/put.
 struct BlockPlan {
+  bool                   writer{};
   std::vector<FileBlock> local;
-  std::vector<FileBlock> shared; // the same list on every I/O rank
+  std::vector<FileBlock> node;
+  std::vector<FileBlock> shared; // the same list on every rank of the group
 };
 
-/// Plans the blocks of tensor for the ranks of io_pg. Blocks are laid out in the file one after
-/// another in loop-nest order, skipping zero blocks. Collective over io_pg.
+/// Splits the blocks of a node among its writers by bytes, given each block's owner (its index
+/// within the node). A writer first keeps its own blocks, in order, as long as it stays within an
+/// even share; the remaining blocks go, largest first, to the writer with the fewest bytes so far.
+/// Returns the writer of each block. Deterministic, so every rank of the node computes the same.
+inline std::vector<int> split_node_blocks(const std::vector<FileBlock>& blocks,
+                                          const std::vector<int>& owner, int writers) {
+  hsize_t total = 0;
+  for(const auto& block: blocks) total += block.size;
+  const hsize_t share = (total + writers - 1) / writers;
+
+  std::vector<hsize_t> load(writers, 0);
+  std::vector<int>     writer_of(blocks.size(), -1);
+  std::vector<size_t>  rest;
+  for(size_t i = 0; i < blocks.size(); i++) {
+    const int o = owner[i];
+    if(o < writers && load[o] + blocks[i].size <= share) {
+      writer_of[i] = o;
+      load[o] += blocks[i].size;
+    }
+    else rest.push_back(i);
+  }
+  std::stable_sort(rest.begin(), rest.end(),
+                   [&](size_t a, size_t b) { return blocks[a].size > blocks[b].size; });
+  for(size_t i: rest) {
+    const int w  = static_cast<int>(std::min_element(load.begin(), load.end()) - load.begin());
+    writer_of[i] = w;
+    load[w] += blocks[i].size;
+  }
+  return writer_of;
+}
+
+/// Plans the blocks of tensor for the ranks of io_pg, which is made of whole nodes of ppn ranks
+/// each, in rank order. Blocks are laid out in the file one after another in loop-nest order,
+/// skipping zero blocks. Collective over io_pg.
 template<typename TensorType>
-BlockPlan plan_blocks(Tensor<TensorType> tensor, ProcGroup io_pg, bool use_local) {
-  // Which ranks of the tensor's process group are doing the I/O.
-  std::vector<char> is_io_rank;
-  int               my_rank = -1;
+BlockPlan plan_blocks(Tensor<TensorType> tensor, ProcGroup io_pg, bool use_local, int ppn) {
+  const int io_rank    = io_pg.rank().value();
+  const int io_size    = io_pg.size().value();
+  const int my_node    = io_rank / ppn;
+  const int node_first = my_node * ppn;
+  const int node_ranks = std::min(ppn, io_size - node_first);
+  const int writers    = std::min(io_writers_per_node((io_size + ppn - 1) / ppn, ppn), node_ranks);
+  const int my_index   = io_rank - node_first;
+
+  BlockPlan plan;
+  plan.writer = my_index < writers;
+
+  // The io_pg rank of each rank of the tensor's process group, -1 for ranks not in io_pg.
+  std::vector<int> io_rank_of;
   if(use_local) {
-    ProcGroup tensor_pg = tensor.execution_context()->pg();
-    my_rank             = tensor_pg.rank().value();
-    std::vector<int> io_ranks(io_pg.size().value());
-    io_pg.allgather(&my_rank, io_ranks.data());
-    is_io_rank.assign(tensor_pg.size().value(), 0);
-    for(int r: io_ranks) is_io_rank[r] = 1;
+    ProcGroup        tensor_pg = tensor.execution_context()->pg();
+    const int        my_rank   = tensor_pg.rank().value();
+    std::vector<int> tensor_ranks(io_size);
+    io_pg.allgather(&my_rank, tensor_ranks.data());
+    io_rank_of.assign(tensor_pg.size().value(), -1);
+    for(int q = 0; q < io_size; q++) io_rank_of[tensor_ranks[q]] = q;
   }
 
-  BlockPlan     plan;
-  hsize_t       file_offset = 0;
-  auto          ltensor     = tensor();
-  LabelLoopNest loop_nest{ltensor.labels()};
+  std::vector<FileBlock> node_blocks; // owned by ranks of this node
+  std::vector<int>       owner;       // index within the node of each block's owner
+  hsize_t                file_offset = 0;
+  auto                   ltensor     = tensor();
+  LabelLoopNest          loop_nest{ltensor.labels()};
   for(const IndexVector& bid: loop_nest) {
     const IndexVector blockid = translate_blockid(bid, ltensor);
     if(!tensor.is_non_zero(blockid)) continue;
     const hsize_t size = tensor.block_size(blockid);
     if(use_local) {
       auto [proc, local_offset] = tensor.distribution().locate(blockid);
-      if(!is_io_rank[proc.value()]) plan.shared.push_back({blockid, file_offset, size, 0});
-      else if(proc.value() == my_rank)
-        plan.local.push_back(
+      const int q               = io_rank_of[proc.value()];
+      if(q < 0) plan.shared.push_back({blockid, file_offset, size, 0});
+      else if(q / ppn == my_node) {
+        node_blocks.push_back(
           {blockid, file_offset, size, static_cast<size_t>(local_offset.value())});
+        owner.push_back(q - node_first);
+      }
     }
     else plan.shared.push_back({blockid, file_offset, size, 0});
     file_offset += size;
+  }
+
+  const auto writer_of = split_node_blocks(node_blocks, owner, writers);
+  for(size_t i = 0; i < node_blocks.size(); i++) {
+    if(writer_of[i] != my_index) continue;
+    if(owner[i] == my_index) plan.local.push_back(node_blocks[i]);
+    else plan.node.push_back(node_blocks[i]);
   }
   return plan;
 }
 
 /// Calls func for each block in blocks (the same list on every rank of pg), handing the blocks out
-/// dynamically among the ranks of pg. Collective over pg.
+/// dynamically among the ranks of pg that are active. Collective over pg.
 template<typename Func>
-void for_each_shared(ProcGroup pg, const std::vector<FileBlock>& blocks, Func&& func) {
+void for_each_shared(ProcGroup pg, const std::vector<FileBlock>& blocks, bool active, Func&& func) {
   if(blocks.empty()) return;
   AtomicCounterGA counter(pg, 1);
   counter.allocate(0);
-  for(int64_t next = counter.fetch_add(0, 1); next < static_cast<int64_t>(blocks.size());
-      next         = counter.fetch_add(0, 1))
-    func(blocks[next]);
+  if(active)
+    for(int64_t next = counter.fetch_add(0, 1); next < static_cast<int64_t>(blocks.size());
+        next         = counter.fetch_add(0, 1))
+      func(blocks[next]);
   counter.deallocate();
   pg.barrier();
 }
@@ -601,8 +676,9 @@ inline hid_t select_block(hid_t file_space, const FileBlock& block) {
   return H5Screate_simple(1, &block.size, nullptr);
 }
 
-/// Writes the blocks of tensor planned for this rank: local blocks from local memory, then its
-/// share of the shared blocks, fetched with fetch(block, buffer). Collective over io_pg.
+/// Writes the blocks of tensor planned for this rank: local blocks from local memory, then node
+/// blocks and its share of the shared blocks, fetched with fetch(block, buffer). Collective over
+/// io_pg.
 template<typename TensorType, typename Fetch>
 void write_blocks(ProcGroup io_pg, Tensor<TensorType> tensor, const BlockPlan& plan, hid_t dataset,
                   hid_t file_space, hid_t xfer, hid_t dt, H5Check& h5, IOPhases& phases,
@@ -623,6 +699,20 @@ void write_blocks(ProcGroup io_pg, Tensor<TensorType> tensor, const BlockPlan& p
   phases.add("local block writes", phase_t);
   phases.count("local blocks", plan.local.size());
 
+  std::vector<TensorType> buffer;
+  phases.declare("copy node (get)");
+  phases.declare("node block writes");
+  for(const auto& block: plan.node) {
+    buffer.resize(block.size);
+    auto block_t = io_clock::now();
+    fetch(block, buffer.data());
+    phases.add("copy node (get)", block_t);
+    block_t = io_clock::now();
+    write(block, buffer.data());
+    phases.add("node block writes", block_t);
+  }
+  phases.count("node blocks", plan.node.size());
+
   // Shared blocks are handed out dynamically, so a rank may get none.
   if(!plan.shared.empty()) {
     phases.declare("gather shared (get)");
@@ -630,8 +720,7 @@ void write_blocks(ProcGroup io_pg, Tensor<TensorType> tensor, const BlockPlan& p
     phases.count("shared blocks", 0);
   }
   phase_t = io_clock::now();
-  std::vector<TensorType> buffer;
-  for_each_shared(io_pg, plan.shared, [&](const FileBlock& block) {
+  for_each_shared(io_pg, plan.shared, plan.writer, [&](const FileBlock& block) {
     buffer.resize(block.size);
     auto block_t = io_clock::now();
     fetch(block, buffer.data());
@@ -645,7 +734,8 @@ void write_blocks(ProcGroup io_pg, Tensor<TensorType> tensor, const BlockPlan& p
 }
 
 /// Reads the blocks of tensor planned for this rank: local blocks straight into local memory, then
-/// its share of the shared blocks, stored with store(block, buffer). Collective over io_pg.
+/// node blocks and its share of the shared blocks, stored with store(block, buffer). Collective
+/// over io_pg.
 template<typename TensorType, typename Store>
 void read_blocks(ProcGroup io_pg, Tensor<TensorType> tensor, const BlockPlan& plan, hid_t dataset,
                  hid_t file_space, hid_t xfer, hid_t dt, H5Check& h5, IOPhases& phases,
@@ -668,6 +758,20 @@ void read_blocks(ProcGroup io_pg, Tensor<TensorType> tensor, const BlockPlan& pl
   phases.add("local block reads", phase_t);
   phases.count("local blocks", plan.local.size());
 
+  std::vector<TensorType> buffer;
+  phases.declare("node block reads");
+  phases.declare("copy node (put)");
+  for(const auto& block: plan.node) {
+    buffer.resize(block.size);
+    auto       block_t = io_clock::now();
+    const bool ok      = read(block, buffer.data());
+    phases.add("node block reads", block_t);
+    block_t = io_clock::now();
+    if(ok) store(block, buffer.data());
+    phases.add("copy node (put)", block_t);
+  }
+  phases.count("node blocks", plan.node.size());
+
   // Shared blocks are handed out dynamically, so a rank may get none.
   if(!plan.shared.empty()) {
     phases.declare("shared block reads");
@@ -675,8 +779,7 @@ void read_blocks(ProcGroup io_pg, Tensor<TensorType> tensor, const BlockPlan& pl
     phases.count("shared blocks", 0);
   }
   phase_t = io_clock::now();
-  std::vector<TensorType> buffer;
-  for_each_shared(io_pg, plan.shared, [&](const FileBlock& block) {
+  for_each_shared(io_pg, plan.shared, plan.writer, [&](const FileBlock& block) {
     buffer.resize(block.size);
     auto       block_t = io_clock::now();
     const bool ok      = read(block, buffer.data());
@@ -687,6 +790,9 @@ void read_blocks(ProcGroup io_pg, Tensor<TensorType> tensor, const BlockPlan& pl
     phases.count("shared blocks");
   });
   if(!plan.shared.empty()) phases.add("shared blocks (total)", phase_t);
+  // Completes the node blocks' puts into other ranks' memory; for_each_shared already did so if
+  // there were shared blocks.
+  else io_pg.barrier();
 }
 
 /// The lo/hi/ld arguments of a Global Array patch access for block of tensor, in the N-D Global
@@ -806,10 +912,20 @@ inline IOAllocation allocate_io_groups(const std::vector<int64_t>& bytes, int nn
   return alloc;
 }
 
+/// The writers of io_pg, a group of whole nodes of ppn ranks or part of one node,
+/// for the profile output.
+inline std::string writers_line(ProcGroup io_pg, int ppn) {
+  const int io_size = io_pg.size().value();
+  const int nnodes  = (io_size + ppn - 1) / ppn;
+  const int writers = std::min(io_writers_per_node(nnodes, ppn), std::min(ppn, io_size));
+  return std::to_string(writers) + " per node writing";
+}
+
 /// Writes tensor to the staging file of filename. Collective over io_pg, the ranks writing this
-/// file. Returns whether any of them failed (the same on every rank of io_pg).
+/// file, made of whole nodes of ppn ranks. Returns whether any of them failed (the same on every
+/// rank of io_pg).
 template<typename TensorType>
-bool write_file(ProcGroup io_pg, Tensor<TensorType> tensor, const std::string& filename,
+bool write_file(ProcGroup io_pg, Tensor<TensorType> tensor, const std::string& filename, int ppn,
                 bool profile) {
   using io_clock = IOPhases::clock;
   IOPhases phases;
@@ -841,7 +957,7 @@ bool write_file(ProcGroup io_pg, Tensor<TensorType> tensor, const std::string& f
   phases.add("create file", phase_t);
 
   phase_t         = io_clock::now();
-  const auto plan = plan_blocks(tensor, io_pg, is_block_distributed(tensor));
+  const auto plan = plan_blocks(tensor, io_pg, is_block_distributed(tensor), ppn);
   phases.add("block plan", phase_t);
   write_blocks(io_pg, tensor, plan, dataset, file_space, xfer, hdf5_dt, h5, phases,
                [&](const FileBlock& block, TensorType* buffer) {
@@ -860,18 +976,19 @@ bool write_file(ProcGroup io_pg, Tensor<TensorType> tensor, const std::string& f
       std::cout << std::endl
                 << filename << ": " << std::fixed << std::setprecision(2)
                 << file_elements * sizeof(TensorType) / (1024 * 1024 * 1024.0) << " GiB, "
-                << io_pg.size().value() << " ranks, striping " << striping.count << " OSTs x "
-                << (striping.size_bytes >> 20) << " MiB" << std::endl;
-    phases.report(io_pg, "write_to_disk " + filename);
+                << io_pg.size().value() << " ranks, " << writers_line(io_pg, ppn) << ", striping "
+                << striping.count << " OSTs x " << (striping.size_bytes >> 20) << " MiB"
+                << std::endl;
+    phases.report(io_pg, "write_to_disk " + filename, plan.writer);
   }
   const int failed = h5.failed ? 1 : 0;
   return io_pg.allreduce(&failed, ReduceOp::max) != 0;
 }
 
-/// Reads filename into tensor. Collective over io_pg, the ranks reading this file. Returns
-/// whether any of them failed (the same on every rank of io_pg).
+/// Reads filename into tensor. Collective over io_pg, the ranks reading this file, made of whole
+/// nodes of ppn ranks. Returns whether any of them failed (the same on every rank of io_pg).
 template<typename TensorType>
-bool read_file(ProcGroup io_pg, Tensor<TensorType> tensor, const std::string& filename,
+bool read_file(ProcGroup io_pg, Tensor<TensorType> tensor, const std::string& filename, int ppn,
                bool profile) {
   using io_clock = IOPhases::clock;
   IOPhases phases;
@@ -897,7 +1014,7 @@ bool read_file(ProcGroup io_pg, Tensor<TensorType> tensor, const std::string& fi
   phases.add("open file + check", phase_t);
 
   phase_t         = io_clock::now();
-  const auto plan = plan_blocks(tensor, io_pg, is_block_distributed(tensor));
+  const auto plan = plan_blocks(tensor, io_pg, is_block_distributed(tensor), ppn);
   phases.add("block plan", phase_t);
   read_blocks(io_pg, tensor, plan, dataset, file_space, xfer, hdf5_dt, h5, phases,
               [&](const FileBlock& block, TensorType* buffer) {
@@ -913,8 +1030,10 @@ bool read_file(ProcGroup io_pg, Tensor<TensorType> tensor, const std::string& fi
 
   if(profile) {
     if(io_pg.rank() == 0)
-      std::cout << std::endl << filename << ": " << io_pg.size().value() << " ranks" << std::endl;
-    phases.report(io_pg, "read_from_disk " + filename);
+      std::cout << std::endl
+                << filename << ": " << io_pg.size().value() << " ranks, "
+                << writers_line(io_pg, ppn) << std::endl;
+    phases.report(io_pg, "read_from_disk " + filename, plan.writer);
   }
   const int failed = h5.failed ? 1 : 0;
   return io_pg.allreduce(&failed, ReduceOp::max) != 0;
@@ -996,16 +1115,18 @@ std::vector<int> run_io_groups(ExecutionContext& ec, const std::vector<int64_t>&
  *
  * Collective over ec, the process group doing the I/O; the tensors may be allocated on ec or on a
  * larger group. ec's nodes are split into I/O groups (see internal::allocate_io_groups), each
- * writing one or more files; within a group, every rank writes the blocks it owns from its local
- * memory, and blocks owned by other ranks are fetched. The files are committed all-or-nothing: if
- * any file fails to write, none is replaced. A failed write is reported but not fatal; the result
- * says whether the files were written, and may be ignored.
+ * writing one or more files; within a group, a few ranks per node write (see
+ * internal::io_writers_per_node), each a share by bytes of the blocks on its node, its own blocks
+ * from its local memory and the others copied within the node; blocks owned by ranks outside the
+ * group are fetched. The files are committed all-or-nothing: if any file fails to write, none is
+ * replaced. A failed write is reported but not fatal; the result says whether the files were
+ * written, and may be ignored.
  *
  * @param ec        process group doing the I/O
  * @param tensors   tensors to write
  * @param filenames tensor file of each tensor
  * @param profile   print the I/O groups and a per-file timing breakdown
- * @return          true if every file was written and committed
+ * @return true if every file was written and committed (the same on every rank of ec)
  */
 template<typename TensorType>
 bool write_to_disk(ExecutionContext& ec, std::vector<Tensor<TensorType>> tensors,
@@ -1027,7 +1148,7 @@ bool write_to_disk(ExecutionContext& ec, std::vector<Tensor<TensorType>> tensors
   std::vector<char> root_of;
   const auto        failed = internal::run_io_groups(
     ec, bytes, profile, "write_to_disk", root_of, [&](ProcGroup io_pg, size_t i) {
-      return internal::write_file(io_pg, tensors[i], filenames[i], profile);
+      return internal::write_file(io_pg, tensors[i], filenames[i], std::max(1, ec.ppn()), profile);
     });
 
   // Commit all files only if none failed, so the files always come from the same call.
@@ -1157,7 +1278,7 @@ void read_from_disk(ExecutionContext& ec, std::vector<Tensor<TensorType>> tensor
   std::vector<char> root_of;
   const auto        failed = internal::run_io_groups(
     ec, bytes, profile, "read_from_disk", root_of, [&](ProcGroup io_pg, size_t i) {
-      return internal::read_file(io_pg, tensors[i], filenames[i], profile);
+      return internal::read_file(io_pg, tensors[i], filenames[i], std::max(1, ec.ppn()), profile);
     });
 
   std::vector<std::string> failed_files;

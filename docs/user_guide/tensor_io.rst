@@ -84,10 +84,11 @@ Striping on Lustre
 ------------------
 
 On Lustre, a file's bandwidth grows with the number of storage targets (OSTs) its data is striped
-over. Each tensor file is created with striping chosen from the tensor's size: 4 MiB stripes and
-one OST per 4 GiB of data, at least 1 and at most 64. For example, a 60 GiB tensor is striped over
-15 OSTs. The runtime parameters ``TAMM_IO_STRIPE_COUNT`` and ``TAMM_IO_STRIPE_SIZE`` override
-these defaults (see :doc:`runtime_parameters`). Other filesystems ignore these settings.
+over. Each tensor file is striped over one OST per 4 GiB of tensor data, at least 1 and at most
+64, so a 60 GiB tensor is striped over 15 OSTs, and a tensor of 256 GiB or more over 64. The
+stripe size is 4 MiB. The runtime parameters ``TAMM_IO_STRIPE_COUNT_MAX`` and
+``TAMM_IO_STRIPE_SIZE`` change the maximum number of OSTs and the stripe size (see
+:doc:`runtime_parameters`). Other filesystems ignore striping.
 
 How the work is split
 ---------------------
@@ -103,17 +104,25 @@ tensor files:
 - With more tensors than nodes, every node is an I/O group, and the tensors are handed out to the
   groups as they become free, largest first.
 
-Within an I/O group, each process writes or reads the blocks it owns directly from or into its own
-memory. Blocks owned by processes outside the group are moved to or from the group, so the more
-of a tensor's owners an I/O group contains, the less data moves. Because an I/O group is sized
-from the tensor's data (one node per 5 GiB by default), a tensor holding less than that per node
-of ``ec`` is handled by fewer nodes than hold it, and most of its blocks are moved to or from
+Within an I/O group, only some processes of each node, the *writers*, write or read the file;
+the others still open and close it, but do nothing else. The number of writers per node is 4096
+divided by the number of nodes in the group, at least 1 and at most all processes of the node, so
+a group has at most about 4096 writers, or one per node in groups of more than 4096 nodes (the
+runtime parameter ``TAMM_IO_WRITERS_PER_NODE`` sets the number per node instead). The blocks owned by a node's processes are split among its writers
+by bytes. A writer writes or reads its own blocks directly from or into its own memory, and copies
+the other blocks of its node to or from their owners within the node.
+
+Blocks owned by processes outside the I/O group are moved to or from the group's writers, so the
+more of a tensor's owners an I/O group contains, the less data moves. Because an I/O group is
+sized from the tensor's data (one node per 5 GiB by default), a tensor holding less than that per
+node of ``ec`` is handled by fewer nodes than hold it, and most of its blocks are moved to or from
 them.
 
 With the runtime parameter ``TAMM_IO_GROUPS=all``, there is a single I/O group made of all of
 ``ec``, which handles the tensor files one after another, largest first. Each file is still
-written or read in parallel by every process of ``ec``. For tensors allocated on ``ec``, every
-block is then local and no data is moved, at the cost of handling the files one at a time.
+written or read in parallel by every node of ``ec``. For tensors allocated on ``ec``, every block
+is then on the node writing or reading it and no data leaves its node, at the cost of handling the
+files one at a time.
 
 Behavior
 --------

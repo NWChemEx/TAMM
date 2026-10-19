@@ -351,7 +351,8 @@ public:
            "get_time_min;get_time_max;get_time_avg;"
            "block_compute_time_min;block_compute_time_max;block_compute_time_avg;"
            "copy_time_min;copy_time_max;copy_time_avg;"
-           "acc_time_min;acc_time_max;acc_time_avg";
+           "acc_time_min;acc_time_max;acc_time_avg;"
+           "lazy_time_min;lazy_time_max;lazy_time_avg;lazy_blocks";
   }
 
   template<typename... Args>

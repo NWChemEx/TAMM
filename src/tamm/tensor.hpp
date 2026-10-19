@@ -239,6 +239,25 @@ public:
     impl_{std::make_shared<LambdaTensorImpl<T>>(t_labels, lambda)} {}
 
   /**
+   * @brief Construct a lazy tensor: a read-only tensor defined by one contraction,
+   * labels = alpha * X(...) * Y(...), whose blocks are computed from the current contents of
+   * X and Y on every read and never stored.
+   *
+   * @param [in] ec execution context; its hardware (ec.exhw()) is used to compute blocks
+   * @param [in] labels labels of the lazy tensor's modes; its index spaces come from these
+   * @param [in] expr the contraction, e.g. `1.0 * X(a, c, k) * Y(b, d, k)`
+   * @warning A block read twice is computed twice. Reading a lazy tensor is a read of X and Y:
+   * the scheduler orders it after pending writes to them. Defined in lazy_tensor.hpp.
+   */
+  template<typename AlphaT>
+  static Tensor<T> lazy(ExecutionContext& ec, const IndexLabelVec& labels,
+                        std::tuple<AlphaT, LabeledTensor<T>, LabeledTensor<T>> expr);
+
+  /// @brief Lazy tensor with alpha = 1: `labels = X(...) * Y(...)`.
+  static Tensor<T> lazy(ExecutionContext& ec, const IndexLabelVec& labels,
+                        std::tuple<LabeledTensor<T>, LabeledTensor<T>> expr);
+
+  /**
    * @brief Construct a new Tensor object from a set of TiledIndexSpace
    * objects as modes of the Tensor
    *

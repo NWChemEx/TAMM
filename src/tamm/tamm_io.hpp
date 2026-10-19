@@ -399,6 +399,16 @@ TensorDescription describe_tensor(Tensor<TensorType> tensor) {
   return desc;
 }
 
+/// Makes HDF5 metadata I/O on the file collective: one rank reads the metadata and broadcasts it,
+/// and the metadata is written collectively, instead of every rank reading and writing it on its
+/// own. This keeps the ranks of a large group from reading the same bytes at once, and from failing
+/// independently inside a collective open or create. Every rank of the group must then make the
+/// same metadata calls; the data itself is still read and written independently.
+inline void set_collective_metadata(hid_t fapl) {
+  H5Pset_all_coll_metadata_ops(fapl, true);
+  H5Pset_coll_metadata_write(fapl, true);
+}
+
 inline void write_attribute(hid_t dataset, const std::string& name, hid_t type, const void* data,
                             hsize_t count, H5Check& h5) {
   if(h5.failed) return;
@@ -943,6 +953,7 @@ bool write_file(ProcGroup io_pg, Tensor<TensorType> tensor, const std::string& f
   const auto  striping = tensor_file_striping(file_elements * sizeof(TensorType));
   set_striping(info, fapl, striping);
   H5Pset_fapl_mpio(fapl, io_pg.comm(), info);
+  set_collective_metadata(fapl);
   const hid_t file = h5(H5Fcreate(staging.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, fapl), "H5Fcreate");
   H5Pclose(fapl);
   MPI_Info_free(&info);
@@ -1002,6 +1013,7 @@ bool read_file(ProcGroup io_pg, Tensor<TensorType> tensor, const std::string& fi
   MPI_Info_create(&info);
   const hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
   H5Pset_fapl_mpio(fapl, io_pg.comm(), info);
+  set_collective_metadata(fapl);
   const hid_t file = h5(H5Fopen(filename.c_str(), H5F_ACC_RDONLY, fapl), "H5Fopen");
   H5Pclose(fapl);
   MPI_Info_free(&info);

@@ -91,6 +91,16 @@ public:
             has_intersect(W2, A1));
   }
 
+  // Append the source tensors of every lazy tensor in reads (recursively), so that a read of a
+  // lazy tensor is ordered after pending writes to the tensors it is computed from.
+  static std::vector<TensorBase*> expand_sources(std::vector<TensorBase*> reads) {
+    for(size_t i = 0; i < reads.size(); i++) {
+      if(reads[i] == nullptr) continue;
+      for(auto* src: reads[i]->source_tensors()) reads.push_back(src);
+    }
+    return reads;
+  }
+
   std::vector<size_t> levelize(const std::vector<std::shared_ptr<Op>>& ops, size_t start_id,
                                size_t end_id) {
     EXPECTS(start_id >= 0 && start_id <= ops.size());
@@ -102,7 +112,7 @@ public:
     std::vector<TensorBase*> group_reads, group_writes, group_accums;
     for(size_t i = start_id; i < end_id; i++) {
       std::vector<TensorBase*> reads, writes, accums;
-      reads = std::vector<TensorBase*>(ops[i]->reads());
+      reads = expand_sources(ops[i]->reads());
       if(auto wr = ops[i]->writes(); wr != nullptr) { writes = std::vector<TensorBase*>{wr}; }
       if(auto ac = ops[i]->accumulates(); ac != nullptr) { accums = std::vector<TensorBase*>{ac}; }
 
@@ -128,11 +138,11 @@ public:
 
   bool op_has_dependence(const Op* op1, const Op* op2) {
     std::vector<TensorBase*> R1, W1, A1;
-    R1 = op1->reads();
+    R1 = expand_sources(op1->reads());
     if(auto wr = op1->writes(); wr != nullptr) { W1 = std::vector<TensorBase*>{wr}; }
     if(auto ac = op1->accumulates(); ac != nullptr) { A1 = std::vector<TensorBase*>{ac}; }
     std::vector<TensorBase*> R2, W2, A2;
-    R2 = op2->reads();
+    R2 = expand_sources(op2->reads());
     if(auto wr = op2->writes(); wr != nullptr) { W2 = std::vector<TensorBase*>{wr}; }
     if(auto ac = op2->accumulates(); ac != nullptr) { A2 = std::vector<TensorBase*>{ac}; }
     return has_dependence(R1, W1, A1, R2, W2, A2);
@@ -222,6 +232,8 @@ public:
     oprof.multOpBCTime   = 0;
     oprof.multOpAddTime  = 0;
     oprof.multOpCopyTime = 0;
+    oprof.lazyBlockTime  = 0;
+    oprof.lazyBlockCount = 0;
 
     std::vector<double>      load_imbalance_times;
     std::vector<double>      op_times;
@@ -229,6 +241,8 @@ public:
     std::vector<double>      multop_dgemm_times;
     std::vector<double>      multop_add_times;
     std::vector<double>      multop_copy_times;
+    std::vector<double>      lazy_block_times;
+    std::vector<double>      lazy_block_counts;
     std::vector<std::string> tamm_op_types;
     const int                nops = order.size();
 
@@ -261,14 +275,22 @@ public:
       if(profile) {
         op_times.push_back(
           std::chrono::duration_cast<std::chrono::duration<double>>((t3 - t2)).count());
-        multop_get_times.push_back(oprof.multOpGetTime);
+        // Lazy-tensor blocks are built inside the consuming MultOp's get; report that time
+        // separately instead of as get time.
+        const bool is_mult = ops_[order[i].second]->op_type() == OpType::mult;
+        multop_get_times.push_back(is_mult ? oprof.multOpGetTime - oprof.lazyBlockTime
+                                           : oprof.multOpGetTime);
         multop_dgemm_times.push_back(oprof.multOpBCTime);
         multop_add_times.push_back(oprof.multOpAddTime);
         multop_copy_times.push_back(oprof.multOpCopyTime);
+        lazy_block_times.push_back(oprof.lazyBlockTime);
+        lazy_block_counts.push_back(static_cast<double>(oprof.lazyBlockCount));
         oprof.multOpGetTime  = 0;
         oprof.multOpBCTime   = 0;
         oprof.multOpAddTime  = 0;
         oprof.multOpCopyTime = 0;
+        oprof.lazyBlockTime  = 0;
+        oprof.lazyBlockCount = 0;
 
         if(ops_[order[i].second]->op_type() == OpType::mult) tamm_op_types.push_back("mult");
         else if(ops_[order[i].second]->op_type() == OpType::add) tamm_op_types.push_back("add");
@@ -312,6 +334,7 @@ public:
       std::vector<double> global_multop_dgemm_times_min(nops);
       std::vector<double> global_multop_add_times_min(nops);
       std::vector<double> global_multop_copy_times_min(nops);
+      std::vector<double> global_lazy_block_times_min(nops);
 
       // std::vector<double> global_load_imbalance_times_max(nops);
       std::vector<double> global_op_times_max(nops);
@@ -319,6 +342,7 @@ public:
       std::vector<double> global_multop_dgemm_times_max(nops);
       std::vector<double> global_multop_add_times_max(nops);
       std::vector<double> global_multop_copy_times_max(nops);
+      std::vector<double> global_lazy_block_times_max(nops);
 
       // std::vector<double> global_load_imbalance_times_sum(nops);
       std::vector<double> global_op_times_sum(nops);
@@ -326,6 +350,8 @@ public:
       std::vector<double> global_multop_dgemm_times_sum(nops);
       std::vector<double> global_multop_add_times_sum(nops);
       std::vector<double> global_multop_copy_times_sum(nops);
+      std::vector<double> global_lazy_block_times_sum(nops);
+      std::vector<double> global_lazy_block_counts_sum(nops);
 
       // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_min.data(), lvl,
       // ReduceOp::min, 0);
@@ -337,6 +363,8 @@ public:
       ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_min.data(), nops,
                       ReduceOp::min, 0);
       ec_.pg().reduce(multop_copy_times.data(), global_multop_copy_times_min.data(), nops,
+                      ReduceOp::min, 0);
+      ec_.pg().reduce(lazy_block_times.data(), global_lazy_block_times_min.data(), nops,
                       ReduceOp::min, 0);
 
       // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_max.data(), lvl,
@@ -350,6 +378,8 @@ public:
                       ReduceOp::max, 0);
       ec_.pg().reduce(multop_copy_times.data(), global_multop_copy_times_max.data(), nops,
                       ReduceOp::max, 0);
+      ec_.pg().reduce(lazy_block_times.data(), global_lazy_block_times_max.data(), nops,
+                      ReduceOp::max, 0);
 
       // ec_.pg().reduce(load_imbalance_times.data(), global_load_imbalance_times_sum.data(), lvl,
       // ReduceOp::sum, 0);
@@ -361,6 +391,10 @@ public:
       ec_.pg().reduce(multop_add_times.data(), global_multop_add_times_sum.data(), nops,
                       ReduceOp::sum, 0);
       ec_.pg().reduce(multop_copy_times.data(), global_multop_copy_times_sum.data(), nops,
+                      ReduceOp::sum, 0);
+      ec_.pg().reduce(lazy_block_times.data(), global_lazy_block_times_sum.data(), nops,
+                      ReduceOp::sum, 0);
+      ec_.pg().reduce(lazy_block_counts.data(), global_lazy_block_counts_sum.data(), nops,
                       ReduceOp::sum, 0);
 
       int   np    = ec_.pg().size().value();
@@ -381,7 +415,10 @@ public:
                 << ";" << global_multop_copy_times_min[i] << ";" << global_multop_copy_times_max[i]
                 << ";" << global_multop_copy_times_sum[i] / np << ";"
                 << global_multop_add_times_min[i] << ";" << global_multop_add_times_max[i] << ";"
-                << global_multop_add_times_sum[i] / np << std::endl;
+                << global_multop_add_times_sum[i] / np << ";" << global_lazy_block_times_min[i]
+                << ";" << global_lazy_block_times_max[i] << ";"
+                << global_lazy_block_times_sum[i] / np << ";"
+                << static_cast<int64_t>(global_lazy_block_counts_sum[i]) << std::endl;
         }
         pdata << ";"
               << "SUM"
@@ -409,6 +446,14 @@ public:
                                   global_multop_add_times_sum.end(),
                                   decltype(global_multop_add_times_sum)::value_type(0))) /
                    np
+              << ";;;"
+              << (std::accumulate(global_lazy_block_times_sum.begin(),
+                                  global_lazy_block_times_sum.end(),
+                                  decltype(global_lazy_block_times_sum)::value_type(0))) /
+                   np
+              << ";"
+              << static_cast<int64_t>(std::accumulate(global_lazy_block_counts_sum.begin(),
+                                                      global_lazy_block_counts_sum.end(), 0.0))
               << std::endl;
         // << "," << globalgettime/nranks << ","
         // << globaladdtime/nranks << "," << globalgemmtime/nranks << std::endl;

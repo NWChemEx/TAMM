@@ -850,6 +850,40 @@ static PyOpExpr emit_assign_like(PyLabeledTensor<LhsT>& lhs_proxy, const Normali
     n.a, *n.b);
 }
 
+// Tensor<T>::lazy(ec, labels, [alpha *] X(...) * Y(...)). Both sources must have element type T.
+template<typename T>
+static Tensor<T> make_lazy_tensor(ExecutionContext& ec, py::sequence labels, py::object expr) {
+  IndexLabelVec lbls;
+  lbls.reserve(static_cast<size_t>(py::len(labels)));
+  for(auto item: labels) lbls.push_back(item.cast<TiledIndexLabel>());
+
+  const auto n = normalize_tensor_expr(py_to_tensor_expr(expr));
+  if(!n.b.has_value()) {
+    throw py::value_error("Tensor.lazy expects a contraction of two tensors: [alpha *] X(...) * "
+                          "Y(...)");
+  }
+
+  auto source = [](const AnyPyLT& v) -> LabeledTensor<T> {
+    auto p = std::get_if<std::shared_ptr<PyLabeledTensor<T>>>(&v);
+    if(!p || !*p) {
+      throw py::type_error("Tensor.lazy sources must have the same element type as the lazy "
+                           "tensor");
+    }
+    return (*p)->materialize();
+  };
+
+  T alpha{1};
+  if(n.alpha.has_value()) {
+    if(std::holds_alternative<double>(*n.alpha)) alpha = T(std::get<double>(*n.alpha));
+    else if constexpr(std::is_same_v<T, std::complex<double>>) {
+      alpha = std::get<std::complex<double>>(*n.alpha);
+    }
+    else { throw py::type_error("Tensor.lazy: a complex alpha needs a complex tensor"); }
+  }
+
+  return Tensor<T>::lazy(ec, lbls, std::make_tuple(alpha, source(n.a), source(*n.b)));
+}
+
 template<typename T>
 static PyOpExpr make_py_op_expr_from_expr(PyLabeledTensor<T>& lhs, const std::string& op,
                                           const PyTensorExpr& expr) {
@@ -2376,6 +2410,14 @@ void bind_tensor_family(py::module_& m, py::class_<Scheduler>& scheduler_cls) {
                                 "TiledIndexSpace or all TiledIndexLabel objects");
          }),
          py::arg("spaces_or_labels"), py::arg("func"))
+    .def_static(
+      "lazy",
+      [](ExecutionContext& ec, py::sequence labels, py::object expr) {
+        return std::make_shared<PyTensorT>(make_lazy_tensor<T>(ec, labels, expr));
+      },
+      py::arg("ec"), py::arg("labels"), py::arg("expr"),
+      "Read-only tensor defined by labels = [alpha *] X(...) * Y(...); its blocks are computed "
+      "from the current X and Y on every read and never stored.")
     .def(py::init([](std::shared_ptr<PyTensorT> src, size_t unit_tiled_ndims) {
            if(!src) throw py::value_error("Source tensor must not be None");
            return std::make_shared<PyTensorT>(TensorT{src->raw(), unit_tiled_ndims}, src);

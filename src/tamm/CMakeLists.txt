@@ -116,6 +116,7 @@ set(TAMM_INCLUDES
     deallocop.hpp
     addop.hpp
     multop.hpp
+    lazy_tensor.hpp
     op_base.hpp
     label_translator.hpp
     opmin.hpp

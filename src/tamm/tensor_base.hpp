@@ -125,6 +125,13 @@ public:
 
   ExecutionContext* execution_context() const { return ec_; }
 
+  /**
+   * @brief Tensors whose contents a read of this tensor depends on. Empty for stored
+   * tensors; a lazy tensor returns its sources, so the scheduler treats a read of it as a
+   * read of them.
+   */
+  virtual std::vector<TensorBase*> source_tensors() const { return {}; }
+
   [[nodiscard]] const std::vector<TiledIndexSpace>& tindices() const { return block_indices_; }
 
   [[nodiscard]] TAMM_SIZE block_size(const IndexVector& blockid) const {

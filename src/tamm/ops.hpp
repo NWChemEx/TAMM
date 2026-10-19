@@ -3,6 +3,7 @@
 #include "tamm/addop.hpp"
 #include "tamm/allocop.hpp"
 #include "tamm/deallocop.hpp"
+#include "tamm/lazy_tensor.hpp"
 #include "tamm/mapop.hpp"
 #include "tamm/multop.hpp"
 #include "tamm/op_base.hpp"

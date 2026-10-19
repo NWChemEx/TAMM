@@ -26,6 +26,12 @@ public:
   double multOpCopyTime = 0;
   double multOpBCTime   = 0;
 
+  // Lazy-tensor block construction. Charged only at the outermost lazy read (lazyDepth),
+  // so a lazy tensor whose source is itself lazy is not counted twice.
+  double  lazyBlockTime  = 0;
+  int64_t lazyBlockCount = 0;
+  int     lazyDepth      = 0;
+
   inline static OpProfiler& instance() {
     static OpProfiler op_prof;
     return op_prof;

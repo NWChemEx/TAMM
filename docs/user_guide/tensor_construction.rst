@@ -161,6 +161,57 @@ objects that can only by on the right hand side of a computation.
    // double elements and specialized lambda expression
    Tensor<double> B{{AO, MO}, one_body_overlap_integral_lambda};
 
+Lazy Tensors
+------------
+
+A lazy tensor is a read-only tensor defined by a single contraction of two other tensors,
+``A = alpha * X * Y``. It is never stored: whenever an operation reads a block of ``A``, that
+block is computed from the *current* contents of its sources ``X`` and ``Y``. Use it for an
+intermediate that is too large to keep in memory and is only consumed by later contractions.
+
+.. code:: cpp
+
+   // Tensor<T>::lazy(ExecutionContext& ec, const IndexLabelVec& labels, alpha * X(...) * Y(...))
+   auto [a, b, c, d] = V.labels<4>("all");
+   auto [i, j]       = O.labels<2>("all");
+   auto [k]          = K.labels<1>("all");
+
+   // A(a,b,c,d) = 0.75 * X(a,c,k) * Y(b,d,k), computed on demand
+   Tensor<double> A = Tensor<double>::lazy(ec, {a, b, c, d}, 0.75 * X(a, c, k) * Y(b, d, k));
+
+   // alpha may be omitted: L(a,b) = P(a,k) * Q(k,b)
+   Tensor<double> L = Tensor<double>::lazy(ec, {a, b}, P(a, k) * Q(k, b));
+
+   sch(C(a, b, i, j) += 4.0 * A(a, b, c, d) * B(c, d, i, j)).execute();
+
+* ``labels`` give the lazy tensor's modes, in order; its index spaces are those of the labels.
+  Every label must appear in ``X`` or ``Y``, and labels shared by ``X`` and ``Y`` that are not
+  in ``labels`` are summed over, exactly as in an ordinary contraction.
+* The definition is validated like a ``MultOp``. Sources must be dense tensors labeled with
+  ``TiledIndexLabel``\ s (no string or dependent labels). A source may itself be a lazy tensor.
+* Blocks are computed on the hardware of ``ec`` (``ec.exhw()``) and returned through the
+  ordinary block ``get``.
+* Like any lambda tensor, a lazy tensor cannot be allocated, written or accumulated into; it can
+  only appear on the right-hand side of an operation.
+
+**Dependences.** Reading a lazy tensor counts as reading its sources. A lazy tensor can be used
+in the same scheduler batch as the operations that write ``X`` and ``Y``: the scheduler orders
+the read after those writes, as if the operation named ``X`` and ``Y`` directly. The sources
+must stay allocated for as long as the lazy tensor is read.
+
+**Cost.** A block is recomputed every time it is read, at the full cost of the contraction
+that defines it. For example, in ``C(a,b,i,j) += A(a,b,c,d) * B(c,d,i,j)`` each block of ``A``
+is read once per ``(i, j)`` tile pair of ``C``, so it is built that many times. A lazy tensor
+whose source is lazy multiplies these costs. Store the intermediate instead when it fits in
+memory and is read many times.
+
+**Profiling.** With ``sch.execute(hw, true)`` the per-operation profile data
+(``ec.get_profile_header()`` / ``ec.get_profile_data()``) has four extra columns:
+``lazy_time_min``, ``lazy_time_max`` and ``lazy_time_avg`` (time spent building lazy blocks, across
+ranks) and ``lazy_blocks`` (number of lazy blocks built, summed over ranks). Time spent building
+lazy blocks is not included in the operation's ``get_time`` columns. ``lazy_blocks`` divided by
+the number of distinct blocks of the lazy tensor gives the measured recomputation factor.
+
 Tensor Allocation and Deallocation
 ----------------------------------
 

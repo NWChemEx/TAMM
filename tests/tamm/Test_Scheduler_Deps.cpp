@@ -110,6 +110,50 @@ TEST_CASE("Scheduler orders dependent contractions within one batch") {
   Tensor<T>::deallocate(A, B, C, D, E);
 }
 
+// A lazy tensor L = X*B is read by the second op, which never names X. The scheduler must
+// still order it after the write to X earlier in the same batch.
+TEST_CASE("A read of a lazy tensor depends on writes to its sources") {
+  using T             = double;
+  ProcGroup        pg = ProcGroup::create_world_coll();
+  ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
+
+  const size_t    N = g_is_size;
+  TiledIndexSpace tis{IndexSpace{range(N)}, g_tile_size};
+  auto [i, j, k] = tis.labels<3>("all");
+
+  Tensor<T> A{i, k}, X{i, k}, B{k, j}, D{i, j}, E{i, j};
+  Tensor<T>::allocate(&ec, A, X, B, D, E);
+  Scheduler sch{ec};
+  sch(A() = T{0})(X() = T{0})(B() = T{0})(D() = T{0})(E() = T{0}).execute();
+
+  fill_nonuniform_2d<T>(ec, A, 1.0, 0.5, -0.25);
+  fill_nonuniform_2d<T>(ec, B, 2.0, -0.3, 0.1);
+  fill_nonuniform_2d<T>(ec, D, 0.7, 0.2, 0.15);
+  ec.pg().barrier();
+
+  auto L = Tensor<T>::lazy(ec, {i, j}, X(i, k) * B(k, j));
+
+  // Deterministic check of the dependence itself (a race would only fail intermittently).
+  auto write_x = (X(i, k) = A(i, k));
+  auto read_l  = (E(i, k) = L(i, j) * D(j, k));
+  CHECK(sch.op_has_dependence(&write_x, &read_l));
+
+  // Reference: X = A, then E = (X*B)*D.
+  auto refA = to_dense<T>(A, N);
+  auto refB = to_dense<T>(B, N);
+  auto refD = to_dense<T>(D, N);
+  auto refE = matmul<T>(matmul<T>(refA, refB, N), refD, N);
+
+  sch(X(i, k) = A(i, k))(E(i, k) = L(i, j) * D(j, k)).execute();
+  ec.pg().barrier();
+
+  auto gotE = to_dense<T>(E, N);
+  for(size_t r = 0; r < N; r++)
+    for(size_t s = 0; s < N; s++) CHECK(std::abs(gotE[r][s] - refE[r][s]) < 1e-9);
+
+  Tensor<T>::deallocate(A, X, B, D, E);
+}
+
 int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);
   if(argc > 1) g_is_size = static_cast<size_t>(atoi(argv[1]));

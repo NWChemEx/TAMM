@@ -2051,3 +2051,118 @@ TEST_CASE("Op label validation and non-uniform contraction") {
   Tensor<T>::deallocate(A, B, C);
   delete ec;
 }
+
+// Lazy tensors (Tensor<T>::lazy): a contraction whose blocks are computed on every read.
+// Each case computes the same result through a stored intermediate and through a lazy tensor
+// with the same definition, and requires the two to agree to round-off. Index spaces have
+// several tiles and an uneven last tile so the reduction loop and block-id mapping are covered.
+
+// Deterministic, non-separable values that depend on each element's global index.
+template<typename T>
+static void lazy_fill_pattern(ExecutionContext& ec, Tensor<T> t, double seed) {
+  auto lam = [&](const IndexVector& blockid) {
+    const TAMM_SIZE     size  = t.block_size(blockid);
+    auto                bdims = t.block_dims(blockid);
+    auto                boff  = t.block_offsets(blockid);
+    std::vector<T>      buf(size);
+    std::vector<size_t> idx(bdims.size(), 0);
+    for(TAMM_SIZE c = 0; c < size; c++) {
+      double v = seed;
+      for(size_t m = 0; m < idx.size(); m++)
+        v += std::sin(seed * double(m + 1) + 0.37 * double((boff[m] + idx[m]) * (m + 2)));
+      buf[c] = T(v);
+      for(size_t m = idx.size(); m-- > 0;) {
+        if(++idx[m] < bdims[m]) break;
+        idx[m] = 0;
+      }
+    }
+    t.put(blockid, buf);
+  };
+  block_for(ec, t(), lam);
+}
+
+// ||got - ref|| / ||ref||
+template<typename T>
+static double lazy_rel_diff(Scheduler& sch, Tensor<T> got, Tensor<T> ref) {
+  Tensor<T> diff{got.tiled_index_spaces()};
+  sch.allocate(diff)(diff() = got())(diff() -= ref()).execute();
+  const double res = norm(diff) / norm(ref);
+  sch.deallocate(diff).execute();
+  return res;
+}
+
+TEST_CASE("Lazy tensor matches the stored intermediate") {
+  using T             = double;
+  ProcGroup        pg = ProcGroup::create_world_coll();
+  ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
+  Scheduler        sch{ec};
+  const auto       hw = ec.exhw();
+
+  const size_t    N = 6;
+  TiledIndexSpace V{IndexSpace{range(N)}, 2};
+  TiledIndexSpace O{IndexSpace{range(N - 1)}, 2};
+  TiledIndexSpace K{IndexSpace{range(N + 1)}, 2};
+  auto [a, b, c, d] = V.labels<4>("all");
+  auto [i, j]       = O.labels<2>("all");
+  auto [k]          = K.labels<1>("all");
+
+  // A(a,b,c,d) = alpha * X(a,c,k) * Y(b,d,k), then
+  // C(a,b,i,j) += 4 * A(a,b,c,d) * B(c,d,i,j).
+  Tensor<T> X{a, c, k}, Y{b, d, k}, B{c, d, i, j}, A_stored{a, b, c, d};
+  Tensor<T> C_stored{a, b, i, j}, C_lazy{a, b, i, j}, C_perm{a, b, i, j};
+  sch.allocate(X, Y, B, A_stored, C_stored, C_lazy, C_perm).execute();
+  lazy_fill_pattern<T>(ec, X, 0.3);
+  lazy_fill_pattern<T>(ec, Y, 1.1);
+  lazy_fill_pattern<T>(ec, B, -0.7);
+  sch(C_stored() = T{0})(C_lazy() = T{0})(C_perm() = T{0}).execute();
+
+  const T alpha = 0.75;
+  sch(A_stored(a, b, c, d) = alpha * X(a, c, k) * Y(b, d, k))(
+    C_stored(a, b, i, j) += 4.0 * A_stored(a, b, c, d) * B(c, d, i, j))
+    .execute(hw);
+
+  SUBCASE("same mode order") {
+    auto A_lazy = Tensor<T>::lazy(ec, {a, b, c, d}, alpha * X(a, c, k) * Y(b, d, k));
+    sch(C_lazy(a, b, i, j) += 4.0 * A_lazy(a, b, c, d) * B(c, d, i, j)).execute(hw);
+    CHECK(lazy_rel_diff<T>(sch, C_lazy, C_stored) < 1e-12);
+  }
+
+  SUBCASE("permuted mode order") {
+    auto A_perm = Tensor<T>::lazy(ec, {c, a, d, b}, alpha * X(a, c, k) * Y(b, d, k));
+    sch(C_perm(a, b, i, j) += 4.0 * A_perm(c, a, d, b) * B(c, d, i, j)).execute(hw);
+    CHECK(lazy_rel_diff<T>(sch, C_perm, C_stored) < 1e-12);
+  }
+
+  sch.deallocate(X, Y, B, A_stored, C_stored, C_lazy, C_perm).execute();
+}
+
+TEST_CASE("Lazy tensor whose source is a lazy tensor") {
+  using T             = double;
+  ProcGroup        pg = ProcGroup::create_world_coll();
+  ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
+  Scheduler        sch{ec};
+  const auto       hw = ec.exhw();
+
+  TiledIndexSpace tis{IndexSpace{range(6)}, 2};
+  auto [a, b, c, d, k] = tis.labels<5>("all");
+
+  Tensor<T> P{a, k}, Q{k, b}, R{b, c}, S{c, d};
+  Tensor<T> S1{a, b}, S2{a, c}, C_stored{a, d}, C_lazy{a, d};
+  sch.allocate(P, Q, R, S, S1, S2, C_stored, C_lazy).execute();
+  lazy_fill_pattern<T>(ec, P, 0.2);
+  lazy_fill_pattern<T>(ec, Q, 0.9);
+  lazy_fill_pattern<T>(ec, R, -0.4);
+  lazy_fill_pattern<T>(ec, S, 1.3);
+
+  sch(S1(a, b) = P(a, k) * Q(k, b))(S2(a, c) = 0.5 * S1(a, b) * R(b, c))(C_stored(a, d) =
+                                                                           S2(a, c) * S(c, d))
+    .execute(hw);
+
+  auto L1 = Tensor<T>::lazy(ec, {a, b}, P(a, k) * Q(k, b)); // alpha = 1 overload
+  auto L2 = Tensor<T>::lazy(ec, {a, c}, 0.5 * L1(a, b) * R(b, c));
+  sch(C_lazy(a, d) = L2(a, c) * S(c, d)).execute(hw);
+
+  CHECK(lazy_rel_diff<T>(sch, C_lazy, C_stored) < 1e-12);
+
+  sch.deallocate(P, Q, R, S, S1, S2, C_stored, C_lazy).execute();
+}

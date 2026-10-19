@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <span>
@@ -483,16 +484,27 @@ public:
 #endif
   }
 
-  void execute_bufacc(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) {
-    EXPECTS(!is_assign_);
-    auto& oprof         = tamm::OpProfiler::instance();
-    using TensorElType1 = typename LabeledTensorT1::element_type;
-    using TensorElType2 = typename LabeledTensorT2::element_type;
-    using TensorElType3 = typename LabeledTensorT3::element_type;
-    // determine set of all labels
-    /* std::set<TiledIndexLabel> lhs_set{lhs_.labels()};
-    std::set<TiledIndexLabel> rhs_set{rhs1_.labels()};
-    rhs_set.insert(rhs_set.end(), rhs2_.labels().begin(), rhs_2.labels().end()); */
+  // Label analysis for the block-accumulate path, shared by execute_bufacc and lazy tensors:
+  // the reduction labels, and for each RHS mode its position among the LHS labels or the
+  // reduction labels (-1 if absent).
+  struct BufaccMaps {
+    IndexLabelVec    reduction_labels;
+    std::vector<int> rhs1_map_output;
+    std::vector<int> rhs2_map_output;
+    std::vector<int> rhs1_map_reduction;
+    std::vector<int> rhs2_map_reduction;
+  };
+
+  // Timers that compute_block charges.
+  struct BlockTimers {
+    double* get;
+    double* wait;
+    double* bc;
+    double* copy;
+  };
+
+  BufaccMaps bufacc_maps() const {
+    BufaccMaps maps;
 
     IndexLabelVec lhs_labels{lhs_.labels()};
     IndexLabelVec rhs1_labels{rhs1_.labels()};
@@ -500,53 +512,255 @@ public:
     IndexLabelVec all_rhs_labels{rhs1_.labels()};
     all_rhs_labels.insert(all_rhs_labels.end(), rhs2_.labels().begin(), rhs2_.labels().end());
 
-    LabelLoopNest lhs_loop_nest{lhs_.labels()};
-
     // compute the reduction labels
     std::sort(lhs_labels.begin(), lhs_labels.end());
     auto unique_labels = internal::unique_entries_by_primary_label(all_rhs_labels);
     std::sort(unique_labels.begin(), unique_labels.end());
-    IndexLabelVec reduction_labels; //{reduction.begin(), reduction.end()};
+    auto& reduction_labels = maps.reduction_labels;
     std::set_difference(unique_labels.begin(), unique_labels.end(), lhs_labels.begin(),
                         lhs_labels.end(), std::back_inserter(reduction_labels));
 
-    std::vector<int> rhs1_map_output;
-    std::vector<int> rhs2_map_output;
-    std::vector<int> rhs1_map_reduction;
-    std::vector<int> rhs2_map_reduction;
-    const auto&      lhs_lbls = lhs_.labels();
+    const auto& lhs_lbls = lhs_.labels();
     for(auto& lbl: rhs1_labels) {
       auto it_out = std::find(lhs_lbls.begin(), lhs_lbls.end(), lbl);
-      if(it_out != lhs_lbls.end()) rhs1_map_output.push_back(it_out - lhs_lbls.begin());
-      else rhs1_map_output.push_back(-1);
+      if(it_out != lhs_lbls.end()) maps.rhs1_map_output.push_back(it_out - lhs_lbls.begin());
+      else maps.rhs1_map_output.push_back(-1);
 
-      // auto it_red = std::find(reduction.begin(), reduction.end(), lbl);
       auto it_red = std::find(reduction_labels.begin(), reduction_labels.end(), lbl);
       if(it_red != reduction_labels.end())
-        rhs1_map_reduction.push_back(it_red - reduction_labels.begin());
-      else rhs1_map_reduction.push_back(-1);
+        maps.rhs1_map_reduction.push_back(it_red - reduction_labels.begin());
+      else maps.rhs1_map_reduction.push_back(-1);
     }
 
     for(auto& lbl: rhs2_labels) {
       auto it_out = std::find(lhs_lbls.begin(), lhs_lbls.end(), lbl);
-      if(it_out != lhs_lbls.end()) rhs2_map_output.push_back(it_out - lhs_lbls.begin());
-      else rhs2_map_output.push_back(-1);
+      if(it_out != lhs_lbls.end()) maps.rhs2_map_output.push_back(it_out - lhs_lbls.begin());
+      else maps.rhs2_map_output.push_back(-1);
 
       auto it_red = std::find(reduction_labels.begin(), reduction_labels.end(), lbl);
       if(it_red != reduction_labels.end())
-        rhs2_map_reduction.push_back(it_red - reduction_labels.begin());
-      else rhs2_map_reduction.push_back(-1);
+        maps.rhs2_map_reduction.push_back(it_red - reduction_labels.begin());
+      else maps.rhs2_map_reduction.push_back(-1);
     }
 
-    // IndexLabelVec reduction_lbls{reduction.begin(), reduction.end()};
+    return maps;
+  }
+
+  /**
+   * @brief Accumulate alpha * sum_reduction(rhs1 * rhs2) for one LHS block into cbuf.
+   *
+   * @param [in] itval LHS block id in label space (an element of the LHS label loop nest)
+   * @param [in] translated_cblockid the same block id in the LHS tensor's space
+   * @param [in,out] cbuf host buffer of the block's size; the result is added to it
+   * @param [in] keep_reduction_iter optional filter on reduction iterations (called only for
+   * iterations with non-zero rhs1 and rhs2 blocks); an empty filter keeps every iteration
+   */
+  void compute_block(const BufaccMaps& maps, ExecutionHW hw, gpuStream_t& thandle,
+                     const IndexVector& itval, const IndexVector& translated_cblockid,
+                     TensorElType1* cbuf, const BlockTimers& timers,
+                     const std::function<bool()>& keep_reduction_iter = {}) const {
+    auto ctensor = lhs_.tensor();
+    auto atensor = rhs1_.tensor();
+    auto btensor = rhs2_.tensor();
+
+    auto& memHostPool = RMMMemoryManager::getInstance().getHostMemoryPool();
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+    auto& memDevicePool = RMMMemoryManager::getInstance().getDeviceMemoryPool();
+#endif
+
+    const size_t csize = ctensor.block_size(translated_cblockid);
+    const auto&  cdims = ctensor.block_dims(translated_cblockid);
+
+    SizeVec cdims_sz;
+    for(const auto v: cdims) { cdims_sz.push_back(v); }
+
+    std::unique_ptr<AddBuf<TensorElType1, TensorElType2, TensorElType3>> ab;
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+    TensorElType2* th_a{nullptr};
+    TensorElType3* th_b{nullptr};
+
+    ab = std::make_unique<AddBuf<TensorElType1, TensorElType2, TensorElType3>>(
+      th_a, th_b, static_cast<TensorElType1*>(nullptr), translated_cblockid);
+#else
+    ab = std::make_unique<AddBuf<TensorElType1, TensorElType2, TensorElType3>>(ctensor, nullptr,
+                                                                               translated_cblockid);
+#endif
+
+    {
+      LabelLoopNest inner_loop{maps.reduction_labels};
+
+      TensorElType1* cbuf_dev_ptr{nullptr};
+      TensorElType1* cbuf_tmp_dev_ptr{nullptr};
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+      std::span<TensorElType1> cbuf_dev_span;
+      std::span<TensorElType1> cbuf_tmp_dev_span;
+      if(hw == ExecutionHW::GPU) {
+        cbuf_dev_ptr = (cbuf_dev_span = memDevicePool.allocate_span<TensorElType1>(csize)).data();
+        cbuf_tmp_dev_ptr =
+          (cbuf_tmp_dev_span = memDevicePool.allocate_span<TensorElType1>(csize)).data();
+
+        gpuMemsetAsync(cbuf_dev_ptr, csize * sizeof(TensorElType1), thandle);
+        gpuMemsetAsync(cbuf_tmp_dev_ptr, csize * sizeof(TensorElType1), thandle);
+      }
+#endif
+
+      int slc = 0;
+      for(const auto& inner_it_val: inner_loop) { // k
+
+        IndexVector a_block_id(rhs1_.labels().size());
+
+        for(size_t i = 0; i < maps.rhs1_map_output.size(); i++) {
+          if(maps.rhs1_map_output[i] != -1) { a_block_id[i] = itval[maps.rhs1_map_output[i]]; }
+        }
+
+        for(size_t i = 0; i < maps.rhs1_map_reduction.size(); i++) {
+          if(maps.rhs1_map_reduction[i] != -1) {
+            a_block_id[i] = inner_it_val[maps.rhs1_map_reduction[i]];
+          }
+        }
+
+        const auto translated_ablockid = internal::translate_blockid(a_block_id, rhs1_);
+        if(!atensor.is_non_zero(translated_ablockid)) continue;
+
+        IndexVector b_block_id(rhs2_.labels().size());
+
+        for(size_t i = 0; i < maps.rhs2_map_output.size(); i++) {
+          if(maps.rhs2_map_output[i] != -1) { b_block_id[i] = itval[maps.rhs2_map_output[i]]; }
+        }
+
+        for(size_t i = 0; i < maps.rhs2_map_reduction.size(); i++) {
+          if(maps.rhs2_map_reduction[i] != -1) {
+            b_block_id[i] = inner_it_val[maps.rhs2_map_reduction[i]];
+          }
+        }
+
+        const auto translated_bblockid = internal::translate_blockid(b_block_id, rhs2_);
+        if(!btensor.is_non_zero(translated_bblockid)) continue;
+
+        if(keep_reduction_iter && !keep_reduction_iter()) continue;
+
+        // compute block size and allocate buffers for abuf and bbuf
+        const size_t asize = atensor.block_size(translated_ablockid);
+        const size_t bsize = btensor.block_size(translated_bblockid);
+
+        TensorElType2*           abuf{nullptr};
+        TensorElType3*           bbuf{nullptr};
+        std::span<TensorElType2> abuf_span = memHostPool.allocate_span<TensorElType2>(asize);
+        std::span<TensorElType3> bbuf_span = memHostPool.allocate_span<TensorElType3>(bsize);
+        abuf                               = abuf_span.data();
+        bbuf                               = bbuf_span.data();
+
+#ifdef DO_NB_GET
+        DataCommunicationHandle a_nbhandle, b_nbhandle;
+
+        {
+          TimerGuard tg_get{timers.get};
+          atensor.nb_get(translated_ablockid, {abuf, asize}, &a_nbhandle);
+          btensor.nb_get(translated_bblockid, {bbuf, bsize}, &b_nbhandle);
+        }
+        {
+          TimerGuard tg_wait{timers.wait};
+          if(!a_nbhandle.getCompletionStatus()) a_nbhandle.waitForCompletion();
+          if(!b_nbhandle.getCompletionStatus()) b_nbhandle.waitForCompletion();
+        }
+#else
+        {
+          TimerGuard tg_get{timers.get};
+          atensor.get(translated_ablockid, {abuf, asize});
+        }
+        {
+          TimerGuard tg_get{timers.get};
+          btensor.get(translated_bblockid, {bbuf, bsize});
+        }
+#endif
+        const auto& adims = atensor.block_dims(translated_ablockid);
+        const auto& bdims = btensor.block_dims(translated_bblockid);
+
+        // changed cscale from 0 to 1 to aggregate on cbuf
+        T cscale{1};
+
+        SizeVec adims_sz, bdims_sz;
+        for(const auto v: adims) { adims_sz.push_back(v); }
+        for(const auto v: bdims) { bdims_sz.push_back(v); }
+
+        // A*B
+        {
+          TimerGuard tg_bc{timers.bc};
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+          TensorElType2*           abuf_dev{nullptr};
+          TensorElType3*           bbuf_dev{nullptr};
+          std::span<TensorElType2> abuf_dev_span;
+          std::span<TensorElType3> bbuf_dev_span;
+          if(hw == ExecutionHW::GPU) {
+            abuf_dev = (abuf_dev_span = memDevicePool.allocate_span<TensorElType2>(asize)).data();
+            bbuf_dev = (bbuf_dev_span = memDevicePool.allocate_span<TensorElType3>(bsize)).data();
+          }
+#endif
+
+          kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+            abuf_dev, bbuf_dev,
+#endif
+            thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
+            cscale, cbuf, cdims_sz, lhs_int_labels_, hw, false, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
+
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+          if(hw == ExecutionHW::GPU) {
+            memDevicePool.deallocate(abuf_dev_span);
+            memDevicePool.deallocate(bbuf_dev_span);
+          }
+#endif
+        } // A * B
+        slc++;
+
+        memHostPool.deallocate(abuf_span);
+        memHostPool.deallocate(bbuf_span);
+      } // end of reduction loop
+
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+      // copy to host
+      if(hw == ExecutionHW::GPU) {
+        TimerGuard               tg_bc{timers.bc};
+        std::span<TensorElType1> cbuf_tmp_span = memHostPool.allocate_span<TensorElType1>(csize);
+        TensorElType1*           cbuf_tmp      = cbuf_tmp_span.data();
+        std::memset(cbuf_tmp_span.data(), 0, cbuf_tmp_span.size_bytes());
+        {
+          TimerGuard tg_copy{timers.copy};
+          gpuMemcpyAsync<TensorElType1>(cbuf_tmp, cbuf_dev_ptr, csize, gpuMemcpyDeviceToHost,
+                                        thandle);
+          gpuStreamSynchronize(thandle);
+        }
+        // cbuf+=cbuf_tmp
+        blas::axpy(csize, TensorElType1{1}, cbuf_tmp, 1, cbuf, 1);
+
+        memHostPool.deallocate(cbuf_tmp_span);
+
+        memDevicePool.deallocate(cbuf_dev_span);
+        memDevicePool.deallocate(cbuf_tmp_dev_span);
+      }
+#endif
+    }
+
+    ab.reset();
+  }
+
+  void execute_bufacc(ExecutionContext& ec, ExecutionHW hw = ExecutionHW::CPU) {
+    EXPECTS(!is_assign_);
+    auto& oprof = tamm::OpProfiler::instance();
+
+    LabelLoopNest lhs_loop_nest{lhs_.labels()};
+
+    const BufaccMaps  maps = bufacc_maps();
+    const BlockTimers timers{&oprof.multOpGetTime, &oprof.multOpWaitTime, &oprof.multOpBCTime,
+                             &oprof.multOpCopyTime};
+
 #if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
     int64_t n_lhs_blocks, nranks_per_lhs_block, lhs_counter;
 #endif
 
     auto& memHostPool = RMMMemoryManager::getInstance().getHostMemoryPool();
 #if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-    auto& memDevicePool = RMMMemoryManager::getInstance().getDeviceMemoryPool();
-    auto& thandle       = GPUStreamPool::getInstance().getStream();
+    auto& thandle = GPUStreamPool::getInstance().getStream();
 #else
     gpuStream_t thandle{};
 #endif
@@ -554,8 +768,6 @@ public:
     // function to compute one block
     auto lambda = [&](const IndexVector itval) { // i, j
       auto ctensor = lhs_.tensor();
-      auto atensor = rhs1_.tensor();
-      auto btensor = rhs2_.tensor();
       // compute blockids from the loop indices. itval is the loop index
 
       IndexVector c_block_id{itval};
@@ -567,197 +779,25 @@ public:
       std::span<TensorElType1> cbuf_span = memHostPool.allocate_span<TensorElType1>(csize);
       TensorElType1*           cbuf      = cbuf_span.data();
       std::memset(static_cast<void*>(cbuf_span.data()), 0, cbuf_span.size_bytes());
-      const auto& cdims = ctensor.block_dims(translated_cblockid);
 
-      SizeVec cdims_sz;
-      for(const auto v: cdims) { cdims_sz.push_back(v); }
-
-      std::unique_ptr<AddBuf<TensorElType1, TensorElType2, TensorElType3>> ab;
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-      TensorElType2* th_a{nullptr};
-      TensorElType3* th_b{nullptr};
-
-      ab = std::make_unique<AddBuf<TensorElType1, TensorElType2, TensorElType3>>(
-        th_a, th_b, static_cast<TensorElType1*>(nullptr), translated_cblockid);
-#else
-      ab = std::make_unique<AddBuf<TensorElType1, TensorElType2, TensorElType3>>(
-        ctensor, nullptr, translated_cblockid);
+      std::function<bool()> keep_reduction_iter;
+#if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
+      int loop_counter     = 0;
+      nranks_per_lhs_block = (ec.pg().size().value() / n_lhs_blocks) + 1 -
+                             (lhs_counter >= (ec.pg().size().value() % n_lhs_blocks));
+      keep_reduction_iter = [&]() {
+        return loop_counter++ % nranks_per_lhs_block == ec.pg().rank().value() / n_lhs_blocks;
+      };
 #endif
+
+      compute_block(maps, hw, thandle, itval, translated_cblockid, cbuf, timers,
+                    keep_reduction_iter);
 
       {
-        // LabelLoopNest inner_loop{reduction_lbls};
-        LabelLoopNest inner_loop{reduction_labels};
+        TimerGuard tg_add{&oprof.multOpAddTime};
+        ctensor.add(translated_cblockid, {cbuf, csize});
+      }
 
-#if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
-        int loop_counter     = 0;
-        nranks_per_lhs_block = (ec.pg().size().value() / n_lhs_blocks) + 1 -
-                               (lhs_counter >= (ec.pg().size().value() % n_lhs_blocks));
-#endif
-
-        TensorElType1* cbuf_dev_ptr{nullptr};
-        TensorElType1* cbuf_tmp_dev_ptr{nullptr};
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-        std::span<TensorElType1> cbuf_dev_span;
-        std::span<TensorElType1> cbuf_tmp_dev_span;
-        if(hw == ExecutionHW::GPU) {
-          cbuf_dev_ptr = (cbuf_dev_span = memDevicePool.allocate_span<TensorElType1>(csize)).data();
-          cbuf_tmp_dev_ptr =
-            (cbuf_tmp_dev_span = memDevicePool.allocate_span<TensorElType1>(csize)).data();
-
-          gpuMemsetAsync(cbuf_dev_ptr, csize * sizeof(TensorElType1), thandle);
-          gpuMemsetAsync(cbuf_tmp_dev_ptr, csize * sizeof(TensorElType1), thandle);
-        }
-#endif
-
-        int slc = 0;
-        for(const auto& inner_it_val: inner_loop) { // k
-
-          IndexVector a_block_id(rhs1_.labels().size());
-
-          for(size_t i = 0; i < rhs1_map_output.size(); i++) {
-            if(rhs1_map_output[i] != -1) { a_block_id[i] = itval[rhs1_map_output[i]]; }
-          }
-
-          for(size_t i = 0; i < rhs1_map_reduction.size(); i++) {
-            if(rhs1_map_reduction[i] != -1) { a_block_id[i] = inner_it_val[rhs1_map_reduction[i]]; }
-          }
-
-          const auto translated_ablockid = internal::translate_blockid(a_block_id, rhs1_);
-          if(!atensor.is_non_zero(translated_ablockid)) continue;
-
-          IndexVector b_block_id(rhs2_.labels().size());
-
-          for(size_t i = 0; i < rhs2_map_output.size(); i++) {
-            if(rhs2_map_output[i] != -1) { b_block_id[i] = itval[rhs2_map_output[i]]; }
-          }
-
-          for(size_t i = 0; i < rhs2_map_reduction.size(); i++) {
-            if(rhs2_map_reduction[i] != -1) { b_block_id[i] = inner_it_val[rhs2_map_reduction[i]]; }
-          }
-
-          const auto translated_bblockid = internal::translate_blockid(b_block_id, rhs2_);
-          if(!btensor.is_non_zero(translated_bblockid)) continue;
-
-#if defined(MULTOP_PARTIAL_PARALLELIZE_RHS)
-          if(!(loop_counter++ % nranks_per_lhs_block == ec.pg().rank().value() / n_lhs_blocks)) {
-            continue;
-          }
-#endif
-          // compute block size and allocate buffers for abuf and bbuf
-          const size_t asize = atensor.block_size(translated_ablockid);
-          const size_t bsize = btensor.block_size(translated_bblockid);
-
-          TensorElType2*           abuf{nullptr};
-          TensorElType3*           bbuf{nullptr};
-          std::span<TensorElType2> abuf_span = memHostPool.allocate_span<TensorElType2>(asize);
-          std::span<TensorElType3> bbuf_span = memHostPool.allocate_span<TensorElType3>(bsize);
-          abuf                               = abuf_span.data();
-          bbuf                               = bbuf_span.data();
-
-#ifdef DO_NB_GET
-          DataCommunicationHandle a_nbhandle, b_nbhandle;
-
-          {
-            TimerGuard tg_get{&oprof.multOpGetTime};
-            atensor.nb_get(translated_ablockid, {abuf, asize}, &a_nbhandle);
-            btensor.nb_get(translated_bblockid, {bbuf, bsize}, &b_nbhandle);
-          }
-          {
-            TimerGuard tg_wait{&multOpWaitTime};
-            if(!a_nbhandle.getCompletionStatus()) a_nbhandle.waitForCompletion();
-            if(!b_nbhandle.getCompletionStatus()) b_nbhandle.waitForCompletion();
-          }
-#else
-          {
-            TimerGuard tg_get{&oprof.multOpGetTime};
-            atensor.get(translated_ablockid, {abuf, asize});
-          }
-          {
-            TimerGuard tg_get{&oprof.multOpGetTime};
-            btensor.get(translated_bblockid, {bbuf, bsize});
-          }
-#endif
-          const auto& adims = atensor.block_dims(translated_ablockid);
-          const auto& bdims = btensor.block_dims(translated_bblockid);
-
-          // changed cscale from 0 to 1 to aggregate on cbuf
-          T cscale{1};
-
-          SizeVec adims_sz, bdims_sz;
-          for(const auto v: adims) { adims_sz.push_back(v); }
-          for(const auto v: bdims) { bdims_sz.push_back(v); }
-
-          // A*B
-          {
-            TimerGuard tg_bc{&oprof.multOpBCTime};
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-            TensorElType2*           abuf_dev{nullptr};
-            TensorElType3*           bbuf_dev{nullptr};
-            std::span<TensorElType2> abuf_dev_span;
-            std::span<TensorElType3> bbuf_dev_span;
-            if(hw == ExecutionHW::GPU) {
-              abuf_dev = (abuf_dev_span = memDevicePool.allocate_span<TensorElType2>(asize)).data();
-              bbuf_dev = (bbuf_dev_span = memDevicePool.allocate_span<TensorElType3>(bsize)).data();
-            }
-#endif
-
-            kernels::block_multiply<T, TensorElType1, TensorElType2, TensorElType3>(
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-              abuf_dev, bbuf_dev,
-#endif
-              thandle, alpha_, abuf, adims_sz, rhs1_int_labels_, bbuf, bdims_sz, rhs2_int_labels_,
-              cscale, cbuf, cdims_sz, lhs_int_labels_, hw, false, cbuf_dev_ptr, cbuf_tmp_dev_ptr);
-
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-            if(hw == ExecutionHW::GPU) {
-              memDevicePool.deallocate(abuf_dev_span);
-              memDevicePool.deallocate(bbuf_dev_span);
-            }
-#endif
-          } // A * B
-          slc++;
-
-          memHostPool.deallocate(abuf_span);
-          memHostPool.deallocate(bbuf_span);
-        } // end of reduction loop
-
-        // add the computed update to the tensor
-        {
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-          // copy to host
-          if(hw == ExecutionHW::GPU) {
-            TimerGuard               tg_bc{&oprof.multOpBCTime};
-            std::span<TensorElType1> cbuf_tmp_span =
-              memHostPool.allocate_span<TensorElType1>(csize);
-            TensorElType1* cbuf_tmp = cbuf_tmp_span.data();
-            std::memset(cbuf_tmp_span.data(), 0, cbuf_tmp_span.size_bytes());
-            {
-              TimerGuard tg_copy{&oprof.multOpCopyTime};
-              gpuMemcpyAsync<TensorElType1>(cbuf_tmp, cbuf_dev_ptr, csize, gpuMemcpyDeviceToHost,
-                                            thandle);
-              gpuStreamSynchronize(thandle);
-            }
-            // cbuf+=cbuf_tmp
-            blas::axpy(csize, TensorElType1{1}, cbuf_tmp, 1, cbuf, 1);
-
-            memHostPool.deallocate(cbuf_tmp_span);
-          }
-#endif
-          {
-            TimerGuard tg_add{&oprof.multOpAddTime};
-            ctensor.add(translated_cblockid, {cbuf, csize});
-          }
-        }
-
-#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
-        if(hw == ExecutionHW::GPU) {
-          memDevicePool.deallocate(cbuf_dev_span);
-          memDevicePool.deallocate(cbuf_tmp_dev_span);
-        }
-#endif
-      } // multoptime
-
-      ab.reset();
       memHostPool.deallocate(cbuf_span);
     };
     //@todo use a scheduler

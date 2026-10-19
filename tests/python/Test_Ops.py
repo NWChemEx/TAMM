@@ -2,6 +2,7 @@
 
 import gc
 import itertools
+import math
 import faulthandler
 
 import pytamm as pt
@@ -1493,6 +1494,117 @@ def test_multop_with_rhs_reduction(ec):
 
 
 # -----------------------------------------------------------------------------
+# Lazy tensors (TensorDouble.lazy): python equivalent of the lazy-tensor cases in
+# tests/tamm/Test_Ops.cpp. The same result is computed through a stored intermediate and
+# through a lazy tensor with the same definition; the two must agree to round-off.
+# -----------------------------------------------------------------------------
+
+def lazy_fill_pattern(t, seed):
+    def f(blockid, buf):
+        off = 1.3 * sum(int(b) for b in blockid)
+        for n in range(len(buf)):
+            buf[n] = seed + math.sin(seed + 0.37 * n + off)
+
+    pt.update_tensor(t(), f)
+
+
+def lazy_check_equal(got, ref, label):
+    lt = got()
+    for itval in pt.LabelLoopNest(lt.labels()):
+        blockid = pt.translate_blockid(itval, lt)
+        size = int(got.block_size(blockid))
+        gbuf = [0.0] * size
+        rbuf = [0.0] * size
+        got.get(blockid, gbuf)
+        ref.get(blockid, rbuf)
+        for x, y in zip(gbuf, rbuf):
+            assert abs(x - y) <= 1.0e-12 * max(1.0, abs(y)), (label, tuple(blockid), x, y)
+
+
+def test_lazy_tensor_matches_stored(ec):
+    N = 6
+    V = pt.TiledIndexSpace(pt.IndexSpace(pt.range(N)), 2)
+    O = pt.TiledIndexSpace(pt.IndexSpace(pt.range(N - 1)), 2)
+    K = pt.TiledIndexSpace(pt.IndexSpace(pt.range(N + 1)), 2)
+    a, b, c, d = V.labels("all", count=4)
+    i, j = O.labels("all", count=2)
+    (k,) = K.labels("all", count=1)
+
+    # A(a,b,c,d) = alpha * X(a,c,k) * Y(b,d,k);  C(a,b,i,j) += 4 * A(a,b,c,d) * B(c,d,i,j)
+    X = pt.TensorDouble([a, c, k])
+    Y = pt.TensorDouble([b, d, k])
+    B = pt.TensorDouble([c, d, i, j])
+    A_stored = pt.TensorDouble([a, b, c, d])
+    C_stored = pt.TensorDouble([a, b, i, j])
+    C_lazy = pt.TensorDouble([a, b, i, j])
+    C_perm = pt.TensorDouble([a, b, i, j])
+
+    allocate_tensors(ec, X, Y, B, A_stored, C_stored, C_lazy, C_perm)
+    lazy_fill_pattern(X, 0.3)
+    lazy_fill_pattern(Y, 1.1)
+    lazy_fill_pattern(B, -0.7)
+
+    alpha = 0.75
+    A_lazy = pt.TensorDouble.lazy(ec, [a, b, c, d], alpha * X(a, c, k) * Y(b, d, k))
+    A_perm = pt.TensorDouble.lazy(ec, [c, a, d, b], alpha * X(a, c, k) * Y(b, d, k))
+
+    run_ops(
+        ec,
+        (C_stored(), "=", 0.0),
+        (C_lazy(), "=", 0.0),
+        (C_perm(), "=", 0.0),
+        (A_stored(a, b, c, d), "=", alpha * X(a, c, k) * Y(b, d, k)),
+        (C_stored(a, b, i, j), "+=", 4.0 * A_stored(a, b, c, d) * B(c, d, i, j)),
+        (C_lazy(a, b, i, j), "+=", 4.0 * A_lazy(a, b, c, d) * B(c, d, i, j)),
+        (C_perm(a, b, i, j), "+=", 4.0 * A_perm(c, a, d, b) * B(c, d, i, j)),
+    )
+    barrier(ec)
+
+    lazy_check_equal(C_lazy, C_stored, "lazy/same mode order")
+    lazy_check_equal(C_perm, C_stored, "lazy/permuted mode order")
+
+    barrier(ec)
+    safe_deallocate(X, Y, B, A_stored, C_stored, C_lazy, C_perm)
+
+
+def test_lazy_tensor_of_lazy_tensor(ec):
+    tis = pt.TiledIndexSpace(pt.IndexSpace(pt.range(6)), 2)
+    a, b, c, d, k = tis.labels("all", count=5)
+
+    P = pt.TensorDouble([a, k])
+    Q = pt.TensorDouble([k, b])
+    R = pt.TensorDouble([b, c])
+    S = pt.TensorDouble([c, d])
+    S1 = pt.TensorDouble([a, b])
+    S2 = pt.TensorDouble([a, c])
+    C_stored = pt.TensorDouble([a, d])
+    C_lazy = pt.TensorDouble([a, d])
+
+    allocate_tensors(ec, P, Q, R, S, S1, S2, C_stored, C_lazy)
+    lazy_fill_pattern(P, 0.2)
+    lazy_fill_pattern(Q, 0.9)
+    lazy_fill_pattern(R, -0.4)
+    lazy_fill_pattern(S, 1.3)
+
+    L1 = pt.TensorDouble.lazy(ec, [a, b], P(a, k) * Q(k, b))  # alpha = 1
+    L2 = pt.TensorDouble.lazy(ec, [a, c], 0.5 * L1(a, b) * R(b, c))
+
+    run_ops(
+        ec,
+        (S1(a, b), "=", P(a, k) * Q(k, b)),
+        (S2(a, c), "=", 0.5 * S1(a, b) * R(b, c)),
+        (C_stored(a, d), "=", S2(a, c) * S(c, d)),
+        (C_lazy(a, d), "=", L2(a, c) * S(c, d)),
+    )
+    barrier(ec)
+
+    lazy_check_equal(C_lazy, C_stored, "lazy of lazy")
+
+    barrier(ec)
+    safe_deallocate(P, Q, R, S, S1, S2, C_stored, C_lazy)
+
+
+# -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
 
@@ -1517,6 +1629,8 @@ def main():
         ("Four-dimensional mult ops part I", test_four_dimensional_mult_ops_part_i),
         ("Two-dimensional ops part I", test_two_dimensional_ops_part_i),
         ("MultOp with RHS reduction", test_multop_with_rhs_reduction),
+        ("Lazy tensor matches the stored intermediate", test_lazy_tensor_matches_stored),
+        ("Lazy tensor whose source is a lazy tensor", test_lazy_tensor_of_lazy_tensor),
     ]
 
     try:

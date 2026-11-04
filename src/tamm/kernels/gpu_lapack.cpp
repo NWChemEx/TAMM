@@ -279,6 +279,268 @@ template void tamm::kernels::gpu::gesvd(lapack::Job jobu, lapack::Job jobvt, int
                                         std::complex<double>* U, int64_t ldu,
                                         std::complex<double>* VT, int64_t ldvt);
 
+// GPU counterpart of lapack::geqrf (see tamm_blas.hpp): cusolverDn<t>geqrf (CUDA),
+// rocsolver_<t>geqrf (HIP), or oneapi::mkl::lapack::geqrf (DPCPP). A/tau are host pointers; this
+// function stages A to the device, runs the vendor geqrf, and copies A/tau back to host,
+// mirroring lapack::geqrf's host-in/host-out contract. No shape restriction: any m, n.
+template<typename T>
+void tamm::kernels::gpu::geqrf(int64_t m, int64_t n, T* A, int64_t lda, T* tau) {
+  const int64_t k = std::min(m, n);
+
+  auto& gpustream = tamm::GPUStreamPool::getInstance().getStream();
+  auto& devpool   = tamm::RMMMemoryManager::getInstance().getDeviceMemoryPool();
+
+  const size_t a_size = static_cast<size_t>(lda) * static_cast<size_t>(n);
+
+  // The spans own the pool blocks; .data() is what the vendor API takes. Each deallocate()
+  // below derives its byte count from the span, so it cannot disagree with the allocation.
+  std::span<T> sp_A   = devpool.allocate_span<T>(a_size);
+  std::span<T> sp_tau = devpool.allocate_span<T>(static_cast<size_t>(k));
+
+  T* d_A   = sp_A.data();
+  T* d_tau = sp_tau.data();
+
+  gpuMemcpyAsync<T>(d_A, A, a_size, gpuMemcpyHostToDevice, gpustream);
+
+#if defined(USE_CUDA)
+  const int im = static_cast<int>(m), in = static_cast<int>(n), ilda = static_cast<int>(lda);
+
+  cudaStream_t stream = gpustream.first;
+
+  cusolverDnHandle_t handle;
+  CUSOLVER_CHECK(cusolverDnCreate(&handle));
+  CUSOLVER_CHECK(cusolverDnSetStream(handle, stream));
+
+  std::span<int> sp_info = devpool.allocate_span<int>(1);
+  int*           d_info  = sp_info.data();
+
+  int lwork = 0;
+  if constexpr(std::is_same_v<T, double>) {
+    CUSOLVER_CHECK(cusolverDnDgeqrf_bufferSize(handle, im, in, d_A, ilda, &lwork));
+  }
+  else if constexpr(std::is_same_v<T, std::complex<double>>) {
+    CUSOLVER_CHECK(
+      cusolverDnZgeqrf_bufferSize(handle, im, in, (cuDoubleComplex*) d_A, ilda, &lwork));
+  }
+
+  std::span<T> sp_work = devpool.allocate_span<T>(static_cast<size_t>(std::max(lwork, 0)));
+  T*           d_work  = sp_work.data();
+
+  if constexpr(std::is_same_v<T, double>) {
+    CUSOLVER_CHECK(cusolverDnDgeqrf(handle, im, in, d_A, ilda, d_tau, d_work, lwork, d_info));
+  }
+  else if constexpr(std::is_same_v<T, std::complex<double>>) {
+    CUSOLVER_CHECK(cusolverDnZgeqrf(handle, im, in, (cuDoubleComplex*) d_A, ilda,
+                                    (cuDoubleComplex*) d_tau, (cuDoubleComplex*) d_work, lwork,
+                                    d_info));
+  }
+
+  gpuStreamSynchronize(gpustream);
+
+  int info = 0;
+  CUDA_CHECK(cudaMemcpy(&info, d_info, sizeof(int), cudaMemcpyDeviceToHost));
+  if(info != 0) {
+    std::ostringstream msg;
+    msg << "cusolverDn geqrf failed with info=" << info << " (illegal argument -info)";
+    throw std::runtime_error(msg.str());
+  }
+
+  devpool.deallocate(sp_work);
+  devpool.deallocate(sp_info);
+
+  CUSOLVER_CHECK(cusolverDnDestroy(handle));
+
+#elif defined(USE_HIP)
+  const rocblas_int im = static_cast<rocblas_int>(m), in = static_cast<rocblas_int>(n),
+                    ilda = static_cast<rocblas_int>(lda);
+
+  // rocSOLVER shares rocBLAS's handle (already bound to this stream by GPUStreamPool) and
+  // manages its own device workspace internally.
+  rocblas_handle handle = gpustream.second;
+
+  if constexpr(std::is_same_v<T, double>) {
+    ROCBLAS_CHECK(rocsolver_dgeqrf(handle, im, in, d_A, ilda, d_tau));
+  }
+  else if constexpr(std::is_same_v<T, std::complex<double>>) {
+    ROCBLAS_CHECK(rocsolver_zgeqrf(handle, im, in, (rocblas_double_complex*) d_A, ilda,
+                                   (rocblas_double_complex*) d_tau));
+  }
+
+  gpuStreamSynchronize(gpustream);
+
+#elif defined(USE_DPCPP)
+  sycl::queue& q = gpustream.first;
+
+  // Declared outside the try so the deallocate below is in scope on the success path.
+  std::span<T> sp_scratch;
+  try {
+    std::int64_t const scratchpad_size =
+      oneapi::mkl::lapack::geqrf_scratchpad_size<T>(q, m, n, lda);
+    sp_scratch =
+      devpool.allocate_span<T>(static_cast<size_t>(std::max<std::int64_t>(scratchpad_size, 0)));
+
+    auto ev =
+      oneapi::mkl::lapack::geqrf(q, m, n, d_A, lda, d_tau, sp_scratch.data(), scratchpad_size);
+    ev.wait();
+  } catch(oneapi::mkl::exception const& ex) {
+    std::ostringstream msg;
+    msg << "oneMKL LAPACK geqrf Error: " << ex.what() << ", at " << __FILE__ << " : " << __LINE__;
+    throw std::runtime_error(msg.str());
+  }
+
+  devpool.deallocate(sp_scratch);
+#endif
+
+  gpuMemcpyAsync<T>(A, d_A, a_size, gpuMemcpyDeviceToHost, gpustream);
+  gpuMemcpyAsync<T>(tau, d_tau, static_cast<size_t>(k), gpuMemcpyDeviceToHost, gpustream);
+  gpuStreamSynchronize(gpustream);
+
+  devpool.deallocate(sp_A);
+  devpool.deallocate(sp_tau);
+}
+
+template void tamm::kernels::gpu::geqrf(int64_t m, int64_t n, double* A, int64_t lda, double* tau);
+template void tamm::kernels::gpu::geqrf(int64_t m, int64_t n, std::complex<double>* A, int64_t lda,
+                                        std::complex<double>* tau);
+
+// GPU counterpart of lapack::ungqr (see tamm_blas.hpp): cusolverDn<t>orgqr/ungqr (CUDA),
+// rocsolver_<t>orgqr/ungqr (HIP), or oneapi::mkl::lapack::orgqr/ungqr (DPCPP). A/tau are host
+// pointers; this function stages A/tau to the device, runs the vendor orgqr/ungqr, and copies A
+// back to host, mirroring lapack::ungqr's host-in/host-out contract. No shape restriction
+// beyond ungqr's own k <= n <= m (see tamm_blas.hpp).
+template<typename T>
+void tamm::kernels::gpu::ungqr(int64_t m, int64_t n, int64_t k, T* A, int64_t lda, const T* tau) {
+  auto& gpustream = tamm::GPUStreamPool::getInstance().getStream();
+  auto& devpool   = tamm::RMMMemoryManager::getInstance().getDeviceMemoryPool();
+
+  const size_t a_size = static_cast<size_t>(lda) * static_cast<size_t>(n);
+
+  // The spans own the pool blocks; .data() is what the vendor API takes. Each deallocate()
+  // below derives its byte count from the span, so it cannot disagree with the allocation.
+  std::span<T> sp_A   = devpool.allocate_span<T>(a_size);
+  std::span<T> sp_tau = devpool.allocate_span<T>(static_cast<size_t>(k));
+
+  T* d_A   = sp_A.data();
+  T* d_tau = sp_tau.data();
+
+  gpuMemcpyAsync<T>(d_A, A, a_size, gpuMemcpyHostToDevice, gpustream);
+  gpuMemcpyAsync<T>(d_tau, tau, static_cast<size_t>(k), gpuMemcpyHostToDevice, gpustream);
+
+#if defined(USE_CUDA)
+  const int im = static_cast<int>(m), in = static_cast<int>(n), ik = static_cast<int>(k),
+            ilda = static_cast<int>(lda);
+
+  cudaStream_t stream = gpustream.first;
+
+  cusolverDnHandle_t handle;
+  CUSOLVER_CHECK(cusolverDnCreate(&handle));
+  CUSOLVER_CHECK(cusolverDnSetStream(handle, stream));
+
+  std::span<int> sp_info = devpool.allocate_span<int>(1);
+  int*           d_info  = sp_info.data();
+
+  int lwork = 0;
+  if constexpr(std::is_same_v<T, double>) {
+    CUSOLVER_CHECK(cusolverDnDorgqr_bufferSize(handle, im, in, ik, d_A, ilda, d_tau, &lwork));
+  }
+  else if constexpr(std::is_same_v<T, std::complex<double>>) {
+    CUSOLVER_CHECK(cusolverDnZungqr_bufferSize(handle, im, in, ik, (cuDoubleComplex*) d_A, ilda,
+                                               (cuDoubleComplex*) d_tau, &lwork));
+  }
+
+  std::span<T> sp_work = devpool.allocate_span<T>(static_cast<size_t>(std::max(lwork, 0)));
+  T*           d_work  = sp_work.data();
+
+  if constexpr(std::is_same_v<T, double>) {
+    CUSOLVER_CHECK(cusolverDnDorgqr(handle, im, in, ik, d_A, ilda, d_tau, d_work, lwork, d_info));
+  }
+  else if constexpr(std::is_same_v<T, std::complex<double>>) {
+    CUSOLVER_CHECK(cusolverDnZungqr(handle, im, in, ik, (cuDoubleComplex*) d_A, ilda,
+                                    (cuDoubleComplex*) d_tau, (cuDoubleComplex*) d_work, lwork,
+                                    d_info));
+  }
+
+  gpuStreamSynchronize(gpustream);
+
+  int info = 0;
+  CUDA_CHECK(cudaMemcpy(&info, d_info, sizeof(int), cudaMemcpyDeviceToHost));
+  if(info != 0) {
+    std::ostringstream msg;
+    msg << "cusolverDn orgqr/ungqr failed with info=" << info << " (illegal argument -info)";
+    throw std::runtime_error(msg.str());
+  }
+
+  devpool.deallocate(sp_work);
+  devpool.deallocate(sp_info);
+
+  CUSOLVER_CHECK(cusolverDnDestroy(handle));
+
+#elif defined(USE_HIP)
+  const rocblas_int im = static_cast<rocblas_int>(m), in = static_cast<rocblas_int>(n),
+                    ik = static_cast<rocblas_int>(k), ilda = static_cast<rocblas_int>(lda);
+
+  // rocSOLVER shares rocBLAS's handle (already bound to this stream by GPUStreamPool) and
+  // manages its own device workspace internally.
+  rocblas_handle handle = gpustream.second;
+
+  if constexpr(std::is_same_v<T, double>) {
+    ROCBLAS_CHECK(rocsolver_dorgqr(handle, im, in, ik, d_A, ilda, d_tau));
+  }
+  else if constexpr(std::is_same_v<T, std::complex<double>>) {
+    ROCBLAS_CHECK(rocsolver_zungqr(handle, im, in, ik, (rocblas_double_complex*) d_A, ilda,
+                                   (rocblas_double_complex*) d_tau));
+  }
+
+  gpuStreamSynchronize(gpustream);
+
+#elif defined(USE_DPCPP)
+  sycl::queue& q = gpustream.first;
+
+  // Declared outside the try so the deallocate below is in scope on the success path.
+  std::span<T> sp_scratch;
+  try {
+    std::int64_t scratchpad_size = 0;
+    if constexpr(std::is_same_v<T, double>) {
+      scratchpad_size = oneapi::mkl::lapack::orgqr_scratchpad_size<T>(q, m, n, k, lda);
+    }
+    else if constexpr(std::is_same_v<T, std::complex<double>>) {
+      scratchpad_size = oneapi::mkl::lapack::ungqr_scratchpad_size<T>(q, m, n, k, lda);
+    }
+    sp_scratch =
+      devpool.allocate_span<T>(static_cast<size_t>(std::max<std::int64_t>(scratchpad_size, 0)));
+
+    if constexpr(std::is_same_v<T, double>) {
+      auto ev =
+        oneapi::mkl::lapack::orgqr(q, m, n, k, d_A, lda, d_tau, sp_scratch.data(), scratchpad_size);
+      ev.wait();
+    }
+    else if constexpr(std::is_same_v<T, std::complex<double>>) {
+      auto ev =
+        oneapi::mkl::lapack::ungqr(q, m, n, k, d_A, lda, d_tau, sp_scratch.data(), scratchpad_size);
+      ev.wait();
+    }
+  } catch(oneapi::mkl::exception const& ex) {
+    std::ostringstream msg;
+    msg << "oneMKL LAPACK orgqr/ungqr Error: " << ex.what() << ", at " << __FILE__ << " : "
+        << __LINE__;
+    throw std::runtime_error(msg.str());
+  }
+
+  devpool.deallocate(sp_scratch);
+#endif
+
+  gpuMemcpyAsync<T>(A, d_A, a_size, gpuMemcpyDeviceToHost, gpustream);
+  gpuStreamSynchronize(gpustream);
+
+  devpool.deallocate(sp_A);
+  devpool.deallocate(sp_tau);
+}
+
+template void tamm::kernels::gpu::ungqr(int64_t m, int64_t n, int64_t k, double* A, int64_t lda,
+                                        const double* tau);
+template void tamm::kernels::gpu::ungqr(int64_t m, int64_t n, int64_t k, std::complex<double>* A,
+                                        int64_t lda, const std::complex<double>* tau);
+
 namespace tamm::kernels::gpu {
 namespace {
 // Eigendecomposition of the column-major n x n device matrix d_A (lower triangle used) in place on

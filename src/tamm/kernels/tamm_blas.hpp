@@ -61,6 +61,22 @@ template<typename T>
 void gesvd(lapack::Job jobu, lapack::Job jobvt, int64_t m, int64_t n, T* A, int64_t lda,
            blas::real_type<T>* S, T* U, int64_t ldu, T* VT, int64_t ldvt);
 
+// GPU (cuSolver/rocSolver/oneMKL) counterparts of lapack::geqrf and lapack::ungqr, used by
+// tamm::qr. A/tau are host pointers (same layout and host-in/host-out contract as their LAPACK
+// counterparts); device staging is handled internally, independently in each call. No shape
+// restriction (unlike gesvd): both routines support any m, n.
+//
+// geqrf: on exit, A's upper (trapezoidal) part holds R; its strictly-lower part holds the
+// Householder reflector vectors, and tau (size min(m,n)) their scalar factors.
+// ungqr: forms the first n columns of Q (k <= n <= m, k = number of reflectors from geqrf) from
+// that A/tau, overwriting A's first n columns with Q. The caller is responsible for giving A
+// enough columns (and reading out R beforehand): see tamm::qr.
+template<typename T>
+void geqrf(int64_t m, int64_t n, T* A, int64_t lda, T* tau);
+
+template<typename T>
+void ungqr(int64_t m, int64_t n, int64_t k, T* A, int64_t lda, const T* tau);
+
 } // namespace gpu
 #endif
 

@@ -2,8 +2,8 @@ Dense linear algebra
 ====================
 
 TAMM provides direct operations on explicitly stored matrices (2-D tensors or raw
-buffers): dense eigensolves and singular value decompositions. A backend failure terminates the run
-with an error message.
+buffers): dense eigensolves, singular value decompositions, and QR decompositions. A backend
+failure terminates the run with an error message.
 
 The eigensolvers come in two forms:
 
@@ -15,7 +15,8 @@ The eigensolvers come in two forms:
   ranks do the work.
 
 Complete, compiling uses of these routines, including the ScaLAPACK grid, are in
-``tests/tamm/Test_EVP.cpp`` (``tests/tamm/Test_SVD.cpp`` for ``svd``).
+``tests/tamm/Test_EVP.cpp`` (``tests/tamm/Test_SVD.cpp`` for ``svd``, ``tests/tamm/Test_QR.cpp``
+for ``qr``).
 
 Backends
 --------
@@ -293,6 +294,34 @@ computed. ``S`` holds the singular values in non-increasing order on every rank.
 ``execute_on = ExecutionHW::GPU`` in GPU builds the decomposition runs on rank 0's GPU when
 ``M >= N``, and on the CPU otherwise (the GPU path supports ``double`` and
 ``std::complex<double>``). The caller deallocates ``U`` and ``Vh``.
+
+QR decomposition
+----------------
+
+.. code:: cpp
+
+   struct QROptions {
+     bool full_matrices = true;
+     bool compute_q     = true;
+   };
+
+   template<typename T>
+   std::tuple<Tensor<T>, Tensor<T>>
+   qr(ExecutionContext& ec, Tensor<T> A, QROptions opts = {},
+      ExecutionHW execute_on = ExecutionHW::CPU);
+
+Computes :math:`A = QR` for an ``M x N`` tensor by gathering ``A`` on rank 0. Returns ``(Q, R)``:
+``Q`` is ``M x M`` and ``R`` is ``M x N`` with ``full_matrices``, or ``M x K`` and ``K x N``
+(``K = min(M, N)``) without. ``R`` is upper triangular (upper trapezoidal when ``M < N``); with
+``M > N`` and ``full_matrices``, its last ``M - N`` rows are zero. ``Q`` has orthonormal columns.
+With ``compute_q = false`` only ``R`` is computed (``full_matrices`` has no effect then: ``R`` is
+always ``M x N``) and ``Q`` is returned empty. With ``execute_on = ExecutionHW::GPU`` in CUDA or
+HIP builds the decomposition runs on rank 0's GPU regardless of the shape of ``A`` (unlike
+``svd``, there is no ``M >= N`` restriction; the GPU path supports ``double`` and
+``std::complex<double>``). Exception: in SYCL (``USE_DPCPP``) builds, ``execute_on`` is ignored
+for ``qr`` and LAPACK/CPU is always used. oneMKL's GPU-offloaded geqrf and orgqr have both been
+observed to intermittently return wrong results on Intel GPUs for this decomposition. The caller
+deallocates ``Q`` and ``R``.
 
 ScaLAPACK grids
 ---------------

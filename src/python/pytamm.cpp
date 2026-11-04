@@ -2256,6 +2256,23 @@ void bind_tamm_utils_for_type(py::module_& m) {
     },
     py::arg("ec"), py::arg("tensor"), py::arg("opts") = tamm::SVDOptions{},
     py::arg("execute_on") = ExecutionHW::CPU);
+
+  // QR Decomposition
+  m.def(
+    "qr",
+    [](ExecutionContext& ec, std::shared_ptr<PyTensorT> t, tamm::QROptions opts,
+       ExecutionHW execute_on) {
+      Tensor<T> A = raw_tensor(t);
+      Tensor<T> Q, R;
+      {
+        py::gil_scoped_release release;
+        std::tie(Q, R) = tamm::qr<T>(ec, A, opts, execute_on);
+      }
+      py::object Q_obj = opts.compute_q ? py::cast(wrap_tensor<T>(Q)) : py::none();
+      return py::make_tuple(Q_obj, wrap_tensor<T>(R));
+    },
+    py::arg("ec"), py::arg("tensor"), py::arg("opts") = tamm::QROptions{},
+    py::arg("execute_on") = ExecutionHW::CPU);
 }
 
 // -----------------------------------------------------------------------------
@@ -3739,6 +3756,24 @@ PYBIND11_MODULE(pytamm, m) {
              (o.full_matrices ? "True" : "False") +
              " compute_uv=" + (o.compute_uv ? "True" : "False") + ">";
       //  " hermitian=" + (o.hermitian ? "True" : "False") + ">";
+    });
+
+  // Options for qr()
+  py::class_<tamm::QROptions>(m, "QROptions")
+    .def(py::init<>())
+    .def(py::init([](bool full_matrices, bool compute_q) {
+           tamm::QROptions o;
+           o.full_matrices = full_matrices;
+           o.compute_q     = compute_q;
+           return o;
+         }),
+         py::arg("full_matrices") = true, py::arg("compute_q") = true)
+    .def_readwrite("full_matrices", &tamm::QROptions::full_matrices)
+    .def_readwrite("compute_q", &tamm::QROptions::compute_q)
+    .def("__repr__", [](const tamm::QROptions& o) {
+      return std::string("<pytamm.QROptions full_matrices=") +
+             (o.full_matrices ? "True" : "False") +
+             " compute_q=" + (o.compute_q ? "True" : "False") + ">";
     });
 
   bind_tamm_utils_for_type<double>(m);

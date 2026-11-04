@@ -233,4 +233,140 @@ svd(ExecutionContext& ec, Tensor<T> A, SVDOptions opts = {},
   return {U, sigma, Vh};
 }
 
+/**
+ * @brief Options for tamm::qr
+ */
+struct QROptions {
+  bool full_matrices = true;
+  bool compute_q     = true;
+};
+
+/**
+ * @brief QR decomposition of a 2D tensor
+ *
+ * Computes A = Q * R by gathering A onto rank 0 as a dense Eigen matrix and solving it there.
+ * execute_on selects the solver:
+ *   - ExecutionHW::CPU (default) : LAPACK's geqrf + ungqr on the host, any M/N.
+ *   - ExecutionHW::GPU           : cuSolver's/rocSolver's geqrf + orgqr/ungqr on rank 0's GPU
+ *                                  (tamm::kernels::gpu::geqrf, tamm::kernels::gpu::ungqr), only
+ *                                  available when built with USE_CUDA/USE_HIP (else ignored,
+ *                                  LAPACK/CPU is used). Unlike svd, there is no M/N restriction
+ *                                  on the GPU path.
+ *                                  Exception: on USE_DPCPP, execute_on=GPU is ignored for qr()
+ *                                  specifically and LAPACK/CPU is always used, for both real and
+ *                                  complex T. oneMKL's GPU-offloaded geqrf has been observed to
+ *                                  intermittently produce NaN in R for complex T, and its orgqr
+ *                                  to produce an incorrect Q for real T (with geqrf's own output
+ *                                  -- R, reflectors, tau -- otherwise matching the CPU path);
+ *                                  until Intel confirms a fix, neither geqrf nor orgqr/ungqr is
+ *                                  trusted on this backend for qr().
+ *
+ * Options are:
+ *   - full_matrices=true  : Q is M x M, R is M x N.
+ *   - full_matrices=false : Q is M x K, R is K x N, K = min(M, N) (reduced/economic).
+ *   - compute_q=false     : Skips forming Q (the ungqr/orgqr step) entirely. full_matrices is
+ * unused. Only R is computed in the full M x N shape. Q is returned empty. R is upper triangular
+ * (upper trapezoidal when M < N); with full_matrices (or compute_q=false) and M > N, its last M - N
+ * rows are zero. Q has orthonormal columns.
+ *
+ * @return tuple (Q, R).
+ */
+template<typename T>
+std::tuple<Tensor<T>, Tensor<T>> qr(ExecutionContext& ec, Tensor<T> A, QROptions opts = {},
+                                    ExecutionHW execute_on = ExecutionHW::CPU) {
+  // LAPACK expects column-major; hold the gathered matrix column-major so its buffer is
+  // directly consumable with leading dimension = number of rows.
+  using CMatrix = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
+  using RMatrix = Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+
+  const auto rank = ec.pg().rank().value();
+  const auto tis  = A.tiled_index_spaces();
+  EXPECTS(tis.size() == 2);
+  const TiledIndexSpace MR = tis[0]; // row space
+  const TiledIndexSpace NC = tis[1]; // column space
+  const int64_t         M  = static_cast<int64_t>(MR.max_num_indices());
+  const int64_t         N  = static_cast<int64_t>(NC.max_num_indices());
+  const int64_t         K  = std::min(M, N);
+  // USE_DPCPP is deliberately excluded here (unlike svd()): oneMKL's GPU-offloaded geqrf has
+  // been observed to intermittently produce NaN in R for complex T (not just orgqr's output
+  // for real T, which was the first symptom found); see the comment below. Until Intel
+  // confirms a fix, execute_on=GPU is ignored for qr() specifically on USE_DPCPP, and LAPACK/CPU
+  // is always used there, for both real and complex T.
+  const bool gpu =
+#if defined(USE_CUDA) || defined(USE_HIP)
+    execute_on == ExecutionHW::GPU;
+#else
+    false;
+#endif
+
+  // Output index spaces: Q is MR x QC, R is RR x NC. full_matrices=false (economic) uses the same
+  // K-sized space for both, since Q's column count and R's row count are always equal (both K, or
+  // both M with full_matrices=true). With compute_q=false, full_matrices is unused: R is always
+  // the full M x N shape.
+  const bool            full = opts.full_matrices || !opts.compute_q;
+  const TiledIndexSpace KS{IndexSpace{range(static_cast<size_t>(K))}, static_cast<Tile>(K)};
+  const TiledIndexSpace QC = full ? MR : KS;
+  const TiledIndexSpace RR = full ? MR : KS;
+
+  Tensor<T> R{RR, NC};
+  Tensor<T> Q; // left empty when compute_q == false
+  if(opts.compute_q) Q = Tensor<T>{MR, QC};
+  Scheduler sch{ec};
+  if(opts.compute_q) sch.allocate(Q, R).execute();
+  else sch.allocate(R).execute();
+
+  if(rank == 0) {
+    // Gather A onto rank 0. tamm_to_eigen_matrix returns row-major; assigning into a
+    // column-major matrix transposes the storage order (not the logical matrix).
+    CMatrix        Am = tamm_to_eigen_matrix(A);
+    std::vector<T> tau(static_cast<size_t>(K));
+
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+    if(gpu) { tamm::kernels::gpu::geqrf<T>(M, N, Am.data(), M, tau.data()); }
+    else { lapack::geqrf(M, N, Am.data(), M, tau.data()); }
+#else
+    lapack::geqrf(M, N, Am.data(), M, tau.data());
+#endif
+
+    // Extract R from Am's upper (trapezoidal) part before anything below overwrites it (ungqr
+    // overwrites the whole buffer, including that part, to form Q).
+    {
+      CMatrix Rm = CMatrix::Zero(RR.max_num_indices(), N);
+      Rm.template triangularView<Eigen::Upper>() =
+        Am.topRows(static_cast<int64_t>(RR.max_num_indices()))
+          .template triangularView<Eigen::Upper>();
+      RMatrix Rr = Rm;
+      eigen_to_tamm_tensor(R, Rr);
+    }
+
+    if(opts.compute_q) {
+      const int64_t qcols = QC.max_num_indices(); // columns of Q to form: K (economic) or M (full)
+      // ungqr needs qcols columns with leading dimension M; Am only has N. Growing the buffer is
+      // needed only when full_matrices and M > N (the only case where qcols=M exceeds N); the
+      // reflector data (Am's strictly-lower part, in its first K=N columns) carries over as-is,
+      // the new columns' content is a don't-care input to ungqr.
+      if(qcols > N) {
+        CMatrix Am2     = CMatrix::Zero(M, qcols);
+        Am2.leftCols(N) = Am;
+        Am              = std::move(Am2);
+      }
+
+#if defined(USE_CUDA) || defined(USE_HIP) || defined(USE_DPCPP)
+      if(gpu) { tamm::kernels::gpu::ungqr<T>(M, qcols, K, Am.data(), M, tau.data()); }
+      else { lapack::ungqr(M, qcols, K, Am.data(), M, tau.data()); }
+#else
+      lapack::ungqr(M, qcols, K, Am.data(), M, tau.data());
+#endif
+
+      RMatrix Qr = Am.leftCols(qcols);
+      eigen_to_tamm_tensor(Q, Qr);
+    }
+  }
+
+  // Ensure rank 0's puts into Q/R are visible before other ranks read them.
+  ec.pg().barrier();
+
+  return {Q, R};
+}
+
 } // namespace tamm

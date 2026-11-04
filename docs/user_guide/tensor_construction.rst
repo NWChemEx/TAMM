@@ -187,8 +187,9 @@ intermediate that is too large to keep in memory and is only consumed by later c
 * ``labels`` give the lazy tensor's modes, in order; its index spaces are those of the labels.
   Every label must appear in ``X`` or ``Y``, and labels shared by ``X`` and ``Y`` that are not
   in ``labels`` are summed over, exactly as in an ordinary contraction.
-* The definition is validated like a ``MultOp``. Sources must be dense tensors labeled with
-  ``TiledIndexLabel``\ s (no string or dependent labels). A source may itself be a lazy tensor.
+* The definition is validated like a ``MultOp``. Sources must be labeled with
+  ``TiledIndexLabel``\ s (no string or dependent labels) and cannot use dependent index spaces.
+  Block sparse sources are supported, and a source may itself be a lazy tensor.
 * Blocks are computed on the hardware of ``ec`` (``ec.exhw()``) and returned through the
   ordinary block ``get``.
 * Like any lambda tensor, a lazy tensor cannot be allocated, written or accumulated into; it can

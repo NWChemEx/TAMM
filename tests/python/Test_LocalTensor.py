@@ -311,13 +311,15 @@ def test_local_tensor_copy(ec, N, tilesize):
     sch_local(local_A(), "=", 1.0)
     sch_local.execute()
 
-    print("local_A before from_distributed_tensor")
-    tamm.print_tensor(local_A)
+    if ec.print():
+        print("local_A before from_distributed_tensor")
+        tamm.print_tensor(local_A)
 
     local_A.from_distributed_tensor(dist_A)
 
-    print("local_A after from_distributed_tensor")
-    tamm.print_tensor(local_A)
+    if ec.print():
+        print("local_A after from_distributed_tensor")
+        tamm.print_tensor(local_A)
 
     # Copy to distributed tensor
     sch_local(local_A(), "=", 21.0)
@@ -325,8 +327,8 @@ def test_local_tensor_copy(ec, N, tilesize):
 
     local_A.to_distributed_tensor(dist_A)
 
-    print("dist_A after to_distributed_tensor")
     if ec.print():
+        print("dist_A after to_distributed_tensor")
         tamm.print_tensor(dist_A)
 
     _ = local_pg
@@ -367,32 +369,40 @@ def test_local_tensor(sch, N, tilesize):
 
     new_local3.init(42.0)
 
-    print(f"value at 5,5,5 - {new_local3.get(5, 5, 5)}")
+    root = sch.ec().print()
+
+    if root:
+        print(f"value at 5,5,5 - {new_local3.get(5, 5, 5)}")
 
     new_local3.set([5, 5, 5], 1.0)
 
     val = new_local3.get([5, 5, 5])
     _ = val
 
-    print(f"new value at 5,5,5 - {new_local3.get(5, 5, 5)}")
+    if root:
+        print(f"new value at 5,5,5 - {new_local3.get(5, 5, 5)}")
+        print(f"new_local4* before resize - {new_local4.base_ptr()}")
 
-    print(f"new_local4* before resize - {new_local4.base_ptr()}")
     new_local4.resize([N, N, N])
-    print(f"new_local4* after resize - {new_local4.base_ptr()}")
 
-    print("----------------------------------------------------")
+    if root:
+        print(f"new_local4* after resize - {new_local4.base_ptr()}")
+        print("----------------------------------------------------")
+        print(f"new_local4* before resize - {new_local4.base_ptr()}")
 
-    print(f"new_local4* before resize - {new_local4.base_ptr()}")
     new_local4.resize([N + 5, N + 5, N + 5])
-    print(f"new_local4* after resize - {new_local4.base_ptr()}")
+
+    if root:
+        print(f"new_local4* after resize - {new_local4.base_ptr()}")
 
     new_local5 = new_local3.block([5, 5, 5], [4, 4, 4])
 
-    tamm.print_tensor(new_local1)
-    tamm.print_tensor(new_local2)
-    tamm.print_tensor(new_local3)
-    tamm.print_tensor(new_local4)
-    tamm.print_tensor(new_local5)
+    if root:
+        tamm.print_tensor(new_local1)
+        tamm.print_tensor(new_local2)
+        tamm.print_tensor(new_local3)
+        tamm.print_tensor(new_local4)
+        tamm.print_tensor(new_local5)
 
     _ = local_pg
 

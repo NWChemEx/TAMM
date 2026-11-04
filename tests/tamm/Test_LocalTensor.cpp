@@ -213,13 +213,17 @@ void test_local_tensor_copy(ExecutionContext& ec, size_t N, Tile tilesize) {
   .execute();
   // clang-format on
 
-  std::cout << "local_A before from_distributed_tensor" << std::endl;
-  print_tensor(local_A);
+  if(ec.print()) {
+    std::cout << "local_A before from_distributed_tensor" << std::endl;
+    print_tensor(local_A);
+  }
 
   local_A.from_distributed_tensor(dist_A);
 
-  std::cout << "local_A after from_distributed_tensor" << std::endl;
-  print_tensor(local_A);
+  if(ec.print()) {
+    std::cout << "local_A after from_distributed_tensor" << std::endl;
+    print_tensor(local_A);
+  }
 
   // Copy to distributed tensor
 
@@ -231,9 +235,10 @@ void test_local_tensor_copy(ExecutionContext& ec, size_t N, Tile tilesize) {
 
   local_A.to_distributed_tensor(dist_A);
 
-  std::cout << "dist_A after to_distributed_tensor" << std::endl;
-
-  if(ec.print()) print_tensor(dist_A);
+  if(ec.print()) {
+    std::cout << "dist_A after to_distributed_tensor" << std::endl;
+    print_tensor(dist_A);
+  }
 }
 
 template<typename T>
@@ -267,26 +272,34 @@ void test_local_tensor(Scheduler& sch, size_t N, Tile tilesize) {
   // std::cout << "A_local" << std::endl;
   new_local3.init(42.0);
 
-  std::cout << "value at 5,5,5 - " << new_local3.get(5, 5, 5) << std::endl;
+  const bool root = sch.ec().print();
+
+  if(root) std::cout << "value at 5,5,5 - " << new_local3.get(5, 5, 5) << std::endl;
   new_local3.set({5, 5, 5}, 1.0);                        // memset val
   [[maybe_unused]] auto val = new_local3.get({5, 5, 5}); // memset val
 
-  std::cout << "new value at 5,5,5 - " << new_local3.get(5, 5, 5) << std::endl;
-  std::cout << "new_local4* before resize - " << new_local4.base_ptr() << std::endl;
+  if(root) {
+    std::cout << "new value at 5,5,5 - " << new_local3.get(5, 5, 5) << std::endl;
+    std::cout << "new_local4* before resize - " << new_local4.base_ptr() << std::endl;
+  }
   new_local4.resize(N, N, N); // vector.resize()? eigen.resize()?
 
-  std::cout << "new_local4* after resize - " << new_local4.base_ptr() << std::endl;
-  std::cout << "----------------------------------------------------" << std::endl;
-  std::cout << "new_local4* before resize - " << new_local4.base_ptr() << std::endl;
+  if(root) {
+    std::cout << "new_local4* after resize - " << new_local4.base_ptr() << std::endl;
+    std::cout << "----------------------------------------------------" << std::endl;
+    std::cout << "new_local4* before resize - " << new_local4.base_ptr() << std::endl;
+  }
   new_local4.resize(N + 5, N + 5, N + 5); // vector.resize()? eigen.resize()?
-  std::cout << "new_local4* after resize - " << new_local4.base_ptr() << std::endl;
+  if(root) std::cout << "new_local4* after resize - " << new_local4.base_ptr() << std::endl;
   auto new_local5 = new_local3.block({5, 5, 5}, {4, 4, 4});
 
-  print_tensor(new_local1);
-  print_tensor(new_local2);
-  print_tensor(new_local3);
-  print_tensor(new_local4);
-  print_tensor(new_local5);
+  if(root) {
+    print_tensor(new_local1);
+    print_tensor(new_local2);
+    print_tensor(new_local3);
+    print_tensor(new_local4);
+    print_tensor(new_local5);
+  }
 }
 
 int main(int argc, char* argv[]) {

@@ -81,8 +81,8 @@ def rprint(*args, **kwargs):
 
 
 def maybe_print_tensor(tensor, title=None):
-    if VERBOSE:
-        if title and rank0():
+    if VERBOSE and rank0():
+        if title:
             print(title)
         pt.print_tensor(tensor)
 

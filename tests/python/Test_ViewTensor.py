@@ -153,13 +153,14 @@ def test_unit_tiled_view_tensor(ec, size, tile_size):
 
     sch(T_unit_2(x_2, y_2, Z), "=", 2.0).execute()
 
-    print(
-        "\n"
-        + "*" * 25
-        + "\nRunning MO space tests!\n"
-        + "*" * 25
-        + "\n"
-    )
+    if ec.print():
+        print(
+            "\n"
+            + "*" * 25
+            + "\nRunning MO space tests!\n"
+            + "*" * 25
+            + "\n"
+        )
 
     # -------------------------------------------------------------------------
     # MO space tests
@@ -237,7 +238,8 @@ def test_unit_tiled_view_tensor(ec, size, tile_size):
             if int(ec.pg().rank()) == 0:
                 print(ii, jj, val)
 
-    print("Finished tests!")
+    if ec.print():
+        print("Finished tests!")
 
 
 def main():

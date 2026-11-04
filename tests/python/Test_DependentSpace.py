@@ -378,7 +378,6 @@ def dependent_rank_suite(
     labels_factory,
     expected_rank_factor,
     no_label_setop_labels_factory=None,
-    print_message_before_scalar_reduction=False,
     print_finished_message=False,
 ):
     if no_label_setop_labels_factory is None:
@@ -466,9 +465,6 @@ def dependent_rank_suite(
     finally:
         safe_deallocate(T1, T2, T3)
 
-    if print_message_before_scalar_reduction:
-        print("/* message */", file=sys.stderr, flush=True)
-
     # MultOp 0-dim += alpha * N-dim * N-dim
     labels = labels_factory()
     T1 = tensor_from_labels(labels)
@@ -493,7 +489,7 @@ def dependent_rank_suite(
     finally:
         safe_deallocate(T1, T2, T3)
 
-    if print_finished_message:
+    if print_finished_message and rank0():
         print("Finished default dependent space", file=sys.stderr, flush=True)
 
 
@@ -537,7 +533,6 @@ def test_dependent_space_with_double(tilesize):
             ec,
             labels_factory=labels_3d,
             expected_rank_factor=1000,
-            print_message_before_scalar_reduction=True,
             print_finished_message=True,
         )
 
@@ -555,10 +550,47 @@ def test_dependent_space_with_double(tilesize):
         gc.collect()
 
 
+def test_two_parent_dependent_labels():
+    pg = pt.ProcGroup.create_world_coll()
+    ec = pt.ExecutionContext(pg, pt.DistributionKind.nw, pt.MemoryManagerKind.ga)
+
+    try:
+        LMO = pt.TiledIndexSpace(pt.IndexSpace(pt.range(10)), 2)
+
+        dep_map = {(tile_1, tile_2): LMO for tile_1 in LMO for tile_2 in LMO}
+        PNO = pt.TiledIndexSpace(LMO, [LMO, LMO], dep_map)
+
+        i, j = LMO.labels("all", count=2)
+        a, e = PNO.labels("all", count=2)
+
+        t1 = pt.TensorDouble([i, e(i, i)])
+        t2 = pt.TensorDouble([i, j, a(i, j), e(i, j)])
+
+        sch = pt.Scheduler(ec)
+        sch.allocate(t1, t2)
+        sch(t1(), "=", 1.5)
+        sch(t2(), "=", -2.5)
+        sch.execute()
+
+        check_value(t1, 1.5)
+        check_value(t2, -2.5)
+
+        sch.deallocate(t1, t2).execute()
+
+    finally:
+        del ec
+        del pg
+        gc.collect()
+
+
 def main():
     pt.initialize(["Test_DependentSpace.py"], False)
 
     try:
+        rprint("[ RUN      ] Tensors with labels that depend on two index spaces", flush=True)
+        test_two_parent_dependent_labels()
+        rprint("[       OK ] Tensors with labels that depend on two index spaces", flush=True)
+
         rprint("[ RUN      ] Tensor ops for double / tilesize=1", flush=True)
         test_dependent_space_with_double(1)
         rprint("[       OK ] Tensor ops for double / tilesize=1", flush=True)

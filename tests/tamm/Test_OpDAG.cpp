@@ -807,15 +807,19 @@ void cs_ccsd_t1() {
   UsedTensorInfoVisitor tensor_info{symbol_table};
   singles.accept(tensor_info);
 
-  std::cout << "op: \n" << op_str << "\n";
+  const bool root = ProcGroup::world_rank() == 0;
+
+  if(root) std::cout << "op: \n" << op_str << "\n";
   SeparateSumOpsVisitor sum_visitor;
 
   auto sum_ops = sum_visitor.sum_vectors(singles);
-  std::cout << "total mult ops : " << sum_ops.size() << "\n";
-  for(auto& var: sum_ops) {
-    std::cout << "op: \n" << str_generator.toString(*var) << "\n";
-    auto tensors = var->get_attribute<UsedTensorInfoAttribute>().get();
-    for(auto tensor: tensors) { std::cout << tensor.to_string() << "\n"; }
+  if(root) {
+    std::cout << "total mult ops : " << sum_ops.size() << "\n";
+    for(auto& var: sum_ops) {
+      std::cout << "op: \n" << str_generator.toString(*var) << "\n";
+      auto tensors = var->get_attribute<UsedTensorInfoAttribute>().get();
+      for(auto tensor: tensors) { std::cout << tensor.to_string() << "\n"; }
+    }
   }
 }
 

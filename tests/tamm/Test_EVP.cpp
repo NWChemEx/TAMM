@@ -65,10 +65,11 @@ void test_local_eigensolve(tamm::ExecutionContext& ec, int64_t N) {
     const double          res  = (S * Vt - Vt * lam.asDiagonal()).norm() / S.norm();
     const double          orth = (V * V.transpose() - RMatrix::Identity(N, N)).norm();
 
-    std::cout << "eigensolve (local) [" << label << "] N=" << N
-              << " : ||SV-VL||/||S||=" << std::scientific << std::setprecision(3) << res
-              << " ||VV^T-I||=" << orth << " time=" << std::defaultfloat << std::setprecision(3)
-              << elapsed_s << " s" << std::endl;
+    if(ec.print())
+      std::cout << "eigensolve (local) [" << label << "] N=" << N
+                << " : ||SV-VL||/||S||=" << std::scientific << std::setprecision(3) << res
+                << " ||VV^T-I||=" << orth << " time=" << std::defaultfloat << std::setprecision(3)
+                << elapsed_s << " s" << std::endl;
     EXPECTS(res < 1e-10);
     EXPECTS(orth < 1e-10);
     return eps;
@@ -83,8 +84,9 @@ void test_local_eigensolve(tamm::ExecutionContext& ec, int64_t N) {
     max_diff = std::max(max_diff, std::abs(eps_cpu[i] - eps_hw[i]));
     max_abs  = std::max(max_abs, std::abs(eps_cpu[i]));
   }
-  std::cout << "eigensolve (local) CPU vs exhw: max |eps diff| = " << std::scientific
-            << std::setprecision(3) << max_diff << std::endl;
+  if(ec.print())
+    std::cout << "eigensolve (local) CPU vs exhw: max |eps diff| = " << std::scientific
+              << std::setprecision(3) << max_diff << std::endl;
   EXPECTS(max_diff < 1e-10 * max_abs);
 }
 
@@ -111,10 +113,11 @@ void test_local_generalized(ExecutionContext& ec, int64_t N, int64_t M) {
     EXPECTS(std::is_sorted(eps.begin(), eps.end()));
     const RMatrix L   = RMatrix(Eigen::Map<const Eigen::VectorXd>(eps.data(), M).asDiagonal());
     const double  res = (C.transpose() * S * C - L).norm() / S.norm();
-    std::cout << "generalized_eigensolve (local) [" << label << "] N=" << N << " M=" << M
-              << " : ||C^TSC-L||/||S||=" << std::scientific << std::setprecision(3) << res
-              << " time=" << std::defaultfloat << std::setprecision(3) << elapsed_s << " s"
-              << std::endl;
+    if(ec.print())
+      std::cout << "generalized_eigensolve (local) [" << label << "] N=" << N << " M=" << M
+                << " : ||C^TSC-L||/||S||=" << std::scientific << std::setprecision(3) << res
+                << " time=" << std::defaultfloat << std::setprecision(3) << elapsed_s << " s"
+                << std::endl;
     EXPECTS(res < 1e-8);
     return eps;
   };
@@ -128,8 +131,9 @@ void test_local_generalized(ExecutionContext& ec, int64_t N, int64_t M) {
     max_diff = std::max(max_diff, std::abs(eps_cpu[i] - eps_hw[i]));
     max_abs  = std::max(max_abs, std::abs(eps_cpu[i]));
   }
-  std::cout << "generalized_eigensolve (local) CPU vs exhw: max |eps diff| = " << std::scientific
-            << std::setprecision(3) << max_diff << std::endl;
+  if(ec.print())
+    std::cout << "generalized_eigensolve (local) CPU vs exhw: max |eps diff| = " << std::scientific
+              << std::setprecision(3) << max_diff << std::endl;
   EXPECTS(max_diff < 1e-10 * max_abs);
 }
 

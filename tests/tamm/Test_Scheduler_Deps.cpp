@@ -160,7 +160,8 @@ int main(int argc, char* argv[]) {
   if(argc > 2) g_tile_size = static_cast<Tile>(atoi(argv[2]));
   if(g_is_size < g_tile_size) g_tile_size = static_cast<Tile>(g_is_size);
   doctest::Context context(argc, argv);
-  int              res = context.run();
+  if(ProcGroup::world_rank() != 0) context.setOption("minimal", true);
+  int res = context.run();
   tamm::finalize();
   return res;
 }

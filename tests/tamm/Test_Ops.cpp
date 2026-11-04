@@ -100,6 +100,7 @@ int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);
 
   doctest::Context context(argc, argv);
+  if(ProcGroup::world_rank() != 0) context.setOption("minimal", true);
 
   int res = context.run();
 
@@ -2134,6 +2135,42 @@ TEST_CASE("Lazy tensor matches the stored intermediate") {
   }
 
   sch.deallocate(X, Y, B, A_stored, C_stored, C_lazy, C_perm).execute();
+}
+
+TEST_CASE("Lazy tensor with block sparse sources") {
+  using T             = double;
+  ProcGroup        pg = ProcGroup::create_world_coll();
+  ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
+  Scheduler        sch{ec};
+  const auto       hw = ec.exhw();
+
+  TiledIndexSpace V{IndexSpace{range(8), {{"alpha", {range(0, 4)}}, {"beta", {range(4, 8)}}}}, 3};
+  TiledIndexSpace K{IndexSpace{range(5)}, 2};
+  auto [a1, a2] = V("alpha").labels<2>("all");
+  auto [b1, b2] = V("beta").labels<2>("all");
+  auto [k]      = K.labels<1>("all");
+
+  // X holds only its alpha-alpha and beta-beta blocks; Xa and Xb are the same data, dense.
+  Tensor<T> X{{V, V, K}, {{a1, a2, k}, {b1, b2, k}}};
+  Tensor<T> Xa{a1, a2, k}, Xb{b1, b2, k}, B{a2, b2}, A_stored{a1, b1, a2, b2};
+  Tensor<T> C_stored{a1, b1}, C_lazy{a1, b1};
+  sch.allocate(X, Xa, Xb, B, A_stored, C_stored, C_lazy).execute();
+  lazy_fill_pattern<T>(ec, Xa, 0.3);
+  lazy_fill_pattern<T>(ec, Xb, 1.1);
+  lazy_fill_pattern<T>(ec, B, -0.7);
+  sch(X(a1, a2, k) = Xa(a1, a2, k))(X(b1, b2, k) = Xb(b1, b2, k))(C_stored() = T{0})(C_lazy() =
+                                                                                       T{0})
+    .execute();
+
+  sch(A_stored(a1, b1, a2, b2) = 0.75 * Xa(a1, a2, k) * Xb(b1, b2, k))(
+    C_stored(a1, b1) += 4.0 * A_stored(a1, b1, a2, b2) * B(a2, b2))
+    .execute(hw);
+
+  auto A_lazy = Tensor<T>::lazy(ec, {a1, b1, a2, b2}, 0.75 * X(a1, a2, k) * X(b1, b2, k));
+  sch(C_lazy(a1, b1) += 4.0 * A_lazy(a1, b1, a2, b2) * B(a2, b2)).execute(hw);
+  CHECK(lazy_rel_diff<T>(sch, C_lazy, C_stored) < 1e-12);
+
+  sch.deallocate(X, Xa, Xb, B, A_stored, C_stored, C_lazy).execute();
 }
 
 TEST_CASE("Lazy tensor whose source is a lazy tensor") {

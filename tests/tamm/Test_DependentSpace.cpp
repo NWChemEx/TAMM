@@ -750,7 +750,6 @@ void test_dependent_space_with_T(Index tilesize) {
   }
   REQUIRE(success);
 
-  std::cerr << "/* message */" << std::endl;
   // MultOp 0-dim += alpha * 3-dim * 3-dim
   try {
     success = true;
@@ -767,7 +766,7 @@ void test_dependent_space_with_T(Index tilesize) {
   }
   REQUIRE(success);
 
-  std::cerr << "Finished default dependent space" << std::endl;
+  if(ec->print()) std::cerr << "Finished default dependent space" << std::endl;
 
   ///////////////////////////////////////////////////////////////
 
@@ -903,9 +902,35 @@ void test_dependent_space_with_T(Index tilesize) {
   }
   REQUIRE(success);
 
-  std::cerr << "Finished default dependent space" << std::endl;
+  if(ec->print()) std::cerr << "Finished default dependent space" << std::endl;
 
   ///////////////////////////////////////////////////////////////
+}
+
+TEST_CASE("Tensors with labels that depend on two index spaces") {
+  using T             = double;
+  ProcGroup        pg = ProcGroup::create_world_coll();
+  ExecutionContext ec{pg, DistributionKind::nw, MemoryManagerKind::ga};
+  Scheduler        sch{ec};
+
+  TiledIndexSpace LMO{IndexSpace{range(10)}, 2};
+
+  std::map<IndexVector, TiledIndexSpace> dep_map;
+  for(const auto& tile_1: LMO) {
+    for(const auto& tile_2: LMO) { dep_map.insert({{tile_1, tile_2}, LMO}); }
+  }
+  TiledIndexSpace PNO{LMO, {LMO, LMO}, dep_map};
+
+  auto [i, j] = LMO.labels<2>("all");
+  auto [a, e] = PNO.labels<2>("all");
+
+  Tensor<T> t1{i, e(i, i)};
+  Tensor<T> t2{i, j, a(i, j), e(i, j)};
+
+  sch.allocate(t1, t2)(t1() = 1.5)(t2() = -2.5).execute();
+  check_value(t1, 1.5);
+  check_value(t2, -2.5);
+  sch.deallocate(t1, t2).execute();
 }
 
 TEST_CASE("Tensor ops for double") {
@@ -922,6 +947,7 @@ int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);
 
   doctest::Context context(argc, argv);
+  if(ProcGroup::world_rank() != 0) context.setOption("minimal", true);
 
   int res = context.run();
 

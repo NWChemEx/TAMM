@@ -39,6 +39,7 @@ _a019_sp = None
 _a020_sp = None
 _a021_sp = None
 _a022_sp = None
+a22_abab = None
 
 i0_temp = None
 t2_aaaa_temp = None
@@ -318,7 +319,7 @@ def ccsd_t1_cs(sch, MO, CI, i0_aa, t1_aa, t2_abab, f1, chol3d):
 
 def ccsd_t2_cs(sch, MO, CI, i0_abab, t1_aa, t2_abab, t2_aaaa, f1, chol3d):
     global _a001_sp, _a004_sp, _a006_sp, _a007V, _a008_sp, _a009_sp
-    global _a017_sp, _a019_sp, _a020_sp, _a021_sp, _a022_sp, i0_temp, t2_aaaa_temp
+    global _a017_sp, _a019_sp, _a020_sp, _a021_sp, _a022_sp, a22_abab, i0_temp, t2_aaaa_temp
 
     (cind,) = CI.labels("all", count=1)
     p3, p4 = MO.labels("virt", count=2)
@@ -340,6 +341,8 @@ def ccsd_t2_cs(sch, MO, CI, i0_abab, t1_aa, t2_abab, t2_aaaa, f1, chol3d):
     sch(_a008_sp(h2_oa, h1_oa, cind), "=", _a009_sp(h2_oa, h1_oa, cind))
     sch(_a009_sp(h2_oa, h1_oa, cind), "+=", chol3d(h2_oa, h1_oa, cind))
 
+    exact_copy(sch, _a009_sp(h2_ob, h1_ob, cind), _a009_sp(h2_oa, h1_oa, cind), True)
+    exact_copy(sch, _a021_sp(p2_vb, p1_vb, cind), _a021_sp(p2_va, p1_va, cind), True)
     sch(_a001_sp(p1_va, p2_va), "=", -2.0 * _a021_sp(p1_va, p2_va, cind) * _a007V(cind))
     sch(_a001_sp(p1_va, p2_va), "+=", -1.0 * _a017_sp(p1_va, h2_oa, cind) * chol3d(h2_oa, p2_va, cind))
     sch(_a006_sp(h2_oa, h1_oa), "+=", _a009_sp(h2_oa, h1_oa, cind) * _a007V(cind))
@@ -348,6 +351,7 @@ def ccsd_t2_cs(sch, MO, CI, i0_abab, t1_aa, t2_abab, t2_aaaa, f1, chol3d):
     sch(_a019_sp(h2_oa, h1_ob, h1_oa, h2_ob), "=", 0.25 * _a009_sp(h2_oa, h1_oa, cind) * _a009_sp(h1_ob, h2_ob, cind))
     sch(_a020_sp(p2_va, h2_oa, p1_va, h1_oa), "=", -2.0 * _a009_sp(h2_oa, h1_oa, cind) * _a021_sp(p2_va, p1_va, cind))
 
+    exact_copy(sch, _a020_sp(p2_vb, h2_oa, p1_vb, h1_oa), _a020_sp(p2_va, h2_oa, p1_va, h1_oa), True)
     sch(_a020_sp(p1_va, h3_oa, p3_va, h2_oa), "+=", 0.5 * _a004_sp(p2_va, p3_va, h3_oa, h1_oa) * t2_aaaa(p1_va, p2_va, h1_oa, h2_oa))
     sch(_a020_sp(p1_vb, h2_oa, p1_va, h2_ob), "=", -0.5 * _a004_sp(p2_va, p1_va, h2_oa, h1_oa) * t2_abab(p2_va, p1_vb, h1_oa, h2_ob))
     sch(_a020_sp(p1_vb, h1_oa, p2_vb, h2_oa), "+=", 0.5 * _a004_sp(p1_va, p2_vb, h1_oa, h1_ob) * t2_abab(p1_va, p1_vb, h2_oa, h1_ob))
@@ -358,14 +362,27 @@ def ccsd_t2_cs(sch, MO, CI, i0_abab, t1_aa, t2_abab, t2_aaaa, f1, chol3d):
     sch(_a001_sp(p2_va, p1_va), "+=", t1_aa(p2_va, h1_oa) * f1(h1_oa, p1_va))
     sch(_a006_sp(h2_oa, h1_oa), "+=", f1(h2_oa, h1_oa))
     sch(_a006_sp(h2_oa, h1_oa), "+=", t1_aa(p1_va, h1_oa) * f1(h2_oa, p1_va))
+    exact_copy(sch, _a017_sp(p1_vb, h1_ob, cind), _a017_sp(p1_va, h1_oa, cind), True)
+    exact_copy(sch, _a006_sp(h1_ob, h2_ob), _a006_sp(h1_oa, h2_oa), True)
+    exact_copy(sch, _a001_sp(p1_vb, p2_vb), _a001_sp(p1_va, p2_va), True)
+    exact_copy(sch, _a021_sp(p1_vb, p2_vb, cind), _a021_sp(p1_va, p2_va, cind), True)
+    exact_copy(sch, _a020_sp(p1_vb, h1_ob, p2_vb, h2_ob), _a020_sp(p1_va, h1_oa, p2_va, h2_oa), True)
 
     sch(i0_abab(p1_va, p2_vb, h2_oa, h1_ob), "=", _a020_sp(p2_vb, h2_ob, p1_vb, h1_ob) * t2_abab(p1_va, p1_vb, h2_oa, h2_ob))
     sch(i0_abab(p2_va, p1_vb, h2_oa, h1_ob), "+=", _a020_sp(p1_vb, h1_oa, p1_va, h1_ob) * t2_aaaa(p2_va, p1_va, h2_oa, h1_oa))
     sch(i0_abab(p1_va, p1_vb, h2_oa, h1_ob), "+=", _a020_sp(p1_vb, h1_oa, p2_vb, h2_oa) * t2_abab(p1_va, p2_vb, h1_oa, h1_ob))
+    exact_copy(sch, i0_temp(p1_vb, p1_va, h2_ob, h1_oa), i0_abab(p1_va, p1_vb, h2_oa, h1_ob), True)
     sch(i0_abab(p1_va, p1_vb, h2_oa, h1_ob), "+=", i0_temp(p1_vb, p1_va, h1_ob, h2_oa))
     sch(i0_abab(p1_va, p1_vb, h1_oa, h2_ob), "+=", _a017_sp(p1_va, h1_oa, cind) * _a017_sp(p1_vb, h2_ob, cind))
-    sch(_a022_sp(p1_va, p2_vb, p2_va, p1_vb), "=", _a021_sp(p1_va, p2_va, cind) * _a021_sp(p2_vb, p1_vb, cind))
-    sch(i0_abab(p1_va, p2_vb, h1_oa, h2_ob), "+=", 4.0 * _a022_sp(p1_va, p2_vb, p2_va, p1_vb) * t2_abab(p2_va, p1_vb, h1_oa, h2_ob))
+    # V^4 term: stored in _a022_sp when main allocated it (store_v4), otherwise a lazy tensor whose
+    # blocks are computed from _a021_sp whenever the contraction below reads them.
+    if a22_abab is not None:
+        sch(_a022_sp(p1_va, p2_vb, p2_va, p1_vb), "=", _a021_sp(p1_va, p2_va, cind) * _a021_sp(p2_vb, p1_vb, cind))
+    else:
+        a22_abab = tamm.TensorDouble.lazy(
+            sch.ec(), [p1_va, p2_vb, p2_va, p1_vb], 1.0 * _a021_sp(p1_va, p2_va, cind) * _a021_sp(p2_vb, p1_vb, cind)
+        )
+    sch(i0_abab(p1_va, p2_vb, h1_oa, h2_ob), "+=", 4.0 * a22_abab(p1_va, p2_vb, p2_va, p1_vb) * t2_abab(p2_va, p1_vb, h1_oa, h2_ob))
     sch(_a019_sp(h2_oa, h1_ob, h1_oa, h2_ob), "+=", 0.25 * _a004_sp(p1_va, p2_vb, h2_oa, h1_ob) * t2_abab(p1_va, p2_vb, h1_oa, h2_ob))
     sch(i0_abab(p1_va, p1_vb, h1_oa, h2_ob), "+=", 4.0 * _a019_sp(h2_oa, h1_ob, h1_oa, h2_ob) * t2_abab(p1_va, p1_vb, h2_oa, h1_ob))
     sch(i0_abab(p1_va, p1_vb, h1_oa, h2_ob), "+=", -1.0 * t2_abab(p1_va, p2_vb, h1_oa, h2_ob) * _a001_sp(p1_vb, p2_vb))
@@ -383,7 +400,7 @@ def main(argv=None):
     global _a01V, _a02V, _a007V
     global _a01_sp, _a02_sp, _a03_sp, _a04_sp, _a05_sp, _a06_sp
     global _a001_sp, _a004_sp, _a006_sp, _a008_sp, _a009_sp, _a017_sp
-    global _a019_sp, _a020_sp, _a021_sp, _a022_sp
+    global _a019_sp, _a020_sp, _a021_sp, _a022_sp, a22_abab
     global i0_temp, t2_aaaa_temp
 
     if argv is None:
@@ -393,12 +410,13 @@ def main(argv=None):
 
     try:
         if len(argv) < 5:
-            raise RuntimeError("Please provide occ_alpha, virt_alpha, cholesky-count and tile size")
+            raise RuntimeError("Please provide occ_alpha, virt_alpha, cholesky-count, tile size and optionally store_v4 (> 0 stores the V^4 intermediate, default 0 computes it lazily)")
 
         n_occ_alpha = atoi_cpp(argv[1])
         n_vir_alpha = atoi_cpp(argv[2])
         chol_count = atoi_cpp(argv[3])
         tile_size = atoi_cpp(argv[4])
+        store_v4 = len(argv) > 5 and atoi_cpp(argv[5]) > 0
 
         nbf = n_occ_alpha + n_vir_alpha
 
@@ -525,7 +543,8 @@ def main(argv=None):
         _a017_sp = tamm.TensorDouble([MO, MO, CI], [[p1_va, h3_oa, cind], [p1_vb, h3_ob, cind]])
         _a021_sp = tamm.TensorDouble([MO, MO, CI], [[p1_va, p2_va, cind], [p1_vb, p2_vb, cind]])
         _a019_sp = tamm.TensorDouble([MO, MO, MO, MO], [[h3_oa, h3_ob, h4_oa, h4_ob]])
-        _a022_sp = tamm.TensorDouble([MO, MO, MO, MO], [[p1_va, p1_vb, p2_va, p2_vb]])
+        if store_v4:
+            _a022_sp = tamm.TensorDouble([MO, MO, MO, MO], [[p1_va, p1_vb, p2_va, p2_vb]])
 
         _a020_sp = tamm.TensorDouble(
             [MO, MO, MO, MO],
@@ -556,8 +575,10 @@ def main(argv=None):
             _a019_sp,
             _a020_sp,
             _a021_sp,
-            _a022_sp,
         )
+        if store_v4:
+            sch.allocate(_a022_sp)
+            a22_abab = _a022_sp
         sch.execute()
 
         tamm.random_ip(f1(h3_oa, h4_oa))
@@ -567,6 +588,8 @@ def main(argv=None):
         tamm.random_ip(chol3d(h3_oa, h4_oa, cind))
         tamm.random_ip(chol3d(h3_oa, p2_va, cind))
         tamm.random_ip(chol3d(p1_va, p2_va, cind))
+        tamm.random_ip(t1_aa, 107)
+        tamm.random_ip(t2_abab, 108)
 
         sch(
             _a004_sp(p1_va, p2_va, h4_oa, h3_oa),
@@ -623,8 +646,9 @@ def main(argv=None):
             _a019_sp,
             _a020_sp,
             _a021_sp,
-            _a022_sp,
         )
+        if store_v4:
+            sch.deallocate(_a022_sp)
         sch.deallocate(d_e, i0_temp, t2_aaaa_temp, _a01V)
         sch.deallocate(_a02_sp, _a03_sp)
         sch.deallocate(f1, chol3d)

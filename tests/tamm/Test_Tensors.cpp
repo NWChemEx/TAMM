@@ -1768,6 +1768,7 @@ int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);
 
   doctest::Context context(argc, argv);
+  if(ProcGroup::world_rank() != 0) context.setOption("minimal", true);
 
   int res = context.run();
 

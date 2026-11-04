@@ -60,6 +60,7 @@ def sop(sch, lhs, op, rhs, opstr=None):
 # Globals matching the C++ test globals.
 # -----------------------------------------------------------------------------
 _a021 = None
+_a022 = None
 a22_abab = None
 
 o_alpha = None
@@ -392,7 +393,7 @@ def ccsd_t1_cs(sch, MO, CI, i0_aa, t1_aa, t2_abab, f1_se, chol3d_se):
 # ccsd_t2_cs
 # -----------------------------------------------------------------------------
 def ccsd_t2_cs(sch, MO, CI, i0_abab, t1_aa, t2_abab, t2_aaaa, f1_se, chol3d_se):
-    global a22_abab
+    global a22_abab, _a022
     global _a001, _a004, _a006, _a007V, _a008, _a009
     global _a017, _a019, _a020, _a021
     global i0_temp
@@ -413,11 +414,6 @@ def ccsd_t2_cs(sch, MO, CI, i0_abab, t1_aa, t2_abab, t2_aaaa, f1_se, chol3d_se):
     chol3d_oo = chol3d_se[0]
     chol3d_ov = chol3d_se[1]
     chol3d_vv = chol3d_se[2]
-
-    # The binding layer does not expose the custom AddBuf/kernel-backed callback
-    # used in the C++ test, so materialize this intermediate as a normal tensor.
-    a22_abab = tamm.TensorDouble([v_alpha, v_beta, v_alpha, v_beta])
-    sch.allocate(a22_abab)
 
     sop(
         sch,
@@ -693,15 +689,25 @@ def ccsd_t2_cs(sch, MO, CI, i0_abab, t1_aa, t2_abab, t2_aaaa, f1_se, chol3d_se):
         * _a017("bb")(p1_vb, h2_ob, cind),
     )
 
-    # Materialized replacement for the callback-backed a22_abab.
-    sop(
-        sch,
-        a22_abab(p1_va, p2_vb, p2_va, p1_vb),
-        "=",
-        1.0
-        * _a021("aa")(p1_va, p2_va, cind)
-        * _a021("bb")(p2_vb, p1_vb, cind),
-    )
+    # V^4 term: stored in _a022 when main allocated it (store_v4), otherwise a lazy tensor whose
+    # blocks are computed from _a021 whenever the contraction below reads them.
+    if a22_abab is not None:
+        sop(
+            sch,
+            _a022("abab")(p1_va, p2_vb, p2_va, p1_vb),
+            "=",
+            1.0
+            * _a021("aa")(p1_va, p2_va, cind)
+            * _a021("bb")(p2_vb, p1_vb, cind),
+        )
+    else:
+        a22_abab = tamm.TensorDouble.lazy(
+            sch.ec(),
+            [p1_va, p2_vb, p2_va, p1_vb],
+            1.0
+            * _a021("aa")(p1_va, p2_va, cind)
+            * _a021("bb")(p2_vb, p1_vb, cind),
+        )
 
     sop(
         sch,
@@ -763,7 +769,7 @@ def ccsd_t2_cs(sch, MO, CI, i0_abab, t1_aa, t2_abab, t2_aaaa, f1_se, chol3d_se):
 # main
 # -----------------------------------------------------------------------------
 def main(argv):
-    global _a021, a22_abab
+    global _a021, _a022, a22_abab
     global o_alpha, v_alpha, o_beta, v_beta
     global _a01V, _a02V, _a007V
     global _a01, _a02, _a03, _a04, _a05, _a06
@@ -774,12 +780,13 @@ def main(argv):
 
     if len(argv) < 5:
         tamm.finalize()
-        raise SystemExit("Please provide occ_alpha, virt_alpha, cholesky-count and tile size")
+        raise SystemExit("Please provide occ_alpha, virt_alpha, cholesky-count, tile size and optionally store_v4 (> 0 stores the V^4 intermediate, default 0 computes it lazily)")
 
     n_occ_alpha = int(argv[1])
     n_vir_alpha = int(argv[2])
     chol_count = int(argv[3])
     tile_size = int(argv[4])
+    store_v4 = len(argv) > 5 and int(argv[5]) > 0
 
     nbf = n_occ_alpha + n_vir_alpha
 
@@ -923,6 +930,8 @@ def main(argv):
     _a009 = CCSE_Tensors(MO, [O, O, CI], "_a009", ["aa", "bb"])
     _a017 = CCSE_Tensors(MO, [V, O, CI], "_a017", ["aa", "bb"])
     _a021 = CCSE_Tensors(MO, [V, V, CI], "_a021", ["aa", "bb"])
+    if store_v4:
+        _a022 = CCSE_Tensors(MO, [V, V, V, V], "_a022", ["abab"])
     _a019 = CCSE_Tensors(MO, [O, O, O, O], "_a019", ["abab"])
     _a020 = CCSE_Tensors(MO, [V, O, V, O], "_a020", ["aaaa", "baba", "baab", "bbbb"])
 
@@ -961,6 +970,10 @@ def main(argv):
         _a021,
     )
 
+    if store_v4:
+        CCSE_Tensors.allocate_list(sch, _a022)
+        a22_abab = _a022("abab")
+
     sch.execute()
 
     tamm.random_ip(f1_oo("aa"))
@@ -969,6 +982,8 @@ def main(argv):
     tamm.random_ip(chol3d_oo("aa"))
     tamm.random_ip(chol3d_ov("aa"))
     tamm.random_ip(chol3d_vv("aa"))
+    tamm.random_ip(t1_aa, 107)
+    tamm.random_ip(t2_abab, 108)
 
     sop(
         sch,
@@ -1043,8 +1058,8 @@ def main(argv):
         _a021,
     )
 
-    if a22_abab is not None:
-        sch.deallocate(a22_abab)
+    if store_v4:
+        CCSE_Tensors.deallocate_list(sch, _a022)
 
     sch.deallocate(d_e, i0_temp, t2_aaaa_temp, _a01V)
 

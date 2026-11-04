@@ -213,14 +213,18 @@ def dlpno_test(sch):
     lhs_lt = dT2_out("a_ij", "b_ij", "ij")
     lhs_ltop = tamm.LTOp(lhs_lt)
 
-    print("Print original binarized op")
-    op_cost.print_op_binarized(lhs_ltop, dlpno_doubles_12.clone())
+    root = sch.ec().print()
+
+    if root:
+        print("Print original binarized op")
+        op_cost.print_op_binarized(lhs_ltop, dlpno_doubles_12.clone())
 
     original_op_cost = op_cost.get_op_cost(
         dlpno_doubles_12.clone(),
         lhs_lt,
     )
-    print(f"Original op cost: {original_op_cost}")
+    if root:
+        print(f"Original op cost: {original_op_cost}")
 
     opmin = tamm.OpMin(symbol_table)
 
@@ -229,17 +233,19 @@ def dlpno_test(sch):
         dlpno_doubles_12,
     )
 
-    print("Print opmined binarized op")
-    op_cost.print_op_binarized(
-        tamm.LTOp(dT2_out("a_ij", "b_ij", "ij")),
-        optimized_dlpno_doubles_12,
-    )
+    if root:
+        print("Print opmined binarized op")
+        op_cost.print_op_binarized(
+            tamm.LTOp(dT2_out("a_ij", "b_ij", "ij")),
+            optimized_dlpno_doubles_12,
+        )
 
     opmined_op_cost = op_cost.get_op_cost(
         optimized_dlpno_doubles_12.clone(),
         dT2_out("a_ij", "b_ij", "ij"),
     )
-    print(f"Opmined op cost: {opmined_op_cost}")
+    if root:
+        print(f"Opmined op cost: {opmined_op_cost}")
 
 
 def main():

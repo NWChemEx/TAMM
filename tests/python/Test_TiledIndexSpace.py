@@ -1,6 +1,18 @@
 import pytamm as pt
 
 
+def rank0():
+    try:
+        return int(pt.ProcGroup.world_rank()) == 0
+    except Exception:
+        return True
+
+
+def rprint(*args, **kwargs):
+    if rank0():
+        print(*args, **kwargs)
+
+
 def tile_values(tis, tile_id):
     """
     The current Python binding exposes block_begin(i) and block_end(i) as
@@ -28,21 +40,21 @@ def print_dependency(tis, name=""):
     If unavailable, this just reports that dependency printing is skipped.
     """
     if name:
-        print(name)
+        rprint(name)
 
     if not hasattr(tis, "tiled_dep_map"):
-        print("Dependency Map: <tiled_dep_map not bound>")
+        rprint("Dependency Map: <tiled_dep_map not bound>")
         return
 
     dep_map = tis.tiled_dep_map()
-    print("Dependency Map")
+    rprint("Dependency Map")
 
     for key, subtis in dep_map.items():
         try:
             ref = list(subtis.ref_indices())
         except AttributeError:
             ref = "<ref_indices not bound>"
-        print(f"{tuple(key)} -> {ref}")
+        rprint(f"{tuple(key)} -> {ref}")
 
 
 def test_tiled_index_space_construction():
@@ -346,22 +358,22 @@ def test_tiled_index_space_operations():
     print_dependency(project_test_tis, "project_test_tis")
 
     project_MO_Q = pt.project_tis(tSubAO_AO_Q, MOs)
-    print("project_MO_Q")
+    rprint("project_MO_Q")
     if hasattr(project_MO_Q, "ref_indices"):
-        print(list(project_MO_Q.ref_indices()))
+        rprint(list(project_MO_Q.ref_indices()))
     else:
-        print("<ref_indices not bound>")
+        rprint("<ref_indices not bound>")
 
     tis_1 = pt.TiledIndexSpace(AOs, [1, 2, 5])
     tis_2 = pt.TiledIndexSpace(AOs, [2, 3, 6])
 
     u_tis12 = pt.union_tis(tis_1, tis_2)
 
-    print("u_tis12")
+    rprint("u_tis12")
     if hasattr(u_tis12, "ref_indices"):
-        print(list(u_tis12.ref_indices()))
+        rprint(list(u_tis12.ref_indices()))
     else:
-        print("<ref_indices not bound>")
+        rprint("<ref_indices not bound>")
 
 
 def main():

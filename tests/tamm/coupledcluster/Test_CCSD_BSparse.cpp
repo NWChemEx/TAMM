@@ -1,4 +1,7 @@
 #include "ccse_tensors.hpp"
+#include <bit>
+#include <cmath>
+#include <cstdint>
 #include <tamm/tamm_config.hpp>
 #include <tamm/tamm_git.hpp>
 
@@ -10,6 +13,8 @@ Tensor<CCEType> _a01V_sp, _a02V_sp, _a007V_sp;
 
 Tensor<CCEType> _a01_sp, _a02_sp, _a03_sp, _a04_sp, _a05_sp, _a06_sp, _a001_sp, _a004_sp, _a006_sp,
   _a008_sp, _a009_sp, _a017_sp, _a019_sp, _a020_sp, _a021_sp, _a022_sp;
+
+Tensor<CCEType> a22_abab;
 
 Tensor<CCEType> i0_temp, t2_aaaa_temp; // CS only
 
@@ -237,8 +242,8 @@ void ccsd_t2_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace
     "_a008_sp(h2_oa, h1_oa, cind)         =  1.0  * _a009_sp(h2_oa, h1_oa, cind)")
     (_a009_sp(h2_oa, h1_oa, cind)        +=  1.0  * chol3d(h2_oa, h1_oa, cind),
     "_a009_sp(h2_oa, h1_oa, cind)        +=  1.0  * chol3d(h2_oa, h1_oa, cind)")
-    // .exact_copy(_a009_sp(h2_ob,h1_ob,cind),_a009_sp(h2_ob,h1_ob,cind))
-    // .exact_copy(_a021_sp(p2_vb,p1_vb,cind),_a021_sp(p2_vb,p1_vb,cind))
+    .exact_copy(_a009_sp(h2_ob,h1_ob,cind),_a009_sp(h2_oa,h1_oa,cind),true)
+    .exact_copy(_a021_sp(p2_vb,p1_vb,cind),_a021_sp(p2_va,p1_va,cind),true)
     (_a001_sp(p1_va, p2_va)               = -2.0  * _a021_sp(p1_va, p2_va, cind) * _a007V(cind),
     "_a001_sp(p1_va, p2_va)               = -2.0  * _a021_sp(p1_va, p2_va, cind) * _a007V(cind)")
     (_a001_sp(p1_va, p2_va)              += -1.0  * _a017_sp(p1_va, h2_oa, cind) * chol3d(h2_oa, p2_va, cind),
@@ -251,7 +256,7 @@ void ccsd_t2_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace
     "_a019_sp(h2_oa, h1_ob, h1_oa, h2_ob)  =  0.25 * _a009_sp(h2_oa, h1_oa, cind) * _a009_sp(h1_ob, h2_ob, cind)")
     (_a020_sp(p2_va, h2_oa, p1_va, h1_oa)  = -2.0  * _a009_sp(h2_oa, h1_oa, cind) * _a021_sp(p2_va, p1_va, cind),
     "_a020_sp(p2_va, h2_oa, p1_va, h1_oa)  = -2.0  * _a009_sp(h2_oa, h1_oa, cind) * _a021_sp(p2_va, p1_va, cind)")
-    // .exact_copy(_a020_sp(p2_vb, h2_oa, p1_vb, h1_oa),_a020_sp(p2_vb, h2_oa, p1_vb, h1_oa))
+    .exact_copy(_a020_sp(p2_vb, h2_oa, p1_vb, h1_oa),_a020_sp(p2_va, h2_oa, p1_va, h1_oa),true)
     (_a020_sp(p1_va, h3_oa, p3_va, h2_oa) +=  0.5  * _a004_sp(p2_va, p3_va, h3_oa, h1_oa) * t2_aaaa(p1_va,p2_va,h1_oa,h2_oa),
     "_a020_sp(p1_va, h3_oa, p3_va, h2_oa) +=  0.5  * _a004_sp(p2_va, p3_va, h3_oa, h1_oa) * t2_aaaa(p1_va,p2_va,h1_oa,h2_oa)")
     (_a020_sp(p1_vb, h2_oa, p1_va, h2_ob)  = -0.5  * _a004_sp(p2_va, p1_va, h2_oa, h1_oa) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob),
@@ -270,11 +275,11 @@ void ccsd_t2_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace
     "_a006_sp(h2_oa, h1_oa)                 +=  1.0  * f1(h2_oa, h1_oa)")
     (_a006_sp(h2_oa, h1_oa)                 +=  1.0  * t1_aa(p1_va, h1_oa) * f1(h2_oa, p1_va),
     "_a006_sp(h2_oa, h1_oa)                 +=  1.0  * t1_aa(p1_va, h1_oa) * f1(h2_oa, p1_va)")
-    // .exact_copy(_a017_sp(p1_vb, h1_ob, cind), _a017_sp(p1_vb, h1_ob, cind))
-    // .exact_copy(_a006_sp(h1_ob, h2_ob), _a006_sp(h1_ob, h2_ob))
-    // .exact_copy(_a001_sp(p1_vb, p2_vb), _a001_sp(p1_vb, p2_vb))
-    // .exact_copy(_a021_sp(p1_vb, p2_vb, cind), _a021_sp(p1_vb, p2_vb, cind))
-    // .exact_copy(_a020_sp(p1_vb, h1_ob, p2_vb, h2_ob), _a020_sp(p1_vb, h1_ob, p2_vb, h2_ob))
+    .exact_copy(_a017_sp(p1_vb, h1_ob, cind), _a017_sp(p1_va, h1_oa, cind), true)
+    .exact_copy(_a006_sp(h1_ob, h2_ob), _a006_sp(h1_oa, h2_oa), true)
+    .exact_copy(_a001_sp(p1_vb, p2_vb), _a001_sp(p1_va, p2_va), true)
+    .exact_copy(_a021_sp(p1_vb, p2_vb, cind), _a021_sp(p1_va, p2_va, cind), true)
+    .exact_copy(_a020_sp(p1_vb, h1_ob, p2_vb, h2_ob), _a020_sp(p1_va, h1_oa, p2_va, h2_oa), true)
 
     (i0_abab(p1_va, p2_vb, h2_oa, h1_ob)          =  1.0  * _a020_sp(p2_vb, h2_ob, p1_vb, h1_ob) * t2_abab(p1_va, p1_vb, h2_oa, h2_ob),
     "i0_abab(p1_va, p2_vb, h2_oa, h1_ob)          =  1.0  * _a020_sp2_vb, h2_ob, p1_vb, h1_ob) * t2_abab(p1_va, p1_vb, h2_oa, h2_ob)")
@@ -282,15 +287,27 @@ void ccsd_t2_cs(Scheduler& sch, const TiledIndexSpace& MO, const TiledIndexSpace
     "i0_abab(p2_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020_sp1_vb, h1_oa, p1_va, h1_ob) * t2_aaaa(p2_va, p1_va, h2_oa, h1_oa)")
     (i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020_sp(p1_vb, h1_oa, p2_vb, h2_oa) * t2_abab(p1_va, p2_vb, h1_oa, h1_ob),
     "i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * _a020_sp1_vb, h1_oa, p2_vb, h2_oa) * t2_abab(p1_va, p2_vb, h1_oa, h1_ob)")
-    // .exact_copy(i0_temp(p1_vb,p1_va,h2_ob,h1_oa),i0_abab(p1_vb,p1_va,h2_ob,h1_oa))
+    .exact_copy(i0_temp(p1_vb,p1_va,h2_ob,h1_oa),i0_abab(p1_va,p1_vb,h2_oa,h1_ob),true)
     (i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * i0_temp(p1_vb, p1_va, h1_ob, h2_oa),
     "i0_abab(p1_va, p1_vb, h2_oa, h1_ob)         +=  1.0  * i0_temp(p1_vb, p1_va, h1_ob, h2_oa)")
     (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  1.0  * _a017_sp(p1_va, h1_oa, cind) * _a017_sp(p1_vb, h2_ob, cind),
     "i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  1.0  * _a017_sp(p1_va, h1_oa, cind) * _a017_sp(p1_vb, h2_ob, cind)")
-    (_a022_sp(p1_va,p2_vb,p2_va,p1_vb)       =  1.0  * _a021_sp(p1_va,p2_va,cind) * _a021_sp(p2_vb,p1_vb,cind),
-    "_a022_sp(p1_va,p2_vb,p2_va,p1_vb)       =  1.0  * _a021_sp(p1_va,p2_va,cind) * _a021_sp(p2_vb,p1_vb,cind)")
-    (i0_abab(p1_va, p2_vb, h1_oa, h2_ob)         +=  4.0  * _a022_sp(p1_va, p2_vb, p2_va, p1_vb) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob),
-    "i0_abab(p1_va, p2_vb, h1_oa, h2_ob)         +=  4.0  * _a022_sp(p1_va, p2_vb, p2_va, p1_vb) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob)")
+    ;
+
+    // V^4 term: stored in _a022_sp when main allocated it (store_v4), otherwise a lazy tensor whose
+    // blocks are computed from _a021_sp whenever the contraction below reads them.
+    if(a22_abab.is_allocated()) {
+      sch(_a022_sp(p1_va,p2_vb,p2_va,p1_vb)       =  1.0  * _a021_sp(p1_va,p2_va,cind) * _a021_sp(p2_vb,p1_vb,cind),
+      "_a022_sp(p1_va,p2_vb,p2_va,p1_vb)          =  1.0  * _a021_sp(p1_va,p2_va,cind) * _a021_sp(p2_vb,p1_vb,cind)");
+    }
+    else {
+      a22_abab = Tensor<T>::lazy(sch.ec(), {p1_va, p2_vb, p2_va, p1_vb},
+                                 1.0 * _a021_sp(p1_va, p2_va, cind) * _a021_sp(p2_vb, p1_vb, cind));
+    }
+
+    sch
+    (i0_abab(p1_va, p2_vb, h1_oa, h2_ob)         +=  4.0  * a22_abab(p1_va, p2_vb, p2_va, p1_vb) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob),
+    "i0_abab(p1_va, p2_vb, h1_oa, h2_ob)         +=  4.0  * a22_abab(p1_va, p2_vb, p2_va, p1_vb) * t2_abab(p2_va,p1_vb,h1_oa,h2_ob)")
     (_a019_sp(h2_oa, h1_ob, h1_oa, h2_ob)   +=  0.25 * _a004_sp(p1_va, p2_vb, h2_oa, h1_ob) * t2_abab(p1_va,p2_vb,h1_oa,h2_ob),
     "_a019_sp(h2_oa, h1_ob, h1_oa, h2_ob)   +=  0.25 * _a004_sp(p1_va, p2_vb, h2_oa, h1_ob) * t2_abab(p1_va,p2_vb,h1_oa,h2_ob)")
     (i0_abab(p1_va, p1_vb, h1_oa, h2_ob)         +=  4.0  * _a019_sp(h2_oa, h1_ob, h1_oa, h2_ob) * t2_abab(p1_va, p1_vb, h2_oa, h1_ob),
@@ -313,13 +330,15 @@ int main(int argc, char* argv[]) {
   tamm::initialize(argc, argv);
 
   if(argc < 5) {
-    tamm_terminate("Please provide occ_alpha, virt_alpha, cholesky-count and tile size");
+    tamm_terminate("Please provide occ_alpha, virt_alpha, cholesky-count, tile size and optionally "
+                   "store_v4 (> 0 stores the V^4 intermediate, default 0 computes it lazily)");
   }
 
-  size_t n_occ_alpha = atoi(argv[1]);
-  size_t n_vir_alpha = atoi(argv[2]);
-  size_t chol_count  = atoi(argv[3]);
-  Tile   tile_size   = atoi(argv[4]);
+  size_t     n_occ_alpha = atoi(argv[1]);
+  size_t     n_vir_alpha = atoi(argv[2]);
+  size_t     chol_count  = atoi(argv[3]);
+  Tile       tile_size   = atoi(argv[4]);
+  const bool store_v4    = (argc > 5) && (atoi(argv[5]) > 0);
 
   const auto nbf = n_occ_alpha + n_vir_alpha;
 
@@ -515,7 +534,7 @@ int main(int argc, char* argv[]) {
   _a021_sp = Tensor<T>{{MO, MO, CI}, {{p1_va, p2_va, cind}, {p1_vb, p2_vb, cind}}};
 
   _a019_sp = Tensor<T>{{MO, MO, MO, MO}, {{h3_oa, h3_ob, h4_oa, h4_ob}}};
-  _a022_sp = Tensor<T>{{MO, MO, MO, MO}, {{p1_va, p1_vb, p2_va, p2_vb}}};
+  if(store_v4) _a022_sp = Tensor<T>{{MO, MO, MO, MO}, {{p1_va, p1_vb, p2_va, p2_vb}}};
   _a020_sp = Tensor<T>{{MO, MO, MO, MO},
                        {{p1_va, h3_oa, p2_va, h4_oa},
                         {p1_vb, h3_oa, p2_vb, h4_oa},
@@ -530,7 +549,11 @@ int main(int argc, char* argv[]) {
   // allocate all intermediates
   sch.allocate(_a02V, _a007V);
   sch.allocate(_a004_sp, _a01_sp, _a04_sp, _a05_sp, _a06_sp, _a001_sp, _a006_sp, _a008_sp, _a009_sp,
-               _a017_sp, _a019_sp, _a020_sp, _a021_sp, _a022_sp);
+               _a017_sp, _a019_sp, _a020_sp, _a021_sp);
+  if(store_v4) {
+    sch.allocate(_a022_sp);
+    a22_abab = _a022_sp;
+  }
   sch.execute();
 
   tamm::random_ip(f1(h3_oa, h4_oa));
@@ -539,6 +562,8 @@ int main(int argc, char* argv[]) {
   tamm::random_ip(chol3d(h3_oa, h4_oa, cind));
   tamm::random_ip(chol3d(h3_oa, p2_va, cind));
   tamm::random_ip(chol3d(p1_va, p2_va, cind));
+  tamm::random_ip(t1_aa, 107u);
+  tamm::random_ip(t2_abab, 108u);
 
   // clang-format off
   sch
@@ -564,6 +589,31 @@ int main(int argc, char* argv[]) {
 
   if(ec.print()) std::cout << "Time taken for closed-shell CD-CCSD: " << iter_time << std::endl;
 
+  // Sanity gate on the computed residual: with reproducible (fixed-seed) random
+  // inputs the residual and energy must be finite and non-trivial.  A
+  // contraction/scheduler regression that produces NaN/Inf or an all-zero
+  // residual (e.g. a dropped accumulate) is caught here.  This is a robustness
+  // check, not a physical-energy reference (the integrals are synthetic).
+  {
+    const double r1n = std::abs(tamm::norm(r1_aa));
+    const double r2n = std::abs(tamm::norm(r2_abab));
+    T            de_val{};
+    d_e.get({}, {&de_val, 1});
+    const double den = std::abs(de_val);
+    // -ffast-math/-fp-model fast assumes no NaN/Inf, so std::isfinite() is elided to a
+    // no-op (and warns).  Test the IEEE-754 bit pattern directly instead: exponent field
+    // all-ones (0x7ff) means Inf or NaN.  This survives fast-math and actually catches it.
+    auto finite_bits = [](double x) {
+      return (std::bit_cast<std::uint64_t>(x) & 0x7ff0000000000000ULL) != 0x7ff0000000000000ULL;
+    };
+    EXPECTS(finite_bits(r1n) && finite_bits(r2n) && finite_bits(den));
+    EXPECTS(r1n > 0.0 && r2n > 0.0);
+    if(ec.print()) {
+      std::cout << "CCSD residual sanity: |r1|=" << r1n << " |r2|=" << r2n << " |E|=" << den
+                << std::endl;
+    }
+  }
+
   if(profile && ec.print()) {
     std::string profile_csv = "ccsd_profile_" + std::to_string(nbf) + "bf_" +
                               std::to_string(n_occ_alpha) + "oa_" + std::to_string(n_vir_alpha) +
@@ -585,7 +635,8 @@ int main(int argc, char* argv[]) {
   // deallocate all intermediates
   sch.deallocate(_a02V, _a007V);
   sch.deallocate(_a004_sp, _a01_sp, _a04_sp, _a05_sp, _a06_sp, _a001_sp, _a006_sp, _a008_sp,
-                 _a009_sp, _a017_sp, _a019_sp, _a020_sp, _a021_sp, _a022_sp);
+                 _a009_sp, _a017_sp, _a019_sp, _a020_sp, _a021_sp);
+  if(store_v4) sch.deallocate(_a022_sp);
 
   sch.deallocate(d_e, i0_temp, t2_aaaa_temp, _a01V);
   sch.deallocate(_a02_sp, _a03_sp);
